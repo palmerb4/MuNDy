@@ -31,6 +31,7 @@
 #include <random>                                    // for rand
 #include <memory>                                    // for shared_ptr
 #include <string>                                    // for string
+#include <type_traits>                               // for static_assert
 #include <stk_math/StkVector.hpp>                    // for Vec
 #include <stk_mesh/base/BulkData.hpp>                // for BulkData
 #include <stk_mesh/base/MetaData.hpp>                // for MetaData
@@ -151,7 +152,7 @@ class GroupOfEntities {
   void generate_new_entities_in_group(const size_t num_new_entities, const bool generate_and_attach_nodes = true);
   //@}
 
- protected:
+ private:
   //! \name Mesh information
   //@{
 
@@ -169,7 +170,6 @@ class GroupOfEntities {
   FlagFieldType_ &new_entity_flag_field_;
   //@}
 
- private:
   //! \name Typedefs
   //@{
 
@@ -178,13 +178,103 @@ class GroupOfEntities {
   //@}
 }
 
+//! \name template implementations
+//@{
+
+// Constructors and destructor
+//{
+template <stk::topology GroupTopology, typename Scalar>
+GroupOfEntities<GroupTopology, Scalar>::GroupOfEntities(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
+                                                        const std::string &group_name)
+    : bulk_data_ptr_(bulk_data_ptr),
+      group_part_(bulk_data_ptr_->mesh_meta_data().declare_part_with_topology(group_name, GroupTopology)),
+      new_entity_flag_field_(
+          bulk_data_ptr_->mesh_meta_data().declare_field<bool>(stk::topology::NODE_RANK, "new_entity_flag")) {
+  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
+
+  // enable io for the group part
+  stk::io::put_io_part_attribute(group_part_);
+
+  // put the default fields on the group
+  stk::mesh::put_field_on_mesh(new_entity_flag_field_, group_part_, 1, nullptr);
+}
+//}
+
+// Attributes
+//{
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_group_part() {
+  return group_part_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_new_entity_flag_field() {
+  return new_entity_flag_field_;
+}
+//}
+
+// Pre-commit setup routines
+//{
+template <stk::topology GroupTopology, typename Scalar>
+template <stk::topology SubGroupTopology, typename SubGroupScalar>
+void GroupOfEntities<GroupTopology, Scalar>::declare_subgroup(
+    const GroupOfEntities<SubGroupTopology, SubGroupScalar> &subgroup) {
+  // declare the subgroup's part a subset of our part
+  // declare_part_subset enforces topology agreement and field compatability
+  stk::mesh::declare_part_subset(group_part_, subgroup.get_group_part());
+}
+
+template <class field_type>
+field_type &GroupOfEntities<GroupTopology, Scalar>::put_field_on_entire_group(
+    const field_type &field, const unsigned int field_dimension,
+    const typename stk::mesh::FieldTraits<field_type>::data_type *init_value) {
+  stk::mesh::put_field_on_mesh(field, group_part_, field_dimension, init_value);
+}
+//}
+
+// Post-commit modification routines
+//{
+template <stk::topology GroupTopology, typename Scalar>
+stk::mesh::Selector GroupOfEntities<GroupTopology, Scalar>::generate_new_entities_in_group(
+    const size_t num_new_entities, const bool generate_and_attach_nodes) {
+  // count the number of entities of each rank that need requested
+  std::vector<size_t> num_requests_per_rank(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
+  num_requests_per_rank[GroupTopology.rank()] += num_new_entities;
+
+  const unsigned int num_nodes_per_entity = GroupOfEntities.num_nodes();
+  const size_t num_nodes_requested = generate_and_attach_nodes ? num_new_entities * num_nodes_per_entity : 0;
+  num_requests_per_rank[stk::topology::NODE_RANK] += num_nodes_requested;
+
+  // generate the new entities
+  // For example, if num_requests_per_rank = { 0, 4,  8} then this will requests 0 entites of rank 0, 4 entites of rank
+  // 1, and 8 entites of rank 2. In this case, the result is requested_entities = {4 entites of rank 1, 8 entites of
+  // rank 2}
+  std::vector<stk::mesh::Entity> requested_entities;
+  bulk_data_ptr_->generate_new_entities(num_requests_per_rank, requested_entities);
+
+  // associate each entity with a single part
+  // change_entity_parts expects a vector of pointers to parts
+  std::vector<stk::mesh::Part *> part_vector{&group_part_};
+
+  // set topologies and downward relations of new entities
+  for (int i = 0; i < num_particles_local; i++) {
+    // the elements should be associated with a topology before they are connected to their nodes/edges
+    stk::mesh::Entity entity_i = requested_entities[num_nodes_requested + i];
+    bulk_data_ptr_->change_entity_parts(entity_i, part_vector);
+
+    if (generate_and_attach_nodes) {
+      // attach each node
+      for (int j = 0; j < GroupOfEntities.num_nodes(); j++) {
+        bulk_data_ptr_->declare_relation(entity_i, requested_entities[i * num_nodes_per_entity + j], j);
+      }
+    }
+  }
+}
+//}
+
 }  // namespace core
 
 }  // namespace mundy
-
-//! \name template implementations
-//@{
-#include <GroupOfEntities.tpp>
 
 //}
 #endif  // MUNDY_CORE_GROUPOFENTITIES_HPP_

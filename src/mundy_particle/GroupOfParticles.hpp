@@ -31,6 +31,7 @@
 #include <random>                                    // for rand
 #include <memory>                                    // for shared_ptr
 #include <string>                                    // for string
+#include <type_traits>                               // for static_assert
 #include <stk_math/StkVector.hpp>                    // for Vec
 #include <stk_mesh/base/BulkData.hpp>                // for BulkData
 #include <stk_mesh/base/MetaData.hpp>                // for MetaData
@@ -101,10 +102,9 @@ class GroupOfParticles : public GroupOfEntities<ParticleTopology, Scalar> {
 
   /// \brief Return a reference to the node rotational velocity field.
   FlagFieldType &get_node_rotational_velocity_field();
-
   //@}
 
- protected:
+ private:
   //! @name Default fields assigned to all group members
   //@{
 
@@ -128,7 +128,6 @@ class GroupOfParticles : public GroupOfEntities<ParticleTopology, Scalar> {
   FloatingPointFieldType_ &node_rotational_velocity_field_;
   //@}
 
- private:
   //! \name Typedefs
   //@{
 
@@ -137,7 +136,76 @@ class GroupOfParticles : public GroupOfEntities<ParticleTopology, Scalar> {
   //@}
 }
 
-}  // namespace core
+//! \name template implementations
+//@{
+
+// Constructors and destructor
+//{
+template <stk::topology GroupTopology, typename Scalar>
+GroupOfParticles<GroupTopology, Scalar>::GroupOfParticles(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
+                                                          const std::string &group_name)
+    : GroupOfEntities(bulk_data_ptr, group_name),
+      node_coord_field_(bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_coord")),
+      node_orientation_field_(
+          bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_orientation")),
+      node_force_field_(bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_force")),
+      node_torque_field_(
+          bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_torque")),
+      node_translational_velocity_field_(bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(
+          stk::topology::NODE_RANK, "node_translational_velocity")),
+      node_rotational_velocity_field_(
+          bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_rotational_velocity")),
+{
+  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
+
+  // enable io for the group part
+  stk::io::put_io_part_attribute(group_part_);
+
+  // put the default fields on the group
+  stk::mesh::put_field_on_mesh(node_coord_field_, group_part_, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_orientation_field_, group_part_, 4, nullptr);
+  stk::mesh::put_field_on_mesh(node_force_field_, group_part_, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_torque_field_, group_part_, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_translational_velocity_field_, group_part_, 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_rotational_velocity_field_, group_part_, 3, nullptr);
+}
+//}
+
+// Attributes
+//{
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfParticles<GroupTopology, Scalar>::get_node_coord_field() {
+  return node_coord_field_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfParticles<GroupTopology, Scalar>::get_node_orientation_field() {
+  return node_orientation_field_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfParticles<GroupTopology, Scalar>::get_node_force_field() {
+  return node_force_field_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfParticles<GroupTopology, Scalar>::get_node_torque_field() {
+  return node_torque_field_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfParticles<GroupTopology, Scalar>::get_node_translational_velocity_field() {
+  return node_translational_velocity_field_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+FlagFieldType &GroupOfParticles<GroupTopology, Scalar>::get_node_rotational_velocity_field() {
+  return node_rotational_velocity_field_;
+}
+//}
+
+//@}
+}  // namespace particle
 
 }  // namespace mundy
 

@@ -17,15 +17,20 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file GroupOfConstraints.tpp
-/// \brief Implementation of the methods of the GroupOfConstraints class
+#ifndef MUNDY_CORE_GROUPOFCONSTRAINTS_HPP_
+#define MUNDY_CORE_GROUPOFCONSTRAINTS_HPP_
+
+/// \file GroupOfConstraints.hpp
+/// \brief Declaration of the GroupOfConstraints class
 
 // clang-format off
+#include <gtest/gtest.h>                             // for AssertHelper, etc
 #include <mpi.h>                                     // for MPI_COMM_WORLD, etc
 #include <stddef.h>                                  // for size_t
 #include <vector>                                    // for vector, etc
 #include <random>                                    // for rand
 #include <memory>                                    // for shared_ptr
+#include <string>                                    // for string
 #include <type_traits>                               // for static_assert
 #include <stk_math/StkVector.hpp>                    // for Vec
 #include <stk_mesh/base/BulkData.hpp>                // for BulkData
@@ -48,7 +53,91 @@
 
 namespace mundy {
 
-namespace core {
+namespace constraints {
+
+/// \class GroupOfConstraints
+/// \brief A collection of constraints, their sub-groups, and their associated fields.
+///
+/// \tparam ConstraintTopology Topology assigned to each constraints.
+/// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.
+///
+/// This class <does something>
+template <stk::topology ConstraintTopology, typename Scalar = double>
+class GroupOfConstraints : public GroupOfEntities<ConstraintTopology, Scalar> {
+ public:
+  //! \name Constructors and destructor
+  //@{
+
+  /// \brief Constructor with given <tt>BulkData</tt>.
+  ///
+  /// Call this constructor if you have a larger <tt>BulkData</tt> containing multiple groups. The entities within this
+  /// group and their associated fields will be stored within the provided <tt>BulkData</tt>. In that case, a single
+  /// <tt>BulkData</tt> can be shared between each <tt>GroupOfConstraints</tt>, thereby allowing a <tt>Field</tt> or
+  /// <tt>Part</tt> to span multiple groups.
+  ///
+  /// \param bulk_data_ptr [in] Shared pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups. A copy
+  /// of this pointer is stored in this class until destruction.
+  /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
+  GroupOfConstraints(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
+  //@}
+
+  //@}
+  //! @name Attributes
+  //@{
+
+  /// \brief Return a reference to the node coordinate field.
+  FlagFieldType &get_node_coord_field();
+
+  /// \brief Return a reference to the node orientation field.
+  FlagFieldType &get_node_orientation_field();
+
+  /// \brief Return a reference to the node force field.
+  FlagFieldType &get_node_force_field();
+
+  /// \brief Return a reference to the node torque field.
+  FlagFieldType &get_new_entity_flag_field();
+
+  /// \brief Return a reference to the node translational velocity field.
+  FlagFieldType &get_node_translational_velocity_field();
+
+  /// \brief Return a reference to the node rotational velocity field.
+  FlagFieldType &get_node_rotational_velocity_field();
+  //@}
+
+ private:
+  //! @name Default fields assigned to all group members
+  //@{
+
+  /// @brief Field containing nood spatial coordinates in the form [coord_x, coord_y, coord_z].
+  FloatingPointFieldType_ &node_coord_field_;
+
+  /// @brief Field containing nood orientation, as a quaternion in the form [quat_w, quat_x, quat_y, quat_z], where w is
+  /// the scalar component and x, y, z are the vector components of the quaternion.
+  FloatingPointFieldType_ &node_orientation_field_;
+
+  /// @brief Field containing nood force in the form [force_x, force_y, force_z].
+  FloatingPointFieldType_ &node_force_field_;
+
+  /// @brief Field containing nood spatial coordinates in the form [torque_x, torque_y, torque_z].
+  FloatingPointFieldType_ &node_torque_field_;
+
+  /// @brief Field containing nood spatial coordinates in the form [trans_vel_x, trans_vel_y, trans_vel_z].
+  FloatingPointFieldType_ &node_translational_velocity_field_;
+
+  /// @brief Field containing nood spatial coordinates in the form [rot_vel_x, rot_vel_y, rot_vel_z].
+  FloatingPointFieldType_ &node_rotational_velocity_field_;
+  //@}
+
+  //! \name Typedefs
+  //@{
+
+  /// \brief This groups' floating point field type.
+  typedef std::mesh::Field<Scalar> FloatingPointFieldType_;
+  //@}
+}
+
+//! \name template implementations
+//@{
 
 // Constructors and destructor
 //{
@@ -56,18 +145,21 @@ template <stk::topology GroupTopology, typename Scalar>
 GroupOfConstraints<GroupTopology, Scalar>::GroupOfConstraints(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
                                                               const std::string &group_name)
     : GroupOfEntities(bulk_data_ptr, group_name),
-      node_coord_field_(bulk_data_ptr_->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_coord")),
+      node_coord_field_(bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_coord")),
       node_orientation_field_(
-          bulk_data_ptr_->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_orientation")),
-      node_force_field_(bulk_data_ptr_->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_force")),
+          bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_orientation")),
+      node_force_field_(bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_force")),
       node_torque_field_(
-          bulk_data_ptr_->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_torque")),
-      node_translational_velocity_field_(bulk_data_ptr_->mesh_meta_data().declare_field<Scalar>(
+          bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_torque")),
+      node_translational_velocity_field_(bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(
           stk::topology::NODE_RANK, "node_translational_velocity")),
       node_rotational_velocity_field_(
-          bulk_data_ptr_->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_rotational_velocity")),
+          bulk_data_ptr->mesh_meta_data().declare_field<Scalar>(stk::topology::NODE_RANK, "node_rotational_velocity")),
 {
   static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
+
+  // enable io for the group part
+  stk::io::put_io_part_attribute(group_part_);
 
   // put the default fields on the group
   stk::mesh::put_field_on_mesh(node_coord_field_, group_part_, 3, nullptr);
@@ -111,6 +203,11 @@ FlagFieldType &GroupOfConstraints<GroupTopology, Scalar>::get_node_rotational_ve
   return node_rotational_velocity_field_;
 }
 //}
-}  // namespace core
+
+//@}
+
+}  // namespace constraints
 
 }  // namespace mundy
+
+#endif  // MUNDY_CORE_GROUPOFCONSTRAINTS_HPP_
