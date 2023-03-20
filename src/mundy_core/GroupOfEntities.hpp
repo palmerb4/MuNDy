@@ -30,6 +30,7 @@
 #include <vector>                                    // for vector, etc
 #include <random>                                    // for rand
 #include <memory>                                    // for shared_ptr
+#include <string>                                    // for string
 #include <stk_math/StkVector.hpp>                    // for Vec
 #include <stk_mesh/base/BulkData.hpp>                // for BulkData
 #include <stk_mesh/base/MetaData.hpp>                // for MetaData
@@ -89,12 +90,16 @@ class GroupOfEntities {
   ///
   /// \param bulk_data_ptr [in] Shared pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups. A copy
   /// of this pointer is stored in this class until destruction.
-  explicit GroupOfEntities(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr);
+  /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
+  GroupOfEntities(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
   //@}
 
   //@}
   //! @name Attributes
   //@{
+
+  /// \brief Return a reference to the group's part
+  stk::mesh::Part &get_group_part();
 
   /// \brief Return a reference to the new entity flag field
   FlagFieldType &get_new_entity_flag_field();
@@ -120,9 +125,10 @@ class GroupOfEntities {
   /// \brief Declare a field that all entities of this group should have access to.
   ///
   /// \param field [in] The field to be added.
+  /// \param field_dimension [in] The dimensionality of the field.
   /// \param init_value [in] The initial value of the field.
   template <class field_type>
-  field_type &put_field_on_entire_group(const field_type &field,
+  field_type &put_field_on_entire_group(const field_type &field, const unsigned int field_dimension,
                                         const typename stk::mesh::FieldTraits<field_type>::data_type *init_value);
   //@}
 
@@ -140,10 +146,9 @@ class GroupOfEntities {
   /// \param num_new_entities [in] The number of new entities to generate.
   /// \param generate_and_attach_nodes [in] Flag specifying if the nodes of each entity should also be generated and
   /// attached. Defaults to true.
+  ///
+  /// \return A selector for all newly generted entities within this group.
   void generate_new_entities_in_group(const size_t num_new_entities, const bool generate_and_attach_nodes = true);
-
-  /// \brief Returns a selector for all new entities within this group.
-  stk::mesh::Selector get_new_entities_selector();
   //@}
 
  protected:
@@ -177,4 +182,9 @@ class GroupOfEntities {
 
 }  // namespace mundy
 
+//! \name template implementations
+//@{
+#include <GroupOfEntities.tpp>
+
+//}
 #endif  // MUNDY_CORE_GROUPOFENTITIES_HPP_

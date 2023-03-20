@@ -30,6 +30,7 @@
 #include <vector>                                    // for vector, etc
 #include <random>                                    // for rand
 #include <memory>                                    // for shared_ptr
+#include <string>                                    // for string
 #include <stk_math/StkVector.hpp>                    // for Vec
 #include <stk_mesh/base/BulkData.hpp>                // for BulkData
 #include <stk_mesh/base/MetaData.hpp>                // for MetaData
@@ -75,7 +76,8 @@ class GroupOfParticles : public GroupOfEntities<ParticleTopology, Scalar> {
   ///
   /// \param bulk_data_ptr [in] Shared pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups. A copy
   /// of this pointer is stored in this class until destruction.
-  explicit GroupOfParticles(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr);
+  /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
+  GroupOfParticles(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
   //@}
 
   //@}
@@ -92,7 +94,7 @@ class GroupOfParticles : public GroupOfEntities<ParticleTopology, Scalar> {
   FlagFieldType &get_node_force_field();
 
   /// \brief Return a reference to the node torque field.
-  FlagFieldType &get_new_entity_flag_field();
+  FlagFieldType &get_node_torque_field();
 
   /// \brief Return a reference to the node translational velocity field.
   FlagFieldType &get_node_translational_velocity_field();

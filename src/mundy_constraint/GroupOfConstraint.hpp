@@ -30,6 +30,7 @@
 #include <vector>                                    // for vector, etc
 #include <random>                                    // for rand
 #include <memory>                                    // for shared_ptr
+#include <string>                                    // for string
 #include <stk_math/StkVector.hpp>                    // for Vec
 #include <stk_mesh/base/BulkData.hpp>                // for BulkData
 #include <stk_mesh/base/MetaData.hpp>                // for MetaData
@@ -54,7 +55,7 @@ namespace mundy {
 namespace constraints {
 
 /// \class GroupOfConstraints
-/// \brief A collection of constraintss, their sub-groups, and their associated fields.
+/// \brief A collection of constraints, their sub-groups, and their associated fields.
 ///
 /// \tparam ConstraintTopology Topology assigned to each constraints.
 /// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.
@@ -75,7 +76,8 @@ class GroupOfConstraints : public GroupOfEntities<ConstraintTopology, Scalar> {
   ///
   /// \param bulk_data_ptr [in] Shared pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups. A copy
   /// of this pointer is stored in this class until destruction.
-  explicit GroupOfConstraints(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr);
+  /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
+  GroupOfConstraints(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
   //@}
 
   //@}
@@ -135,7 +137,7 @@ class GroupOfConstraints : public GroupOfEntities<ConstraintTopology, Scalar> {
   //@}
 }
 
-}  // namespace core
+}  // namespace constraints
 
 }  // namespace mundy
 
