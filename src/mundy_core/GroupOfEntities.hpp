@@ -3,6 +3,7 @@
 //
 //                                          MuNDy: Multi-body Nonlocal Dynamics
 //                                           Copyright 2023 Flatiron Institute
+//                                                 Author: Bryce Palmer
 //
 // MuNDy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
 // as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -19,8 +20,8 @@
 #ifndef MUNDY_CORE_GROUPOFENTITIES_HPP_
 #define MUNDY_CORE_GROUPOFENTITIES_HPP_
 
-/// \file Group.hpp
-/// \brief Declaration of the Group class
+/// \file GroupOfEntities.hpp
+/// \brief Declaration of the GroupOfEntities class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -56,7 +57,6 @@ namespace core {
 /// \brief A collection of entities, their sub-groups, and their associated fields.
 ///
 /// \tparam GroupTopology Topology assigned to each group member.
-///
 /// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.
 ///
 /// This class <does something>
@@ -95,6 +95,10 @@ class GroupOfEntities {
   //@}
   //! @name Attributes
   //@{
+
+  /// \brief Return a reference to the new entity flag field
+  FlagFieldType &get_new_entity_flag_field();
+  //@}
 
   //! @name Pre-commit setup routines
   //@{
@@ -143,31 +147,30 @@ class GroupOfEntities {
   //@}
 
  protected:
-  //! \name Typedefs
+  //! \name Mesh information
   //@{
-  typedef std::mesh::Field<Scalar> FloatingPointFieldType;
-  typedef std::mesh::Field<bool> FlagFieldType;
-  //@}
 
+  /// \brief This groups' shared bulk data, which contains all entities and their fields.
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr_;
 
-  //! @name Default part assigned to all group members
-  //@{
+  /// \brief Default part assigned to all group members.
   stk::mesh::Part &group_part_;
   //@}
 
   //! @name Default fields assigned to all group members
   //@{
-  //   FloatingPointFieldType &node_coord_field_;
-  //   FloatingPointFieldType &node_orientation_field_;
-  //   FloatingPointFieldType &node_force_field_;
-  //   FloatingPointFieldType &node_torque_field_;
-  //   FloatingPointFieldType &node_translational_velocity_field_;
-  //   FloatingPointFieldType &node_rotational_velocity_field_;
-  FlagFieldType &new_entity_flag_field_;
+
+  /// @brief Field specifying if the entity is newly created or not.
+  FlagFieldType_ &new_entity_flag_field_;
   //@}
 
  private:
+  //! \name Typedefs
+  //@{
+
+  /// \brief This groups' flag field type
+  typedef std::mesh::Field<bool> FlagFieldType_;
+  //@}
 }
 
 }  // namespace core
