@@ -27,6 +27,7 @@
 #include <vector>                                    // for vector, etc
 #include <random>                                    // for rand
 #include <memory>                                    // for shared_ptr
+#include <type_traits>                               // for static_assert
 #include <stk_math/StkVector.hpp>                    // for Vec
 #include <stk_mesh/base/BulkData.hpp>                // for BulkData
 #include <stk_mesh/base/MetaData.hpp>                // for MetaData
@@ -59,6 +60,8 @@ GroupOfEntities<GroupTopology, Scalar>::GroupOfEntities(const std::shared_ptr<st
       group_part_(bulk_data_ptr_->mesh_meta_data().declare_part_with_topology(group_name, GroupTopology)),
       new_entity_flag_field_(
           bulk_data_ptr_->mesh_meta_data().declare_field<bool>(stk::topology::NODE_RANK, "new_entity_flag")) {
+  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
+
   // put the default fields on the group
   stk::mesh::put_field_on_mesh(new_entity_flag_field_, group_part_, 1, nullptr);
 }
@@ -134,7 +137,6 @@ stk::mesh::Selector GroupOfEntities<GroupTopology, Scalar>::generate_new_entitie
     }
   }
 }
-
 //}
 
 }  // namespace core
