@@ -95,15 +95,25 @@ class GroupOfEntities {
   GroupOfEntities(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
   //@}
 
-  //@}
   //! @name Attributes
   //@{
 
   /// \brief Return a reference to the group's part
-  stk::mesh::Part &get_group_part();
+  stk::mesh::Part &get_group_part() const;
 
   /// \brief Return a reference to the new entity flag field
-  FlagFieldType &get_new_entity_flag_field();
+  FlagFieldType &get_new_entity_flag_field() const;
+
+  /// \brief Return a selector for the group's entities
+  stk::mesh::Selector &get_entity_selector() const;
+
+  /// \brief Return a bucket vector containing for the group's entities
+  stk::mesh::BucketVector &get_entity_buckets() const;
+
+  /// \brief Return a bucket vector containing a subset of the group's entities
+  ///
+  /// \param selector [in] Selector to be used for choosing which subset of entity buckets to return.
+  stk::mesh::BucketVector &get_entity_buckets(const stk::mesh::Selector &selector) const;
   //@}
 
   //! @name Pre-commit setup routines
@@ -149,7 +159,8 @@ class GroupOfEntities {
   /// attached. Defaults to true.
   ///
   /// \return A selector for all newly generted entities within this group.
-  void generate_new_entities_in_group(const size_t num_new_entities, const bool generate_and_attach_nodes = true);
+  stk::mesh::Selector generate_new_entities_in_group(const size_t num_new_entities,
+                                                     const bool generate_and_attach_nodes = true);
   //@}
 
  private:
@@ -161,6 +172,9 @@ class GroupOfEntities {
 
   /// \brief Default part assigned to all group members.
   stk::mesh::Part &group_part_;
+
+  /// \brief The selector for the group's entities
+  stk::mesh::Selector entity_selector_;
   //@}
 
   //! @name Default fields assigned to all group members
@@ -188,8 +202,9 @@ GroupOfEntities<GroupTopology, Scalar>::GroupOfEntities(const std::shared_ptr<st
                                                         const std::string &group_name)
     : bulk_data_ptr_(bulk_data_ptr),
       group_part_(bulk_data_ptr_->mesh_meta_data().declare_part_with_topology(group_name, GroupTopology)),
+      entity_selector_(group_part_),
       new_entity_flag_field_(
-          bulk_data_ptr_->mesh_meta_data().declare_field<bool>(stk::topology::NODE_RANK, "new_entity_flag")) {
+          bulk_data_ptr_->mesh_meta_data().declare_field<bool>(GroupOfEntities.rank(), "new_entity_flag")) {
   static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
 
   // enable io for the group part
@@ -203,13 +218,29 @@ GroupOfEntities<GroupTopology, Scalar>::GroupOfEntities(const std::shared_ptr<st
 // Attributes
 //{
 template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_group_part() {
+FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_group_part() const {
   return group_part_;
 }
 
 template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_new_entity_flag_field() {
+FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_new_entity_flag_field() const {
   return new_entity_flag_field_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+stk::mesh::Selector GroupOfEntities<GroupTopology, Scalar>::get_entity_selector() const {
+  return entity_selector_;
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+stk::mesh::BucketVector &GroupOfEntities<GroupTopology, Scalar>::get_entity_buckets() const {
+  return bulk_data_ptr_->get_buckets(GroupTopology.rank(), selectLocalParticles);
+}
+
+template <stk::topology GroupTopology, typename Scalar>
+stk::mesh::BucketVector &GroupOfEntities<GroupTopology, Scalar>::get_entity_buckets(
+    const stk::mesh::Selector &selector) const {
+  return bulk_data_ptr_->get_buckets(GroupTopology.rank(), get_entity_selector() & selector);
 }
 //}
 
