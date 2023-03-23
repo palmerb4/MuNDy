@@ -81,7 +81,6 @@ class GroupOfConstraints : public GroupOfEntities<ConstraintTopology, Scalar> {
   GroupOfConstraints(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
   //@}
 
-  //@}
   //! @name Attributes
   //@{
 

@@ -80,8 +80,7 @@ class GroupOfParticles : public GroupOfEntities<ParticleTopology, Scalar> {
   /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
   GroupOfParticles(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
   //@}
-
-  //@}
+  
   //! @name Attributes
   //@{
 
