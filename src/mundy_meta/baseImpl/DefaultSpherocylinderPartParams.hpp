@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_CORE_GROUPOFENTITIES_HPP_
-#define MUNDY_CORE_GROUPOFENTITIES_HPP_
+#ifndef MUNDY_META_DEFAULTSPHEROCYLINDERPARTPARAMS_HPP_
+#define MUNDY_META_DEFAULTSPHEROCYLINDERPARTPARAMS_HPP_
 
-/// \file GroupOfEntities.hpp
-/// \brief Declaration of the GroupOfEntities class
+/// \file DefaultSpherocylinderPartParams.hpp
+/// \brief Declaration of the DefaultSpherocylinderPartParams class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -53,9 +53,11 @@
 
 namespace mundy {
 
-namespace core {
+namespace meta {
 
-/// \class GroupOfEntities
+namespace impl {
+
+/// \class DefaultSpherocylinderPartParams
 /// \brief A collection of entities, their sub-groups, and their associated fields.
 ///
 /// \tparam GroupTopology Topology assigned to each group member.
@@ -77,7 +79,7 @@ namespace core {
 ///
 /// More information. Maybe an example.
 template <stk::topology GroupTopology, typename Scalar = double>
-class GroupOfEntities {
+class DefaultSpherocylinderPartParams {
  public:
   //! \name Constructors and destructor
   //@{
@@ -86,13 +88,13 @@ class GroupOfEntities {
   ///
   /// Call this constructor if you have a larger <tt>BulkData</tt> containing multiple groups. The entities within this
   /// group and their associated fields will be stored within the provided <tt>BulkData</tt>. In that case, a single
-  /// <tt>BulkData</tt> can be shared between each <tt>GroupOfEntities</tt>, thereby allowing a <tt>Field</tt> or
+  /// <tt>BulkData</tt> can be shared between each <tt>DefaultSpherocylinderPartParams</tt>, thereby allowing a <tt>Field</tt> or
   /// <tt>Part</tt> to span multiple groups.
   ///
   /// \param bulk_data_ptr [in] Shared pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups. A copy
   /// of this pointer is stored in this class until destruction.
   /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
-  GroupOfEntities(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
+  DefaultSpherocylinderPartParams(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
   //@}
 
   //! @name Attributes
@@ -119,7 +121,7 @@ class GroupOfEntities {
   //! @name Pre-commit setup routines
   //@{
 
-  /// \brief Declare another <tt>GroupOfEntities</tt> as a subset of this group.
+  /// \brief Declare another <tt>DefaultSpherocylinderPartParams</tt> as a subset of this group.
   ///
   /// By declaring <tt>subgroup</tt> as a subset of this group, all entities within <tt>subgroup</tt> will inherit this
   /// group's part and associated fields. As a result, any method that acts on this group, will also act on
@@ -131,7 +133,7 @@ class GroupOfEntities {
   ///
   /// \param subgroup [in] The group to be added as a subset.
   template <stk::topology SubGroupTopology, typename SubGroupScalar>
-  void declare_subgroup(const GroupOfEntities<SubGroupTopology, SubGroupScalar> &subgroup);
+  void declare_subgroup(const DefaultSpherocylinderPartParams<SubGroupTopology, SubGroupScalar> &subgroup);
 
   /// \brief Declare a field that all entities of this group should have access to.
   ///
@@ -139,7 +141,7 @@ class GroupOfEntities {
   /// \param field_dimension [in] The dimensionality of the field.
   /// \param init_value [in] The initial value of the field.
   template <class field_type>
-  field_type &put_field_on_entire_group(const field_type &field, const unsigned int field_dimension,
+  field_type &put_field_on_entire_group(const field_type &field, const unsigned field_dimension,
                                         const typename stk::mesh::FieldTraits<field_type>::data_type *init_value);
   //@}
 
@@ -198,13 +200,13 @@ class GroupOfEntities {
 // Constructors and destructor
 //{
 template <stk::topology GroupTopology, typename Scalar>
-GroupOfEntities<GroupTopology, Scalar>::GroupOfEntities(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
+DefaultSpherocylinderPartParams<GroupTopology, Scalar>::DefaultSpherocylinderPartParams(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
                                                         const std::string &group_name)
     : bulk_data_ptr_(bulk_data_ptr),
       group_part_(bulk_data_ptr_->mesh_meta_data().declare_part_with_topology(group_name, GroupTopology)),
       entity_selector_(group_part_),
       new_entity_flag_field_(
-          bulk_data_ptr_->mesh_meta_data().declare_field<bool>(GroupOfEntities.rank(), "new_entity_flag")) {
+          bulk_data_ptr_->mesh_meta_data().declare_field<bool>(DefaultSpherocylinderPartParams.rank(), "new_entity_flag")) {
   static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
 
   // enable io for the group part
@@ -218,27 +220,27 @@ GroupOfEntities<GroupTopology, Scalar>::GroupOfEntities(const std::shared_ptr<st
 // Attributes
 //{
 template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_group_part() const {
+FlagFieldType &DefaultSpherocylinderPartParams<GroupTopology, Scalar>::get_group_part() const {
   return group_part_;
 }
 
 template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &GroupOfEntities<GroupTopology, Scalar>::get_new_entity_flag_field() const {
+FlagFieldType &DefaultSpherocylinderPartParams<GroupTopology, Scalar>::get_new_entity_flag_field() const {
   return new_entity_flag_field_;
 }
 
 template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::Selector GroupOfEntities<GroupTopology, Scalar>::get_entity_selector() const {
+stk::mesh::Selector DefaultSpherocylinderPartParams<GroupTopology, Scalar>::get_entity_selector() const {
   return entity_selector_;
 }
 
 template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::BucketVector &GroupOfEntities<GroupTopology, Scalar>::get_entity_buckets() const {
+stk::mesh::BucketVector &DefaultSpherocylinderPartParams<GroupTopology, Scalar>::get_entity_buckets() const {
   return bulk_data_ptr_->get_buckets(GroupTopology.rank(), selectLocalParticles);
 }
 
 template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::BucketVector &GroupOfEntities<GroupTopology, Scalar>::get_entity_buckets(
+stk::mesh::BucketVector &DefaultSpherocylinderPartParams<GroupTopology, Scalar>::get_entity_buckets(
     const stk::mesh::Selector &selector) const {
   return bulk_data_ptr_->get_buckets(GroupTopology.rank(), get_entity_selector() & selector);
 }
@@ -248,16 +250,16 @@ stk::mesh::BucketVector &GroupOfEntities<GroupTopology, Scalar>::get_entity_buck
 //{
 template <stk::topology GroupTopology, typename Scalar>
 template <stk::topology SubGroupTopology, typename SubGroupScalar>
-void GroupOfEntities<GroupTopology, Scalar>::declare_subgroup(
-    const GroupOfEntities<SubGroupTopology, SubGroupScalar> &subgroup) {
+void DefaultSpherocylinderPartParams<GroupTopology, Scalar>::declare_subgroup(
+    const DefaultSpherocylinderPartParams<SubGroupTopology, SubGroupScalar> &subgroup) {
   // declare the subgroup's part a subset of our part
   // declare_part_subset enforces topology agreement and field compatability
   stk::mesh::declare_part_subset(group_part_, subgroup.get_group_part());
 }
 
 template <class field_type>
-field_type &GroupOfEntities<GroupTopology, Scalar>::put_field_on_entire_group(
-    const field_type &field, const unsigned int field_dimension,
+field_type &DefaultSpherocylinderPartParams<GroupTopology, Scalar>::put_field_on_entire_group(
+    const field_type &field, const unsigned field_dimension,
     const typename stk::mesh::FieldTraits<field_type>::data_type *init_value) {
   stk::mesh::put_field_on_mesh(field, group_part_, field_dimension, init_value);
 }
@@ -266,13 +268,13 @@ field_type &GroupOfEntities<GroupTopology, Scalar>::put_field_on_entire_group(
 // Post-commit modification routines
 //{
 template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::Selector GroupOfEntities<GroupTopology, Scalar>::generate_new_entities_in_group(
+stk::mesh::Selector DefaultSpherocylinderPartParams<GroupTopology, Scalar>::generate_new_entities_in_group(
     const size_t num_new_entities, const bool generate_and_attach_nodes) {
   // count the number of entities of each rank that need requested
   std::vector<size_t> num_requests_per_rank(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
   num_requests_per_rank[GroupTopology.rank()] += num_new_entities;
 
-  const unsigned int num_nodes_per_entity = GroupOfEntities.num_nodes();
+  const unsigned num_nodes_per_entity = DefaultSpherocylinderPartParams.num_nodes();
   const size_t num_nodes_requested = generate_and_attach_nodes ? num_new_entities * num_nodes_per_entity : 0;
   num_requests_per_rank[stk::topology::NODE_RANK] += num_nodes_requested;
 
@@ -295,7 +297,7 @@ stk::mesh::Selector GroupOfEntities<GroupTopology, Scalar>::generate_new_entitie
 
     if (generate_and_attach_nodes) {
       // attach each node
-      for (int j = 0; j < GroupOfEntities.num_nodes(); j++) {
+      for (int j = 0; j < DefaultSpherocylinderPartParams.num_nodes(); j++) {
         bulk_data_ptr_->declare_relation(entity_i, requested_entities[i * num_nodes_per_entity + j], j);
       }
     }
@@ -303,9 +305,11 @@ stk::mesh::Selector GroupOfEntities<GroupTopology, Scalar>::generate_new_entitie
 }
 //}
 
-}  // namespace core
+}  // namespace impl
+
+}  // namespace meta
 
 }  // namespace mundy
 
 //}
-#endif  // MUNDY_CORE_GROUPOFENTITIES_HPP_
+#endif  // MUNDY_META_DEFAULTSPHEROCYLINDERPARTPARAMS_HPP_
