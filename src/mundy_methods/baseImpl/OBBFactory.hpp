@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_AABBFACTORY_HPP_
-#define MUNDY_METHODS_AABBFACTORY_HPP_
+#ifndef MUNDY_METHODS_OBBFACTORY_HPP_
+#define MUNDY_METHODS_OBBFACTORY_HPP_
 
-/// \file AABBFactory.hpp
-/// \brief Declaration of the AABBFactory class
+/// \file OBBFactory.hpp
+/// \brief Declaration of the OBBFactory class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,24 +55,24 @@ namespace mundy {
 
 namespace methods {
 
-/// \class AABBFactory
-/// \brief Enumeration of all valid \c AABBManager classes.
+/// \class OBBFactory
+/// \brief Enumeration of all valid \c OBBManager classes.
 ///
-/// This factory class knows how to initialize any of Mundy's \c AABBManager subclasses, given the
+/// This factory class knows how to initialize any of Mundy's \c OBBManager subclasses, given the
 /// mundy::multibody type that the subclass acts upon.
-class AABBFactory {
+class OBBFactory {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  AABBFactory();
+  OBBFactory();
 
   //@}
   //! \name Attributes
   //@{
 
-  /// \brief Get the number of \c AABBManager classes this factory recognizes.
+  /// \brief Get the number of \c OBBManager classes this factory recognizes.
   static int get_number_of_subclasses() {
     return 9;
   }
@@ -84,7 +84,7 @@ class AABBFactory {
 
   /// \brief Get the requirements that the desired subclass imposes upon each particle and/or constraint.
   ///
-  /// \param given_type [in] \c AABBManager multibody type specialization, for
+  /// \param given_type [in] \c OBBManager multibody type specialization, for
   ///   which is_valid_multibody_type(given_type) returns true.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
@@ -95,23 +95,23 @@ class AABBFactory {
 
     switch (multibody_type) {
       case mundy::multibody::SPHERE:
-        return AABBSphereManager.get_part_requirements(parameter_list);
+        return OBBSphereManager.get_part_requirements(parameter_list);
       case mundy::multibody::SPHEROCYLINDER:
-        return AABBSphereocylinderManager.get_part_requirements(parameter_list);
+        return OBBSphereocylinderManager.get_part_requirements(parameter_list);
       case mundy::multibody::SUPERELLIPSOID:
-        return AABBSuperellipsoidManager.get_part_requirements(parameter_list);
+        return OBBSuperellipsoidManager.get_part_requirements(parameter_list);
       case mundy::multibody::POLYTOPE:
-        return AABBPolytopeManager.get_part_requirements(parameter_list);
+        return OBBPolytopeManager.get_part_requirements(parameter_list);
       case mundy::multibody::COLLISION:
-        return AABBCollisionManager.get_part_requirements(parameter_list);
+        return OBBCollisionManager.get_part_requirements(parameter_list);
       case mundy::multibody::SPRING:
-        return AABBSpringManager.get_part_requirements(parameter_list);
+        return OBBSpringManager.get_part_requirements(parameter_list);
       case mundy::multibody::TORSIONALSPRING:
-        return AABBTorsionalSpringManager.get_part_requirements(parameter_list);
+        return OBBTorsionalSpringManager.get_part_requirements(parameter_list);
       case mundy::multibody::JOINT:
-        return AABBJointManager.get_part_requirements(parameter_list);
+        return OBBJointManager.get_part_requirements(parameter_list);
       case mundy::multibody::HINGE:
-        return AABBHingeManager.get_part_requirements(parameter_list);
+        return OBBHingeManager.get_part_requirements(parameter_list);
     }
   }
 
@@ -126,46 +126,46 @@ class AABBFactory {
             subclass_identifiers_.end());
   }
 
-  /// \brief Return an instance of the specified \c AABBManager subclass.
+  /// \brief Return an instance of the specified \c OBBManager subclass.
   ///
-  /// \param given_type [in] AABB type specialization of the \c AABBManager subclass instance to return.  The
+  /// \param given_type [in] OBB type specialization of the \c OBBManager subclass instance to return.  The
   /// \c get_valid_multibody_types() method returns a list of the supported types.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up the specific \c AABBManager subclass. A
-  /// default parameter list is available for each \c AABBManager subclass that this factory knows how to make.
-  std::unique_ptr<mundy::methods::AABBManager> make_subclass(const mundy::multibody& given_type,
+  /// \param parameter_list [in] Optional list of parameters for setting up the specific \c OBBManager subclass. A
+  /// default parameter list is available for each \c OBBManager subclass that this factory knows how to make.
+  std::unique_ptr<mundy::methods::OBBManager> make_subclass(const mundy::multibody& given_type,
                                                              const stk::util::ParameterList& parameter_list) {
     ThrowAssertMsg(is_valid_multibody_type(given_type), "The provided type " << given_type << " is not valid.");
 
     switch (given_type) {
       case mundy::multibody::SPHERE:
-        return std::make_unique<AABBSphereManager>(parameter_list);
+        return std::make_unique<OBBSphereManager>(parameter_list);
       case mundy::multibody::SPHEROCYLINDER:
-        return std::make_unique<AABBSphereocylinderManager>(parameter_list);
+        return std::make_unique<OBBSphereocylinderManager>(parameter_list);
       case mundy::multibody::SUPERELLIPSOID:
-        return std::make_unique<AABBSuperellipsoidManager>(parameter_list);
+        return std::make_unique<OBBSuperellipsoidManager>(parameter_list);
       case mundy::multibody::POLYTOPE:
-        return std::make_unique<AABBPolytopeManager>(parameter_list);
+        return std::make_unique<OBBPolytopeManager>(parameter_list);
       case mundy::multibody::COLLISION:
-        return std::make_unique<AABBCollisionManager>(parameter_list);
+        return std::make_unique<OBBCollisionManager>(parameter_list);
       case mundy::multibody::SPRING:
-        return std::make_unique<AABBSpringManager>(parameter_list);
+        return std::make_unique<OBBSpringManager>(parameter_list);
       case mundy::multibody::TORSIONALSPRING:
-        return std::make_unique<AABBTorsionalSpringManager>(parameter_list);
+        return std::make_unique<OBBTorsionalSpringManager>(parameter_list);
       case mundy::multibody::JOINT:
-        return std::make_unique<AABBJointManager>(parameter_list);
+        return std::make_unique<OBBJointManager>(parameter_list);
       case mundy::multibody::HINGE:
-        return std::make_unique<AABBHingeManager>(parameter_list);
+        return std::make_unique<OBBHingeManager>(parameter_list);
     }
   }
 
  private:
-  /// \brief List of valid \c AABBManager subclasses, based on the multibody type they are specialized for.
+  /// \brief List of valid \c OBBManager subclasses, based on the multibody type they are specialized for.
   std::vector<mundy::multibody> subclass_identifiers_;
-};  // AABBFactory
+};  // OBBFactory
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_AABBFACTORY_HPP_
+#endif  // MUNDY_METHODS_OBBFACTORY_HPP_

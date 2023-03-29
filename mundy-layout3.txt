@@ -82,8 +82,8 @@ mundy::
     imp::DefaultHingePartParams
     
   multibody:: 
-    // Can we have string names for out enums? 
-    // so << mundy::multibody::SPHERE wrotes out "sphere"
+    // Can we have string names for our enums? 
+    // so << mundy::multibody::SPHERE writes out "sphere"
     
     // particle topologies
     SPHERE
@@ -121,7 +121,8 @@ mundy::
       imp::AABBJointManager
       imp::AABBHingeManager
 
-    OBBFactory
+    ComputeOBB
+      imp::OBBFactory
       imp::OBBManager
       imp::OBBSpherocylinderManager
       imp::OBBSuperEllipsoidManager
@@ -132,7 +133,8 @@ mundy::
       imp::OBBJointManager
       imp::OBBHingeManager
     
-    BoundingSphereFactory
+    ComputeBoundingSphere
+      imp::BoundingSphereFactory
       imp::BoundingSphereManager
       imp::BoundingSphereSpherocylinderManager
       imp::BoundingSphereSuperEllipsoidManager
@@ -143,31 +145,36 @@ mundy::
       imp::BoundingSphereJointManager
       imp::BoundingSphereHingeManager
     
-    LCPSolverFactory
+    SolveLCP
+      imp::LCPSolverFactory
       imp::LCPSolverManager
       imp::LCPSolverAPGDManager
       imp::LCPSolverBBPGDManager
 
     // neighbor methods
-    DetectNeighborsFactory
+    DetectNeighbors
+      imp::DetectNeighborsFactory
       imp::DetectNeighborsManager
       imp::DetectNeighborsAABBManager
       imp::DetectNeighborsBoundingSphereManager
       
     GhostNeighbors
     
-    RefineNeighborsFactory
+    RefineNeighbors
+      imp::RefineNeighborsFactory
       imp::RefineNeighborsManager
       imp::RefineNeighborsOBBManager
     
     // constraint methods  
-    GenerateCollisionConstraintsFactory
+    GenerateCollisionConstraints
+      imp::GenerateCollisionConstraintsFactory
       imp::GenerateCollisionConstraintsManager
       imp::GenerateCollisionConstraintsSpherocylinderManager
       imp::GenerateCollisionConstraintsSuperEllipsoidManager
       imp::GenerateCollisionConstraintsPolytopeManager
 
-    ConstraintViolationFactory
+    ConstraintViolation
+      imp::ConstraintViolationFactory
       imp::ConstraintViolationManager
       imp::ConstraintViolationCollisionManager
       imp::ConstraintViolationSpringManager
@@ -175,7 +182,8 @@ mundy::
       imp::ConstraintViolationJointManager
       imp::ConstraintViolationHingeManager
 
-    ConstraintProjectionFactory
+    ConstraintProjection
+      imp::ConstraintProjectionFactory
       imp::ConstraintProjectionManager
       imp::ConstraintProjectionCollisionManager
       imp::ConstraintProjectionSpringManager
@@ -183,7 +191,8 @@ mundy::
       imp::ConstraintProjectionJointManager
       imp::ConstraintProjectionHingeManager
 
-    ConstraintForcingFactory
+    ConstraintForcing
+      imp::ConstraintForcingFactory
       imp::ConstraintForcingManager
       imp::ConstraintForcingCollisionManager
       imp::ConstraintForcingSpringManager
@@ -191,7 +200,8 @@ mundy::
       imp::ConstraintForcingJointManager
       imp::ConstraintForcingHingeManager
 
-    ResolveConstraintsFactory
+    ResolveConstraints
+      imp::ResolveConstraintsFactory
       imp::ResolveConstraintsManager
       imp::ResolveConstraintsSmoothPotentialManager
       imp::ResolveConstraintsSmoothPenaltyManager
@@ -207,12 +217,14 @@ mundy::
       imp::ResolveConstraintsNonSmoothReLCPManager
     
     // motion methods
-    TimeIntegrationFactory
+    TimeIntegration
+      imp::TimeIntegrationFactory
       imp::TimeIntegrationManager
       imp::TimeIntegrationNodeEulerManager
       imp::TimeIntegrationNodeAdamsBatchfordManager
     
-    ComputeMobilityFactory
+    ComputeMobility
+      imp::ComputeMobilityFactory
       imp::ComputeMobilityManager
 
 

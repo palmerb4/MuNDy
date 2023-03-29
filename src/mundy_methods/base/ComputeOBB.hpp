@@ -56,66 +56,29 @@ namespace mundy {
 namespace methods {
 
 /// \class ComputeOBB
-/// \brief A collection of entities, their sub-groups, and their associated fields.
+/// \brief Method for computing the object aligned boundary box of different parts.
 class ComputeOBB : MetaMethod {
  public:
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Constructor using a parameter list.
-  ///
-  /// \param bulk_data_ptr [in] A pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups
-  /// \param parameter_list [in] The input parameters. See the discription below for parameter options
-  ///
-  ComputeOBB(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
-              const stk::util::ParameterList &parameter_list);
-
-  //@}
-  //! \name Attributes
-  //@{
-
-  /// \brief Get the requirements that this MetaMethod imposes upon each particle and/or constraint.
-  ///
-  /// \note It is important to note that these requirements encode the assumptions made by this method with respect to
-  /// the topology and fields of each multibody object. As such, assumptions may vary based on values passed to the
-  /// MetaMethod's constructor.
-  std::map<mundy::multibody, std::unique_ptr<PartParams>> get_multibody_part_requirements();
+  /// \brief Constructor
+  ComputeOBB();
   //@}
 
-  //! \name Actions
-  //@{
+  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
+      const stk::util::ParameterList &parameter_list) {
+    obb_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
+  }
 
-  /// \brief Run the wrapped functioon
-  virtual void run() = 0;
-  //@}
+  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
+                                                           const stk::util::ParameterList &parameter_list) {
+    return OBBFactory.get_part_requirements(multibody_type, parameter_list);
+  }
+
+ private:
+  OBBFactory obb_factory_;
 }
-
-//! \name template implementations
-//@{
-
-// Constructors and destructor
-//{
-template <stk::topology GroupTopology, typename Scalar>
-ComputeOBB<GroupTopology, Scalar>::ComputeOBB(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
-                                                const stk::util::ParameterList &parameter_list) {
-  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
-
-  // enable io for the group part
-  stk::io::put_io_part_attribute(group_part_);
-
-  // put the default fields on the group
-  stk::mesh::put_field_on_mesh(new_entity_flag_field_, group_part_, 1, nullptr);
-}
-//}
-
-// Attributes
-//{
-std::map<mundy::multibody, std::unique_ptr<PartParams>>
-ComputeOBB<GroupTopology, Scalar>::get_multibody_part_requirements() const {
-  return group_part_;
-}
-//}
-//@}
 
 }  // namespace methods
 

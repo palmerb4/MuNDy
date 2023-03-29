@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_AABBMANAGER_HPP_
-#define MUNDY_METHODS_AABBMANAGER_HPP_
+#ifndef MUNDY_METHODS_MULTIBODYMANAGER_HPP_
+#define MUNDY_METHODS_MULTIBODYMANAGER_HPP_
 
-/// \file  AABBManager.hpp
-/// \brief Declaration of the  AABBManager class
+/// \file  MultibodyManager.hpp
+/// \brief Declaration of the  MultibodyManager class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,9 +55,9 @@ namespace mundy {
 
 namespace methods {
 
-/// \class  AABBManager
-/// \brief Uniform interface for all concete  AABBManager objects.
-class  AABBManager {
+/// \class  MultibodyManager
+/// \brief Uniform interface for all concete  MultibodyManager objects.
+class  MultibodyManager {
   /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
@@ -72,10 +72,10 @@ class  AABBManager {
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   virtual static stk::util::ParameterList get_default_params() = 0;
-};  //  AABBManager
+};  //  MultibodyManager
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_AABBMANAGER_HPP_
+#endif  // MUNDY_METHODS_MULTIBODYMANAGER_HPP_

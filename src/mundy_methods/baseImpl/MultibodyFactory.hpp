@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_AABBFACTORY_HPP_
-#define MUNDY_METHODS_AABBFACTORY_HPP_
+#ifndef MUNDY_METHODS_MULTIBODYFACTORY_HPP_
+#define MUNDY_METHODS_MULTIBODYFACTORY_HPP_
 
-/// \file AABBFactory.hpp
-/// \brief Declaration of the AABBFactory class
+/// \file MultibodyFactory.hpp
+/// \brief Declaration of the MultibodyFactory class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,26 +55,48 @@ namespace mundy {
 
 namespace methods {
 
-/// \class AABBFactory
-/// \brief Enumeration of all valid \c AABBManager classes.
+// Now we can use disjunction like a switch statement
+// default_type<T>::value is always true
+template <typename T>
+struct default_type : std::true_type {
+  using type = T;
+};
+
+template <mundy::multibody T, MultibodyManager... Managers>
+using multibody_switch = typename std::disjunction<               //
+    std::values_equal<Managers::multibody_type, T, Managers>...,  //
+    default_type<void>                                            // must be last!
+    >::type;
+
+/// \class MultibodyFactory
+/// \brief Enumeration of all valid \c MultibodyManager classes.
 ///
-/// This factory class knows how to initialize any of Mundy's \c AABBManager subclasses, given the
+/// This factory class knows how to initialize any of Mundy's \c MultibodyManager subclasses, given the
 /// mundy::multibody type that the subclass acts upon.
-class AABBFactory {
+template <MultibodyManager... Managers>
+class MultibodyFactory {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  AABBFactory();
+  MultibodyFactory() {
+    // store the multibody types of each manager
+    subclass_identifiers_{Managers.multibody_type...};
+
+    // these types must be unique
+    const bool has_duplicates =
+        std::adjacent_find(subclass_identifiers_.begin(), subclass_identifiers_.end()) != subclass_identifiers_.end();
+    ThrowAssertMsg(!has_duplicates, "The provided managers have duplicate multibody type specializations.");
+  }
 
   //@}
   //! \name Attributes
   //@{
 
-  /// \brief Get the number of \c AABBManager classes this factory recognizes.
-  static int get_number_of_subclasses() {
-    return 9;
+  /// \brief Get the number of \c MultibodyManager classes this factory recognizes.
+  static size_t get_number_of_subclasses() {
+    return sizeof...(Managers);
   }
 
   /// \brief List of multibody types this factory recognizes.
@@ -84,7 +106,7 @@ class AABBFactory {
 
   /// \brief Get the requirements that the desired subclass imposes upon each particle and/or constraint.
   ///
-  /// \param given_type [in] \c AABBManager multibody type specialization, for
+  /// \param given_type [in] \c MultibodyManager multibody type specialization, for
   ///   which is_valid_multibody_type(given_type) returns true.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
@@ -93,26 +115,9 @@ class AABBFactory {
                                                            const stk::util::ParameterList& parameter_list) {
     ThrowAssertMsg(is_valid_multibody_type(given_type), "The provided type " << given_type << " is not valid.");
 
-    switch (multibody_type) {
-      case mundy::multibody::SPHERE:
-        return AABBSphereManager.get_part_requirements(parameter_list);
-      case mundy::multibody::SPHEROCYLINDER:
-        return AABBSphereocylinderManager.get_part_requirements(parameter_list);
-      case mundy::multibody::SUPERELLIPSOID:
-        return AABBSuperellipsoidManager.get_part_requirements(parameter_list);
-      case mundy::multibody::POLYTOPE:
-        return AABBPolytopeManager.get_part_requirements(parameter_list);
-      case mundy::multibody::COLLISION:
-        return AABBCollisionManager.get_part_requirements(parameter_list);
-      case mundy::multibody::SPRING:
-        return AABBSpringManager.get_part_requirements(parameter_list);
-      case mundy::multibody::TORSIONALSPRING:
-        return AABBTorsionalSpringManager.get_part_requirements(parameter_list);
-      case mundy::multibody::JOINT:
-        return AABBJointManager.get_part_requirements(parameter_list);
-      case mundy::multibody::HINGE:
-        return AABBHingeManager.get_part_requirements(parameter_list);
-    }
+    // this is a templated switch statement
+    // the manager whose multibody type matches multibody_type is returned by multibody_switch
+    multibody_switch<multibody_type, ... Managers>.get_part_requirements(parameter_list);
   }
 
   //@}
@@ -126,46 +131,29 @@ class AABBFactory {
             subclass_identifiers_.end());
   }
 
-  /// \brief Return an instance of the specified \c AABBManager subclass.
+  /// \brief Return an instance of the specified \c MultibodyManager subclass.
   ///
-  /// \param given_type [in] AABB type specialization of the \c AABBManager subclass instance to return.  The
+  /// \param given_type [in] Multibody type specialization of the \c MultibodyManager subclass instance to return.  The
   /// \c get_valid_multibody_types() method returns a list of the supported types.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up the specific \c AABBManager subclass. A
-  /// default parameter list is available for each \c AABBManager subclass that this factory knows how to make.
-  std::unique_ptr<mundy::methods::AABBManager> make_subclass(const mundy::multibody& given_type,
-                                                             const stk::util::ParameterList& parameter_list) {
+  /// \param parameter_list [in] Optional list of parameters for setting up the specific \c MultibodyManager subclass. A
+  /// default parameter list is available for each \c MultibodyManager subclass that this factory knows how to make.
+  std::unique_ptr<mundy::methods::MultibodyManager> make_subclass(const mundy::multibody& given_type,
+                                                                  const stk::util::ParameterList& parameter_list) {
     ThrowAssertMsg(is_valid_multibody_type(given_type), "The provided type " << given_type << " is not valid.");
 
-    switch (given_type) {
-      case mundy::multibody::SPHERE:
-        return std::make_unique<AABBSphereManager>(parameter_list);
-      case mundy::multibody::SPHEROCYLINDER:
-        return std::make_unique<AABBSphereocylinderManager>(parameter_list);
-      case mundy::multibody::SUPERELLIPSOID:
-        return std::make_unique<AABBSuperellipsoidManager>(parameter_list);
-      case mundy::multibody::POLYTOPE:
-        return std::make_unique<AABBPolytopeManager>(parameter_list);
-      case mundy::multibody::COLLISION:
-        return std::make_unique<AABBCollisionManager>(parameter_list);
-      case mundy::multibody::SPRING:
-        return std::make_unique<AABBSpringManager>(parameter_list);
-      case mundy::multibody::TORSIONALSPRING:
-        return std::make_unique<AABBTorsionalSpringManager>(parameter_list);
-      case mundy::multibody::JOINT:
-        return std::make_unique<AABBJointManager>(parameter_list);
-      case mundy::multibody::HINGE:
-        return std::make_unique<AABBHingeManager>(parameter_list);
-    }
+    // this is a templated switch statement
+    // the manager whose multibody type matches multibody_type is returned by multibody_switch
+    multibody_switch<multibody_type, ... Managers>(parameter_list);
   }
 
  private:
-  /// \brief List of valid \c AABBManager subclasses, based on the multibody type they are specialized for.
+  /// \brief List of valid \c MultibodyManager subclasses, based on the multibody type they are specialized for.
   std::vector<mundy::multibody> subclass_identifiers_;
-};  // AABBFactory
+};  // MultibodyFactory
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_AABBFACTORY_HPP_
+#endif  // MUNDY_METHODS_MULTIBODYFACTORY_HPP_
