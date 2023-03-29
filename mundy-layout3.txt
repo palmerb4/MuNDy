@@ -1,7 +1,7 @@
 Dev-facing interfaces
 
 Methodology change: 
-MuNDy will leverage STK's template abstractions to limit complexity by accessing default fields via string or ID. This seems like a small change, but it means that we generate all fields at run-time, not compile time. The previous design use getters to access fields, resulting in a needlessly complex interface due too the limitations of coompile-time abstractions. With run-time field generation, one of our core data structures will be that of a metaData builder—a class that takes in a hierarchical parameter file that outlines the part structure and the part fields. The builder will use this file to call its own public api for adding parts, subparts, and fields; the generated groups will then be accessible using the names from the parameter file. To enable this type of initialization, fields will be restricted to bool, int, int64, float, double, complex64, complex128. 
+Mundy will leverage STK's template abstractions to limit complexity by accessing default fields via string or ID. This seems like a small change, but it means that we generate all fields at run-time, not compile time. The previous design use getters to access fields, resulting in a needlessly complex interface due too the limitations of coompile-time abstractions. With run-time field generation, one of our core data structures will be that of a metaData builder—a class that takes in a hierarchical parameter file that outlines the part structure and the part fields. The builder will use this file to call its own public api for adding parts, subparts, and fields; the generated groups will then be accessible using the names from the parameter file. To enable this type of initialization, fields will be restricted to bool, int, int64, float, double, complex64, complex128. 
 
 Functions will take in Teuchos::ParameterList to specify their fields.
 
@@ -58,7 +58,7 @@ mundy::
     MethodComputeMobility  (I'm very unsure how to set this up for multi-species support)
        
        
-All of MuNDy + strategy implementations    
+All of Mundy + strategy implementations    
 mundy::
   meta::
     MetaMethod
@@ -81,7 +81,10 @@ mundy::
     imp::DefaultBallJointPartParams
     imp::DefaultHingePartParams
     
-  multibody::
+  multibody:: 
+    // Can we have string names for out enums? 
+    // so << mundy::multibody::SPHERE wrotes out "sphere"
+    
     // particle topologies
     SPHERE
     SPHEROCYLINDER
@@ -96,8 +99,17 @@ mundy::
     HINGE
     
   methods::  
+    // abstract implementation inheritance base classes
+    MultiBodyFactory (one factory per multibody type)
+    MultiBodyManager
+    GeneralFactory (any number of factories, each with string identifiers)
+    GeneralManager
+    
+    
     // methods needed by other methods that may be of user interest
-    AABBFactory
+    // all factories are given a part and will act on that part
+    ComputeAABB
+      imp::AABBFactory
       imp::AABBManager
       imp::AABBSphereManager
       imp::AABBSpherocylinderManager
@@ -254,8 +266,11 @@ Why not wrap BulkData and MeshBuilder, so that we automatically create a part fo
    
 We're using the factory concept with mundy::multibody as the enum for the factory. This means that ComputeAABB should output an std::map<mundy::multibody, std::unique_ptr<PartParams>>. So each of mundy's methods are specilized for our constraints and shapes.
 
-What if a method, like ComputeAABB, should work for particles or constraints? Then mundy::constraint and mundy::particle should come from the same base type: mundy::multibody. ComputeAABB will take in a part, loop over each part in the ParticlePartMap and the ConstraintPartMap and check if the two intersect. If so, it will call the corresponding factory routine. 
+What if a method, like ComputeAABB, should work for particles or constraints? Then mundy::constraint and mundy::particle should come from the same base type: mundy::multibody. ComputeAABB will take in a part and a vector of mundy::multibodys, loop over each part coresponding to the provided mundy::multibodys and check if the provided part and that part intersect. If so, it will call the corresponding factory routine. There's a problem. What if I don't want to perform neighbor detection with all spheres? Maybe only RedSpheres should have neighbor detection. That's addressed by the current ComputeAABB design, but not by the current Hierarchy design. Maybe something like add_multibody_method_to_part and add_multibody_method_to_all_parts_of_type. AABBFactory is a private class within ComputeAABB. This will allow users to directly call the factory methods from ComputeAABB, if they so choose. 
 
+
+
+What if I want to combine multiple independent computations? Can the compute routines have an overloaded && operator for merging their lambdas.
 
 
    

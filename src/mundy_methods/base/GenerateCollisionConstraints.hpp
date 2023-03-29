@@ -1,17 +1,17 @@
 // @HEADER
 // **********************************************************************************************************************
 //
-//                                          MuNDy: Multi-body Nonlocal Dynamics
+//                                          Mundy: Multi-body Nonlocal Dynamics
 //                                           Copyright 2023 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
-// MuNDy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
+// Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
 // as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 //
-// MuNDy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// Mundy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 // of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along with MuNDy. If not, see
+// You should have received a copy of the GNU General Public License along with Mundy. If not, see
 // <https://www.gnu.org/licenses/>.
 //
 // **********************************************************************************************************************

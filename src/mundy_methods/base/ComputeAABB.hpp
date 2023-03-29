@@ -1,17 +1,17 @@
 // @HEADER
 // **********************************************************************************************************************
 //
-//                                          MuNDy: Multi-body Nonlocal Dynamics
+//                                          Mundy: Multi-body Nonlocal Dynamics
 //                                           Copyright 2023 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
-// MuNDy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
+// Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
 // as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 //
-// MuNDy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// Mundy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 // of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 //
-// You should have received a copy of the GNU General Public License along with MuNDy. If not, see
+// You should have received a copy of the GNU General Public License along with Mundy. If not, see
 // <https://www.gnu.org/licenses/>.
 //
 // **********************************************************************************************************************
@@ -56,11 +56,32 @@ namespace mundy {
 namespace methods {
 
 /// \class ComputeAABB
-interface LockOpenStrategy {
-    open();
-    lock();
-}interface LockOpenStrategy {
-    open();
-    lock();
+/// \brief Method for computing the axis aligned boundary box of different parts.
+class ComputeAABB : MetaMethod {
+ public:
+  //! \name Constructors and destructor
+  //@{
+
+  /// \brief Constructor
+  ComputeAABB();
+  //@}
+
+  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
+      const stk::util::ParameterList &parameter_list) {
+    aabb_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
+  }
+
+  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
+                                                           const stk::util::ParameterList &parameter_list) {
+    return AABBFactory.get_part_requirements(multibody_type, parameter_list);
+  }
+
+ private:
+  AABBFactory aabb_factory_;
 }
+
+}  // namespace methods
+
+}  // namespace mundy
+
 #endif  // MUNDY_METHODS_COMPUTEAABB_HPP_

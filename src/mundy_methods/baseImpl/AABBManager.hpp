@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVECONSTRAINTSNONSMOOTHLCPWITHBBPGD_HPP_
-#define MUNDY_METHODS_RESOLVECONSTRAINTSNONSMOOTHLCPWITHBBPGD_HPP_
+#ifndef MUNDY_METHODS_AABBMANAGER_HPP_
+#define MUNDY_METHODS_AABBMANAGER_HPP_
 
-/// \file ResolveConstraintsNonSmoothLCPWithBBPGD.hpp
-/// \brief Declaration of the ResolveConstraintsNonSmoothLCPWithBBPGD class
+/// \file AABBManager.hpp
+/// \brief Declaration of the AABBManager class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,74 +55,28 @@ namespace mundy {
 
 namespace methods {
 
-namespace impl {
+/// \class AABBManager
+/// \brief Uniform interface for all concete AABBManager objects.
+class AABBManager {
 
-/// \class ResolveConstraintsNonSmoothLCPWithBBPGD
-/// \brief A collection of entities, their sub-groups, and their associated fields.
-class DetectNeighborsAABB : MetaMethod {
- public:
-  //! \name Constructors and destructor
-  //@{
-
-  /// \brief Constructor using a parameter list.
+  /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
   ///
-  /// \param bulk_data_ptr [in] A pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups
-  /// \param parameter_list [in] The input parameters. See the discription below for parameter options
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_default_params.
   ///
-  DetectNeighborsAABB(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
-                      const stk::util::ParameterList &parameter_list);
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  virtual static std::unique_ptr<PartParams> get_part_requirements(const stk::util::ParameterList& parameter_list) = 0;
 
-  //@}
-  //! \name Attributes
-  //@{
-
-  /// \brief Get the requirements that this MetaMethod imposes upon each particle and/or constraint.
+  /// \brief Get the default parameters for this class.
   ///
-  /// \note It is important to note that these requirements encode the assumptions made by this method with respect to
-  /// the topology and fields of each multibody object. As such, assumptions may vary based on values passed to the
-  /// MetaMethod's constructor.
-  std::map<mundy::multibody, std::unique_ptr<PartParams>> get_multibody_part_requirements();
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Run the wrapped functioon
-  virtual void run() = 0;
-  //@}
-}
-
-//! \name template implementations
-//@{
-
-// Constructors and destructor
-//{
-template <stk::topology GroupTopology, typename Scalar>
-DetectNeighborsAABB<GroupTopology, Scalar>::DetectNeighborsAABB(
-    const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const stk::util::ParameterList &parameter_list) {
-  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
-
-  // enable io for the group part
-  stk::io::put_io_part_attribute(group_part_);
-
-  // put the default fields on the group
-  stk::mesh::put_field_on_mesh(new_entity_flag_field_, group_part_, 1, nullptr);
-}
-//}
-
-// Attributes
-//{
-std::map<mundy::multibody, std::unique_ptr<PartParams>>
-DetectNeighborsAABB<GroupTopology, Scalar>::get_multibody_part_requirements() const {
-  return group_part_;
-}
-//}
-//@}
-
-}  // namespace impl
+  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  virtual static stk::util::ParameterList get_default_params() = 0;
+};
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVECONSTRAINTSNONSMOOTHLCPWITHBBPGD_HPP_
+#endif  // MUNDY_METHODS_AABBMANAGER_HPP_
