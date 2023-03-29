@@ -56,7 +56,7 @@ namespace mundy {
 namespace methods {
 
 /// \class OBBSphereManager
-/// \brief Concrete implementation of MultibodyManager for computing the object aligned bounding box of spheres.
+/// \brief Concrete implementation of \c MultibodyManager for computing the object aligned bounding box of spheres.
 class OBBSphereManager : OBBManager {
  public:
   //! \name Constructors and destructor

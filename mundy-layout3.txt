@@ -92,7 +92,7 @@ mundy::
     POLYTOPE
 
     // constraint topologies
-    COLLISION
+    COLLISION // TODO: Break into Frictional and frictionless
     SPRING
     TORSIONALSPRING
     JOINT

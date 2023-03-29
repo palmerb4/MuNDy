@@ -56,7 +56,7 @@ namespace mundy {
 namespace methods {
 
 /// \class AABBSphereManager
-/// \brief Concrete implementation of MultibodyManager for computing the axis aligned boundary box of spheres.
+/// \brief Concrete implementation of \c MultibodyManager for computing the axis aligned boundary box of spheres.
 class AABBSphereManager : MultibodyManager {
  public:
   //! \name Constructors and destructor

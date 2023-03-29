@@ -56,7 +56,7 @@ namespace mundy {
 namespace methods {
 
 /// \class BoundingSphereSphereManager
-/// \brief Concrete implementation of MultibodyManager for computing the bounding sphere radius of spheres.
+/// \brief Concrete implementation of \c MultibodyManager for computing the bounding sphere radius of spheres.
 class BoundingSphereSphereManager : MultibodyManager {
  public:
   //! \name Constructors and destructor

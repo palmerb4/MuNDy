@@ -20,7 +20,7 @@
 #ifndef MUNDY_META_HIERARCHYPARAMS_HPP_
 #define MUNDY_META_HIERARCHYPARAMS_HPP_
 
-/// \file HierarchyParams.hpp 
+/// \file HierarchyParams.hpp
 /// \brief Declaration of the HierarchyParams class
 
 // clang-format off
@@ -62,20 +62,6 @@ namespace meta {
 /// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.
 ///
 /// This class <does something>
-///
-/// \section A Header Title
-///
-/// Some userful information about this class.
-///
-/// \section Another Header Title
-///
-/// \subsection A Sub-Header Title
-///
-/// Some detailed informatioon
-///
-/// \subsection Another Sub-Header Title
-///
-/// More information. Maybe an example.
 template <stk::topology GroupTopology, typename Scalar = double>
 class HierarchyParams {
  public:
@@ -123,7 +109,7 @@ class HierarchyParams {
   ///
   /// By declaring <tt>subgroup</tt> as a subset of this group, all entities within <tt>subgroup</tt> will inherit this
   /// group's part and associated fields. As a result, any method that acts on this group, will also act on
-  /// <tt>subgroup</tt>'s entities. To do so, <tt>subgroup</tt> must share the same topoology and scalar type as this
+  /// <tt>subgroup</tt>'s entities. To do so, <tt>subgroup</tt> must share the same topology and scalar type as this
   /// group.
   ///
   /// For example, AnimalGroup may have LionGroup and TigerGroup as subsets, allowing all lions and tigers to be acted
@@ -149,7 +135,7 @@ class HierarchyParams {
   /// \brief Generates new entities within this group. Optionally generate and attach nodes to these elements.
   ///
   /// The newly generated entities will have their new entity flag set to true. (Suggested) Use the
-  /// get_new_entities_selector to access and fill the fields of new entitiers.
+  /// get_new_entities_selector to access and fill the fields of new entities.
   ///
   /// \note These new entities will be accessible via this group and any of its parent groups.
   /// They will <it>not</it> be accessible by any sub-groups.
@@ -158,7 +144,7 @@ class HierarchyParams {
   /// \param generate_and_attach_nodes [in] Flag specifying if the nodes of each entity should also be generated and
   /// attached. Defaults to true.
   ///
-  /// \return A selector for all newly generted entities within this group.
+  /// \return A selector for all newly generated entities within this group.
   stk::mesh::Selector generate_new_entities_in_group(const size_t num_new_entities,
                                                      const bool generate_and_attach_nodes = true);
   //@}
@@ -251,7 +237,7 @@ template <stk::topology SubGroupTopology, typename SubGroupScalar>
 void HierarchyParams<GroupTopology, Scalar>::declare_subgroup(
     const HierarchyParams<SubGroupTopology, SubGroupScalar> &subgroup) {
   // declare the subgroup's part a subset of our part
-  // declare_part_subset enforces topology agreement and field compatability
+  // declare_part_subset enforces topology agreement and field compatibility
   stk::mesh::declare_part_subset(group_part_, subgroup.get_group_part());
 }
 
@@ -277,9 +263,9 @@ stk::mesh::Selector HierarchyParams<GroupTopology, Scalar>::generate_new_entitie
   num_requests_per_rank[stk::topology::NODE_RANK] += num_nodes_requested;
 
   // generate the new entities
-  // For example, if num_requests_per_rank = { 0, 4,  8} then this will requests 0 entites of rank 0, 4 entites of rank
-  // 1, and 8 entites of rank 2. In this case, the result is requested_entities = {4 entites of rank 1, 8 entites of
-  // rank 2}
+  // For example, if num_requests_per_rank = { 0, 4,  8} then this will requests 0 entities of rank 0, 4 entities of
+  // rank 1, and 8 entities of rank 2. In this case, the result is requested_entities = {4 entities of rank 1, 8
+  // entities of rank 2}
   std::vector<stk::mesh::Entity> requested_entities;
   bulk_data_ptr_->generate_new_entities(num_requests_per_rank, requested_entities);
 

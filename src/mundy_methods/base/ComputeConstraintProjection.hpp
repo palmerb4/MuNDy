@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_MULTIBODYMANAGER_HPP_
-#define MUNDY_METHODS_MULTIBODYMANAGER_HPP_
+#ifndef MUNDY_METHODS_COMPUTECONSTRAINTPROJECTION_HPP_
+#define MUNDY_METHODS_COMPUTECONSTRAINTPROJECTION_HPP_
 
-/// \file  MultibodyManager.hpp
-/// \brief Declaration of the  MultibodyManager class
+/// \file ComputeConstraintProjection.hpp
+/// \brief Declaration of the ComputeConstraintProjection class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,27 +55,35 @@ namespace mundy {
 
 namespace methods {
 
-/// \class  MultibodyManager
-/// \brief Uniform interface for all concede \c MultibodyManager objects.
-class  MultibodyManager {
-  /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_default_params.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  virtual static std::unique_ptr<PartParams> get_part_requirements(const stk::util::ParameterList& parameter_list) = 0;
+/// \class ComputeConstraintProjection
+/// \brief Method for computing the projection of the constraint's Lagrange multiplier onto the feasible set of
+/// different constraint types.
+class ComputeConstraintProjection : MetaMethod {
+ public:
+  //! \name Constructors and destructor
+  //@{
 
-  /// \brief Get the default parameters for this class.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  virtual static stk::util::ParameterList get_default_params() = 0;
-};  //  MultibodyManager
+  /// \brief Constructor
+  ComputeConstraintProjection();
+  //@}
+
+  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
+      const stk::util::ParameterList &parameter_list) {
+    constraint_violation_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
+  }
+
+  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
+                                                           const stk::util::ParameterList &parameter_list) {
+    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
+  }
+
+ private:
+  using FactoryType_ = MultibodyFactory<ConstraintProjectionManager>;
+  FactoryType_ constraint_violation_factory_;
+}
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_MULTIBODYMANAGER_HPP_
+#endif  // MUNDY_METHODS_COMPUTECONSTRAINTPROJECTION_HPP_

@@ -56,12 +56,8 @@ namespace mundy {
 namespace methods {
 
 /// \class ConstraintViolationCollisionManager
-/// \brief Concrete implementation of MultibodyManager for computing the bounding sphere radius of spheres.
-///
-/// TODO: This class encodes a very specific choice of collision constraint violation. How do we make it extensible?
-/// Also, other methods like project constraints need to know which chooice was made. The two are not independent. For
-/// example, min map vs Dia and Fletcher. Maybe this manager should be a subset of ResolveConstraintViolation since
-/// projection, constraint violation, and constraint resolution are intimitely coupled.
+/// \brief Concrete implementation of \c MultibodyManager for computing the constraint violation of collision
+/// constraints.
 class ConstraintViolationCollisionManager : MultibodyManager {
  public:
   //! \name Constructors and destructor
@@ -112,7 +108,7 @@ class ConstraintViolationCollisionManager : MultibodyManager {
     default_parameter_list.set_param("node coordinate field name", "node_coord");
     default_parameter_list.set_param("node normal vector field name", "node_normal_vec");
     default_parameter_list.set_param("lagrange multiplier field name", "lagrange_multiplier");
-    default_parameter_list.set_param("coonstraint vioolatioon field name", "constraint_violation");
+    default_parameter_list.set_param("constraint violation field name", "constraint_violation");
     return default_parameter_list;
   }
 

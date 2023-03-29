@@ -68,7 +68,7 @@ class ComputeConstraintViolation : MetaMethod {
 
   run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
       const stk::util::ParameterList &parameter_list) {
-    coonstraint_violation_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
+    constraint_violation_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
   }
 
   static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
@@ -78,7 +78,7 @@ class ComputeConstraintViolation : MetaMethod {
 
  private:
   using FactoryType_ = MultibodyFactory<ConstraintViolationCollisionManager>;
-  FactoryType_ coonstraint_violation_factory_;
+  FactoryType_ constraint_violation_factory_;
 }
 
 }  // namespace methods
