@@ -82,7 +82,7 @@ class MultibodyFactory {
   /// \brief Constructor
   MultibodyFactory() {
     // store the multibody types of each manager
-    subclass_identifiers_{Managers.multibody_type...};
+    subclass_identifiers_{Managers::multibody_type...};
 
     // these types must be unique
     const bool has_duplicates =
@@ -117,7 +117,7 @@ class MultibodyFactory {
 
     // this is a templated switch statement
     // the manager whose multibody type matches multibody_type is returned by multibody_switch
-    multibody_switch<multibody_type, ... Managers>.get_part_requirements(parameter_list);
+    multibody_switch<multibody_type, ... Managers>::get_part_requirements(parameter_list);
   }
 
   //@}

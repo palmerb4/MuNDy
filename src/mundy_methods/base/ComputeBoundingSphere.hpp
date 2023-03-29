@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVECONSTRAINTSNONSMOOTHLCP_HPP_
-#define MUNDY_METHODS_RESOLVECONSTRAINTSNONSMOOTHLCP_HPP_
+#ifndef MUNDY_METHODS_COMPUTEBOUNDINGSPHERE_HPP_
+#define MUNDY_METHODS_COMPUTEBOUNDINGSPHERE_HPP_
 
-/// \file ResolveConstraintsNonSmoothLCP.hpp
-/// \brief Declaration of the ResolveConstraintsNonSmoothLCP class
+/// \file ComputeBoundingSphere.hpp
+/// \brief Declaration of the ComputeBoundingSphere class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,74 +55,34 @@ namespace mundy {
 
 namespace methods {
 
-namespace impl {
-
-/// \class ResolveConstraintsNonSmoothLCP
-/// \brief A collection of entities, their sub-groups, and their associated fields.
-class DetectNeighborsAABB : MetaMethod {
+/// \class ComputeBoundingSphere
+/// \brief Method for computing the bounding sphere radius for different parts.
+class ComputeBoundingSphere : MetaMethod {
  public:
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Constructor using a parameter list.
-  ///
-  /// \param bulk_data_ptr [in] A pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups
-  /// \param parameter_list [in] The input parameters. See the discription below for parameter options
-  ///
-  DetectNeighborsAABB(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
-                      const stk::util::ParameterList &parameter_list);
-
-  //@}
-  //! \name Attributes
-  //@{
-
-  /// \brief Get the requirements that this MetaMethod imposes upon each particle and/or constraint.
-  ///
-  /// \note It is important to note that these requirements encode the assumptions made by this method with respect to
-  /// the topology and fields of each multibody object. As such, assumptions may vary based on values passed to the
-  /// MetaMethod's constructor.
-  std::map<mundy::multibody, std::unique_ptr<PartParams>> get_multibody_part_requirements();
+  /// \brief Constructor
+  ComputeBoundingSphere();
   //@}
 
-  //! \name Actions
-  //@{
+  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
+      const stk::util::ParameterList &parameter_list) {
+    bounding_sphere_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
+  }
 
-  /// \brief Run the wrapped functioon
-  virtual void run() = 0;
-  //@}
+  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
+                                                           const stk::util::ParameterList &parameter_list) {
+    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
+  }
+
+ private:
+  using FactoryType_ = MultibodyFactory<BoundingSphereSphereManager>;
+  FactoryType_ bounding_sphere_factory_;
 }
-
-//! \name template implementations
-//@{
-
-// Constructors and destructor
-//{
-template <stk::topology GroupTopology, typename Scalar>
-DetectNeighborsAABB<GroupTopology, Scalar>::DetectNeighborsAABB(
-    const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const stk::util::ParameterList &parameter_list) {
-  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
-
-  // enable io for the group part
-  stk::io::put_io_part_attribute(group_part_);
-
-  // put the default fields on the group
-  stk::mesh::put_field_on_mesh(new_entity_flag_field_, group_part_, 1, nullptr);
-}
-//}
-
-// Attributes
-//{
-std::map<mundy::multibody, std::unique_ptr<PartParams>>
-DetectNeighborsAABB<GroupTopology, Scalar>::get_multibody_part_requirements() const {
-  return group_part_;
-}
-//}
-//@}
-
-}  // namespace impl
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVECONSTRAINTSNONSMOOTHLCP_HPP_
+#endif  // MUNDY_METHODS_COMPUTEBOUNDINGSPHERE_HPP_

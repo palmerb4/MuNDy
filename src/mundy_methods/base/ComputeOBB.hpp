@@ -73,11 +73,12 @@ class ComputeOBB : MetaMethod {
 
   static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
                                                            const stk::util::ParameterList &parameter_list) {
-    return OBBFactory.get_part_requirements(multibody_type, parameter_list);
+    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
   }
 
  private:
-  OBBFactory obb_factory_;
+  using FactoryType_ = MultibodyFactory<OBBSphereManager>;
+  FactoryType_ obb_factory_;
 }
 
 }  // namespace methods

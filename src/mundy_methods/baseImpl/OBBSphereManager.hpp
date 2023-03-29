@@ -56,10 +56,7 @@ namespace mundy {
 namespace methods {
 
 /// \class OBBSphereManager
-/// \brief Concrete implementation of OBBManager for spheres.
-///
-/// This class computes the axis-aligned boundary box for each sphere in a part of spheres. The output field name is
-/// specified in the parameter file.
+/// \brief Concrete implementation of MultibodyManager for computing the object aligned bounding box of spheres.
 class OBBSphereManager : OBBManager {
  public:
   //! \name Constructors and destructor
@@ -67,9 +64,11 @@ class OBBSphereManager : OBBManager {
 
   /// \brief Constructor
   explicit OBBSphereManager(const stk::util::ParameterList &parameter_list)
-      : parameter_list_(parameter_list), obb_field_name_(params.get_value<std::string>("OBB field name"),
-      radius_field_name_(params.get_value<std::string>("radius field name"),
-      buffer_distance_(params.get_value<double>("buffer distance"))) {
+      : parameter_list_(parameter_list),
+        obb_field_name_(params.get_value<std::string>("obb field name")),
+        node_coord_field_name_(params.get_value<std::string>("node_coord")),
+        radius_field_name_(params.get_value<std::string>("radius field name")),
+        buffer_distance_(params.get_value<double>("buffer distance")) {
   }
 
   //@}
@@ -84,15 +83,14 @@ class OBBSphereManager : OBBManager {
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(
-    [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
+      [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
-
-    std::unique_ptr<FieldParamsBase> element_double_scalar_field_params =
-        std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1);
-    std::unique_ptr<FieldParamsBase> element_double_vector_4d_field_params =
-        std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 4, 1);
-    required_part_params->add_field_params("radius", std::move(element_double_scalar_field_params));
-    required_part_params->add_field_params("obb", std::move(element_double_vector_4d_field_params));
+    required_part_params->add_field_params("node_coord",
+                                           std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params("radius",
+                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_params("obb",
+                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }
 
@@ -102,7 +100,8 @@ class OBBSphereManager : OBBManager {
   /// will be created. You can save the result yourself if you wish to reuse it.
   static stk::util::ParameterList get_default_params() {
     stk::util::ParameterList default_parameter_list;
-    default_parameter_list.set_param("OBB field name", "obb");
+    default_parameter_list.set_param("node coordinate field name", "node_coord");
+    default_parameter_list.set_param("obb field name", "obb");
     default_parameter_list.set_param("radius field name", "radius");
     default_parameter_list.set_param("buffer distance", 0.0);
     return default_parameter_list;
@@ -113,15 +112,21 @@ class OBBSphereManager : OBBManager {
   //! \name Actions
   //@{
   run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
+    const stk::mesh::Field &node_coord_field =
+        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
     const stk::mesh::Field &radius_field =
         bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
     const stk::mesh::Field &obb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
-    stk::mesh::for_each_entity_run(*bulk_data_ptr, stk::topology::NODE_RANK,
-                                   [&obb_field, &radius_field, &buffer_distance_](const stk::mesh::BulkData &bulk_data,
+
+    stk::mesh::Selector locally_owned_part = metaB.locally_owned_part() && part;
+    stk::mesh::for_each_entity_run(*bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
+                                   [&aabb_field, &radius_field, &buffer_distance_](const stk::mesh::BulkData &bulk_data,
                                                                                    stk::mesh::Entity element) {
-                                     stk::mesh::Entity node = stk::mesh::impl::get_entity(meshIndex);
+                                     stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
+                                     double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
                                      double *radius = stk::mesh::field_data(radius_field, element);
                                      double *obb = stk::mesh::field_data(obb_field, element);
+
                                      obb[0] = coords[0] - radius[0] - buffer_distance_;
                                      obb[1] = coords[1] - radius[0] - buffer_distance_;
                                      obb[2] = coords[2] - radius[0] - buffer_distance_;
@@ -134,8 +139,9 @@ class OBBSphereManager : OBBManager {
  private:
   const stk::util::ParameterList parameter_list_;
   const double buffer_distance_;
-  const stk::string &obb_field_name_;
-  const stk::string &radius_field_name_;
+  const std::string obb_field_name_;
+  const std::string radius_field_name_;
+  const std::string node_coord_field_name_;
 };  // OBBSphereManager
 
 }  // namespace methods

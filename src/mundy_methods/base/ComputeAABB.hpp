@@ -73,11 +73,12 @@ class ComputeAABB : MetaMethod {
 
   static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
                                                            const stk::util::ParameterList &parameter_list) {
-    return AABBFactory.get_part_requirements(multibody_type, parameter_list);
+    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
   }
 
  private:
-  AABBFactory aabb_factory_;
+  using FactoryType_ = MultibodyFactory<AABBSphereManager>;
+  FactoryType_ aabb_factory_;
 }
 
 }  // namespace methods

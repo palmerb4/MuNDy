@@ -99,19 +99,18 @@ mundy::
     HINGE
     
   methods::  
-    // abstract implementation inheritance base classes
-    MultiBodyFactory (one factory per multibody type)
+    // abstract interfaces
+    MultiBodyFactory (an abstract factory to be used by all multibody methods)
     MultiBodyManager
-    GeneralFactory (any number of factories, each with string identifiers)
-    GeneralManager
+    
+    StringFactory (any number of factories, each with string identifiers)
+    StringManager
     
     
     // methods needed by other methods that may be of user interest
     // all factories are given a part and will act on that part
     ComputeAABB
-      imp::AABBFactory
-      imp::AABBManager
-      imp::AABBSphereManager
+      imp::AABBSphereManager 
       imp::AABBSpherocylinderManager
       imp::AABBSuperEllipsoidManager
       imp::AABBPolytopeManager
@@ -122,8 +121,6 @@ mundy::
       imp::AABBHingeManager
 
     ComputeOBB
-      imp::OBBFactory
-      imp::OBBManager
       imp::OBBSpherocylinderManager
       imp::OBBSuperEllipsoidManager
       imp::OBBPolytopeManager
@@ -134,8 +131,7 @@ mundy::
       imp::OBBHingeManager
     
     ComputeBoundingSphere
-      imp::BoundingSphereFactory
-      imp::BoundingSphereManager
+      imp::BoundingSphereSphereManager
       imp::BoundingSphereSpherocylinderManager
       imp::BoundingSphereSuperEllipsoidManager
       imp::BoundingSpherePolytopeManager
@@ -146,54 +142,40 @@ mundy::
       imp::BoundingSphereHingeManager
     
     SolveLCP
-      imp::LCPSolverFactory
-      imp::LCPSolverManager
       imp::LCPSolverAPGDManager
       imp::LCPSolverBBPGDManager
 
     // neighbor methods
     DetectNeighbors
-      imp::DetectNeighborsFactory
-      imp::DetectNeighborsManager
       imp::DetectNeighborsAABBManager
       imp::DetectNeighborsBoundingSphereManager
       
     GhostNeighbors
     
     RefineNeighbors
-      imp::RefineNeighborsFactory
-      imp::RefineNeighborsManager
       imp::RefineNeighborsOBBManager
     
     // constraint methods  
     GenerateCollisionConstraints
-      imp::GenerateCollisionConstraintsFactory
-      imp::GenerateCollisionConstraintsManager
       imp::GenerateCollisionConstraintsSpherocylinderManager
       imp::GenerateCollisionConstraintsSuperEllipsoidManager
       imp::GenerateCollisionConstraintsPolytopeManager
 
-    ConstraintViolation
-      imp::ConstraintViolationFactory
-      imp::ConstraintViolationManager
+    ComputeConstraintViolation
       imp::ConstraintViolationCollisionManager
       imp::ConstraintViolationSpringManager
       imp::ConstraintViolationTorsiionalSpringManager
       imp::ConstraintViolationJointManager
       imp::ConstraintViolationHingeManager
 
-    ConstraintProjection
-      imp::ConstraintProjectionFactory
-      imp::ConstraintProjectionManager
+    ComputeConstraintProjection
       imp::ConstraintProjectionCollisionManager
       imp::ConstraintProjectionSpringManager
       imp::ConstraintProjectionTorsiionalSpringManager
       imp::ConstraintProjectionJointManager
       imp::ConstraintProjectionHingeManager
 
-    ConstraintForcing
-      imp::ConstraintForcingFactory
-      imp::ConstraintForcingManager
+    ComputeConstraintForcing
       imp::ConstraintForcingCollisionManager
       imp::ConstraintForcingSpringManager
       imp::ConstraintForcingTorsiionalSpringManager
@@ -201,8 +183,6 @@ mundy::
       imp::ConstraintForcingHingeManager
 
     ResolveConstraints
-      imp::ResolveConstraintsFactory
-      imp::ResolveConstraintsManager
       imp::ResolveConstraintsSmoothPotentialManager
       imp::ResolveConstraintsSmoothPenaltyManager
       imp::ResolveConstraintsNonSmoothLCPManager
@@ -218,14 +198,10 @@ mundy::
     
     // motion methods
     TimeIntegration
-      imp::TimeIntegrationFactory
-      imp::TimeIntegrationManager
       imp::TimeIntegrationNodeEulerManager
       imp::TimeIntegrationNodeAdamsBatchfordManager
     
     ComputeMobility
-      imp::ComputeMobilityFactory
-      imp::ComputeMobilityManager
 
 
 User facing interfaces    
