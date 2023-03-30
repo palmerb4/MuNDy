@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_CONSTRAINTVIOLATIONCOLLISIONMANAGER_HPP_
-#define MUNDY_METHODS_CONSTRAINTVIOLATIONCOLLISIONMANAGER_HPP_
+#ifndef MUNDY_METHODS_CONSTRAINTPROJECTIONCOLLISIONMANAGER_HPP_
+#define MUNDY_METHODS_CONSTRAINTPROJECTIONCOLLISIONMANAGER_HPP_
 
-/// \file ConstraintViolationCollisionManager.hpp
-/// \brief Declaration of the ConstraintViolationCollisionManager class
+/// \file ConstraintProjectionCollisionManager.hpp
+/// \brief Declaration of the ConstraintProjectionCollisionManager class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,20 +55,20 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ConstraintViolationCollisionManager
-/// \brief Concrete implementation of \c MultibodyManager for computing the constraint violation of collision
-/// constraints.
-class ConstraintViolationCollisionManager : MultibodyManager {
+/// \class ConstraintProjectionCollisionManager
+/// \brief Concrete implementation of \c MultibodyManager for computing projection of the constraint's Lagrange
+/// multiplier onto the feasible set of collision constraints.
+class ConstraintProjectionCollisionManager : MultibodyManager {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ConstraintViolationCollisionManager(const stk::util::ParameterList &parameter_list)
+  explicit ConstraintProjectionCollisionManager(const stk::util::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
-        constraint_violation_field_name_(params.get_value<std::string>("constraint_violation")),
         node_coord_field_name_(params.get_value<std::string>("node_coord")),
         node_normal_vec_field_name_(params.get_value<std::string>("node_normal_vec")),
+        lagrange_multiplier_field_name_(params.get_value<std::string>("lagrange_multiplier")),
         min_allowable_sep_(params.get_value<double>("minimum allowable separation")) {
   }
 
@@ -90,6 +90,8 @@ class ConstraintViolationCollisionManager : MultibodyManager {
                                            std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params("node_normal_vec",
                                            std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params("lagrange_multiplier",
+                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params("constraint_violation",
                                            std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
@@ -104,6 +106,7 @@ class ConstraintViolationCollisionManager : MultibodyManager {
     default_parameter_list.set_param("minimum allowable separation", 0.0);
     default_parameter_list.set_param("node coordinate field name", "node_coord");
     default_parameter_list.set_param("node normal vector field name", "node_normal_vec");
+    default_parameter_list.set_param("lagrange multiplier field name", "lagrange_multiplier");
     default_parameter_list.set_param("constraint violation field name", "constraint_violation");
     return default_parameter_list;
   }
@@ -123,7 +126,7 @@ class ConstraintViolationCollisionManager : MultibodyManager {
     stk::mesh::Selector locally_owned_part = metaB.locally_owned_part() && part;
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
-        [&node_coord_field, &node_normal_vec_field, &constraint_violation_field](
+        [&node_coord_field, &node_normal_vec_field, &lagrange_multiplier_field, &constraint_violation_field](
             const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
           const double *contact_pointI = stk::mesh::field_data(node_coord_field, nodes[1]);
@@ -143,11 +146,12 @@ class ConstraintViolationCollisionManager : MultibodyManager {
   const double min_allowable_sep_;
   const std::string node_coord_field_name_;
   const std::string node_normal_vec_field_name_;
+  const std::string lagrange_multiplier_field_name_;
   const std::string constraint_violation_field_name_;
-};  // ConstraintViolationCollisionManager
+};  // ConstraintProjectionCollisionManager
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_CONSTRAINTVIOLATIONCOLLISIONMANAGER_HPP_
+#endif  // MUNDY_METHODS_CONSTRAINTPROJECTIONCOLLISIONMANAGER_HPP_
