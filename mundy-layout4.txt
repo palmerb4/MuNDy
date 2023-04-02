@@ -155,32 +155,32 @@ mundy::
       imp::RefineNeighborsOBBManager
     
     // constraint methods  
-    GenerateCollisionConstraints (contains a FactoryRegistory)
+    GenerateCollisionConstraints (derived from FactoryRegistory)
       imp::GenerateCollisionConstraintsSpherocylinderManager
       imp::GenerateCollisionConstraintsSuperEllipsoidManager
       imp::GenerateCollisionConstraintsPolytopeManager
 
-    ComputeConstraintViolation (contains a FactoryRegistory)
+    ComputeConstraintViolation (derived from FactoryRegistory)
       imp::ConstraintViolationCollisionManager
       imp::ConstraintViolationSpringManager
       imp::ConstraintViolationTorsiionalSpringManager
       imp::ConstraintViolationJointManager
       imp::ConstraintViolationHingeManager
 
-    ComputeConstraintProjection (contains a FactoryRegistory)
+    ComputeConstraintProjection (derived from FactoryRegistory)
       imp::ConstraintProjectionCollisionManager
       imp::ConstraintProjectionSpringManager
       imp::ConstraintProjectionTorsiionalSpringManager
       imp::ConstraintProjectionJointManager
       imp::ConstraintProjectionHingeManager
 
-    ComputeConstraintForcing (contains a FactoryRegistory)
+    ComputeConstraintForcing (derived from FactoryRegistory)
       imp::ConstraintForcingSpringManager
       imp::ConstraintForcingTorsiionalSpringManager
       imp::ConstraintForcingJointManager
       imp::ConstraintForcingHingeManager
 
-    ResolveConstraints (contains a FactoryRegistory)
+    ResolveConstraints (derived from FactoryRegistory)
       imp::ResolveConstraintsSmoothPotentialManager
       imp::ResolveConstraintsSmoothPenaltyManager
       imp::ResolveConstraintsNonSmoothLCPManager
