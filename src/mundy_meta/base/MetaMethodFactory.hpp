@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHOD_HPP_
-#define MUNDY_META_METAMETHOD_HPP_
+#ifndef MUNDY_META_METAMETHODFACTORY_HPP_
+#define MUNDY_META_METAMETHODFACTORY_HPP_
 
 /// \file MetaMethodFactory.hpp
 /// \brief Declaration of the MetaMethodFactory class
@@ -56,7 +56,7 @@ namespace mundy {
 namespace meta {
 
 /// \class MetaMethodFactory
-/// \brief A factory for generating a user-specified set of Mundy's \c MetaMethods.
+/// \brief A factory containing generation routines for all of Mundy's \c MetaMethods.
 ///
 /// The goal of \c MetaMethodFactory, as with most factories, is to provide an abstraction for case switches between
 /// different methods. The switch type is defined by the \c KeyType template parameter and can be any type with a
@@ -68,29 +68,29 @@ namespace meta {
 /// \tparam KeyType The key type for factory method lookup. Must have a == operator.
 ///
 /// \tparam BaseMethodType The base class from which all factory methods are derived.
-template <typename KeyType, typename MetaMethod>
+template <typename KeyType, typename MetaMethod>  // TODO: delete this
 class MetaMethodFactory {
  public:
   //! \name Typedefs
   //@{
 
-  /// \brief A function pointer that takes a parameter list and produces a shared pointer to an object derived from
+  /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaMethod.
-  using NewMetaMethodGenerator = std::unique_ptr<BaseMethodType> (*)(stk::util::ParameterList&);
+  using NewMetaMethodGenerator = std::function<std::unique_ptr<BaseMethodType>(const stk::util::ParameterList&)>;
 
-  /// \brief A function pointer that takes a parameter list and produces a PartParams instance.
-  using NewRequirementsGenerator = PartParams (*)(stk::util::ParameterList&);
+  /// \brief A function type that takes a parameter list and produces a PartParams instance.
+  using NewRequirementsGenerator = std::function<PartParams>(const stk::util::ParameterList&);
 
-  /// \brief A function pointer that produces a stk::util::ParameterList instance.
-  using NewDefaultParamsGenerator = stk::util::ParameterList (*)();
+  /// \brief A function type that produces a stk::util::ParameterList instance.
+  using NewDefaultParamsGenerator = std::function<stk::util::ParameterList>();
   //@}
 
   //! \name Attributes
   //@{
 
   /// \brief Get the number of \c MetaMethod classes this factory recognizes.
-  size_t get_number_of_subclasses() {
-    return generator_map_.size();
+  static size_t get_number_of_subclasses() {
+    return get_instance_generator_map().size();
   }
 
   /// \brief Get the requirements that this a registered \c MetaMethod imposes upon each particle and/or constraint.
@@ -101,7 +101,7 @@ class MetaMethodFactory {
   ///
   /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
-  /// provided \c register_new_method or \c register_new_methods function.
+  /// provided \c register_new_method function.
   ///
   /// \note This function does not cache its return value, so
   /// each time you call this function, a new \c PartParams will be created. You can save the result yourself if you
@@ -110,46 +110,101 @@ class MetaMethodFactory {
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_default_params.
-  std::unique_ptr<PartParams> get_part_requirements(const KeyType& key,
-                                                    const stk::util::ParameterList& parameter_list) {
-    return requirement_generator_map_[key](parameter_list);
+  static std::unique_ptr<PartParams> get_part_requirements(const KeyType& key,
+                                                           const stk::util::ParameterList& parameter_list) {
+    return get_instance_generator_map()[key](parameter_list);
   }
 
   /// \brief Get the default parameter list for a registered \c MetaMethod.
   ///
   /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
-  /// provided \c register_new_method or \c register_new_methods function.
+  /// provided \c register_new_method function.
   ///
   /// \note This function does not cache its return value, so
   /// each time you call this function, a new \c stk::util::ParameterList will be created. You can save the result
   /// yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
-  stk::util::ParameterList get_default_params(const KeyType& key) {
+  static stk::util::ParameterList get_default_params(const KeyType& key) {
     ThrowAssertMsg(is_valid_key(key), "The provided key " << key << " is not valid.");
-    return default_params_generator_map_[key]();
+    return get_default_params_generator_map()[key]();
   }
   //@}
 
   //! \name Actions
   //@{
 
-  /// \brief Generate a new instance of this class.
+  /// \brief Register a method. The key for the method is determined by its class identifier.
   template <MetaMethod MethodToRegister>
-  std::unique_ptr<MetaMethodFactory> register_new_method(const KeyType& key) {
-    instance_generator_map_.insert(std::make_pair(key, MethodToRegister::create_new_instance));
-    requirement_generator_map_.insert(std::make_pair(key, MethodToRegister::get_part_requirements));
-    default_requirement_generator_map_.insert(std::make_pair(key, MethodToRegister::get_default_params));
+  std::unique_ptr<MetaMethodFactory> register_new_method() {
+    const std::string key = MethodToRegister::get_class_identifier();
+    ThrowAssertMsg(!is_valid_key(key), "The provided key " << key << " already exists.");
+    get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
+    get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
+    get_default_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_default_params));
   }
 
-  /// \brief Generate a new instance of this class.
-  virtual std::unique_ptr<MetaMethodFactory> create_new_instance(const stk::util::ParameterList& parameter_list) = 0;
+  /// \brief Generate a new instance of a registered \c MetaMethod.
+  ///
+  /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
+  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
+  /// provided \c register_new_method function.
+  ///
+  /// \param key [in] A key corresponding to a registered \c MetaMethod.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_default_params.
+  static std::unique_ptr<MetaMethodFactory> create_new_instance(const KeyType& key,
+                                                                const stk::util::ParameterList& parameter_list) {
+    return get_instance_generator_map(key)(parameter_list);
+  }
   //@}
+
  private:
-  std::map<KeyType, NewMetaMethodGenerator> instance_generator_map_;
-  std::map<KeyType, NewRequirementsGenerator> requirement_generator_map_;
-  std::map<KeyType, NewDefaultParamsGenerator> default_params_generator_map_;
+  //! \name Typedefs
+  //@{
+
+  /// \brief A map from key to a function for generating a new \c MetaMethod.
+  using InstanceGeneratorMap = std::map<KeyType, NewMetaMethodGenerator>;
+
+  /// \brief A map from key to a function for generating a \c MetaMethod's part requirements.
+  using RequirementGeneratorMap = std::map<KeyType, NewRequirementsGenerator>;
+
+  /// \brief A map from key to a function for generating a \c MetaMethod's part default requirements.
+  using DefaultParamsGeneratorMap = std::map<KeyType, NewDefaultParamsGenerator>;
+  //@}
+
+  //! \name Attributes
+  //@{
+  static InstanceGeneratorMap& get_instance_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static InstanceGeneratorMap instance_generator_map;
+    return instance_generator_map;
+  }
+
+  static RequirementGeneratorMap& get_requirement_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static RequirementGeneratorMap requirement_generator_map;
+    return requirement_generator_map;
+  }
+
+  static DefaultParamsGeneratorMap& get_default_params_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static DefaultParamsGeneratorMap default_params_generator_map;
+    return default_params_generator_map;
+  }
+  //@}
+
+  //! \name Friends
+  //@{
+
+  /// \brief Every concrete MetaMethod that inherits from the MetaMethodRegistry will be added to this factory's
+  /// registry. This process requires friendship <3.
+  template <typename T>
+  friend class MetaMethodRegistry<T>;
+  //@}
+
 };  // MetaMethodFactory
 
 }  // namespace meta
@@ -157,4 +212,4 @@ class MetaMethodFactory {
 }  // namespace mundy
 
 //}
-#endif  // MUNDY_META_METAMETHOD_HPP_
+#endif  // MUNDY_META_METAMETHODFACTORY_HPP_

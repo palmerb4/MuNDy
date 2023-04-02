@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHOD_HPP_
-#define MUNDY_META_METAMETHOD_HPP_
+#ifndef MUNDY_META_METAMETHODREGISTRY_HPP_
+#define MUNDY_META_METAMETHODREGISTRY_HPP_
 
-/// \file MetaMethod.hpp
-/// \brief Declaration of the MetaMethod class
+/// \file MetaMethodRegistry.hpp
+/// \brief Declaration of the MetaMethodRegistry class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,56 +55,33 @@ namespace mundy {
 
 namespace meta {
 
-/// \class MetaMethod
-/// \brief An abstract interface for all of Mundy's methods.
+/// \class MetaMethodRegistry
+/// \brief A class for registering \c MetaMethods within \c MetaMethodFactory.
 ///
-/// The goal of MetaMethod is to wrap a function that acts on Mundy's multibody hierarchy with a class that can output
-/// the assumptions that function with respect to the fields and structure of the hierarchy.
-class MetaMethod {
- public:
-  //! \name Attributes
-  //@{
+/// All classes derived from \c MetaMethod, which wish to be registered within the \c MetaMethodFactory should inherit
+/// from this class where the template parameter is the derived type itself.
+///
+/// \tparam T A class derived from \c MetaMethod.
+template <typename T>
+typename std::enable_if<std::is_base_of<MetaMethod, T>::value, void>::type struct MetaMethodRegistry {
+  static inline bool register_type() {
+    MetaMethodFactory::register_new_method<T>();
+    return true;
+  }
 
-  /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
-  ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaMethod
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_default_params.
-  virtual static std::unique_ptr<PartParams> get_part_requirements(
-      const stk::util::ParameterList& parameter_list) const = 0;
+  static const bool is_registered;
+};  // MetaMethodRegistry
 
-  /// \brief Get the default parameter list for this \c MetaMethod.
-  virtual static stk::util::ParameterList parameter_list get_default_params() const = 0;
-
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  virtual std::string get_class_identifier() const = 0;
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_default_params.
-  virtual static std::unique_ptr<MetaMethodFactory> create_new_instance(
-      const stk::util::ParameterList& parameter_list) = 0;
-
-  /// \brief Generate a new instance of this class.
-  virtual RunInformation run(const stk::mesh::BulkData* bulk_data_ptr, const stk::mesh::Part& part) = 0;
-
-  //@}
-}
+/// @brief Perform the registration.
+///
+/// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
+/// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
+template <class T>
+const bool MetaMethodRegistry<T>::is_registered = ShapeInterface<T>::register_type();
 
 }  // namespace meta
 
 }  // namespace mundy
 
 //}
-#endif  // MUNDY_META_METAMETHOD_HPP_
+#endif  // MUNDY_META_METAMETHODREGISTRY_HPP_
