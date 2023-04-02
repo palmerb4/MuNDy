@@ -65,12 +65,33 @@ class MetaMethod {
   //! \name Attributes
   //@{
 
-  /// \brief Get the requirements that this MetaMethod imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
   ///
-  /// \note It is important to note that these requirements encode the assumptions made by this method with respect to
-  /// the topology and fields of each multibody object. As such, assumptions may vary based on values passed to the
-  /// MetaMethod's constructor.
-  virtual std::map<mundy::multibody, std::unique_ptr<PartParams>> get_multibody_part_requirements() = 0;
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaMethod
+  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
+  /// based parameters in the \c parameter_list.
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_default_params.
+  virtual static std::unique_ptr<PartParams> get_part_requirements(const stk::util::ParameterList& parameter_list) = 0;
+
+  /// \brief Get the default parameter list for this \c MetaMethod.
+  virtual static stk::util::ParameterList parameter_list get_default_params() = 0;
+  //@}
+
+  //! \name Actions
+  //@{
+
+  /// \brief Generate a new instance of this class.
+  virtual static std::unique_ptr<MetaMethodFactory> create_new_instance(
+      const stk::util::ParameterList& parameter_list) = 0;
+
+  /// \brief Generate a new instance of this class.
+  virtual void run(const stk::mesh::BulkData* bulk_data_ptr, const stk::mesh::Part& part) = 0;
+
   //@}
 }
 
