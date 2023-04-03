@@ -60,6 +60,15 @@ namespace meta {
 ///
 /// The goal of MetaMethod is to wrap a function that acts on Mundy's multibody hierarchy with a class that can output
 /// the assumptions that function with respect to the fields and structure of the hierarchy.
+///
+/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethod must
+/// implement the following static member functions
+///   - \c details_get_part_requirements implementation of the \c get_part_requirements interface.
+///   class.
+///   - \c details_get_default_params implementation of the \c get_default_params interface.
+///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
+///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
+template <class DerivedMetaMethod>
 class MetaMethod {
  public:
   //! \name Attributes
@@ -76,14 +85,19 @@ class MetaMethod {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_default_params.
-  virtual static std::unique_ptr<PartParams> get_part_requirements(
-      const stk::util::ParameterList& parameter_list) const = 0;
+  static std::unique_ptr<PartParams> get_part_requirements(const stk::util::ParameterList& parameter_list) const {
+    return DerivedMetaMethod::details_get_part_requirements(parameter_list);
+  }
 
   /// \brief Get the default parameter list for this \c MetaMethod.
-  virtual static stk::util::ParameterList parameter_list get_default_params() const = 0;
+  static stk::util::ParameterList get_default_params() const {
+    return DerivedMetaMethod::details_get_default_params();
+  }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  virtual std::string get_class_identifier() const = 0;
+  static std::string get_class_identifier() const {
+    return DerivedMetaMethod::details_get_class_identifier();
+  }
   //@}
 
   //! \name Actions
@@ -93,12 +107,12 @@ class MetaMethod {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_default_params.
-  virtual static std::unique_ptr<MetaMethodFactory> create_new_instance(
-      const stk::util::ParameterList& parameter_list) = 0;
+  static std::unique_ptr<MetaMethodFactory> create_new_instance(const stk::util::ParameterList& parameter_list) const {
+    return DerivedMetaMethod::details_create_new_instance(parameter_list);
+  }
 
   /// \brief Generate a new instance of this class.
   virtual RunInformation run(const stk::mesh::BulkData* bulk_data_ptr, const stk::mesh::Part& part) = 0;
-
   //@}
 }
 

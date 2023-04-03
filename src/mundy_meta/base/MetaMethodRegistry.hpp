@@ -59,17 +59,31 @@ namespace meta {
 /// \brief A class for registering \c MetaMethods within \c MetaMethodFactory.
 ///
 /// All classes derived from \c MetaMethod, which wish to be registered within the \c MetaMethodFactory should inherit
-/// from this class where the template parameter is the derived type itself.
+/// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
+/// Pattern).
 ///
 /// \tparam T A class derived from \c MetaMethod.
-template <typename T>
-typename std::enable_if<std::is_base_of<MetaMethod, T>::value, void>::type struct MetaMethodRegistry {
+template <class DerivedMetaMethod, typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
+struct MetaMethodRegistry {
+  //! \name Actions
+  //@{
+
+  /// @brief Register DerivedMetaMethod with the MetaMethodFactory.
+  ///
+  /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
+  /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaMethodFactory::register_new_method<T>();
+    MetaMethodFactory::register_new_method<DerivedMetaMethod>();
     return true;
   }
+  //@}
 
+  //! \name Member variables
+  //@{
+
+  /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
   static const bool is_registered;
+  //@}
 };  // MetaMethodRegistry
 
 /// @brief Perform the registration.
