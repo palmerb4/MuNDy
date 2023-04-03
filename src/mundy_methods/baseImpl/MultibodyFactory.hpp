@@ -106,14 +106,14 @@ class MultibodyFactory {
 
   /// \brief Get the requirements that the desired subclass imposes upon each particle and/or constraint.
   ///
-  /// \param given_type [in] \c MultibodyManager multibody type specialization, for
-  ///   which is_valid_multibody_type(given_type) returns true.
+  /// \param multibody_type [in] \c MultibodyManager multibody type specialization, for
+  ///   which is_valid_multibody_type(multibody_type) returns true.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody& multibody_type,
                                                            const stk::util::ParameterList& parameter_list) {
-    ThrowAssertMsg(is_valid_multibody_type(given_type), "The provided type " << given_type << " is not valid.");
+    ThrowAssertMsg(is_valid_multibody_type(multibody_type), "The provided type " << given_type << " is not valid.");
 
     // this is a templated switch statement
     // the manager whose multibody type matches multibody_type is returned by multibody_switch
@@ -126,21 +126,21 @@ class MultibodyFactory {
   //@{
 
   /// \brief Check whether this factory recognizes the given multibody type.
-  bool is_valid_multibody_type(const mundy::multibody& given_type) const {
-    return (std::find(subclass_identifiers_.begin(), subclass_identifiers_.end(), given_type) !=
+  bool is_valid_multibody_type(const mundy::multibody& multibody_type) const {
+    return (std::find(subclass_identifiers_.begin(), subclass_identifiers_.end(), multibody_type) !=
             subclass_identifiers_.end());
   }
 
   /// \brief Return an instance of the specified \c MultibodyManager subclass.
   ///
-  /// \param given_type [in] Multibody type specialization of the \c MultibodyManager subclass instance to return.  The
-  /// \c get_valid_multibody_types() method returns a list of the supported types.
+  /// \param multibody_type [in] Multibody type specialization of the \c MultibodyManager subclass instance to return.
+  /// The \c get_valid_multibody_types() method returns a list of the supported types.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up the specific \c MultibodyManager subclass. A
   /// default parameter list is available for each \c MultibodyManager subclass that this factory knows how to make.
-  std::unique_ptr<mundy::methods::MultibodyManager> make_subclass(const mundy::multibody& given_type,
+  std::unique_ptr<mundy::methods::MultibodyManager> make_subclass(const mundy::multibody& multibody_type,
                                                                   const stk::util::ParameterList& parameter_list) {
-    ThrowAssertMsg(is_valid_multibody_type(given_type), "The provided type " << given_type << " is not valid.");
+    ThrowAssertMsg(is_valid_multibody_type(multibody_type), "The provided type " << multibody_type << " is not valid.");
 
     // this is a templated switch statement
     // the manager whose multibody type matches multibody_type is returned by multibody_switch

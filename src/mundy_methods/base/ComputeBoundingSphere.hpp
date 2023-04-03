@@ -57,7 +57,8 @@ namespace methods {
 
 /// \class ComputeBoundingSphere
 /// \brief Method for computing the bounding sphere radius for different parts.
-class ComputeBoundingSphere : MetaMethod {
+class ComputeBoundingSphere : public MetaMethod<ComputeBoundingSphere>,
+                              public MetaMethodRegistry<ComputeBoundingSphere> {
  public:
   //! \name Constructors and destructor
   //@{

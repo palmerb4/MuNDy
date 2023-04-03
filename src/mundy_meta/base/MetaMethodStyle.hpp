@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEOBB_HPP_
-#define MUNDY_METHODS_COMPUTEOBB_HPP_
+#ifndef MUNDY_META_METAMETHODSTYLE_HPP_
+#define MUNDY_META_METAMETHODSTYLE_HPP_
 
-/// \file ComputeOBB.hpp
-/// \brief Declaration of the ComputeOBB class
+/// \file MetaMethodStyle.hpp
+/// \brief Declaration of the MetaMethodStyle class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -53,36 +53,32 @@
 
 namespace mundy {
 
-namespace methods {
+namespace meta {
 
-/// \class ComputeOBB
-/// \brief Method for computing the object aligned boundary box of different parts.
-class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<ComputeOBB> {
- public:
-  //! \name Constructors and destructor
-  //@{
+/// \class MetaMethodStyle
+/// \brief An abstract interface for all an styles/techniques/varients that arise when computing a \c MetaMethod.
+///
+/// \note \c MetaMethodStyle is identical to \c MetaMethod in form, but we chose to separate the names to emphasize
+/// their distinct uses.
+///
+/// The goal of \c MetaMethodStyle is to wrap a function that acts on Mundy's multibody hierarchy with a class that can
+/// output the assumptions that function with respect to the fields and structure of the hierarchy.
+///
+/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethodStyle
+/// must implement the following static member functions
+///   - \c details_get_part_requirements implementation of the \c get_part_requirements interface.
+///   class.
+///   - \c details_get_default_params implementation of the \c get_default_params interface.
+///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
+///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
+///
+/// \tparam A class derived from \c MetaMethodStyle that implements the desired interface.
+template <class DerivedMetaMethodStyle>
+using MetaMethodStyle = MetaMethod<DerivedMetaMethodStyle>;
 
-  /// \brief Constructor
-  ComputeOBB();
-  //@}
-
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
-      const stk::util::ParameterList &parameter_list) {
-    obb_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
-  }
-
-  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
-                                                           const stk::util::ParameterList &parameter_list) {
-    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
-  }
-
- private:
-  using FactoryType_ = MultibodyFactory<OBBSphereManager>;
-  FactoryType_ obb_factory_;
-}
-
-}  // namespace methods
+}  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEOBB_HPP_
+//}
+#endif  // MUNDY_META_METAMETHODSTYLE_HPP_

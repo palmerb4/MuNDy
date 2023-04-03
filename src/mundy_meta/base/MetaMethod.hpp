@@ -68,7 +68,10 @@ namespace meta {
 ///   - \c details_get_default_params implementation of the \c get_default_params interface.
 ///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
-template <class DerivedMetaMethod>
+///
+/// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
+template <class DerivedMetaMethod,
+          typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
 class MetaMethod {
  public:
   //! \name Attributes
@@ -114,7 +117,7 @@ class MetaMethod {
   /// \brief Generate a new instance of this class.
   virtual RunInformation run(const stk::mesh::BulkData* bulk_data_ptr, const stk::mesh::Part& part) = 0;
   //@}
-}
+};  // MetaMethod
 
 }  // namespace meta
 

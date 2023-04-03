@@ -55,18 +55,29 @@ namespace mundy {
 
 namespace meta {
 
+/// \brief An empty struct to symbolize an unused template parameter.
+struct UnusedType {};
+
 /// \class MetaMethodFactory
 /// \brief A factory containing generation routines for all of Mundy's \c MetaMethods.
 ///
 /// The goal of \c MetaMethodFactory, as with most factories, is to provide an abstraction for case switches between
-/// different methods. The switch type is defined by the \c std::string template parameter and can be any type with a
-/// comparison == operator and ostream operator <<.
+/// different methods. This factory is a bit different in that it always users to register new \c MetaMethods and
+/// associate them with their corresponding keys. This allows a method to be created based on a string. Most
+/// importantly, it enables users to add their own \c MetaMethods without modifying Mundy's source code.
 ///
-/// \note This factory does not store an instance of \c MetaMethod; rather, it stores a map from \c std::string to \c
-/// MetaMethod's \c create_new_instance member function.
+/// It's important to note that the static members of this factory will be shared between any \c MetaMethodFactories
+/// with the same template \c RegistryIdentifier. We use the default identifier to register all of Mundy's
+/// \c MetaMethods.
+///
+/// \note This factory does not store an instance of \c MetaMethod; rather, it stores maps from a string to some of
+/// \c MetaMethod's static member functions.
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
+///
+/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
+template <typename RegistryIdentifier = UnusedType>
 class MetaMethodFactory {
  public:
   //! \name Typedefs
@@ -74,7 +85,7 @@ class MetaMethodFactory {
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaMethod.
-  using NewMetaMethodGenerator = std::function<std::unique_ptr<BaseMethodType>(const stk::util::ParameterList&)>;
+  using NewMetaMethodGenerator = std::function<std::unique_ptr<MetaMethod>(const stk::util::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartParams instance.
   using NewRequirementsGenerator = std::function<PartParams>(const stk::util::ParameterList&);
@@ -134,7 +145,8 @@ class MetaMethodFactory {
   //@{
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
-  template <MetaMethod MethodToRegister>
+  template <MetaMethod MethodToRegister,
+            typename std::enable_if<std::is_base_of<MetaMethod, MethodToRegister>::value, void>::type>
   std::unique_ptr<MetaMethodFactory> register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
     ThrowAssertMsg(!is_valid_key(key), "The provided key " << key << " already exists.");

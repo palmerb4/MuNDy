@@ -57,7 +57,8 @@ namespace methods {
 
 /// \class ComputeConstraintViolation
 /// \brief Method for computing the constraint violation of different parts.
-class ComputeConstraintViolation : MetaMethod {
+class ComputeConstraintViolation : public MetaMethod<ComputeConstraintViolation>,
+                                   public MetaMethodRegistry<ComputeConstraintViolation> {
  public:
   //! \name Constructors and destructor
   //@{

@@ -63,7 +63,8 @@ namespace meta {
 /// Pattern).
 ///
 /// \tparam T A class derived from \c MetaMethod.
-template <class DerivedMetaMethod, typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
+template <class DerivedMetaMethod,
+          typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
 struct MetaMethodRegistry {
   //! \name Actions
   //@{

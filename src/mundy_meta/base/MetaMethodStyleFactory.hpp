@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEOBB_HPP_
-#define MUNDY_METHODS_COMPUTEOBB_HPP_
+#ifndef MUNDY_META_METAMETHODSTYLEFACTORY_HPP_
+#define MUNDY_META_METAMETHODSTYLEFACTORY_HPP_
 
-/// \file ComputeOBB.hpp
-/// \brief Declaration of the ComputeOBB class
+/// \file MetaMethodStyleFactory.hpp
+/// \brief Declaration of the MetaMethodStyleFactory class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -53,36 +53,33 @@
 
 namespace mundy {
 
-namespace methods {
+namespace meta {
 
-/// \class ComputeOBB
-/// \brief Method for computing the object aligned boundary box of different parts.
-class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<ComputeOBB> {
- public:
-  //! \name Constructors and destructor
-  //@{
+/// \class MetaMethodStyleFactory
+/// \brief A factory containing generation routines for a group of styles for carrying out a single task.
+///
+/// The goal of \c MetaMethodStyleFactory, as with most factories, is to provide an abstraction for case switches
+/// between different methods. This factory is a bit different in that it always users to register new
+/// \c MetaMethodStyles and associate them with their corresponding keys. This allows a method to be created based on a
+/// string. Most importantly, it enables users to add their own \c MetaMethodStyles without modifying Mundy's source
+/// code.
+///
+/// \note \c MetaMethodStyleFactory is identical to \c MetaMethodFactory in form, but we chose to separate the names to
+/// emphasize their distinct uses.
+///
+/// \note This factory does not store an instance of \c MetaMethodStyle; rather, it stores maps from a string to some of
+/// \c MetaMethodStyle's static member functions.
+///
+/// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
+/// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
+///
+/// \tparam A class derived from \c MetaMethodStyle that implements the desired interface.
+template <typename RegistryIdentifier = UnusedType>
+using MetaMethodStyleFactory = MetaMethodFactory<RegistryIdentifier>;
 
-  /// \brief Constructor
-  ComputeOBB();
-  //@}
-
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
-      const stk::util::ParameterList &parameter_list) {
-    obb_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
-  }
-
-  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
-                                                           const stk::util::ParameterList &parameter_list) {
-    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
-  }
-
- private:
-  using FactoryType_ = MultibodyFactory<OBBSphereManager>;
-  FactoryType_ obb_factory_;
-}
-
-}  // namespace methods
+}  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEOBB_HPP_
+//}
+#endif  // MUNDY_META_METAMETHODSTYLEFACTORY_HPP_

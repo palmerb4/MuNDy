@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : MetaMethod {
+class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<ComputeAABB>  {
  public:
   //! \name Constructors and destructor
   //@{

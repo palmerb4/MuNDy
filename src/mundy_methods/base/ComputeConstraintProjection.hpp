@@ -58,7 +58,8 @@ namespace methods {
 /// \class ComputeConstraintProjection
 /// \brief Method for computing the projection of the constraint's Lagrange multiplier onto the feasible set of
 /// different constraint types.
-class ComputeConstraintProjection : MetaMethod {
+class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjection>,
+                                    public MetaMethodRegistry<ComputeConstraintProjection> {
  public:
   //! \name Constructors and destructor
   //@{
