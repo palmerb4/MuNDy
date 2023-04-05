@@ -65,7 +65,8 @@ namespace meta {
 /// code.
 ///
 /// \note \c MetaMethodStyleFactory is identical to \c MetaMethodFactory in form, but we chose to separate the names to
-/// emphasize their distinct uses.
+/// emphasize their distinct uses. The only difference is that \c MetaMethodStyleFactory does not have a default
+/// \c RegistryIdentifier.
 ///
 /// \note This factory does not store an instance of \c MetaMethodStyle; rather, it stores maps from a string to some of
 /// \c MetaMethodStyle's static member functions.
@@ -74,7 +75,7 @@ namespace meta {
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
 /// \tparam A class derived from \c MetaMethodStyle that implements the desired interface.
-template <typename RegistryIdentifier = UnusedType>
+template <typename RegistryIdentifier>
 using MetaMethodStyleFactory = MetaMethodFactory<RegistryIdentifier>;
 
 }  // namespace meta

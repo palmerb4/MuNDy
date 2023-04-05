@@ -102,104 +102,102 @@ mundy::
     // abstract interfaces
     MultiBodyFactory (an abstract factory to be used by all multibody methods)
     MultiBodyManager
-    
-    StringFactory (any number of factories, each with string identifiers)
-    StringManager
-    
+       
     // methods needed by other methods that may be of user interest
     // all factories are given a part and will act on that part
     ComputeAABB
-      imp::AABBSphereManager 
-      imp::AABBSpherocylinderManager
-      imp::AABBSuperEllipsoidManager
-      imp::AABBPolytopeManager
-      imp::AABBCollisionManager
-      imp::AABBSpringManager
-      imp::AABBTorsiionalSpringManager
-      imp::AABBJointManager
-      imp::AABBHingeManager
+      imp::AABBSphereVariant 
+      imp::AABBSpherocylinderVariant
+      imp::AABBSuperEllipsoidVariant
+      imp::AABBPolytopeVariant
+      imp::AABBCollisionVariant
+      imp::AABBSpringVariant
+      imp::AABBTorsiionalSpringVariant
+      imp::AABBJointVariant
+      imp::AABBHingeVariant
 
     ComputeOBB
-      imp::OBBSpherocylinderManager
-      imp::OBBSuperEllipsoidManager
-      imp::OBBPolytopeManager
-      imp::OBBCollisionManager
-      imp::OBBSpringManager
-      imp::OBBTorsiionalSpringManager
-      imp::OBBJointManager
-      imp::OBBHingeManager
+      imp::OBBSpherocylinderVariant
+      imp::OBBSuperEllipsoidVariant
+      imp::OBBPolytopeVariant
+      imp::OBBCollisionVariant
+      imp::OBBSpringVariant
+      imp::OBBTorsiionalSpringVariant
+      imp::OBBJointVariant
+      imp::OBBHingeVariant
     
     ComputeBoundingSphere
-      imp::BoundingSphereSphereManager
-      imp::BoundingSphereSpherocylinderManager
-      imp::BoundingSphereSuperEllipsoidManager
-      imp::BoundingSpherePolytopeManager
-      imp::BoundingSphereCollisionManager
-      imp::BoundingSphereSpringManager
-      imp::BoundingSphereTorsiionalSpringManager
-      imp::BoundingSphereJointManager
-      imp::BoundingSphereHingeManager
+      imp::BoundingSphereSphereVariant
+      imp::BoundingSphereSpherocylinderVariant
+      imp::BoundingSphereSuperEllipsoidVariant
+      imp::BoundingSpherePolytopeVariant
+      imp::BoundingSphereCollisionVariant
+      imp::BoundingSphereSpringVariant
+      imp::BoundingSphereTorsiionalSpringVariant
+      imp::BoundingSphereJointVariant
+      imp::BoundingSphereHingeVariant
     
     SolveLCP
-      imp::LCPSolverAPGDManager
-      imp::LCPSolverBBPGDManager
+      imp::LCPSolverAPGDTechnique
+      imp::LCPSolverBBPGDTechnique
 
     // neighbor methods
     DetectNeighbors
-      imp::DetectNeighborsAABBManager
-      imp::DetectNeighborsBoundingSphereManager
+      imp::DetectNeighborsAABBTechnique
+      imp::DetectNeighborsBoundingSphereTechnique
       
     GhostNeighbors
     
     RefineNeighbors
-      imp::RefineNeighborsOBBManager
+      imp::RefineNeighborsOBBTechnique
     
     // constraint methods  
-    GenerateCollisionConstraints (derived from FactoryRegistory)
-      imp::GenerateCollisionConstraintsSpherocylinderManager
-      imp::GenerateCollisionConstraintsSuperEllipsoidManager
-      imp::GenerateCollisionConstraintsPolytopeManager
+    GenerateCollisionConstraints
+      imp::GenerateCollisionConstraintsSpherocylinderVariant
+      imp::GenerateCollisionConstraintsSuperEllipsoidVariant
+      imp::GenerateCollisionConstraintsPolytopeVariant
 
-    ComputeConstraintViolation (derived from FactoryRegistory)
-      imp::ConstraintViolationCollisionManager
-      imp::ConstraintViolationSpringManager
-      imp::ConstraintViolationTorsiionalSpringManager
-      imp::ConstraintViolationJointManager
-      imp::ConstraintViolationHingeManager
+    ComputeConstraintViolation
+      imp::ConstraintViolationCollisionVariant
+      imp::ConstraintViolationSpringVariant
+      imp::ConstraintViolationTorsiionalSpringVariant
+      imp::ConstraintViolationJointVariant
+      imp::ConstraintViolationHingeVariant
 
-    ComputeConstraintProjection (derived from FactoryRegistory)
-      imp::ConstraintProjectionCollisionManager
-      imp::ConstraintProjectionSpringManager
-      imp::ConstraintProjectionTorsiionalSpringManager
-      imp::ConstraintProjectionJointManager
-      imp::ConstraintProjectionHingeManager
+    ComputeConstraintProjection
+      imp::ConstraintProjectionCollisionVariant
+      imp::ConstraintProjectionSpringVariant
+      imp::ConstraintProjectionTorsiionalSpringVariant
+      imp::ConstraintProjectionJointVariant
+      imp::ConstraintProjectionHingeVariant
 
-    ComputeConstraintForcing (derived from FactoryRegistory)
-      imp::ConstraintForcingSpringManager
-      imp::ConstraintForcingTorsiionalSpringManager
-      imp::ConstraintForcingJointManager
-      imp::ConstraintForcingHingeManager
+    ComputeConstraintForcing
+      imp::ConstraintForcingSpringVariant
+      imp::ConstraintForcingTorsiionalSpringVariant
+      imp::ConstraintForcingJointVariant
+      imp::ConstraintForcingHingeVariant
 
-    ResolveConstraints (derived from FactoryRegistory)
-      imp::ResolveConstraintsSmoothPotentialManager
-      imp::ResolveConstraintsSmoothPenaltyManager
-      imp::ResolveConstraintsNonSmoothLCPManager
-        ConstraintJacobian (dt D^T M D)
-        ConstraintViolationLinearizedRateOfChangeFactory
-          ConstraintViolationRateOfChangeManager
-          ConstraintViolationRateOfChangeCollisionManager
-          ConstraintViolationRateOfChangeSpringManager
-          ConstraintViolationRateOfChangeTorsiionalSpringManager
-          ConstraintViolationRateOfChangeJointManager
-          ConstraintViolationRateOfChangeHingeManager
-      imp::ResolveConstraintsNonSmoothReLCPManager
+    ComputeConstraintViolationLinearizedRateOfChange
+      imp::ConstraintViolationRateOfChangeCollisionVariant
+      imp::ConstraintViolationRateOfChangeSpringVariant
+      imp::ConstraintViolationRateOfChangeTorsiionalSpringVariant
+      imp::ConstraintViolationRateOfChangeJointVariant
+      imp::ConstraintViolationRateOfChangeHingeVariant
+    
+    ComputeConstraintJacobian (dt D^T M D)
+    
+    ResolveConstraints
+      imp::ResolveConstraintsSmoothPotentialTechnique
+      imp::ResolveConstraintsSmoothPenaltyTechnique
+      imp::ResolveConstraintsNonSmoothLCPTechnique
+      imp::ResolveConstraintsNonSmoothReLCPTechnique
     
     // motion methods
-    TimeIntegration (contains a FactoryRegistory)
-      imp::TimeIntegrationNodeEulerManager
-      imp::TimeIntegrationNodeAdamsBatchfordManager
+    TimeIntegration
+      imp::TimeIntegrationNodeEulerTechnique
+      imp::TimeIntegrationNodeAdamsBatchfordTechnique
     
-    ComputeMobility (contains a FactoryRegistory)
+    ComputeMobility
 
 
 User facing interfaces    
@@ -258,9 +256,16 @@ I'm struggling with how the particles/constraints perform very fine-grain activi
 
 I want to be able to use the functionality provided by MetaMethodFactory for all of my factories; however, its static member variables make inheritance impossible. Now, we could use CRTP to instaniate independent factories for each MetaMethod and this seems tempting. I just don't like the complexity of registering with more than one factory
 
-ComputeAABB is a MetaMethod, it may also contain multiple MetaTechnique which abstract independent places in the method for quick multiple techniques could be used. These techniques will have their own requirements (just like a MetaMethod) and will be chosen based on the input params. This concept works is logical based on the factory design Factory -> Method -> Techniques. Even if a method requires another method, then that sub-method should be it's own method available to the public. Come on, a technique is just a method with a longer identifier. No, not necessarily. We don't want the exponential increase in methods caused by needed to implement every purmutation of independent tequniques as a single method. It also clutters our MetaMethodFactory's output. Instead, every set of techniques that correspond to different ways to perform the same task should have a factory. This factory should be set up just like MetaMethodFactory except with CRTP based on the task being carried out. Then again, maybe not. Is it ok for tasks like computing the minimal separation distance, constraint violation, rate of change of constraint violation, constraint projection, or constraint forcing to be carried out as loops that employ a different style? That is, can the techniques look like MetaMethods? I think so! Techniques need to be able to differ from multibody to multibody! That makes things difficult but is a worthy cause. I'm tempted to keep multibody factory the same and have different techniques for each method within that factory.
+ComputeAABB is a MetaMethod, it may also contain multiple MetaTechnique which abstract independent places in the method for quick multiple techniques could be used. These techniques will have their own requirements (just like a MetaMethod) and will be chosen based on the input params. This concept works is logical based on the factory design Factory -> Method -> Techniques. Even if a method requires another method, then that sub-method should be it's own method available to the public. Come on, a technique is just a method with a longer identifier. No, not necessarily. We don't want the exponential increase in methods caused by needed to implement every purmutation of independent tequniques as a single method. It also clutters our MetaMethodFactory's output. Instead, every set of techniques that correspond to different ways to perform the same task should have a factory. This factory should be set up just like MetaMethodFactory except with CRTP based on the task being carried out. Then again, maybe not. Is it ok for tasks like computing the minimal separation distance, constraint violation, rate of change of constraint violation, constraint projection, or constraint forcing to be carried out as loops that employ a different style? That is, can the techniques look like MetaMethods? I think so! Techniques need to be able to differ from multibody to multibody, thereby requiring an extra layer in out design hierarchy. Factory -> Method -> Variant -> Technique speaks to me. Variants will only be used to discribe the difference in a method from multibody to multibody. Note, some Variants will be for sets of multibodies, such as a mobility matrix that only works for spheres and rods. Each varient may have its own set of Techniques. Any Method, Variant, or Technique can be swapped out allowing for multi-scale code extensions based on user needs. What's the best way to specify techniques? In the code, this will be done as follows:
 
+Each DerivedMetaMethod is registered with MetaMethodFactory. 
+Each Varient is registered to MetaVarientFactory<DerivedMetaMethod>. 
+Each Technique is registered to MetaTechniqueFactory<MetaVarientFactory<DerivedMetaMethod>>> or MetaVarientFactory<DerivedMetaMethod> depending on if they are associated with a variant or not. 
+This registry hierarchy will work well in the future when building an API with drop down windows. 
 
+What if a technique requires techniques or if you want a technique to have variants? If you ask this question, then you need to flip your design structure. Instead of a technique with vartiants for each multibody type, try a method with varients for each multibody type each with a unique implementation of your technique. Another question, what if I want to assign a certain method with varients to the parent particle object and have all of the subparts automatically inherit the proper vartiant? Perfectly valid question, then we should add a Varient flag to our API that says Automatic. That's going to be hard to ptogram! Actually, idk if it's possible or if it's recommended since some variants may not have the same techniques and because subparts have nothing that identifies them as a sphere or rod. If the part has the required topology and the right fields then it can be a sphere or a ellipsoid.  
+
+!!Need a requirement conflict resolver!!
 !!Our PartParams needs an && operator to merge them together!!
 !!What if I want to combine multiple independent computations? Can the compute routines have an overloaded && operator for merging their lambdas!!
 !!What if a constraint has multiple lagrange multiplies like friction!! 

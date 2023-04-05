@@ -58,6 +58,74 @@ namespace meta {
 /// \class PartParams
 /// \brief A collection of entities, their sub-groups, and their associated fields.
 ///
+/// If we write out the final class stucture like a YAML file, then we get something the following.
+/// Notice how easily this can be replaced with a GUI.
+/// %YAML 1.1
+/// ---
+/// PartHierarchy:
+///   - Particles:
+///       Topology: Entity
+///       Fields:
+///         - Force:
+///             Rank: Entity
+///             Dimension: 3
+///             Number Of States: 1
+///             Type: double
+///         - Coordinates
+///             Rank: Node
+///             Dimension: 3
+///             Number Of States: 1
+///             Type: double
+///       Methods:
+///         - ResolveConstraints:
+///             ResolveConstraintsTechnique: NonSmoothLCP
+///       SubParts:
+///         - Spheres:
+///             Topology: Entity
+///             Fields:
+///               - Radius
+///                   Rank: Entity
+///                   Dimension: 1
+///                   Number Of States: 1
+///                   Type: double
+///             Methods:
+///               - TimeIntegration:
+///                   Variant:
+///                     Sphere:
+///                       TimeIntegrationTechnique: NodeEuler
+///               - ComputeMobility:
+///                   Variant:
+///                     Sphere:
+///                       ComputeMobilityTechnique: DryInertial
+///             SubParts:
+///               - ColoredSpheres
+///                   Topology: Entity
+///                   Fields:
+///                   - Color
+///                       Rank: Entity
+///                       Dimension: 1
+///                       Number Of States: 1
+///                       Type: int
+///         - Ellipsoids:
+///             Topology: Entity
+///             Fields:
+///             - AxisLength
+///                 Rank: Entity
+///                 Dimension: 3
+///                 Number Of States: 1
+///                 Type: double
+///             Methods:
+///               - TimeIntegration:
+///                   Variant:
+///                     Ellipsoid:
+///                       TimeIntegrationTechnique: NodeEuler
+///               - ComputeMobility:
+///                   Variant:
+///                     Ellipsoid:
+///                       ComputeMobilityTechnique: DryInertial
+///               - ResolveConstraints:
+///                   ResolveConstraintsTechnique: NonSmoothLCP
+///
 /// \tparam GroupTopology Topology assigned to each group member.
 /// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.
 template <stk::topology GroupTopology, typename Scalar = double>
