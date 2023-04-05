@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHODSTYLE_HPP_
-#define MUNDY_META_METAMETHODSTYLE_HPP_
+#ifndef MUNDY_META_METAMETHODTECHNIQUE_HPP_
+#define MUNDY_META_METAMETHODTECHNIQUE_HPP_
 
-/// \file MetaMethodStyle.hpp
-/// \brief Declaration of the MetaMethodStyle class
+/// \file MetaMethodTechnique.hpp
+/// \brief Declaration of the MetaMethodTechnique class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,16 +55,18 @@ namespace mundy {
 
 namespace meta {
 
-/// \class MetaMethodStyle
-/// \brief An abstract interface for all an styles/techniques/varients that arise when computing a \c MetaMethod.
+/// \class MetaMethodTechnique
+/// \brief \c MetaMethod is to a task, what \c MetaMethodTechnique is to a style of carrying out that task.
 ///
-/// \note \c MetaMethodStyle is identical to \c MetaMethod in form, but we chose to separate the names to emphasize
-/// their distinct uses.
+/// \note \c MetaMethodTechnique is identical to \c MetaMethod in form, but we chose to separate the names to emphasize
+/// their distinct uses. Expected usage for creating a technique class and registering it with its parent
+/// meta method's factory registry:
+/// \c SomeTechnique : \c MetaMethodTechnique<SomeTechnique, ParentMetaMethod>.
 ///
-/// The goal of \c MetaMethodStyle is to wrap a function that acts on Mundy's multibody hierarchy with a class that can
-/// output the assumptions that function with respect to the fields and structure of the hierarchy.
+/// The goal of \c MetaMethodTechnique is to wrap a function that acts on Mundy's multibody hierarchy with a class that
+/// can output the assumptions that function with respect to the fields and structure of the hierarchy.
 ///
-/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethodStyle
+/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethodTechnique
 /// must implement the following static member functions
 ///   - \c details_get_part_requirements implementation of the \c get_part_requirements interface.
 ///   class.
@@ -72,13 +74,13 @@ namespace meta {
 ///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
 ///
-/// \tparam A class derived from \c MetaMethodStyle that implements the desired interface.
-template <class DerivedMetaMethodStyle>
-using MetaMethodStyle = MetaMethod<DerivedMetaMethodStyle>;
+/// \tparam A class derived from \c MetaMethodTechnique that implements the desired interface.
+template <class DerivedMetaMethodTechnique>
+using MetaMethodTechnique = MetaMethod<DerivedMetaMethodTechnique>;
 
 }  // namespace meta
 
 }  // namespace mundy
 
 //}
-#endif  // MUNDY_META_METAMETHODSTYLE_HPP_
+#endif  // MUNDY_META_METAMETHODTECHNIQUE_HPP_

@@ -63,7 +63,6 @@ namespace meta {
 /// Pattern).
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
 template <class DerivedMetaMethod, typename RegistryIdentifier = UnusedType,
           typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
 struct MetaMethodRegistry {

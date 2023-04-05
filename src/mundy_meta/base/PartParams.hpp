@@ -60,71 +60,81 @@ namespace meta {
 ///
 /// If we write out the final class stucture like a YAML file, then we get something the following.
 /// Notice how easily this can be replaced with a GUI.
+///
+/// Naming convention became confusing quickly. This convention helped the most:
+///   Variables are named variable_name.
+///   Strings are named STRING_NAME
+///
 /// %YAML 1.1
 /// ---
-/// PartHierarchy:
-///   - Particles:
-///       Topology: Entity
-///       Fields:
-///         - Force:
-///             Rank: Entity
-///             Dimension: 3
-///             Number Of States: 1
-///             Type: double
-///         - Coordinates
-///             Rank: Node
-///             Dimension: 3
-///             Number Of States: 1
-///             Type: double
-///       Methods:
-///         - ResolveConstraints:
-///             ResolveConstraintsTechnique: NonSmoothLCP
-///       SubParts:
-///         - Spheres:
-///             Topology: Entity
-///             Fields:
-///               - Radius
-///                   Rank: Entity
-///                   Dimension: 1
-///                   Number Of States: 1
-///                   Type: double
-///             Methods:
-///               - TimeIntegration:
-///                   Variant:
-///                     Sphere:
-///                       TimeIntegrationTechnique: NodeEuler
-///               - ComputeMobility:
-///                   Variant:
-///                     Sphere:
-///                       ComputeMobilityTechnique: DryInertial
-///             SubParts:
-///               - ColoredSpheres
-///                   Topology: Entity
-///                   Fields:
-///                   - Color
-///                       Rank: Entity
-///                       Dimension: 1
-///                       Number Of States: 1
-///                       Type: int
-///         - Ellipsoids:
-///             Topology: Entity
-///             Fields:
-///             - AxisLength
-///                 Rank: Entity
-///                 Dimension: 3
-///                 Number Of States: 1
-///                 Type: double
-///             Methods:
-///               - TimeIntegration:
-///                   Variant:
-///                     Ellipsoid:
-///                       TimeIntegrationTechnique: NodeEuler
-///               - ComputeMobility:
-///                   Variant:
-///                     Ellipsoid:
-///                       ComputeMobilityTechnique: DryInertial
-///               - ResolveConstraints:
-///                   ResolveConstraintsTechnique: NonSmoothLCP
+/// part_hierarchy:
+///   - name: PARTICLES
+///     topology: ENTITY
+///     fields:
+///       - name: FORCE
+///         rank: ENTITY
+///         dimension: 3
+///         number_of_states: 1
+///         type: DOUBLE
+///       - name: COORDINATES
+///         rank: Node
+///         dimension: 3
+///         number_of_states: 1
+///         type: DOUBLE
+///     methods:
+///       - name: RESOLVE_CONSTRAINTS
+///         resolve_constraints_technique:
+///           name: NONSMOOTH_LCP
+///           max_number_of_iterations: 10000
+///           residual_tolerance: 1e-5
+///     sub_parts:
+///       - name: SPHERES
+///         topology: ENTITY
+///         fields:
+///           - name: RADIUS
+///             rank: ENTITY
+///             dimension: 1
+///             number_of_states: 1
+///             type: DOUBLE
+///         methods:
+///           - name: TIME_INTEGRATION
+///             variant:
+///               - name: SPHERE
+///                 time_integration_technique:
+///                   name: NODE_EULER
+///           - name: COMPUTE_MOBILITY
+///               variant:
+///                 name: SPHERE
+///                 compute_mobility_technique:
+///                   name: DRY_INERTIAL
+///         sub_parts:
+///           - name: COLORED_SPHERES
+///             topology: ENTITY
+///             fields:
+///             - name: COLOR
+///               rank: ENTITY
+///               dimension: 1
+///               number_of_states: 1
+///               type: INT
+///       - name: ELLIPSOIDS
+///         topology: ENTITY
+///         fields:
+///         - AxisLength
+///             rank: ENTITY
+///             dimension: 3
+///             number_of_states: 1
+///             type: DOUBLE
+///         methods:
+///           - name: TIME_INTEGRATION
+///             variant:
+///               name: ELLIPSOID
+///               time_integration_technique:
+///                 name: NODE_EULER
+///           - name: COMPUTE_MOBILITY
+///               variant:
+///                 name: ELLIPSOID
+///                 compute_mobility_technique:
+///                   name: DRY_INERTIAL
 ///
 /// \tparam GroupTopology Topology assigned to each group member.
 /// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.

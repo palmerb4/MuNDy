@@ -1,0 +1,70 @@
+%YAML 1.1
+---
+part_hierarchy:
+  - name: PARTICLES
+    topology: ENTITY
+    fields:
+      - name: FORCE
+        rank: ENTITY
+        dimension: 3
+        number_of_states: 1
+        type: DOUBLE
+      - name: COORDINATES
+        rank: Node
+        dimension: 3
+        number_of_states: 1
+        type: DOUBLE
+    methods:
+      - name: RESOLVE_CONSTRAINTS
+        resolve_constraints_technique:
+          name: NONSMOOTH_LCP
+          max_number_of_iterations: 10000
+          residual_tolerance: 1e-5
+    sub_parts:
+      - name: SPHERES
+        topology: ENTITY
+        fields:
+          - name: RADIUS
+            rank: ENTITY
+            dimension: 1
+            number_of_states: 1
+            type: DOUBLE
+        methods:
+          - name: TIME_INTEGRATION
+            variant:
+              - name: SPHERE
+                time_integration_technique:
+                  name: NODE_EULER
+          - name: COMPUTE_MOBILITY
+              variant:
+                name: SPHERE
+                compute_mobility_technique:
+                  name: DRY_INERTIAL
+        sub_parts:
+          - name: COLORED_SPHERES
+            topology: ENTITY
+            fields:
+            - name: COLOR
+              rank: ENTITY
+              dimension: 1
+              number_of_states: 1
+              type: INT
+      - name: ELLIPSOIDS
+        topology: ENTITY
+        fields:
+        - AxisLength
+            rank: ENTITY
+            dimension: 3
+            number_of_states: 1
+            type: DOUBLE
+        methods:
+          - name: TIME_INTEGRATION
+            variant:
+              name: ELLIPSOID
+              time_integration_technique:
+                name: NODE_EULER
+          - name: COMPUTE_MOBILITY
+              variant:
+                name: ELLIPSOID
+                compute_mobility_technique:
+                  name: DRY_INERTIAL
