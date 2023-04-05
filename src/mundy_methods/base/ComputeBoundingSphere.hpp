@@ -67,19 +67,17 @@ class ComputeBoundingSphere : public MetaMethod<ComputeBoundingSphere>,
   ComputeBoundingSphere();
   //@}
 
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
+  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const std::string &multibody_name,
       const stk::util::ParameterList &parameter_list) {
-    bounding_sphere_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
+    // create and run a ComputeBoundingSphere variant corresponding to the provided multibody type name
+    MetaMethodFactory<ComputeBoundingSphere>::create_new_instance(multibody_name, parameter_list)
+        .run(bulk_data_ptr, part);
   }
 
-  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
+  static std::unique_ptr<PartParams> get_part_requirements(const std::string &multibody_name,
                                                            const stk::util::ParameterList &parameter_list) {
-    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
+    return MetaMethodFactory<ComputeBoundingSphere>::get_part_requirements(multibody_name, parameter_list);
   }
-
- private:
-  using FactoryType_ = MultibodyFactory<BoundingSphereSphereManager>;
-  FactoryType_ bounding_sphere_factory_;
 }
 
 }  // namespace methods

@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<ComputeAABB>  {
+class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -66,19 +66,16 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   ComputeAABB();
   //@}
 
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const mundy::multibody &multibody_type,
+  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const std::string &multibody_name,
       const stk::util::ParameterList &parameter_list) {
-    aabb_factory_.make_subclass(multibody_type, parameter_list).run(bulk_data_ptr, part);
+    // create and run a ComputeAABB variant corresponding to the provided multibody type name
+    MetaMethodFactory<ComputeAABB>::create_new_instance(multibody_name, parameter_list).run(bulk_data_ptr, part);
   }
 
-  static std::unique_ptr<PartParams> get_part_requirements(const mundy::multibody &multibody_type,
+  static std::unique_ptr<PartParams> get_part_requirements(const std::string &multibody_name,
                                                            const stk::util::ParameterList &parameter_list) {
-    return FactoryType_::get_part_requirements(multibody_type, parameter_list);
+    return MetaMethodFactory<ComputeAABB>::get_part_requirements(multibody_name, parameter_list);
   }
-
- private:
-  using FactoryType_ = MultibodyFactory<AABBSphereManager>;
-  FactoryType_ aabb_factory_;
 }
 
 }  // namespace methods

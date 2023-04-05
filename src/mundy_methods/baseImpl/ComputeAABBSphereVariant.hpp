@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_CONSTRAINTPROJECTIONCOLLISIONMANAGER_HPP_
-#define MUNDY_METHODS_CONSTRAINTPROJECTIONCOLLISIONMANAGER_HPP_
+#ifndef MUNDY_METHODS_COMPUTEAABBSPHEREVARIANT_HPP_
+#define MUNDY_METHODS_COMPUTEAABBSPHEREVARIANT_HPP_
 
-/// \file ConstraintProjectionCollisionManager.hpp
-/// \brief Declaration of the ConstraintProjectionCollisionManager class
+/// \file ComputeAABBSphereVariant.hpp
+/// \brief Declaration of the ComputeAABBSphereVariant class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,21 +55,21 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ConstraintProjectionCollisionManager
-/// \brief Concrete implementation of \c MultibodyManager for computing projection of the constraint's Lagrange
-/// multiplier onto the feasible set of collision constraints.
-class ConstraintProjectionCollisionManager : MultibodyManager {
+/// \class ComputeAABBSphereVariant
+/// \brief Concrete implementation of \c MultibodyVariant for computing the axis aligned boundary box of spheres.
+class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
+                                 public MetaMethodRegistry<ComputeAABBSphereVariant, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ConstraintProjectionCollisionManager(const stk::util::ParameterList &parameter_list)
+  explicit ComputeAABBSphereVariant(const stk::util::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
+        aabb_field_name_(params.get_value<std::string>("aabb field name")),
         node_coord_field_name_(params.get_value<std::string>("node_coord")),
-        node_normal_vec_field_name_(params.get_value<std::string>("node_normal_vec")),
-        lagrange_multiplier_field_name_(params.get_value<std::string>("lagrange_multiplier")),
-        min_allowable_sep_(params.get_value<double>("minimum allowable separation")) {
+        radius_field_name_(params.get_value<std::string>("radius field name")),
+        buffer_distance_(params.get_value<double>("buffer distance")) {
   }
 
   //@}
@@ -85,15 +85,13 @@ class ConstraintProjectionCollisionManager : MultibodyManager {
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(
       [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("collision", std::topology::QUAD4);
+    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
     required_part_params->add_field_params("node_coord",
                                            std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params("node_normal_vec",
-                                           std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params("lagrange_multiplier",
+    required_part_params->add_field_params("radius",
                                            std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_params("constraint_violation",
-                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_params("aabb",
+                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }
 
@@ -103,11 +101,10 @@ class ConstraintProjectionCollisionManager : MultibodyManager {
   /// will be created. You can save the result yourself if you wish to reuse it.
   static stk::util::ParameterList get_default_params() {
     stk::util::ParameterList default_parameter_list;
-    default_parameter_list.set_param("minimum allowable separation", 0.0);
     default_parameter_list.set_param("node coordinate field name", "node_coord");
-    default_parameter_list.set_param("node normal vector field name", "node_normal_vec");
-    default_parameter_list.set_param("lagrange multiplier field name", "lagrange_multiplier");
-    default_parameter_list.set_param("constraint violation field name", "constraint_violation");
+    default_parameter_list.set_param("aabb field name", "aabb");
+    default_parameter_list.set_param("radius field name", "radius");
+    default_parameter_list.set_param("buffer distance", 0.0);
     return default_parameter_list;
   }
 
@@ -115,43 +112,41 @@ class ConstraintProjectionCollisionManager : MultibodyManager {
 
   //! \name Actions
   //@{
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
+  void run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
     const stk::mesh::Field &node_coord_field =
         bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    const stk::mesh::Field &node_normal_vec_field =
-        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_normal_vec_field_name_);
-    const stk::mesh::Field &constraint_violation_field =
-        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, constraint_violation_field_name_);
+    const stk::mesh::Field &radius_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    const stk::mesh::Field &aabb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
 
     stk::mesh::Selector locally_owned_part = metaB.locally_owned_part() && part;
-    stk::mesh::for_each_entity_run(
-        *bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
-        [&node_coord_field, &node_normal_vec_field, &lagrange_multiplier_field, &constraint_violation_field](
-            const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
-          const double *contact_pointI = stk::mesh::field_data(node_coord_field, nodes[1]);
-          const double *contact_pointJ = stk::mesh::field_data(node_coord_field, nodes[2]);
-          const double *contact_normal_vecI = stk::mesh::field_data(node_normal_vec_field, nodes[1]);
-          double *constraint_violation = stk::mesh::field_data(constraint_violation_field, element);
+    stk::mesh::for_each_entity_run(*bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
+                                   [&aabb_field, &radius_field, &buffer_distance_](const stk::mesh::BulkData &bulk_data,
+                                                                                   stk::mesh::Entity element) {
+                                     stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
+                                     double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
+                                     double *radius = stk::mesh::field_data(radius_field, element);
+                                     double *aabb = stk::mesh::field_data(aabb_field, element);
 
-          constraint_violation[0] = contact_normal_vecI[0] * (contact_pointJ[0] - contact_pointI[0]) +
-                                    contact_normal_vecI[1] * (contact_pointJ[1] - contact_pointI[1]) +
-                                    contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) -
-                                    min_allowable_sep_;
-        });
+                                     aabb[0] = coords[0] - radius[0] - buffer_distance_;
+                                     aabb[1] = coords[1] - radius[0] - buffer_distance_;
+                                     aabb[2] = coords[2] - radius[0] - buffer_distance_;
+                                     aabb[3] = coords[0] + radius[0] + buffer_distance_;
+                                     aabb[4] = coords[1] + radius[0] + buffer_distance_;
+                                     aabb[5] = coords[2] + radius[0] + buffer_distance_;
+                                   });
   }
 
  private:
   const stk::util::ParameterList parameter_list_;
-  const double min_allowable_sep_;
+  const double buffer_distance_;
+  const std::string aabb_field_name_;
+  const std::string radius_field_name_;
   const std::string node_coord_field_name_;
-  const std::string node_normal_vec_field_name_;
-  const std::string lagrange_multiplier_field_name_;
-  const std::string constraint_violation_field_name_;
-};  // ConstraintProjectionCollisionManager
+};  // ComputeAABBSphereVariant
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_CONSTRAINTPROJECTIONCOLLISIONMANAGER_HPP_
+#endif  // MUNDY_METHODS_COMPUTEAABBSPHEREVARIANT_HPP_

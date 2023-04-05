@@ -61,144 +61,108 @@ mundy::
 All of Mundy + strategy implementations    
 mundy::
   meta::
-    MetaMethod
     FieldParams
     PartParams
+    MetaMethod
     HierarchyParams
     HierarchyBuilder
-    
-    // meta particle stuff
-    imp::DefaultParticlePartParams
-    imp::DefaultSpherePartParams
-    imp::DefaultSpherocylinderPartParams
-    imp::DefaultEllipsoidPartParams
-    imp::DefaultPolytopePartParams
-    
-    // meta constraint stuff
-    imp::DefaultConstraintPartParams
-    imp::DefaultSpringPartParams
-    imp::DefaultTorsionalSpringPartParams
-    imp::DefaultBallJointPartParams
-    imp::DefaultHingePartParams
-    
-  multibody:: 
-    // Can we have string names for our enums? 
-    // so << mundy::multibody::SPHERE writes out "sphere"
-
-    // particle topologies
-    SPHERE
-    SPHEROCYLINDER
-    SUPERELLIPSOID
-    POLYTOPE
-
-    // constraint topologies
-    COLLISION // TODO: Break into Frictional and frictionless
-    SPRING
-    TORSIONALSPRING
-    JOINT
-    HINGE
-    
-  methods::  
-    // abstract interfaces
-    MultiBodyFactory (an abstract factory to be used by all multibody methods)
-    MultiBodyManager
        
-    // methods needed by other methods that may be of user interest
-    // all factories are given a part and will act on that part
+  methods:: 
     ComputeAABB
-      imp::AABBSphereVariant 
-      imp::AABBSpherocylinderVariant
-      imp::AABBSuperEllipsoidVariant
-      imp::AABBPolytopeVariant
-      imp::AABBCollisionVariant
-      imp::AABBSpringVariant
-      imp::AABBTorsiionalSpringVariant
-      imp::AABBJointVariant
-      imp::AABBHingeVariant
+      ComputeAABBSphereVariant 
+      ComputeAABBSpherocylinderVariant
+      ComputeAABBSuperEllipsoidVariant
+      ComputeAABBPolytopeVariant
+      ComputeAABBCollisionVariant
+      ComputeAABBSpringVariant
+      ComputeAABBTorsiionalSpringVariant
+      ComputeAABBJointVariant
+      ComputeAABBHingeVariant
 
     ComputeOBB
-      imp::OBBSpherocylinderVariant
-      imp::OBBSuperEllipsoidVariant
-      imp::OBBPolytopeVariant
-      imp::OBBCollisionVariant
-      imp::OBBSpringVariant
-      imp::OBBTorsiionalSpringVariant
-      imp::OBBJointVariant
-      imp::OBBHingeVariant
+      ComputeOBBSphereVariant
+      ComputeOBBSpherocylinderVariant
+      ComputeOBBSuperEllipsoidVariant
+      ComputeOBBPolytopeVariant
+      ComputeOBBCollisionVariant
+      ComputeOBBSpringVariant
+      ComputeOBBTorsiionalSpringVariant
+      ComputeOBBJointVariant
+      ComputeOBBHingeVariant
     
     ComputeBoundingSphere
-      imp::BoundingSphereSphereVariant
-      imp::BoundingSphereSpherocylinderVariant
-      imp::BoundingSphereSuperEllipsoidVariant
-      imp::BoundingSpherePolytopeVariant
-      imp::BoundingSphereCollisionVariant
-      imp::BoundingSphereSpringVariant
-      imp::BoundingSphereTorsiionalSpringVariant
-      imp::BoundingSphereJointVariant
-      imp::BoundingSphereHingeVariant
+      ComputeBoundingSphereSphereVariant
+      ComputeBoundingSphereSpherocylinderVariant
+      ComputeBoundingSphereSuperEllipsoidVariant
+      ComputeBoundingSpherePolytopeVariant
+      ComputeBoundingSphereCollisionVariant
+      ComputeBoundingSphereSpringVariant
+      ComputeBoundingSphereTorsiionalSpringVariant
+      ComputeBoundingSphereJointVariant
+      ComputeBoundingSphereHingeVariant
     
     SolveLCP
-      imp::LCPSolverAPGDTechnique
-      imp::LCPSolverBBPGDTechnique
+      LCPSolverAPGDTechnique
+      LCPSolverBBPGDTechnique
 
     // neighbor methods
     DetectNeighbors
-      imp::DetectNeighborsAABBTechnique
-      imp::DetectNeighborsBoundingSphereTechnique
+      DetectNeighborsAABBTechnique
+      DetectNeighborsBoundingSphereTechnique
       
     GhostNeighbors
     
     RefineNeighbors
-      imp::RefineNeighborsOBBTechnique
+      RefineNeighborsOBBTechnique
     
     // constraint methods  
     GenerateCollisionConstraints
-      imp::GenerateCollisionConstraintsSpherocylinderVariant
-      imp::GenerateCollisionConstraintsSuperEllipsoidVariant
-      imp::GenerateCollisionConstraintsPolytopeVariant
+      GenerateCollisionConstraintsSpherocylinderVariant
+      GenerateCollisionConstraintsSuperEllipsoidVariant
+      GenerateCollisionConstraintsPolytopeVariant
 
     ComputeConstraintViolation
-      imp::ConstraintViolationCollisionVariant
-      imp::ConstraintViolationSpringVariant
-      imp::ConstraintViolationTorsiionalSpringVariant
-      imp::ConstraintViolationJointVariant
-      imp::ConstraintViolationHingeVariant
+      ComputeConstraintViolationCollisionVariant
+      ComputeConstraintViolationSpringVariant
+      ComputeConstraintViolationTorsiionalSpringVariant
+      ComputeConstraintViolationJointVariant
+      ComputeConstraintViolationHingeVariant
 
     ComputeConstraintProjection
-      imp::ConstraintProjectionCollisionVariant
-      imp::ConstraintProjectionSpringVariant
-      imp::ConstraintProjectionTorsiionalSpringVariant
-      imp::ConstraintProjectionJointVariant
-      imp::ConstraintProjectionHingeVariant
+      ConstraintProjectionCollisionVariant
+      ConstraintProjectionSpringVariant
+      ConstraintProjectionTorsiionalSpringVariant
+      ConstraintProjectionJointVariant
+      ConstraintProjectionHingeVariant
 
     ComputeConstraintForcing
-      imp::ConstraintForcingSpringVariant
-      imp::ConstraintForcingTorsiionalSpringVariant
-      imp::ConstraintForcingJointVariant
-      imp::ConstraintForcingHingeVariant
+      ConstraintForcingSpringVariant
+      ConstraintForcingTorsiionalSpringVariant
+      ConstraintForcingJointVariant
+      ConstraintForcingHingeVariant
 
     ComputeConstraintViolationLinearizedRateOfChange
-      imp::ConstraintViolationRateOfChangeCollisionVariant
-      imp::ConstraintViolationRateOfChangeSpringVariant
-      imp::ConstraintViolationRateOfChangeTorsiionalSpringVariant
-      imp::ConstraintViolationRateOfChangeJointVariant
-      imp::ConstraintViolationRateOfChangeHingeVariant
+      ConstraintViolationRateOfChangeCollisionVariant
+      ConstraintViolationRateOfChangeSpringVariant
+      ConstraintViolationRateOfChangeTorsiionalSpringVariant
+      ConstraintViolationRateOfChangeJointVariant
+      ConstraintViolationRateOfChangeHingeVariant
     
     ComputeConstraintJacobian (dt D^T M D)
     
     ResolveConstraints
-      imp::ResolveConstraintsSmoothPotentialTechnique
-      imp::ResolveConstraintsSmoothPenaltyTechnique
-      imp::ResolveConstraintsNonSmoothLCPTechnique
-      imp::ResolveConstraintsNonSmoothReLCPTechnique
+      ResolveConstraintsSmoothPotentialTechnique
+      ResolveConstraintsSmoothPenaltyTechnique
+      ResolveConstraintsNonSmoothLCPTechnique
+      ResolveConstraintsNonSmoothReLCPTechnique
     
     // motion methods
     TimeIntegration
-      imp::TimeIntegrationNodeEulerTechnique
-      imp::TimeIntegrationNodeAdamsBatchfordTechnique
+      TimeIntegrationNodeEulerTechnique
+      TimeIntegrationNodeAdamsBatchfordTechnique
     
     ComputeMobility
-
+      NodeEulerTechnique
 
 User facing interfaces    
 mundy::
@@ -267,11 +231,9 @@ What if a technique requires techniques or if you want a technique to have varia
 
 There is an issue. String lookup has a cost, so it's not a good idea to have ALL of mundy's methods and techniques flattened out (it also leads to needlessly complex names). I find it best to have methods be hierarchical rather than flat. Let's set things in stone. A Varient is a specialization of a method for a certain multibody type and is registered to MetaVarientFactory<DerivedMetaMethod>. A Technique is a specialization of either a Method or a Varient and is registered to MetaTechniqueFactory<MetaVarientFactory<DerivedMetaMethod>>> or MetaVarientFactory<DerivedMetaMethod>. Ahhhhhh. What if someone else wants to use a method where a technique is required, as can easily arrise if a technique becomes useful elsewhere? The parameter will say be associated with the wrong factory and will be inaccessible. This means that methods cannot be used where a technique is required. Something that is a technique is forever bound to being a technique. That is a bad design. This is a major reason to not use the technique design where techniques are bound to methods. It seems like we could use modules as collections of similar methods. At least that would limit the number of methods being searched. The clutter and complex names issue still persist. Why should a heavily specialized technique be shown to the public as a method. It shouldn't. Techniques (this is a naming hierarchy) is a good idea. The only problem is that methods should be able to be used in place of techniques. This comes down to registration. Maybe we specify both a name and a registary within which to search for the method. That makes it more explicit. 
 
-Create a class type which represents all techniques that should achieve the same task. Because they all achieve the same task, I see no reason why a method would be used in their stead. That's axactly what we currently have. No, no it is not. It's every so slightly different. There are methods that require multiple techniques. Those techniques should not be associated with that class but with a type that identifies them as techniques for performing some action... some method. We're back to the three-level hierarchy of Factory -> Method -> Varient -> Technique. Varients are just Techniques. By using strings instead of enums, we allow our users to add their own particles. I think that's fair. Honestly, I think we should use the words Method/Varient/Technique but only use MetaMethod types. Otherwise we risk users thinking that Variennt ot Technique registeries with the same type are sepparate when they aren't
+Create a class type which represents all techniques that should achieve the same task. Because they all achieve the same task, I see no reason why a method would be used in their stead. That's axactly what we currently have. No, no it is not. It's every so slightly different. There are methods that require multiple techniques. Those techniques should not be associated with that class but with a type that identifies them as techniques for performing some action... some method. We're back to the three-level hierarchy of Factory -> Method -> Varient -> Technique. Varients are just Techniques. By using strings instead of enums, we allow our users to add their own particles. I think that's fair. Honestly, I think we should use the words Method/Varient/Technique but only use MetaMethod types. Otherwise we risk users thinking that Varient or Technique registeries with the same type are separate when they aren't.
 
 MetaMethodFactory<MetaMethodFactory<DerivedMetaMethod>>>
-
-
 
 !!Need a requirement conflict resolver!!
 !!Our PartParams needs an && operator to merge them together!!

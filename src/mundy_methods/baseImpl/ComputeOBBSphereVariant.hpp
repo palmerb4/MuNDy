@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_OBBSPHEREMANAGER_HPP_
-#define MUNDY_METHODS_OBBSPHEREMANAGER_HPP_
+#ifndef MUNDY_METHODS_COMPUTEOBBSPHEREVARIANT_HPP_
+#define MUNDY_METHODS_COMPUTEOBBSPHEREVARIANT_HPP_
 
-/// \file OBBSphereManager.hpp
-/// \brief Declaration of the OBBSphereManager class
+/// \file ComputeOBBSphereVariant.hpp
+/// \brief Declaration of the ComputeOBBSphereVariant class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,15 +55,16 @@ namespace mundy {
 
 namespace methods {
 
-/// \class OBBSphereManager
-/// \brief Concrete implementation of \c MultibodyManager for computing the object aligned bounding box of spheres.
-class OBBSphereManager : OBBManager {
+/// \class ComputeOBBSphereVariant
+/// \brief Concrete implementation of \c MultibodyVariant for computing the object aligned bounding box of spheres.
+class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
+                                public MetaMethodRegistry<ComputeOBBSphereVariant, ComputeOBB> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit OBBSphereManager(const stk::util::ParameterList &parameter_list)
+  explicit ComputeOBBSphereVariant(const stk::util::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
         obb_field_name_(params.get_value<std::string>("obb field name")),
         node_coord_field_name_(params.get_value<std::string>("node_coord")),
@@ -142,10 +143,10 @@ class OBBSphereManager : OBBManager {
   const std::string obb_field_name_;
   const std::string radius_field_name_;
   const std::string node_coord_field_name_;
-};  // OBBSphereManager
+};  // ComputeOBBSphereVariant
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_OBBSPHEREMANAGER_HPP_
+#endif  // MUNDY_METHODS_COMPUTEOBBSPHEREVARIANT_HPP_

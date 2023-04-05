@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_BOUNDINGSPHERESPHEREMANAGER_HPP_
-#define MUNDY_METHODS_BOUNDINGSPHERESPHEREMANAGER_HPP_
+#ifndef MUNDY_METHODS_COMPUTECONSTRAINTVIOLATIONCOLLISIONVARIANT_HPP_
+#define MUNDY_METHODS_COMPUTECONSTRAINTVIOLATIONCOLLISIONVARIANT_HPP_
 
-/// \file BoundingSphereSphereManager.hpp
-/// \brief Declaration of the BoundingSphereSphereManager class
+/// \file ComputeConstraintViolationCollisionVariant.hpp
+/// \brief Declaration of the ComputeConstraintViolationCollisionVariant class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,19 +55,23 @@ namespace mundy {
 
 namespace methods {
 
-/// \class BoundingSphereSphereManager
-/// \brief Concrete implementation of \c MultibodyManager for computing the bounding sphere radius of spheres.
-class BoundingSphereSphereManager : MultibodyManager {
+/// \class ComputeConstraintViolationCollisionVariant
+/// \brief Concrete implementation of \c MultibodyVariant for computing the constraint violation of collision
+/// constraints.
+class ComputeConstraintViolationCollisionVariant
+    : public MetaMethod<ComputeConstraintViolationCollisionVariant>,
+      public MetaMethodRegistry<ComputeConstraintViolationCollisionVariant, ComputeConstraintViolation> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit BoundingSphereSphereManager(const stk::util::ParameterList &parameter_list)
+  explicit ComputeConstraintViolationCollisionVariant(const stk::util::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
-        bounding_sphere_field_name_(params.get_value<std::string>("bounding sphere field name")),
-        radius_field_name_(params.get_value<std::string>("radius field name")),
-        buffer_distance_(params.get_value<double>("buffer distance")) {
+        constraint_violation_field_name_(params.get_value<std::string>("constraint_violation")),
+        node_coord_field_name_(params.get_value<std::string>("node_coord")),
+        node_normal_vec_field_name_(params.get_value<std::string>("node_normal_vec")),
+        min_allowable_sep_(params.get_value<double>("minimum allowable separation")) {
   }
 
   //@}
@@ -83,10 +87,12 @@ class BoundingSphereSphereManager : MultibodyManager {
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(
       [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
-    required_part_params->add_field_params("radius",
-                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_params("bounding_sphere",
+    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("collision", std::topology::QUAD4);
+    required_part_params->add_field_params("node_coord",
+                                           std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params("node_normal_vec",
+                                           std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params("constraint_violation",
                                            std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
@@ -97,9 +103,10 @@ class BoundingSphereSphereManager : MultibodyManager {
   /// will be created. You can save the result yourself if you wish to reuse it.
   static stk::util::ParameterList get_default_params() {
     stk::util::ParameterList default_parameter_list;
-    default_parameter_list.set_param("bounding sphere field name", "bounding_sphere");
-    default_parameter_list.set_param("radius field name", "radius");
-    default_parameter_list.set_param("buffer distance", 0.0);
+    default_parameter_list.set_param("minimum allowable separation", 0.0);
+    default_parameter_list.set_param("node coordinate field name", "node_coord");
+    default_parameter_list.set_param("node normal vector field name", "node_normal_vec");
+    default_parameter_list.set_param("constraint violation field name", "constraint_violation");
     return default_parameter_list;
   }
 
@@ -108,30 +115,41 @@ class BoundingSphereSphereManager : MultibodyManager {
   //! \name Actions
   //@{
   run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
-    const stk::mesh::Field &radius_field =
-        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    const stk::mesh::Field &bounding_sphere_field =
-        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, bounding_sphere_field_name_);
-    
+    const stk::mesh::Field &node_coord_field =
+        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+    const stk::mesh::Field &node_normal_vec_field =
+        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_normal_vec_field_name_);
+    const stk::mesh::Field &constraint_violation_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, constraint_violation_field_name_);
+
     stk::mesh::Selector locally_owned_part = metaB.locally_owned_part() && part;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
-                                   [&bounding_sphere_field, &radius_field, &buffer_distance_](
-                                       const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-                                     double *radius = stk::mesh::field_data(radius_field, element);
-                                     double *bounding_sphere = stk::mesh::field_data(bounding_sphere_field, element);
-                                     bounding_sphere[0] = radius[0] + buffer_distance_;
-                                   });
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
+        [&node_coord_field, &node_normal_vec_field, &constraint_violation_field](const stk::mesh::BulkData &bulk_data,
+                                                                                 stk::mesh::Entity element) {
+          stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
+          const double *contact_pointI = stk::mesh::field_data(node_coord_field, nodes[1]);
+          const double *contact_pointJ = stk::mesh::field_data(node_coord_field, nodes[2]);
+          const double *contact_normal_vecI = stk::mesh::field_data(node_normal_vec_field, nodes[1]);
+          double *constraint_violation = stk::mesh::field_data(constraint_violation_field, element);
+
+          constraint_violation[0] = contact_normal_vecI[0] * (contact_pointJ[0] - contact_pointI[0]) +
+                                    contact_normal_vecI[1] * (contact_pointJ[1] - contact_pointI[1]) +
+                                    contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) -
+                                    min_allowable_sep_;
+        });
   }
 
  private:
   const stk::util::ParameterList parameter_list_;
-  const double buffer_distance_;
-  const std::string bounding_sphere_field_name_;
-  const std::string radius_field_name_;
-};  // BoundingSphereSphereManager
+  const double min_allowable_sep_;
+  const std::string node_coord_field_name_;
+  const std::string node_normal_vec_field_name_;
+  const std::string constraint_violation_field_name_;
+};  // ComputeConstraintViolationCollisionVariant
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_BOUNDINGSPHERESPHEREMANAGER_HPP_
+#endif  // MUNDY_METHODS_COMPUTECONSTRAINTVIOLATIONCOLLISIONVARIANT_HPP_

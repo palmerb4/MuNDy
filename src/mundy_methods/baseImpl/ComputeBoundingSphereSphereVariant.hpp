@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_MULTIBODYMANAGER_HPP_
-#define MUNDY_METHODS_MULTIBODYMANAGER_HPP_
+#ifndef MUNDY_METHODS_COMPUTEBOUNDINGSPHERESPHEREVARIANT_HPP_
+#define MUNDY_METHODS_COMPUTEBOUNDINGSPHERESPHEREVARIANT_HPP_
 
-/// \file  MultibodyManager.hpp
-/// \brief Declaration of the  MultibodyManager class
+/// \file ComputeBoundingSphereSphereVariant.hpp
+/// \brief Declaration of the ComputeBoundingSphereSphereVariant class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,9 +55,27 @@ namespace mundy {
 
 namespace methods {
 
-/// \class  MultibodyManager
-/// \brief Uniform interface for all concede \c MultibodyManager objects.
-class  MultibodyManager {
+/// \class ComputeBoundingSphereSphereVariant
+/// \brief Concrete implementation of \c MultibodyVariant for computing the bounding sphere radius of spheres.
+class ComputeBoundingSphereSphereVariant
+    : public MetaMethod<ComputeBoundingSphereSphereVariant>,
+      public MetaMethodRegistry<ComputeBoundingSphereSphereVariant, ComputeBoundingSphere> {
+ public:
+  //! \name Constructors and destructor
+  //@{
+
+  /// \brief Constructor
+  explicit ComputeBoundingSphereSphereVariant(const stk::util::ParameterList &parameter_list)
+      : parameter_list_(parameter_list),
+        bounding_sphere_field_name_(params.get_value<std::string>("bounding sphere field name")),
+        radius_field_name_(params.get_value<std::string>("radius field name")),
+        buffer_distance_(params.get_value<double>("buffer distance")) {
+  }
+
+  //@}
+  //! \name Attributes
+  //@{
+
   /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
@@ -65,17 +83,57 @@ class  MultibodyManager {
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
-  virtual static std::unique_ptr<PartParams> get_part_requirements(const stk::util::ParameterList& parameter_list) = 0;
+  static std::unique_ptr<PartParams> get_part_requirements(
+      [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
+    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
+    required_part_params->add_field_params("radius",
+                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_params("bounding_sphere",
+                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
+    return required_part_params;
+  }
 
   /// \brief Get the default parameters for this class.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  virtual static stk::util::ParameterList get_default_params() = 0;
-};  //  MultibodyManager
+  static stk::util::ParameterList get_default_params() {
+    stk::util::ParameterList default_parameter_list;
+    default_parameter_list.set_param("bounding sphere field name", "bounding_sphere");
+    default_parameter_list.set_param("radius field name", "radius");
+    default_parameter_list.set_param("buffer distance", 0.0);
+    return default_parameter_list;
+  }
+
+  //@}
+
+  //! \name Actions
+  //@{
+  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
+    const stk::mesh::Field &radius_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    const stk::mesh::Field &bounding_sphere_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, bounding_sphere_field_name_);
+
+    stk::mesh::Selector locally_owned_part = metaB.locally_owned_part() && part;
+    stk::mesh::for_each_entity_run(*bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
+                                   [&bounding_sphere_field, &radius_field, &buffer_distance_](
+                                       const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+                                     double *radius = stk::mesh::field_data(radius_field, element);
+                                     double *bounding_sphere = stk::mesh::field_data(bounding_sphere_field, element);
+                                     bounding_sphere[0] = radius[0] + buffer_distance_;
+                                   });
+  }
+
+ private:
+  const stk::util::ParameterList parameter_list_;
+  const double buffer_distance_;
+  const std::string bounding_sphere_field_name_;
+  const std::string radius_field_name_;
+};  // ComputeBoundingSphereSphereVariant
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_MULTIBODYMANAGER_HPP_
+#endif  // MUNDY_METHODS_COMPUTEBOUNDINGSPHERESPHEREVARIANT_HPP_
