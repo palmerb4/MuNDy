@@ -118,7 +118,7 @@ class MetaMethodFactory {
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
-  /// is accessible via \c get_default_params.
+  /// is accessible via \c get_valid_params.
   static std::unique_ptr<PartParams> get_part_requirements(const std::string& key,
                                                            const stk::util::ParameterList& parameter_list) {
     return get_instance_generator_map()[key](parameter_list);
@@ -135,9 +135,9 @@ class MetaMethodFactory {
   /// yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
-  static stk::util::ParameterList get_default_params(const std::string& key) {
+  static stk::util::ParameterList get_valid_params(const std::string& key) {
     ThrowAssertMsg(is_valid_key(key), "The provided key " << key << " is not valid.");
-    return get_default_params_generator_map()[key]();
+    return get_valid_params_generator_map()[key]();
   }
   //@}
 
@@ -152,7 +152,7 @@ class MetaMethodFactory {
     ThrowAssertMsg(!is_valid_key(key), "The provided key " << key << " already exists.");
     get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
-    get_default_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_default_params));
+    get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
   }
 
   /// \brief Generate a new instance of a registered \c MetaMethod.
@@ -164,7 +164,7 @@ class MetaMethodFactory {
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_default_params.
+  /// default parameter list is accessible via \c get_valid_params.
   static std::unique_ptr<MetaMethodFactory> create_new_instance(const std::string& key,
                                                                 const stk::util::ParameterList& parameter_list) {
     return get_instance_generator_map(key)(parameter_list);
@@ -199,7 +199,7 @@ class MetaMethodFactory {
     return requirement_generator_map;
   }
 
-  static DefaultParamsGeneratorMap& get_default_params_generator_map() {
+  static DefaultParamsGeneratorMap& get_valid_params_generator_map() {
     // Static: One and the same instance for all function calls.
     static DefaultParamsGeneratorMap default_params_generator_map;
     return default_params_generator_map;

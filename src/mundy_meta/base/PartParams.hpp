@@ -56,7 +56,7 @@ namespace mundy {
 namespace meta {
 
 /// \class PartParams
-/// \brief A collection of entities, their sub-groups, and their associated fields.
+/// \brief A set of necessary parameters for declaring a new part with a some fields and enabled methods.
 ///
 /// If we write out the final class stucture like a YAML file, then we get something the following.
 /// Notice how easily this can be replaced with a GUI.
@@ -136,233 +136,137 @@ namespace meta {
 ///                 compute_mobility_technique:
 ///                   name: DRY_INERTIAL
 ///
-/// \tparam GroupTopology Topology assigned to each group member.
-/// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.
-template <stk::topology GroupTopology, typename Scalar = double>
 class PartParams {
  public:
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Constructor with given <tt>BulkData</tt>.
+  /// \brief Default construction is not allowed
+  PartParams() = delete;
+
+  /// \brief Constructor with known part topology.
   ///
-  /// Call this constructor if you have a larger <tt>BulkData</tt> containing multiple groups. The entities within this
-  /// group and their associated fields will be stored within the provided <tt>BulkData</tt>. In that case, a single
-  /// <tt>BulkData</tt> can be shared between each <tt>PartParams</tt>, thereby allowing a <tt>Field</tt> or
-  /// <tt>Part</tt> to span multiple groups.
+  /// \param part_name [in] Name of the part. If the name already exists for the given topology, the two parameter
+  /// sets must be valid.
   ///
-  /// \param bulk_data_ptr [in] Shared pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups. A copy
-  /// of this pointer is stored in this class until destruction.
-  /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
-  PartParams(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
+  /// \param part_topology [in] Topology of entities within the part.
+  ///
+  /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
+  PartParams(const std::string &part_name, const stk::topology &part_topology)
+      : part_name_(part_name), part_topology_(part_topology), part_rank_(part_topology_.rank()) {
+  }
+
+  /// \brief Constructor with known part rank.
+  ///
+  /// \param part_name [in] Name of the part. If the name already exists for the given topology, the two parameter
+  /// sets must be valid.
+  ///
+  /// \param part_rank [in] Maximum rank of entities within the part. Can contain any element of lower rank, regardless
+  /// of topology.
+  ///
+  /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
+  PartHierarchyParams(const std::string &part_name, const stk::topology::rank_t &part_rank)
+      : part_name_(part_name), part_topology_(stk::topology::INVALID_TOPOLOGY), part_rank_(part_rank) {
+  }
   //@}
 
-  //! @name Attributes
+  //! \name Getters
   //@{
 
-  /// \brief Return a reference to the group's part
-  stk::mesh::Part &get_group_part() const;
+  /// \brief Return the part name.
+  std::string get_part_name() {
+    return part_name_;
+  }
 
-  /// \brief Return a reference to the new entity flag field
-  FlagFieldType &get_new_entity_flag_field() const;
+  /// \brief Return the part topology.
+  stk::topology get_part_topology() {
+    return part_topology_;
+  }
 
-  /// \brief Return a selector for the group's entities
-  stk::mesh::Selector &get_entity_selector() const;
+  /// \brief Return the part rank.
+  stk::topology::rank_t get_part_rank() {
+    return part_rank_;
+  }
 
-  /// \brief Return a bucket vector containing for the group's entities
-  stk::mesh::BucketVector &get_entity_buckets() const;
-
-  /// \brief Return a bucket vector containing a subset of the group's entities
-  ///
-  /// \param selector [in] Selector to be used for choosing which subset of entity buckets to return.
-  stk::mesh::BucketVector &get_entity_buckets(const stk::mesh::Selector &selector) const;
+  /// \brief Return the part field map.
+  std::map<std::string, std::shared_ptr<const FieldParamsBase>> get_part_field_map() {
+    return part_field_map_;
+  }
   //@}
 
-  //! @name Pre-commit setup routines
+  //! \name Actions
   //@{
 
-  /// \brief Declare another <tt>PartParams</tt> as a subset of this group.
+  /// \brief Ensure that the current set of parameters is valid.
   ///
-  /// By declaring <tt>subgroup</tt> as a subset of this group, all entities within <tt>subgroup</tt> will inherit this
-  /// group's part and associated fields. As a result, any method that acts on this group, will also act on
-  /// <tt>subgroup</tt>'s entities. To do so, <tt>subgroup</tt> must share the same topology and scalar type as this
-  /// group.
+  /// Here, valid means:
+  ///   1. the rank of the fields does not exceed the rank of the part's topology.
+  void check_if_valid() {
+    ThrowRequireMsg(false, "not implemented yet");
+  }
+
+  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
-  /// For example, AnimalGroup may have LionGroup and TigerGroup as subsets, allowing all lions and tigers to be acted
-  /// upon by looping over each animal in AnimalGroup.
+  /// \param field_params [in] Field parameters to add to the part.
+  void add_field_params(const std::shared_ptr<const FieldParamsBase> &field_params) {
+    // Check if the provided parameters are valid.
+    field_params.check_if_valid();
+
+    // If a field with the same name exists, attempt to merge them if they are the same rank.
+    // Otherwise, create a new field entity.
+    const std::string field_name = field_params.get_field_name();
+    const bool name_already_exists = (part_field_map_.count(field_name) != 0);
+    if (name_already_exists && (part_field_map_[field_name].get_field_rank() == field_params.get_field_rank())) {
+      part_field_map_[field_name]->merge(field_params);
+    } else {
+      part_field_map_[field_name] = field_params;
+    }
+  }
+
+  /// \brief Merge the current parameters with any number of other \c PartParams.
   ///
-  /// \param subgroup [in] The group to be added as a subset.
-  template <stk::topology SubGroupTopology, typename SubGroupScalar>
-  void declare_subgroup(const PartParams<SubGroupTopology, SubGroupScalar> &subgroup);
-
-  /// \brief Declare a field that all entities of this group should have access to.
+  /// Here, merging two a \c PartParams object with this object amounts to merging their fields. For this process to be
+  /// valid, the given \c PartParams must have the same topology and rank. The name of the other part does not need to
+  /// match the current name of this part.
   ///
-  /// \param field [in] The field to be added.
-  /// \param field_dimension [in] The dimensionality of the field.
-  /// \param init_value [in] The initial value of the field.
-  template <class field_type>
-  field_type &put_field_on_entire_group(const field_type &field, const unsigned field_dimension,
-                                        const typename stk::mesh::FieldTraits<field_type>::data_type *init_value);
-  //@}
+  /// \param list_of_part_params [in] A list of other \c PartParams objects to merge with the current object.
+  template <class... ArgTypes,
+            typename std::enable_if<std::conjunction<std::is_convertible<Ts, PartParams>...>::value>::type>
+  void merge(const ArgTypes &...list_of_part_params) {
+    for (const auto &part_params : list_of_part_params) {
+      // Check if the provided parameters are valid.
+      part_params.check_if_valid();
 
-  //! @name Post-commit modification routines
-  //@{
+      // Check if the provided topology and rank are the same.
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          get_part_rank() == part_params.get_part_rank(), std::invalid_argument,
+          "mundy::PartParams: Part " << part_params.get_part_name() << " has incompatible rank.");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          get_part_topology() == part_params.get_part_topology(), std::invalid_argument,
+          "mundy::PartParams: Part " << part_params.get_part_name() << " has incompatible topology.");
 
-  /// \brief Generates new entities within this group. Optionally generate and attach nodes to these elements.
-  ///
-  /// The newly generated entities will have their new entity flag set to true. (Suggested) Use the
-  /// get_new_entities_selector to access and fill the fields of new entities.
-  ///
-  /// \note These new entities will be accessible via this group and any of its parent groups.
-  /// They will <it>not</it> be accessible by any sub-groups.
-  ///
-  /// \param num_new_entities [in] The number of new entities to generate.
-  /// \param generate_and_attach_nodes [in] Flag specifying if the nodes of each entity should also be generated and
-  /// attached. Defaults to true.
-  ///
-  /// \return A selector for all newly generated entities within this group.
-  stk::mesh::Selector generate_new_entities_in_group(const size_t num_new_entities,
-                                                     const bool generate_and_attach_nodes = true);
-  //@}
-
- private:
-  //! \name Mesh information
-  //@{
-
-  /// \brief This groups' shared bulk data, which contains all entities and their fields.
-  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr_;
-
-  /// \brief Default part assigned to all group members.
-  stk::mesh::Part &group_part_;
-
-  /// \brief The selector for the group's entities
-  stk::mesh::Selector entity_selector_;
-  //@}
-
-  //! @name Default fields assigned to all group members
-  //@{
-
-  /// @brief Field specifying if the entity is newly created or not.
-  FlagFieldType_ &new_entity_flag_field_;
-  //@}
-
-  //! \name Typedefs
-  //@{
-
-  /// \brief This groups' flag field type
-  typedef std::mesh::Field<bool> FlagFieldType_;
-  //@}
-}
-
-//! \name template implementations
-//@{
-
-// Constructors and destructor
-//{
-template <stk::topology GroupTopology, typename Scalar>
-PartParams<GroupTopology, Scalar>::PartParams(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
-                                              const std::string &group_name)
-    : bulk_data_ptr_(bulk_data_ptr),
-      group_part_(bulk_data_ptr_->mesh_meta_data().declare_part_with_topology(group_name, GroupTopology)),
-      entity_selector_(group_part_),
-      new_entity_flag_field_(
-          bulk_data_ptr_->mesh_meta_data().declare_field<bool>(PartParams.rank(), "new_entity_flag")) {
-  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
-
-  // enable io for the group part
-  stk::io::put_io_part_attribute(group_part_);
-
-  // put the default fields on the group
-  stk::mesh::put_field_on_mesh(new_entity_flag_field_, group_part_, 1, nullptr);
-}
-//}
-
-// Attributes
-//{
-template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &PartParams<GroupTopology, Scalar>::get_group_part() const {
-  return group_part_;
-}
-
-template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &PartParams<GroupTopology, Scalar>::get_new_entity_flag_field() const {
-  return new_entity_flag_field_;
-}
-
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::Selector PartParams<GroupTopology, Scalar>::get_entity_selector() const {
-  return entity_selector_;
-}
-
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::BucketVector &PartParams<GroupTopology, Scalar>::get_entity_buckets() const {
-  return bulk_data_ptr_->get_buckets(GroupTopology.rank(), selectLocalParticles);
-}
-
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::BucketVector &PartParams<GroupTopology, Scalar>::get_entity_buckets(
-    const stk::mesh::Selector &selector) const {
-  return bulk_data_ptr_->get_buckets(GroupTopology.rank(), get_entity_selector() & selector);
-}
-//}
-
-// Pre-commit setup routines
-//{
-template <stk::topology GroupTopology, typename Scalar>
-template <stk::topology SubGroupTopology, typename SubGroupScalar>
-void PartParams<GroupTopology, Scalar>::declare_subgroup(const PartParams<SubGroupTopology, SubGroupScalar> &subgroup) {
-  // declare the subgroup's part a subset of our part
-  // declare_part_subset enforces topology agreement and field compatibility
-  stk::mesh::declare_part_subset(group_part_, subgroup.get_group_part());
-}
-
-template <class field_type>
-field_type &PartParams<GroupTopology, Scalar>::put_field_on_entire_group(
-    const field_type &field, const unsigned field_dimension,
-    const typename stk::mesh::FieldTraits<field_type>::data_type *init_value) {
-  stk::mesh::put_field_on_mesh(field, group_part_, field_dimension, init_value);
-}
-//}
-
-// Post-commit modification routines
-//{
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::Selector PartParams<GroupTopology, Scalar>::generate_new_entities_in_group(
-    const size_t num_new_entities, const bool generate_and_attach_nodes) {
-  // count the number of entities of each rank that need requested
-  std::vector<size_t> num_requests_per_rank(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
-  num_requests_per_rank[GroupTopology.rank()] += num_new_entities;
-
-  const unsigned num_nodes_per_entity = PartParams.num_nodes();
-  const size_t num_nodes_requested = generate_and_attach_nodes ? num_new_entities * num_nodes_per_entity : 0;
-  num_requests_per_rank[stk::topology::NODE_RANK] += num_nodes_requested;
-
-  // generate the new entities
-  // For example, if num_requests_per_rank = { 0, 4,  8} then this will requests 0 entities of rank 0, 4 entities of
-  // rank 1, and 8 entities of rank 2. In this case, the result is requested_entities = {4 entities of rank 1, 8
-  // entities of rank 2}
-  std::vector<stk::mesh::Entity> requested_entities;
-  bulk_data_ptr_->generate_new_entities(num_requests_per_rank, requested_entities);
-
-  // associate each entity with a single part
-  // change_entity_parts expects a vector of pointers to parts
-  std::vector<stk::mesh::Part *> part_vector{&group_part_};
-
-  // set topologies and downward relations of new entities
-  for (int i = 0; i < num_particles_local; i++) {
-    // the elements should be associated with a topology before they are connected to their nodes/edges
-    stk::mesh::Entity entity_i = requested_entities[num_nodes_requested + i];
-    bulk_data_ptr_->change_entity_parts(entity_i, part_vector);
-
-    if (generate_and_attach_nodes) {
-      // attach each node
-      for (int j = 0; j < PartParams.num_nodes(); j++) {
-        bulk_data_ptr_->declare_relation(entity_i, requested_entities[i * num_nodes_per_entity + j], j);
+      // Loop over each field and attempt to merge it.
+      for ([[maybe_unused]] auto const &[field_name, field_params_ptr] : part_params.get_part_field_map()) {
+        this.add_field_params(field_params_ptr);
       }
     }
   }
+  //@}
+
+ private:
+  /// \brief Name of the part.
+  std::string part_name_;
+
+  /// \brief Topology of entities in the part.
+  stk::topology part_topology_;
+
+  /// \brief Rank of the part.
+  stk::topology::rank_t part_rank_;
+
+  /// \brief A set of maps from field name to field params for each rank.
+  std::vector<std::map<std::string, std::shared_ptr<FieldParamsBase>>>
+      part_ranked_field_maps_[stk::topology::NUM_RANKS];
 }
-//}
 
 }  // namespace meta
 

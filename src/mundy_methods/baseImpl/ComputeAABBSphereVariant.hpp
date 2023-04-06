@@ -79,19 +79,19 @@ class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
   /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_default_params.
+  /// default parameter list is accessible via \c get_valid_params.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(
       [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
-    required_part_params->add_field_params("node_coord",
-                                           std::make_unique<FieldParams<double>>(std::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params("radius",
-                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_params("aabb",
-                                           std::make_unique<FieldParams<double>>(std::topology::ELEMENT_RANK, 4, 1));
+    required_part_params->add_field_params(
+        std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params(
+        std::make_unique<FieldParams<double>>("radius", std::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_params(
+        std::make_unique<FieldParams<double>>("aabb", std::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }
 
@@ -99,7 +99,7 @@ class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static stk::util::ParameterList get_default_params() {
+  static stk::util::ParameterList get_valid_params() {
     stk::util::ParameterList default_parameter_list;
     default_parameter_list.set_param("node coordinate field name", "node_coord");
     default_parameter_list.set_param("aabb field name", "aabb");

@@ -55,239 +55,124 @@ namespace mundy {
 
 namespace meta {
 
+/// \class FieldParamsBase
+/// \brief A consistant base for all \c FieldParams.
+class FieldParamsBase {};  // FieldParamsBase
+
 /// \class FieldParams
-/// \brief A collection of entities, their sub-groups, and their associated fields.
-///
-/// \tparam GroupTopology Topology assigned to each group member.
-/// \tparam Scalar Numeric type for all default floating point fields. Defaults to <tt>double</tt>.
-///
-/// This class <does something>
-template <stk::topology GroupTopology, typename Scalar = double>
+/// \brief A set of necessary parameters for declaring a new field.
+template <typename FieldType>
 class FieldParams {
  public:
-  //! \name Constructors and destructor
-  //@{
-
-  /// \brief Constructor with given <tt>BulkData</tt>.
-  ///
-  /// Call this constructor if you have a larger <tt>BulkData</tt> containing multiple groups. The entities within this
-  /// group and their associated fields will be stored within the provided <tt>BulkData</tt>. In that case, a single
-  /// <tt>BulkData</tt> can be shared between each <tt>FieldParams</tt>, thereby allowing a <tt>Field</tt> or
-  /// <tt>Part</tt> to span multiple groups.
-  ///
-  /// \param bulk_data_ptr [in] Shared pointer to a larger <tt>BulkData</tt> with (potentially) multiple groups. A copy
-  /// of this pointer is stored in this class until destruction.
-  /// \param group_name [in] Name for the group. If the name already exists, the two groups will be merged.
-  FieldParams(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr, const std::string &group_name);
-  //@}
-
-  //! @name Attributes
-  //@{
-
-  /// \brief Return a reference to the group's part
-  stk::mesh::Part &get_group_part() const;
-
-  /// \brief Return a reference to the new entity flag field
-  FlagFieldType &get_new_entity_flag_field() const;
-
-  /// \brief Return a selector for the group's entities
-  stk::mesh::Selector &get_entity_selector() const;
-
-  /// \brief Return a bucket vector containing for the group's entities
-  stk::mesh::BucketVector &get_entity_buckets() const;
-
-  /// \brief Return a bucket vector containing a subset of the group's entities
-  ///
-  /// \param selector [in] Selector to be used for choosing which subset of entity buckets to return.
-  stk::mesh::BucketVector &get_entity_buckets(const stk::mesh::Selector &selector) const;
-  //@}
-
-  //! @name Pre-commit setup routines
-  //@{
-
-  /// \brief Declare another <tt>FieldParams</tt> as a subset of this group.
-  ///
-  /// By declaring <tt>subgroup</tt> as a subset of this group, all entities within <tt>subgroup</tt> will inherit this
-  /// group's part and associated fields. As a result, any method that acts on this group, will also act on
-  /// <tt>subgroup</tt>'s entities. To do so, <tt>subgroup</tt> must share the same topology and scalar type as this
-  /// group.
-  ///
-  /// For example, AnimalGroup may have LionGroup and TigerGroup as subsets, allowing all lions and tigers to be acted
-  /// upon by looping over each animal in AnimalGroup.
-  ///
-  /// \param subgroup [in] The group to be added as a subset.
-  template <stk::topology SubGroupTopology, typename SubGroupScalar>
-  void declare_subgroup(const FieldParams<SubGroupTopology, SubGroupScalar> &subgroup);
-
-  /// \brief Declare a field that all entities of this group should have access to.
-  ///
-  /// \param field [in] The field to be added.
-  /// \param field_dimension [in] The dimensionality of the field.
-  /// \param init_value [in] The initial value of the field.
-  template <class field_type>
-  field_type &put_field_on_entire_group(const field_type &field, const unsigned field_dimension,
-                                        const typename stk::mesh::FieldTraits<field_type>::data_type *init_value);
-  //@}
-
-  //! @name Post-commit modification routines
-  //@{
-
-  /// \brief Generates new entities within this group. Optionally generate and attach nodes to these elements.
-  ///
-  /// The newly generated entities will have their new entity flag set to true. (Suggested) Use the
-  /// get_new_entities_selector to access and fill the fields of new entities.
-  ///
-  /// \note These new entities will be accessible via this group and any of its parent groups.
-  /// They will <it>not</it> be accessible by any sub-groups.
-  ///
-  /// \param num_new_entities [in] The number of new entities to generate.
-  /// \param generate_and_attach_nodes [in] Flag specifying if the nodes of each entity should also be generated and
-  /// attached. Defaults to true.
-  ///
-  /// \return A selector for all newly generated entities within this group.
-  stk::mesh::Selector generate_new_entities_in_group(const size_t num_new_entities,
-                                                     const bool generate_and_attach_nodes = true);
-  //@}
-
- private:
-  //! \name Mesh information
-  //@{
-
-  /// \brief This groups' shared bulk data, which contains all entities and their fields.
-  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr_;
-
-  /// \brief Default part assigned to all group members.
-  stk::mesh::Part &group_part_;
-
-  /// \brief The selector for the group's entities
-  stk::mesh::Selector entity_selector_;
-  //@}
-
-  //! @name Default fields assigned to all group members
-  //@{
-
-  /// @brief Field specifying if the entity is newly created or not.
-  FlagFieldType_ &new_entity_flag_field_;
-  //@}
-
   //! \name Typedefs
   //@{
 
-  /// \brief This groups' flag field type
-  typedef std::mesh::Field<bool> FlagFieldType_;
+  typedef FieldType field_type;
   //@}
-}
 
-//! \name template implementations
-//@{
+  //! \name Constructors and destructor
+  //@{
 
-// Constructors and destructor
-//{
-template <stk::topology GroupTopology, typename Scalar>
-FieldParams<GroupTopology, Scalar>::FieldParams(const std::shared_ptr<stk::mesh::BulkData> &bulk_data_ptr,
-                                                const std::string &group_name)
-    : bulk_data_ptr_(bulk_data_ptr),
-      group_part_(bulk_data_ptr_->mesh_meta_data().declare_part_with_topology(group_name, GroupTopology)),
-      entity_selector_(group_part_),
-      new_entity_flag_field_(
-          bulk_data_ptr_->mesh_meta_data().declare_field<bool>(FieldParams.rank(), "new_entity_flag")) {
-  static_assert(std::std::is_floating_point_v<Scalar>, "Scalar must be a floating point type");
+  /// \brief Default construction is not allowed
+  FieldParams() = delete;
 
-  // enable io for the group part
-  stk::io::put_io_part_attribute(group_part_);
+  /// \brief Constructor with full fill.
+  ///
+  /// \param field_name [in] Name of the field.
+  ///
+  /// \param field_rank [in] Rank that the field will be assigned to.
+  ///
+  /// \param field_dimension [in] Dimension of the field. For example, a dimension of three would be a vector.
+  ///
+  /// \param field_number_of_states [in] Number of rotating states that this field will have.
+  FieldParams(const std::string &field_name, const unsigned field_rank, const unsigned field_dimension,
+              const unsigned field_number_of_states)
+      : field_name_(field_name),
+        field_rank_(field_rank),
+        field_dimension_(field_dimension),
+        field_number_of_states_(field_number_of_states) {
+  }
+  //@}
 
-  // put the default fields on the group
-  stk::mesh::put_field_on_mesh(new_entity_flag_field_, group_part_, 1, nullptr);
-}
-//}
+  //! \name Getters
+  //@{
 
-// Attributes
-//{
-template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &FieldParams<GroupTopology, Scalar>::get_group_part() const {
-  return group_part_;
-}
+  /// \brief Return the field name.
+  std::string get_field_name() {
+    return field_name_;
+  }
 
-template <stk::topology GroupTopology, typename Scalar>
-FlagFieldType &FieldParams<GroupTopology, Scalar>::get_new_entity_flag_field() const {
-  return new_entity_flag_field_;
-}
+  /// \brief Return the field rank.
+  stk::topology::rank_t get_field_rank() {
+    return field_rank_;
+  }
 
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::Selector FieldParams<GroupTopology, Scalar>::get_entity_selector() const {
-  return entity_selector_;
-}
+  /// \brief Return the field dimension.
+  unsigned get_field_dimension() {
+    return field_dimension_;
+  }
 
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::BucketVector &FieldParams<GroupTopology, Scalar>::get_entity_buckets() const {
-  return bulk_data_ptr_->get_buckets(GroupTopology.rank(), selectLocalParticles);
-}
+  /// \brief Return the field number of states.
+  unsigned get_field_number_of_states() {
+    return field_number_of_states_;
+  }
+  //@}
 
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::BucketVector &FieldParams<GroupTopology, Scalar>::get_entity_buckets(
-    const stk::mesh::Selector &selector) const {
-  return bulk_data_ptr_->get_buckets(GroupTopology.rank(), get_entity_selector() & selector);
-}
-//}
+  //! \name Actions
+  //@{
 
-// Pre-commit setup routines
-//{
-template <stk::topology GroupTopology, typename Scalar>
-template <stk::topology SubGroupTopology, typename SubGroupScalar>
-void FieldParams<GroupTopology, Scalar>::declare_subgroup(
-    const FieldParams<SubGroupTopology, SubGroupScalar> &subgroup) {
-  // declare the subgroup's part a subset of our part
-  // declare_part_subset enforces topology agreement and field compatibility
-  stk::mesh::declare_part_subset(group_part_, subgroup.get_group_part());
-}
+  /// \brief Ensure that the current set of parameters is valid.
+  ///
+  /// Here, valid means:
+  ///   1. the rank of the fields does not exceed the rank of the field's topology.
+  void check_if_valid() {
+    ThrowRequireMsg(false, "not implemented yet");
+  }
 
-template <class field_type>
-field_type &FieldParams<GroupTopology, Scalar>::put_field_on_entire_group(
-    const field_type &field, const unsigned field_dimension,
-    const typename stk::mesh::FieldTraits<field_type>::data_type *init_value) {
-  stk::mesh::put_field_on_mesh(field, group_part_, field_dimension, init_value);
-}
-//}
+  /// \brief Merge the current parameters with any number of other \c FieldParams.
+  ///
+  /// Here, merging two a \c FieldParams object with this object amounts to setting the number of states to be the
+  /// maximum over all the number of states over all the \c FieldParams. For this process to be valid, the given
+  /// \c FieldParams must have the same rank, type, and dimension. The name of the other fields does not need to match
+  /// the current name of this field.
+  ///
+  /// \param list_of_field_params [in] A list of other \c FieldParams objects to merge with the current object.
+  template <class... ArgTypes,
+            typename std::enable_if<std::conjunction<std::is_convertible<Ts, FieldParams>...>::value>::type>
+  void merge(const ArgTypes &...list_of_field_params) {
+    for (const auto &field_params : list_of_field_params) {
+      // Check if the provided parameters are valid.
+      field_params.check_if_valid();
 
-// Post-commit modification routines
-//{
-template <stk::topology GroupTopology, typename Scalar>
-stk::mesh::Selector FieldParams<GroupTopology, Scalar>::generate_new_entities_in_group(
-    const size_t num_new_entities, const bool generate_and_attach_nodes) {
-  // count the number of entities of each rank that need requested
-  std::vector<size_t> num_requests_per_rank(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
-  num_requests_per_rank[GroupTopology.rank()] += num_new_entities;
+      // Check if the provided rank, type, and dimension are the same.
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          get_field_rank() == field_params.get_field_rank(), std::invalid_argument,
+          "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible rank.");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          std::is_same<this::field_type, field_params::field_type>, std::invalid_argument,
+          "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible type.");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          get_field_dimension() == field_params.get_field_dimension(), std::invalid_argument,
+          "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible dimension.");
 
-  const unsigned num_nodes_per_entity = FieldParams.num_nodes();
-  const size_t num_nodes_requested = generate_and_attach_nodes ? num_new_entities * num_nodes_per_entity : 0;
-  num_requests_per_rank[stk::topology::NODE_RANK] += num_nodes_requested;
-
-  // generate the new entities
-  // For example, if num_requests_per_rank = { 0, 4,  8} then this will requests 0 entities of rank 0, 4 entities of
-  // rank 1, and 8 entities of rank 2. In this case, the result is requested_entities = {4 entities of rank 1, 8
-  // entities of rank 2}
-  std::vector<stk::mesh::Entity> requested_entities;
-  bulk_data_ptr_->generate_new_entities(num_requests_per_rank, requested_entities);
-
-  // associate each entity with a single part
-  // change_entity_parts expects a vector of pointers to parts
-  std::vector<stk::mesh::Part *> part_vector{&group_part_};
-
-  // set topologies and downward relations of new entities
-  for (int i = 0; i < num_particles_local; i++) {
-    // the elements should be associated with a topology before they are connected to their nodes/edges
-    stk::mesh::Entity entity_i = requested_entities[num_nodes_requested + i];
-    bulk_data_ptr_->change_entity_parts(entity_i, part_vector);
-
-    if (generate_and_attach_nodes) {
-      // attach each node
-      for (int j = 0; j < FieldParams.num_nodes(); j++) {
-        bulk_data_ptr_->declare_relation(entity_i, requested_entities[i * num_nodes_per_entity + j], j);
-      }
+      field_number_of_states_ = std::max(field_number_of_states_, field_params.get_field_number_of_states());
     }
   }
+  //@}
+
+ private:
+  /// \brief Name of the field.
+  std::string field_name_;
+
+  /// \brief Rank that the field will be assigned to.
+  stk::topology::rank_t field_rank_;
+
+  /// \brief Dimension of the field. For example, a dimension of three would be a vector.
+  unsigned field_dimension_;
+
+  /// \brief Number of rotating states that this field will have.
+  unsigned field_number_of_states_;
 }
-//}
 
 }  // namespace meta
 

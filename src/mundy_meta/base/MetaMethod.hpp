@@ -65,14 +65,14 @@ namespace meta {
 /// implement the following static member functions
 ///   - \c details_get_part_requirements implementation of the \c get_part_requirements interface.
 ///   class.
-///   - \c details_get_default_params implementation of the \c get_default_params interface.
+///   - \c details_get_valid_params implementation of the \c get_valid_params interface.
 ///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
 template <class DerivedMetaMethod,
           typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
-class MetaMethod {
+class MetaMethod : public Teuchos::Describable {
  public:
   //! \name Attributes
   //@{
@@ -87,14 +87,14 @@ class MetaMethod {
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_default_params.
+  /// default parameter list is accessible via \c get_valid_params.
   static std::unique_ptr<PartParams> get_part_requirements(const stk::util::ParameterList& parameter_list) const {
     return DerivedMetaMethod::details_get_part_requirements(parameter_list);
   }
 
-  /// \brief Get the default parameter list for this \c MetaMethod.
-  static stk::util::ParameterList get_default_params() const {
-    return DerivedMetaMethod::details_get_default_params();
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
+  static stk::util::ParameterList get_valid_params() const {
+    return DerivedMetaMethod::details_get_valid_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -109,13 +109,28 @@ class MetaMethod {
   /// \brief Generate a new instance of this class.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_default_params.
+  /// default parameter list is accessible via \c get_valid_params.
   static std::unique_ptr<MetaMethodFactory> create_new_instance(const stk::util::ParameterList& parameter_list) const {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
   }
 
   /// \brief Generate a new instance of this class.
   virtual RunInformation run(const stk::mesh::BulkData* bulk_data_ptr, const stk::mesh::Part& part) = 0;
+  //@}
+
+  //! @name Implementation of Teuchos::Describable interface
+  //@{
+
+  //! A string description of this object.
+  virtual std::string description() const;
+
+  /// \brief Describe this object.
+  ///
+  /// At higher verbosity levels, this method will print out the list
+  /// of names of supported solvers.  You can also get this list
+  /// directly by using the supportedSolverNames() method.
+  virtual void describe(Teuchos::FancyOStream& out,
+                        const Teuchos::EVerbosityLevel verbLevel = Teuchos::Describable::verbLevel_default) const;
   //@}
 };  // MetaMethod
 

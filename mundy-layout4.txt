@@ -243,6 +243,27 @@ MetaMethodFactory<MetaMethodFactory<DerivedMetaMethod>>>
 
 
 
+Ok, now we can start worrying about the HierarchyBuilder. What are the key pieces of functionalitry that it needs to offer?
+1. Build Hierarchy from yaml file
+2. Build Hierarchy from api
+  2.1. Add new part
+  2.2. Declare subpart
+  2.3. Declare field
+  2.4. Declare method
+3. 
+  
+What functionality should PartParams offer? 
+1. A merge function for merging params. ONLY merge if the number of states is different.
+2. An invarient checker to ensure that the part params are currently valid.
+3. Consistant assert statements that the attempted modifications are valid. 
+
+
+How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_part_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldParams and PartParams. The merge operation does NOT require the two have the same name. 
+
+Ahhhhhhh. The use of a map from field name to field params is wrong since the name may be nonunique if a force field is applied to nodes and elements. 
+
+
+
    
 DetectNeighbors should loop over each part and compute their AABB field, from there it should use that field to detect neighbors between all parts simultaniously. But how does DetectNeighbors know which compute AABB field method to use if it is only given the particle part. It can't. DetectNeighbors needs to be given the entire hierarchy. But how can DetectNeighbors know which part of the hierarchy corresponds to a sphere? 
 
