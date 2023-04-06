@@ -91,6 +91,7 @@ class FieldParams {
         field_rank_(field_rank),
         field_dimension_(field_dimension),
         field_number_of_states_(field_number_of_states) {
+    check_if_valid();
   }
   //@}
 
@@ -123,10 +124,10 @@ class FieldParams {
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
-  /// Here, valid means:
-  ///   1. the rank of the fields does not exceed the rank of the field's topology.
+  /// Here, valid means that the rank, dimension, and number of states are > 0, but as unsigned ints, this is always the
+  /// case. We will however, leave this checker incase the class grows and the set of requirements is no longer
+  /// automatically satisfied.
   void check_if_valid() {
-    ThrowRequireMsg(false, "not implemented yet");
   }
 
   /// \brief Merge the current parameters with any number of other \c FieldParams.
@@ -149,7 +150,7 @@ class FieldParams {
           get_field_rank() == field_params.get_field_rank(), std::invalid_argument,
           "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible rank.");
       TEUCHOS_TEST_FOR_EXCEPTION(
-          std::is_same<this::field_type, field_params::field_type>, std::invalid_argument,
+          std::is_same<this ::field_type, field_params::field_type>, std::invalid_argument,
           "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible type.");
       TEUCHOS_TEST_FOR_EXCEPTION(
           get_field_dimension() == field_params.get_field_dimension(), std::invalid_argument,

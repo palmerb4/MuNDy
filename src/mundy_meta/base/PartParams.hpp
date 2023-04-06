@@ -212,14 +212,17 @@ class PartParams {
     // Check if the provided parameters are valid.
     field_params.check_if_valid();
 
-    // If a field with the same name exists, attempt to merge them if they are the same rank.
+    // If a field with the same name and rank exists, attempt to merge them.
     // Otherwise, create a new field entity.
     const std::string field_name = field_params.get_field_name();
-    const bool name_already_exists = (part_field_map_.count(field_name) != 0);
-    if (name_already_exists && (part_field_map_[field_name].get_field_rank() == field_params.get_field_rank())) {
-      part_field_map_[field_name]->merge(field_params);
+    const unsigned field_rank = field_params.get_field_rank();
+
+    auto part_field_map_ptr = part_ranked_field_maps_.data() + field_rank;
+    const bool name_already_exists = (part_field_map_ptr->count(field_name) != 0);
+    if (name_already_exists) {
+      *part_field_map_ptr[field_name]->merge(field_params);
     } else {
-      part_field_map_[field_name] = field_params;
+      *part_field_map_ptr[field_name] = field_params;
     }
   }
 
@@ -245,9 +248,12 @@ class PartParams {
           get_part_topology() == part_params.get_part_topology(), std::invalid_argument,
           "mundy::PartParams: Part " << part_params.get_part_name() << " has incompatible topology.");
 
-      // Loop over each field and attempt to merge it.
-      for ([[maybe_unused]] auto const &[field_name, field_params_ptr] : part_params.get_part_field_map()) {
-        this.add_field_params(field_params_ptr);
+      // Loop over each rank's map
+      for (auto const &part_field_map : part_params.get_part_field_map()) {
+        // Loop over each field and attempt to merge it.
+        for ([[maybe_unused]] auto const &[field_name, field_params_ptr] : part_field_map) {
+          this.add_field_params(field_params_ptr);
+        }
       }
     }
   }
