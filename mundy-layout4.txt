@@ -260,9 +260,60 @@ What functionality should PartParams offer?
 
 How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_part_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldParams and PartParams. The merge operation does NOT require the two have the same name. 
 
-Ahhhhhhh. The use of a map from field name to field params is wrong since the name may be nonunique if a force field is applied to nodes and elements. 
+Ahhhhhhh. The use of a map from field name to field params is wrong since the name may be nonunique if a force field is applied to nodes and elements. Just use a vector of maps, with one map per rank. 
+
+The upcoming MetaKernel class:
+ - Need to have different kernel classes based on the input. For example, computing the minimum separation distance takes in two entities and their multibody type takes in four parameters.  
+ - Can be initialized outside of a kokkos loop but can be executed inside. This is difficult since the varius kernels need initilized outside of the loop but chosen inside the loop. The setup function will need to initialize a kokkos map from multibody type to initilized kernel. 
+ - 
+ 
+ 
+Summation of the following: We will not use a multibody type and will stick with strings like in the varient design. We will use Kokkos's map class to perform the lookup. 
+ 
+The problem I have with creating a user-extensible MultiBody kernel class is that we don't want to perform string lookups within the GPU loop. How to create a user-entensible multibody type identifier? How to take in multibody type itendifier and go from that to a method corresponding to that ID. MetaMethodFactory has a map from string to creation routines, can we get a MultibodyKernelFactory with a map from pair of type identidiers to collision detection routine? std::map isn't GPU compatable... mundy::multibody needs set in stone. Users will not be able to add new multibody types without directly modifying mundy. Users will, however, be able to swap out methods that act on these multibody types?  
+ 
+What methods depend on the multibody type?
+ - ComputeAABB
+ - ComputeOBB
+ - ComputeBoundingSphere
+ - GenerateCollisionConstraints
+ - ComputeConstraintViolation
+ - ComputeConstraintProjection
+ - ComputeConstraintForcing
+ - ComputeConstraintViolationLinearizedRateOfChange
+ - TimeIntegration
+ - ComputeMobility
+ 
+Which methods have non-trivial looping over different types in isolation. 
+ - GenerateCollisionConstraints (requires looping over the connectivity of each entity to compute the minimum separation distance between them)
+ - ComputeConstraintViolationLinearizedRateOfChange (requires looping over the connectivity of each entity to get the contact point and force vector of the attached constraint)
+
+What's the most efficient way to decide which method to use? When possible, we want to perform loops over a single multibody type at a time. When a single part can be used, the user can simply pass in the part and its multibody type. For systems that don't know the explicit multibody type beforehand, the part needs to store its multibody type as a field. The question becomes, how to quickly go from that field to the corresponding method? Kokkos has an unordered and an ordered map. We could just use string lookup and return to allowing the users to generate their own multibody types. I prefer that. 
+
+How does one build a kernel outside of a kokkos loop and then use it inside the loop? I believe nalu::Kernel addresses this by having the shared memory required by the kernel constructed outside the loop.  
 
 
+MetaKernel 
+
+
+
+Lessons from nalu. 
+ - The functionality offered by the current MetaMethod design is perfect.
+ - MetaMethood should have three stages: pre_run, run, and post_run. pre_run is a good chance to store field objects, collect sub-methods, and collect any varients. Maybe setup, run, postprocess?
+ - Nalu + stk offer simd optimized loops. Long term, we should do the same. See simd_elem_field_updater 
+ - MetaMethod should take in the BulkData and part it will act on in its constructor.
+ - ScalarType should be templated out.   
+ - Use stl::math for abs/sin/cos etc
+ - Need a kernel concept for executing operations within a kokkos loop!
+ - A matrix-free linear system solver
+ - Nalu allows the user to specify tasks that should be performed on the mesh during preprocessing.
+ - Nalu has an advanced periodic manager!
+ - howToNgp.cpp shows that looping over connected nodes is allowed!
+ - run_face_elem_algorithm optimizes looping over connected nodes connected to a face to a degree almost unfathomable. Check out the chain LowMachEquationSystem.C -> AssembleFaceElemSolverAlgorithm.C -> AssembleFaceElemSolverAlgorithm.h -> KernelBuilder.h -> Kernel.h -> MomentumOpenEdgeKernel.C -> ElemDataRequests.C
+ 
+I'm not a fan of FieldInfo/FieldSet because it needs to make clear that different ranks can have identical fields. Not to mention, the comparisons are faster if you break the field storage into ranks then names. The MasterElement stored in ElemDataRequests is only necessary for FEM. We may want to add support for it once we add in particle/grid coupling, but not now. As a result, ElemDataRequests is just a vector of FieldParams + the fields themselves. Hence, the initialization routine for MomentumOpenEdgeKernel is just setting up the required FieldParams. We already have this with our static requirements! Not to mention, we achive it with a cleaner untuitive design. Kernels will be registered with a Kernel factory and will be associated with the class that needs them. Note, the use of shared and scratch views within MomentumOpenEdgeKernel is a direct result of the nalu's MasterElements. Without MasterElements, there is no need for these shared views. Also without MasterElements we don't need meFC_ or meSCS_. We do want Kernel and NGPKernel except with a custom execute funtion. We can replace KernelBuilder with our auto-registering factory design. Our kernels may take in one element with known multibody type, or two elements with known type. We need to generate the correct kernel based on those types, I do not currently know how. Well, multibody type is a string, so all we really want is a map from a pair of strings to the kernel generators. Then, we can simply replace run_face_elem_algorithm with howToNgp's connectivity loop.
+
+?????What does Nalu use instead of MeshBuilder??????????????????????????????????????????????????
 
    
 DetectNeighbors should loop over each part and compute their AABB field, from there it should use that field to detect neighbors between all parts simultaniously. But how does DetectNeighbors know which compute AABB field method to use if it is only given the particle part. It can't. DetectNeighbors needs to be given the entire hierarchy. But how can DetectNeighbors know which part of the hierarchy corresponds to a sphere? 

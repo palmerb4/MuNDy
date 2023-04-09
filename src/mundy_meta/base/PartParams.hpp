@@ -165,7 +165,7 @@ class PartParams {
   /// of topology.
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
-  PartHierarchyParams(const std::string &part_name, const stk::topology::rank_t &part_rank)
+  PartParams(const std::string &part_name, const stk::topology::rank_t &part_rank)
       : part_name_(part_name), part_topology_(stk::topology::INVALID_TOPOLOGY), part_rank_(part_rank) {
   }
   //@}
@@ -189,8 +189,10 @@ class PartParams {
   }
 
   /// \brief Return the part field map.
-  std::map<std::string, std::shared_ptr<const FieldParamsBase>> get_part_field_map() {
-    return part_field_map_;
+  /// \brief field_rank [in] Rank associated with the retrieved fields.
+  std::vector<std::map<std::string, std::shared_ptr<const FieldParamsBase>>> get_part_field_map(
+      const stk::topology::rank_t &field_rank) {
+    return part_ranked_field_maps_[field_rank];
   }
   //@}
 
@@ -224,6 +226,21 @@ class PartParams {
     } else {
       *part_field_map_ptr[field_name] = field_params;
     }
+  }
+
+  /// \brief Add the provided part as a subpart of this part, given that it is valid.
+  ///
+  /// TODO: Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
+  ///
+  /// \param field_params [in] Field parameters to add to the part.
+  void add_subpart_params(const std::shared_ptr<const PartParams> &part_params) {
+    // Check if the provided parameters are valid.
+    part_params.check_if_valid();
+
+    // Check for conflicts?
+
+    // Store the params.
+    part_subpart_map_[part_params.get_part_name(), part_params];
   }
 
   /// \brief Merge the current parameters with any number of other \c PartParams.
@@ -272,6 +289,9 @@ class PartParams {
   /// \brief A set of maps from field name to field params for each rank.
   std::vector<std::map<std::string, std::shared_ptr<FieldParamsBase>>>
       part_ranked_field_maps_[stk::topology::NUM_RANKS];
+
+  /// \brief A map from subpart name to the part params of each sub-part.
+  std::map<std::string, std::shared_ptr<PartParams>> part_subpart_map_;
 }
 
 }  // namespace meta

@@ -66,7 +66,7 @@ class ComputeConstraintViolationCollisionVariant
   //@{
 
   /// \brief Constructor
-  explicit ComputeConstraintViolationCollisionVariant(const stk::util::ParameterList &parameter_list)
+  explicit ComputeConstraintViolationCollisionVariant(const Teuchos::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
         constraint_violation_field_name_(params.get_value<std::string>("constraint_violation")),
         node_coord_field_name_(params.get_value<std::string>("node_coord")),
@@ -86,7 +86,7 @@ class ComputeConstraintViolationCollisionVariant
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(
-      [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("collision", std::topology::QUAD4);
     required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
@@ -101,8 +101,8 @@ class ComputeConstraintViolationCollisionVariant
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static stk::util::ParameterList get_valid_params() {
-    stk::util::ParameterList default_parameter_list;
+  static Teuchos::ParameterList get_valid_params() {
+    Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set_param("minimum allowable separation", 0.0);
     default_parameter_list.set_param("node coordinate field name", "node_coord");
     default_parameter_list.set_param("node normal vector field name", "node_normal_vec");
@@ -141,7 +141,7 @@ class ComputeConstraintViolationCollisionVariant
   }
 
  private:
-  const stk::util::ParameterList parameter_list_;
+  const Teuchos::ParameterList parameter_list_;
   const double min_allowable_sep_;
   const std::string node_coord_field_name_;
   const std::string node_normal_vec_field_name_;

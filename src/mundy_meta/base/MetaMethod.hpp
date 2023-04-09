@@ -114,7 +114,7 @@ class MetaMethod : public Teuchos::Describable {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
   }
 
-  /// \brief Generate a new instance of this class.
+  /// \brief Run the method's core calculation.
   virtual RunInformation run(const stk::mesh::BulkData* bulk_data_ptr, const stk::mesh::Part& part) = 0;
   //@}
 
