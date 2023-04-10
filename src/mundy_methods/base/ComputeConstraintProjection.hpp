@@ -68,15 +68,15 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
   ComputeConstraintProjection();
   //@}
 
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const std::string &multibody_name,
-      const stk::util::ParameterList &parameter_list) {
+  execute(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const std::string &multibody_name,
+      const Teuchos::RCP<Teuchos::ParameterList> &parameter_list) {
     // create and run a ComputeConstraintProjection variant corresponding to the provided multibody type name
     MetaMethodFactory<ComputeConstraintProjection>::create_new_instance(multibody_name, parameter_list)
-        .run(bulk_data_ptr, part);
+        .execute(bulk_data_ptr, part);
   }
 
   static std::unique_ptr<PartParams> get_part_requirements(const std::string &multibody_name,
-                                                           const stk::util::ParameterList &parameter_list) {
+                                                           const Teuchos::RCP<Teuchos::ParameterList> &parameter_list) {
     return MetaMethodFactory<ComputeConstraintProjection>::get_part_requirements(multibody_name, parameter_list);
   }
 }

@@ -260,10 +260,10 @@ class PartParams {
       // Check if the provided topology and rank are the same.
       TEUCHOS_TEST_FOR_EXCEPTION(
           get_part_rank() == part_params.get_part_rank(), std::invalid_argument,
-          "mundy::PartParams: Part " << part_params.get_part_name() << " has incompatible rank.");
+          "mundy::meta::PartParams: Part " << part_params.get_part_name() << " has incompatible rank.");
       TEUCHOS_TEST_FOR_EXCEPTION(
           get_part_topology() == part_params.get_part_topology(), std::invalid_argument,
-          "mundy::PartParams: Part " << part_params.get_part_name() << " has incompatible topology.");
+          "mundy::meta::PartParams: Part " << part_params.get_part_name() << " has incompatible topology.");
 
       // Loop over each rank's map
       for (auto const &part_field_map : part_params.get_part_field_map()) {

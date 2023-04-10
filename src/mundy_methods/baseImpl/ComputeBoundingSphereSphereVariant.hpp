@@ -65,7 +65,7 @@ class ComputeBoundingSphereSphereVariant
   //@{
 
   /// \brief Constructor
-  explicit ComputeBoundingSphereSphereVariant(const stk::util::ParameterList &parameter_list)
+  explicit ComputeBoundingSphereSphereVariant(const Teuchos::RCP<Teuchos::ParameterList> &parameter_list)
       : parameter_list_(parameter_list),
         bounding_sphere_field_name_(params.get_value<std::string>("bounding sphere field name")),
         radius_field_name_(params.get_value<std::string>("radius field name")),
@@ -84,7 +84,7 @@ class ComputeBoundingSphereSphereVariant
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(
-      [[maybe_unused]] const stk::util::ParameterList &parameter_list) {
+      [[maybe_unused]] const Teuchos::RCP<Teuchos::ParameterList> &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>("radius", std::topology::ELEMENT_RANK, 1, 1));
@@ -97,8 +97,8 @@ class ComputeBoundingSphereSphereVariant
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static stk::util::ParameterList get_valid_params() {
-    stk::util::ParameterList default_parameter_list;
+  static Teuchos::RCP<Teuchos::ParameterList> get_valid_params() {
+    Teuchos::RCP<Teuchos::ParameterList> default_parameter_list;
     default_parameter_list.set_param("bounding sphere field name", "bounding_sphere");
     default_parameter_list.set_param("radius field name", "radius");
     default_parameter_list.set_param("buffer distance", 0.0);
@@ -109,7 +109,7 @@ class ComputeBoundingSphereSphereVariant
 
   //! \name Actions
   //@{
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
+  execute(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
     const stk::mesh::Field &radius_field =
         bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
     const stk::mesh::Field &bounding_sphere_field =
@@ -126,7 +126,7 @@ class ComputeBoundingSphereSphereVariant
   }
 
  private:
-  const stk::util::ParameterList parameter_list_;
+  const Teuchos::RCP<Teuchos::ParameterList> parameter_list_;
   const double buffer_distance_;
   const std::string bounding_sphere_field_name_;
   const std::string radius_field_name_;

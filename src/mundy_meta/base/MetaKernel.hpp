@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHOD_HPP_
-#define MUNDY_META_METAMETHOD_HPP_
+#ifndef MUNDY_META_METAKERNEL_HPP_
+#define MUNDY_META_METAKERNEL_HPP_
 
-/// \file MetaMethod.hpp
-/// \brief Declaration of the MetaMethod class
+/// \file MetaKernel.hpp
+/// \brief Declaration of the MetaKernel class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -46,6 +46,7 @@
 #include <stk_balance/balance.hpp>                   // for balanceStkMesh
 #include <stk_util/parallel/Parallel.hpp>            // for ParallelMachine
 #include <stk_util/environment/WallTime.hpp>         // for wall_time
+
 #include <stk_util/environment/perf_util.hpp>
 #include <stk_unit_test_utils/BuildMesh.hpp>
 #include "stk_util/util/ReportHandler.hpp"           // for ThrowAssert, etc
@@ -55,13 +56,23 @@ namespace mundy {
 
 namespace meta {
 
-/// \class MetaMethod
+/// \class MetaKernel
 /// \brief An abstract interface for all of Mundy's methods.
 ///
-/// The goal of \c MetaMethod is to wrap a function that acts on Mundy's multibody hierarchy with a class that can
-/// output the assumptions of the wrapped function with respect to the fields and structure of the hierarchy.
+/// A \c MetaKernel represents an atomic unit of computation applied to a \b single multibody object in isolation
+/// (sphere, spring, hinge, etc.). Through STK and Kokkos looping constructs, a \c MetaKernel can be efficiently applied
+/// to large groups of multibody objects.
 ///
-/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethod must
+/// While \c MetaKernel only accepts a single multibody object, but Mundy offers two pairwise specializations:
+///  - \c MetaKernelPairwise for pairwise anti-symmetric interaction between two multibody objects.
+///  - \c MetaKernelPairwiseSymmetric for pairwise symmetric interaction between two multibody objects.
+///
+/// The goal of \c MetaKernel is to wrap a kernel that acts on an STK Element with a known multibody type.
+/// The wrapper can output the assumptions of the wrapped kernel with respect to the fields and topology associated with
+/// the provided element. Note, this element is part of some STK Part, so the output requirements are \c PartParams for
+/// that part. Requirements cannot be applied at the element-level.
+///
+/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
 ///   - \c details_get_part_requirements implementation of the \c get_part_requirements interface.
 ///   class.
@@ -69,17 +80,17 @@ namespace meta {
 ///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
 ///
-/// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
-template <class DerivedMetaMethod,
-          typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
-class MetaMethod : public Teuchos::Describable {
+/// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
+template <class DerivedMetaKernel,
+          typename std::enable_if<std::is_base_of<MetaKernel, DerivedMetaKernel>::value, void>::type>
+class MetaKernel : public Teuchos::Describable {
  public:
   //! \name Attributes
   //@{
 
-  /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
+  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaMethod
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
   /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
   /// based parameters in the \c parameter_list.
   ///
@@ -89,17 +100,17 @@ class MetaMethod : public Teuchos::Describable {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::unique_ptr<PartParams> get_part_requirements(const Teuchos::RCP<Teuchos::ParameterList>& parameter_list) const {
-    return DerivedMetaMethod::details_get_part_requirements(parameter_list);
+    return DerivedMetaKernel::details_get_part_requirements(parameter_list);
   }
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
   static Teuchos::RCP<Teuchos::ParameterList> get_valid_params() const {
-    return DerivedMetaMethod::details_get_valid_params();
+    return DerivedMetaKernel::details_get_valid_params();
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
   static std::string get_class_identifier() const {
-    return DerivedMetaMethod::details_get_class_identifier();
+    return DerivedMetaKernel::details_get_class_identifier();
   }
   //@}
 
@@ -110,12 +121,12 @@ class MetaMethod : public Teuchos::Describable {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodFactory> create_new_instance(const Teuchos::RCP<Teuchos::ParameterList>& parameter_list) const {
-    return DerivedMetaMethod::details_create_new_instance(parameter_list);
+  static std::unique_ptr<MetaKernelFactory> create_new_instance(const Teuchos::RCP<Teuchos::ParameterList>& parameter_list) const {
+    return DerivedMetaKernel::details_create_new_instance(parameter_list);
   }
 
-  /// \brief Run the method's core calculation.
-  virtual void execute(const stk::mesh::Part& part) = 0;
+  /// \brief Run the kernel's core calculation.
+  virtual void execute(const stk::mesh::Entity multibody_entity) = 0;
   //@}
 
   //! @name Implementation of Teuchos::Describable interface
@@ -132,11 +143,11 @@ class MetaMethod : public Teuchos::Describable {
   virtual void describe(Teuchos::FancyOStream& out,
                         const Teuchos::EVerbosityLevel verbLevel = Teuchos::Describable::verbLevel_default) const;
   //@}
-};  // MetaMethod
+};  // MetaKernel
 
 }  // namespace meta
 
 }  // namespace mundy
 
 //}
-#endif  // MUNDY_META_METAMETHOD_HPP_
+#endif  // MUNDY_META_METAKERNEL_HPP_

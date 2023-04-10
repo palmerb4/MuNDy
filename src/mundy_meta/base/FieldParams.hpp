@@ -148,13 +148,13 @@ class FieldParams {
       // Check if the provided rank, type, and dimension are the same.
       TEUCHOS_TEST_FOR_EXCEPTION(
           get_field_rank() == field_params.get_field_rank(), std::invalid_argument,
-          "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible rank.");
+          "mundy::meta::FieldParams: Field " << field_params.get_field_name() << " has incompatible rank.");
       TEUCHOS_TEST_FOR_EXCEPTION(
           std::is_same<this ::field_type, field_params::field_type>, std::invalid_argument,
-          "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible type.");
+          "mundy::meta::FieldParams: Field " << field_params.get_field_name() << " has incompatible type.");
       TEUCHOS_TEST_FOR_EXCEPTION(
           get_field_dimension() == field_params.get_field_dimension(), std::invalid_argument,
-          "mundy::FieldParams: Field " << field_params.get_field_name() << " has incompatible dimension.");
+          "mundy::meta::FieldParams: Field " << field_params.get_field_name() << " has incompatible dimension.");
 
       field_number_of_states_ = std::max(field_number_of_states_, field_params.get_field_number_of_states());
     }

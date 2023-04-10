@@ -114,7 +114,7 @@ class ComputeConstraintViolationCollisionVariant
 
   //! \name Actions
   //@{
-  run(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
+  execute(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
     const stk::mesh::Field &node_coord_field =
         bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
     const stk::mesh::Field &node_normal_vec_field =
