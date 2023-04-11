@@ -67,13 +67,13 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   //@}
 
   execute(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part, const std::string &multibody_name,
-      const Teuchos::RCP<Teuchos::ParameterList> &parameter_list) {
+      const Teuchos::ParameterList &parameter_list) {
     // create and run a ComputeOBB variant corresponding to the provided multibody type name
     MetaMethodFactory<ComputeOBB>::create_new_instance(multibody_name, parameter_list).run(bulk_data_ptr, part);
   }
 
   static std::unique_ptr<PartParams> get_part_requirements(const std::string &multibody_name,
-                                                           const Teuchos::RCP<Teuchos::ParameterList> &parameter_list) {
+                                                           const Teuchos::ParameterList &parameter_list) {
     return MetaMethodFactory<ComputeOBB>::get_part_requirements(multibody_name, parameter_list);
   }
 }

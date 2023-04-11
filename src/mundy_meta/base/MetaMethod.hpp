@@ -74,7 +74,7 @@ template <class DerivedMetaMethod,
           typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
 class MetaMethod : public Teuchos::Describable {
  public:
-  //! \name Attributes
+  //! \name Getters
   //@{
 
   /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
@@ -83,17 +83,14 @@ class MetaMethod : public Teuchos::Describable {
   /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
   /// based parameters in the \c parameter_list.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<PartParams> get_part_requirements(const Teuchos::RCP<Teuchos::ParameterList>& parameter_list) const {
+  static std::unique_ptr<PartParams> get_part_requirements(const Teuchos::ParameterList& parameter_list) const {
     return DerivedMetaMethod::details_get_part_requirements(parameter_list);
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
-  static Teuchos::RCP<Teuchos::ParameterList> get_valid_params() const {
+  static Teuchos::ParameterList get_valid_params() const {
     return DerivedMetaMethod::details_get_valid_params();
   }
 
@@ -110,7 +107,10 @@ class MetaMethod : public Teuchos::Describable {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodFactory> create_new_instance(const Teuchos::RCP<Teuchos::ParameterList>& parameter_list) const {
+  ///
+  /// TODO(palmerb4): The following will fail to compile because \c MetaMethod is not defined. We need an empty
+  /// non-templated base version to derive everyone from
+  static std::unique_ptr<MetaMethod> create_new_instance(const Teuchos::ParameterList& parameter_list) const {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
   }
 

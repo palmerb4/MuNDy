@@ -10,7 +10,7 @@ part_hierarchy:
         number_of_states: 1
         type: DOUBLE
       - name: COORDINATES
-        rank: Node
+        rank: NODE
         dimension: 3
         number_of_states: 1
         type: DOUBLE
@@ -52,7 +52,7 @@ part_hierarchy:
       - name: ELLIPSOIDS
         topology: ENTITY
         fields:
-        - AxisLength
+        - name: AXISLENGTH
             rank: ENTITY
             dimension: 3
             number_of_states: 1

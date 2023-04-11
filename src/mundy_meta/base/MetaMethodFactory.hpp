@@ -85,13 +85,13 @@ class MetaMethodFactory {
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaMethod.
-  using NewMetaMethodGenerator = std::function<std::unique_ptr<MetaMethod>(const Teuchos::RCP<Teuchos::ParameterList>&)>;
+  using NewMetaMethodGenerator = std::function<std::unique_ptr<MetaMethod>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartParams instance.
-  using NewRequirementsGenerator = std::function<PartParams>(const Teuchos::RCP<Teuchos::ParameterList>&);
+  using NewRequirementsGenerator = std::function<PartParams>(const Teuchos::ParameterList&);
 
-  /// \brief A function type that produces a Teuchos::RCP<Teuchos::ParameterList> instance.
-  using NewDefaultParamsGenerator = std::function<Teuchos::RCP<Teuchos::ParameterList>>();
+  /// \brief A function type that produces a Teuchos::ParameterList instance.
+  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList>();
   //@}
 
   //! \name Attributes
@@ -120,7 +120,7 @@ class MetaMethodFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
   static std::unique_ptr<PartParams> get_part_requirements(const std::string& key,
-                                                           const Teuchos::RCP<Teuchos::ParameterList>& parameter_list) {
+                                                           const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[key](parameter_list);
   }
 
@@ -131,11 +131,11 @@ class MetaMethodFactory {
   /// provided \c register_new_method function.
   ///
   /// \note This function does not cache its return value, so
-  /// each time you call this function, a new \c Teuchos::RCP<Teuchos::ParameterList> will be created. You can save the result
+  /// each time you call this function, a new \c Teuchos::ParameterList will be created. You can save the result
   /// yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
-  static Teuchos::RCP<Teuchos::ParameterList> get_valid_params(const std::string& key) {
+  static Teuchos::ParameterList get_valid_params(const std::string& key) {
     ThrowAssertMsg(is_valid_key(key), "The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
   }
@@ -166,7 +166,7 @@ class MetaMethodFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::unique_ptr<MetaMethodFactory> create_new_instance(const std::string& key,
-                                                                const Teuchos::RCP<Teuchos::ParameterList>& parameter_list) {
+                                                                const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map(key)(parameter_list);
   }
   //@}

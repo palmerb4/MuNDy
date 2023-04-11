@@ -64,7 +64,7 @@ class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
   //@{
 
   /// \brief Constructor
-  explicit ComputeOBBSphereVariant(const Teuchos::RCP<Teuchos::ParameterList> &parameter_list)
+  explicit ComputeOBBSphereVariant(const Teuchos::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
         obb_field_name_(params.get_value<std::string>("obb field name")),
         node_coord_field_name_(params.get_value<std::string>("node_coord")),
@@ -84,7 +84,7 @@ class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> get_part_requirements(
-      [[maybe_unused]] const Teuchos::RCP<Teuchos::ParameterList> &parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
@@ -99,8 +99,8 @@ class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::RCP<Teuchos::ParameterList> get_valid_params() {
-    Teuchos::RCP<Teuchos::ParameterList> default_parameter_list;
+  static Teuchos::ParameterList get_valid_params() {
+    Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set_param("node coordinate field name", "node_coord");
     default_parameter_list.set_param("obb field name", "obb");
     default_parameter_list.set_param("radius field name", "radius");
@@ -138,7 +138,7 @@ class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
   }
 
  private:
-  const Teuchos::RCP<Teuchos::ParameterList> parameter_list_;
+  const Teuchos::ParameterList parameter_list_;
   const double buffer_distance_;
   const std::string obb_field_name_;
   const std::string radius_field_name_;
