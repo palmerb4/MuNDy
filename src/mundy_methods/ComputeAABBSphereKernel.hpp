@@ -71,19 +71,16 @@ class ComputeAABBSphereKernel : public MetaKernel<ComputeAABBSphereKernel>,
     parameter_list_ = parameter_list;
     parameter_list_.validateParametersAndSetDefaults(get_valid_params());
 
-    // Fill the internal members using the internal parameter list
+    // Fill the internal members using the internal parameter list.
+    buffer_distance_ = parameter_list_.get<double>("buffer_distance");
     node_coord_field_name_ = parameter_list_.get<std::string>("node_coord_field_name");
     radius_field_name_ = parameter_list_.get<std::string>("radius_field_name");
     aabb_field_name_ = parameter_list_.get<std::string>("aabb_field_name");
-    buffer_distance_ = parameter_list_.get<std::string>("buffer_distance");
 
     // Store the input params.
-    const stk::mesh::Field &node_coord_field_ptr_ =
-        *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    const stk::mesh::Field &radius_field_ptr_ =
-        *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    const stk::mesh::Field &aabb_field_ptr_ =
-        *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+    node_coord_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+    radius_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    aabb_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
   }
   //@}
 
@@ -115,6 +112,8 @@ class ComputeAABBSphereKernel : public MetaKernel<ComputeAABBSphereKernel>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("buffer_distance", default_buffer_distance_,
+                               "Buffer distance to be added to the axis-aligned boundary box.");
     default_parameter_list.set(
         "aabb_field_name", default_aabb_field_name_,
         'Name of the element field within which the output axis-aligned boundary boxes will be written.');
@@ -122,8 +121,6 @@ class ComputeAABBSphereKernel : public MetaKernel<ComputeAABBSphereKernel>,
                                "Name of the element field containing the sphere radius.");
     default_parameter_list.set("node_coordinate_field_name", default_node_coord_field_name_,
                                "Name of the node field containing the coordinate of the sphere's center.");
-    default_parameter_list.set("buffer_distance", default_buffer_distance_,
-                               "Buffer distance to be added to the axis-aligned boundary box.");
     return default_parameter_list;
   }
   //@}

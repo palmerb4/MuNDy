@@ -72,17 +72,23 @@ class ComputeConstraintProjectionCollisionKernel
     parameter_list_ = parameter_list;
     parameter_list_.validateParametersAndSetDefaults(get_valid_params());
 
-    // Fill the internal members using the internal parameter list
+    // Fill the internal members using the internal parameter list.
     radius_field_name_ = parameter_list_.get<std::string>("radius_field_name");
-    bounding_radius_field_name_ = parameter_list_.get<std::string>("bounding_radius_field_name");
-    buffer_distance_ = parameter_list_.get<std::string>("buffer_distance");
+
+    minimum_allowable_separation = parameter_list_.get<double>("minimum_allowable_separation");
+    node_coord_field_name_ = parameter_list_.get<std::string>("node_coordinate_field_name");
+    node_normal_vec_field_name_ = parameter_list_.get<std::string>("node_normal_vector_field_name");
+    lagrange_multiplier_field_name_ = parameter_list_.get<std::string>("lagrange_multiplier_field_name");
+    constraint_violation_field_name_ = parameter_list_.get<std::string>("constraint_violation_field_name");
 
     // Store the input params.
-    const stk::mesh::Field &node_coord_field =
-        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    const stk::mesh::Field &radius_field =
-        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    const stk::mesh::Field &aabb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+    node_coord_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+    node_normal_vec_field_ptr_ =
+        *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_normal_vec_field_name_);
+    lagrange_multiplier_field_ptr_ =
+        *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, lagrange_multiplier_field_name_);
+    constraint_violation_field_ptr_ =
+        *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, constraint_violation_field_name_)
   }
   //@}
 
@@ -100,13 +106,13 @@ class ComputeConstraintProjectionCollisionKernel
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>(std::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
+        std::make_unique<FieldParams<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("node_normal_vec", std::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("lagrange_multiplier", std::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("constraint_violation", std::topology::ELEMENT_RANK, 1, 1));
+        std::make_unique<FieldParams<double>>(default_node_normal_vec_field_name_, std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params(std::make_unique<FieldParams<double>>(
+        default_lagrange_multiplier_field_name_, std::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_params(std::make_unique<FieldParams<double>>(
+        default_constraint_violation_field_name_, std::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 
@@ -151,6 +157,7 @@ class ComputeConstraintProjectionCollisionKernel
  private:
   //! \name Default parameters
   //@{
+
   static constexpr double default_minimum_allowable_separation_ = 0.0;
   static constexpr std::string default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string default_node_normal_vec_field_name_ = "NODE_NORMAL_VEC";
@@ -192,7 +199,6 @@ class ComputeConstraintProjectionCollisionKernel
 
   /// \brief Element field containing the sphere radius.
   stk::mesh::Field *constraint_violation_field_ptr_;
-
   //@}
 };  // ComputeConstraintProjectionCollisionKernel
 

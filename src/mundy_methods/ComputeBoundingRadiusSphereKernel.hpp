@@ -71,15 +71,14 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
     parameter_list_ = parameter_list;
     parameter_list_.validateParametersAndSetDefaults(get_valid_params());
 
-    // Fill the internal members using the internal parameter list
+    // Fill the internal members using the internal parameter list.
+    buffer_distance_ = parameter_list_.get<double>("buffer_distance");
     radius_field_name_ = parameter_list_.get<std::string>("radius_field_name");
     bounding_radius_field_name_ = parameter_list_.get<std::string>("bounding_radius_field_name");
-    buffer_distance_ = parameter_list_.get<std::string>("buffer_distance");
 
     // Store the input params.
-    const stk::mesh::Field &radius_field_ptr_ =
-        *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    const stk::mesh::Field &bounding_radius_field_ptr_ =
+    radius_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    bounding_radius_field_ptr_ =
         *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, bounding_radius_field_name_);
   }
   //@}
@@ -110,12 +109,12 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("buffer_distance", default_buffer_distance_,
+                               "Buffer distance to be added to the axis-aligned boundary box.");
     default_parameter_list.set("bounding_sphere_field_name", default_bounding_radius_field_name_),
         "Name of the element field within which the output bounding radius will be written.";
     default_parameter_list.set("radius_field_name", default_radius_field_name_,
                                "Name of the element field containing the sphere radius.");
-    default_parameter_list.set("buffer_distance", default_buffer_distance_,
-                               "Buffer distance to be added to the axis-aligned boundary box.");
     return default_parameter_list;
   }
   //@}
