@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHODREGISTRY_HPP_
-#define MUNDY_META_METAMETHODREGISTRY_HPP_
+#ifndef MUNDY_META_METAKERNELREGISTRY_HPP_
+#define MUNDY_META_METAKERNELREGISTRY_HPP_
 
-/// \file MetaMethodRegistry.hpp
-/// \brief Declaration of the MetaMethodRegistry class
+/// \file MetaKernelRegistry.hpp
+/// \brief Declaration of the MetaKernelRegistry class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,27 +55,27 @@ namespace mundy {
 
 namespace meta {
 
-/// \class MetaMethodRegistry
-/// \brief A class for registering \c MetaMethods within \c MetaMethodFactory.
+/// \class MetaKernelRegistry
+/// \brief A class for registering \c MetaKernels within \c MetaKernelFactory.
 ///
-/// All classes derived from \c MetaMethod, which wish to be registered within the \c MetaMethodFactory should inherit
+/// All classes derived from \c MetaKernel, which wish to be registered within the \c MetaKernelFactory should inherit
 /// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
 /// Pattern).
 ///
-/// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
-template <class DerivedMetaMethod, typename RegistryIdentifier = DefaultMethodIdentifier,
-          typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
-struct MetaMethodRegistry {
+/// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
+/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
+template <class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier,
+          typename std::enable_if<std::is_base_of<MetaKernel, DerivedMetaKernel>::value, void>::type>
+struct MetaKernelRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register DerivedMetaMethod with the MetaMethodFactory.
+  /// @brief Register DerivedMetaKernel with the MetaKernelFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaMethodFactory::register_new_method<DerivedMetaMethod>();
+    MetaKernelFactory::register_new_method<DerivedMetaKernel>();
     return true;
   }
   //@}
@@ -83,21 +83,21 @@ struct MetaMethodRegistry {
   //! \name Member variables
   //@{
 
-  /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
+  /// @brief A flag for if the given type has been registered with the \c MetaKernelFactory or not.
   static const bool is_registered;
   //@}
-};  // MetaMethodRegistry
+};  // MetaKernelRegistry
 
 /// @brief Perform the registration.
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 template <class T>
-const bool MetaMethodRegistry<T>::is_registered = ShapeInterface<T>::register_type();
+const bool MetaKernelRegistry<T>::is_registered = ShapeInterface<T>::register_type();
 
 }  // namespace meta
 
 }  // namespace mundy
 
 //}
-#endif  // MUNDY_META_METAMETHODREGISTRY_HPP_
+#endif  // MUNDY_META_METAKERNELREGISTRY_HPP_

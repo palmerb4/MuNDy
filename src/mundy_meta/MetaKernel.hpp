@@ -126,23 +126,9 @@ class MetaKernel : public Teuchos::Describable {
   }
 
   /// \brief Run the kernel's core calculation.
-  virtual void execute(const stk::mesh::Entity multibody_entity) = 0;
+  virtual void execute(const stk::mesh::Entity &entity) = 0;
   //@}
 
-  //! @name Implementation of Teuchos::Describable interface
-  //@{
-
-  //! A string description of this object.
-  virtual std::string description() const;
-
-  /// \brief Describe this object.
-  ///
-  /// At higher verbosity levels, this method will print out the list
-  /// of names of supported solvers.  You can also get this list
-  /// directly by using the supportedSolverNames() method.
-  virtual void describe(Teuchos::FancyOStream& out,
-                        const Teuchos::EVerbosityLevel verbLevel = Teuchos::Describable::verbLevel_default) const;
-  //@}
 };  // MetaKernel
 
 }  // namespace meta

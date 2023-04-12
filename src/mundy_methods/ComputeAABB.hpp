@@ -90,9 +90,6 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
     parameter_list_ = parameter_list;
     parameter_list_.validateParametersAndSetDefaults(get_valid_params());
 
-    // Store the required fields.
-    aabb_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
-
     // Create and store the required kernels.
     const Teuchos::ParameterList &aabb_kernel_parameter_list =
         parameter_list.sublist("kernels").sublist("compute_aabb");
@@ -179,9 +176,6 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
 
   //! \name Internal members
   //@{
-
-  /// \brief Name of the aabb field to write to.
-  std::string aabb_field_name_;
 
   /// \brief Number of parts that this method acts on.
   size_t num_parts_;

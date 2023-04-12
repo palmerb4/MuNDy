@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEOBBSPHEREVARIANT_HPP_
-#define MUNDY_METHODS_COMPUTEOBBSPHEREVARIANT_HPP_
+#ifndef MUNDY_METHODS_COMPUTEBOUNDINGSPHERESPHEREKERNEL_HPP_
+#define MUNDY_METHODS_COMPUTEBOUNDINGSPHERESPHEREKERNEL_HPP_
 
-/// \file ComputeOBBSphereVariant.hpp
-/// \brief Declaration of the ComputeOBBSphereVariant class
+/// \file ComputeBoundingSphereSphereKernel.hpp
+/// \brief Declaration of the ComputeBoundingSphereSphereKernel class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,21 +55,25 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeOBBSphereVariant
-/// \brief Concrete implementation of \c MultibodyVariant for computing the object aligned bounding box of spheres.
-class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
-                                public MetaMethodRegistry<ComputeOBBSphereVariant, ComputeOBB> {
+/// \class ComputeBoundingSphereSphereKernel
+/// \brief Concrete implementation of \c MetaKernel for computing the bounding sphere radius of spheres.
+class ComputeBoundingSphereSphereKernel
+    : public MetaKernel<ComputeBoundingSphereSphereKernel>,
+      public MetaKernelRegistry<ComputeBoundingSphereSphereKernel, ComputeBoundingSphere> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeOBBSphereVariant(const Teuchos::ParameterList &parameter_list)
+  explicit ComputeBoundingSphereSphereKernel(const Teuchos::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
-        obb_field_name_(params.get_value<std::string>("obb field name")),
-        node_coord_field_name_(params.get_value<std::string>("node_coord")),
+        bounding_sphere_field_name_(params.get_value<std::string>("bounding sphere field name")),
         radius_field_name_(params.get_value<std::string>("radius field name")),
         buffer_distance_(params.get_value<double>("buffer distance")) {
+    const stk::mesh::Field &radius_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    const stk::mesh::Field &bounding_sphere_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, bounding_sphere_field_name_);
   }
 
   //@}
@@ -83,15 +87,13 @@ class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::unique_ptr<PartParams> get_part_requirements(
+  static std::unique_ptr<PartParams> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>("radius", std::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("obb", std::topology::ELEMENT_RANK, 4, 1));
+        std::make_unique<FieldParams<double>>("bounding_sphere", std::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 
@@ -99,12 +101,11 @@ class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList get_valid_params() {
+  static Teuchos::ParameterList details_get_valid_params() {
     Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set_param("node coordinate field name", "node_coord");
-    default_parameter_list.set_param("obb field name", "obb");
-    default_parameter_list.set_param("radius field name", "radius");
-    default_parameter_list.set_param("buffer distance", 0.0);
+    default_parameter_list.set_param("bounding_sphere_field_name", "bounding_sphere");
+    default_parameter_list.set_param("radius_field_name", "radius");
+    default_parameter_list.set_param("buffer_distance", 0.0);
     return default_parameter_list;
   }
 
@@ -112,41 +113,21 @@ class ComputeOBBSphereVariant : public MetaMethod<ComputeOBBSphereVariant>,
 
   //! \name Actions
   //@{
-  execute(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
-    const stk::mesh::Field &node_coord_field =
-        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    const stk::mesh::Field &radius_field =
-        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    const stk::mesh::Field &obb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
-
-    stk::mesh::Selector locally_owned_part = metaB.locally_owned_part() && part;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
-                                   [&aabb_field, &radius_field, &buffer_distance_](const stk::mesh::BulkData &bulk_data,
-                                                                                   stk::mesh::Entity element) {
-                                     stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
-                                     double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
-                                     double *radius = stk::mesh::field_data(radius_field, element);
-                                     double *obb = stk::mesh::field_data(obb_field, element);
-
-                                     obb[0] = coords[0] - radius[0] - buffer_distance_;
-                                     obb[1] = coords[1] - radius[0] - buffer_distance_;
-                                     obb[2] = coords[2] - radius[0] - buffer_distance_;
-                                     obb[3] = coords[0] + radius[0] + buffer_distance_;
-                                     obb[4] = coords[1] + radius[0] + buffer_distance_;
-                                     obb[5] = coords[2] + radius[0] + buffer_distance_;
-                                   });
+  void execute(const stk::mesh::Entity &element) {
+    double *radius = stk::mesh::field_data(radius_field, element);
+    double *bounding_sphere = stk::mesh::field_data(bounding_sphere_field, element);
+    bounding_sphere[0] = radius[0] + buffer_distance_;
   }
 
  private:
   const Teuchos::ParameterList parameter_list_;
   const double buffer_distance_;
-  const std::string obb_field_name_;
+  const std::string bounding_sphere_field_name_;
   const std::string radius_field_name_;
-  const std::string node_coord_field_name_;
-};  // ComputeOBBSphereVariant
+};  // ComputeBoundingSphereSphereKernel
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEOBBSPHEREVARIANT_HPP_
+#endif  // MUNDY_METHODS_COMPUTEBOUNDINGSPHERESPHEREKERNEL_HPP_

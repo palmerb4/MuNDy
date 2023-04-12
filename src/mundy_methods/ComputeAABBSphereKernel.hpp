@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEAABBSPHEREVARIANT_HPP_
-#define MUNDY_METHODS_COMPUTEAABBSPHEREVARIANT_HPP_
+#ifndef MUNDY_METHODS_COMPUTEAABBSPHEREKERNEL_HPP_
+#define MUNDY_METHODS_COMPUTEAABBSPHEREKERNEL_HPP_
 
-/// \file ComputeAABBSphereVariant.hpp
-/// \brief Declaration of the ComputeAABBSphereVariant class
+/// \file ComputeAABBSphereKernel.hpp
+/// \brief Declaration of the ComputeAABBSphereKernel class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,25 +55,30 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeAABBSphereVariant
-/// \brief Concrete implementation of \c MultibodyVariant for computing the axis aligned boundary box of spheres.
-class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
-                                 public MetaMethodRegistry<ComputeAABBSphereVariant, ComputeAABB> {
+/// \class ComputeAABBSphereKernel
+/// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
+class ComputeAABBSphereKernel : public MetaKernel<ComputeAABBSphereKernel>,
+                                public MetaKernelRegistry<ComputeAABBSphereKernel, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeAABBSphereVariant(const Teuchos::ParameterList &parameter_list)
+  explicit ComputeAABBSphereKernel(const Teuchos::ParameterList &parameter_list)
       : parameter_list_(parameter_list),
-        aabb_field_name_(params.get_value<std::string>("aabb field name")),
+        aabb_field_name_(params.get_value<std::string>("aabb_field_name")),
         node_coord_field_name_(params.get_value<std::string>("node_coord")),
-        radius_field_name_(params.get_value<std::string>("radius field name")),
-        buffer_distance_(params.get_value<double>("buffer distance")) {
+        radius_field_name_(params.get_value<std::string>("radius_field_name")),
+        buffer_distance_(params.get_value<double>("buffer_distance")) {
+    const stk::mesh::Field &node_coord_field =
+        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+    const stk::mesh::Field &radius_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    const stk::mesh::Field &aabb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
   }
 
   //@}
-  //! \name Attributes
+  //! \name MetaKernel interface implementation
   //@{
 
   /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
@@ -83,7 +88,7 @@ class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::unique_ptr<PartParams> get_part_requirements(
+  static std::unique_ptr<PartParams> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
     required_part_params->add_field_params(
@@ -99,12 +104,12 @@ class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList get_valid_params() {
+  static Teuchos::ParameterList details_get_valid_params() {
     Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set_param("node coordinate field name", "node_coord");
-    default_parameter_list.set_param("aabb field name", "aabb");
-    default_parameter_list.set_param("radius field name", "radius");
-    default_parameter_list.set_param("buffer distance", 0.0);
+    default_parameter_list.set_param("node_coordinate_field_name", "node_coord");
+    default_parameter_list.set_param("aabb_field_name", "aabb");
+    default_parameter_list.set_param("radius_field_name", "radius");
+    default_parameter_list.set_param("buffer_distance", 0.0);
     return default_parameter_list;
   }
 
@@ -112,29 +117,18 @@ class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
 
   //! \name Actions
   //@{
-  void execute(const stk::mesh::BulkData *bulk_data_ptr, const stk::mesh::Part &part) {
-    const stk::mesh::Field &node_coord_field =
-        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    const stk::mesh::Field &radius_field =
-        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    const stk::mesh::Field &aabb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+  void execute(const stk::mesh::Entity &element) {
+    stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
+    double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
+    double *radius = stk::mesh::field_data(radius_field, element);
+    double *aabb = stk::mesh::field_data(aabb_field, element);
 
-    stk::mesh::Selector locally_owned_part = metaB.locally_owned_part() && part;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr, stk::topology::NODE_RANK, locally_owned_part,
-                                   [&aabb_field, &radius_field, &buffer_distance_](const stk::mesh::BulkData &bulk_data,
-                                                                                   stk::mesh::Entity element) {
-                                     stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
-                                     double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
-                                     double *radius = stk::mesh::field_data(radius_field, element);
-                                     double *aabb = stk::mesh::field_data(aabb_field, element);
-
-                                     aabb[0] = coords[0] - radius[0] - buffer_distance_;
-                                     aabb[1] = coords[1] - radius[0] - buffer_distance_;
-                                     aabb[2] = coords[2] - radius[0] - buffer_distance_;
-                                     aabb[3] = coords[0] + radius[0] + buffer_distance_;
-                                     aabb[4] = coords[1] + radius[0] + buffer_distance_;
-                                     aabb[5] = coords[2] + radius[0] + buffer_distance_;
-                                   });
+    aabb[0] = coords[0] - radius[0] - buffer_distance_;
+    aabb[1] = coords[1] - radius[0] - buffer_distance_;
+    aabb[2] = coords[2] - radius[0] - buffer_distance_;
+    aabb[3] = coords[0] + radius[0] + buffer_distance_;
+    aabb[4] = coords[1] + radius[0] + buffer_distance_;
+    aabb[5] = coords[2] + radius[0] + buffer_distance_;
   }
 
  private:
@@ -143,10 +137,10 @@ class ComputeAABBSphereVariant : public MetaMethod<ComputeAABBSphereVariant>,
   const std::string aabb_field_name_;
   const std::string radius_field_name_;
   const std::string node_coord_field_name_;
-};  // ComputeAABBSphereVariant
+};  // ComputeAABBSphereKernel
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEAABBSPHEREVARIANT_HPP_
+#endif  // MUNDY_METHODS_COMPUTEAABBSPHEREKERNEL_HPP_

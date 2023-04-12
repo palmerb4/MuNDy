@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHODFACTORY_HPP_
-#define MUNDY_META_METAMETHODFACTORY_HPP_
+#ifndef MUNDY_META_METAKERNELFACTORY_HPP_
+#define MUNDY_META_METAKERNELFACTORY_HPP_
 
-/// \file MetaMethodFactory.hpp
-/// \brief Declaration of the MetaMethodFactory class
+/// \file MetaKernelFactory.hpp
+/// \brief Declaration of the MetaKernelFactory class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -56,36 +56,35 @@ namespace mundy {
 namespace meta {
 
 /// \brief An empty struct to symbolize an unused template parameter.
-struct DefaultMethodIdentifier {};
+struct DefaultKernelIdentifier {};
 
-/// \class MetaMethodFactory
-/// \brief A factory containing generation routines for all of Mundy's \c MetaMethods.
+/// \class MetaKernelFactory
+/// \brief A factory containing generation routines for all of Mundy's \c MetaKernels.
 ///
-/// The goal of \c MetaMethodFactory, as with most factories, is to provide an abstraction for case switches between
-/// different methods. This factory is a bit different in that it always users to register new \c MetaMethods and
+/// The goal of \c MetaKernelFactory, as with most factories, is to provide an abstraction for case switches between
+/// different methods. This factory is a bit different in that it always users to register new \c MetaKernels and
 /// associate them with their corresponding keys. This allows a method to be created based on a string. Most
-/// importantly, it enables users to add their own \c MetaMethods without modifying Mundy's source code.
+/// importantly, it enables users to add their own \c MetaKernels without modifying Mundy's source code.
 ///
-/// It's important to note that the static members of this factory will be shared between any \c MetaMethodFactories
-/// with the same template \c RegistryIdentifier. We use the default identifier to register all of Mundy's
-/// \c MetaMethods.
+/// It's important to note that the static members of this factory will be shared between any \c MetaKernelFactories
+/// with the same template \c RegistryIdentifier.
 ///
-/// \note This factory does not store an instance of \c MetaMethod; rather, it stores maps from a string to some of
-/// \c MetaMethod's static member functions.
+/// \note This factory does not store an instance of \c MetaKernel; rather, it stores maps from a string to some of
+/// \c MetaKernel's static member functions.
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
-template <typename RegistryIdentifier = DefaultMethodIdentifier>
-class MetaMethodFactory {
+/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
+template <typename RegistryIdentifier = DefaultKernelIdentifier>
+class MetaKernelFactory {
  public:
   //! \name Typedefs
   //@{
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
-  /// \c MetaMethod.
-  using NewMetaMethodGenerator = std::function<std::unique_ptr<MetaMethod>(const Teuchos::ParameterList&)>;
+  /// \c MetaKernel.
+  using NewMetaKernelGenerator = std::function<std::unique_ptr<MetaKernel>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartParams instance.
   using NewRequirementsGenerator = std::function<PartParams>(const Teuchos::ParameterList&);
@@ -97,22 +96,22 @@ class MetaMethodFactory {
   //! \name Attributes
   //@{
 
-  /// \brief Get the number of \c MetaMethod classes this factory recognizes.
+  /// \brief Get the number of \c MetaKernel classes this factory recognizes.
   static size_t get_number_of_subclasses() {
     return get_instance_generator_map().size();
   }
 
-  /// \brief Get the requirements that this a registered \c MetaMethod imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this a registered \c MetaKernel imposes upon each particle and/or constraint.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made a registered \c
-  /// MetaMethod with respect to the parts, topology, and fields input into the \c execute function. These assumptions
-  /// may vary based parameters in the \c parameter_list.
+  /// The set part requirements returned by this function are meant to encode the assumptions made a registered
+  /// \c MetaKernel with respect to the parts, topology, and fields input into the \c execute function. These
+  /// assumptions may vary based parameters in the \c parameter_list.
   ///
-  /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
-  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
+  /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
+  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
   /// provided \c register_new_method function.
   ///
-  /// \param key [in] A key corresponding to a registered \c MetaMethod.
+  /// \param key [in] A key corresponding to a registered \c MetaKernel.
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
   static std::unique_ptr<PartParams> get_part_requirements(const std::string& key,
@@ -120,17 +119,17 @@ class MetaMethodFactory {
     return get_instance_generator_map()[key](parameter_list);
   }
 
-  /// \brief Get the default parameter list for a registered \c MetaMethod.
+  /// \brief Get the default parameter list for a registered \c MetaKernel.
   ///
-  /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
-  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
+  /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
+  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
   /// provided \c register_new_method function.
   ///
   /// \note This function does not cache its return value, so
   /// each time you call this function, a new \c Teuchos::ParameterList will be created. You can save the result
   /// yourself if you wish to reuse it.
   ///
-  /// \param key [in] A key corresponding to a registered \c MetaMethod.
+  /// \param key [in] A key corresponding to a registered \c MetaKernel.
   static Teuchos::ParameterList get_valid_params(const std::string& key) {
     ThrowAssertMsg(is_valid_key(key), "The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
@@ -141,9 +140,9 @@ class MetaMethodFactory {
   //@{
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
-  template <MetaMethod MethodToRegister,
-            typename std::enable_if<std::is_base_of<MetaMethod, MethodToRegister>::value, void>::type>
-  std::unique_ptr<MetaMethodFactory> register_new_method() {
+  template <MetaKernel MethodToRegister,
+            typename std::enable_if<std::is_base_of<MetaKernel, MethodToRegister>::value, void>::type>
+  std::unique_ptr<MetaKernelFactory> register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
     ThrowAssertMsg(!is_valid_key(key), "The provided key " << key << " already exists.");
     get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
@@ -151,17 +150,17 @@ class MetaMethodFactory {
     get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
   }
 
-  /// \brief Generate a new instance of a registered \c MetaMethod.
+  /// \brief Generate a new instance of a registered \c MetaKernel.
   ///
-  /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
-  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
+  /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
+  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
   /// provided \c register_new_method function.
   ///
-  /// \param key [in] A key corresponding to a registered \c MetaMethod.
+  /// \param key [in] A key corresponding to a registered \c MetaKernel.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodFactory> create_new_instance(const std::string& key,
+  static std::unique_ptr<MetaKernelFactory> create_new_instance(const std::string& key,
                                                                 const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map(key)(parameter_list);
   }
@@ -171,13 +170,13 @@ class MetaMethodFactory {
   //! \name Typedefs
   //@{
 
-  /// \brief A map from key to a function for generating a new \c MetaMethod.
-  using InstanceGeneratorMap = std::map<std::string, NewMetaMethodGenerator>;
+  /// \brief A map from key to a function for generating a new \c MetaKernel.
+  using InstanceGeneratorMap = std::map<std::string, NewMetaKernelGenerator>;
 
-  /// \brief A map from key to a function for generating a \c MetaMethod's part requirements.
+  /// \brief A map from key to a function for generating a \c MetaKernel's part requirements.
   using RequirementGeneratorMap = std::map<std::string, NewRequirementsGenerator>;
 
-  /// \brief A map from key to a function for generating a \c MetaMethod's part default requirements.
+  /// \brief A map from key to a function for generating a \c MetaKernel's part default requirements.
   using DefaultParamsGeneratorMap = std::map<std::string, NewDefaultParamsGenerator>;
   //@}
 
@@ -205,16 +204,16 @@ class MetaMethodFactory {
   //! \name Friends
   //@{
 
-  /// \brief Every concrete MetaMethod that inherits from the MetaMethodRegistry will be added to this factory's
+  /// \brief Every concrete MetaKernel that inherits from the MetaKernelRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   template <typename T>
-  friend class MetaMethodRegistry<T>;
+  friend class MetaKernelRegistry<T>;
   //@}
-};  // MetaMethodFactory
+};  // MetaKernelFactory
 
 }  // namespace meta
 
 }  // namespace mundy
 
 //}
-#endif  // MUNDY_META_METAMETHODFACTORY_HPP_
+#endif  // MUNDY_META_METAKERNELFACTORY_HPP_
