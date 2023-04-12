@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTECONSTRAINTPROJECTION_HPP_
-#define MUNDY_METHODS_COMPUTECONSTRAINTPROJECTION_HPP_
+#ifndef MUNDY_METHODS_COMPUTEBOUNDINGRADIUS_HPP_
+#define MUNDY_METHODS_COMPUTEBOUNDINGRADIUS_HPP_
 
-/// \file ComputeConstraintProjection.hpp
-/// \brief Declaration of the ComputeConstraintProjection class
+/// \file ComputeBoundingRadius.hpp
+/// \brief Declaration of the ComputeBoundingRadius class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,32 +55,33 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeConstraintProjection
+/// \class ComputeBoundingRadius
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjection>, public MetaMethodRegistry<ComputeConstraintProjection> {
+class ComputeBoundingRadius : public MetaMethod<ComputeBoundingRadius>,
+                              public MetaMethodRegistry<ComputeBoundingRadius> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeConstraintProjection() = delete;
+  ComputeBoundingRadius() = delete;
 
   /// \brief Constructor
-  ComputeConstraintProjection(const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
-              const Teuchos::ParameterList &parameter_list)
+  ComputeBoundingRadius(const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
+                        const Teuchos::ParameterList &parameter_list)
       : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
     // The bulk data pointer must not be null.
     TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                               "mundy::methods::ComputeConstraintProjection: bulk_data_ptr cannot be a nullptr.");
+                               "mundy::methods::ComputeBoundingRadius: bulk_data_ptr cannot be a nullptr.");
 
     // The parts cannot intersect.
     for (int i = 0; i < num_parts_; i++) {
       for (int j = 0; j < num_parts_; j++) {
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
         TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeConstraintProjection: Part " << part_ptr_vector[i]->name() << " and "
-                                                                        << "Part " << part_ptr_vector[j]->name()
-                                                                        << "intersect.");
+                                   "mundy::methods::ComputeBoundingRadius: Part "
+                                       << part_ptr_vector[i]->name() << " and "
+                                       << "Part " << part_ptr_vector[j]->name() << "intersect.");
       }
     }
 
@@ -90,7 +91,7 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
     parameter_list_.validateParametersAndSetDefaults(get_valid_params());
 
     // Fill the internal members using the internal parameter list
-    aabb_field_name_ = parameter_list_.get<std::string>("aabb_field_name")
+    bounding_radius_field_name_ = parameter_list_.get<std::string>("bounding_radius_field_name");
 
     // Create and store the required kernels.
     const Teuchos::ParameterList &aabb_kernel_parameter_list =
@@ -102,9 +103,8 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
 
       // Get the name of the kernel to be used on this part.
       const std::string kernel_name = part_aabb_kernel_parameter_list.get<std::string>("name");
-      compute_aabb_kernels_.push_back(
-          MetaKernelFactory<ComputeConstraintProjection>::create_new_instance(kernel_name, bulk_data_ptr,
-              part_aabb_kernel_parameter_list));
+      compute_aabb_kernels_.push_back(MetaKernelFactory<ComputeBoundingRadius>::create_new_instance(
+          kernel_name, bulk_data_ptr, part_aabb_kernel_parameter_list));
     }
   }
   //@}
@@ -138,7 +138,7 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static std::string details_get_class_identifier() const {
-    return "COMPUTE_CONSTRAINT_PROJECTION";
+    return "COMPUTE_BOUNDING_SPHERE";
   }
 
   /// \brief Generate a new instance of this class.
@@ -148,7 +148,7 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
   static std::unique_ptr<MetaMethod> details_create_new_instance(const stk::mesh::BulkData *bulk_data_ptr,
                                                                  const std::vector<*stk::mesh::Part> &part_ptr_vector,
                                                                  const Teuchos::ParameterList &parameter_list) const {
-    return std::make_unique<ComputeConstraintProjection>(bulk_data_ptr, part_ptr_vector, parameter_list);
+    return std::make_unique<ComputeBoundingRadius>(bulk_data_ptr, part_ptr_vector, parameter_list);
   }
   //@}
 
@@ -192,10 +192,10 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
   /// \brief Kernels corresponding to each of the specified parts.
   std::vector<MetaKernel> compute_aabb_kernels_;
   //@}
-};  // ComputeConstraintProjection
+};  // ComputeBoundingRadius
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTECONSTRAINTPROJECTION_HPP_
+#endif  // MUNDY_METHODS_COMPUTEBOUNDINGRADIUS_HPP_

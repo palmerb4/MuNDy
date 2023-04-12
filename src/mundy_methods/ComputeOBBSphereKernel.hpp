@@ -56,28 +56,35 @@ namespace mundy {
 namespace methods {
 
 /// \class ComputeOBBSphereKernel
-/// \brief Concrete implementation of \c MetaKernel for computing the object aligned bounding box of spheres.
+/// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
 class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel>,
-                               public MetaKernelRegistry<ComputeOBBSphereKernel, ComputeOBB> {
+                               public MetaKernelRegistry<ComputeOBBSphereKernel, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeOBBSphereKernel(const Teuchos::ParameterList &parameter_list)
-      : parameter_list_(parameter_list),
-        obb_field_name_(params.get_value<std::string>("obb field name")),
-        node_coord_field_name_(params.get_value<std::string>("node_coord")),
-        radius_field_name_(params.get_value<std::string>("radius field name")),
-        buffer_distance_(params.get_value<double>("buffer distance")) {
+  explicit ComputeOBBSphereKernel(const stk::mesh::BulkData *bulk_data_ptr,
+                                  const Teuchos::ParameterList &parameter_list) {
+    // Store the input parameters, use default parameters for any parameter not given.
+    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    parameter_list_ = parameter_list;
+    parameter_list_.validateParametersAndSetDefaults(get_valid_params());
+
+    // Fill the internal members using the internal parameter list
+    radius_field_name_ = parameter_list_.get<std::string>("radius_field_name");
+    bounding_radius_field_name_ = parameter_list_.get<std::string>("bounding_radius_field_name");
+    buffer_distance_ = parameter_list_.get<std::string>("buffer_distance");
+
+    // Store the input params.
     const stk::mesh::Field &node_coord_field =
         bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
     const stk::mesh::Field &radius_field =
         bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    const stk::mesh::Field &obb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
+    const stk::mesh::Field &aabb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
   }
-
   //@}
+
   //! \name MetaKernel interface implementation
   //@{
 
@@ -90,7 +97,7 @@ class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("spheres", std::topology::PARTICLE);
+    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>(std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(
@@ -105,19 +112,19 @@ class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel>,
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_get_valid_params() {
-    Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set_param("node_coordinate_field_name", "node_coord");
-    default_parameter_list.set_param("obb_field_name", "obb");
-    default_parameter_list.set_param("radius_field_name", "radius");
-    default_parameter_list.set_param("buffer_distance", 0.0);
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("node_coordinate_field_name", "node_coord");
+    default_parameter_list.set("obb_field_name", "obb");
+    default_parameter_list.set("radius_field_name", "radius");
+    default_parameter_list.set("buffer_distance", 0.0);
     return default_parameter_list;
   }
-
   //@}
 
   //! \name Actions
   //@{
-  void execute(const stk::mesh::Entity &entity) {
+
+  void execute(const stk::mesh::Entity &element) {
     stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
     double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
     double *radius = stk::mesh::field_data(radius_field, element);
@@ -130,13 +137,48 @@ class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel>,
     obb[4] = coords[1] + radius[0] + buffer_distance_;
     obb[5] = coords[2] + radius[0] + buffer_distance_;
   }
+  //@}
 
  private:
-  const Teuchos::ParameterList parameter_list_;
-  const double buffer_distance_;
-  const std::string obb_field_name_;
-  const std::string radius_field_name_;
-  const std::string node_coord_field_name_;
+  //! \name Default parameters
+  //@{
+
+  static constexpr double default_buffer_distance_ = 0.0;
+  static constexpr double default_aabb_field_name_ = "AABB";
+  static constexpr double default_radius_field_name_ = "RADIUS";
+  static constexpr double default_node_coord_field_name_ = "NODE_COORD";
+  //@}
+
+  //! \name Internal members
+  //@{
+
+  /// \brief Current parameter list with valid entries.
+  Teuchos::ParameterList parameter_list_;
+
+  /// \brief Buffer distance to be added to the axis-aligned boundary box.
+  ///
+  /// For example, if the original axis-aligned boundary box has left corner at [0,0,0] and right corner at [1,1,1],
+  /// then a buffer distance of 2 will shift the left corner to [-2,-2,-2] and right corner to [3,3,3].
+  double buffer_distance_;
+
+  /// \brief Name of the element field within which the output axis-aligned boundary boxes will be written.
+  std::string aabb_field_name_;
+
+  /// \brief Name of the element field containing the sphere radius.
+  std::string radius_field_name_;
+
+  /// \brief Name of the node field containing the coordinate of the sphere's center
+  std::string node_coord_field_name_;
+
+  /// \brief Element field within which the output axis-aligned boundary boxes will be written.
+  stk::mesh::Field *aabb_field_ptr_;
+
+  /// \brief Element field containing the sphere radius.
+  stk::mesh::Field *radius_field_ptr_;
+
+  /// \brief Node field containing the coordinate of the sphere's center
+  stk::mesh::Field *node_coord_field_ptr_;
+  //@}
 };  // ComputeOBBSphereKernel
 
 }  // namespace methods

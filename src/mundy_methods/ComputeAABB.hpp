@@ -69,12 +69,11 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   ComputeAABB(const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
               const Teuchos::ParameterList &parameter_list)
       : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
-    // Test the input
     // The bulk data pointer must not be null.
     TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                                "mundy::methods::ComputeAABB: bulk_data_ptr cannot be a nullptr.");
 
-    // The parts cannot intersect.E
+    // The parts cannot intersect.
     for (int i = 0; i < num_parts_; i++) {
       for (int j = 0; j < num_parts_; j++) {
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
@@ -85,7 +84,7 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
       }
     }
 
-    // Store the user input parameters, use default parameters for any parameter not given
+    // Store the input parameters, use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     parameter_list_ = parameter_list;
     parameter_list_.validateParametersAndSetDefaults(get_valid_params());
@@ -100,8 +99,8 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
 
       // Get the name of the kernel to be used on this part.
       const std::string kernel_name = part_aabb_kernel_parameter_list.get<std::string>("name");
-      compute_aabb_kernels_.push_back(
-          MetaKernelFactory<ComputeAABB>::create_new_instance(kernel_name, part_aabb_kernel_parameter_list));
+      compute_aabb_kernels_.push_back(MetaKernelFactory<ComputeAABB>::create_new_instance(
+          kernel_name, bulk_data_ptr, part_aabb_kernel_parameter_list));
     }
   }
   //@}
@@ -119,17 +118,18 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   static std::unique_ptr<PartParams> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     // TODO(palmerb4): we need the ability to not specify requirements for part name or even topology
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>();
+    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>(std::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("aabb", std::topology::ELEMENT_RANK, 4, 1));
+        std::make_unique<FieldParams<double>>(default_aabb_field_name_, std::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }
 
   /// \brief Get the default parameters for this class.
   static Teuchos::ParameterList details_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set_param("aabb_field_name", default_aabb_field_name_,
-                                     "The name of the aabb field to write the result to.");
+    default_parameter_list.set(
+        "aabb_field_name", default_aabb_field_name_,
+        "Name of the element field within which the output axis-aligned boundary boxes will be written.");
     return default_parameter_list;
   }
 
@@ -171,7 +171,7 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   //! \name Default parameters
   //@{
 
-  static constexpr std::string default_aabb_field_name_ = "aabb";
+  static constexpr std::string default_aabb_field_name_ = "AABB";
   //@}
 
   //! \name Internal members
@@ -186,13 +186,10 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   /// \brief Vector of pointers to the parts that this class will act upon.
   std::vector<*stk::mesh::Part> &part_ptr_vector_;
 
-  /// \brief Field within which the output axis-aligned boundary boxes will be written.
-  stk::mesh::Field *aabb_field_ptr_;
-
   /// \brief Kernels corresponding to each of the specified parts.
   std::vector<MetaKernel> compute_aabb_kernels_;
   //@}
-}
+};  // ComputeAABB
 
 }  // namespace methods
 

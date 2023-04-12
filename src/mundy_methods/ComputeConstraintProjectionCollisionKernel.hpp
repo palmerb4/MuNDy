@@ -56,31 +56,36 @@ namespace mundy {
 namespace methods {
 
 /// \class ComputeConstraintProjectionCollisionKernel
-/// \brief Concrete implementation of \c MetaKernel for computing projection of the constraint's Lagrange
-/// multiplier onto the feasible set of collision constraints.
+/// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
 class ComputeConstraintProjectionCollisionKernel
     : public MetaKernel<ComputeConstraintProjectionCollisionKernel>,
-      public MetaKernelRegistry<ComputeConstraintProjectionCollisionKernel, ComputeConstraintProjection> {
+      public MetaKernelRegistry<ComputeConstraintProjectionCollisionKernel, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeConstraintProjectionCollisionKernel(const Teuchos::ParameterList &parameter_list)
-      : parameter_list_(parameter_list),
-        node_coord_field_name_(params.get_value<std::string>("node_coord")),
-        node_normal_vec_field_name_(params.get_value<std::string>("node_normal_vec")),
-        lagrange_multiplier_field_name_(params.get_value<std::string>("lagrange_multiplier")),
-        min_allowable_sep_(params.get_value<double>("minimum allowable separation")) {
+  explicit ComputeConstraintProjectionCollisionKernel(const stk::mesh::BulkData *bulk_data_ptr,
+                                                      const Teuchos::ParameterList &parameter_list) {
+    // Store the input parameters, use default parameters for any parameter not given.
+    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    parameter_list_ = parameter_list;
+    parameter_list_.validateParametersAndSetDefaults(get_valid_params());
+
+    // Fill the internal members using the internal parameter list
+    radius_field_name_ = parameter_list_.get<std::string>("radius_field_name");
+    bounding_radius_field_name_ = parameter_list_.get<std::string>("bounding_radius_field_name");
+    buffer_distance_ = parameter_list_.get<std::string>("buffer_distance");
+
+    // Store the input params.
     const stk::mesh::Field &node_coord_field =
         bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    const stk::mesh::Field &node_normal_vec_field =
-        bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_normal_vec_field_name_);
-    const stk::mesh::Field &constraint_violation_field =
-        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, constraint_violation_field_name_);
+    const stk::mesh::Field &radius_field =
+        bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    const stk::mesh::Field &aabb_field = bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
   }
-
   //@}
+
   //! \name MetaKernel interface implementation
   //@{
 
@@ -93,7 +98,7 @@ class ComputeConstraintProjectionCollisionKernel
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartParams> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>("collision", std::topology::QUAD4);
+    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>(std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(
@@ -110,38 +115,85 @@ class ComputeConstraintProjectionCollisionKernel
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_get_valid_params() {
-    Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set_param("minimum_allowable_separation", 0.0);
-    default_parameter_list.set_param("node_coordinate_field_name", "node_coord");
-    default_parameter_list.set_param("node_normal_vector_field_name", "node_normal_vec");
-    default_parameter_list.set_param("lagrange_multiplier_field_name", "lagrange_multiplier");
-    default_parameter_list.set_param("constraint_violation_field_name", "constraint_violation");
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("minimum_allowable_separation", default_minimum_allowable_separation_,
+                               "Minimum allowable separation distance between colliding bodies.");
+    default_parameter_list.set(
+        "node_coordinate_field_name", default_node_coord_field_name_,
+        "Name of the node field containing the coordinate of the constraint's attachment points.");
+    default_parameter_list.set(
+        "node_normal_vector_field_name", default_node_normal_vec_field_name_,
+        "Name of the node field containing the normal vector to the constraint's attachment point.");
+    default_parameter_list.set("lagrange_multiplier_field_name", default_lagrange_multiplier_field_name_,
+                               "Name of the element field containing the constraint's Lagrange multiplier.");
+    default_parameter_list.set("constraint_violation_field_name", default_constraint_violation_field_name_,
+                               "Name of the element field containing the constraint's violation measure.");
     return default_parameter_list;
   }
-
   //@}
 
   //! \name Actions
   //@{
+
   void execute(const stk::mesh::Entity &element) {
     stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
-    const double *contact_pointI = stk::mesh::field_data(node_coord_field, nodes[1]);
-    const double *contact_pointJ = stk::mesh::field_data(node_coord_field, nodes[2]);
-    const double *contact_normal_vecI = stk::mesh::field_data(node_normal_vec_field, nodes[1]);
-    double *constraint_violation = stk::mesh::field_data(constraint_violation_field, element);
+    const double *contact_pointI = stk::mesh::field_data(*node_coord_field_ptr_, nodes[1]);
+    const double *contact_pointJ = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
+    const double *contact_normal_vecI = stk::mesh::field_data(*node_normal_vec_field_ptr_, nodes[1]);
+    double *constraint_violation = stk::mesh::field_data(*constraint_violation_field_ptr_, element);
 
     constraint_violation[0] = contact_normal_vecI[0] * (contact_pointJ[0] - contact_pointI[0]) +
                               contact_normal_vecI[1] * (contact_pointJ[1] - contact_pointI[1]) +
                               contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) - min_allowable_sep_;
   }
+  //@}
 
  private:
-  const Teuchos::ParameterList parameter_list_;
-  const double min_allowable_sep_;
-  const std::string node_coord_field_name_;
-  const std::string node_normal_vec_field_name_;
-  const std::string lagrange_multiplier_field_name_;
-  const std::string constraint_violation_field_name_;
+  //! \name Default parameters
+  //@{
+  static constexpr double default_minimum_allowable_separation_ = 0.0;
+  static constexpr std::string default_node_coord_field_name_ = "NODE_COORD";
+  static constexpr std::string default_node_normal_vec_field_name_ = "NODE_NORMAL_VEC";
+  static constexpr std::string default_lagrange_multiplier_field_name_ = "LAGRANGE_MULTIPLIER";
+  static constexpr std::string default_constraint_violation_field_name_ = "CONSTRAINT_VIOLATION";
+  //@}
+
+  //! \name Internal members
+  //@{
+
+  /// \brief Current parameter list with valid entries.
+  Teuchos::ParameterList parameter_list_;
+
+  /// \brief Minimum allowable separation distance between colliding bodies.
+  double minimum_allowable_separation_;
+
+  /// \brief Name of the node field containing the coordinate of the constraint's attachment points.
+  std::string node_coord_field_name_;
+
+  /// \brief Name of the node field containing the normal vector to the constraint's attachment point.
+  std::string node_normal_vec_field_name_;
+
+  /// \brief Name of the element field containing the constraint's Lagrange multiplier.
+  std::string lagrange_multiplier_field_name_;
+
+  /// \brief Name of the element field containing the constraint's violation measure.
+  std::string constraint_violation_field_name_;
+
+  /// \brief Node field containing the coordinate of the constraint's attachment points.
+  stk::mesh::Field *node_coord_field_ptr_;
+
+  /// \brief Element field within which the output axis-aligned boundary boxes will be written.
+  ///
+  /// Per convention, the normal vector points outward from the attached surface.
+  stk::mesh::Field *node_normal_vec_field_ptr_;
+
+  /// \brief Element field containing the sphere radius.
+  stk::mesh::Field *lagrange_multiplier_field_ptr_;
+
+  /// \brief Element field containing the sphere radius.
+  stk::mesh::Field *constraint_violation_field_ptr_;
+
+  //@}
 };  // ComputeConstraintProjectionCollisionKernel
 
 }  // namespace methods
