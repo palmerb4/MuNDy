@@ -72,7 +72,7 @@ namespace meta {
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
 template <class DerivedMetaMethod,
           typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
-class MetaMethod : public Teuchos::Describable {
+class MetaMethod {
  public:
   //! \name Getters
   //@{
@@ -116,21 +116,6 @@ class MetaMethod : public Teuchos::Describable {
 
   /// \brief Run the method's core calculation.
   virtual void execute(const stk::mesh::Part& part) = 0;
-  //@}
-
-  //! @name Implementation of Teuchos::Describable interface
-  //@{
-
-  //! A string description of this object.
-  virtual std::string description() const;
-
-  /// \brief Describe this object.
-  ///
-  /// At higher verbosity levels, this method will print out the list
-  /// of names of supported solvers.  You can also get this list
-  /// directly by using the supportedSolverNames() method.
-  virtual void describe(Teuchos::FancyOStream& out,
-                        const Teuchos::EVerbosityLevel verbLevel = Teuchos::Describable::verbLevel_default) const;
   //@}
 };  // MetaMethod
 

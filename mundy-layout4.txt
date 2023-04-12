@@ -398,6 +398,8 @@ constructed using the MetaKernelFactory<MetaMethod>::create_new_instance. The ac
 in anything.
 
 
+Why not replace PartParams and FieldParams with a simple Teuchos::ParameterList? Because the class structure is nice for adding validity checking and the like. 
+
    
 Quaternion
 filterOutSelfOverlap

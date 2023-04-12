@@ -69,10 +69,26 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   ComputeAABB(const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
               const Teuchos::ParameterList &parameter_list)
       : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
+    // Test the input
+    // The bulk data pointer must not be null.
     TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                                "mundy::methods::ComputeAABB: bulk_data_ptr cannot be a nullptr.");
-    // Store the user input parameters, overwriting any defaults.
-    parse_and_store_parameters(parameter_list);
+
+    // The parts cannot intersect.E
+    for (int i = 0; i < num_parts_; i++) {
+      for (int j = 0; j < num_parts_; j++) {
+        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
+        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
+                                   "mundy::methods::ComputeAABB: Part " << part_ptr_vector[i]->name() << " and "
+                                                                        << "Part " << part_ptr_vector[j]->name()
+                                                                        << "intersect.");
+      }
+    }
+
+    // Store the user input parameters, use default parameters for any parameter not given
+    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    parameter_list_ = parameter_list;
+    parameter_list_.validateParametersAndSetDefaults(get_valid_params());
 
     // Store the required fields.
     aabb_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
@@ -93,7 +109,7 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   }
   //@}
 
-  //! \name Getters
+  //! \name MetaMethod interface implementation
   //@{
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
@@ -125,11 +141,6 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
     return "COMPUTE_AABB";
   }
 
-  //@}
-
-  //! \name Actions
-  //@{
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
@@ -139,6 +150,10 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
                                                                  const Teuchos::ParameterList &parameter_list) const {
     return std::make_unique<ComputeAABB>(bulk_data_ptr, part_ptr_vector, parameter_list);
   }
+  //@}
+
+  //! \name Actions
+  //@{
 
   /// \brief Run the method's core calculation.
   execute() {
@@ -153,22 +168,36 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
           });
     }
   }
-
   //@}
 
  private:
-  parse_and_store_parameters(const Teuchos::ParameterList &parameter_list);
+  //! \name Default parameters
+  //@{
 
   static constexpr std::string default_aabb_field_name_ = "aabb";
+  //@}
 
+  //! \name Internal members
+  //@{
+
+  /// \brief Name of the aabb field to write to.
   std::string aabb_field_name_;
 
+  /// \brief Number of parts that this method acts on.
   size_t num_parts_;
+
+  /// \brief Current parameter list with valid entries.
   Teuchos::ParameterList parameter_list_;
 
+  /// \brief Vector of pointers to the parts that this class will act upon.
   std::vector<*stk::mesh::Part> &part_ptr_vector_;
+
+  /// \brief Field within which the output axis-aligned boundary boxes will be written.
   stk::mesh::Field *aabb_field_ptr_;
+
+  /// \brief Kernels corresponding to each of the specified parts.
   std::vector<MetaKernel> compute_aabb_kernels_;
+  //@}
 }
 
 }  // namespace methods
