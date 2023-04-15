@@ -18,7 +18,7 @@ mundy::
   meta::  (meta programming methods and pre-commit routines) 
     MetaMethod  (interface that forces all mundy methods to output their required fields/part parameters. most of these params will come from the standardized defaults that we produce.) 
     MetaFieldParams  (contains the necessary information to build a field)
-    MetaPartParams  (contains the necessary information to build a part with known fields)
+    MetaPartRequirements  (contains the necessary information to build a part with known fields)
     MetaHierarchyParams  (contains the necessary information to build a hierarchy of parts and fields)
     MetaHierarchyBuilder  (constructs the group hierarchy and assigns fields. the user must specify which groups each method will be used with)
   utils::  (extension/streamlining of STK's functionality)
@@ -27,18 +27,18 @@ mundy::
       attach_to_node  (make it easier for constraints to connect to particles)
       detach_from_node  (make it easier for constraints to disconnect from particles)
   particle::
-    MetaDefaultParticlePartParams
-    MetaDefaultSpherePartParams
-    MetaDefaultSpherocylinderPartParams
-    MetaDefaultEllipsoidPartParams
-    MetaDefaultPolytopePartParams
+    MetaDefaultParticlePartRequirements
+    MetaDefaultSpherePartRequirements
+    MetaDefaultSpherocylinderPartRequirements
+    MetaDefaultEllipsoidPartRequirements
+    MetaDefaultPolytopePartRequirements
     
   constraint::
-    MetaDefaultConstraintPartParams
-    MetaDefaultSpringPartParams
-    MetaDefaultTorsionalSpringPartParams
-    MetaDefaultBallJointPartParams
-    MetaDefaultHingePartParams
+    MetaDefaultConstraintPartRequirements
+    MetaDefaultSpringPartRequirements
+    MetaDefaultTorsionalSpringPartRequirements
+    MetaDefaultBallJointPartRequirements
+    MetaDefaultHingePartRequirements
   
    methods::  
     MethodComputeAABB  (needs to accept a buffer parameter to allow the collision detection method to enlarge the AABB, if necessary. must contain a factory-esk design for computing aabb's for different particles/constraints, e.g., MethodComputeAABB::spheres(sphere_group, aabb_field))
@@ -62,7 +62,7 @@ All of Mundy + strategy implementations
 mundy::
   meta::
     FieldParams
-    PartParams
+    PartRequirements
     MetaMethod
     HierarchyParams
     HierarchyBuilder
@@ -169,7 +169,7 @@ mundy::
   meta::
     Method
     FieldParams
-    PartParams
+    PartRequirements
     HierarchyParams
     HierarchyBuilder
   methods::  
@@ -212,7 +212,7 @@ We offer certain shapes and certain constraints. The fields within these shapes 
 
 Why not wrap BulkData and MeshBuilder, so that we automatically create a part for each shape. Consider using the same functionality as m_topologyPartMap (a map of topology and part) and m_partTopologyVector (a vector of topologies). Given the WrappedBulkData, we can access the sphere part using something similar to metaData.get_topology_root_part(stk::topology::PARTICLE). That brings us back to wrapping stk to create a way of storing mundy::multibody. This way we can get an iterator over the current shapes or constraints. 
    
-We're using the factory concept with mundy::multibody as the enum for the factory. This means that ComputeAABB should output an std::map<mundy::multibody, std::unique_ptr<PartParams>>. So each of mundy's methods are specilized for our constraints and shapes.
+We're using the factory concept with mundy::multibody as the enum for the factory. This means that ComputeAABB should output an std::map<mundy::multibody, std::unique_ptr<PartRequirements>>. So each of mundy's methods are specilized for our constraints and shapes.
 
 What if a method, like ComputeAABB, should work for particles or constraints? Then mundy::constraint and mundy::particle should come from the same base type: mundy::multibody. ComputeAABB will take in a part and a vector of mundy::multibodys, loop over each part coresponding to the provided mundy::multibodys and check if the provided part and that part intersect. If so, it will call the corresponding factory routine. There's a problem. What if I don't want to perform neighbor detection with all spheres? Maybe only RedSpheres should have neighbor detection. That's addressed by the current ComputeAABB design, but not by the current Hierarchy design. Maybe something like add_multibody_method_to_part and add_multibody_method_to_all_parts_of_type. AABBFactory is a private class within ComputeAABB. This will allow users to directly call the factory methods from ComputeAABB, if they so choose. 
 
@@ -236,7 +236,7 @@ Create a class type which represents all techniques that should achieve the same
 MetaMethodFactory<MetaMethodFactory<DerivedMetaMethod>>>
 
 !!Need a requirement conflict resolver!!
-!!Our PartParams needs an && operator to merge them together!!
+!!Our PartRequirements needs an && operator to merge them together!!
 !!What if I want to combine multiple independent computations? Can the compute routines have an overloaded && operator for merging their lambdas!!
 !!What if a constraint has multiple lagrange multiplies like friction!! 
 
@@ -252,13 +252,13 @@ Ok, now we can start worrying about the HierarchyBuilder. What are the key piece
   2.4. Declare method
 3. 
   
-What functionality should PartParams offer? 
+What functionality should PartRequirements offer? 
 1. A merge function for merging params. ONLY merge if the number of states is different.
 2. An invarient checker to ensure that the part params are currently valid.
 3. Consistant assert statements that the attempted modifications are valid. 
 
 
-How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_part_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldParams and PartParams. The merge operation does NOT require the two have the same name. 
+How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_part_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldParams and PartRequirements. The merge operation does NOT require the two have the same name. 
 
 Ahhhhhhh. The use of a map from field name to field params is wrong since the name may be nonunique if a force field is applied to nodes and elements. Just use a vector of maps, with one map per rank. 
 
@@ -398,7 +398,7 @@ constructed using the MetaKernelFactory<MetaMethod>::create_new_instance. The ac
 in anything.
 
 
-Why not replace PartParams and FieldParams with a simple Teuchos::ParameterList? Because the class structure is nice for adding validity checking and the like. 
+Why not replace PartRequirements and FieldParams with a simple Teuchos::ParameterList? Because the class structure is nice for adding validity checking and the like. 
 
    
 Quaternion

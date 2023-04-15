@@ -76,34 +76,33 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
     // The parts cannot intersect.
     for (int i = 0; i < num_parts_; i++) {
       for (int j = 0; j < num_parts_; j++) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeOBB: Part " << part_ptr_vector[i]->name() << " and "
-                                                                       << "Part " << part_ptr_vector[j]->name()
-                                                                       << "intersect.");
+        if (i = !j) {
+          const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
+          TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
+                                     "mundy::methods::ComputeOBB: Part " << part_ptr_vector[i]->name() << " and "
+                                                                         << "Part " << part_ptr_vector[j]->name()
+                                                                         << "intersect.");
+        }
       }
     }
 
     // Store the input parameters, use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    parameter_list_ = parameter_list;
-    parameter_list_.validateParametersAndSetDefaults(get_valid_params());
+    Teuchos::ParameterList valid_parameter_list = parameter_list;
+    valid_parameter_list.validateParametersAndSetDefaults(get_valid_params());
 
-    // Fill the internal members using the internal parameter list
-    aabb_field_name_ = parameter_list_.get<std::string>("aabb_field_name")
-
-                       // Create and store the required kernels.
-                       const Teuchos::ParameterList &aabb_kernel_parameter_list =
-        parameter_list.sublist("kernels").sublist("compute_aabb");
+    // Create and store the required kernels.
     for (int i = 0; i < num_parts_; i++) {
       // Fetch the parameters for this part's kernel
       const std::string part_name = part_ptr_vector_[i]->name();
-      const Teuchos::ParameterList &part_aabb_kernel_parameter_list = aabb_kernel_parameter_list.sublist(part_name);
+      const Teuchos::ParameterList &part_parameter_list = valid_parameter_list.sublist(part_name);
+      const Teuchos::ParameterList &part_kernel_parameter_list =
+          part_parameter_list.sublist("kernels").sublist("compute_obb");
 
-      // Get the name of the kernel to be used on this part.
-      const std::string kernel_name = part_aabb_kernel_parameter_list.get<std::string>("name");
-      compute_aabb_kernels_.push_back(MetaKernelFactory<ComputeOBB>::create_new_instance(
-          kernel_name, bulk_data_ptr, part_aabb_kernel_parameter_list));
+      // Create the kernel instance.
+      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
+      compute_obb_kernels_.push_back(
+          MetaKernelFactory<ComputeOBB>::create_new_instance(kernel_name, bulk_data_ptr, part_kernel_parameter_list));
     }
   }
   //@}
@@ -116,22 +115,47 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::unique_ptr<PartParams> details_get_part_requirements(
+  static std::vector<std::unique_ptr<PartRequirements>> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    // TODO(palmerb4): we need the ability to not specify requirements for part name or even topology
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>(std::topology::PARTICLE);
-    required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>(default_aabb_field_name_, std::topology::ELEMENT_RANK, 4, 1));
-    return required_part_params;
+    // Validate the input params. Use default parameters for any parameter not given.
+    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    Teuchos::ParameterList valid_parameter_list = parameter_list;
+    valid_parameter_list.validateParametersAndSetDefaults(get_valid_params());
+
+    // Create and store the required part params.
+    std::vector<PartRequirements> part_requirements(num_parts_);
+    for (int i = 0; i < num_parts_; i++) {
+      // Add method-specific requirements.
+      const std::string part_name = part_ptr_vector_[i]->name();
+      part_requirements[i]->set_name(part_name);
+      part_requirements[i]->set_rank(std::topology::ELEMENT_RANK);
+
+      // Fetch the parameters for this part's kernel.
+      Teuchos::ParameterList &part_parameter_list = valid_parameter_list.sublist(part_name);
+      Teuchos::ParameterList &part_kernel_parameter_list =
+          part_parameter_list.sublist("kernels").sublist("compute_obb");
+
+      // Validate the kernel params and fill in defaults.
+      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
+      part_kernel_parameter_list.validateParametersAndSetDefaults(
+          MetaKernelFactory<ComputeOBB>::get_valid_params(kernel_name));
+
+      // Merge the kernel requirements.
+      part_requirements[i]->merge(
+          &MetaKernelFactory<ComputeOBB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
+    }
+
+    return part_requirements;
   }
 
   /// \brief Get the default parameters for this class.
   static Teuchos::ParameterList details_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("aabb_field_name", default_aabb_field_name_,
-                                     "The name of the aabb field to write the result to.");
+    Teuchos::ParameterList &kernel_params =
+        default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
+    kernel_params.sublist("compute_obb", false, "Sublist that defines the obb kernel parameters.");
     return default_parameter_list;
   }
 
@@ -157,39 +181,30 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   /// \brief Run the method's core calculation.
   execute() {
     for (int i = 0; i < num_parts_; i++) {
-      const MetaKernel &compute_aabb_kernel = compute_aabb_kernels_[i];
+      const MetaKernel &compute_obb_kernel = compute_obb_kernels_[i];
 
       stk::mesh::Selector locally_owned_part = meta_mesh.locally_owned_part() && *part_ptr_vector_[i];
       stk::mesh::for_each_entity_run(
           *bulk_data_ptr, stk::topology::ELEM_RANK, locally_owned_part,
-          [&compute_aabb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-            compute_aabb_kernel->execute();
+          [&compute_obb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+            compute_obb_kernel->execute();
           });
     }
   }
   //@}
 
  private:
-  //! \name Default parameters
-  //@{
-
-  static constexpr std::string default_aabb_field_name_ = "aabb";
-  //@}
-
   //! \name Internal members
   //@{
 
   /// \brief Number of parts that this method acts on.
   size_t num_parts_;
 
-  /// \brief Current parameter list with valid entries.
-  Teuchos::ParameterList parameter_list_;
-
   /// \brief Vector of pointers to the parts that this class will act upon.
   std::vector<*stk::mesh::Part> &part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<MetaKernel> compute_aabb_kernels_;
+  std::vector<MetaKernel> compute_obb_kernels_;
   //@}
 };  // ComputeOBB
 

@@ -59,7 +59,7 @@ namespace meta {
 /// \brief A helper class for building the hierarchy of parts and fields.
 ///
 /// This class is merely a wrapper for STK's \c MeshBuilder with the added functionality of automatically constructing
-/// the part/field hierarchy via a set of \c PartParams, a parameter list, or a YAML file.
+/// the part/field hierarchy via a set of \c PartRequirements, a parameter list, or a YAML file.
 ///
 /// Although duplicative code is discouraged, we chose to copy all of \c MeshBuilder's functionality to improve its
 /// readability and documentation.

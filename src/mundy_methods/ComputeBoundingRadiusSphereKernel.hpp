@@ -68,13 +68,13 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
                                              const Teuchos::ParameterList &parameter_list) {
     // Store the input parameters, use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    parameter_list_ = parameter_list;
-    parameter_list_.validateParametersAndSetDefaults(get_valid_params());
+    Teuchos::ParameterList valid_parameter_list = parameter_list;
+    valid_parameter_list.validateParametersAndSetDefaults(get_valid_params());
 
     // Fill the internal members using the internal parameter list.
-    buffer_distance_ = parameter_list_.get<double>("buffer_distance");
-    radius_field_name_ = parameter_list_.get<std::string>("radius_field_name");
-    bounding_radius_field_name_ = parameter_list_.get<std::string>("bounding_radius_field_name");
+    buffer_distance_ = valid_parameter_list.get<double>("buffer_distance");
+    radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
+    bounding_radius_field_name_ = valid_parameter_list.get<std::string>("bounding_radius_field_name");
 
     // Store the input params.
     radius_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
@@ -91,11 +91,11 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::unique_ptr<PartParams> details_get_part_requirements(
+  static std::unique_ptr<PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>(std::topology::PARTICLE);
+    std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>(std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>(default_radius_field_name_, std::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(
@@ -140,9 +140,6 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
 
   //! \name Internal members
   //@{
-
-  /// \brief Current parameter list with valid entries.
-  Teuchos::ParameterList parameter_list_;
 
   /// \brief Buffer distance to be added to the axis-aligned boundary box.
   ///

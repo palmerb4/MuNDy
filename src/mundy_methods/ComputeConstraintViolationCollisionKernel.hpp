@@ -66,20 +66,20 @@ class ComputeConstraintViolationCollisionKernel
 
   /// \brief Constructor
   explicit ComputeConstraintViolationCollisionKernel(const stk::mesh::BulkData *bulk_data_ptr,
-                                                      const Teuchos::ParameterList &parameter_list) {
+                                                     const Teuchos::ParameterList &parameter_list) {
     // Store the input parameters, use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    parameter_list_ = parameter_list;
-    parameter_list_.validateParametersAndSetDefaults(get_valid_params());
+    valid_parameter_list = parameter_list;
+    valid_parameter_list.validateParametersAndSetDefaults(get_valid_params());
 
     // Fill the internal members using the internal parameter list.
-    radius_field_name_ = parameter_list_.get<std::string>("radius_field_name");
+    radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
 
-    minimum_allowable_separation = parameter_list_.get<double>("minimum_allowable_separation");
-    node_coord_field_name_ = parameter_list_.get<std::string>("node_coordinate_field_name");
-    node_normal_vec_field_name_ = parameter_list_.get<std::string>("node_normal_vector_field_name");
-    lagrange_multiplier_field_name_ = parameter_list_.get<std::string>("lagrange_multiplier_field_name");
-    constraint_violation_field_name_ = parameter_list_.get<std::string>("constraint_violation_field_name");
+    minimum_allowable_separation = valid_parameter_list.get<double>("minimum_allowable_separation");
+    node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coordinate_field_name");
+    node_normal_vec_field_name_ = valid_parameter_list.get<std::string>("node_normal_vector_field_name");
+    lagrange_multiplier_field_name_ = valid_parameter_list.get<std::string>("lagrange_multiplier_field_name");
+    constraint_violation_field_name_ = valid_parameter_list.get<std::string>("constraint_violation_field_name");
 
     // Store the input params.
     node_coord_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
@@ -100,11 +100,11 @@ class ComputeConstraintViolationCollisionKernel
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::unique_ptr<PartParams> details_get_part_requirements(
+  static std::unique_ptr<PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::unique_ptr<PartParams> required_part_params = std::make_unique<PartParams>(std::topology::PARTICLE);
+    std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>(std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldParams<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(
@@ -157,7 +157,7 @@ class ComputeConstraintViolationCollisionKernel
  private:
   //! \name Default parameters
   //@{
-    
+
   static constexpr double default_minimum_allowable_separation_ = 0.0;
   static constexpr std::string default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string default_node_normal_vec_field_name_ = "NODE_NORMAL_VEC";
@@ -167,9 +167,6 @@ class ComputeConstraintViolationCollisionKernel
 
   //! \name Internal members
   //@{
-
-  /// \brief Current parameter list with valid entries.
-  Teuchos::ParameterList parameter_list_;
 
   /// \brief Minimum allowable separation distance between colliding bodies.
   double minimum_allowable_separation_;

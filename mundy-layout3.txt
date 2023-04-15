@@ -18,7 +18,7 @@ mundy::
   meta::  (meta programming methods and pre-commit routines) 
     MetaMethod  (interface that forces all mundy methods to output their required fields/part parameters. most of these params will come from the standardized defaults that we produce.) 
     MetaFieldParams  (contains the necessary information to build a field)
-    MetaPartParams  (contains the necessary information to build a part with known fields)
+    MetaPartRequirements  (contains the necessary information to build a part with known fields)
     MetaHierarchyParams  (contains the necessary information to build a hierarchy of parts and fields)
     MetaHierarchyBuilder  (constructs the group hierarchy and assigns fields. the user must specify which groups each method will be used with)
   utils::  (extension/streamlining of STK's functionality)
@@ -27,18 +27,18 @@ mundy::
       attach_to_node  (make it easier for constraints to connect to particles)
       detach_from_node  (make it easier for constraints to disconnect from particles)
   particle::
-    MetaDefaultParticlePartParams
-    MetaDefaultSpherePartParams
-    MetaDefaultSpherocylinderPartParams
-    MetaDefaultEllipsoidPartParams
-    MetaDefaultPolytopePartParams
+    MetaDefaultParticlePartRequirements
+    MetaDefaultSpherePartRequirements
+    MetaDefaultSpherocylinderPartRequirements
+    MetaDefaultEllipsoidPartRequirements
+    MetaDefaultPolytopePartRequirements
     
   constraint::
-    MetaDefaultConstraintPartParams
-    MetaDefaultSpringPartParams
-    MetaDefaultTorsionalSpringPartParams
-    MetaDefaultBallJointPartParams
-    MetaDefaultHingePartParams
+    MetaDefaultConstraintPartRequirements
+    MetaDefaultSpringPartRequirements
+    MetaDefaultTorsionalSpringPartRequirements
+    MetaDefaultBallJointPartRequirements
+    MetaDefaultHingePartRequirements
   
    methods::  
     MethodComputeAABB  (needs to accept a buffer parameter to allow the collision detection method to enlarge the AABB, if necessary. must contain a factory-esk design for computing aabb's for different particles/constraints, e.g., MethodComputeAABB::spheres(sphere_group, aabb_field))
@@ -63,23 +63,23 @@ mundy::
   meta::
     MetaMethod
     FieldParams
-    PartParams
+    PartRequirements
     HierarchyParams
     HierarchyBuilder
     
     // meta particle stuff
-    imp::DefaultParticlePartParams
-    imp::DefaultSpherePartParams
-    imp::DefaultSpherocylinderPartParams
-    imp::DefaultEllipsoidPartParams
-    imp::DefaultPolytopePartParams
+    imp::DefaultParticlePartRequirements
+    imp::DefaultSpherePartRequirements
+    imp::DefaultSpherocylinderPartRequirements
+    imp::DefaultEllipsoidPartRequirements
+    imp::DefaultPolytopePartRequirements
     
     // meta constraint stuff
-    imp::DefaultConstraintPartParams
-    imp::DefaultSpringPartParams
-    imp::DefaultTorsionalSpringPartParams
-    imp::DefaultBallJointPartParams
-    imp::DefaultHingePartParams
+    imp::DefaultConstraintPartRequirements
+    imp::DefaultSpringPartRequirements
+    imp::DefaultTorsionalSpringPartRequirements
+    imp::DefaultBallJointPartRequirements
+    imp::DefaultHingePartRequirements
     
   multibody:: 
     // Can we have string names for our enums? 
@@ -209,7 +209,7 @@ mundy::
   meta::
     Method
     FieldParams
-    PartParams
+    PartRequirements
     HierarchyParams
     HierarchyBuilder
   methods::  
@@ -252,7 +252,7 @@ We offer certain shapes and certain constraints. The fields within these shapes 
 
 Why not wrap BulkData and MeshBuilder, so that we automatically create a part for each shape. Consider using the same functionality as m_topologyPartMap (a map of topology and part) and m_partTopologyVector (a vector of topologies). Given the WrappedBulkData, we can access the sphere part using something similar to metaData.get_topology_root_part(stk::topology::PARTICLE). That brings us back to wrapping stk to create a way of storing mundy::multibody. This way we can get an iterator over the current shapes or constraints. 
    
-We're using the factory concept with mundy::multibody as the enum for the factory. This means that ComputeAABB should output an std::map<mundy::multibody, std::unique_ptr<PartParams>>. So each of mundy's methods are specilized for our constraints and shapes.
+We're using the factory concept with mundy::multibody as the enum for the factory. This means that ComputeAABB should output an std::map<mundy::multibody, std::unique_ptr<PartRequirements>>. So each of mundy's methods are specilized for our constraints and shapes.
 
 What if a method, like ComputeAABB, should work for particles or constraints? Then mundy::constraint and mundy::particle should come from the same base type: mundy::multibody. ComputeAABB will take in a part and a vector of mundy::multibodys, loop over each part coresponding to the provided mundy::multibodys and check if the provided part and that part intersect. If so, it will call the corresponding factory routine. There's a problem. What if I don't want to perform neighbor detection with all spheres? Maybe only RedSpheres should have neighbor detection. That's addressed by the current ComputeAABB design, but not by the current Hierarchy design. Maybe something like add_multibody_method_to_part and add_multibody_method_to_all_parts_of_type. AABBFactory is a private class within ComputeAABB. This will allow users to directly call the factory methods from ComputeAABB, if they so choose. 
 
