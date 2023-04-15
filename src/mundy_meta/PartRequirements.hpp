@@ -95,6 +95,7 @@ class PartRequirements {
   //@{
 
   /// \brief Set the required part name.
+  /// \brief part_name [in] Required name of the part.
   void set_part_name(const std::string &part_name) {
     part_name_ = part_name;
     part_name_is_set_ = true;
@@ -102,6 +103,7 @@ class PartRequirements {
   }
 
   /// \brief Set the required part topology.
+  /// \brief part_topology [in] Required topology of the part.
   void set_part_topology(const stk::topology &part_topology) {
     part_topology_ = part_topology_;
     part_topology_is_set_ = true;
@@ -109,6 +111,7 @@ class PartRequirements {
   }
 
   /// \brief Set the required part rank.
+  /// \brief part_rank [in] Required rank of the part.
   void set_part_rank(const stk::topology::rank_t &part_rank) {
     part_rank_ = part_rank;
     part_rank_is_set_ = true;

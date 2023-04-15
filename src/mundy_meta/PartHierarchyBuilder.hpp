@@ -63,6 +63,8 @@ namespace meta {
 ///
 /// Although duplicative code is discouraged, we chose to copy all of \c MeshBuilder's functionality to improve its
 /// readability and documentation.
+///
+/// \note The public BulkData constructor used herein is deprecated and will need replaced. See Trilinos issue #11792.
 class PartHierarchyBuilder {
  public:
   //! \name Constructors and destructor
@@ -99,52 +101,123 @@ class PartHierarchyBuilder {
 
   /// \brief Set the spatial dimension of the mash.
   /// \param spatial_dimension [in] The dimension of the space within which the parts and entities reside.
-  MeshBuilder &set_spatial_dimension(const unsigned spatial_dimension);
+  MeshBuilder &set_spatial_dimension(const unsigned spatial_dimension) {
+    spatial_dimension = spatial_dimension;
+    return *this;
+  }
 
   /// \brief Set the names assigned to each rank.
-  /// \param entity_rank_names [in] The spacial dimension within which the parts and entities reside.
-  MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
+  /// \param entity_rank_names [in] The snames assigned to each rank.
+  MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names) {
+    entity_rank_names_ = entity_rank_names;
+    return *this;
+  }
 
-  /// \brief Set the spatial dimension of the mash.
-  /// \param comm [in] The spacial dimension within which the parts and entities reside.
-  MeshBuilder &set_communicator(const stk::ParallelMachine &comm);
+  /// \brief Set the MPI communicator to be used by STK.
+  /// \param comm [in] The MPI communicator.
+  MeshBuilder &set_communicator(const stk::ParallelMachine &comm) {
+    comm_ = comm;
+    has_comm_ = true;
+    return *this;
+  }
 
-  /// \brief Set the spatial dimension of the mash.
-  /// \param aura_option [in] The spacial dimension within which the parts and entities reside.
-  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option);
+  /// \brief Set the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
+  /// \param aura_option [in] The chosen Aura option.
+  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option) {
+    aura_option_ = aura_option;
+    return *this;
+  }
 
-  /// \brief Set the spatial dimension of the mash.
-  /// \param field_data_manager_ptr [in] The spacial dimension within which the parts and entities reside.
-  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *field_data_manager_ptr);
+  /// \brief Set the field data manager.
+  /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
+  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *field_data_manager_ptr) {
+    field_data_manager_ptr_ = field_data_manager_ptr;
+    return *this;
+  }
 
-  /// \brief Set the capacity 
-  /// \param bucket_capacity [in] The spacial dimension within which the parts and entities reside.
-  MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity);
+  /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
+  ///
+  /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
+  ///
+  /// \param bucket_capacity [in] The bucket capacity.
+  MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity) {
+    bucket_capacity_ = bucket_capacity;
+    return *this;
+  }
 
-  /// \brief Set the flag specifying of upward connectivity will be enabled or not.
+  /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  MeshBuilder &set_upward_connectivity(const bool enable_upward_connectivity);
+  MeshBuilder &set_upward_connectivity(const bool enable_upward_connectivity) {
+    enable_upward_connectivity_ = enable_upward_connectivity;
+    return *this;
+  }
 
   //@}
 
   //! @name Actions
   //@{
 
-  std::unique_ptr<BulkData> create();
-  std::unique_ptr<BulkData> create(std::shared_ptr<MetaData> metaData);
+  /// \brief Create a new AuraGhosting instance.
+  std::shared_ptr<AuraGhosting> MeshBuilder::create_aura_ghosting() {
+    if (upward_connectivity_flag_) {
+      return std::make_shared<impl::AuraGhosting>();
+    } else {
+      return std::make_shared<impl::AuraGhostingDownwardConnectivity>();
+    }
+  }
+
+  /// \brief Create a new MetaData instance.
+  std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
+    if (spatial_dimension_ > 0 || !entity_rank_names_.empty()) {
+      return std::make_shared<MetaData>(spatial_dimension_, entity_rank_names_);
+    } else {
+      return std::make_shared<MetaData>();
+    }
+  }
+
+  /// \brief Create a new BulkData instance.
+  std::unique_ptr<BulkData> create_bulk_data() {
+    return this.create_bulk_data(this.create_meta_data());
+  }
+
+  /// \brief Create a new BulkData instance using an existing MetaData instance.
+  std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> metaData) {
+    TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
+                               "PartHierarchyBuilder must be given an MPI communicator before creating BulkData.");
+
+    return std::unique_ptr<BulkData>(new BulkData(metaData, comm_, aura_option_, field_data_manager_ptr_,
+                                                  bucket_capacity_, this.create_aura_ghosting(),
+                                                  upward_connectivity_flag_));
+  }
   //@}
 
  private:
   //! \name Mesh settings
   //@{
 
+  /// \brief MPI communicator to be used by STK.
+  /// This must be set before BulkData can be created.
   stk::ParallelMachine comm_;
+
+  /// \brief Flag specifying if comm has been set or not.
   bool has_comm_;
+
+  /// \brief Chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
   stk::mesh::BulkData::AutomaticAuraOption aura_option_;
+
+  /// \brief Pointer to an existing field data manager.
   stk::mesh::FieldDataManager *field_data_manager_ptr_;
+
+  /// \brief Upper bound on the number of mesh entities that may be associated with a single bucket.
   unsigned bucket_capacity_;
+
+  /// \brief Spatial dimension of the mash.
   unsigned spatial_dimension_;
-  std::vector<std::string> entity_rank_names;
+
+  /// \brief Names assigned to each rank.
+  std::vector<std::string> entity_rank_names_;
+
+  /// \brief Flag specifying if upward connectivity will be enabled or not.
   bool upward_connectivity_flag_;
   //@}
 }
