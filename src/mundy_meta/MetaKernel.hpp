@@ -69,7 +69,7 @@ namespace meta {
 ///
 /// The goal of \c MetaKernel is to wrap a kernel that acts on an STK Element with a known multibody type.
 /// The wrapper can output the assumptions of the wrapped kernel with respect to the fields and topology associated with
-/// the provided element. Note, this element is part of some STK Part, so the output requirements are \c PartParams for
+/// the provided element. Note, this element is part of some STK Part, so the output requirements are \c PartRequirements for
 /// that part. Requirements cannot be applied at the element-level.
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
@@ -94,12 +94,12 @@ class MetaKernel : public Teuchos::Describable {
   /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
   /// based parameters in the \c parameter_list.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartParams
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<PartParams> get_part_requirements(const Teuchos::ParameterList& parameter_list) const {
+  static std::unique_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) const {
     return DerivedMetaKernel::details_get_part_requirements(parameter_list);
   }
 

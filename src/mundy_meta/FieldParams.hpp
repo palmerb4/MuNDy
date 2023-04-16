@@ -61,12 +61,15 @@ class FieldParamsBase {};  // FieldParamsBase
 
 /// \class FieldParams
 /// \brief A set of necessary parameters for declaring a new field.
+///
+/// \tparam FieldType Type for elements in the field.
 template <typename FieldType>
 class FieldParams {
  public:
   //! \name Typedefs
   //@{
 
+  /// \tparam field_type Type for elements in the field. Set by the template parameter.
   typedef FieldType field_type;
   //@}
 
@@ -84,13 +87,13 @@ class FieldParams {
   ///
   /// \param field_dimension [in] Dimension of the field. For example, a dimension of three would be a vector.
   ///
-  /// \param field_number_of_states [in] Number of rotating states that this field will have.
+  /// \param field_min_number_of_states [in] Number of rotating states that this field will have.
   FieldParams(const std::string &field_name, const unsigned field_rank, const unsigned field_dimension,
-              const unsigned field_number_of_states)
+              const unsigned field_min_number_of_states)
       : field_name_(field_name),
         field_rank_(field_rank),
         field_dimension_(field_dimension),
-        field_number_of_states_(field_number_of_states) {
+        field_min_number_of_states_(field_min_number_of_states) {
     check_if_valid();
   }
   //@}
@@ -114,8 +117,8 @@ class FieldParams {
   }
 
   /// \brief Return the field number of states.
-  unsigned get_field_number_of_states() {
-    return field_number_of_states_;
+  unsigned get_field_min_number_of_states() {
+    return field_min_number_of_states_;
   }
   //@}
 
@@ -156,7 +159,8 @@ class FieldParams {
           get_field_dimension() == field_params.get_field_dimension(), std::invalid_argument,
           "mundy::meta::FieldParams: Field " << field_params.get_field_name() << " has incompatible dimension.");
 
-      field_number_of_states_ = std::max(field_number_of_states_, field_params.get_field_number_of_states());
+      field_min_number_of_states_ =
+          std::max(field_min_number_of_states_, field_params.get_field_min_number_of_states());
     }
   }
   //@}
@@ -171,8 +175,8 @@ class FieldParams {
   /// \brief Dimension of the field. For example, a dimension of three would be a vector.
   unsigned field_dimension_;
 
-  /// \brief Number of rotating states that this field will have.
-  unsigned field_number_of_states_;
+  /// \brief Minimum number of rotating states that this field will have.
+  unsigned field_min_min_number_of_states_;
 }
 
 }  // namespace meta
