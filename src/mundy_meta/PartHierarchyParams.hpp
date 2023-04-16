@@ -20,8 +20,8 @@
 #ifndef MUNDY_META_PARTHIERARCHYBUILDER_HPP_
 #define MUNDY_META_PARTHIERARCHYBUILDER_HPP_
 
-/// \file PartHierarchyBuilder.hpp
-/// \brief Declaration of the PartHierarchyBuilder class
+/// \file PartHierarchyParams.hpp
+/// \brief Declaration of the PartHierarchyParams class
 
 // clang-format off
 #include <gtest/gtest.h>                             // for AssertHelper, etc
@@ -55,19 +55,15 @@ namespace mundy {
 
 namespace meta {
 
-/// \class PartHierarchyBuilder
-/// \brief A helper class for building the hierarchy of parts and fields.
-class PartHierarchyBuilder {
+/// \class PartHierarchyParams
+/// \brief A helper class for building the parameters necessary to create a hierarchy of parts and fields.
+class PartHierarchyParams {
  public:
   //! \name Constructors and destructor
   //@{
 
-  /// \brief No default constructor
-  PartHierarchyBuilder() = delete;
-
-  /// \brief Constructor with given given BulkData
-  explicit PartHierarchyBuilder(const stk::mesh::BulkData *bulk_data_ptr) : bulk_data_ptr_(bulk_data_ptr) {
-  }
+  /// \brief Default constructor
+  PartHierarchyParams();
   //@}
 
   //! @name Actions
@@ -77,64 +73,62 @@ class PartHierarchyBuilder {
   void MeshBuilder::add_part_hierarchy_from_params(const Teuchos::ParameterList &parameter_list) {
   }
 
-  /// \brief 
-  void MeshBuilder::add_part_hierarchy_from_params(const Teuchos::ParameterList &parameter_list) {
-
-
-  /// \brief Create a new MetaData instance.
-  std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
-    if (spatial_dimension_ > 0 || !entity_rank_names_.empty()) {
-      return std::make_shared<MetaData>(spatial_dimension_, entity_rank_names_);
-    } else {
-      return std::make_shared<MetaData>();
+  /// \brief
+  void MeshBuilder::add_part(const Teuchos::ParameterList &parameter_list) {
+    /// \brief Create a new MetaData instance.
+    std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
+      if (spatial_dimension_ > 0 || !entity_rank_names_.empty()) {
+        return std::make_shared<MetaData>(spatial_dimension_, entity_rank_names_);
+      } else {
+        return std::make_shared<MetaData>();
+      }
     }
+
+    /// \brief Create a new BulkData instance.
+    std::unique_ptr<BulkData> create_bulk_data() {
+      return this.create_bulk_data(this.create_meta_data());
+    }
+
+    /// \brief Create a new BulkData instance using an existing MetaData instance.
+    std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> metaData) {
+      TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
+                                 "PartHierarchyParams must be given an MPI communicator before creating BulkData.");
+
+      return std::make_unique<BulkData>(metaData, comm_, aura_option_, field_data_manager_ptr_, bucket_capacity_,
+                                        this.create_aura_ghosting(), upward_connectivity_flag_);
+    }
+    //@}
+
+   private:
+    //! \name Mesh settings
+    //@{
+
+    /// \brief MPI communicator to be used by STK.
+    /// This must be set before BulkData can be created.
+    stk::ParallelMachine comm_;
+
+    /// \brief Flag specifying if comm has been set or not.
+    bool has_comm_;
+
+    /// \brief Chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
+    stk::mesh::BulkData::AutomaticAuraOption aura_option_;
+
+    /// \brief Pointer to an existing field data manager.
+    stk::mesh::FieldDataManager *field_data_manager_ptr_;
+
+    /// \brief Upper bound on the number of mesh entities that may be associated with a single bucket.
+    unsigned bucket_capacity_;
+
+    /// \brief Spatial dimension of the mash.
+    unsigned spatial_dimension_;
+
+    /// \brief Names assigned to each rank.
+    std::vector<std::string> entity_rank_names_;
+
+    /// \brief Flag specifying if upward connectivity will be enabled or not.
+    bool upward_connectivity_flag_;
+    //@}
   }
-
-  /// \brief Create a new BulkData instance.
-  std::unique_ptr<BulkData> create_bulk_data() {
-    return this.create_bulk_data(this.create_meta_data());
-  }
-
-  /// \brief Create a new BulkData instance using an existing MetaData instance.
-  std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> metaData) {
-    TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
-                               "PartHierarchyBuilder must be given an MPI communicator before creating BulkData.");
-
-    return std::make_unique<BulkData>(metaData, comm_, aura_option_, field_data_manager_ptr_, bucket_capacity_,
-                                      this.create_aura_ghosting(), upward_connectivity_flag_);
-  }
-  //@}
-
- private:
-  //! \name Mesh settings
-  //@{
-
-  /// \brief MPI communicator to be used by STK.
-  /// This must be set before BulkData can be created.
-  stk::ParallelMachine comm_;
-
-  /// \brief Flag specifying if comm has been set or not.
-  bool has_comm_;
-
-  /// \brief Chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  stk::mesh::BulkData::AutomaticAuraOption aura_option_;
-
-  /// \brief Pointer to an existing field data manager.
-  stk::mesh::FieldDataManager *field_data_manager_ptr_;
-
-  /// \brief Upper bound on the number of mesh entities that may be associated with a single bucket.
-  unsigned bucket_capacity_;
-
-  /// \brief Spatial dimension of the mash.
-  unsigned spatial_dimension_;
-
-  /// \brief Names assigned to each rank.
-  std::vector<std::string> entity_rank_names_;
-
-  /// \brief Flag specifying if upward connectivity will be enabled or not.
-  bool upward_connectivity_flag_;
-  //@}
-}
 
 }  // namespace meta
 

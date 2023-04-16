@@ -97,9 +97,9 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>(std::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>(default_radius_field_name_, std::topology::ELEMENT_RANK, 1, 1));
+        std::make_unique<FieldRequirements<double>>(default_radius_field_name_, std::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>(default_bounding_radius_field_name_, std::topology::ELEMENT_RANK, 1, 1));
+        std::make_unique<FieldRequirements<double>>(default_bounding_radius_field_name_, std::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 

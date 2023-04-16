@@ -17,7 +17,7 @@ This is the namespace/class/function hierarchy:
 mundy::
   meta::  (meta programming methods and pre-commit routines) 
     MetaMethod  (interface that forces all mundy methods to output their required fields/part parameters. most of these params will come from the standardized defaults that we produce.) 
-    MetaFieldParams  (contains the necessary information to build a field)
+    MetaFieldRequirements  (contains the necessary information to build a field)
     MetaPartRequirements  (contains the necessary information to build a part with known fields)
     MetaHierarchyParams  (contains the necessary information to build a hierarchy of parts and fields)
     MetaHierarchyBuilder  (constructs the group hierarchy and assigns fields. the user must specify which groups each method will be used with)
@@ -61,7 +61,7 @@ mundy::
 All of Mundy + strategy implementations    
 mundy::
   meta::
-    FieldParams
+    FieldRequirements
     PartRequirements
     MetaMethod
     HierarchyParams
@@ -168,7 +168,7 @@ User facing interfaces
 mundy::
   meta::
     Method
-    FieldParams
+    FieldRequirements
     PartRequirements
     HierarchyParams
     HierarchyBuilder
@@ -191,7 +191,7 @@ GroupHierarchyParams:
   int group_id;
   std::string group_name;
   std::topology group_topology;
-  std::vector<FieldParams> group_fields;
+  std::vector<FieldRequirements> group_fields;
   std::vector<GroupHierarchyParams>;
   
 The above allows a tree/YAML-esk hierarchy of parameters
@@ -258,7 +258,7 @@ What functionality should PartRequirements offer?
 3. Consistant assert statements that the attempted modifications are valid. 
 
 
-How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_part_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldParams and PartRequirements. The merge operation does NOT require the two have the same name. 
+How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_part_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldRequirements and PartRequirements. The merge operation does NOT require the two have the same name. 
 
 Ahhhhhhh. The use of a map from field name to field params is wrong since the name may be nonunique if a force field is applied to nodes and elements. Just use a vector of maps, with one map per rank. 
 
@@ -311,7 +311,7 @@ Lessons from nalu.
  - howToNgp.cpp shows that looping over connected nodes is allowed!
  - run_face_elem_algorithm optimizes looping over connected nodes connected to a face to a degree almost unfathomable. Check out the chain LowMachEquationSystem.C -> AssembleFaceElemSolverAlgorithm.C -> AssembleFaceElemSolverAlgorithm.h -> KernelBuilder.h -> Kernel.h -> MomentumOpenEdgeKernel.C -> ElemDataRequests.C
  
-I'm not a fan of FieldInfo/FieldSet because it needs to make clear that different ranks can have identical fields. Not to mention, the comparisons are faster if you break the field storage into ranks then names. The MasterElement stored in ElemDataRequests is only necessary for FEM. We may want to add support for it once we add in particle/grid coupling, but not now. As a result, ElemDataRequests is just a vector of FieldParams + the fields themselves. Hence, the initialization routine for MomentumOpenEdgeKernel is just setting up the required FieldParams. We already have this with our static requirements! Not to mention, we achive it with a cleaner untuitive design. Kernels will be registered with a Kernel factory and will be associated with the class that needs them. Note, the use of shared and scratch views within MomentumOpenEdgeKernel is a direct result of the nalu's MasterElements. Without MasterElements, there is no need for these shared views. Also without MasterElements we don't need meFC_ or meSCS_. We do want Kernel and NGPKernel except with a custom execute funtion. We can replace KernelBuilder with our auto-registering factory design. Our kernels may take in one element with known multibody type, or two elements with known type. We need to generate the correct kernel based on those types, I do not currently know how. Well, multibody type is a string, so all we really want is a map from a pair of strings to the kernel generators. Then, we can simply replace run_face_elem_algorithm with howToNgp's connectivity loop.
+I'm not a fan of FieldInfo/FieldSet because it needs to make clear that different ranks can have identical fields. Not to mention, the comparisons are faster if you break the field storage into ranks then names. The MasterElement stored in ElemDataRequests is only necessary for FEM. We may want to add support for it once we add in particle/grid coupling, but not now. As a result, ElemDataRequests is just a vector of FieldRequirements + the fields themselves. Hence, the initialization routine for MomentumOpenEdgeKernel is just setting up the required FieldRequirements. We already have this with our static requirements! Not to mention, we achive it with a cleaner untuitive design. Kernels will be registered with a Kernel factory and will be associated with the class that needs them. Note, the use of shared and scratch views within MomentumOpenEdgeKernel is a direct result of the nalu's MasterElements. Without MasterElements, there is no need for these shared views. Also without MasterElements we don't need meFC_ or meSCS_. We do want Kernel and NGPKernel except with a custom execute funtion. We can replace KernelBuilder with our auto-registering factory design. Our kernels may take in one element with known multibody type, or two elements with known type. We need to generate the correct kernel based on those types, I do not currently know how. Well, multibody type is a string, so all we really want is a map from a pair of strings to the kernel generators. Then, we can simply replace run_face_elem_algorithm with howToNgp's connectivity loop.
 
 ?????What does Nalu use instead of MeshBuilder??????????????????????????????????????????????????
 
@@ -398,7 +398,7 @@ constructed using the MetaKernelFactory<MetaMethod>::create_new_instance. The ac
 in anything.
 
 
-Why not replace PartRequirements and FieldParams with a simple Teuchos::ParameterList? Because the class structure is nice for adding validity checking and the like. 
+Why not replace PartRequirements and FieldRequirements with a simple Teuchos::ParameterList? Because the class structure is nice for adding validity checking and the like. 
 
    
 Quaternion

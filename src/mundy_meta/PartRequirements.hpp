@@ -165,7 +165,7 @@ class PartRequirements {
 
   /// \brief Return the part field map.
   /// \brief field_rank [in] Rank associated with the retrieved fields.
-  std::vector<std::map<std::string, std::shared_ptr<const FieldParamsBase>>> get_part_field_map(
+  std::vector<std::map<std::string, std::shared_ptr<const FieldRequirementsBase>>> get_part_field_map(
       const stk::topology::rank_t &field_rank) {
     return part_ranked_field_maps_[field_rank];
   }
@@ -200,7 +200,7 @@ class PartRequirements {
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
   /// \param field_params [in] Field parameters to add to the part.
-  void add_field_params(const std::shared_ptr<const FieldParamsBase> &field_params) {
+  void add_field_params(const std::shared_ptr<const FieldRequirementsBase> &field_params) {
     // Check if the provided parameters are valid.
     field_params.check_if_valid();
 
@@ -300,16 +300,16 @@ class PartRequirements {
   stk::topology::rank_t part_rank_;
 
   /// \brief If the name of the part is set or not.
-  std::string part_name_is_set_ = false;
+  bool part_name_is_set_ = false;
 
   /// \brief If the topology of entities in the part is set or not.
-  stk::topology part_topology_is_set_ = false;
+  bool part_topology_is_set_ = false;
 
   /// \brief If the rank of the part is set or not.
-  stk::topology::rank_t part_rank_is_set_ = false;
+  bool part_rank_is_set_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldParamsBase>>>
+  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>>
       part_ranked_field_maps_[stk::topology::NUM_RANKS];
 
   /// \brief A map from subpart name to the part params of each sub-part.

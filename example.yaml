@@ -14,12 +14,6 @@ part_hierarchy:
         dimension: 3
         number_of_states: 1
         type: DOUBLE
-    methods:
-      - name: RESOLVE_CONSTRAINTS
-        resolve_constraints_technique:
-          name: NONSMOOTH_LCP
-          max_number_of_iterations: 10000
-          residual_tolerance: 1e-5
     sub_parts:
       - name: SPHERES
         topology: ENTITY
@@ -29,17 +23,6 @@ part_hierarchy:
             dimension: 1
             number_of_states: 1
             type: DOUBLE
-        methods:
-          - name: TIME_INTEGRATION
-            variant:
-              - name: SPHERE
-                time_integration_technique:
-                  name: NODE_EULER
-          - name: COMPUTE_MOBILITY
-              variant:
-                name: SPHERE
-                compute_mobility_technique:
-                  name: DRY_INERTIAL
         sub_parts:
           - name: COLORED_SPHERES
             topology: ENTITY
@@ -57,14 +40,30 @@ part_hierarchy:
             dimension: 3
             number_of_states: 1
             type: DOUBLE
-        methods:
-          - name: TIME_INTEGRATION
-            variant:
-              name: ELLIPSOID
-              time_integration_technique:
-                name: NODE_EULER
-          - name: COMPUTE_MOBILITY
-              variant:
-                name: ELLIPSOID
-                compute_mobility_technique:
-                  name: DRY_INERTIAL
+
+methods:
+  - name: RESOLVE_CONSTRAINTS
+    resolve_constraints_technique:
+      name: NONSMOOTH_LCP
+      max_number_of_iterations: 10000
+      residual_tolerance: 1e-5
+  - name: TIME_INTEGRATION
+    compatible_parts:
+      - name: SPHERES
+        kernels:
+          time_integration_kernel: 
+            name: NODE_EULER
+      - name: ELLIPSOIDS
+        kernels:
+          time_integration_kernel: 
+            name: NODE_EULER
+  - name: COMPUTE_MOBILITY
+    compatible_parts:
+      - name: SPHERES
+        kernels:
+          time_integration_kernel: 
+            name: INERTIAL
+      - name: ELLIPSOIDS
+        kernels:
+          time_integration_kernel: 
+            name: INERTIAL

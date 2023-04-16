@@ -106,12 +106,12 @@ class ComputeConstraintViolationCollisionKernel
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>(std::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));
+        std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>(default_node_normal_vec_field_name_, std::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params(std::make_unique<FieldParams<double>>(
+        std::make_unique<FieldRequirements<double>>(default_node_normal_vec_field_name_, std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
         default_lagrange_multiplier_field_name_, std::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_params(std::make_unique<FieldParams<double>>(
+    required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
         default_constraint_violation_field_name_, std::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }

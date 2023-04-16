@@ -98,11 +98,11 @@ class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel>,
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>(std::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("obb", std::topology::ELEMENT_RANK, 4, 1));
+        std::make_unique<FieldRequirements<double>>("obb", std::topology::ELEMENT_RANK, 4, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("radius", std::topology::ELEMENT_RANK, 1, 1));
+        std::make_unique<FieldRequirements<double>>("radius", std::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldParams<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
+        std::make_unique<FieldRequirements<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
     return required_part_params;
   }
 

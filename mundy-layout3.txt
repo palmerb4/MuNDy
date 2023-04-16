@@ -17,7 +17,7 @@ This is the namespace/class/function hierarchy:
 mundy::
   meta::  (meta programming methods and pre-commit routines) 
     MetaMethod  (interface that forces all mundy methods to output their required fields/part parameters. most of these params will come from the standardized defaults that we produce.) 
-    MetaFieldParams  (contains the necessary information to build a field)
+    MetaFieldRequirements  (contains the necessary information to build a field)
     MetaPartRequirements  (contains the necessary information to build a part with known fields)
     MetaHierarchyParams  (contains the necessary information to build a hierarchy of parts and fields)
     MetaHierarchyBuilder  (constructs the group hierarchy and assigns fields. the user must specify which groups each method will be used with)
@@ -62,7 +62,7 @@ All of Mundy + strategy implementations
 mundy::
   meta::
     MetaMethod
-    FieldParams
+    FieldRequirements
     PartRequirements
     HierarchyParams
     HierarchyBuilder
@@ -208,7 +208,7 @@ User facing interfaces
 mundy::
   meta::
     Method
-    FieldParams
+    FieldRequirements
     PartRequirements
     HierarchyParams
     HierarchyBuilder
@@ -231,7 +231,7 @@ GroupHierarchyParams:
   int group_id;
   std::string group_name;
   std::topology group_topology;
-  std::vector<FieldParams> group_fields;
+  std::vector<FieldRequirements> group_fields;
   std::vector<GroupHierarchyParams>;
   
 The above allows a tree/YAML-esk hierarchy of parameters
