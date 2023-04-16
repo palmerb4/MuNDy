@@ -72,8 +72,8 @@ class PartRequirements {
   ///
   /// \param part_topology [in] Topology of entities within the part.
   PartRequirements(const std::string &part_name, const stk::topology &part_topology) {
-    set_part_name(part_name);
-    set_part_topology(part_topology);
+    this.set_part_name(part_name);
+    this.set_part_topology(part_topology);
   }
 
   /// \brief Constructor with partial requirements. Version 2.
@@ -86,8 +86,32 @@ class PartRequirements {
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
   PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank) {
-    set_part_name(part_name);
-    set_part_rank(part_rank);
+    this.set_part_name(part_name);
+    this.set_part_rank(part_rank);
+  }
+
+  /// \brief Construct from a parameter list.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid
+  /// parameters is accessible via \c get_valid_params.
+  explicit PartRequirements(const Teuchos::ParameterList &parameter_list) {
+    // Validate the input params. Throws an error if a parameter is defined but not in the valid params.
+    // This helps catch misspellings.
+    parameter_list.validateParameters(get_valid_params());
+
+    // Store the given parameters.
+    if (parameter_list.isParameter("name")) {
+      const std::string part_name = parameter_list.get<std::string>("name");
+      this.set_part_name(part_name);
+    }
+    if (parameter_list.isParameter("topology")) {
+      const std::string part_topology_name = parameter_list.get<std::string>("topology");
+      this.set_part_topology(part_topology_name);
+    }
+    if (parameter_list.isParameter("rank")) {
+      const std::string part_rank_name = parameter_list.get<std::string>("rank");
+      this.set_part_topology(part_rank_name);
+    }
   }
   //@}
 
@@ -99,7 +123,7 @@ class PartRequirements {
   void set_part_name(const std::string &part_name) {
     part_name_ = part_name;
     part_name_is_set_ = true;
-    check_if_valid();
+    this.check_if_valid();
   }
 
   /// \brief Set the required part topology.
@@ -107,7 +131,14 @@ class PartRequirements {
   void set_part_topology(const stk::topology &part_topology) {
     part_topology_ = part_topology_;
     part_topology_is_set_ = true;
-    check_if_valid();
+    this.check_if_valid();
+  }
+
+  /// \brief Set the required part topology using a valid topology string name.
+  /// \brief part_topology_name [in] Required topology of the part.
+  void set_part_topology(const std::string &part_topology_string) {
+    const stk::topology part_topology = mundy::meta::map_string_to_topology(part_topology_string);
+    this.set_part_topology(part_topology);
   }
 
   /// \brief Set the required part rank.
@@ -115,7 +146,14 @@ class PartRequirements {
   void set_part_rank(const stk::topology::rank_t &part_rank) {
     part_rank_ = part_rank;
     part_rank_is_set_ = true;
-    check_if_valid();
+    this.check_if_valid();
+  }
+
+  /// \brief Set the required part rank using a valid rank string name.
+  /// \brief part_rank [in] Required rank of the part.
+  void set_part_rank(const std::string &part_rank_string) {
+    const stk::topology::rank_t part_rank = mundy::meta::map_string_to_rank(part_rank_string);
+    this.set_part_rank(part_rank);
   }
 
   /// \brief Get if the part name is constrained or not.
@@ -168,6 +206,15 @@ class PartRequirements {
   std::vector<std::map<std::string, std::shared_ptr<const FieldRequirementsBase>>> get_part_field_map(
       const stk::topology::rank_t &field_rank) {
     return part_ranked_field_maps_[field_rank];
+  }
+
+  /// \brief Get the default parameters for this class.
+  static Teuchos::ParameterList get_valid_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("name", "INVALID", "Name of the part.");
+    default_parameter_list.set("topology", stk::topology::INVALID_TOPOLOGY, "Topology of the part.");
+    default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the part.");
+    return default_parameter_list;
   }
   //@}
 

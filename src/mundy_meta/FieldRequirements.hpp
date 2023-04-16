@@ -90,10 +90,10 @@ class FieldRequirements {
   /// \param field_min_number_of_states [in] Number of rotating states that this field will have.
   FieldRequirements(const std::string &field_name, const stk::topology::rank_t &field_rank,
                     const unsigned field_dimension, const unsigned field_min_number_of_states) {
-    set_field_name(field_name);
-    set_field_rank(field_rank);
-    set_field_dimension(field_dimension);
-    set_field_min_number_of_states(field_min_number_of_states);
+    this.set_field_name(field_name);
+    this.set_field_rank(field_rank);
+    this.set_field_dimension(field_dimension);
+    this.set_field_min_number_of_states(field_min_number_of_states);
   }
   //@}
 
@@ -105,7 +105,7 @@ class FieldRequirements {
   void set_field_name(const std::string &field_name) {
     field_name_ = field_name;
     field_name_is_set_ = true;
-    check_if_valid();
+    this.check_if_valid();
   }
 
   /// \brief Set the required field rank.
@@ -113,7 +113,14 @@ class FieldRequirements {
   void set_field_rank(const stk::topology::rank_t &field_rank) {
     field_rank_ = field_rank;
     field_rank_is_set_ = true;
-    check_if_valid();
+    this.check_if_valid();
+  }
+
+  /// \brief Set the required field rank.
+  /// \brief field_rank [in] Required rank of the field.
+  void set_field_rank(const std::string &field_rank_string) {
+    const stk::topology::rank_t field_rank = mundy::meta::map_string_to_rank(field_rank_string);
+    this.set_field_rank(field_rank)
   }
 
   /// \brief Set the required field dimension.
@@ -121,7 +128,7 @@ class FieldRequirements {
   void set_field_dimension(const unsigned field_dimension) {
     field_dimension_ = field_dimension;
     field_dimension_is_set_ = true;
-    check_if_valid();
+    this.check_if_valid();
   }
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
@@ -133,7 +140,7 @@ class FieldRequirements {
       field_min_number_of_states_ = field_min_number_of_states;
     }
     field_min_number_of_states_is_set_ = true;
-    check_if_valid();
+    this.check_if_valid();
   }
 
   /// \brief Get if the field name is constrained or not.
