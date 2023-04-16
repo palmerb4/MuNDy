@@ -157,28 +157,73 @@ class FieldRequirements {
   }
 
   /// \brief Return the field name.
+  /// Will throw an error if the field name is not constrained.
   std::string get_field_name() {
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        !this.constrains_field_name(), std::logic_error,
+        "Attempting to access the field name requirement even though field name is unconstrained.");
+
     return field_name_;
   }
 
   /// \brief Return the field rank.
+  /// Will throw an error if the field rank is not constrained.
   stk::topology::rank_t get_field_rank() {
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        !this.constrains_field_rank(), std::logic_error,
+        "Attempting to access the field rank requirement even though field rank is unconstrained.");
+
     return field_rank_;
   }
 
   /// \brief Return the field dimension.
+  /// Will throw an error if the field dimension is not constrained.
   unsigned get_field_dimension() {
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        !this.constrains_field_dimension(), std::logic_error,
+        "Attempting to access the field dimension requirement even though field dimension is unconstrained.");
+
     return field_dimension_;
   }
 
-  /// \brief Return the field number of states.
+  /// \brief Return the minimum number of field states.
+  /// Will throw an error if the minimum number of field states.
   unsigned get_field_min_number_of_states() {
+    TEUCHOS_TEST_FOR_EXCEPTION(!this.constrains_field_min_number_of_states(), std::logic_error,
+                               "Attempting to access the field minimum number of states requirement even though field "
+                               "min_number_of_states is unconstrained.");
+
     return field_min_number_of_states_;
   }
   //@}
 
   //! \name Actions
   //@{
+
+  /// \brief Declare/create the field that this class defines.
+  stk::mesh::Field<FieldType> &declare_field_on_part(const stk::mesh::MetaData *meta_data_ptr,
+                                                     const stk::mesh::Part &part) {
+    TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
+                               "mundy::meta::FieldRequirements: MetaData pointer cannot be null).");
+
+    TEUCHOS_TEST_FOR_EXCEPTION(this.constrains_field_name(), std::logic_error,
+                               "mundy::meta::FieldRequirements: Field name must be set before calling declare_field.");
+    TEUCHOS_TEST_FOR_EXCEPTION(this.constrains_field_rank(), std::logic_error,
+                               "mundy::meta::FieldRequirements: Field rank must be set before calling declare_field.");
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        this.constrains_field_dimension(), std::logic_error,
+        "mundy::meta::FieldRequirements: Field dimension must be set before calling declare_field.");
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        this.constrains_field_min_number_of_states(), std::logic_error,
+        "mundy::meta::FieldRequirements: Field minimum number of states must be set before calling declare_field.");
+
+    // Declare the field and assign it to the given part
+    stk::mesh::Field<FieldType> &field =
+        meta_data_ptr->declare_field<FieldType>(this.get_field_rank(), this.get_field_name());
+    stk::mesh::put_field_on_mesh(field, part, nullptr);
+
+    return field;
+  }
 
   /// \brief Delete the field name constraint (if it exists).
   void delete_field_name_constraint() {
@@ -225,7 +270,7 @@ class FieldRequirements {
 
       // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
       if (field_reqs.constrains_field_name()) {
-        if (this.constrains_field_name() &&) {
+        if (this.constrains_field_name()) {
           TEUCHOS_TEST_FOR_EXCEPTION(this.get_field_name() == field_reqs.get_field_name(), std::invalid_argument,
                                      "mundy::meta::FieldRequirements: One of the inputs has incompatible name ("
                                          << field_reqs.get_field_name() << ").");
@@ -235,7 +280,7 @@ class FieldRequirements {
       }
 
       if (field_reqs.constrains_field_rank()) {
-        if (this.constrains_field_rank() &&) {
+        if (this.constrains_field_rank()) {
           TEUCHOS_TEST_FOR_EXCEPTION(this.get_field_rank() == field_reqs.get_field_rank(), std::invalid_argument,
                                      "mundy::meta::FieldRequirements: One of the inputs has incompatible rank ("
                                          << field_reqs.get_field_rank() << ").");
@@ -245,7 +290,7 @@ class FieldRequirements {
       }
 
       if (field_reqs.constrains_field_dimension()) {
-        if (this.constrains_field_dimension() &&) {
+        if (this.constrains_field_dimension()) {
           TEUCHOS_TEST_FOR_EXCEPTION(this.get_field_dimension() == field_reqs.get_field_dimension(),
                                      std::invalid_argument,
                                      "mundy::meta::FieldRequirements: One of the inputs has incompatible dimension ("
@@ -256,7 +301,7 @@ class FieldRequirements {
       }
 
       if (field_reqs.constrains_field_min_number_of_states()) {
-        if (this.constrains_field_min_number_of_states() &&) {
+        if (this.constrains_field_min_number_of_states()) {
           TEUCHOS_TEST_FOR_EXCEPTION(
               this.get_field_min_number_of_states() == field_reqs.get_field_min_number_of_states(),
               std::invalid_argument,

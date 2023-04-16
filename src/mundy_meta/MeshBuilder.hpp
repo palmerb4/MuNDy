@@ -67,7 +67,8 @@ class MeshBuilder {
 
   /// \brief Default constructor
   MeshBuilder()
-      : comm_(MPI_COMM_NULL),
+      : builder_(MPI_COMM_NULL),
+        comm_(MPI_COMM_NULL),
         has_comm_(false),
         aura_option_(stk::mesh::BulkData::AUTO_AURA),
         field_data_manager_ptr_(nullptr),
@@ -79,7 +80,8 @@ class MeshBuilder {
 
   /// \brief Constructor with given given communicator.
   explicit MeshBuilder(stk::ParallelMachine comm)
-      : comm_(comm),
+      : builder_(comm),
+        comm_(comm),
         has_comm_(true),
         aura_option_(stk::mesh::BulkData::AUTO_AURA),
         field_data_manager_ptr_(nullptr),
@@ -97,7 +99,8 @@ class MeshBuilder {
   /// \brief Set the spatial dimension of the mash.
   /// \param spatial_dimension [in] The dimension of the space within which the parts and entities reside.
   MeshBuilder &set_spatial_dimension(const unsigned spatial_dimension) {
-    spatial_dimension = spatial_dimension;
+    spatial_dimension_ = spatial_dimension;
+    builder_.set_spatial_dimension(spatial_dimension_);
     return *this;
   }
 
@@ -105,6 +108,7 @@ class MeshBuilder {
   /// \param entity_rank_names [in] The snames assigned to each rank.
   MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names) {
     entity_rank_names_ = entity_rank_names;
+    builder_.set_entity_rank_names(entity_rank_names_);
     return *this;
   }
 
@@ -113,6 +117,7 @@ class MeshBuilder {
   MeshBuilder &set_communicator(const stk::ParallelMachine &comm) {
     comm_ = comm;
     has_comm_ = true;
+    builder_.set_communicator(comm_);
     return *this;
   }
 
@@ -120,6 +125,7 @@ class MeshBuilder {
   /// \param aura_option [in] The chosen Aura option.
   MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option) {
     aura_option_ = aura_option;
+    builder_.set_aura_option(aura_option_);
     return *this;
   }
 
@@ -127,6 +133,7 @@ class MeshBuilder {
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
   MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *field_data_manager_ptr) {
     field_data_manager_ptr_ = field_data_manager_ptr;
+    builder_.set_field_data_manager(field_data_manager_ptr_);
     return *this;
   }
 
@@ -137,6 +144,7 @@ class MeshBuilder {
   /// \param bucket_capacity [in] The bucket capacity.
   MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity) {
     bucket_capacity_ = bucket_capacity;
+    builder_.set_bucket_capacity(bucket_capacity_);
     return *this;
   }
 
@@ -144,30 +152,17 @@ class MeshBuilder {
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
   MeshBuilder &set_upward_connectivity(const bool enable_upward_connectivity) {
     enable_upward_connectivity_ = enable_upward_connectivity;
+    builder_.set_upward_connectivity(enable_upward_connectivity_);
     return *this;
   }
-
   //@}
 
   //! @name Actions
   //@{
 
-  /// \brief Create a new AuraGhosting instance.
-  std::shared_ptr<AuraGhosting> MeshBuilder::create_aura_ghosting() {
-    if (upward_connectivity_flag_) {
-      return std::make_shared<impl::AuraGhosting>();
-    } else {
-      return std::make_shared<impl::AuraGhostingDownwardConnectivity>();
-    }
-  }
-
   /// \brief Create a new MetaData instance.
   std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
-    if (spatial_dimension_ > 0 || !entity_rank_names_.empty()) {
-      return std::make_shared<MetaData>(spatial_dimension_, entity_rank_names_);
-    } else {
-      return std::make_shared<MetaData>();
-    }
+    return builder_.create_meta_data();
   }
 
   /// \brief Create a new BulkData instance.
@@ -178,16 +173,18 @@ class MeshBuilder {
   /// \brief Create a new BulkData instance using an existing MetaData instance.
   std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> metaData) {
     TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
-                               "MeshBuilder must be given an MPI communicator before creating BulkData.");
+                               "mundy::meta::MeshBuilder must be given an MPI communicator before creating BulkData.");
 
-    return std::make_unique<BulkData>(metaData, comm_, aura_option_, field_data_manager_ptr_, bucket_capacity_,
-                                      this.create_aura_ghosting(), upward_connectivity_flag_);
+    return builder_.create();
   }
   //@}
 
  private:
   //! \name Mesh settings
   //@{
+
+  /// \brief An instance of STK's MeshBuilder class
+  stk::mesh::MeshBuilder builder_;
 
   /// \brief MPI communicator to be used by STK.
   /// This must be set before BulkData can be created.

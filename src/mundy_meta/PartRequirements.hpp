@@ -174,6 +174,31 @@ class PartRequirements {
   //! \name Actions
   //@{
 
+  /// \brief Declare/create the part that this class defines.
+  ///
+  /// This method can return three different types of parts based on the existing set of constraints.
+  ///  - those with a predefined topology (if constrains_part_topology is true),
+  ///  - those with a predefined rank that will (if constrains_part_topology is false but constrains_part_rank is true),
+  ///  - those with no topology or rank (if neither constrains_part_topology nor constrains_part_rank are true).
+  ///
+  /// In each case, the part name must be set or an error will be thrown.
+  ///
+  /// \note Redeclaration of a previously declared part, will return the previous part.
+  stk::mesh::Part &declare_part(const stk::mesh::MetaData *meta_data_ptr) {
+    TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
+                               "mundy::meta::PartRequirements: MetaData pointer cannot be null).");
+    TEUCHOS_TEST_FOR_EXCEPTION(this.constrains_part_name(), std::logic_error,
+                               "mundy::meta::PartRequirements: Part name must be set before calling declare_part.");
+
+    if (this.constrains_part_topology()) {
+      return meta_data_ptr->declare_part_with_topology(this.get_part_name(), this.get_part_topology());
+    } else if (this.constrains_part_rank()) {
+      return meta_data_ptr->declare_part(this.get_part_name(), this.get_part_rank());
+    } else {
+      return meta_data_ptr->declare_part(this.get_part_name());
+    }
+  }
+
   /// \brief Delete the part name constraint (if it exists).
   void delete_part_name_constraint() {
     part_name_is_set_ = false;
@@ -249,7 +274,7 @@ class PartRequirements {
 
       // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
       if (part_reqs.constrains_part_name()) {
-        if (this.constrains_part_name() &&) {
+        if (this.constrains_part_name()) {
           TEUCHOS_TEST_FOR_EXCEPTION(this.get_part_name() == part_reqs.get_part_name(), std::invalid_argument,
                                      "mundy::meta::PartRequirements: One of the inputs has incompatible name ("
                                          << part_reqs.get_part_name() << ").");
@@ -259,7 +284,7 @@ class PartRequirements {
       }
 
       if (part_reqs.constrains_part_rank()) {
-        if (this.constrains_part_rank() &&) {
+        if (this.constrains_part_rank()) {
           TEUCHOS_TEST_FOR_EXCEPTION(this.get_part_rank() == part_reqs.get_part_rank(), std::invalid_argument,
                                      "mundy::meta::PartRequirements: One of the inputs has incompatible rank ("
                                          << part_reqs.get_part_rank() << ").");
@@ -269,7 +294,7 @@ class PartRequirements {
       }
 
       if (part_reqs.constrains_part_topology()) {
-        if (this.constrains_part_topology() &&) {
+        if (this.constrains_part_topology()) {
           TEUCHOS_TEST_FOR_EXCEPTION(this.get_part_topology() == part_reqs.get_part_topology(), std::invalid_argument,
                                      "mundy::meta::PartRequirements: One of the inputs has incompatible topology ("
                                          << part_reqs.get_part_topology() << ").");
