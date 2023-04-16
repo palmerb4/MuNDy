@@ -57,7 +57,7 @@ namespace mundy {
 namespace utils{
 
 
-void for_each_entity_run(const BulkData &mesh,
+void for_each_entity_run(const NgpMeshBase &mesh,
                          stk::topology::rank_t rank,
                          const Selector &selector,
                          const ALGORITHM_TO_RUN_PER_ENTITY &functor)
@@ -79,8 +79,8 @@ void for_each_entity_run(const BulkData &mesh,
             Kokkos::parallel_for(Kokkos::TeamThreadRange(team, 0u, numElems), [&] (const int& i)
             {
                 stk::mesh::Entity elem = bucket[i];
-                stk::mesh::FastMeshIndex elemIndex = ngpMesh.fast_mesh_index(elem);
-                functor(elemIndex);
+                //stk::mesh::FastMeshIndex elemIndex = ngpMesh.fast_mesh_index(elem);
+                functor(elem);
             });
         }
     );

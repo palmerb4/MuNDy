@@ -181,8 +181,8 @@ void execute() {
     for (int i = 0; i < num_parts_; i++) {
         const MetaKernel &step_euler_kernel = step_euler_kernels_[i];
         stk::mesh::Selector locally_owned_part = meta_mesh.locally_owned_part() && *part_ptr_vector_[i];
-        
-        step_euler_kernel.execute(meta_mesh, locally_owned_part.primary_entity_rank(), selector);
+
+        step_euler_kernel.execute(meta_mesh, locally_owned_part.primary_entity_rank(), locally_owned_part);
     }
   }
   //@}
