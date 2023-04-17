@@ -92,8 +92,11 @@ struct MetaMethodRegistry {
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-template <class T>
-const bool MetaMethodRegistry<T>::is_registered = ShapeInterface<T>::register_type();
+///
+/// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
+template <class DerivedMetaMethod>
+const bool MetaMethodRegistry<DerivedMetaMethod>::is_registered =
+    MetaMethodRegistry<DerivedMetaMethod>::register_type();
 
 }  // namespace meta
 

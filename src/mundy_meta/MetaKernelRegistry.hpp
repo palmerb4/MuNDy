@@ -92,8 +92,11 @@ struct MetaKernelRegistry {
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-template <class T>
-const bool MetaKernelRegistry<T>::is_registered = ShapeInterface<T>::register_type();
+///
+/// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
+template <class DerivedMetaKernel>
+const bool MetaKernelRegistry<DerivedMetaKernel>::is_registered =
+    MetaKernelRegistry<DerivedMetaKernel>::register_type();
 
 }  // namespace meta
 

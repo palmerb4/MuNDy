@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeOBBSphereKernel
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel>,
+class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel, void>,
                                public MetaKernelRegistry<ComputeOBBSphereKernel, ComputeAABB> {
  public:
   //! \name Constructors and destructor
@@ -96,7 +96,8 @@ class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>(std::topology::PARTICLE);
+    std::unique_ptr<PartRequirements> required_part_params =
+        std::make_unique<PartRequirements>(std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldRequirements<double>>("obb", std::topology::ELEMENT_RANK, 4, 1));
     required_part_params->add_field_params(

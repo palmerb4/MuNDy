@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeConstraintProjection
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjection>,
+class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjection, void>,
                                     public MetaMethodRegistry<ComputeConstraintProjection> {
  public:
   //! \name Constructors and destructor
@@ -183,7 +183,7 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
   //@{
 
   /// \brief Run the method's core calculation.
-  execute() {
+  void execute() {
     for (int i = 0; i < num_parts_; i++) {
       const MetaKernel &compute_constraint_projection_kernel = compute_constraint_projection_kernels_[i];
 

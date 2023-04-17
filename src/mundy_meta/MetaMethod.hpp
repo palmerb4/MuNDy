@@ -74,7 +74,8 @@ class MetaMethodBase {};  // MetaMethodBase
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
-template <class DerivedMetaMethod,
+/// \tparam ReturnType The return type of the execute function.
+template <class DerivedMetaMethod, typename ReturnType,
           typename std::enable_if<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, void>::type>
 class MetaMethod {
  public:
@@ -111,15 +112,12 @@ class MetaMethod {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  ///
-  /// TODO(palmerb4): The following will fail to compile because \c MetaMethod is not defined. We need an empty
-  /// non-templated base version to derive everyone from
   static std::unique_ptr<MetaMethodBase> create_new_instance(const Teuchos::ParameterList& parameter_list) const {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
   }
 
   /// \brief Run the method's core calculation.
-  virtual void execute(const stk::mesh::Part& part) = 0;
+  virtual ReturnType execute(const stk::mesh::Part& part) = 0;
   //@}
 };  // MetaMethod
 

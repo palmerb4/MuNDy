@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<ComputeAABB> {
+class ComputeAABB : public MetaMethod<ComputeAABB, void>, public MetaMethodRegistry<ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -168,9 +168,9 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodBase> details_create_new_instance(const stk::mesh::BulkData *bulk_data_ptr,
-                                                                 const std::vector<*stk::mesh::Part> &part_ptr_vector,
-                                                                 const Teuchos::ParameterList &parameter_list) const {
+  static std::unique_ptr<MetaMethodBase> details_create_new_instance(
+      const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
+      const Teuchos::ParameterList &parameter_list) const {
     return std::make_unique<ComputeAABB>(bulk_data_ptr, part_ptr_vector, parameter_list);
   }
   //@}
@@ -179,7 +179,7 @@ class ComputeAABB : public MetaMethod<ComputeAABB>, public MetaMethodRegistry<Co
   //@{
 
   /// \brief Run the method's core calculation.
-  execute() {
+  void execute() {
     for (int i = 0; i < num_parts_; i++) {
       const MetaKernel &compute_aabb_kernel = compute_aabb_kernels_[i];
 

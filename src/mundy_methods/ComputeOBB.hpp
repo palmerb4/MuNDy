@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeOBB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<ComputeOBB> {
+class ComputeOBB : public MetaMethod<ComputeOBB, void>, public MetaMethodRegistry<ComputeOBB> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -168,9 +168,9 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodBase> details_create_new_instance(const stk::mesh::BulkData *bulk_data_ptr,
-                                                                 const std::vector<*stk::mesh::Part> &part_ptr_vector,
-                                                                 const Teuchos::ParameterList &parameter_list) const {
+  static std::unique_ptr<MetaMethodBase> details_create_new_instance(
+      const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
+      const Teuchos::ParameterList &parameter_list) const {
     return std::make_unique<ComputeOBB>(bulk_data_ptr, part_ptr_vector, parameter_list);
   }
   //@}
@@ -179,7 +179,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   //@{
 
   /// \brief Run the method's core calculation.
-  execute() {
+  void execute() {
     for (int i = 0; i < num_parts_; i++) {
       const MetaKernel &compute_obb_kernel = compute_obb_kernels_[i];
 
@@ -204,7 +204,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   std::vector<*stk::mesh::Part> &part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<MetaKernelBase>>  compute_obb_kernels_;
+  std::vector<std::shared_ptr<MetaKernelBase>> compute_obb_kernels_;
   //@}
 };  // ComputeOBB
 

@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeConstraintViolation
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintViolation : public MetaMethod<ComputeConstraintViolation>,
+class ComputeConstraintViolation : public MetaMethod<ComputeConstraintViolation, void>,
                                    public MetaMethodRegistry<ComputeConstraintViolation> {
  public:
   //! \name Constructors and destructor
@@ -183,7 +183,7 @@ class ComputeConstraintViolation : public MetaMethod<ComputeConstraintViolation>
   //@{
 
   /// \brief Run the method's core calculation.
-  execute() {
+  void execute() {
     for (int i = 0; i < num_parts_; i++) {
       const MetaKernel &compute_constraint_violation_kernel = compute_constraint_violation_kernels_[i];
 

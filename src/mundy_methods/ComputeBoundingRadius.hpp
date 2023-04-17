@@ -57,7 +57,7 @@ namespace methods {
 
 /// \class ComputeBoundingRadius
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeBoundingRadius : public MetaMethod<ComputeBoundingRadius>,
+class ComputeBoundingRadius : public MetaMethod<ComputeBoundingRadius, void>,
                               public MetaMethodRegistry<ComputeBoundingRadius> {
  public:
   //! \name Constructors and destructor
@@ -181,7 +181,7 @@ class ComputeBoundingRadius : public MetaMethod<ComputeBoundingRadius>,
   //@{
 
   /// \brief Run the method's core calculation.
-  execute() {
+  void execute() {
     for (int i = 0; i < num_parts_; i++) {
       const MetaKernel &compute_bounding_sphere_kernel = compute_bounding_sphere_kernels_[i];
 

@@ -56,6 +56,10 @@ namespace mundy {
 
 namespace meta {
 
+/// \class MetaKernelBase
+/// \brief A consistant base for all \c MetaKernels.
+class MetaKernelBase {};  // MetaKernelBase
+
 /// \class MetaKernel
 /// \brief An abstract interface for all of Mundy's methods.
 ///
@@ -69,8 +73,8 @@ namespace meta {
 ///
 /// The goal of \c MetaKernel is to wrap a kernel that acts on an STK Element with a known multibody type.
 /// The wrapper can output the assumptions of the wrapped kernel with respect to the fields and topology associated with
-/// the provided element. Note, this element is part of some STK Part, so the output requirements are \c PartRequirements for
-/// that part. Requirements cannot be applied at the element-level.
+/// the provided element. Note, this element is part of some STK Part, so the output requirements are \c
+/// PartRequirements for that part. Requirements cannot be applied at the element-level.
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
@@ -81,7 +85,8 @@ namespace meta {
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
-template <class DerivedMetaKernel,
+/// \tparam ReturnType The return type of the execute function.
+template <class DerivedMetaKernel, typename ReturnType,
           typename std::enable_if<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, void>::type>
 class MetaKernel : public Teuchos::Describable {
  public:
@@ -121,12 +126,12 @@ class MetaKernel : public Teuchos::Describable {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaKernelFactory> create_new_instance(const Teuchos::ParameterList& parameter_list) const {
+  static std::unique_ptr<MetaKernelBase> create_new_instance(const Teuchos::ParameterList& parameter_list) const {
     return DerivedMetaKernel::details_create_new_instance(parameter_list);
   }
 
   /// \brief Run the kernel's core calculation.
-  virtual void execute(const stk::mesh::Entity &entity) = 0;
+  virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
   //@}
 
 };  // MetaKernel

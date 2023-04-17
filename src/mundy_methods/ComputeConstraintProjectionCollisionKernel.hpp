@@ -58,7 +58,7 @@ namespace methods {
 /// \class ComputeConstraintProjectionCollisionKernel
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
 class ComputeConstraintProjectionCollisionKernel
-    : public MetaKernel<ComputeConstraintProjectionCollisionKernel>,
+    : public MetaKernel<ComputeConstraintProjectionCollisionKernel, void>,
       public MetaKernelRegistry<ComputeConstraintProjectionCollisionKernel, ComputeAABB> {
  public:
   //! \name Constructors and destructor
@@ -104,11 +104,12 @@ class ComputeConstraintProjectionCollisionKernel
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::unique_ptr<PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>(std::topology::PARTICLE);
+    std::unique_ptr<PartRequirements> required_part_params =
+        std::make_unique<PartRequirements>(std::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>(default_node_normal_vec_field_name_, std::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
+        default_node_normal_vec_field_name_, std::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
         default_lagrange_multiplier_field_name_, std::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
