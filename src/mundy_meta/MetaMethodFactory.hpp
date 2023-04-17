@@ -85,7 +85,7 @@ class MetaMethodFactory {
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaMethod.
-  using NewMetaMethodGenerator = std::function<std::unique_ptr<MetaMethod>(
+  using NewMetaMethodGenerator = std::function<std::unique_ptr<MetaMethodBase>(
       const stk::mesh::BulkData*, const std::vector<*stk::mesh::Part>&, const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartRequirements instance.
@@ -142,8 +142,8 @@ class MetaMethodFactory {
   //@{
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
-  template <MetaMethod MethodToRegister,
-            typename std::enable_if<std::is_base_of<MetaMethod, MethodToRegister>::value, void>::type>
+  template <typename MethodToRegister,
+            typename std::enable_if<std::is_base_of<MetaMethodBase, MethodToRegister>::value, void>::type>
   std::unique_ptr<MetaMethodFactory> register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
     ThrowAssertMsg(!is_valid_key(key), "The provided key " << key << " already exists.");

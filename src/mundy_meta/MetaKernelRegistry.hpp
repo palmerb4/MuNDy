@@ -65,7 +65,7 @@ namespace meta {
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
 template <class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier,
-          typename std::enable_if<std::is_base_of<MetaKernel, DerivedMetaKernel>::value, void>::type>
+          typename std::enable_if<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, void>::type>
 struct MetaKernelRegistry {
   //! \name Actions
   //@{

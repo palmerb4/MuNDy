@@ -91,13 +91,41 @@ class FieldRequirements {
   ///
   /// \param field_dimension [in] Dimension of the field. For example, a dimension of three would be a vector.
   ///
-  /// \param field_min_number_of_states [in] Number of rotating states that this field will have.
+  /// \param field_min_number_of_states [in] Minimum number of rotating states that this field will have.
   FieldRequirements(const std::string &field_name, const stk::topology::rank_t &field_rank,
                     const unsigned field_dimension, const unsigned field_min_number_of_states) {
     this.set_field_name(field_name);
     this.set_field_rank(field_rank);
     this.set_field_dimension(field_dimension);
     this.set_field_min_number_of_states(field_min_number_of_states);
+  }
+
+  /// \brief Construct from a parameter list.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid
+  /// parameters is accessible via \c get_valid_params.
+  explicit FieldRequirements(const Teuchos::ParameterList &parameter_list) {
+    // Validate the input params. Throws an error if a parameter is defined but not in the valid params.
+    // This helps catch misspellings.
+    parameter_list.validateParameters(this.get_valid_params());
+
+    // Store the given parameters.
+    if (parameter_list.isParameter("name")) {
+      const std::string field_name = parameter_list.get<std::string>("name");
+      this.set_field_name(field_name);
+    }
+    if (parameter_list.isParameter("rank")) {
+      const std::string field_rank = parameter_list.get<std::string>("rank");
+      this.set_field_rank(field_rank);
+    }
+    if (parameter_list.isParameter("dimension")) {
+      const unsigned field_dimension = parameter_list.get<unsigned>("dimension");
+      this.set_field_dimension(field_dimension);
+    }
+    if (parameter_list.isParameter("min_number_of_states")) {
+      const unsigned field_min_number_of_states = parameter_list.get<unsigned>("min_number_of_states");
+      this.set_field_min_number_of_states(field_min_number_of_states);
+    }
   }
   //@}
 
@@ -205,6 +233,17 @@ class FieldRequirements {
                                "min_number_of_states is unconstrained.");
 
     return field_min_number_of_states_;
+  }
+
+  /// \brief Get the default parameters for this class.
+  static Teuchos::ParameterList get_valid_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("name", "INVALID", "Name of the field.");
+    default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the field.");
+    default_parameter_list.set("dimension", stk::topology::INVALID_TOPOLOGY, "Dimension of the part.");
+    default_parameter_list.set("min_number_of_states", stk::topology::INVALID_TOPOLOGY,
+                               "Minimum number of rotating states that this field will have.");
+    return default_parameter_list;
   }
   //@}
 
@@ -335,17 +374,18 @@ class FieldRequirements {
   ///  - UNSIGNED -> unsigned
   ///
   /// \param field_type_string [in] A string containing a valid field type.
-  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const std::string &field_type_string) const {
+  static std::shared_ptr<FieldRequirementsBase> create_new_instance(
+      const std::string &field_type_string, const Teuchos::ParameterList &parameter_list) const {
     if (field_type_string == "FLOAT") {
-      return std::make_shared<FieldRequirements<float>>();
+      return std::make_shared<FieldRequirements<float>>(parameter_list);
     } else if (field_type_string == "DOUBLE") {
-      return std::make_shared<FieldRequirements<double>>();
+      return std::make_shared<FieldRequirements<double>>(parameter_list);
     } else if (field_type_string == "INT") {
-      return std::make_shared<FieldRequirements<int>>();
+      return std::make_shared<FieldRequirements<int>>(parameter_list);
     } else if (field_type_string == "INT64") {
-      return std::make_shared<FieldRequirements<int64_t>>();
+      return std::make_shared<FieldRequirements<int64_t>>(parameter_list);
     } else if (field_type_string == "UNSIGNED") {
-      return std::make_shared<FieldRequirements<unsigned>>();
+      return std::make_shared<FieldRequirements<unsigned>>(parameter_list);
     } else {
       TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument,
                                  "The provided field type string " << field_type_string << " is not supported.");

@@ -97,7 +97,7 @@ class PartRequirements {
   explicit PartRequirements(const Teuchos::ParameterList &parameter_list) {
     // Validate the input params. Throws an error if a parameter is defined but not in the valid params.
     // This helps catch misspellings.
-    parameter_list.validateParameters(get_valid_params());
+    parameter_list.validateParameters(this.get_valid_params());
 
     // Store the given parameters.
     if (parameter_list.isParameter("name")) {
@@ -120,20 +120,21 @@ class PartRequirements {
       for (int i = 0; i < num_fields; i++) {
         const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(num_fields));
         const std::string field_type_string = field_i_sublist.get<std::string>("type");
-        std::shared_ptr<FieldRequirementsBase> field_i = FieldRequirements::create_new_instance(field_type_string);
+        std::shared_ptr<FieldRequirementsBase> field_i =
+            FieldRequirements::create_new_instance(field_type_string, field_i_sublist);
         this.add_field_reqs(field_i);
       }
     }
 
     // Store the sub-part params.
     if (parameter_list.isSublist("sub_parts")) {
-      const Teuchos::ParameterList &sub_parts_sublist = parameter_list.sublist("sub_parts");
-      const unsigned num_sub_parts = sub_parts_sublist.get<std::string>("count");
-      for (int i = 0; i < num_sub_parts; i++) {
-        const Teuchos::ParameterList &sub_part_i_sublist =
-            parameter_list.sublist("sub_part_" + std::to_string(num_sub_parts));
-        std::shared_ptr<PartRequirements> sub_part_i = std::make_shared<PartRequirements>(sub_part_i_sublist);
-        this.add_subpart_reqs(sub_part_i);
+      const Teuchos::ParameterList &subparts_sublist = parameter_list.sublist("sub_parts");
+      const unsigned num_subparts = subparts_sublist.get<std::string>("count");
+      for (int i = 0; i < num_subparts; i++) {
+        const Teuchos::ParameterList &subpart_i_sublist =
+            parameter_list.sublist("sub_part_" + std::to_string(num_subparts));
+        std::shared_ptr<PartRequirements> subpart_i = std::make_shared<PartRequirements>(subpart_i_sublist);
+        this.add_subpart_reqs(subpart_i);
       }
     }
   }
@@ -245,7 +246,8 @@ class PartRequirements {
   //! \name Actions
   //@{
 
-  /// \brief Declare/create the part that this class defines.
+  /// \brief Declare the part that this class defines including any of its fields, its subparts, and their
+  /// fields/subparts.
   ///
   /// This method can return three different types of parts based on the existing set of constraints.
   ///  - those with a predefined topology (if constrains_part_topology is true),
@@ -261,12 +263,29 @@ class PartRequirements {
     TEUCHOS_TEST_FOR_EXCEPTION(this.constrains_part_name(), std::logic_error,
                                "mundy::meta::PartRequirements: Part name must be set before calling declare_part.");
 
+    // Declare the Part.
     if (this.constrains_part_topology()) {
       return meta_data_ptr->declare_part_with_topology(this.get_part_name(), this.get_part_topology());
     } else if (this.constrains_part_rank()) {
       return meta_data_ptr->declare_part(this.get_part_name(), this.get_part_rank());
     } else {
       return meta_data_ptr->declare_part(this.get_part_name());
+    }
+
+    // Declare the Part's fields and associate them with the Part.
+    // Loop over each rank's field map.
+    for (auto const &part_field_map : part_ranked_field_maps_) {
+      // Loop over each field and attempt to merge it.
+      for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
+        field_reqs_ptr->declare_field_on_part(meta_data_ptr, part);
+      }
+    }
+
+    // Declare the sub-parts and declare them as sub-parts.
+    // Each sub-part will. in turn, declare their fields and subparts.
+    for ([[maybe_unused]] auto const &[subpart_name, subpart_reqs_ptr] : part_subpart_map_) {
+      stk::mesh::Part &subpart = subpart_reqs_ptr->declare_part(meta_data_ptr);
+      meta_data_ptr->declare_part_subset(part, subpart);
     }
   }
 
@@ -374,7 +393,7 @@ class PartRequirements {
         }
       }
 
-      // Loop over each rank's map.
+      // Loop over each rank's field map.
       for (auto const &part_field_map : part_reqs.get_part_field_map()) {
         // Loop over each field and attempt to merge it.
         for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {

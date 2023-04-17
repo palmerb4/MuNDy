@@ -89,7 +89,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
     // Store the input parameters, use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(get_valid_params());
+    valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
 
     // Create and store the required kernels.
     for (int i = 0; i < num_parts_; i++) {
@@ -122,7 +122,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(get_valid_params());
+    valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
 
     // Create and store the required part params.
     std::vector<PartRequirements> part_requirements(num_parts_);
@@ -168,7 +168,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethod> details_create_new_instance(const stk::mesh::BulkData *bulk_data_ptr,
+  static std::unique_ptr<MetaMethodBase> details_create_new_instance(const stk::mesh::BulkData *bulk_data_ptr,
                                                                  const std::vector<*stk::mesh::Part> &part_ptr_vector,
                                                                  const Teuchos::ParameterList &parameter_list) const {
     return std::make_unique<ComputeOBB>(bulk_data_ptr, part_ptr_vector, parameter_list);
@@ -204,7 +204,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB>, public MetaMethodRegistry<Comp
   std::vector<*stk::mesh::Part> &part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<MetaKernel> compute_obb_kernels_;
+  std::vector<std::shared_ptr<MetaKernelBase>>  compute_obb_kernels_;
   //@}
 };  // ComputeOBB
 

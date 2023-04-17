@@ -55,6 +55,10 @@ namespace mundy {
 
 namespace meta {
 
+/// \class MetaMethodBase
+/// \brief A consistant base for all \c MetaMethods.
+class MetaMethodBase {};  // MetaMethodBase
+
 /// \class MetaMethod
 /// \brief An abstract interface for all of Mundy's methods.
 ///
@@ -71,7 +75,7 @@ namespace meta {
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
 template <class DerivedMetaMethod,
-          typename std::enable_if<std::is_base_of<MetaMethod, DerivedMetaMethod>::value, void>::type>
+          typename std::enable_if<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, void>::type>
 class MetaMethod {
  public:
   //! \name Getters
@@ -110,7 +114,7 @@ class MetaMethod {
   ///
   /// TODO(palmerb4): The following will fail to compile because \c MetaMethod is not defined. We need an empty
   /// non-templated base version to derive everyone from
-  static std::unique_ptr<MetaMethod> create_new_instance(const Teuchos::ParameterList& parameter_list) const {
+  static std::unique_ptr<MetaMethodBase> create_new_instance(const Teuchos::ParameterList& parameter_list) const {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
   }
 

@@ -82,7 +82,7 @@ namespace meta {
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
 template <class DerivedMetaKernel,
-          typename std::enable_if<std::is_base_of<MetaKernel, DerivedMetaKernel>::value, void>::type>
+          typename std::enable_if<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, void>::type>
 class MetaKernel : public Teuchos::Describable {
  public:
   //! \name Attributes

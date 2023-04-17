@@ -85,7 +85,7 @@ class MetaKernelFactory {
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaKernel.
   using NewMetaKernelGenerator =
-      std::function<std::unique_ptr<MetaKernel>(const stk::mesh::BulkData*, const Teuchos::ParameterList&)>;
+      std::function<std::unique_ptr<MetaKernelBase>(const stk::mesh::BulkData*, const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartRequirements instance.
   using NewRequirementsGenerator = std::function<PartRequirements>(const Teuchos::ParameterList&);
@@ -141,8 +141,8 @@ class MetaKernelFactory {
   //@{
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
-  template <MetaKernel MethodToRegister,
-            typename std::enable_if<std::is_base_of<MetaKernel, MethodToRegister>::value, void>::type>
+  template <typename MethodToRegister,
+            typename std::enable_if<std::is_base_of<MetaKernelBase, MethodToRegister>::value, void>::type>
   std::unique_ptr<MetaKernelFactory> register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
     ThrowAssertMsg(!is_valid_key(key), "The provided key " << key << " already exists.");
