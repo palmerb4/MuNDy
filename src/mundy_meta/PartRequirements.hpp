@@ -112,6 +112,30 @@ class PartRequirements {
       const std::string part_rank_name = parameter_list.get<std::string>("rank");
       this.set_part_topology(part_rank_name);
     }
+
+    // Store the field params.
+    if (parameter_list.isSublist("fields")) {
+      const Teuchos::ParameterList &fields_sublist = parameter_list.sublist("fields");
+      const unsigned num_fields = fields_sublist.get<std::string>("count");
+      for (int i = 0; i < num_fields; i++) {
+        const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(num_fields));
+        const std::string field_type_string = field_i_sublist.get<std::string>("type");
+        std::shared_ptr<FieldRequirementsBase> field_i = FieldRequirements::create_new_instance(field_type_string);
+        this.add_field_reqs(field_i);
+      }
+    }
+
+    // Store the sub-part params.
+    if (parameter_list.isSublist("sub_parts")) {
+      const Teuchos::ParameterList &sub_parts_sublist = parameter_list.sublist("sub_parts");
+      const unsigned num_sub_parts = sub_parts_sublist.get<std::string>("count");
+      for (int i = 0; i < num_sub_parts; i++) {
+        const Teuchos::ParameterList &sub_part_i_sublist =
+            parameter_list.sublist("sub_part_" + std::to_string(num_sub_parts));
+        std::shared_ptr<PartRequirements> sub_part_i = std::make_shared<PartRequirements>(sub_part_i_sublist);
+        this.add_subpart_reqs(sub_part_i);
+      }
+    }
   }
   //@}
 
@@ -271,22 +295,22 @@ class PartRequirements {
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
-  /// \param field_params [in] Field parameters to add to the part.
-  void add_field_params(const std::shared_ptr<const FieldRequirementsBase> &field_params) {
+  /// \param field_reqs [in] Field parameters to add to the part.
+  void add_field_reqs(const std::shared_ptr<FieldRequirementsBase> &field_reqs) {
     // Check if the provided parameters are valid.
-    field_params.check_if_valid();
+    field_reqs.check_if_valid();
 
     // If a field with the same name and rank exists, attempt to merge them.
     // Otherwise, create a new field entity.
-    const std::string field_name = field_params.get_field_name();
-    const unsigned field_rank = field_params.get_field_rank();
+    const std::string field_name = field_reqs.get_field_name();
+    const unsigned field_rank = field_reqs.get_field_rank();
 
     auto part_field_map_ptr = part_ranked_field_maps_.data() + field_rank;
     const bool name_already_exists = (part_field_map_ptr->count(field_name) != 0);
     if (name_already_exists) {
-      *part_field_map_ptr[field_name]->merge(field_params);
+      *part_field_map_ptr[field_name]->merge(field_reqs);
     } else {
-      *part_field_map_ptr[field_name] = field_params;
+      *part_field_map_ptr[field_name] = field_reqs;
     }
   }
 
@@ -294,7 +318,7 @@ class PartRequirements {
   ///
   /// TODO: Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
-  /// \param field_params [in] Field parameters to add to the part.
+  /// \param part_reqs [in] Sub-part requirements to add to the part.
   void add_subpart_reqs(const std::shared_ptr<const PartRequirements> &part_reqs) {
     // Check if the provided parameters are valid.
     part_reqs.check_if_valid();
@@ -353,8 +377,8 @@ class PartRequirements {
       // Loop over each rank's map.
       for (auto const &part_field_map : part_reqs.get_part_field_map()) {
         // Loop over each field and attempt to merge it.
-        for ([[maybe_unused]] auto const &[field_name, field_params_ptr] : part_field_map) {
-          this.add_field_params(field_params_ptr);
+        for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
+          this.add_field_reqs(field_reqs_ptr);
         }
       }
     }

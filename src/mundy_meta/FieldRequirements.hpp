@@ -59,11 +59,15 @@ namespace meta {
 /// \brief A consistant base for all \c FieldRequirements.
 class FieldRequirementsBase {};  // FieldRequirementsBase
 
+/// \class InvalidType
+/// \brief An invalid typename to allow default templating \c FieldRequirements.
+class InvalidType {};  // InvalidType
+
 /// \class FieldRequirements
 /// \brief A set of necessary parameters for declaring a new field.
 ///
 /// \tparam FieldType Type for elements in the field.
-template <typename FieldType>
+template <typename FieldType = InvalidType>
 class FieldRequirements {
  public:
   //! \name Typedefs
@@ -318,6 +322,33 @@ class FieldRequirements {
           this.set_field_min_number_of_states_if_larger(field_reqs.get_field_min_number_of_states());
         }
       }
+    }
+  }
+
+  /// \brief Generate a new default constructed instance with the desired type.
+  ///
+  /// The current list of field type names and their corresponding types:
+  ///  - FLOAT -> float
+  ///  - DOUBLE -> double
+  ///  - INT -> int
+  ///  - INT64 -> int64_t
+  ///  - UNSIGNED -> unsigned
+  ///
+  /// \param field_type_string [in] A string containing a valid field type.
+  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const std::string &field_type_string) const {
+    if (field_type_string == "FLOAT") {
+      return std::make_shared<FieldRequirements<float>>();
+    } else if (field_type_string == "DOUBLE") {
+      return std::make_shared<FieldRequirements<double>>();
+    } else if (field_type_string == "INT") {
+      return std::make_shared<FieldRequirements<int>>();
+    } else if (field_type_string == "INT64") {
+      return std::make_shared<FieldRequirements<int64_t>>();
+    } else if (field_type_string == "UNSIGNED") {
+      return std::make_shared<FieldRequirements<unsigned>>();
+    } else {
+      TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument,
+                                 "The provided field type string " << field_type_string << " is not supported.");
     }
   }
   //@}

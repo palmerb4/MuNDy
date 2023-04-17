@@ -1,69 +1,95 @@
 %YAML 1.1
 ---
-part_hierarchy:
-  - name: PARTICLES
+hierarchies:
+  count: 1
+  hierarchy_0:
+    name: PARTICLES
     topology: ENTITY
     fields:
-      - name: FORCE
+      count: 2
+      field_0: 
+        name: FORCE
         rank: ENTITY
         dimension: 3
         number_of_states: 1
         type: DOUBLE
-      - name: COORDINATES
+      field_1:
+        name: COORDINATES
         rank: NODE
         dimension: 3
         number_of_states: 1
         type: DOUBLE
     sub_parts:
-      - name: SPHERES
+      count: 2
+      sub_part_0:
+        name: SPHERES
         topology: ENTITY
         fields:
-          - name: RADIUS
+          count: 1
+          field_0:
+            name: RADIUS
             rank: ENTITY
             dimension: 1
             number_of_states: 1
             type: DOUBLE
         sub_parts:
-          - name: COLORED_SPHERES
+          count: 1
+          sub_part_0:
+            name: COLORED_SPHERES
             topology: ENTITY
             fields:
-            - name: COLOR
-              rank: ENTITY
-              dimension: 1
-              number_of_states: 1
-              type: INT
-      - name: ELLIPSOIDS
+              count: 1
+              field_0:
+                name: COLOR
+                rank: ENTITY
+                dimension: 1
+                number_of_states: 1
+                type: INT
+      sub_part_1:
+        name: ELLIPSOIDS
         topology: ENTITY
         fields:
-        - name: AXISLENGTH
+          count: 1
+          field_0:
+            name: AXISLENGTH
             rank: ENTITY
             dimension: 3
             number_of_states: 1
             type: DOUBLE
 
 methods:
-  - name: RESOLVE_CONSTRAINTS
+  count: 3
+  method_0:
+    name: RESOLVE_CONSTRAINTS
     resolve_constraints_technique:
       name: NONSMOOTH_LCP
       max_number_of_iterations: 10000
       residual_tolerance: 1e-5
-  - name: TIME_INTEGRATION
+  method_1:
+    name: TIME_INTEGRATION
     compatible_parts:
-      - name: SPHERES
+      count: 2
+      compatible_part_0:
+        name: SPHERES
         kernels:
           time_integration_kernel: 
             name: NODE_EULER
-      - name: ELLIPSOIDS
+      compatible_part_1:
+        name: ELLIPSOIDS
         kernels:
           time_integration_kernel: 
             name: NODE_EULER
-  - name: COMPUTE_MOBILITY
+  method_2:
+    name: COMPUTE_MOBILITY
     compatible_parts:
-      - name: SPHERES
+      count: 2
+      compatible_part_0:
+        name: SPHERES
         kernels:
           time_integration_kernel: 
             name: INERTIAL
-      - name: ELLIPSOIDS
+      compatible_part_1:
+        name: ELLIPSOIDS
         kernels:
           time_integration_kernel: 
             name: INERTIAL
