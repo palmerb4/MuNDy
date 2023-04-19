@@ -187,7 +187,7 @@ class ComputeAABB : public MetaMethod<ComputeAABB, void>, public MetaMethodRegis
       stk::mesh::for_each_entity_run(
           *bulk_data_ptr, stk::topology::ELEM_RANK, locally_owned_part,
           [&compute_aabb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-            compute_aabb_kernel->execute();
+            compute_aabb_kernel->execute(element);
           });
     }
   }

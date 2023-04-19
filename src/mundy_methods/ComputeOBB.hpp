@@ -187,7 +187,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB, void>, public MetaMethodRegistr
       stk::mesh::for_each_entity_run(
           *bulk_data_ptr, stk::topology::ELEM_RANK, locally_owned_part,
           [&compute_obb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-            compute_obb_kernel->execute();
+            compute_obb_kernel->execute(element);
           });
     }
   }

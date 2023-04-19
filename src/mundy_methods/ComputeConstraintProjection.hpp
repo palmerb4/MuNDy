@@ -191,7 +191,7 @@ class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjectio
       stk::mesh::for_each_entity_run(
           *bulk_data_ptr, stk::topology::ELEM_RANK, locally_owned_part,
           [&compute_constraint_projection_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-            compute_constraint_projection_kernel->execute();
+            compute_constraint_projection_kernel->execute(element);
           });
     }
   }
