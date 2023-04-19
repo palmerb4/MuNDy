@@ -29,6 +29,7 @@
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
+#include <utility>      // for std::make_pair
 #include <vector>       // for std::vector
 
 // Trilinos libs

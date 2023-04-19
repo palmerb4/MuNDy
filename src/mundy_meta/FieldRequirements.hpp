@@ -24,6 +24,7 @@
 /// \brief Declaration of the FieldRequirements class
 
 // C++ core libs
+#include <algorithm>    // for std::max
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
