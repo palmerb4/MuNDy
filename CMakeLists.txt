@@ -68,7 +68,7 @@ endif()
 
 # ################################################### CUDA ##############################################################
 if(ENABLE_CUDA)
-    target_compile_definitions(${mundy_exe_name} PUBLIC USE_STK_SIMD_NONE)
+    target_compile_definitions(mundy PUBLIC USE_STK_SIMD_NONE)
     separate_arguments(Trilinos_CXX_COMPILER_FLAGS)
     target_compile_options(mundy PUBLIC $<$<COMPILE_LANGUAGE:CXX>:${Trilinos_CXX_COMPILER_FLAGS}>)
     target_compile_options(mundy PUBLIC $<$<COMPILE_LANGUAGE:CXX>:--expt-relaxed-constexpr>)
@@ -111,7 +111,12 @@ target_include_directories(mundy PUBLIC
 # Most linking, etc, is set to PUBLIC for libmundy, so we merely link to libmundy for the exes
 target_link_libraries(${mundy_exe_name} PRIVATE mundy)
 
-# add_subdirectory(src)
+add_subdirectory(src)
+
+export(
+  TARGETS mundy
+  NAMESPACE ${PROJECT_NAME}::
+  FILE ${PROJECT_NAME}Targets.cmake)
 
 install(TARGETS ${mundy_exe_name} mundy
         EXPORT "${PROJECT_NAME}Targets"
