@@ -23,33 +23,23 @@
 /// \file ComputeAABBSphereKernel.hpp
 /// \brief Declaration of the ComputeAABBSphereKernel class
 
-// clang-format off
-#include <gtest/gtest.h>                             // for AssertHelper, etc
-#include <mpi.h>                                     // for MPI_COMM_WORLD, etc
-#include <stddef.h>                                  // for size_t
-#include <vector>                                    // for vector, etc
-#include <random>                                    // for rand
-#include <memory>                                    // for shared_ptr
-#include <string>                                    // for string
-#include <type_traits>                               // for static_assert
-#include <stk_math/StkVector.hpp>                    // for Vec
-#include <stk_mesh/base/BulkData.hpp>                // for BulkData
-#include <stk_mesh/base/MetaData.hpp>                // for MetaData
-#include <stk_mesh/base/GetEntities.hpp>             // for count_selected_entities
-#include <stk_mesh/base/Types.hpp>                   // for EntityVector, etc
-#include <stk_mesh/base/Ghosting.hpp>                // for create_ghosting
-#include <stk_io/WriteMesh.hpp>
-#include <stk_io/StkMeshIoBroker.hpp>
-#include <stk_search/SearchMethod.hpp>               // for KDTREE
-#include <stk_search/CoarseSearch.hpp>               // for coarse_search
-#include <stk_search/BoundingBox.hpp>                // for Sphere, Box, tec.
-#include <stk_balance/balance.hpp>                   // for balanceStkMesh
-#include <stk_util/parallel/Parallel.hpp>            // for ParallelMachine
-#include <stk_util/environment/WallTime.hpp>         // for wall_time
-#include <stk_util/environment/perf_util.hpp>
-#include <stk_unit_test_utils/BuildMesh.hpp>
-#include "stk_util/util/ReportHandler.hpp"           // for ThrowAssert, etc
-// clang-format on
+// C++ core libs
+#include <memory>  // for std::shared_ptr, std::unique_ptr
+#include <string>  // for std::string
+#include <vector>  // for std::vector
+
+// Trilinos libs
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
+
+// Mundy libs
+#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 
 namespace mundy {
 

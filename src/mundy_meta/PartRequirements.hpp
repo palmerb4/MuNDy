@@ -23,33 +23,22 @@
 /// \file PartRequirements.hpp
 /// \brief Declaration of the PartRequirements class
 
-// clang-format off
-#include <gtest/gtest.h>                             // for AssertHelper, etc
-#include <mpi.h>                                     // for MPI_COMM_WORLD, etc
-#include <stddef.h>                                  // for size_t
-#include <vector>                                    // for vector, etc
-#include <random>                                    // for rand
-#include <memory>                                    // for shared_ptr
-#include <string>                                    // for string
-#include <type_traits>                               // for static_assert
-#include <stk_math/StkVector.hpp>                    // for Vec
-#include <stk_mesh/base/BulkData.hpp>                // for BulkData
-#include <stk_mesh/base/MetaData.hpp>                // for MetaData
-#include <stk_mesh/base/GetEntities.hpp>             // for count_selected_entities
-#include <stk_mesh/base/Types.hpp>                   // for EntityVector, etc
-#include <stk_mesh/base/Ghosting.hpp>                // for create_ghosting
-#include <stk_io/WriteMesh.hpp>
-#include <stk_io/StkMeshIoBroker.hpp>
-#include <stk_search/SearchMethod.hpp>               // for KDTREE
-#include <stk_search/CoarseSearch.hpp>               // for coarse_search
-#include <stk_search/BoundingBox.hpp>                // for Sphere, Box, tec.
-#include <stk_balance/balance.hpp>                   // for balanceStkMesh
-#include <stk_util/parallel/Parallel.hpp>            // for ParallelMachine
-#include <stk_util/environment/WallTime.hpp>         // for wall_time
-#include <stk_util/environment/perf_util.hpp>
-#include <stk_unit_test_utils/BuildMesh.hpp>
-#include "stk_util/util/ReportHandler.hpp"           // for ThrowAssert, etc
-// clang-format on
+// C++ core libs
+#include <map>          // for std::map
+#include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <string>       // for std::string
+#include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <vector>       // for std::vector
+
+// Trilinos libs
+#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
+#include <Teuchos_TestForException.hpp>    // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/MetaData.hpp>      // for stk::mesh::MetaData
+#include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
+#include <stk_topology/base/topology.hpp>  // for stk::topology
+
+// Mundy libs
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 
 namespace mundy {
 

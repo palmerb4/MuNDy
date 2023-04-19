@@ -23,40 +23,30 @@
 /// \file MetaKernelFactory.hpp
 /// \brief Declaration of the MetaKernelFactory class
 
-// clang-format off
-#include <gtest/gtest.h>                             // for AssertHelper, etc
-#include <mpi.h>                                     // for MPI_COMM_WORLD, etc
-#include <stddef.h>                                  // for size_t
-#include <vector>                                    // for vector, etc
-#include <random>                                    // for rand
-#include <memory>                                    // for shared_ptr
-#include <string>                                    // for string
-#include <type_traits>                               // for static_assert
-#include <stk_math/StkVector.hpp>                    // for Vec
-#include <stk_mesh/base/BulkData.hpp>                // for BulkData
-#include <stk_mesh/base/MetaData.hpp>                // for MetaData
-#include <stk_mesh/base/GetEntities.hpp>             // for count_selected_entities
-#include <stk_mesh/base/Types.hpp>                   // for EntityVector, etc
-#include <stk_mesh/base/Ghosting.hpp>                // for create_ghosting
-#include <stk_io/WriteMesh.hpp>
-#include <stk_io/StkMeshIoBroker.hpp>
-#include <stk_search/SearchMethod.hpp>               // for KDTREE
-#include <stk_search/CoarseSearch.hpp>               // for coarse_search
-#include <stk_search/BoundingBox.hpp>                // for Sphere, Box, tec.
-#include <stk_balance/balance.hpp>                   // for balanceStkMesh
-#include <stk_util/parallel/Parallel.hpp>            // for ParallelMachine
-#include <stk_util/environment/WallTime.hpp>         // for wall_time
-#include <stk_util/environment/perf_util.hpp>
-#include <stk_unit_test_utils/BuildMesh.hpp>
-#include "stk_util/util/ReportHandler.hpp"           // for ThrowAssert, etc
-// clang-format on
+// C++ core libs
+#include <functional>   // for std::function
+#include <map>          // for std::map
+#include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <string>       // for std::string
+#include <type_traits>  // for std::enable_if, std::is_base_of
+#include <vector>       // for std::vector
+
+// Trilinos libs
+#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
+#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
+#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
+
+// Mundy libs
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
 namespace meta {
 
 /// \brief An empty struct to symbolize an unused template parameter.
-struct DefaultKernelIdentifier {};
+struct DefaultKernelIdentifier {};  // DefaultKernelIdentifier
 
 /// \class MetaKernelFactory
 /// \brief A factory containing generation routines for all of Mundy's \c MetaKernels.
@@ -116,7 +106,7 @@ class MetaKernelFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
   static std::unique_ptr<PartRequirements> get_part_requirements(const std::string& key,
-                                                           const Teuchos::ParameterList& parameter_list) {
+                                                                 const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[key](parameter_list);
   }
 
@@ -132,7 +122,8 @@ class MetaKernelFactory {
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
   static Teuchos::ParameterList get_valid_params(const std::string& key) {
-    ThrowAssertMsg(is_valid_key(key), "The provided key " << key << " is not valid.");
+    TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
+                               "The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
   }
   //@}
@@ -145,7 +136,8 @@ class MetaKernelFactory {
             typename std::enable_if<std::is_base_of<MetaKernelBase, MethodToRegister>::value, void>::type>
   std::unique_ptr<MetaKernelFactory> register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
-    ThrowAssertMsg(!is_valid_key(key), "The provided key " << key << " already exists.");
+    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
+                               "The provided key " << key << " already exists.");
     get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
     get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));

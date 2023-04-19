@@ -23,34 +23,18 @@
 /// \file MeshBuilder.hpp
 /// \brief Declaration of the MeshBuilder class
 
-// clang-format off
-#include <gtest/gtest.h>                             // for AssertHelper, etc
-#include <mpi.h>                                     // for MPI_COMM_WORLD, etc
-#include <stddef.h>                                  // for size_t
-#include <vector>                                    // for vector, etc
-#include <random>                                    // for rand
-#include <memory>                                    // for shared_ptr
-#include <string>                                    // for string
-#include <type_traits>                               // for static_assert
-#include <stk_math/StkVector.hpp>                    // for Vec
-#include <stk_mesh/base/BulkData.hpp>                // for BulkData
-#include <stk_mesh/base/MetaData.hpp>                // for MetaData
-#include <stk_mesh/base/GetEntities.hpp>             // for count_selected_entities
-#include <stk_mesh/base/Types.hpp>                   // for EntityVector, etc
-#include <stk_mesh/base/Ghosting.hpp>                // for create_ghosting
-#include <stk_io/WriteMesh.hpp>
-#include <stk_io/StkMeshIoBroker.hpp>
-#include <stk_search/SearchMethod.hpp>               // for KDTREE
-#include <stk_search/CoarseSearch.hpp>               // for coarse_search
-#include <stk_search/BoundingBox.hpp>                // for Sphere, Box, tec.
-#include <stk_balance/balance.hpp>                   // for balanceStkMesh
-#include <stk_util/parallel/Parallel.hpp>            // for ParallelMachine
-#include <stk_util/environment/WallTime.hpp>         // for wall_time
-#include <stk_util/environment/perf_util.hpp>
-#include <stk_unit_test_utils/BuildMesh.hpp>
-#include "stk_util/util/ReportHandler.hpp"           // for ThrowAssert, etc
-// clang-format on
+// C++ core libs
+#include <memory>  // for std::shared_ptr, std::unique_ptr
+#include <string>  // for std::string
+#include <vector>  // for std::vector
 
+// Trilinos libs
+#include <stk_mesh/base/BulkData.hpp>              // for stk::mesh::BulkData
+#include <stk_mesh/base/FieldDataManager.hpp>      // for stl::mesh::FieldDataManager
+#include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
+#include <stk_mesh/base/MetaData.hpp>              // for stk::mesh::MetaData
+#include <stk_mesh/baseImpl/BucketRepository.hpp>  // stk::impl::BucketRepository
+#include <stk_util/parallel/Parallel.hpp>          // for stk::ParallelMachine
 namespace mundy {
 
 namespace meta {
@@ -58,7 +42,7 @@ namespace meta {
 /// \class MeshBuilder
 /// \brief A helper class for building an STK BulkData entity.
 ///
-/// This class is merely a duplicate of STK's \c MeshBuilder. Although duplicative code is discouraged, we chose to copy
+/// This class is merely a duplicate of STK's \c MeshBuilder. Although duplicative code is discouraged, we chose to wrap
 /// all of \c MeshBuilder's functionality to improve its readability and documentation.
 class MeshBuilder {
  public:
