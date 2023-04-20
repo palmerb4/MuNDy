@@ -39,6 +39,7 @@
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeOBB.hpp>       // for mundy::methods::ComputeOBB
 
 namespace mundy {
 

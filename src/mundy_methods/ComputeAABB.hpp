@@ -49,7 +49,8 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public MetaMethod<ComputeAABB, void>, public MetaMethodRegistry<ComputeAABB> {
+class ComputeAABB : public mundy::meta::MetaMethod<ComputeAABB, void>,
+                    public mundy::meta::MetaMethodRegistry<ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{

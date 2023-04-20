@@ -49,8 +49,8 @@ namespace methods {
 
 /// \class ComputeConstraintProjection
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintProjection : public MetaMethod<ComputeConstraintProjection, void>,
-                                    public MetaMethodRegistry<ComputeConstraintProjection> {
+class ComputeConstraintProjection : public mundy::meta::MetaMethod<ComputeConstraintProjection, void>,
+                                    public mundy::meta::MetaMethodRegistry<ComputeConstraintProjection> {
  public:
   //! \name Constructors and destructor
   //@{

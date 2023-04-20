@@ -49,8 +49,8 @@ namespace methods {
 
 /// \class ComputeConstraintViolation
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintViolation : public MetaMethod<ComputeConstraintViolation, void>,
-                                   public MetaMethodRegistry<ComputeConstraintViolation> {
+class ComputeConstraintViolation : public mundy::meta::MetaMethod<ComputeConstraintViolation, void>,
+                                   public mundy::meta::MetaMethodRegistry<ComputeConstraintViolation> {
  public:
   //! \name Constructors and destructor
   //@{

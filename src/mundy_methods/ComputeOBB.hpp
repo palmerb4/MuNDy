@@ -49,7 +49,8 @@ namespace methods {
 
 /// \class ComputeOBB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeOBB : public MetaMethod<ComputeOBB, void>, public MetaMethodRegistry<ComputeOBB> {
+class ComputeOBB : public mundy::meta::MetaMethod<ComputeOBB, void>,
+                   public mundy::meta::MetaMethodRegistry<ComputeOBB> {
  public:
   //! \name Constructors and destructor
   //@{

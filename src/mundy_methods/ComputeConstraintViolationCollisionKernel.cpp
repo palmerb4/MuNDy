@@ -37,6 +37,7 @@
 #include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeConstraintViolationCollisionKernel.hpp>  // for mundy::methods::ComputeConstraintViolationCollisionKernel
 
 namespace mundy {
 
