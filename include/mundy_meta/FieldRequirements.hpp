@@ -142,7 +142,7 @@ class FieldRequirements {
   unsigned get_field_min_number_of_states() const;
 
   /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList get_valid_params() const {
+  static Teuchos::ParameterList get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("name", "INVALID", "Name of the field.");
     default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the field.");
@@ -251,7 +251,7 @@ class FieldRequirements {
   ///
   /// \param field_type_string [in] A string containing a valid field type.
   static std::shared_ptr<FieldRequirementsBase> create_new_instance(
-      const std::string &field_type_string, const Teuchos::ParameterList &parameter_list) const {
+      const std::string &field_type_string, const Teuchos::ParameterList &parameter_list) {
     if (field_type_string == "FLOAT") {
       return std::make_shared<FieldRequirements<float>>(parameter_list);
     } else if (field_type_string == "DOUBLE") {

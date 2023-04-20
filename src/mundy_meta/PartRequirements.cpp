@@ -171,14 +171,6 @@ std::vector<std::map<std::string, std::shared_ptr<const FieldRequirementsBase>>>
     const stk::topology::rank_t &field_rank) const {
   return part_ranked_field_maps_[field_rank];
 }
-
-static Teuchos::ParameterList PartRequirements::get_valid_params() const {
-  static Teuchos::ParameterList default_parameter_list;
-  default_parameter_list.set("name", "INVALID", "Name of the part.");
-  default_parameter_list.set("topology", stk::topology::INVALID_TOPOLOGY, "Topology of the part.");
-  default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the part.");
-  return default_parameter_list;
-}
 //}
 
 // \name Actions

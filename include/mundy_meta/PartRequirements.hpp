@@ -31,10 +31,10 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
-#include <stk_mesh/base/MetaData.hpp>      // for stk::mesh::MetaData
-#include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
-#include <stk_topology/topology.hpp>  // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
@@ -128,7 +128,13 @@ class PartRequirements {
       const stk::topology::rank_t &field_rank) const;
 
   /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList get_valid_params() const;
+  static Teuchos::ParameterList get_valid_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("name", "INVALID", "Name of the part.");
+    default_parameter_list.set("topology", stk::topology::INVALID_TOPOLOGY, "Topology of the part.");
+    default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the part.");
+    return default_parameter_list;
+  }
   //@}
 
   //! \name Actions

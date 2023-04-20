@@ -90,7 +90,7 @@ class MetaKernelFactory {
   //@{
 
   /// \brief Get the number of \c MetaKernel classes this factory recognizes.
-  static size_t get_number_of_subclasses() const {
+  static size_t get_number_of_subclasses() {
     return get_instance_generator_map().size();
   }
 
@@ -108,7 +108,7 @@ class MetaKernelFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
   static std::unique_ptr<PartRequirements> get_part_requirements(const std::string& key,
-                                                                 const Teuchos::ParameterList& parameter_list) const {
+                                                                 const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[key](parameter_list);
   }
 
@@ -123,7 +123,7 @@ class MetaKernelFactory {
   /// yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
-  static Teuchos::ParameterList get_valid_params(const std::string& key) const {
+  static Teuchos::ParameterList get_valid_params(const std::string& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
@@ -150,7 +150,7 @@ class MetaKernelFactory {
   /// default parameter list is accessible via \c get_valid_params.
   static std::unique_ptr<MetaMethodBase> create_new_instance(const std::string& key,
                                                              const stk::mesh::BulkData* bulk_data_ptr,
-                                                             const Teuchos::ParameterList& parameter_list) const {
+                                                             const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map(key)(bulk_data_ptr, parameter_list);
   }
   //@}
