@@ -18,13 +18,6 @@
 # @HEADER
 
 target_sources(mundy PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/FieldRequirements.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MeshBuilder.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MetaKernel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MetaKernelFactory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MetaKernelRegistry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MetaMethod.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MetaMethodFactory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MetaMethodRegistry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/PartRequirements.cpp
 )
