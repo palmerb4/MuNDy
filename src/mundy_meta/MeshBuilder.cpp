@@ -21,11 +21,13 @@
 /// \brief Definition of the MeshBuilder class
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <memory>     // for std::shared_ptr, std::unique_ptr
+#include <stdexcept>  // for std::logic_error, std::invalid_argument
+#include <string>     // for std::string
+#include <vector>     // for std::vector
 
 // Trilinos libs
+#include <Teuchos_TestForException.hpp>            // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/BulkData.hpp>              // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>      // for stl::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
@@ -49,9 +51,9 @@ MeshBuilder::MeshBuilder()
       has_comm_(false),
       aura_option_(stk::mesh::BulkData::AUTO_AURA),
       field_data_manager_ptr_(nullptr),
-      bucket_capacity_(stk::impl::BucketRepository::default_bucket_capacity),
+      bucket_capacity_(stk::mesh::impl::BucketRepository::default_bucket_capacity),
       spatial_dimension_(0),
-      entity_rank_names(),
+      entity_rank_names_(),
       upward_connectivity_flag_(true) {
 }
 
@@ -61,9 +63,9 @@ MeshBuilder::MeshBuilder(stk::ParallelMachine comm)
       has_comm_(true),
       aura_option_(stk::mesh::BulkData::AUTO_AURA),
       field_data_manager_ptr_(nullptr),
-      bucket_capacity_(stk::impl::BucketRepository::default_bucket_capacity),
+      bucket_capacity_(stk::mesh::impl::BucketRepository::default_bucket_capacity),
       spatial_dimension_(0),
-      entity_rank_names(),
+      entity_rank_names_(),
       upward_connectivity_flag_(true) {
 }
 //}
@@ -109,8 +111,8 @@ MeshBuilder &MeshBuilder::set_bucket_capacity(const unsigned bucket_capacity) {
 }
 
 MeshBuilder &MeshBuilder::set_upward_connectivity(const bool enable_upward_connectivity) {
-  enable_upward_connectivity_ = enable_upward_connectivity;
-  builder_.set_upward_connectivity(enable_upward_connectivity_);
+  upward_connectivity_flag_ = enable_upward_connectivity;
+  builder_.set_upward_connectivity(upward_connectivity_flag_);
   return *this;
 }
 //}
@@ -123,7 +125,7 @@ std::shared_ptr<stk::mesh::MetaData> MeshBuilder::create_meta_data() {
 }
 
 std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data() {
-  return this.create_bulk_data(this.create_meta_data());
+  return this->create_bulk_data(this->create_meta_data());
 }
 
 std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<stk::mesh::MetaData> metaData) {

@@ -78,7 +78,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<ComputeAABB, void>,
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
+    valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
     // Create and store the required part params.
     std::vector<PartRequirements> part_requirements(num_parts_);

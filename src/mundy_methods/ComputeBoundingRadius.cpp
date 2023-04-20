@@ -21,9 +21,10 @@
 /// \brief Definition of the ComputeBoundingRadius class
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <memory>     // for std::shared_ptr, std::unique_ptr
+#include <stdexcept>  // for std::logic_error, std::invalid_argument
+#include <string>     // for std::string
+#include <vector>     // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
@@ -72,7 +73,7 @@ ComputeBoundingRadius::ComputeBoundingRadius(const stk::mesh::BulkData *bulk_dat
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
+  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Create and store the required kernels.
   for (int i = 0; i < num_parts_; i++) {

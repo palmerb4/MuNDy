@@ -51,7 +51,7 @@ ComputeConstraintViolationCollisionKernel::ComputeConstraintViolationCollisionKe
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
+  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fill the internal members using the internal parameter list.
   radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");

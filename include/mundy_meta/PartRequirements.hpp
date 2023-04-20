@@ -34,7 +34,7 @@
 #include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
 #include <stk_mesh/base/MetaData.hpp>      // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
-#include <stk_topology/base/topology.hpp>  // for stk::topology
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase

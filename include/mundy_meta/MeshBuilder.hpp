@@ -29,11 +29,11 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <stk_mesh/base/BulkData.hpp>              // for stk::mesh::BulkData
-#include <stk_mesh/base/FieldDataManager.hpp>      // for stl::mesh::FieldDataManager
-#include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
-#include <stk_mesh/base/MetaData.hpp>              // for stk::mesh::MetaData
-#include <stk_util/parallel/Parallel.hpp>          // for stk::ParallelMachine
+#include <stk_mesh/base/BulkData.hpp>          // for stk::mesh::BulkData
+#include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
+#include <stk_mesh/base/MeshBuilder.hpp>       // for stk::mesh::MeshBuilder
+#include <stk_mesh/base/MetaData.hpp>          // for stk::mesh::MetaData
+#include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
 
 namespace mundy {
 
@@ -137,7 +137,7 @@ class MeshBuilder {
   /// \brief Flag specifying if upward connectivity will be enabled or not.
   bool upward_connectivity_flag_;
   //@}
-}
+};  // MeshBuilder
 
 }  // namespace meta
 
