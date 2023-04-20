@@ -59,7 +59,7 @@ class PartRequirements {
   /// \param part_name [in] Name of the part.
   ///
   /// \param part_topology [in] Topology of entities within the part.
-  PartRequirements(const std::string &part_name, const stk::topology &part_topology);
+  PartRequirements(const std::string &part_name, const stk::topology::topology_t &part_topology);
 
   /// \brief Constructor with partial requirements. Version 2.
   ///
@@ -87,7 +87,7 @@ class PartRequirements {
 
   /// \brief Set the required part topology.
   /// \brief part_topology [in] Required topology of the part.
-  void set_part_topology(const stk::topology &part_topology);
+  void set_part_topology(const stk::topology::topology_t &part_topology);
 
   /// \brief Set the required part topology using a valid topology string name.
   /// \brief part_topology_name [in] Required topology of the part.

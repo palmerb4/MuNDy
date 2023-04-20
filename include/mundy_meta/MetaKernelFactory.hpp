@@ -86,12 +86,18 @@ class MetaKernelFactory {
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList>();
   //@}
 
-  //! \name Attributes
+  //! \name Getters
   //@{
 
   /// \brief Get the number of \c MetaKernel classes this factory recognizes.
   static size_t get_number_of_subclasses() {
     return get_instance_generator_map().size();
+  }
+
+  /// \brief Get if the provided key is valid or not
+  /// \param key [in] A key that may or may not correspond to a registered \c MetaKernel.
+  static bool is_valid_key(const std::string& key) {
+    return get_instance_generator_map().count(key) != 0;
   }
 
   /// \brief Get the requirements that this a registered \c MetaKernel imposes upon each particle and/or constraint.
@@ -101,7 +107,7 @@ class MetaKernelFactory {
   /// assumptions may vary based parameters in the \c parameter_list.
   ///
   /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
-  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
+  /// valid; that is, \c is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
   /// provided \c register_new_method function.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
@@ -134,21 +140,21 @@ class MetaKernelFactory {
   //@{
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
-  template <typename MethodToRegister,
-            typename std::enable_if<std::is_base_of<MetaKernelBase, MethodToRegister>::value, void>::type>
-  void register_new_method();
+  template <typename KernelToRegister,
+            typename std::enable_if<std::is_base_of<MetaKernelBase, KernelToRegister>::value, void>::type = 0>
+  void register_new_kernel();
 
   /// \brief Generate a new instance of a registered \c MetaKernel.
   ///
   /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
-  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
+  /// valid; that is, \c is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
   /// provided \c register_new_method function.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodBase> create_new_instance(const std::string& key,
+  static std::unique_ptr<MetaKernelBase> create_new_instance(const std::string& key,
                                                              stk::mesh::BulkData* const bulk_data_ptr,
                                                              const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map(key)(bulk_data_ptr, parameter_list);
@@ -193,7 +199,7 @@ class MetaKernelFactory {
   //! \name Friends
   //@{
 
-  /// \brief Every concrete MetaKernel that inherits from the MetaKernelRegistry will be added to this factory's
+  /// \brief Every concrete \c MetaKernel that inherits from the \c MetaKernelRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   template <typename T>
   friend class MetaKernelRegistry<T>;
@@ -203,14 +209,15 @@ class MetaKernelFactory {
 //! \name template implementations
 //@{
 
-template <typename MethodToRegister>
-void MetaKernelFactory::register_new_method() {
-  const std::string key = MethodToRegister::get_class_identifier();
+template <typename KernelToRegister,
+          typename std::enable_if<std::is_base_of<MetaKernelBase, KernelToRegister>::value, void>::type = 0>
+void MetaKernelFactory::register_new_kernel() {
+  const std::string key = KernelToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                              "The provided key " << key << " already exists.");
-  get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
-  get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
-  get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
+  get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::create_new_instance));
+  get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::get_part_requirements));
+  get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::get_valid_params));
 }
 //@}
 

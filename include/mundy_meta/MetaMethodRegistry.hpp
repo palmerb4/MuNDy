@@ -49,7 +49,7 @@ struct MetaMethodRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register DerivedMetaMethod with the MetaMethodFactory.
+  /// @brief Register \c DerivedMetaMethod with the \c MetaMethodFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.

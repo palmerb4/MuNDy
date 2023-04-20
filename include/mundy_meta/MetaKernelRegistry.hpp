@@ -49,7 +49,7 @@ struct MetaKernelRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register DerivedMetaKernel with the MetaKernelFactory.
+  /// @brief Register \c DerivedMetaKernel with the \c MetaKernelFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.

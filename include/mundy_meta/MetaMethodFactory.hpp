@@ -87,12 +87,18 @@ class MetaMethodFactory {
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList>();
   //@}
 
-  //! \name Attributes
+  //! \name Getters
   //@{
 
   /// \brief Get the number of \c MetaMethod classes this factory recognizes.
   static size_t get_number_of_subclasses() {
     return get_instance_generator_map().size();
+  }
+
+  /// \brief Get if the provided key is valid or not
+  /// \param key [in] A key that may or may not correspond to a registered \c MetaMethod.
+  static bool is_valid_key(const std::string& key) {
+    return get_instance_generator_map().count(key) != 0;
   }
 
   /// \brief Get the requirements that this a registered \c MetaMethod imposes upon each particle and/or constraint.
@@ -136,7 +142,7 @@ class MetaMethodFactory {
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename MethodToRegister,
-            typename std::enable_if<std::is_base_of<MetaMethodBase, MethodToRegister>::value, void>::type>
+            typename std::enable_if<std::is_base_of<MetaMethodBase, MethodToRegister>::value, void>::type = 0>
   void register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
@@ -202,7 +208,7 @@ class MetaMethodFactory {
   //! \name Friends
   //@{
 
-  /// \brief Every concrete MetaMethod that inherits from the MetaMethodRegistry will be added to this factory's
+  /// \brief Every concrete \c MetaMethod that inherits from the \c MetaMethodRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   template <typename T>
   friend class MetaMethodRegistry<T>;

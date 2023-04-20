@@ -187,37 +187,13 @@ class FieldRequirements {
   /// match the current name of this field.
   ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
-  template <
-      class... ArgTypes,
-      typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type = 0>
+  template <class... ArgTypes, typename std::enable_if<std::conjunction<
+                                   std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type = 0>
   void merge(const ArgTypes &...list_of_field_reqs);
 
-  /// \brief Generate a new default constructed instance with the desired type.
-  ///
-  /// The current list of field type names and their corresponding types:
-  ///  - FLOAT -> float
-  ///  - DOUBLE -> double
-  ///  - INT -> int
-  ///  - INT64 -> int64_t
-  ///  - UNSIGNED -> unsigned
-  ///
-  /// \param field_type_string [in] A string containing a valid field type.
-  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const std::string &field_type_string,
-                                                                    const Teuchos::ParameterList &parameter_list) {
-    if (field_type_string == "FLOAT") {
-      return std::make_shared<FieldRequirements<float>>(parameter_list);
-    } else if (field_type_string == "DOUBLE") {
-      return std::make_shared<FieldRequirements<double>>(parameter_list);
-    } else if (field_type_string == "INT") {
-      return std::make_shared<FieldRequirements<int>>(parameter_list);
-    } else if (field_type_string == "INT64") {
-      return std::make_shared<FieldRequirements<int64_t>>(parameter_list);
-    } else if (field_type_string == "UNSIGNED") {
-      return std::make_shared<FieldRequirements<unsigned>>(parameter_list);
-    } else {
-      TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument,
-                                 "The provided field type string " << field_type_string << " is not supported.");
-    }
+  /// \brief Generate new instance of this class, constructed using the given parameter list.
+  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const Teuchos::ParameterList &parameter_list) {
+    return std::make_shared<FieldRequirements<FieldType>>(parameter_list);
   }
   //@}
 
@@ -440,8 +416,9 @@ void FieldRequirements<FieldType>::check_if_valid() const {
 }
 
 template <typename FieldType>
-template <class... ArgTypes,
-          typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type>
+template <
+    class... ArgTypes,
+    typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type>
 void FieldRequirements<FieldType>::merge(const ArgTypes &...list_of_field_reqs) {
   for (const auto &field_reqs : list_of_field_reqs) {
     // Check if the provided parameters are valid.
