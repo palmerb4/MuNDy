@@ -47,7 +47,7 @@ namespace methods {
 //{
 
 ComputeConstraintProjectionCollisionKernel::ComputeConstraintProjectionCollisionKernel(
-    const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+    stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_parameter_list = parameter_list;

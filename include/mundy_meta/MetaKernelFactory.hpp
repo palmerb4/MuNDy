@@ -77,7 +77,7 @@ class MetaKernelFactory {
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaKernel.
   using NewMetaKernelGenerator =
-      std::function<std::unique_ptr<MetaKernelBase>(const stk::mesh::BulkData*, const Teuchos::ParameterList&)>;
+      std::function<std::unique_ptr<MetaKernelBase>(stk::mesh::BulkData* const, const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartRequirements instance.
   using NewRequirementsGenerator = std::function<PartRequirements>(const Teuchos::ParameterList&);
@@ -149,7 +149,7 @@ class MetaKernelFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::unique_ptr<MetaMethodBase> create_new_instance(const std::string& key,
-                                                             const stk::mesh::BulkData* bulk_data_ptr,
+                                                             stk::mesh::BulkData* const bulk_data_ptr,
                                                              const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map(key)(bulk_data_ptr, parameter_list);
   }

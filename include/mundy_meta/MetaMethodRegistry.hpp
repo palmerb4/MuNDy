@@ -44,7 +44,7 @@ namespace meta {
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
 template <class DerivedMetaMethod, typename RegistryIdentifier = DefaultMethodIdentifier,
-          typename std::enable_if<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, void>::type>
+          typename std::enable_if<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, void>::type = 0>
 struct MetaMethodRegistry {
   //! \name Actions
   //@{

@@ -78,7 +78,7 @@ class MeshBuilder {
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
-  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *field_data_manager_ptr);
+  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
 
   /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
   ///

@@ -98,7 +98,7 @@ MeshBuilder &MeshBuilder::set_aura_option(const stk::mesh::BulkData::AutomaticAu
   return *this;
 }
 
-MeshBuilder &MeshBuilder::set_field_data_manager(stk::mesh::FieldDataManager *field_data_manager_ptr) {
+MeshBuilder &MeshBuilder::set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr) {
   field_data_manager_ptr_ = field_data_manager_ptr;
   builder_.set_field_data_manager(field_data_manager_ptr_);
   return *this;

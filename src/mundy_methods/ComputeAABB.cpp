@@ -49,7 +49,7 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeAABB::ComputeAABB(const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
+ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
                          const Teuchos::ParameterList &parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
   // The bulk data pointer must not be null.

@@ -26,17 +26,17 @@
 // C++ core libs
 #include <algorithm>    // for std::max
 #include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <stdexcept>    // for std::logic_error, std::invalid_argument
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
-#include <stdexcept>    // for std::logic_error, std::invalid_argument
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>    // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
-#include <stk_mesh/base/MetaData.hpp>      // for stk::mesh::MetaData
-#include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
-#include <stk_topology/topology.hpp>  // for stk::topology
+#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
+#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
+#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
+#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
+#include <stk_topology/topology.hpp>     // for stk::topology
 
 namespace mundy {
 
@@ -146,8 +146,8 @@ class FieldRequirements {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("name", "INVALID", "Name of the field.");
     default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the field.");
-    default_parameter_list.set("dimension", stk::topology::INVALID_TOPOLOGY, "Dimension of the part.");
-    default_parameter_list.set("min_number_of_states", stk::topology::INVALID_TOPOLOGY,
+    default_parameter_list.set("dimension", 0, "Dimension of the part.");
+    default_parameter_list.set("min_number_of_states", 1,
                                "Minimum number of rotating states that this field will have.");
     return default_parameter_list;
   }
@@ -157,7 +157,7 @@ class FieldRequirements {
   //@{
 
   /// \brief Declare/create the field that this class defines.
-  stk::mesh::Field<FieldType> &declare_field_on_part(const stk::mesh::MetaData *meta_data_ptr,
+  stk::mesh::Field<FieldType> &declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr,
                                                      const stk::mesh::Part &part) const;
 
   /// \brief Delete the field name constraint (if it exists).
@@ -187,58 +187,10 @@ class FieldRequirements {
   /// match the current name of this field.
   ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
-  template <class... ArgTypes,
-            typename std::enable_if<std::conjunction<std::is_convertible<Ts, FieldRequirements>...>::value>::type>
-  void merge(const ArgTypes &...list_of_field_reqs) {
-    for (const auto &field_reqs : list_of_field_reqs) {
-      // Check if the provided parameters are valid.
-      field_reqs.check_if_valid();
-
-      // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-      if (field_reqs.constrains_field_name()) {
-        if (this->constrains_field_name()) {
-          TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_name() == field_reqs.get_field_name(), std::invalid_argument,
-                                     "mundy::meta::FieldRequirements: One of the inputs has incompatible name ("
-                                         << field_reqs.get_field_name() << ").");
-        } else {
-          this->set_field_name(field_reqs.get_field_name());
-        }
-      }
-
-      if (field_reqs.constrains_field_rank()) {
-        if (this->constrains_field_rank()) {
-          TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_rank() == field_reqs.get_field_rank(), std::invalid_argument,
-                                     "mundy::meta::FieldRequirements: One of the inputs has incompatible rank ("
-                                         << field_reqs.get_field_rank() << ").");
-        } else {
-          this->set_field_rank(field_reqs.get_field_rank());
-        }
-      }
-
-      if (field_reqs.constrains_field_dimension()) {
-        if (this->constrains_field_dimension()) {
-          TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_dimension() == field_reqs.get_field_dimension(),
-                                     std::invalid_argument,
-                                     "mundy::meta::FieldRequirements: One of the inputs has incompatible dimension ("
-                                         << field_reqs.get_field_dimension() << ").");
-        } else {
-          this->set_field_dimension(field_reqs.get_field_dimension());
-        }
-      }
-
-      if (field_reqs.constrains_field_min_number_of_states()) {
-        if (this->constrains_field_min_number_of_states()) {
-          TEUCHOS_TEST_FOR_EXCEPTION(
-              this->get_field_min_number_of_states() == field_reqs.get_field_min_number_of_states(),
-              std::invalid_argument,
-              "mundy::meta::FieldRequirements: One of the inputs has incompatible minimum number of states ("
-                  << field_reqs.get_field_min_number_of_states() << ").");
-        } else {
-          this->set_field_min_number_of_states_if_larger(field_reqs.get_field_min_number_of_states());
-        }
-      }
-    }
-  }
+  template <
+      class... ArgTypes,
+      typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type = 0>
+  void merge(const ArgTypes &...list_of_field_reqs);
 
   /// \brief Generate a new default constructed instance with the desired type.
   ///
@@ -250,8 +202,8 @@ class FieldRequirements {
   ///  - UNSIGNED -> unsigned
   ///
   /// \param field_type_string [in] A string containing a valid field type.
-  static std::shared_ptr<FieldRequirementsBase> create_new_instance(
-      const std::string &field_type_string, const Teuchos::ParameterList &parameter_list) {
+  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const std::string &field_type_string,
+                                                                    const Teuchos::ParameterList &parameter_list) {
     if (field_type_string == "FLOAT") {
       return std::make_shared<FieldRequirements<float>>(parameter_list);
     } else if (field_type_string == "DOUBLE") {
@@ -293,7 +245,7 @@ class FieldRequirements {
 
   /// \brief If the minimum number of rotating states that this field will have is set or not.
   bool field_min_number_of_states_is_set_;
-}
+};  // FieldRequirements
 
 //! \name template implementations
 //@{
@@ -388,7 +340,7 @@ bool FieldRequirements<FieldType>::constrains_field_rank() const {
 }
 
 template <typename FieldType>
-bool FieldRequirements::constrains_field_dimension() const {
+bool FieldRequirements<FieldType>::constrains_field_dimension() const {
   return field_dimension_is_set_;
 }
 
@@ -440,7 +392,7 @@ unsigned FieldRequirements<FieldType>::get_field_min_number_of_states() const {
 
 template <typename FieldType>
 stk::mesh::Field<FieldType> &FieldRequirements<FieldType>::declare_field_on_part(
-    const stk::mesh::MetaData *meta_data_ptr, const stk::mesh::Part &part) const {
+    stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const {
   TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
                              "mundy::meta::FieldRequirements: MetaData pointer cannot be null).");
 
@@ -485,6 +437,60 @@ void FieldRequirements<FieldType>::delete_field_min_number_of_states_constraint(
 
 template <typename FieldType>
 void FieldRequirements<FieldType>::check_if_valid() const {
+}
+
+template <typename FieldType>
+template <class... ArgTypes,
+          typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type>
+void FieldRequirements<FieldType>::merge(const ArgTypes &...list_of_field_reqs) {
+  for (const auto &field_reqs : list_of_field_reqs) {
+    // Check if the provided parameters are valid.
+    field_reqs.check_if_valid();
+
+    // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
+    if (field_reqs.constrains_field_name()) {
+      if (this->constrains_field_name()) {
+        TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_name() == field_reqs.get_field_name(), std::invalid_argument,
+                                   "mundy::meta::FieldRequirements: One of the inputs has incompatible name ("
+                                       << field_reqs.get_field_name() << ").");
+      } else {
+        this->set_field_name(field_reqs.get_field_name());
+      }
+    }
+
+    if (field_reqs.constrains_field_rank()) {
+      if (this->constrains_field_rank()) {
+        TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_rank() == field_reqs.get_field_rank(), std::invalid_argument,
+                                   "mundy::meta::FieldRequirements: One of the inputs has incompatible rank ("
+                                       << field_reqs.get_field_rank() << ").");
+      } else {
+        this->set_field_rank(field_reqs.get_field_rank());
+      }
+    }
+
+    if (field_reqs.constrains_field_dimension()) {
+      if (this->constrains_field_dimension()) {
+        TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_dimension() == field_reqs.get_field_dimension(),
+                                   std::invalid_argument,
+                                   "mundy::meta::FieldRequirements: One of the inputs has incompatible dimension ("
+                                       << field_reqs.get_field_dimension() << ").");
+      } else {
+        this->set_field_dimension(field_reqs.get_field_dimension());
+      }
+    }
+
+    if (field_reqs.constrains_field_min_number_of_states()) {
+      if (this->constrains_field_min_number_of_states()) {
+        TEUCHOS_TEST_FOR_EXCEPTION(
+            this->get_field_min_number_of_states() == field_reqs.get_field_min_number_of_states(),
+            std::invalid_argument,
+            "mundy::meta::FieldRequirements: One of the inputs has incompatible minimum number of states ("
+                << field_reqs.get_field_min_number_of_states() << ").");
+      } else {
+        this->set_field_min_number_of_states_if_larger(field_reqs.get_field_min_number_of_states());
+      }
+    }
+  }
 }
 
 //}
