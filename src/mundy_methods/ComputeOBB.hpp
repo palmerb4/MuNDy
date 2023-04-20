@@ -59,44 +59,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB, void>, public MetaMethodRegistr
 
   /// \brief Constructor
   ComputeOBB(const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
-             const Teuchos::ParameterList &parameter_list)
-      : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
-    // The bulk data pointer must not be null.
-    TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                               "mundy::methods::ComputeOBB: bulk_data_ptr cannot be a nullptr.");
-
-    // The parts cannot intersect.
-    for (int i = 0; i < num_parts_; i++) {
-      for (int j = 0; j < num_parts_; j++) {
-        if (i = !j) {
-          const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
-          TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                     "mundy::methods::ComputeOBB: Part " << part_ptr_vector[i]->name() << " and "
-                                                                         << "Part " << part_ptr_vector[j]->name()
-                                                                         << "intersect.");
-        }
-      }
-    }
-
-    // Store the input parameters, use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
-
-    // Create and store the required kernels.
-    for (int i = 0; i < num_parts_; i++) {
-      // Fetch the parameters for this part's kernel
-      const std::string part_name = part_ptr_vector_[i]->name();
-      const Teuchos::ParameterList &part_parameter_list = valid_parameter_list.sublist(part_name);
-      const Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_obb");
-
-      // Create the kernel instance.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      compute_obb_kernels_.push_back(
-          MetaKernelFactory<ComputeOBB>::create_new_instance(kernel_name, bulk_data_ptr, part_kernel_parameter_list));
-    }
-  }
+             const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -171,19 +134,7 @@ class ComputeOBB : public MetaMethod<ComputeOBB, void>, public MetaMethodRegistr
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() {
-    for (int i = 0; i < num_parts_; i++) {
-      const MetaKernel &compute_obb_kernel = compute_obb_kernels_[i];
-
-      stk::mesh::Selector locally_owned_part =
-          bulk_data_ptr->mesh_meta_data().locally_owned_part() && *part_ptr_vector_[i];
-      stk::mesh::for_each_entity_run(
-          *bulk_data_ptr, stk::topology::ELEM_RANK, locally_owned_part,
-          [&compute_obb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-            compute_obb_kernel->execute(element);
-          });
-    }
-  }
+  void execute();
   //@}
 
  private:

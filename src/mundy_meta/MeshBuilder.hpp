@@ -20,7 +20,7 @@
 #ifndef MUNDY_META_MESHBUILDER_HPP_
 #define MUNDY_META_MESHBUILDER_HPP_
 
-/// \file MeshBuilder.hpp
+/// \file MeshBuilder.cpp
 /// \brief Declaration of the MeshBuilder class
 
 // C++ core libs
@@ -33,8 +33,8 @@
 #include <stk_mesh/base/FieldDataManager.hpp>      // for stl::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
 #include <stk_mesh/base/MetaData.hpp>              // for stk::mesh::MetaData
-#include <stk_mesh/baseImpl/BucketRepository.hpp>  // stk::impl::BucketRepository
 #include <stk_util/parallel/Parallel.hpp>          // for stk::ParallelMachine
+
 namespace mundy {
 
 namespace meta {
@@ -50,30 +50,10 @@ class MeshBuilder {
   //@{
 
   /// \brief Default constructor
-  MeshBuilder()
-      : builder_(MPI_COMM_NULL),
-        comm_(MPI_COMM_NULL),
-        has_comm_(false),
-        aura_option_(stk::mesh::BulkData::AUTO_AURA),
-        field_data_manager_ptr_(nullptr),
-        bucket_capacity_(stk::impl::BucketRepository::default_bucket_capacity),
-        spatial_dimension_(0),
-        entity_rank_names(),
-        upward_connectivity_flag_(true) {
-  }
+  MeshBuilder();
 
   /// \brief Constructor with given given communicator.
-  explicit MeshBuilder(stk::ParallelMachine comm)
-      : builder_(comm),
-        comm_(comm),
-        has_comm_(true),
-        aura_option_(stk::mesh::BulkData::AUTO_AURA),
-        field_data_manager_ptr_(nullptr),
-        bucket_capacity_(stk::impl::BucketRepository::default_bucket_capacity),
-        spatial_dimension_(0),
-        entity_rank_names(),
-        upward_connectivity_flag_(true) {
-  }
+  explicit MeshBuilder(stk::ParallelMachine comm);
 
   //@}
 
@@ -82,85 +62,47 @@ class MeshBuilder {
 
   /// \brief Set the spatial dimension of the mash.
   /// \param spatial_dimension [in] The dimension of the space within which the parts and entities reside.
-  MeshBuilder &set_spatial_dimension(const unsigned spatial_dimension) {
-    spatial_dimension_ = spatial_dimension;
-    builder_.set_spatial_dimension(spatial_dimension_);
-    return *this;
-  }
+  MeshBuilder &set_spatial_dimension(const unsigned spatial_dimension);
 
   /// \brief Set the names assigned to each rank.
   /// \param entity_rank_names [in] The snames assigned to each rank.
-  MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names) {
-    entity_rank_names_ = entity_rank_names;
-    builder_.set_entity_rank_names(entity_rank_names_);
-    return *this;
-  }
+  MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
 
   /// \brief Set the MPI communicator to be used by STK.
   /// \param comm [in] The MPI communicator.
-  MeshBuilder &set_communicator(const stk::ParallelMachine &comm) {
-    comm_ = comm;
-    has_comm_ = true;
-    builder_.set_communicator(comm_);
-    return *this;
-  }
+  MeshBuilder &set_communicator(const stk::ParallelMachine &comm);
 
   /// \brief Set the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
   /// \param aura_option [in] The chosen Aura option.
-  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option) {
-    aura_option_ = aura_option;
-    builder_.set_aura_option(aura_option_);
-    return *this;
-  }
+  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
-  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *field_data_manager_ptr) {
-    field_data_manager_ptr_ = field_data_manager_ptr;
-    builder_.set_field_data_manager(field_data_manager_ptr_);
-    return *this;
-  }
+  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *field_data_manager_ptr);
 
   /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
   ///
   /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
   ///
   /// \param bucket_capacity [in] The bucket capacity.
-  MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity) {
-    bucket_capacity_ = bucket_capacity;
-    builder_.set_bucket_capacity(bucket_capacity_);
-    return *this;
-  }
+  MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity);
 
   /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  MeshBuilder &set_upward_connectivity(const bool enable_upward_connectivity) {
-    enable_upward_connectivity_ = enable_upward_connectivity;
-    builder_.set_upward_connectivity(enable_upward_connectivity_);
-    return *this;
-  }
+  MeshBuilder &set_upward_connectivity(const bool enable_upward_connectivity);
   //@}
 
   //! @name Actions
   //@{
 
   /// \brief Create a new MetaData instance.
-  std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
-    return builder_.create_meta_data();
-  }
+  std::shared_ptr<stk::mesh::MetaData> create_meta_data();
 
   /// \brief Create a new BulkData instance.
-  std::unique_ptr<BulkData> create_bulk_data() {
-    return this.create_bulk_data(this.create_meta_data());
-  }
+  std::unique_ptr<stk::mesh::BulkData> create_bulk_data();
 
   /// \brief Create a new BulkData instance using an existing MetaData instance.
-  std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> metaData) {
-    TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
-                               "mundy::meta::MeshBuilder must be given an MPI communicator before creating BulkData.");
-
-    return builder_.create();
-  }
+  std::unique_ptr<stk::mesh::BulkData> create_bulk_data(std::shared_ptr<stk::mesh::MetaData> meta_data);
   //@}
 
  private:
@@ -201,5 +143,4 @@ class MeshBuilder {
 
 }  // namespace mundy
 
-//}
 #endif  // MUNDY_META_MESHBUILDER_HPP_

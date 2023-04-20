@@ -89,7 +89,7 @@ class MetaKernelFactory {
   //@{
 
   /// \brief Get the number of \c MetaKernel classes this factory recognizes.
-  static size_t get_number_of_subclasses() {
+  static size_t get_number_of_subclasses() const {
     return get_instance_generator_map().size();
   }
 
@@ -107,7 +107,7 @@ class MetaKernelFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
   static std::unique_ptr<PartRequirements> get_part_requirements(const std::string& key,
-                                                                 const Teuchos::ParameterList& parameter_list) {
+                                                                 const Teuchos::ParameterList& parameter_list) const {
     return get_instance_generator_map()[key](parameter_list);
   }
 
@@ -122,7 +122,7 @@ class MetaKernelFactory {
   /// yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
-  static Teuchos::ParameterList get_valid_params(const std::string& key) {
+  static Teuchos::ParameterList get_valid_params(const std::string& key) const {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
@@ -135,14 +135,7 @@ class MetaKernelFactory {
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename MethodToRegister,
             typename std::enable_if<std::is_base_of<MetaKernelBase, MethodToRegister>::value, void>::type>
-  std::unique_ptr<MetaKernelFactory> register_new_method() {
-    const std::string key = MethodToRegister::get_class_identifier();
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                               "The provided key " << key << " already exists.");
-    get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
-    get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
-    get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
-  }
+  void register_new_method();
 
   /// \brief Generate a new instance of a registered \c MetaKernel.
   ///
@@ -154,9 +147,9 @@ class MetaKernelFactory {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaKernelFactory> create_new_instance(const std::string& key,
-                                                                const stk::mesh::BulkData* bulk_data_ptr,
-                                                                const Teuchos::ParameterList& parameter_list) {
+  static std::unique_ptr<MetaMethodBase> create_new_instance(const std::string& key,
+                                                             const stk::mesh::BulkData* bulk_data_ptr,
+                                                             const Teuchos::ParameterList& parameter_list) const {
     return get_instance_generator_map(key)(bulk_data_ptr, parameter_list);
   }
   //@}
@@ -206,9 +199,22 @@ class MetaKernelFactory {
   //@}
 };  // MetaKernelFactory
 
+//! \name template implementations
+//@{
+
+template <typename MethodToRegister>
+void MetaKernelFactory::register_new_method() {
+  const std::string key = MethodToRegister::get_class_identifier();
+  TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
+                             "The provided key " << key << " already exists.");
+  get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
+  get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
+  get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
+}
+//@}
+
 }  // namespace meta
 
 }  // namespace mundy
 
-//}
 #endif  // MUNDY_META_METAKERNELFACTORY_HPP_

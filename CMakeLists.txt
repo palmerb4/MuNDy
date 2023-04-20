@@ -113,11 +113,6 @@ target_link_libraries(${mundy_exe_name} PRIVATE mundy)
 
 add_subdirectory(src)
 
-export(
-  TARGETS mundy
-  NAMESPACE ${PROJECT_NAME}::
-  FILE ${PROJECT_NAME}Targets.cmake)
-
 install(TARGETS ${mundy_exe_name} mundy
         EXPORT "${PROJECT_NAME}Targets"
         RUNTIME DESTINATION bin

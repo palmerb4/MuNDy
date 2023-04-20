@@ -55,23 +55,7 @@ class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel, void>,
 
   /// \brief Constructor
   explicit ComputeOBBSphereKernel(const stk::mesh::BulkData *bulk_data_ptr,
-                                  const Teuchos::ParameterList &parameter_list) {
-    // Store the input parameters, use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
-
-    // Fill the internal members using the internal parameter list
-    buffer_distance_ = valid_parameter_list.get<double>("buffer_distance");
-    obb_field_name_ = valid_parameter_list.get<std::string>("obb_field_name");
-    radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
-    node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coordinate_field_name");
-
-    // Store the input params.
-    obb_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
-    radius_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    node_coord_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  }
+                                  const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -114,19 +98,9 @@ class ComputeOBBSphereKernel : public MetaKernel<ComputeOBBSphereKernel, void>,
   //! \name Actions
   //@{
 
-  void execute(const stk::mesh::Entity &element) {
-    stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
-    double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
-    double *radius = stk::mesh::field_data(radius_field, element);
-    double *obb = stk::mesh::field_data(obb_field, element);
-
-    obb[0] = coords[0] - radius[0] - buffer_distance_;
-    obb[1] = coords[1] - radius[0] - buffer_distance_;
-    obb[2] = coords[2] - radius[0] - buffer_distance_;
-    obb[3] = coords[0] + radius[0] + buffer_distance_;
-    obb[4] = coords[1] + radius[0] + buffer_distance_;
-    obb[5] = coords[2] + radius[0] + buffer_distance_;
-  }
+  /// \brief Run the kernel's core calculation.
+  /// \param element [in] The element acted on by the kernel.
+  void execute(const stk::mesh::Entity &element);
   //@}
 
  private:

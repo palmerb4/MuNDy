@@ -108,7 +108,7 @@ class MetaMethodFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
   static std::unique_ptr<PartRequirements> get_part_requirements(const std::string& key,
-                                                                 const Teuchos::ParameterList& parameter_list) {
+                                                                 const Teuchos::ParameterList& parameter_list) const {
     return get_instance_generator_map()[key](parameter_list);
   }
 
@@ -123,7 +123,7 @@ class MetaMethodFactory {
   /// yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
-  static Teuchos::ParameterList get_valid_params(const std::string& key) {
+  static Teuchos::ParameterList get_valid_params(const std::string& key) const {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
@@ -136,7 +136,7 @@ class MetaMethodFactory {
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename MethodToRegister,
             typename std::enable_if<std::is_base_of<MetaMethodBase, MethodToRegister>::value, void>::type>
-  std::unique_ptr<MetaMethodFactory> register_new_method() {
+  void register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                                "The provided key " << key << " already exists.");
@@ -155,10 +155,10 @@ class MetaMethodFactory {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodFactory> create_new_instance(const std::string& key,
-                                                                const stk::mesh::BulkData* bulk_data_ptr,
-                                                                const std::vector<*stk::mesh::Part>& part_ptr_vector,
-                                                                const Teuchos::ParameterList& parameter_list) {
+  static std::unique_ptr<MetaMethodBase> create_new_instance(const std::string& key,
+                                                             const stk::mesh::BulkData* bulk_data_ptr,
+                                                             const std::vector<*stk::mesh::Part>& part_ptr_vector,
+                                                             const Teuchos::ParameterList& parameter_list) const {
     return get_instance_generator_map(key)(bulk_data_ptr, part_ptr_vector, parameter_list);
   }
   //@}
@@ -208,9 +208,24 @@ class MetaMethodFactory {
   //@}
 };  // MetaMethodFactory
 
+//! \name template implementations
+//@{
+
+/// \brief Register a method. The key for the method is determined by its class identifier.
+template <typename MethodToRegister,
+          typename std::enable_if<std::is_base_of<MetaMethodBase, MethodToRegister>::value, void>::type>
+void MetaMethodFactory::register_new_method() {
+  const std::string key = MethodToRegister::get_class_identifier();
+  TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
+                             "The provided key " << key << " already exists.");
+  get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
+  get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
+  get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
+}
+
+//@}
 }  // namespace meta
 
 }  // namespace mundy
 
-//}
 #endif  // MUNDY_META_METAMETHODFACTORY_HPP_

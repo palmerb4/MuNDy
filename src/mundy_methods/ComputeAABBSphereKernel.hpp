@@ -119,6 +119,8 @@ class ComputeAABBSphereKernel : public MetaKernel<ComputeAABBSphereKernel, void>
   //! \name Actions
   //@{
 
+  /// \brief Run the kernel's core calculation.
+  /// \param element [in] The element acted on by the kernel.
   void execute(const stk::mesh::Entity &element) {
     stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
     double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);

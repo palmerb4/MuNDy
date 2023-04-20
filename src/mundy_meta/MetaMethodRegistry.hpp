@@ -67,7 +67,7 @@ struct MetaMethodRegistry {
   //@}
 };  // MetaMethodRegistry
 
-/// @brief Perform the registration.
+/// @brief Perform the static registration.
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
@@ -81,5 +81,4 @@ const bool MetaMethodRegistry<DerivedMetaMethod>::is_registered =
 
 }  // namespace mundy
 
-//}
 #endif  // MUNDY_META_METAMETHODREGISTRY_HPP_

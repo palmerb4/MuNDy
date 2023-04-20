@@ -116,12 +116,10 @@ class MetaKernel : public Teuchos::Describable {
   /// \brief Run the kernel's core calculation.
   virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
   //@}
-
 };  // MetaKernel
 
 }  // namespace meta
 
 }  // namespace mundy
 
-//}
 #endif  // MUNDY_META_METAKERNEL_HPP_

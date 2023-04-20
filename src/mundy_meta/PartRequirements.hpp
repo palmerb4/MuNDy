@@ -32,7 +32,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>    // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/MetaData.hpp>      // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
 #include <stk_topology/base/topology.hpp>  // for stk::topology
@@ -60,10 +59,7 @@ class PartRequirements {
   /// \param part_name [in] Name of the part.
   ///
   /// \param part_topology [in] Topology of entities within the part.
-  PartRequirements(const std::string &part_name, const stk::topology &part_topology) {
-    this.set_part_name(part_name);
-    this.set_part_topology(part_topology);
-  }
+  PartRequirements(const std::string &part_name, const stk::topology &part_topology);
 
   /// \brief Constructor with partial requirements. Version 2.
   ///
@@ -74,59 +70,12 @@ class PartRequirements {
   /// of topology.
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
-  PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank) {
-    this.set_part_name(part_name);
-    this.set_part_rank(part_rank);
-  }
-
+  PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank);
   /// \brief Construct from a parameter list.
   ///
   /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid
   /// parameters is accessible via \c get_valid_params.
-  explicit PartRequirements(const Teuchos::ParameterList &parameter_list) {
-    // Validate the input params. Throws an error if a parameter is defined but not in the valid params.
-    // This helps catch misspellings.
-    parameter_list.validateParameters(this.get_valid_params());
-
-    // Store the given parameters.
-    if (parameter_list.isParameter("name")) {
-      const std::string part_name = parameter_list.get<std::string>("name");
-      this.set_part_name(part_name);
-    }
-    if (parameter_list.isParameter("topology")) {
-      const std::string part_topology_name = parameter_list.get<std::string>("topology");
-      this.set_part_topology(part_topology_name);
-    }
-    if (parameter_list.isParameter("rank")) {
-      const std::string part_rank_name = parameter_list.get<std::string>("rank");
-      this.set_part_topology(part_rank_name);
-    }
-
-    // Store the field params.
-    if (parameter_list.isSublist("fields")) {
-      const Teuchos::ParameterList &fields_sublist = parameter_list.sublist("fields");
-      const unsigned num_fields = fields_sublist.get<std::string>("count");
-      for (int i = 0; i < num_fields; i++) {
-        const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(num_fields));
-        const std::string field_type_string = field_i_sublist.get<std::string>("type");
-        std::shared_ptr<FieldRequirementsBase> field_i =
-            FieldRequirements::create_new_instance(field_type_string, field_i_sublist);
-        this.add_field_reqs(field_i);
-      }
-    }
-
-    // Store the sub-part params.
-    if (parameter_list.isSublist("sub_parts")) {
-      const Teuchos::ParameterList &subparts_sublist = parameter_list.sublist("sub_parts");
-      const unsigned num_subparts = subparts_sublist.get<std::string>("count");
-      for (int i = 0; i < num_subparts; i++) {
-        const Teuchos::ParameterList &subpart_i_sublist =
-            parameter_list.sublist("sub_part_" + std::to_string(num_subparts));
-        std::shared_ptr<PartRequirements> subpart_i = std::make_shared<PartRequirements>(subpart_i_sublist);
-        this.add_subpart_reqs(subpart_i);
-      }
-    }
-  }
+  explicit PartRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name Setters and Getters
@@ -134,102 +83,52 @@ class PartRequirements {
 
   /// \brief Set the required part name.
   /// \brief part_name [in] Required name of the part.
-  void set_part_name(const std::string &part_name) {
-    part_name_ = part_name;
-    part_name_is_set_ = true;
-    this.check_if_valid();
-  }
+  void set_part_name(const std::string &part_name);
 
   /// \brief Set the required part topology.
   /// \brief part_topology [in] Required topology of the part.
-  void set_part_topology(const stk::topology &part_topology) {
-    part_topology_ = part_topology_;
-    part_topology_is_set_ = true;
-    this.check_if_valid();
-  }
+  void set_part_topology(const stk::topology &part_topology);
 
   /// \brief Set the required part topology using a valid topology string name.
   /// \brief part_topology_name [in] Required topology of the part.
-  void set_part_topology(const std::string &part_topology_string) {
-    const stk::topology part_topology = mundy::meta::map_string_to_topology(part_topology_string);
-    this.set_part_topology(part_topology);
-  }
+  void set_part_topology(const std::string &part_topology_string);
 
   /// \brief Set the required part rank.
   /// \brief part_rank [in] Required rank of the part.
-  void set_part_rank(const stk::topology::rank_t &part_rank) {
-    part_rank_ = part_rank;
-    part_rank_is_set_ = true;
-    this.check_if_valid();
-  }
+  void set_part_rank(const stk::topology::rank_t &part_rank);
 
   /// \brief Set the required part rank using a valid rank string name.
   /// \brief part_rank [in] Required rank of the part.
-  void set_part_rank(const std::string &part_rank_string) {
-    const stk::topology::rank_t part_rank = mundy::meta::map_string_to_rank(part_rank_string);
-    this.set_part_rank(part_rank);
-  }
+  void set_part_rank(const std::string &part_rank_string);
 
   /// \brief Get if the part name is constrained or not.
-  bool constrains_part_name() {
-    return part_name_is_set_;
-  }
+  bool constrains_part_name() const;
 
   /// \brief Get if the part topology is constrained or not.
-  bool constrains_part_topology() {
-    return part_name_is_set_;
-  }
+  bool constrains_part_topology() const;
 
   /// \brief Get if the part rank is constrained or not.
-  bool constrains_part_rank() {
-    return part_name_is_set_;
-  }
+  bool constrains_part_rank() const;
 
   /// \brief Return the part name.
   /// Will throw an error if the part name is not constrained.
-  std::string get_part_name() {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        !this.constrains_part_name(), std::logic_error,
-        "Attempting to access the part name requirement even though part name is unconstrained.");
-
-    return part_name_;
-  }
+  std::string get_part_name() const;
 
   /// \brief Return the part topology.
   /// Will throw an error if the part topology is not constrained.
-  stk::topology get_part_topology() {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        !this.constrains_part_topology(), std::logic_error,
-        "Attempting to access the part topology requirement even though part topology is unconstrained.");
-
-    return part_topology_;
-  }
+  stk::topology get_part_topology() const;
 
   /// \brief Return the part rank.
   /// Will throw an error if the part rank is not constrained.
-  stk::topology::rank_t get_part_rank() {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        !this.constrains_part_rank(), std::logic_error,
-        "Attempting to access the part rank requirement even though part rank is unconstrained.");
-
-    return part_rank_;
-  }
+  stk::topology::rank_t get_part_rank() const;
 
   /// \brief Return the part field map.
   /// \brief field_rank [in] Rank associated with the retrieved fields.
   std::vector<std::map<std::string, std::shared_ptr<const FieldRequirementsBase>>> get_part_field_map(
-      const stk::topology::rank_t &field_rank) {
-    return part_ranked_field_maps_[field_rank];
-  }
+      const stk::topology::rank_t &field_rank) const;
 
   /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList get_valid_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("name", "INVALID", "Name of the part.");
-    default_parameter_list.set("topology", stk::topology::INVALID_TOPOLOGY, "Topology of the part.");
-    default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the part.");
-    return default_parameter_list;
-  }
+  static Teuchos::ParameterList get_valid_params() const;
   //@}
 
   //! \name Actions
@@ -246,96 +145,34 @@ class PartRequirements {
   /// In each case, the part name must be set or an error will be thrown.
   ///
   /// \note Redeclaration of a previously declared part, will return the previous part.
-  stk::mesh::Part &declare_part(const stk::mesh::MetaData *meta_data_ptr) {
-    TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
-                               "mundy::meta::PartRequirements: MetaData pointer cannot be null).");
-    TEUCHOS_TEST_FOR_EXCEPTION(this.constrains_part_name(), std::logic_error,
-                               "mundy::meta::PartRequirements: Part name must be set before calling declare_part.");
-
-    // Declare the Part.
-    if (this.constrains_part_topology()) {
-      return meta_data_ptr->declare_part_with_topology(this.get_part_name(), this.get_part_topology());
-    } else if (this.constrains_part_rank()) {
-      return meta_data_ptr->declare_part(this.get_part_name(), this.get_part_rank());
-    } else {
-      return meta_data_ptr->declare_part(this.get_part_name());
-    }
-
-    // Declare the Part's fields and associate them with the Part.
-    // Loop over each rank's field map.
-    for (auto const &part_field_map : part_ranked_field_maps_) {
-      // Loop over each field and attempt to merge it.
-      for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
-        field_reqs_ptr->declare_field_on_part(meta_data_ptr, part);
-      }
-    }
-
-    // Declare the sub-parts and declare them as sub-parts.
-    // Each sub-part will. in turn, declare their fields and subparts.
-    for ([[maybe_unused]] auto const &[subpart_name, subpart_reqs_ptr] : part_subpart_map_) {
-      stk::mesh::Part &subpart = subpart_reqs_ptr->declare_part(meta_data_ptr);
-      meta_data_ptr->declare_part_subset(part, subpart);
-    }
-  }
+  stk::mesh::Part &declare_part(const stk::mesh::MetaData *meta_data_ptr) const;
 
   /// \brief Delete the part name constraint (if it exists).
-  void delete_part_name_constraint() {
-    part_name_is_set_ = false;
-  }
+  void delete_part_name_constraint();
 
   /// \brief Delete the part topology constraint (if it exists).
-  void delete_part_topology_constraint() {
-    part_topology_is_set_ = false;
-  }
+  void delete_part_topology_constraint();
 
   /// \brief Delete the part rank constraint (if it exists).
-  void delete_part_rank_constraint() {
-    part_rank_is_set_ = false;
-  }
+  void delete_part_rank_constraint();
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means:
   ///   1. the rank of the fields does not exceed the rank of the part's topology.
-  void check_if_valid() {
-    ThrowRequireMsg(false, "not implemented yet");
-  }
+  void check_if_valid() const;
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
   /// \param field_reqs [in] Field parameters to add to the part.
-  void add_field_reqs(const std::shared_ptr<FieldRequirementsBase> &field_reqs) {
-    // Check if the provided parameters are valid.
-    field_reqs.check_if_valid();
-
-    // If a field with the same name and rank exists, attempt to merge them.
-    // Otherwise, create a new field entity.
-    const std::string field_name = field_reqs.get_field_name();
-    const unsigned field_rank = field_reqs.get_field_rank();
-
-    auto part_field_map_ptr = part_ranked_field_maps_.data() + field_rank;
-    const bool name_already_exists = (part_field_map_ptr->count(field_name) != 0);
-    if (name_already_exists) {
-      *part_field_map_ptr[field_name]->merge(field_reqs);
-    } else {
-      *part_field_map_ptr[field_name] = field_reqs;
-    }
-  }
+  void add_field_reqs(const std::shared_ptr<FieldRequirementsBase> &field_reqs);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
   /// TODO: Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
   /// \param part_reqs [in] Sub-part requirements to add to the part.
-  void add_subpart_reqs(const std::shared_ptr<const PartRequirements> &part_reqs) {
-    // Check if the provided parameters are valid.
-    part_reqs.check_if_valid();
-
-    // Check for conflicts?
-
-    // Store the params.
-    part_subpart_map_[part_reqs.get_part_name(), part_reqs];
-  }
+  void add_subpart_reqs(const std::shared_ptr<const PartRequirements> &part_reqs);
 
   /// \brief Merge the current requirements with any number of other \c PartRequirements.
   ///
@@ -346,51 +183,7 @@ class PartRequirements {
   /// \param list_of_part_reqs [in] A list of other \c PartRequirements objects to merge with the current object.
   template <class... ArgTypes,
             typename std::enable_if<std::conjunction<std::is_convertible<Ts, PartRequirements>...>::value>::type>
-  void merge(const ArgTypes &...list_of_part_reqs) {
-    for (const auto &part_reqs : list_of_part_reqs) {
-      // Check if the provided parameters are valid.
-      part_reqs.check_if_valid();
-
-      // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-      if (part_reqs.constrains_part_name()) {
-        if (this.constrains_part_name()) {
-          TEUCHOS_TEST_FOR_EXCEPTION(this.get_part_name() == part_reqs.get_part_name(), std::invalid_argument,
-                                     "mundy::meta::PartRequirements: One of the inputs has incompatible name ("
-                                         << part_reqs.get_part_name() << ").");
-        } else {
-          this.set_part_name(part_reqs.get_part_name());
-        }
-      }
-
-      if (part_reqs.constrains_part_rank()) {
-        if (this.constrains_part_rank()) {
-          TEUCHOS_TEST_FOR_EXCEPTION(this.get_part_rank() == part_reqs.get_part_rank(), std::invalid_argument,
-                                     "mundy::meta::PartRequirements: One of the inputs has incompatible rank ("
-                                         << part_reqs.get_part_rank() << ").");
-        } else {
-          this.set_part_rank(part_reqs.get_part_rank());
-        }
-      }
-
-      if (part_reqs.constrains_part_topology()) {
-        if (this.constrains_part_topology()) {
-          TEUCHOS_TEST_FOR_EXCEPTION(this.get_part_topology() == part_reqs.get_part_topology(), std::invalid_argument,
-                                     "mundy::meta::PartRequirements: One of the inputs has incompatible topology ("
-                                         << part_reqs.get_part_topology() << ").");
-        } else {
-          this.set_part_topology(part_reqs.get_part_topology());
-        }
-      }
-
-      // Loop over each rank's field map.
-      for (auto const &part_field_map : part_reqs.get_part_field_map()) {
-        // Loop over each field and attempt to merge it.
-        for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
-          this.add_field_reqs(field_reqs_ptr);
-        }
-      }
-    }
-  }
+  void merge(const ArgTypes &...list_of_part_reqs);
   //@}
 
  private:
@@ -424,5 +217,4 @@ class PartRequirements {
 
 }  // namespace mundy
 
-//}
 #endif  // MUNDY_META_PARTPARAMS_HPP_

@@ -55,22 +55,7 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
 
   /// \brief Constructor
   explicit ComputeBoundingRadiusSphereKernel(const stk::mesh::BulkData *bulk_data_ptr,
-                                             const Teuchos::ParameterList &parameter_list) {
-    // Store the input parameters, use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(this.get_valid_params());
-
-    // Fill the internal members using the internal parameter list.
-    buffer_distance_ = valid_parameter_list.get<double>("buffer_distance");
-    radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
-    bounding_radius_field_name_ = valid_parameter_list.get<std::string>("bounding_radius_field_name");
-
-    // Store the input params.
-    radius_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    bounding_radius_field_ptr_ =
-        *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, bounding_radius_field_name_);
-  }
+                                             const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -113,11 +98,9 @@ class ComputeBoundingRadiusSphereKernel : public MetaKernel<ComputeBoundingRadiu
   //! \name Actions
   //@{
 
-  void execute(const stk::mesh::Entity &element) {
-    double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-    double *bounding_sphere = stk::mesh::field_data(*bounding_sphere_field_ptr_, element);
-    bounding_sphere[0] = radius[0] + buffer_distance_;
-  }
+  /// \brief Run the kernel's core calculation.
+  /// \param element [in] The element acted on by the kernel.
+  void execute(const stk::mesh::Entity &element);
   //@}
 
  private:
