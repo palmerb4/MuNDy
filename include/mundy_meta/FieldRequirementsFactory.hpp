@@ -82,7 +82,7 @@ class FieldRequirementsFactory {
       std::function<std::shared_ptr<FieldRequirementsBase>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
-  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList>();
+  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
   //@}
 
   //! \name Getters
@@ -120,9 +120,10 @@ class FieldRequirementsFactory {
   //@{
 
   /// \brief Register a new field type with the given string. This type must be trivially copyable.
+  /// \param field_type_string [in] The field type string to associate with \c FieldTypeToRegister.
   template <typename FieldTypeToRegister,
-            typename std::enable_if<std::is_trivially_copyable<FieldTypeToRegister>::value, void>::type = 0>
-  void register_new_field_type();
+            std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> = true>
+  void register_new_field_type(const std::string& field_type_string);
 
   /// \brief Generate a new instance of a registered \c FieldRequirements.
   ///
@@ -136,7 +137,7 @@ class FieldRequirementsFactory {
   /// accessible via \c get_valid_params.
   static std::shared_ptr<FieldRequirementsBase> create_new_instance(const std::string& field_type_string,
                                                                     const Teuchos::ParameterList& parameter_list) {
-    return get_instance_generator_map(field_type_string)(parameter_list);
+    return get_instance_generator_map()[field_type_string](parameter_list);
   }
   //@}
 
@@ -180,7 +181,7 @@ class FieldRequirementsFactory {
 //@{
 
 template <typename FieldTypeToRegister,
-          typename std::enable_if<std::is_trivially_copyable<FieldTypeToRegister>::value, void>::type>
+          std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool>>
 void FieldRequirementsFactory::register_new_field_type(const std::string& field_type_string) {
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_field_type_string(field_type_string), std::invalid_argument,
                              "The provided field type string " << field_type_string << " already exists.");

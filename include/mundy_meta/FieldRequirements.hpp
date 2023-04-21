@@ -187,8 +187,9 @@ class FieldRequirements {
   /// match the current name of this field.
   ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
-  template <class... ArgTypes, typename std::enable_if<std::conjunction<
-                                   std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type = 0>
+  template <
+      class... ArgTypes,
+      std::enable_if_t<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value, bool> = true>
   void merge(const ArgTypes &...list_of_field_reqs);
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
@@ -418,7 +419,7 @@ void FieldRequirements<FieldType>::check_if_valid() const {
 template <typename FieldType>
 template <
     class... ArgTypes,
-    typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value>::type>
+    std::enable_if_t<std::conjunction<std::is_convertible<ArgTypes, FieldRequirementsBase>...>::value, bool>>
 void FieldRequirements<FieldType>::merge(const ArgTypes &...list_of_field_reqs) {
   for (const auto &field_reqs : list_of_field_reqs) {
     // Check if the provided parameters are valid.

@@ -83,7 +83,7 @@ class MetaKernelFactory {
   using NewRequirementsGenerator = std::function<PartRequirements>(const Teuchos::ParameterList&);
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
-  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList>();
+  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
   //@}
 
   //! \name Getters
@@ -141,7 +141,7 @@ class MetaKernelFactory {
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename KernelToRegister,
-            typename std::enable_if<std::is_base_of<MetaKernelBase, KernelToRegister>::value, void>::type = 0>
+            std::enable_if_t<std::is_base_of<MetaKernelBase, KernelToRegister>::value, bool> = true>
   void register_new_kernel();
 
   /// \brief Generate a new instance of a registered \c MetaKernel.
@@ -157,7 +157,7 @@ class MetaKernelFactory {
   static std::shared_ptr<MetaKernelBase> create_new_instance(const std::string& key,
                                                              stk::mesh::BulkData* const bulk_data_ptr,
                                                              const Teuchos::ParameterList& parameter_list) {
-    return get_instance_generator_map(key)(bulk_data_ptr, parameter_list);
+    return get_instance_generator_map()[key](bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -213,7 +213,7 @@ class MetaKernelFactory {
 //@{
 
 template <typename KernelToRegister,
-          typename std::enable_if<std::is_base_of<MetaKernelBase, KernelToRegister>::value, void>::type = 0>
+          std::enable_if_t<std::is_base_of<MetaKernelBase, KernelToRegister>::value, bool>>
 void MetaKernelFactory::register_new_kernel() {
   const std::string key = KernelToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,

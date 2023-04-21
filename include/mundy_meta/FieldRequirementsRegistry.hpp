@@ -44,7 +44,7 @@ namespace meta {
 ///
 /// \tparam FieldTypeToRegister A trivially copyable type to be registered with the \c FieldRequirementsFactory.
 template <class FieldTypeToRegister,
-          typename std::enable_if<std::is_trivially_copyable<FieldTypeToRegister>::value, void>::type = 0>
+          std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> = true>
 struct FieldRequirementsRegistry {
   //! \name Actions
   //@{

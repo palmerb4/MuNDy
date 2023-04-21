@@ -70,7 +70,7 @@ class MetaKernelBase {};  // MetaKernelBase
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
 template <class DerivedMetaKernel, typename ReturnType,
-          typename std::enable_if<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, void>::type>
+          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool> = true>
 class MetaKernel : public Teuchos::Describable {
  public:
   //! \name Attributes

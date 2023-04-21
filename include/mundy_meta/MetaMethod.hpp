@@ -60,7 +60,7 @@ class MetaMethodBase {};  // MetaMethodBase
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
 template <class DerivedMetaMethod, typename ReturnType,
-          typename std::enable_if<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, void>::type>
+          std::enable_if_t<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, bool> = true>
 class MetaMethod {
  public:
   //! \name Getters

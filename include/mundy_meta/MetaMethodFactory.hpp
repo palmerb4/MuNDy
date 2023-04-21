@@ -84,7 +84,7 @@ class MetaMethodFactory {
   using NewRequirementsGenerator = std::function<PartRequirements>(const Teuchos::ParameterList&);
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
-  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList>();
+  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
   //@}
 
   //! \name Getters
@@ -142,7 +142,7 @@ class MetaMethodFactory {
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename MethodToRegister,
-            typename std::enable_if<std::is_base_of<MetaMethodBase, MethodToRegister>::value, void>::type = 0>
+            std::enable_if_t<std::is_base_of<MetaMethodBase, MethodToRegister>::value, bool> = true>
   void register_new_method() {
     const std::string key = MethodToRegister::get_class_identifier();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
@@ -166,7 +166,7 @@ class MetaMethodFactory {
                                                              stk::mesh::BulkData* const bulk_data_ptr,
                                                              const std::vector<*stk::mesh::Part>& part_ptr_vector,
                                                              const Teuchos::ParameterList& parameter_list) {
-    return get_instance_generator_map(key)(bulk_data_ptr, part_ptr_vector, parameter_list);
+    return get_instance_generator_map()[key](bulk_data_ptr, part_ptr_vector, parameter_list);
   }
   //@}
 
@@ -211,8 +211,8 @@ class MetaMethodFactory {
   /// \brief Every concrete \c MetaMethod that inherits from the \c MetaMethodRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   ///
-  /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should be
-  /// friends with this factory. 
+  /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should
+  /// be friends with this factory.
   template <typename AnyMethod, RegistryIdentifier SameRegistryIdentifier>
   friend class MetaMethodRegistry;
   //@}
@@ -223,7 +223,7 @@ class MetaMethodFactory {
 
 /// \brief Register a method. The key for the method is determined by its class identifier.
 template <typename MethodToRegister,
-          typename std::enable_if<std::is_base_of<MetaMethodBase, MethodToRegister>::value, void>::type>
+          std::enable_if_t<std::is_base_of<MetaMethodBase, MethodToRegister>::value, bool> = true>
 void MetaMethodFactory::register_new_method() {
   const std::string key = MethodToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
