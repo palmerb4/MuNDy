@@ -84,9 +84,9 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<ComputeAABBSphere
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::unique_ptr<PartRequirements> details_get_part_requirements(
+  static std::shared_ptr<PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::unique_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>();
+    std::shared_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>();
     required_part_params->set_topology(stk::topology::PARTICLE);
     required_part_params->add_field_params(
         std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));

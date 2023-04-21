@@ -73,7 +73,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<ComputeBoundingRadi
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::unique_ptr<PartRequirements>> details_get_part_requirements(
+  static std::vector<std::shared_ptr<PartRequirements>> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -125,7 +125,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<ComputeBoundingRadi
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodBase> details_create_new_instance(
+  static std::shared_ptr<MetaMethodBase> details_create_new_instance(
       const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
       const Teuchos::ParameterList &parameter_list) const {
     return std::make_unique<ComputeBoundingRadius>(bulk_data_ptr, part_ptr_vector, parameter_list);

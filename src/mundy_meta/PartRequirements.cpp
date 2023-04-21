@@ -46,7 +46,7 @@ namespace meta {
 // \name Constructors and destructor
 //{
 
-PartRequirements::PartRequirements(const std::string &part_name, const stk::topology &part_topology) {
+PartRequirements::PartRequirements(const std::string &part_name, const const stk::topology::topology_t &part_topology) {
   this->set_part_name(part_name);
   this->set_part_topology(part_topology);
 }
@@ -83,7 +83,7 @@ PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list)
       const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(num_fields));
       const std::string field_type_string = field_i_sublist.get<std::string>("type");
       std::shared_ptr<FieldRequirementsBase> field_i =
-          FieldRequirements::create_new_instance(field_type_string, field_i_sublist);
+          FieldRequirementsFactory::create_new_instance(field_type_string, field_i_sublist);
       this->add_field_reqs(field_i);
     }
   }

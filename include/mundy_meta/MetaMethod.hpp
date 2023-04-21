@@ -74,7 +74,7 @@ class MetaMethod {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaMethod::details_get_part_requirements(parameter_list);
   }
 
@@ -96,7 +96,7 @@ class MetaMethod {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodBase> create_new_instance(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<MetaMethodBase> create_new_instance(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
   }
 

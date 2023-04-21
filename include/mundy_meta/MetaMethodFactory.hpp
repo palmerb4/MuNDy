@@ -77,7 +77,7 @@ class MetaMethodFactory {
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaMethod.
-  using NewMetaMethodGenerator = std::function<std::unique_ptr<MetaMethodBase>(
+  using NewMetaMethodGenerator = std::function<std::shared_ptr<MetaMethodBase>(
       stk::mesh::BulkData* const, const std::vector<*stk::mesh::Part>&, const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartRequirements instance.
@@ -114,7 +114,7 @@ class MetaMethodFactory {
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
-  static std::unique_ptr<PartRequirements> get_part_requirements(const std::string& key,
+  static std::shared_ptr<PartRequirements> get_part_requirements(const std::string& key,
                                                                  const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[key](parameter_list);
   }
@@ -162,7 +162,7 @@ class MetaMethodFactory {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaMethodBase> create_new_instance(const std::string& key,
+  static std::shared_ptr<MetaMethodBase> create_new_instance(const std::string& key,
                                                              stk::mesh::BulkData* const bulk_data_ptr,
                                                              const std::vector<*stk::mesh::Part>& part_ptr_vector,
                                                              const Teuchos::ParameterList& parameter_list) {

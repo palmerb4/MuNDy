@@ -87,7 +87,7 @@ class MetaKernel : public Teuchos::Describable {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaKernel::details_get_part_requirements(parameter_list);
   }
 
@@ -109,7 +109,7 @@ class MetaKernel : public Teuchos::Describable {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::unique_ptr<MetaKernelBase> create_new_instance(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<MetaKernelBase> create_new_instance(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaKernel::details_create_new_instance(parameter_list);
   }
 

@@ -79,7 +79,7 @@ class FieldRequirementsFactory {
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c FieldRequirementsBase.
   using NewFieldRequirementsGenerator =
-      std::function<std::unique_ptr<FieldRequirementsBase>(const Teuchos::ParameterList&)>;
+      std::function<std::shared_ptr<FieldRequirementsBase>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList>();
@@ -134,7 +134,7 @@ class FieldRequirementsFactory {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list is
   /// accessible via \c get_valid_params.
-  static std::unique_ptr<FieldRequirementsBase> create_new_instance(const std::string& field_type_string,
+  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const std::string& field_type_string,
                                                                     const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map(field_type_string)(parameter_list);
   }
