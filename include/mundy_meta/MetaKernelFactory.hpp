@@ -201,8 +201,11 @@ class MetaKernelFactory {
 
   /// \brief Every concrete \c MetaKernel that inherits from the \c MetaKernelRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
-  template <typename T>
-  friend class MetaKernelRegistry<T>;
+  ///
+  /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should be
+  /// friends with this factory. 
+  template <typename AnyKernel, RegistryIdentifier SameRegistryIdentifier>
+  friend class MetaKernelRegistry;
   //@}
 };  // MetaKernelFactory
 

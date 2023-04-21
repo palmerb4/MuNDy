@@ -73,9 +73,9 @@ struct MetaMethodRegistry {
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
-template <class DerivedMetaMethod>
-const bool MetaMethodRegistry<DerivedMetaMethod>::is_registered =
-    MetaMethodRegistry<DerivedMetaMethod>::register_type();
+template <class DerivedMetaMethod, typename RegistryIdentifier = DefaultMethodIdentifier>
+const bool MetaMethodRegistry<DerivedMetaMethod, DefaultMethodIdentifier>::is_registered =
+    MetaMethodRegistry<DerivedMetaMethod, DefaultMethodIdentifier>::register_type();
 
 }  // namespace meta
 

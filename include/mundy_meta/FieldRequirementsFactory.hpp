@@ -40,7 +40,7 @@
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>        // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 
 namespace mundy {
 
@@ -171,8 +171,8 @@ class FieldRequirementsFactory {
 
   /// \brief Registratrion of new types is done through \c FieldRequirementsRegistry.
   /// This process requires friendship <3.
-  template <typename FieldTypeToRegister>
-  friend class FieldRequirementsRegistry<FieldTypeToRegister>;
+  template <typename AnyFieldType>
+  friend class FieldRequirementsRegistry;
   //@}
 };  // FieldRequirementsFactory
 

@@ -73,9 +73,9 @@ struct MetaKernelRegistry {
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
-template <class DerivedMetaKernel>
-const bool MetaKernelRegistry<DerivedMetaKernel>::is_registered =
-    MetaKernelRegistry<DerivedMetaKernel>::register_type();
+template <class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier>
+const bool MetaKernelRegistry<DerivedMetaKernel, RegistryIdentifier>::is_registered =
+    MetaKernelRegistry<DerivedMetaKernel, RegistryIdentifier>::register_type();
 
 }  // namespace meta
 

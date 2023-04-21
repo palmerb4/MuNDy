@@ -37,7 +37,8 @@
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
+#include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -46,7 +47,7 @@ namespace meta {
 // \name Constructors and destructor
 //{
 
-PartRequirements::PartRequirements(const std::string &part_name, const const stk::topology::topology_t &part_topology) {
+PartRequirements::PartRequirements(const std::string &part_name, const stk::topology::topology_t &part_topology) {
   this->set_part_name(part_name);
   this->set_part_topology(part_topology);
 }
