@@ -124,7 +124,7 @@ class PartRequirements {
 
   /// \brief Return the part field map.
   /// \brief field_rank [in] Rank associated with the retrieved fields.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_field_map() const;
+  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_field_map();
 
   /// \brief Get the default parameters for this class.
   static Teuchos::ParameterList get_valid_params() {
@@ -185,11 +185,13 @@ class PartRequirements {
   /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
   /// not need to match the current name of this part.
   ///
-  /// \param list_of_part_reqs [in] A list of other \c PartRequirements objects to merge with the current object.
+  /// \param list_of_part_req_ptrs [in] A list of shared pointers to other \c PartRequirements objects to merge with the
+  /// current object.
   template <
       class... ArgTypes,
-      typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, PartRequirements>...>::value>::type = 0>
-  void merge(const ArgTypes &...list_of_part_reqs);
+      std::enable_if_t<std::conjunction<std::is_convertible<ArgTypes, std::shared_ptr<PartRequirements>>...>::value,
+                       bool> = true>
+  void merge(const ArgTypes &...list_of_part_req_ptrs);
   //@}
 
  private:
@@ -212,8 +214,8 @@ class PartRequirements {
   bool part_rank_is_set_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>>
-      part_ranked_field_maps_[stk::topology::NUM_RANKS];
+  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_(
+      stk::topology::NUM_RANKS);
 
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
@@ -223,45 +225,47 @@ class PartRequirements {
 //@{
 
 template <class... ArgTypes,
-          typename std::enable_if<std::conjunction<std::is_convertible<ArgTypes, PartRequirements>...>::value>::type>
-void PartRequirements::merge(const ArgTypes &...list_of_part_reqs) {
-  for (const auto &part_reqs : list_of_part_reqs) {
+          std::enable_if_t<std::conjunction<std::is_convertible<ArgTypes, std::shared_ptr<PartRequirements>>...>::value,
+                           bool>>
+void PartRequirements::merge(const ArgTypes &...list_of_part_req_ptrs) {
+  for (const auto &part_req_ptr : list_of_part_req_ptrs) {
     // Check if the provided parameters are valid.
-    part_reqs.check_if_valid();
+    part_req_ptr->check_if_valid();
 
     // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-    if (part_reqs.constrains_part_name()) {
+    if (part_req_ptr->constrains_part_name()) {
       if (this->constrains_part_name()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_name() == part_reqs.get_part_name(), std::invalid_argument,
+        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
                                    "mundy::meta::PartRequirements: One of the inputs has incompatible name ("
-                                       << part_reqs.get_part_name() << ").");
+                                       << part_req_ptr->get_part_name() << ").");
       } else {
-        this->set_part_name(part_reqs.get_part_name());
+        this->set_part_name(part_req_ptr->get_part_name());
       }
     }
 
-    if (part_reqs.constrains_part_rank()) {
+    if (part_req_ptr->constrains_part_rank()) {
       if (this->constrains_part_rank()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_rank() == part_reqs.get_part_rank(), std::invalid_argument,
+        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
                                    "mundy::meta::PartRequirements: One of the inputs has incompatible rank ("
-                                       << part_reqs.get_part_rank() << ").");
+                                       << part_req_ptr->get_part_rank() << ").");
       } else {
-        this->set_part_rank(part_reqs.get_part_rank());
+        this->set_part_rank(part_req_ptr->get_part_rank());
       }
     }
 
-    if (part_reqs.constrains_part_topology()) {
+    if (part_req_ptr->constrains_part_topology()) {
       if (this->constrains_part_topology()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_reqs.get_part_topology(), std::invalid_argument,
+        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(),
+                                   std::invalid_argument,
                                    "mundy::meta::PartRequirements: One of the inputs has incompatible topology ("
-                                       << part_reqs.get_part_topology() << ").");
+                                       << part_req_ptr->get_part_topology() << ").");
       } else {
-        this->set_part_topology(part_reqs.get_part_topology());
+        this->set_part_topology(part_req_ptr->get_part_topology());
       }
     }
 
     // Loop over each rank's field map.
-    for (auto const &part_field_map : part_reqs.get_part_field_map()) {
+    for (auto const &part_field_map : part_req_ptr->get_part_field_map()) {
       // Loop over each field and attempt to merge it.
       for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
         this->add_field_reqs(field_reqs_ptr);

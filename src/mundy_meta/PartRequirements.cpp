@@ -168,8 +168,7 @@ stk::topology::rank_t PartRequirements::get_part_rank() const {
   return part_rank_;
 }
 
-std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> PartRequirements::get_part_field_map()
-    const {
+std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> PartRequirements::get_part_field_map() {
   // TODO(palmerb4): This is such an ugly and incorrect way to give other access to our internal fields.
   return part_ranked_field_maps_;
 }
@@ -227,12 +226,12 @@ void PartRequirements::check_if_valid() const {
 
 void PartRequirements::add_field_reqs(const std::shared_ptr<FieldRequirementsBase> &field_reqs) {
   // Check if the provided parameters are valid.
-  field_reqs.check_if_valid();
+  field_reqs->check_if_valid();
 
   // If a field with the same name and rank exists, attempt to merge them.
   // Otherwise, create a new field entity.
-  const std::string field_name = field_reqs.get_field_name();
-  const unsigned field_rank = field_reqs.get_field_rank();
+  const std::string field_name = field_reqs->get_field_name();
+  const unsigned field_rank = field_req->.get_field_rank();
 
   auto part_field_map_ptr = part_ranked_field_maps_.data() + field_rank;
   const bool name_already_exists = (part_field_map_ptr->count(field_name) != 0);
