@@ -213,7 +213,8 @@ class MetaMethodFactory {
   ///
   /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should
   /// be friends with this factory.
-  template <typename AnyMethod, RegistryIdentifier SameRegistryIdentifier>
+  template <typename AnyMethod, RegistryIdentifier SameRegistryIdentifier,
+      std::enable_if_t<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, bool>>
   friend class MetaMethodRegistry;
   //@}
 };  // MetaMethodFactory
@@ -223,7 +224,7 @@ class MetaMethodFactory {
 
 /// \brief Register a method. The key for the method is determined by its class identifier.
 template <typename MethodToRegister,
-          std::enable_if_t<std::is_base_of<MetaMethodBase, MethodToRegister>::value, bool> = true>
+          std::enable_if_t<std::is_base_of<MetaMethodBase, MethodToRegister>::value, bool>>
 void MetaMethodFactory::register_new_method() {
   const std::string key = MethodToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,

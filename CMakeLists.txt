@@ -52,7 +52,7 @@ endif()
 # ################################################# TRILINOS ############################################################
 set(CMAKE_PREFIX_PATH ${Trilinos_DIR} ${CMAKE_PREFIX_PATH})
 find_package(Trilinos QUIET REQUIRED)
-message(STATUS "Found Trilinos = ${Trilinos_LIBRARY_DIRS}")
+message(STATUS "Found Trilinos = ${Trilinos_DIR}")
 target_link_libraries(mundy PUBLIC ${Trilinos_LIBRARIES})
 target_include_directories(mundy SYSTEM PUBLIC ${Trilinos_INCLUDE_DIRS})
 target_include_directories(mundy SYSTEM PUBLIC ${Trilinos_TPL_INCLUDE_DIRS})

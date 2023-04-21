@@ -204,7 +204,8 @@ class MetaKernelFactory {
   ///
   /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should be
   /// friends with this factory. 
-  template <typename AnyKernel, RegistryIdentifier SameRegistryIdentifier>
+  template <typename AnyKernel, RegistryIdentifier SameRegistryIdentifier, 
+      std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
   friend class MetaKernelRegistry;
   //@}
 };  // MetaKernelFactory

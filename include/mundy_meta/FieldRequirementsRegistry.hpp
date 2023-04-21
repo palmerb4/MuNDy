@@ -27,7 +27,6 @@
 #include <type_traits>  // for std::enable_if, std::is_base_of
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>         // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 
 namespace mundy {
@@ -38,9 +37,7 @@ namespace meta {
 /// \brief A class for registering \c FieldRequirementss within \c FieldRequirementsFactory.
 ///
 /// All valid field types that can be passed to \c FieldRequirements should be registered within the
-/// \c FieldRequirementsFactory. This registry aids in the registration process. The actual registration is carried out
-/// in \c FieldRequirements.cpp to guarentee that the registration is carried out by any code that uses
-/// \c FieldRequirements.
+/// \c FieldRequirementsFactory. This registry aids in the registration process.
 ///
 /// \tparam FieldTypeToRegister A trivially copyable type to be registered with the \c FieldRequirementsFactory.
 template <class FieldTypeToRegister,
@@ -68,6 +65,18 @@ struct FieldRequirementsRegistry {
   static const bool is_registered;
   //@}
 };  // FieldRequirementsRegistry
+
+/// @brief Perform the static registration of the desired FieldRequirements FieldTypes.
+///
+/// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
+/// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
+// clang-format off
+const bool FieldRequirementsRegistry<float>::is_registered = FieldRequirementsRegistry<float>::register_type("FLOAT");
+const bool FieldRequirementsRegistry<double>::is_registered =FieldRequirementsRegistry<double>::register_type("DOUBLE");
+const bool FieldRequirementsRegistry<int>::is_registered = FieldRequirementsRegistry<int>::register_type("INT");
+const bool FieldRequirementsRegistry<int64_t>::is_registered =FieldRequirementsRegistry<int64_t>::register_type("INT64");
+const bool FieldRequirementsRegistry<unsigned>::is_registered =FieldRequirementsRegistry<unsigned>::register_type("UNSIGNED");
+// clang-format on
 
 }  // namespace meta
 

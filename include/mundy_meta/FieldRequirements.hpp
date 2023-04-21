@@ -55,7 +55,7 @@ class InvalidType {};  // InvalidType
 ///
 /// \tparam FieldType Type for elements in the field.
 template <typename FieldType = InvalidType>
-class FieldRequirements {
+class FieldRequirements : public FieldRequirementsBase {
  public:
   //! \name Typedefs
   //@{
