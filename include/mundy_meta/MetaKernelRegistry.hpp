@@ -43,7 +43,7 @@ namespace meta {
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
-template <class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier,
+template <typename ReturnType, class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier,
           std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool> = true>
 struct MetaKernelRegistry {
   //! \name Actions
@@ -73,9 +73,10 @@ struct MetaKernelRegistry {
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
-template <class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier>
-const bool MetaKernelRegistry<DerivedMetaKernel, RegistryIdentifier>::is_registered =
-    MetaKernelRegistry<DerivedMetaKernel, RegistryIdentifier>::register_type();
+template <typename ReturnType, class DerivedMetaKernel, typename RegistryIdentifier,
+          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
+const bool MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier>::is_registered =
+    MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier>::register_type();
 
 }  // namespace meta
 

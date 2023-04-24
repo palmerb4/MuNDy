@@ -202,10 +202,10 @@ class MetaKernelFactory {
   /// \brief Every concrete \c MetaKernel that inherits from the \c MetaKernelRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   ///
-  /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should be
-  /// friends with this factory. 
-  template <typename AnyKernel, RegistryIdentifier SameRegistryIdentifier, 
-      std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
+  /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should
+  /// be friends with this factory.
+  template <ReturnType SameReturnType, typename AnyKernel, RegistryIdentifier SameRegistryIdentifier,
+            std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool>>
   friend class MetaKernelRegistry;
   //@}
 };  // MetaKernelFactory
@@ -213,8 +213,7 @@ class MetaKernelFactory {
 //! \name template implementations
 //@{
 
-template <typename KernelToRegister,
-          std::enable_if_t<std::is_base_of<MetaKernelBase, KernelToRegister>::value, bool>>
+template <typename KernelToRegister, std::enable_if_t<std::is_base_of<MetaKernelBase, KernelToRegister>::value, bool>>
 void MetaKernelFactory::register_new_kernel() {
   const std::string key = KernelToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,

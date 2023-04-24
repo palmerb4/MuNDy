@@ -40,8 +40,53 @@ namespace mundy {
 namespace meta {
 
 /// \class MetaKernelBase
-/// \brief A consistant base for all \c MetaKernels.
-class MetaKernelBase {};  // MetaKernelBase
+/// \brief The polymorphic interface which all \c MetaKernels will share.
+///
+/// This design pattern allows for \c MetaKernel to use CRTP to force derived classes to implement certain static
+/// functions while also having a consistant polymoirphic interface that allows different \c MetaKernels to be stored in
+/// a vector of pointers.
+///
+/// \tparam ReturnType The return type of the execute function.
+template <typename ReturnType>
+class MetaKernelBase {
+ public:
+  //! \name Attributes
+  //@{
+
+  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
+  ///
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
+  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
+  /// based parameters in the \c parameter_list.
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
+  virtual std::shared_ptr<PartRequirements> get_part_requirements(
+      const Teuchos::ParameterList& parameter_list) const = 0;
+
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
+  virtual Teuchos::ParameterList get_valid_params() const = 0;
+
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
+  virtual std::string get_class_identifier() const = 0;
+  //@}
+
+  //! \name Actions
+  //@{
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
+  virtual std::shared_ptr<MetaKernelBase> create_new_instance(const Teuchos::ParameterList& parameter_list) const = 0;
+
+  /// \brief Run the kernel's core calculation.
+  virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
+  //@}
+};  // MetaKernelBase
 
 /// \class MetaKernel
 /// \brief An abstract interface for all of Mundy's methods.
@@ -67,13 +112,16 @@ class MetaKernelBase {};  // MetaKernelBase
 ///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
 ///
+/// To keep these out of the public interface, we suggest that each details function be made private and
+/// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
+///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
 template <class DerivedMetaKernel, typename ReturnType,
           std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool> = true>
-class MetaKernel : public Teuchos::Describable {
+class MetaKernel : public MetaKernelBase<ReturnType> {
  public:
-  //! \name Attributes
+  //! \name Getters
   //@{
 
   /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
@@ -87,17 +135,17 @@ class MetaKernel : public Teuchos::Describable {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaKernel::details_get_part_requirements(parameter_list);
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  static Teuchos::ParameterList get_valid_params() {
+  static Teuchos::ParameterList static_get_valid_params() {
     return DerivedMetaKernel::details_get_valid_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
-  static std::string get_class_identifier() {
+  static std::string static_get_class_identifier() {
     return DerivedMetaKernel::details_get_class_identifier();
   }
   //@}
@@ -109,7 +157,7 @@ class MetaKernel : public Teuchos::Describable {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaKernelBase> create_new_instance(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<MetaKernelBase> static_create_new_instance(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaKernel::details_create_new_instance(parameter_list);
   }
 
@@ -117,6 +165,44 @@ class MetaKernel : public Teuchos::Describable {
   virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
   //@}
 };  // MetaKernel
+
+//! \name Template implementations
+//@{
+
+// \name Getters
+//{
+
+template <class DerivedMetaKernel, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
+std::shared_ptr<PartRequirements> MetaKernel<DerivedMetaKernel, ReturnType>::get_part_requirements(
+    const Teuchos::ParameterList& parameter_list) const final {
+  return static_get_part_requirements(parameter_list);
+}
+
+template <class DerivedMetaKernel, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
+Teuchos::ParameterList MetaKernel<DerivedMetaKernel, ReturnType>::get_valid_params() const final {
+  return static_get_valid_params();
+}
+
+template <class DerivedMetaKernel, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
+std::string MetaKernel<DerivedMetaKernel, ReturnType>::get_class_identifier() const final {
+  return static_get_class_identifier();
+}
+//}
+
+// \name Actions
+//{
+
+template <class DerivedMetaKernel, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
+std::shared_ptr<MetaKernelBase> MetaKernel<DerivedMetaKernel, ReturnType>::create_new_instance(
+    const Teuchos::ParameterList& parameter_list) const final {
+  return static_create_new_instance(parameter_list);
+}
+//}
+//@}
 
 }  // namespace meta
 

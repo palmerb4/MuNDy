@@ -69,7 +69,8 @@ struct DefaultMethodIdentifier {};  // DefaultMethodIdentifier
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
-template <typename RegistryIdentifier = DefaultMethodIdentifier>
+/// \tparam ReturnType The return type of the \c MetaMethod's execute function.
+template <typename ReturnType, typename RegistryIdentifier = DefaultMethodIdentifier>
 class MetaMethodFactory {
  public:
   //! \name Typedefs
@@ -77,7 +78,7 @@ class MetaMethodFactory {
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaMethod.
-  using NewMetaMethodGenerator = std::function<std::shared_ptr<MetaMethodBase>(
+  using NewMetaMethodGenerator = std::function<std::shared_ptr<MetaMethodBase<ReturnType>>(
       stk::mesh::BulkData* const, const std::vector<*stk::mesh::Part>&, const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartRequirements instance.
@@ -142,15 +143,8 @@ class MetaMethodFactory {
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename MethodToRegister,
-            std::enable_if_t<std::is_base_of<MetaMethodBase, MethodToRegister>::value, bool> = true>
-  void register_new_method() {
-    const std::string key = MethodToRegister::get_class_identifier();
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                               "The provided key " << key << " already exists.");
-    get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
-    get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
-    get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
-  }
+            std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, MethodToRegister>::value, bool> = true>
+  void register_new_method();
 
   /// \brief Generate a new instance of a registered \c MetaMethod.
   ///
@@ -162,10 +156,9 @@ class MetaMethodFactory {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaMethodBase> create_new_instance(const std::string& key,
-                                                             stk::mesh::BulkData* const bulk_data_ptr,
-                                                             const std::vector<*stk::mesh::Part>& part_ptr_vector,
-                                                             const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
+      const std::string& key, stk::mesh::BulkData* const bulk_data_ptr,
+      const std::vector<*stk::mesh::Part>& part_ptr_vector, const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[key](bulk_data_ptr, part_ptr_vector, parameter_list);
   }
   //@}
@@ -213,8 +206,8 @@ class MetaMethodFactory {
   ///
   /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should
   /// be friends with this factory.
-  template <typename AnyMethod, RegistryIdentifier SameRegistryIdentifier,
-      std::enable_if_t<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, bool>>
+  template <ReturnType SameReturnType, typename AnyMethod, RegistryIdentifier SameRegistryIdentifier,
+            std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
   friend class MetaMethodRegistry;
   //@}
 };  // MetaMethodFactory
@@ -223,15 +216,15 @@ class MetaMethodFactory {
 //@{
 
 /// \brief Register a method. The key for the method is determined by its class identifier.
-template <typename MethodToRegister,
-          std::enable_if_t<std::is_base_of<MetaMethodBase, MethodToRegister>::value, bool>>
-void MetaMethodFactory::register_new_method() {
-  const std::string key = MethodToRegister::get_class_identifier();
+template <typename ReturnType, typename MethodToRegister,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, MethodToRegister>::value, bool>>
+void MetaMethodFactory<ReturnType, MethodToRegister>::register_new_method() {
+  const std::string key = MethodToRegister::static_get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                              "The provided key " << key << " already exists.");
-  get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::create_new_instance));
-  get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::get_part_requirements));
-  get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::get_valid_params));
+  get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::static_create_new_instance));
+  get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_part_requirements));
+  get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_valid_params));
 }
 
 //@}

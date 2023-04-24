@@ -43,7 +43,7 @@ namespace meta {
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
-template <class DerivedMetaMethod, typename RegistryIdentifier = DefaultMethodIdentifier,
+template <typename ReturnType, class DerivedMetaMethod, typename RegistryIdentifier = DefaultMethodIdentifier,
           std::enable_if_t<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, bool> = true>
 struct MetaMethodRegistry {
   //! \name Actions
@@ -54,7 +54,7 @@ struct MetaMethodRegistry {
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaMethodFactory::register_new_method<DerivedMetaMethod>();
+    MetaMethodFactory<ReturnType>::register_new_method<DerivedMetaMethod>();
     return true;
   }
   //@}
@@ -73,9 +73,10 @@ struct MetaMethodRegistry {
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
-template <class DerivedMetaMethod, typename RegistryIdentifier = DefaultMethodIdentifier>
-const bool MetaMethodRegistry<DerivedMetaMethod, DefaultMethodIdentifier>::is_registered =
-    MetaMethodRegistry<DerivedMetaMethod, DefaultMethodIdentifier>::register_type();
+template <typename ReturnType, class DerivedMetaMethod, typename RegistryIdentifier,
+          std::enable_if_t<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, bool>>
+const bool MetaMethodRegistry<ReturnType, DerivedMetaMethod, DefaultMethodIdentifier>::is_registered =
+    MetaMethodRegistry<ReturnType, DerivedMetaMethod, DefaultMethodIdentifier>::register_type();
 
 }  // namespace meta
 

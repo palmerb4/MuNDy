@@ -40,8 +40,51 @@ namespace mundy {
 namespace meta {
 
 /// \class MetaMethodBase
-/// \brief A consistant base for all \c MetaMethods.
-class MetaMethodBase {};  // MetaMethodBase
+/// \brief The polymorphic interface which all \c MetaMethods will share.
+///
+/// This design pattern allows for \c MetaMethod to use CRTP to force derived classes to implement certain static
+/// functions while also having a consistant polymoirphic interface that allows different \c MetaMethods to be stored in
+/// a vector of pointers.
+///
+/// \tparam ReturnType The return type of the execute function.
+template <typename ReturnType>
+class MetaMethodBase {
+ public:
+  //! \name Getters
+  //@{
+
+  /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
+  ///
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaMethod
+  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
+  /// based parameters in the \c parameter_list.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
+  virtual std::shared_ptr<PartRequirements> get_part_requirements(
+      const Teuchos::ParameterList& parameter_list) const = 0;
+
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
+  virtual Teuchos::ParameterList get_valid_params() const = 0;
+
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  virtual std::string get_class_identifier() const = 0;
+  //@}
+
+  //! \name Actions
+  //@{
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
+  virtual std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
+      const Teuchos::ParameterList& parameter_list) const = 0;
+
+  /// \brief Run the method's core calculation.
+  virtual ReturnType execute(const stk::mesh::Part& part) = 0;
+  //@}
+};  // MetaMethodBase
 
 /// \class MetaMethod
 /// \brief An abstract interface for all of Mundy's methods.
@@ -57,11 +100,14 @@ class MetaMethodBase {};  // MetaMethodBase
 ///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
 ///
+/// To keep these out of the public interface, we suggest that each details function be made private and
+/// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
+///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
 template <class DerivedMetaMethod, typename ReturnType,
-          std::enable_if_t<std::is_base_of<MetaMethodBase, DerivedMetaMethod>::value, bool> = true>
-class MetaMethod {
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool> = true>
+class MetaMethod : public MetaMethodBase<ReturnType> {
  public:
   //! \name Getters
   //@{
@@ -74,17 +120,17 @@ class MetaMethod {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaMethod::details_get_part_requirements(parameter_list);
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
-  static Teuchos::ParameterList get_valid_params() {
+  static Teuchos::ParameterList static_get_valid_params() {
     return DerivedMetaMethod::details_get_valid_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  static std::string get_class_identifier() {
+  static std::string static_get_class_identifier() {
     return DerivedMetaMethod::details_get_class_identifier();
   }
   //@}
@@ -96,7 +142,8 @@ class MetaMethod {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaMethodBase> create_new_instance(const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<MetaMethodBase<ReturnType>> static_create_new_instance(
+      const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
   }
 
@@ -105,9 +152,45 @@ class MetaMethod {
   //@}
 };  // MetaMethod
 
+//! \name Template implementations
+//@{
+
+// \name Getters
+//{
+template <class DerivedMetaMethod, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
+std::shared_ptr<PartRequirements> MetaMethod<DerivedMetaMethod, ReturnType>::get_part_requirements(
+    const Teuchos::ParameterList& parameter_list) const final {
+  return static_get_part_requirements(parameter_list);
+}
+
+template <class DerivedMetaMethod, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
+Teuchos::ParameterList MetaMethod<DerivedMetaMethod, ReturnType>::get_valid_params() const final {
+  return static_details_get_valid_params();
+}
+
+template <class DerivedMetaMethod, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
+std::string MetaMethod<DerivedMetaMethod, ReturnType>::get_class_identifier() const final {
+  return static_details_get_class_identifier();
+}
+//}
+
+// \name Actions
+//{
+
+template <class DerivedMetaMethod, typename ReturnType,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
+std::shared_ptr<MetaMethodBase<ReturnType>> MetaMethod<DerivedMetaMethod, ReturnType>::create_new_instance(
+    const Teuchos::ParameterList& parameter_list) const final {
+  return static_create_new_instance(parameter_list);
+}
+//}
+//@}
+
 }  // namespace meta
 
 }  // namespace mundy
 
-//}
 #endif  // MUNDY_META_METAMETHOD_HPP_

@@ -185,13 +185,9 @@ class PartRequirements {
   /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
   /// not need to match the current name of this part.
   ///
-  /// \param list_of_part_req_ptrs [in] A list of shared pointers to other \c PartRequirements objects to merge with the
+  /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
   /// current object.
-  template <
-      class... ArgTypes,
-      std::enable_if_t<std::conjunction<std::is_convertible<ArgTypes, std::shared_ptr<PartRequirements>>...>::value,
-                       bool> = true>
-  void merge(const ArgTypes &...list_of_part_req_ptrs);
+  void merge(const std::vector<std::shared_ptr<PartRequirementsBase>> &vector_of_part_req_ptrs);
   //@}
 
  private:
@@ -214,8 +210,8 @@ class PartRequirements {
   bool part_rank_is_set_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_(
-      stk::topology::NUM_RANKS);
+  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_{
+      stk::topology::NUM_RANKS};
 
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
@@ -224,11 +220,8 @@ class PartRequirements {
 //! \name template implementations
 //@{
 
-template <class... ArgTypes,
-          std::enable_if_t<std::conjunction<std::is_convertible<ArgTypes, std::shared_ptr<PartRequirements>>...>::value,
-                           bool>>
-void PartRequirements::merge(const ArgTypes &...list_of_part_req_ptrs) {
-  for (const auto &part_req_ptr : list_of_part_req_ptrs) {
+void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirementsBase>> &vector_of_part_req_ptrs) {
+  for (const auto &part_req_ptr : vector_of_part_req_ptrs) {
     // Check if the provided parameters are valid.
     part_req_ptr->check_if_valid();
 
