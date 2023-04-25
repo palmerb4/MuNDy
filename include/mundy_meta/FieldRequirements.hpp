@@ -38,6 +38,9 @@
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 
+// Mundy libs
+#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+
 namespace mundy {
 
 namespace meta {
@@ -87,51 +90,54 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief Set the required field name.
   /// \brief field_name [in] Required name of the field.
-  void set_field_name(const std::string &field_name);
+  void set_field_name(const std::string &field_name) override final;
 
   /// \brief Set the required field rank.
   /// \brief field_rank [in] Required rank of the field.
-  void set_field_rank(const stk::topology::rank_t &field_rank);
+  void set_field_rank(const stk::topology::rank_t &field_rank) override final;
 
   /// \brief Set the required field rank.
   /// \brief field_rank [in] Required rank of the field.
-  void set_field_rank(const std::string &field_rank_string);
+  void set_field_rank(const std::string &field_rank_string) override final;
 
   /// \brief Set the required field dimension.
   /// \brief field_dimension [in] Required dimension of the field.
-  void set_field_dimension(const unsigned field_dimension);
+  void set_field_dimension(const unsigned field_dimension) override final;
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
-  void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states);
+  void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) override final;
 
   /// \brief Get if the field name is constrained or not.
-  bool constrains_field_name() const;
+  bool constrains_field_name() const override final;
 
   /// \brief Get if the field rank is constrained or not.
-  bool constrains_field_rank() const;
+  bool constrains_field_rank() const override final;
 
   /// \brief Get if the field dimension is constrained or not.
-  bool constrains_field_dimension() const;
+  bool constrains_field_dimension() const override final;
 
   /// \brief Get if the field minimum number of states is constrained or not.
-  bool constrains_field_min_number_of_states() const;
+  bool constrains_field_min_number_of_states() const override final;
 
   /// \brief Return the field name.
   /// Will throw an error if the field name is not constrained.
-  std::string get_field_name() const;
+  std::string get_field_name() const override final;
 
   /// \brief Return the field rank.
   /// Will throw an error if the field rank is not constrained.
-  stk::topology::rank_t get_field_rank() const;
+  stk::topology::rank_t get_field_rank() const override final;
 
   /// \brief Return the field dimension.
   /// Will throw an error if the field dimension is not constrained.
-  unsigned get_field_dimension() const;
+  unsigned get_field_dimension() const override final;
 
   /// \brief Return the minimum number of field states.
   /// Will throw an error if the minimum number of field states.
-  unsigned get_field_min_number_of_states() const;
+  unsigned get_field_min_number_of_states() const override final;
+
+  /// \brief Get the default parameters for this class.
+  Teuchos::ParameterList get_valid_params() const override final;
 
   /// \brief Get the default parameters for this class.
   static Teuchos::ParameterList static_get_valid_params() {
@@ -149,27 +155,26 @@ class FieldRequirements : public FieldRequirementsBase {
   //@{
 
   /// \brief Declare/create the field that this class defines.
-  stk::mesh::Field<FieldType> &declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr,
-                                                     const stk::mesh::Part &part) const;
+  void declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const override final;
 
   /// \brief Delete the field name constraint (if it exists).
-  void delete_field_name_constraint();
+  void delete_field_name_constraint() override final;
 
   /// \brief Delete the field rank constraint (if it exists).
-  void delete_field_rank_constraint();
+  void delete_field_rank_constraint() override final;
 
   /// \brief Delete the field dimension constraint (if it exists).
-  void delete_field_dimension_constraint();
+  void delete_field_dimension_constraint() override final;
 
   /// \brief Delete the field minimum number of states constraint (if it exists).
-  void delete_field_min_number_of_states_constraint();
+  void delete_field_min_number_of_states_constraint() override final;
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means that the rank, dimension, and number of states are > 0, but as unsigned ints, this is always the
   /// case. We will however, leave this checker incase the class grows and the set of requirements is no longer
   /// automatically satisfied.
-  void check_if_valid() const;
+  void check_if_valid() const override final;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///
@@ -180,10 +185,15 @@ class FieldRequirements : public FieldRequirementsBase {
   ///
   /// \param vector_of_field_req_ptrs [in] A vector of pointers to other \c FieldRequirements objects to merge with the
   /// current object.
-  void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs);
+  void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) override final;
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
-  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const Teuchos::ParameterList &parameter_list) {
+  std::shared_ptr<FieldRequirementsBase> create_new_instance(
+      const Teuchos::ParameterList &parameter_list) const override final;
+
+  /// \brief Generate new instance of this class, constructed using the given parameter list.
+  static std::shared_ptr<FieldRequirementsBase> static_create_new_instance(
+      const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<FieldRequirements<FieldType>>(parameter_list);
   }
   //@}
@@ -352,14 +362,18 @@ unsigned FieldRequirements<FieldType>::get_field_min_number_of_states() const {
   return field_min_number_of_states_;
 }
 
+template <typename FieldType>
+Teuchos::ParameterList FieldRequirements<FieldType>::get_valid_params() const {
+  return static_get_valid_params();
+}
 //}
 
 // \name Actions
 //{
 
 template <typename FieldType>
-stk::mesh::Field<FieldType> &FieldRequirements<FieldType>::declare_field_on_part(
-    stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const {
+void FieldRequirements<FieldType>::declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr,
+                                                         const stk::mesh::Part &part) const {
   TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
                              "mundy::meta::FieldRequirements: MetaData pointer cannot be null).");
 
@@ -378,8 +392,6 @@ stk::mesh::Field<FieldType> &FieldRequirements<FieldType>::declare_field_on_part
   stk::mesh::Field<FieldType> &field =
       meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name());
   stk::mesh::put_field_on_mesh(field, part, nullptr);
-
-  return field;
 }
 
 template <typename FieldType>
@@ -459,6 +471,11 @@ void FieldRequirements<FieldType>::merge(
   }
 }
 
+template <typename FieldType>
+std::shared_ptr<FieldRequirementsBase> FieldRequirements<FieldType>::create_new_instance(
+    const Teuchos::ParameterList &parameter_list) const {
+  return static_create_new_instance(parameter_list)
+}
 //}
 
 //@}

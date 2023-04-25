@@ -135,14 +135,34 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
+  std::shared_ptr<PartRequirements> get_part_requirements(
+      const Teuchos::ParameterList& parameter_list) const override final;
+
+  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
+  ///
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
+  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
+  /// based parameters in the \c parameter_list.
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaKernel::details_get_part_requirements(parameter_list);
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
+  Teuchos::ParameterList get_valid_params() const override final;
+
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
   static Teuchos::ParameterList static_get_valid_params() {
     return DerivedMetaKernel::details_get_valid_params();
   }
+
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
+  std::string get_class_identifier() const override final;
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
   static std::string static_get_class_identifier() {
@@ -162,7 +182,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   }
 
   /// \brief Run the kernel's core calculation.
-  virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
+  virtual ReturnType execute(const stk::mesh::Entity& entity) override = 0;
   //@}
 };  // MetaKernel
 
@@ -175,19 +195,19 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 template <class DerivedMetaKernel, typename ReturnType,
           std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
 std::shared_ptr<PartRequirements> MetaKernel<DerivedMetaKernel, ReturnType>::get_part_requirements(
-    const Teuchos::ParameterList& parameter_list) const final {
+    const Teuchos::ParameterList& parameter_list) const {
   return static_get_part_requirements(parameter_list);
 }
 
 template <class DerivedMetaKernel, typename ReturnType,
           std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
-Teuchos::ParameterList MetaKernel<DerivedMetaKernel, ReturnType>::get_valid_params() const final {
+Teuchos::ParameterList MetaKernel<DerivedMetaKernel, ReturnType>::get_valid_params() const {
   return static_get_valid_params();
 }
 
 template <class DerivedMetaKernel, typename ReturnType,
           std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
-std::string MetaKernel<DerivedMetaKernel, ReturnType>::get_class_identifier() const final {
+std::string MetaKernel<DerivedMetaKernel, ReturnType>::get_class_identifier() const {
   return static_get_class_identifier();
 }
 //}
@@ -198,7 +218,7 @@ std::string MetaKernel<DerivedMetaKernel, ReturnType>::get_class_identifier() co
 template <class DerivedMetaKernel, typename ReturnType,
           std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
 std::shared_ptr<MetaKernelBase> MetaKernel<DerivedMetaKernel, ReturnType>::create_new_instance(
-    const Teuchos::ParameterList& parameter_list) const final {
+    const Teuchos::ParameterList& parameter_list) const {
   return static_create_new_instance(parameter_list);
 }
 //}

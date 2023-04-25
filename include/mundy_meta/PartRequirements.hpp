@@ -169,15 +169,15 @@ class PartRequirements {
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
-  /// \param field_reqs [in] Field parameters to add to the part.
-  void add_field_reqs(const std::shared_ptr<FieldRequirementsBase> &field_reqs);
+  /// \param field_reqs_ptr [in] Pointer to the field parameters to add to the part.
+  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_reqs_ptr);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
   /// TODO: Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
-  /// \param part_reqs [in] Sub-part requirements to add to the part.
-  void add_subpart_reqs(const std::shared_ptr<const PartRequirements> &part_reqs);
+  /// \param part_reqs_ptr [in] Pointer to the sub-part requirements to add to the part.
+  void add_subpart_reqs(std::shared_ptr<PartRequirements> part_reqs_ptr);
 
   /// \brief Merge the current requirements with any number of other \c PartRequirements.
   ///
@@ -187,7 +187,7 @@ class PartRequirements {
   ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
   /// current object.
-  void merge(const std::vector<std::shared_ptr<PartRequirementsBase>> &vector_of_part_req_ptrs);
+  void merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs);
   //@}
 
  private:
@@ -216,57 +216,6 @@ class PartRequirements {
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
 };  // PartRequirements
-
-//! \name template implementations
-//@{
-
-void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirementsBase>> &vector_of_part_req_ptrs) {
-  for (const auto &part_req_ptr : vector_of_part_req_ptrs) {
-    // Check if the provided parameters are valid.
-    part_req_ptr->check_if_valid();
-
-    // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-    if (part_req_ptr->constrains_part_name()) {
-      if (this->constrains_part_name()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
-                                   "mundy::meta::PartRequirements: One of the inputs has incompatible name ("
-                                       << part_req_ptr->get_part_name() << ").");
-      } else {
-        this->set_part_name(part_req_ptr->get_part_name());
-      }
-    }
-
-    if (part_req_ptr->constrains_part_rank()) {
-      if (this->constrains_part_rank()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
-                                   "mundy::meta::PartRequirements: One of the inputs has incompatible rank ("
-                                       << part_req_ptr->get_part_rank() << ").");
-      } else {
-        this->set_part_rank(part_req_ptr->get_part_rank());
-      }
-    }
-
-    if (part_req_ptr->constrains_part_topology()) {
-      if (this->constrains_part_topology()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(),
-                                   std::invalid_argument,
-                                   "mundy::meta::PartRequirements: One of the inputs has incompatible topology ("
-                                       << part_req_ptr->get_part_topology() << ").");
-      } else {
-        this->set_part_topology(part_req_ptr->get_part_topology());
-      }
-    }
-
-    // Loop over each rank's field map.
-    for (auto const &part_field_map : part_req_ptr->get_part_field_map()) {
-      // Loop over each field and attempt to merge it.
-      for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
-        this->add_field_reqs(field_reqs_ptr);
-      }
-    }
-  }
-}
-//@}
 
 }  // namespace meta
 

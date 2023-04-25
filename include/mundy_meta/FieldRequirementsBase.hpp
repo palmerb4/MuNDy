@@ -45,6 +45,7 @@ namespace meta {
 /// \class FieldRequirementsBase
 /// \brief A consistant interface for all \c FieldRequirementsBase.
 class FieldRequirementsBase {
+ public:
   //! \name Setters and Getters
   //@{
 
@@ -104,8 +105,7 @@ class FieldRequirementsBase {
   //@{
 
   /// \brief Declare/create the field that this class defines.
-  virtual stk::mesh::Field<FieldType> &declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr,
-                                                             const stk::mesh::Part &part) const = 0;
+  virtual void declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const = 0;
 
   /// \brief Delete the field name constraint (if it exists).
   virtual void delete_field_name_constraint() = 0;

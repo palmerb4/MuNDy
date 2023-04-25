@@ -55,13 +55,20 @@ namespace meta {
 /// corresponding string. This allows us to generate field requirements with custom types. Most importantly, it enables
 /// users to add their own triviallyu copiable field types without modifying Mundy's source code.
 ///
-/// Although this list is likely to becoome outdated, the current set of registered field types and their string
-/// identifier is:
-///  - FLOAT -> float
-///  - DOUBLE -> double
-///  - INT -> int
-///  - INT64 -> int64_t
-///  - UNSIGNED -> unsigned
+/// The current set of registered field types and their string corresponding identifier is:
+///  - SHORT              -> short
+///  - UNSIGNED_SHORT     -> unsigned short
+///  - INT                -> int
+///  - UNSIGNED_INT       -> unsigned int
+///  - LONG               -> long
+///  - UNSIGNED_LONG      -> unsigned long
+///  - LONG_LONG          -> long long
+///  - UNSIGNED_LONG_LONG -> unsigned long long
+///  - FLOAT              -> float
+///  - DOUBLE             -> double
+///  - LONG_DOUBLE        -> long double
+///  - COMPLES_FLOAT      -> std::complex<float> ) // TODO(stk): Probably not right
+///  - COMPLEX_DOUBLE     -> std::complex<double> ) // TODO(stk): Probably not right
 ///
 /// \note This factory does not store an instance of \c FieldRequirements; rather, it stores maps from a string to some
 /// of \c FieldRequirements's static member functions.

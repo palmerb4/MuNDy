@@ -71,11 +71,19 @@ struct FieldRequirementsRegistry {
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 // clang-format off
-const bool FieldRequirementsRegistry<float>::is_registered = FieldRequirementsRegistry<float>::register_type("FLOAT");
-const bool FieldRequirementsRegistry<double>::is_registered =FieldRequirementsRegistry<double>::register_type("DOUBLE");
+const bool FieldRequirementsRegistry<short>::is_registered = FieldRequirementsRegistry<short>::register_type("SHORT");
+const bool FieldRequirementsRegistry<unsigned short>::is_registered = FieldRequirementsRegistry<unsigned short>::register_type("UNSIGNED_SHORT");
 const bool FieldRequirementsRegistry<int>::is_registered = FieldRequirementsRegistry<int>::register_type("INT");
-const bool FieldRequirementsRegistry<int64_t>::is_registered =FieldRequirementsRegistry<int64_t>::register_type("INT64");
-const bool FieldRequirementsRegistry<unsigned>::is_registered =FieldRequirementsRegistry<unsigned>::register_type("UNSIGNED");
+const bool FieldRequirementsRegistry<unsigned int>::is_registered = FieldRequirementsRegistry<unsigned int>::register_type("UNSIGNED_INT");
+const bool FieldRequirementsRegistry<long>::is_registered = FieldRequirementsRegistry<long>::register_type("LONG");
+const bool FieldRequirementsRegistry<unsigned long>::is_registered = FieldRequirementsRegistry<unsigned long>::register_type("UNSIGNED_LONG");
+const bool FieldRequirementsRegistry<long long>::is_registered = FieldRequirementsRegistry<long long>::register_type("LONG_LONG");
+const bool FieldRequirementsRegistry<unsigned long long>::is_registered = FieldRequirementsRegistry<unsigned long long>::register_type("UNSIGNED_LONG_LONG");
+const bool FieldRequirementsRegistry<float>::is_registered = FieldRequirementsRegistry<float>::register_type("FLOAT");
+const bool FieldRequirementsRegistry<double>::is_registered = FieldRequirementsRegistry<double>::register_type("DOUBLE");
+const bool FieldRequirementsRegistry<long double>::is_registered = FieldRequirementsRegistry<long double>::register_type("LONG_DOUBLE");
+const bool FieldRequirementsRegistry<std::complex<float>>::is_registered = FieldRequirementsRegistry<std::complex<float>>::register_type("COMPLES_FLOAT");
+const bool FieldRequirementsRegistry<std::complex<double>>::is_registered = FieldRequirementsRegistry<std::complex<double>>::register_type("COMPLEX_DOUBLE");
 // clang-format on
 
 }  // namespace meta
