@@ -45,6 +45,23 @@ namespace mundy {
 
 namespace meta {
 
+//! \name Helper functions
+//@{
+
+/// \brief Map a string with a valid rank name to the corresponding rank.
+///
+/// The set of valid rank names and their corresponding type is
+///  - NODE_RANK        -> stk::topology::NODE_RANK
+///  - EDGE_RANK        -> stk::topology::EDGE_RANK
+///  - FACE_RANK        -> stk::topology::FACE_RANK
+///  - ELEMENT_RANK     -> stk::topology::ELEMENT_RANK
+///  - CONSTRAINT_RANK  -> stk::topology::CONSTRAINT_RANK
+///  - INVALID_RANK     -> stk::topology::INVALID_RANK
+///
+/// \param rank_string [in] String containing a valid rank name.
+stk::topology::rank_t map_string_to_rank(const std::string &rank_string);
+//@}
+
 /// \class FieldRequirements
 /// \brief A set of necessary parameters for declaring a new field.
 ///
@@ -155,7 +172,8 @@ class FieldRequirements : public FieldRequirementsBase {
   //@{
 
   /// \brief Declare/create the field that this class defines.
-  void declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const override final;
+  void declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr,
+                             const stk::mesh::Part &part) const override final;
 
   /// \brief Delete the field name constraint (if it exists).
   void delete_field_name_constraint() override final;

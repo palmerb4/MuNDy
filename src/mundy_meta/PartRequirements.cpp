@@ -23,8 +23,9 @@
 // C++ core libs
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <regex>        // for std::regex_match
 #include <stdexcept>    // for std::logic_error, std::invalid_argument
-#include <string>       // for std::string
+#include <string>       // for std::string, std::stoi
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
 #include <vector>       // for std::vector
 
@@ -43,6 +44,125 @@
 namespace mundy {
 
 namespace meta {
+
+// \name Helper functions
+//{
+
+stk::topology map_string_to_topology(const std::string &topology_string) {
+  if (topology_string == "INVALID_TOPOLOGY") {
+    return stk::topology::INVALID_TOPOLOGY;
+  } else if (topology_string == "NODE") {
+    return stk::topology::NODE;
+  } else if (topology_string == "LINE_2") {
+    return stk::topology::LINE_2;
+  } else if (topology_string == "LINE_3") {
+    return stk::topology::LINE_3;
+  } else if (topology_string == "TRI_3") {
+    return stk::topology::TRI_3;
+  } else if (topology_string == "TRI_4") {
+    return stk::topology::TRI_4;
+  } else if (topology_string == "TRI_6") {
+    return stk::topology::TRI_6;
+  } else if (topology_string == "QUAD_4") {
+    return stk::topology::QUAD_4;
+  } else if (topology_string == "QUAD_6") {
+    return stk::topology::QUAD_6;
+  } else if (topology_string == "QUAD_8") {
+    return stk::topology::QUAD_8;
+  } else if (topology_string == "QUAD_9") {
+    return stk::topology::QUAD_9;
+  } else if (topology_string == "PARTICLE") {
+    return stk::topology::PARTICLE;
+  } else if (topology_string == "LINE_2_1D") {
+    return stk::topology::LINE_2_1D;
+  } else if (topology_string == "LINE_3_1D") {
+    return stk::topology::LINE_3_1D;
+  } else if (topology_string == "BEAM_2") {
+    return stk::topology::BEAM_2;
+  } else if (topology_string == "BEAM_3") {
+    return stk::topology::BEAM_3;
+  } else if (topology_string == "SHELL_LINE_2") {
+    return stk::topology::SHELL_LINE_2;
+  } else if (topology_string == "SHELL_LINE_3") {
+    return stk::topology::SHELL_LINE_3;
+  } else if (topology_string == "SPRING_2") {
+    return stk::topology::SPRING_2;
+  } else if (topology_string == "SPRING_3") {
+    return stk::topology::SPRING_3;
+  } else if (topology_string == "TRI_3_2D") {
+    return stk::topology::TRI_3_2D;
+  } else if (topology_string == "TRI_4_2D") {
+    return stk::topology::TRI_4_2D;
+  } else if (topology_string == "TRI_6_2D") {
+    return stk::topology::TRI_6_2D;
+  } else if (topology_string == "QUAD_4_2D") {
+    return stk::topology::QUAD_4_2D;
+  } else if (topology_string == "QUAD_8_2D") {
+    return stk::topology::QUAD_8_2D;
+  } else if (topology_string == "QUAD_9_2D") {
+    return stk::topology::QUAD_9_2D;
+  } else if (topology_string == "SHELL_TRI_3") {
+    return stk::topology::SHELL_TRI_3;
+  } else if (topology_string == "SHELL_TRI_4") {
+    return stk::topology::SHELL_TRI_4;
+  } else if (topology_string == "SHELL_TRI_6") {
+    return stk::topology::SHELL_TRI_6;
+  } else if (topology_string == "SHELL_QUAD_4") {
+    return stk::topology::SHELL_QUAD_4;
+  } else if (topology_string == "SHELL_QUAD_8") {
+    return stk::topology::SHELL_QUAD_8;
+  } else if (topology_string == "SHELL_QUAD_9") {
+    return stk::topology::SHELL_QUAD_9;
+  } else if (topology_string == "TET_4") {
+    return stk::topology::TET_4;
+  } else if (topology_string == "TET_8") {
+    return stk::topology::TET_8;
+  } else if (topology_string == "TET_10") {
+    return stk::topology::TET_10;
+  } else if (topology_string == "TET_11") {
+    return stk::topology::TET_11;
+  } else if (topology_string == "PYRAMID_5") {
+    return stk::topology::PYRAMID_5;
+  } else if (topology_string == "PYRAMID_13") {
+    return stk::topology::PYRAMID_13;
+  } else if (topology_string == "PYRAMID_14") {
+    return stk::topology::PYRAMID_14;
+  } else if (topology_string == "WEDGE_6") {
+    return stk::topology::WEDGE_6;
+  } else if (topology_string == "WEDGE_12") {
+    return stk::topology::WEDGE_12;
+  } else if (topology_string == "WEDGE_15") {
+    return stk::topology::WEDGE_15;
+  } else if (topology_string == "WEDGE_18") {
+    return stk::topology::WEDGE_18;
+  } else if (topology_string == "HEX_8") {
+    return stk::topology::HEX_8;
+  } else if (topology_string == "HEX_20") {
+    return stk::topology::HEX_20;
+  } else if (topology_string == "HEX_27") {
+    return stk::topology::HEX_27;
+  } else if (std::regex_match(topology_string, std::regex("SUPEREDGE<\\d+>"))) {
+    std::smatch base_match;
+    std::regex_match(topology_string, base_match, std::regex("\\d+"));
+    const int num_nodes = std::stoi(base_match[1].str());
+    return stk::create_superedge_topology(num_nodes);
+  } else if (std::regex_match(topology_string, std::regex("SUPERFACE<\\d+>"))) {
+    std::smatch base_match;
+    std::regex_match(topology_string, base_match, std::regex("\\d+"));
+    const int num_nodes = std::stoi(base_match[1].str());
+    return stk::create_superface_topology(num_nodes);
+  } else if (std::regex_match(topology_string, std::regex("SUPERELEMENT<\\d+>"))) {
+    std::smatch base_match;
+    std::regex_match(topology_string, base_match, std::regex("\\d+"));
+    const int num_nodes = std::stoi(base_match[1].str());
+    return stk::create_superelement_topology(num_nodes);
+  } else {
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        true, std::invalid_argument,
+        "mundy::meta::PartRequirements: The provided topology string " << topology_string << " is not valid.");
+  }
+}
+//}
 
 // \name Constructors and destructor
 //{
