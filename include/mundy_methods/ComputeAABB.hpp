@@ -49,8 +49,8 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public mundy::meta::MetaMethod<ComputeAABB, void>,
-                    public mundy::meta::MetaMethodRegistry<ComputeAABB> {
+class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
+                    public mundy::meta::MetaMethodRegistry<void, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -124,7 +124,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<ComputeAABB, void>,
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaMethodBase> details_create_new_instance(
+  static std::shared_ptr<MetaMethodBase<void>> details_create_new_instance(
       const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
       const Teuchos::ParameterList &parameter_list) const {
     return std::make_unique<ComputeAABB>(bulk_data_ptr, part_ptr_vector, parameter_list);

@@ -49,8 +49,8 @@ namespace methods {
 
 /// \class ComputeConstraintViolation
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintViolation : public mundy::meta::MetaMethod<ComputeConstraintViolation, void>,
-                                   public mundy::meta::MetaMethodRegistry<ComputeConstraintViolation> {
+class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeConstraintViolation>,
+                                   public mundy::meta::MetaMethodRegistry<void, ComputeConstraintViolation> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -126,7 +126,7 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<ComputeConstra
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaMethodBase> details_create_new_instance(
+  static std::shared_ptr<MetaMethodBase<void>> details_create_new_instance(
       const stk::mesh::BulkData *bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
       const Teuchos::ParameterList &parameter_list) const {
     return std::make_unique<ComputeConstraintViolation>(bulk_data_ptr, part_ptr_vector, parameter_list);

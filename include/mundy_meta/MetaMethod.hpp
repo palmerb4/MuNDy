@@ -105,8 +105,8 @@ class MetaMethodBase {
 ///
 /// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
-template <class DerivedMetaMethod, typename ReturnType,
-          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool> = true>
+template <typename ReturnType, class DerivedMetaMethod,
+          std::enable_if_t<std::is_base_of<MetaMethod<ReturnType, DerivedMetaMethod>, DerivedMetaMethod>::value, bool> = true>
 class MetaMethod : public MetaMethodBase<ReturnType> {
  public:
   //! \name Getters
@@ -159,6 +159,13 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
+  std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
+      const Teuchos::ParameterList& parameter_list) const override final;
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<MetaMethodBase<ReturnType>> static_create_new_instance(
       const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaMethod::details_create_new_instance(parameter_list);
@@ -174,22 +181,22 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
 
 // \name Getters
 //{
-template <class DerivedMetaMethod, typename ReturnType,
-          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
-std::shared_ptr<PartRequirements> MetaMethod<DerivedMetaMethod, ReturnType>::get_part_requirements(
+template <typename ReturnType, class DerivedMetaMethod,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool> EnableIfType>
+std::shared_ptr<PartRequirements> MetaMethod<ReturnType, DerivedMetaMethod, EnableIfType>::get_part_requirements(
     const Teuchos::ParameterList& parameter_list) const {
   return static_get_part_requirements(parameter_list);
 }
 
-template <class DerivedMetaMethod, typename ReturnType,
-          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
-Teuchos::ParameterList MetaMethod<DerivedMetaMethod, ReturnType>::get_valid_params() const {
+template <typename ReturnType, class DerivedMetaMethod,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool> EnableIfType>
+Teuchos::ParameterList MetaMethod<ReturnType, DerivedMetaMethod, EnableIfType>::get_valid_params() const {
   return static_details_get_valid_params();
 }
 
-template <class DerivedMetaMethod, typename ReturnType,
-          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
-std::string MetaMethod<DerivedMetaMethod, ReturnType>::get_class_identifier() const {
+template <typename ReturnType, class DerivedMetaMethod,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool> EnableIfType>
+std::string MetaMethod<ReturnType, DerivedMetaMethod, EnableIfType>::get_class_identifier() const {
   return static_details_get_class_identifier();
 }
 //}
@@ -197,9 +204,10 @@ std::string MetaMethod<DerivedMetaMethod, ReturnType>::get_class_identifier() co
 // \name Actions
 //{
 
-template <class DerivedMetaMethod, typename ReturnType,
-          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool>>
-std::shared_ptr<MetaMethodBase<ReturnType>> MetaMethod<DerivedMetaMethod, ReturnType>::create_new_instance(
+template <typename ReturnType, class DerivedMetaMethod,
+          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, DerivedMetaMethod>::value, bool> EnableIfType>
+std::shared_ptr<MetaMethodBase<ReturnType>>
+MetaMethod<ReturnType, DerivedMetaMethod, EnableIfType>::create_new_instance(
     const Teuchos::ParameterList& parameter_list) const {
   return static_create_new_instance(parameter_list);
 }

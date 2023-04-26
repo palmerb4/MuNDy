@@ -48,8 +48,8 @@ namespace methods {
 /// \class ComputeConstraintProjectionCollisionKernel
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
 class ComputeConstraintProjectionCollisionKernel
-    : public mundy::meta::MetaKernel<ComputeConstraintProjectionCollisionKernel, void>,
-      public mundy::meta::MetaKernelRegistry<ComputeConstraintProjectionCollisionKernel, ComputeAABB> {
+    : public mundy::meta::MetaKernel<void, ComputeConstraintProjectionCollisionKernel>,
+      public mundy::meta::MetaKernelRegistry<void, ComputeConstraintProjectionCollisionKernel, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{

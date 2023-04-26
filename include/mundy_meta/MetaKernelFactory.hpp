@@ -68,7 +68,7 @@ struct DefaultKernelIdentifier {};  // DefaultKernelIdentifier
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
-template <typename RegistryIdentifier = DefaultKernelIdentifier>
+template <typename ReturnType, typename RegistryIdentifier = DefaultKernelIdentifier>
 class MetaKernelFactory {
  public:
   //! \name Typedefs
@@ -76,8 +76,8 @@ class MetaKernelFactory {
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c MetaKernel.
-  using NewMetaKernelGenerator =
-      std::function<std::shared_ptr<MetaKernelBase>(stk::mesh::BulkData* const, const Teuchos::ParameterList&)>;
+  using NewMetaKernelGenerator = std::function<std::shared_ptr<MetaKernelBase<ReturnType>>(
+      stk::mesh::BulkData* const, const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a PartRequirements instance.
   using NewRequirementsGenerator = std::function<PartRequirements>(const Teuchos::ParameterList&);
@@ -141,7 +141,7 @@ class MetaKernelFactory {
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename KernelToRegister,
-            std::enable_if_t<std::is_base_of<MetaKernelBase, KernelToRegister>::value, bool> = true>
+            std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, KernelToRegister>::value, bool> = true>
   void register_new_kernel();
 
   /// \brief Generate a new instance of a registered \c MetaKernel.
@@ -154,9 +154,9 @@ class MetaKernelFactory {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaKernelBase> create_new_instance(const std::string& key,
-                                                             stk::mesh::BulkData* const bulk_data_ptr,
-                                                             const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(const std::string& key,
+                                                                         stk::mesh::BulkData* const bulk_data_ptr,
+                                                                         const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[key](bulk_data_ptr, parameter_list);
   }
   //@}
@@ -204,8 +204,7 @@ class MetaKernelFactory {
   ///
   /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should
   /// be friends with this factory.
-  template <ReturnType SameReturnType, typename AnyKernel, RegistryIdentifier SameRegistryIdentifier,
-            std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool>>
+  template <ReturnType SameReturnType, typename AnyKernel, RegistryIdentifier SameRegistryIdentifier>
   friend class MetaKernelRegistry;
   //@}
 };  // MetaKernelFactory
@@ -213,8 +212,10 @@ class MetaKernelFactory {
 //! \name template implementations
 //@{
 
-template <typename KernelToRegister, std::enable_if_t<std::is_base_of<MetaKernelBase, KernelToRegister>::value, bool>>
-void MetaKernelFactory::register_new_kernel() {
+template <typename ReturnType, typename RegistryIdentifier>
+template <typename KernelToRegister,
+          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, KernelToRegister>::value, bool> EnableIfType>
+void MetaKernelFactory<ReturnType, RegistryIdentifier>::register_new_kernel<KernelToRegister, EnableIfType>() {
   const std::string key = KernelToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                              "The provided key " << key << " already exists.");

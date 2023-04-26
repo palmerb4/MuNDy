@@ -44,7 +44,7 @@ namespace meta {
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
 template <typename ReturnType, class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier,
-          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool> = true>
+          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool> = true>
 struct MetaKernelRegistry {
   //! \name Actions
   //@{
@@ -54,7 +54,7 @@ struct MetaKernelRegistry {
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaKernelFactory::register_new_method<DerivedMetaKernel>();
+    MetaKernelFactory<ReturnType, RegistryIdentifier>::register_new_method<DerivedMetaKernel>();
     return true;
   }
   //@}
@@ -74,9 +74,9 @@ struct MetaKernelRegistry {
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
 template <typename ReturnType, class DerivedMetaKernel, typename RegistryIdentifier,
-          std::enable_if_t<std::is_base_of<MetaKernelBase, DerivedMetaKernel>::value, bool>>
-const bool MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier>::is_registered =
-    MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier>::register_type();
+          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool> EnableIfType>
+const bool MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier, EnableIfType>::is_registered =
+    MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier, EnableIfType>::register_type();
 
 }  // namespace meta
 

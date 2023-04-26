@@ -40,7 +40,7 @@
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 
 namespace mundy {
 
@@ -176,7 +176,7 @@ class FieldRequirementsFactory {
 
   /// \brief Registratrion of new types is done through \c FieldRequirementsRegistry.
   /// This process requires friendship <3.
-  template <typename AnyFieldType, std::enable_if_t<std::is_trivially_copyable<AnyFieldType>::value, bool>>
+  template <typename AnyFieldType, std::enable_if_t<std::is_trivially_copyable<AnyFieldType>::value, bool> EnableIfType>
   friend class FieldRequirementsRegistry;
   //@}
 };  // FieldRequirementsFactory
@@ -184,8 +184,10 @@ class FieldRequirementsFactory {
 //! \name template implementations
 //@{
 
-template <typename FieldTypeToRegister, std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool>>
-void FieldRequirementsFactory::register_new_field_type(const std::string& field_type_string) {
+template <typename FieldTypeToRegister,
+          std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> EnableIfType>
+void FieldRequirementsFactory::register_new_field_type<FieldTypeToRegister, EnableIfType>(
+    const std::string& field_type_string) {
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_field_type_string(field_type_string), std::invalid_argument,
                              "The provided field type string " << field_type_string << " already exists.");
   get_instance_generator_map().insert(

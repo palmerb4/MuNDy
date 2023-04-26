@@ -47,8 +47,8 @@ namespace methods {
 
 /// \class ComputeAABBSphereKernel
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<ComputeAABBSphereKernel, void>,
-                                public mundy::meta::MetaKernelRegistry<ComputeAABBSphereKernel, ComputeAABB> {
+class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABBSphereKernel>,
+                                public mundy::meta::MetaKernelRegistry<void, ComputeAABBSphereKernel, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
