@@ -190,7 +190,7 @@ mundy::
 GroupHierarchyParams:
   int group_id;
   std::string group_name;
-  std::topology group_topology;
+  stk::topology group_topology;
   std::vector<FieldRequirements> group_fields;
   std::vector<GroupHierarchyParams>;
   
@@ -201,7 +201,7 @@ GroupHierarchyParams:
     group_topology: stk::topology::ENTITY
     group_field_params:
       - field_name: "force"
-        field_rank: std::topology::ENTITY_RANK
+        field_rank: stk::topology::ENTITY_RANK
         field_type: 
     
   std::vector<GroupHierarchyParams>;

@@ -33,6 +33,7 @@
 #include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
@@ -41,7 +42,6 @@
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 
-namespace mundy {
 
 namespace methods {
 
@@ -69,18 +69,19 @@ class ComputeConstraintProjectionCollisionKernel
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<PartRequirements> details_get_part_requirements(
+  static std::shared_ptr<mundy::meta::PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::shared_ptr<PartRequirements> required_part_params =
-        std::make_unique<PartRequirements>(std::topology::PARTICLE);
+    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
+        std::make_unique<mundy::meta::PartRequirements>();
+    required_part_params->set_part_topology(stk::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));
+        std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
-        default_node_normal_vec_field_name_, std::topology::NODE_RANK, 3, 1));
+        default_node_normal_vec_field_name_, stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
-        default_lagrange_multiplier_field_name_, std::topology::ELEMENT_RANK, 1, 1));
+        default_lagrange_multiplier_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(std::make_unique<FieldRequirements<double>>(
-        default_constraint_violation_field_name_, std::topology::ELEMENT_RANK, 1, 1));
+        default_constraint_violation_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 
@@ -111,7 +112,7 @@ class ComputeConstraintProjectionCollisionKernel
 
   /// \brief Run the kernel's core calculation.
   /// \param element [in] The element acted on by the kernel.
-  void execute(const stk::mesh::Entity &element);
+  void execute(const stk::mesh::Entity &element) override;
   //@}
 
  private:

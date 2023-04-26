@@ -33,6 +33,7 @@
 #include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
@@ -68,16 +69,17 @@ class ComputeOBBSphereKernel : public mundy::meta::MetaKernel<void, ComputeOBBSp
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<PartRequirements> details_get_part_requirements(
+  static std::shared_ptr<mundy::meta::PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::shared_ptr<PartRequirements> required_part_params =
-        std::make_unique<PartRequirements>(std::topology::PARTICLE);
+    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
+        std::make_unique<mundy::meta::PartRequirements>();
+    required_part_params->set_part_topology(stk::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>("obb", std::topology::ELEMENT_RANK, 4, 1));
+        std::make_unique<FieldRequirements<double>>("obb", stk::topology::ELEMENT_RANK, 4, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>("radius", std::topology::ELEMENT_RANK, 1, 1));
+        std::make_unique<FieldRequirements<double>>("radius", stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>("node_coord", std::topology::NODE_RANK, 3, 1));
+        std::make_unique<FieldRequirements<double>>("node_coord", stk::topology::NODE_RANK, 3, 1));
     return required_part_params;
   }
 
@@ -100,7 +102,7 @@ class ComputeOBBSphereKernel : public mundy::meta::MetaKernel<void, ComputeOBBSp
 
   /// \brief Run the kernel's core calculation.
   /// \param element [in] The element acted on by the kernel.
-  void execute(const stk::mesh::Entity &element);
+  void execute(const stk::mesh::Entity &element) override;
   //@}
 
  private:

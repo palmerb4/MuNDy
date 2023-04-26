@@ -201,7 +201,7 @@ PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list)
     const Teuchos::ParameterList &fields_sublist = parameter_list.sublist("fields");
     const unsigned num_fields = fields_sublist.get<unsigned>("count");
     for (int i = 0; i < num_fields; i++) {
-      const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(num_fields));
+      const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(i));
       const std::string field_type_string = field_i_sublist.get<std::string>("type");
       std::shared_ptr<FieldRequirementsBase> field_i =
           FieldRequirementsFactory::create_new_instance(field_type_string, field_i_sublist);
@@ -215,7 +215,7 @@ PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list)
     const unsigned num_subparts = subparts_sublist.get<unsigned>("count");
     for (int i = 0; i < num_subparts; i++) {
       const Teuchos::ParameterList &subpart_i_sublist =
-          parameter_list.sublist("sub_part_" + std::to_string(num_subparts));
+          parameter_list.sublist("sub_part_" + std::to_string(i));
       std::shared_ptr<PartRequirements> subpart_i = std::make_shared<PartRequirements>(subpart_i_sublist);
       this->add_subpart_reqs(subpart_i);
     }

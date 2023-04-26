@@ -33,6 +33,7 @@
 #include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
@@ -84,16 +85,17 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<PartRequirements> details_get_part_requirements(
+  static std::shared_ptr<mundy::meta::PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::shared_ptr<PartRequirements> required_part_params = std::make_unique<PartRequirements>();
-    required_part_params->set_topology(stk::topology::PARTICLE);
+    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
+        std::make_unique<mundy::meta::PartRequirements>();
+    required_part_params->set_part_topology(stk::topology::PARTICLE);
     required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, std::topology::NODE_RANK, 3, 1));
+        std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>(default_radius_field_name_, std::topology::ELEMENT_RANK, 1, 1));
+        std::make_unique<FieldRequirements<double>>(default_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_params(
-        std::make_unique<FieldRequirements<double>>(default_aabb_field_name_, std::topology::ELEMENT_RANK, 4, 1));
+        std::make_unique<FieldRequirements<double>>(default_aabb_field_name_, stk::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }
 
@@ -121,19 +123,7 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
 
   /// \brief Run the kernel's core calculation.
   /// \param element [in] The element acted on by the kernel.
-  void execute(const stk::mesh::Entity &element) {
-    stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
-    double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-    double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-    double *aabb = stk::mesh::field_data(*aabb_field_ptr_, element);
-
-    aabb[0] = coords[0] - radius[0] - buffer_distance_;
-    aabb[1] = coords[1] - radius[0] - buffer_distance_;
-    aabb[2] = coords[2] - radius[0] - buffer_distance_;
-    aabb[3] = coords[0] + radius[0] + buffer_distance_;
-    aabb[4] = coords[1] + radius[0] + buffer_distance_;
-    aabb[5] = coords[2] + radius[0] + buffer_distance_;
-  }
+  void execute(const stk::mesh::Entity &element) override;
   //@}
 
  private:

@@ -67,28 +67,28 @@ methods:
       residual_tolerance: 1e-5
   method_1:
     name: TIME_INTEGRATION
-    compatible_parts:
+    input_parts:
       count: 2
-      compatible_part_0:
+      input_part_0:
         name: SPHERES
         kernels:
           time_integration_kernel: 
             name: NODE_EULER
-      compatible_part_1:
+      input_part_1:
         name: ELLIPSOIDS
         kernels:
           time_integration_kernel: 
             name: NODE_EULER
   method_2:
     name: COMPUTE_MOBILITY
-    compatible_parts:
+    input_parts:
       count: 2
-      compatible_part_0:
+      input_part_0:
         name: SPHERES
         kernels:
           time_integration_kernel: 
             name: INERTIAL
-      compatible_part_1:
+      input_part_1:
         name: ELLIPSOIDS
         kernels:
           time_integration_kernel: 

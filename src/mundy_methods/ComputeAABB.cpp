@@ -49,36 +49,28 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const std::vector<*stk::mesh::Part> &part_ptr_vector,
-                         const Teuchos::ParameterList &parameter_list)
-    : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
+ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+    : bulk_data_ptr_(bulk_data_ptr) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "mundy::methods::ComputeAABB: bulk_data_ptr cannot be a nullptr.");
-
-  // The parts cannot intersect.
-  for (int i = 0; i < num_parts_; i++) {
-    for (int j = 0; j < num_parts_; j++) {
-      if (i = !j) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeAABB: Part " << part_ptr_vector[i]->name() << " and "
-                                                                        << "Part " << part_ptr_vector[j]->name()
-                                                                        << "intersect.");
-      }
-    }
-  }
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_parameter_list = parameter_list;
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
-  // Create and store the required kernels.
+  // Parse the parameters
+  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+  num_parts_ = parts_parameter_list.get<unsigned>("count");
+  part_ptr_vector_.resize(num_parts_);
   for (int i = 0; i < num_parts_; i++) {
+    // Fetch the i'th part and its parameters
+    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+    const std::string part_name = part_parameter_list.get<std::string>("name");
+    part_ptr_vector_[i] = bulk_data_ptr->mesh_meta_data()->get_part(part_name);
+
     // Fetch the parameters for this part's kernel
-    const std::string part_name = part_ptr_vector_[i]->name();
-    const Teuchos::ParameterList &part_parameter_list = valid_parameter_list.sublist(part_name);
     const Teuchos::ParameterList &part_kernel_parameter_list =
         part_parameter_list.sublist("kernels").sublist("compute_aabb");
 
@@ -86,6 +78,19 @@ ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const std::ve
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
     compute_aabb_kernels_.push_back(
         MetaKernelFactory<ComputeAABB>::create_new_instance(kernel_name, bulk_data_ptr, part_kernel_parameter_list));
+  }
+
+  // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
+  for (int i = 0; i < num_parts; i++) {
+    for (int j = 0; j < num_parts; j++) {
+      if (i != j) {
+        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
+        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
+                                   "mundy::methods::ComputeAABB: Part " << part_ptr_vector_[i]->name() << " and "
+                                                                        << "Part " << part_ptr_vector_[j]->name()
+                                                                        << "intersect.");
+      }
+    }
   }
 }
 //}
@@ -95,7 +100,7 @@ ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const std::ve
 
 void ComputeAABB::execute() {
   for (int i = 0; i < num_parts_; i++) {
-    const MetaKernel &compute_aabb_kernel = compute_aabb_kernels_[i];
+    const mundy::meta::MetaKernel &compute_aabb_kernel = compute_aabb_kernels_[i];
 
     stk::mesh::Selector locally_owned_part =
         bulk_data_ptr->mesh_meta_data().locally_owned_part() && *part_ptr_vector_[i];

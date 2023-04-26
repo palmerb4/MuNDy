@@ -82,7 +82,7 @@ class MetaMethodBase {
       const Teuchos::ParameterList& parameter_list) const = 0;
 
   /// \brief Run the method's core calculation.
-  virtual ReturnType execute(const stk::mesh::Part& part) = 0;
+  virtual ReturnType execute() = 0;
   //@}
 };  // MetaMethodBase
 
@@ -171,7 +171,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   }
 
   /// \brief Run the method's core calculation.
-  virtual ReturnType execute(const stk::mesh::Part& part) = 0;
+  virtual ReturnType execute() = 0;
   //@}
 };  // MetaMethod
 

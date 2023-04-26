@@ -50,7 +50,6 @@ namespace methods {
 //{
 
 ComputeBoundingRadius::ComputeBoundingRadius(stk::mesh::BulkData *const bulk_data_ptr,
-                                             const std::vector<*stk::mesh::Part> &part_ptr_vector,
                                              const Teuchos::ParameterList &parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
   // The bulk data pointer must not be null.
