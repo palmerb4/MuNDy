@@ -118,8 +118,7 @@ class MetaKernelBase {
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
-template <typename ReturnType, class DerivedMetaKernel,
-          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool> = true>
+template <typename ReturnType, class DerivedMetaKernel> 
 class MetaKernel : public MetaKernelBase<ReturnType> {
  public:
   //! \name Getters
@@ -201,22 +200,19 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 // \name Getters
 //{
 
-template <typename ReturnType, class DerivedMetaKernel,
-          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool> EnableIfType>
-std::shared_ptr<PartRequirements> MetaKernel<ReturnType, DerivedMetaKernel, EnableIfType>::get_part_requirements(
+template <typename ReturnType, class DerivedMetaKernel>
+std::shared_ptr<PartRequirements> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
     const Teuchos::ParameterList& parameter_list) const {
   return static_get_part_requirements(parameter_list);
 }
 
-template <typename ReturnType, class DerivedMetaKernel,
-          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool> EnableIfType>
-Teuchos::ParameterList MetaKernel<ReturnType, DerivedMetaKernel, EnableIfType>::get_valid_params() const {
+template <typename ReturnType, class DerivedMetaKernel>
+Teuchos::ParameterList MetaKernel<ReturnType, DerivedMetaKernel>::get_valid_params() const {
   return static_get_valid_params();
 }
 
-template <typename ReturnType, class DerivedMetaKernel,
-          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool> EnableIfType>
-std::string MetaKernel<ReturnType, DerivedMetaKernel, EnableIfType>::get_class_identifier() const {
+template <typename ReturnType, class DerivedMetaKernel>
+std::string MetaKernel<ReturnType, DerivedMetaKernel>::get_class_identifier() const {
   return static_get_class_identifier();
 }
 //}
@@ -224,10 +220,9 @@ std::string MetaKernel<ReturnType, DerivedMetaKernel, EnableIfType>::get_class_i
 // \name Actions
 //{
 
-template <typename ReturnType, class DerivedMetaKernel,
-          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, DerivedMetaKernel>::value, bool> EnableIfType>
+template <typename ReturnType, class DerivedMetaKernel>
 std::shared_ptr<MetaKernelBase<ReturnType>>
-MetaKernel<ReturnType, DerivedMetaKernel, EnableIfType>::create_new_instance(
+MetaKernel<ReturnType, DerivedMetaKernel>::create_new_instance(
     const Teuchos::ParameterList& parameter_list) const {
   return static_create_new_instance(parameter_list);
 }

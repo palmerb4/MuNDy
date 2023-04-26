@@ -142,8 +142,7 @@ class MetaMethodFactory {
   //@{
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
-  template <typename MethodToRegister,
-            std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, MethodToRegister>::value, bool> = true>
+  template <typename MethodToRegister>
   void register_new_method();
 
   /// \brief Generate a new instance of a registered \c MetaMethod.
@@ -206,8 +205,7 @@ class MetaMethodFactory {
   ///
   /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should
   /// be friends with this factory.
-  template <ReturnType SameReturnType, typename AnyMethod, RegistryIdentifier SameRegistryIdentifier,
-            std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, AnyMethod>::value, bool> EnableIfType>
+  template <ReturnType SameReturnType, typename AnyMethod, RegistryIdentifier SameRegistryIdentifier>
   friend class MetaMethodRegistry;
   //@}
 };  // MetaMethodFactory
@@ -217,9 +215,8 @@ class MetaMethodFactory {
 
 /// \brief Register a method. The key for the method is determined by its class identifier.
 template <typename ReturnType, typename RegistryIdentifier>
-template <typename MethodToRegister,
-          std::enable_if_t<std::is_base_of<MetaMethodBase<ReturnType>, MethodToRegister>::value, bool> EnableIfType>
-void MetaMethodFactory<ReturnType, RegistryIdentifier>::register_new_method<MethodToRegister, EnableIfType>() {
+template <typename MethodToRegister>
+void MetaMethodFactory<ReturnType, RegistryIdentifier>::register_new_method<MethodToRegister>() {
   const std::string key = MethodToRegister<ReturnType, RegistryIdentifier>::static_get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                              "The provided key " << key << " already exists.");
