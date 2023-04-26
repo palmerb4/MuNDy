@@ -81,8 +81,10 @@ class MetaMethodFactory {
   using NewMetaMethodGenerator = std::function<std::shared_ptr<MetaMethodBase<ReturnType>>(
       stk::mesh::BulkData* const, const Teuchos::ParameterList&)>;
 
-  /// \brief A function type that takes a parameter list and produces a shared pointer to a PartRequirements instance.
-  using NewRequirementsGenerator = std::function<std::shared_ptr<PartRequirements>>(const Teuchos::ParameterList&);
+  /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
+  /// instances.
+  using NewRequirementsGenerator =
+      std::function<std::vector<std::shared_ptr<PartRequirements>>>(const Teuchos::ParameterList&);
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -115,8 +117,8 @@ class MetaMethodFactory {
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> get_part_requirements(const std::string& key,
-                                                                 const Teuchos::ParameterList& parameter_list) {
+  static std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
+      const std::string& key, const Teuchos::ParameterList& parameter_list) {
     return get_requirement_generator_map()[key](parameter_list);
   }
 
@@ -203,9 +205,10 @@ class MetaMethodFactory {
   /// \brief Every concrete \c MetaMethod that inherits from the \c MetaMethodRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   ///
-  /// For devs, the templating here is strategic such that only \c MetaKernelRegistry's with the same identifier should
-  /// be friends with this factory.
-  template <ReturnType SameReturnType, typename AnyMethod, RegistryIdentifier SameRegistryIdentifier>
+  /// \note For devs: Unfortunitely, "Friend declarations cannot refer to partial specializations," so there is no way
+  /// to only have \c MetaMethodRegistry with the same identifier be friends with this factory. Instead, ALL
+  /// \c MetaMethodRegistry are friends, including the ones we don't want.
+  template <typename, class, typename>
   friend class MetaMethodRegistry;
   //@}
 };  // MetaMethodFactory

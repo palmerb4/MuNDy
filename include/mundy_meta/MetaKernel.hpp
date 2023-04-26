@@ -64,7 +64,7 @@ class MetaKernelBase {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  virtual std::shared_ptr<PartRequirements> get_part_requirements(
+  virtual std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
       const Teuchos::ParameterList& parameter_list) const = 0;
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
@@ -118,7 +118,7 @@ class MetaKernelBase {
 ///
 /// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
-template <typename ReturnType, class DerivedMetaKernel> 
+template <typename ReturnType, class DerivedMetaKernel>
 class MetaKernel : public MetaKernelBase<ReturnType> {
  public:
   //! \name Getters
@@ -135,7 +135,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  std::shared_ptr<PartRequirements> get_part_requirements(
+  std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
       const Teuchos::ParameterList& parameter_list) const override final;
 
   /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
@@ -149,7 +149,8 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
+  static std::vector<std::shared_ptr<PartRequirements>> static_get_part_requirements(
+      const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaKernel::details_get_part_requirements(parameter_list);
   }
 
@@ -201,7 +202,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 //{
 
 template <typename ReturnType, class DerivedMetaKernel>
-std::shared_ptr<PartRequirements> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
+std::vector<std::shared_ptr<PartRequirements>> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
     const Teuchos::ParameterList& parameter_list) const {
   return static_get_part_requirements(parameter_list);
 }
@@ -221,8 +222,7 @@ std::string MetaKernel<ReturnType, DerivedMetaKernel>::get_class_identifier() co
 //{
 
 template <typename ReturnType, class DerivedMetaKernel>
-std::shared_ptr<MetaKernelBase<ReturnType>>
-MetaKernel<ReturnType, DerivedMetaKernel>::create_new_instance(
+std::shared_ptr<MetaKernelBase<ReturnType>> MetaKernel<ReturnType, DerivedMetaKernel>::create_new_instance(
     const Teuchos::ParameterList& parameter_list) const {
   return static_create_new_instance(parameter_list);
 }

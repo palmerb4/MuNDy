@@ -60,7 +60,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
   ComputeBoundingRadius() = delete;
 
   /// \brief Constructor
-  ComputeBoundingRadius(const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  ComputeBoundingRadius(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -99,7 +99,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
           mundy::meta::MetaKernelFactory<ComputeBoundingRadius>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(&mundy::meta::MetaKernelFactory<ComputeBoundingRadius>::get_part_requirements(
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<ComputeBoundingRadius>::get_part_requirements(
           kernel_name, part_kernel_parameter_list));
     }
 
@@ -127,7 +127,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
       const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_unique<ComputeBoundingRadius>(bulk_data_ptr, part_ptr_vector, parameter_list);
+    return std::make_unique<ComputeBoundingRadius>(bulk_data_ptr, parameter_list);
   }
   //@}
 

@@ -55,7 +55,7 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   //@{
 
   /// \brief Constructor
-  explicit ComputeAABBSphereKernel(const stk::mesh::BulkData *bulk_data_ptr,
+  explicit ComputeAABBSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
                                    const Teuchos::ParameterList &parameter_list) {
     // Store the input parameters, use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -87,14 +87,14 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::PartRequirements> details_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
-        std::make_unique<mundy::meta::PartRequirements>();
-    required_part_params->set_part_topology(stk::topology::PARTICLE);
-    required_part_params->add_field_params(
+    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> required_part_params;
+    required_part_params.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    required_part_params[0]->set_part_topology(stk::topology::PARTICLE);
+    required_part_params[0]->add_field_params(
         std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_params(
+    required_part_params[0]->add_field_params(
         std::make_unique<FieldRequirements<double>>(default_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_params(
+    required_part_params[0]->add_field_params(
         std::make_unique<FieldRequirements<double>>(default_aabb_field_name_, stk::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }

@@ -60,7 +60,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   ComputeAABB() = delete;
 
   /// \brief Constructor
-  ComputeAABB(const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -97,7 +97,6 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
       Teuchos::ParameterList &part_kernel_parameter_list =
           part_parameter_list.sublist("kernels").sublist("compute_aabb");
 
@@ -108,7 +107,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
 
       // Merge the kernel requirements.
       part_requirements[i]->merge(
-          &mundy::meta::MetaKernelFactory<ComputeAABB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
+          mundy::meta::MetaKernelFactory<ComputeAABB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
@@ -134,7 +133,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
       const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_unique<ComputeAABB>(bulk_data_ptr, part_ptr_vector, parameter_list);
+    return std::make_unique<ComputeAABB>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -153,7 +152,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   size_t num_parts_;
 
   /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part*> &part_ptr_vector_;
+  std::vector<stk::mesh::Part *> &part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
   std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_aabb_kernels_;

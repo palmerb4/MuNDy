@@ -60,7 +60,7 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
   ComputeOBB() = delete;
 
   /// \brief Constructor
-  ComputeOBB(const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -100,7 +100,7 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
 
       // Merge the kernel requirements.
       part_requirements[i]->merge(
-          &mundy::meta::MetaKernelFactory<ComputeOBB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
+          mundy::meta::MetaKernelFactory<ComputeOBB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
@@ -126,7 +126,7 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
       const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_unique<ComputeOBB>(bulk_data_ptr, part_ptr_vector, parameter_list);
+    return std::make_unique<ComputeOBB>(bulk_data_ptr, parameter_list);
   }
   //@}
 
