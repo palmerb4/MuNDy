@@ -179,15 +179,15 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
-      const Teuchos::ParameterList& parameter_list) const override final;
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const override final;
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<MetaKernelBase<ReturnType>> static_create_new_instance(
-      const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_create_new_instance(parameter_list);
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) {
+    return DerivedMetaKernel::details_create_new_instance(bulk_data_ptr, parameter_list);
   }
 
   /// \brief Run the kernel's core calculation.
@@ -223,8 +223,8 @@ std::string MetaKernel<ReturnType, DerivedMetaKernel>::get_class_identifier() co
 
 template <typename ReturnType, class DerivedMetaKernel>
 std::shared_ptr<MetaKernelBase<ReturnType>> MetaKernel<ReturnType, DerivedMetaKernel>::create_new_instance(
-    const Teuchos::ParameterList& parameter_list) const {
-  return static_create_new_instance(parameter_list);
+    stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const {
+  return static_create_new_instance(bulk_data_ptr, parameter_list);
 }
 //}
 //@}

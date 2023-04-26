@@ -62,7 +62,7 @@ class MetaMethodBase {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   virtual std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const = 0;
+      const Teuchos::ParameterList &parameter_list) const = 0;
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
   virtual Teuchos::ParameterList get_valid_params() const = 0;
@@ -79,7 +79,7 @@ class MetaMethodBase {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   virtual std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
-      const Teuchos::ParameterList& parameter_list) const = 0;
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const = 0;
 
   /// \brief Run the method's core calculation.
   virtual ReturnType execute() = 0;
@@ -94,11 +94,10 @@ class MetaMethodBase {
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethod must
 /// implement the following static member functions
-///   - \c details_get_part_requirements implementation of the \c get_part_requirements interface.
-///   class.
-///   - \c details_get_valid_params implementation of the \c get_valid_params interface.
-///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
-///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
+///   - \c details_static_get_part_requirements implementation of the \c get_part_requirements interface.
+///   - \c details_static_get_valid_params implementation of the \c get_valid_params interface.
+///   - \c details_static_get_class_identifier implementation of the \c get_class_identifier interface.
+///   - \c details_static_create_new_instance implementation of the \c create_new_instance interface.
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
@@ -120,7 +119,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const override final;
+      const Teuchos::ParameterList &parameter_list) const override final;
 
   /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
   ///
@@ -131,8 +130,8 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::vector<std::shared_ptr<PartRequirements>> static_get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaMethod::details_get_part_requirements(parameter_list);
+      const Teuchos::ParameterList &parameter_list) {
+    return DerivedMetaMethod::details_static_get_part_requirements(parameter_list);
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
@@ -140,7 +139,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
   static Teuchos::ParameterList static_get_valid_params() {
-    return DerivedMetaMethod::details_get_valid_params();
+    return DerivedMetaMethod::details_static_get_valid_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -148,7 +147,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static std::string static_get_class_identifier() {
-    return DerivedMetaMethod::details_get_class_identifier();
+    return DerivedMetaMethod::details_static_get_class_identifier();
   }
   //@}
 
@@ -160,15 +159,15 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
-      const Teuchos::ParameterList& parameter_list) const override final;
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const override final;
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<MetaMethodBase<ReturnType>> static_create_new_instance(
-      const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaMethod::details_create_new_instance(parameter_list);
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+    return DerivedMetaMethod::details_static_create_new_instance(bulk_data_ptr, parameter_list);
   }
 
   /// \brief Run the method's core calculation.
@@ -183,18 +182,18 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
 //{
 template <typename ReturnType, class DerivedMetaMethod>
 std::vector<std::shared_ptr<PartRequirements>> MetaMethod<ReturnType, DerivedMetaMethod>::get_part_requirements(
-    const Teuchos::ParameterList& parameter_list) const {
+    const Teuchos::ParameterList &parameter_list) const {
   return static_get_part_requirements(parameter_list);
 }
 
 template <typename ReturnType, class DerivedMetaMethod>
 Teuchos::ParameterList MetaMethod<ReturnType, DerivedMetaMethod>::get_valid_params() const {
-  return static_details_get_valid_params();
+  return static_get_valid_params();
 }
 
 template <typename ReturnType, class DerivedMetaMethod>
 std::string MetaMethod<ReturnType, DerivedMetaMethod>::get_class_identifier() const {
-  return static_details_get_class_identifier();
+  return static_get_class_identifier();
 }
 //}
 
@@ -203,8 +202,8 @@ std::string MetaMethod<ReturnType, DerivedMetaMethod>::get_class_identifier() co
 
 template <typename ReturnType, class DerivedMetaMethod>
 std::shared_ptr<MetaMethodBase<ReturnType>> MetaMethod<ReturnType, DerivedMetaMethod>::create_new_instance(
-    const Teuchos::ParameterList& parameter_list) const {
-  return static_create_new_instance(parameter_list);
+    stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const {
+  return static_create_new_instance(bulk_data_ptr, parameter_list);
 }
 //}
 //@}

@@ -96,10 +96,10 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<ComputeConstraintViolation>::get_valid_params(kernel_name));
+          mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<ComputeConstraintViolation>::get_part_requirements(
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>::get_part_requirements(
           kernel_name, part_kernel_parameter_list));
     }
 
@@ -126,8 +126,8 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
-      const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_unique<ComputeConstraintViolation>(bulk_data_ptr, parameter_list);
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+    return std::make_shared<ComputeConstraintViolation>(bulk_data_ptr, parameter_list);
   }
   //@}
 

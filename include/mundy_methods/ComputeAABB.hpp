@@ -73,7 +73,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_get_part_requirements(
+  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -103,18 +103,18 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<ComputeAABB>::get_valid_params(kernel_name));
+          mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       part_requirements[i]->merge(
-          mundy::meta::MetaKernelFactory<ComputeAABB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
+          mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
   }
 
   /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList details_get_valid_params() {
+  static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
         default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
@@ -123,7 +123,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  static std::string details_get_class_identifier() {
+  static std::string details_static_get_class_identifier() {
     return "COMPUTE_AABB";
   }
 
@@ -131,9 +131,9 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
-      const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_unique<ComputeAABB>(bulk_data_ptr, parameter_list);
+  static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+    return std::make_shared<ComputeAABB>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -149,13 +149,16 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   //@{
 
   /// \brief Number of parts that this method acts on.
-  size_t num_parts_;
+  stk::mesh::BulkData *const bulk_data_ptr_;
+
+  /// \brief Number of parts that this method acts on.
+  size_t num_parts_ = 0;
 
   /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> &part_ptr_vector_;
+  std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_aabb_kernels_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_aabb_kernel_ptrs_;
   //@}
 };  // ComputeAABB
 

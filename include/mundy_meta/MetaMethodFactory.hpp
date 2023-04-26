@@ -84,7 +84,7 @@ class MetaMethodFactory {
   /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
   /// instances.
   using NewRequirementsGenerator =
-      std::function<std::vector<std::shared_ptr<PartRequirements>>>(const Teuchos::ParameterList&);
+      std::function<std::vector<std::shared_ptr<PartRequirements>>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;

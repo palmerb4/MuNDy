@@ -75,11 +75,11 @@ class ComputeOBBSphereKernel : public mundy::meta::MetaKernel<void, ComputeOBBSp
     required_part_params.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
     required_part_params[0]->set_part_topology(stk::topology::PARTICLE);
     required_part_params[0]->add_field_params(
-        std::make_unique<FieldRequirements<double>>("obb", stk::topology::ELEMENT_RANK, 4, 1));
+        std::make_shared<FieldRequirements<double>>("obb", stk::topology::ELEMENT_RANK, 4, 1));
     required_part_params[0]->add_field_params(
-        std::make_unique<FieldRequirements<double>>("radius", stk::topology::ELEMENT_RANK, 1, 1));
+        std::make_shared<FieldRequirements<double>>("radius", stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params[0]->add_field_params(
-        std::make_unique<FieldRequirements<double>>("node_coord", stk::topology::NODE_RANK, 3, 1));
+        std::make_shared<FieldRequirements<double>>("node_coord", stk::topology::NODE_RANK, 3, 1));
     return required_part_params;
   }
 

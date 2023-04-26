@@ -33,6 +33,7 @@
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_meta/MetaKernel.hpp>                // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
@@ -84,7 +85,7 @@ ComputeBoundingRadius::ComputeBoundingRadius(stk::mesh::BulkData *const bulk_dat
 
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    compute_bounding_sphere_kernels_.push_back(MetaKernelFactory<ComputeBoundingRadius>::create_new_instance(
+    compute_bounding_sphere_kernels_.push_back(mundy::meta::MetaKernelFactory<void, ComputeBoundingRadius>::create_new_instance(
         kernel_name, bulk_data_ptr, part_kernel_parameter_list));
   }
 }

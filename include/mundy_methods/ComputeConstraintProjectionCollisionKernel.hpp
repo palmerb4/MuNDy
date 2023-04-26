@@ -75,12 +75,12 @@ class ComputeConstraintProjectionCollisionKernel
     required_part_params.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
     required_part_params[0]->set_part_topology(stk::topology::PARTICLE);
     required_part_params[0]->add_field_params(
-        std::make_unique<FieldRequirements<double>>(default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
-    required_part_params[0]->add_field_params(std::make_unique<FieldRequirements<double>>(
+        std::make_shared<FieldRequirements<double>>(default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
+    required_part_params[0]->add_field_params(std::make_shared<FieldRequirements<double>>(
         default_node_normal_vec_field_name_, stk::topology::NODE_RANK, 3, 1));
-    required_part_params[0]->add_field_params(std::make_unique<FieldRequirements<double>>(
+    required_part_params[0]->add_field_params(std::make_shared<FieldRequirements<double>>(
         default_lagrange_multiplier_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params[0]->add_field_params(std::make_unique<FieldRequirements<double>>(
+    required_part_params[0]->add_field_params(std::make_shared<FieldRequirements<double>>(
         default_constraint_violation_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }

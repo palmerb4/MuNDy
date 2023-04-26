@@ -33,6 +33,7 @@
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_meta/MetaKernel.hpp>                      // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
@@ -85,7 +86,7 @@ ComputeConstraintProjection::ComputeConstraintProjection(stk::mesh::BulkData *co
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
     compute_constraint_projection_kernels_.push_back(
-        MetaKernelFactory<ComputeConstraintProjection>::create_new_instance(kernel_name, bulk_data_ptr,
+        mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>::create_new_instance(kernel_name, bulk_data_ptr,
                                                                             part_kernel_parameter_list));
   }
 }
@@ -97,7 +98,7 @@ ComputeConstraintProjection::ComputeConstraintProjection(stk::mesh::BulkData *co
 /// \brief Run the method's core calculation.
 void ComputeConstraintProjection::execute() {
   for (int i = 0; i < num_parts_; i++) {
-    const MetaKernel &compute_constraint_projection_kernel = compute_constraint_projection_kernels_[i];
+    const mundy::meta::MetaKernel &compute_constraint_projection_kernel = compute_constraint_projection_kernels_[i];
 
     stk::mesh::Selector locally_owned_part =
         bulk_data_ptr->mesh_meta_data().locally_owned_part() && *part_ptr_vector_[i];

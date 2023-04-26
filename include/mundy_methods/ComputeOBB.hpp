@@ -96,11 +96,11 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<ComputeOBB>::get_valid_params(kernel_name));
+          mundy::meta::MetaKernelFactory<void, ComputeOBB>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(
-          mundy::meta::MetaKernelFactory<ComputeOBB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeOBB>::get_part_requirements(
+          kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
@@ -125,8 +125,8 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
-      const stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_unique<ComputeOBB>(bulk_data_ptr, parameter_list);
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+    return std::make_shared<ComputeOBB>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -145,7 +145,6 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
   size_t num_parts_;
 
   /// \brief Vector of pointe *> &part_ptr_vector_;
-
 
   /// \brief Kernels corresponding to each of the specified parts.
   std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_obb_kernels_;
