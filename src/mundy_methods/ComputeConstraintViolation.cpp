@@ -27,13 +27,13 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
+#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
+#include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
+#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
 #include <mundy_meta/MetaKernel.hpp>                     // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
@@ -52,7 +52,7 @@ namespace methods {
 
 ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *const bulk_data_ptr,
                                                        const Teuchos::ParameterList &parameter_list)
-    : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
+    : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "mundy::methods::ComputeConstraintViolation: bulk_data_ptr cannot be a nullptr.");
@@ -85,8 +85,9 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
 
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    compute_constraint_violation_kernels_.push_back(mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>::create_new_instance(
-        kernel_name, bulk_data_ptr, part_kernel_parameter_list));
+    compute_constraint_violation_kernels_.push_back(
+        mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>::create_new_instance(
+            kernel_name, bulk_data_ptr, part_kernel_parameter_list));
   }
 }
 //}

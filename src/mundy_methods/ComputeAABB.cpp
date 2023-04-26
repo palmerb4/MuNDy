@@ -51,7 +51,7 @@ namespace methods {
 //{
 
 ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
-    : bulk_data_ptr_(bulk_data_ptr) {
+    : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "mundy::methods::ComputeAABB: bulk_data_ptr cannot be a nullptr.");
@@ -69,7 +69,7 @@ ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos
     // Fetch the i'th part and its parameters
     Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
     const std::string part_name = part_parameter_list.get<std::string>("name");
-    part_ptr_vector_[i] = bulk_data_ptr_->mesh_meta_data().get_part(part_name);
+    part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
 
     // Fetch the parameters for this part's kernel
     const Teuchos::ParameterList &part_kernel_parameter_list =
@@ -104,7 +104,7 @@ void ComputeAABB::execute() {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> compute_aabb_kernel = compute_aabb_kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_part =
-        bulk_data_ptr_->mesh_meta_data().locally_owned_part() & *part_ptr_vector_[i];
+        meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
         [&compute_aabb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {

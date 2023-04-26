@@ -82,9 +82,11 @@ class MetaKernelBase {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   virtual std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
-      const Teuchos::ParameterList& parameter_list) const = 0;
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const = 0;
 
   /// \brief Run the kernel's core calculation.
+  /// TODO(palmerb4): The different types of execute functions should be made into a separate interface so we can
+  /// combine them with MetaKernel using multiple inheritance!
   virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
   //@}
 };  // MetaKernelBase
@@ -107,11 +109,10 @@ class MetaKernelBase {
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
-///   - \c details_get_part_requirements implementation of the \c get_part_requirements interface.
-///   class.
-///   - \c details_get_valid_params implementation of the \c get_valid_params interface.
-///   - \c details_get_class_identifier implementation of the \c get_class_identifier interface.
-///   - \c details_create_new_instance implementation of the \c create_new_instance interface.
+///   - \c details_static_get_part_requirements implementation of the \c get_part_requirements interface.
+///   - \c details_static_get_valid_params implementation of the \c get_valid_params interface.
+///   - \c details_static_get_class_identifier implementation of the \c get_class_identifier interface.
+///   - \c details_static_create_new_instance implementation of the \c create_new_instance interface.
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
@@ -151,7 +152,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   /// default parameter list is accessible via \c get_valid_params.
   static std::vector<std::shared_ptr<PartRequirements>> static_get_part_requirements(
       const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_get_part_requirements(parameter_list);
+    return DerivedMetaKernel::details_static_get_part_requirements(parameter_list);
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
@@ -159,7 +160,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
   static Teuchos::ParameterList static_get_valid_params() {
-    return DerivedMetaKernel::details_get_valid_params();
+    return DerivedMetaKernel::details_static_get_valid_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
@@ -167,7 +168,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
   static std::string static_get_class_identifier() {
-    return DerivedMetaKernel::details_get_class_identifier();
+    return DerivedMetaKernel::details_static_get_class_identifier();
   }
   //@}
 
@@ -187,7 +188,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<MetaKernelBase<ReturnType>> static_create_new_instance(
       stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_create_new_instance(bulk_data_ptr, parameter_list);
+    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, parameter_list);
   }
 
   /// \brief Run the kernel's core calculation.

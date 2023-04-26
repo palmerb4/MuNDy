@@ -52,7 +52,7 @@ namespace methods {
 
 ComputeBoundingRadius::ComputeBoundingRadius(stk::mesh::BulkData *const bulk_data_ptr,
                                              const Teuchos::ParameterList &parameter_list)
-    : bulk_data_ptr_(bulk_data_ptr), part_ptr_vector_(part_ptr_vector), num_parts_(part_ptr_vector_.size()) {
+    : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "mundy::methods::ComputeBoundingRadius: bulk_data_ptr cannot be a nullptr.");

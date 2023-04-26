@@ -227,7 +227,7 @@ class FieldRequirements : public FieldRequirementsBase {
   unsigned field_dimension_;
 
   /// \brief Minimum number of rotating states that this field will have.
-  unsigned field_min_min_number_of_states_;
+  unsigned field_min_number_of_states_;
 
   /// \brief If the name of the field is set or not.
   bool field_name_is_set_;
@@ -254,7 +254,7 @@ FieldRequirements<FieldType>::FieldRequirements(const std::string &field_name, c
   this->set_field_name(field_name);
   this->set_field_rank(field_rank);
   this->set_field_dimension(field_dimension);
-  this->set_field_min_number_of_states(field_min_number_of_states);
+  this->set_field_min_number_of_states_if_larger(field_min_number_of_states);
 }
 
 template <typename FieldType>
@@ -278,7 +278,7 @@ FieldRequirements<FieldType>::FieldRequirements(const Teuchos::ParameterList &pa
   }
   if (parameter_list.isParameter("min_number_of_states")) {
     const unsigned field_min_number_of_states = parameter_list.get<unsigned>("min_number_of_states");
-    this->set_field_min_number_of_states(field_min_number_of_states);
+    this->set_field_min_number_of_states_if_larger(field_min_number_of_states);
   }
 }
 //}
@@ -476,15 +476,7 @@ void FieldRequirements<FieldType>::merge(
     }
 
     if (field_req_ptr->constrains_field_min_number_of_states()) {
-      if (this->constrains_field_min_number_of_states()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_field_min_number_of_states() == field_req_ptr->get_field_min_number_of_states(),
-            std::invalid_argument,
-            "mundy::meta::FieldRequirements: One of the inputs has incompatible minimum number of states ("
-                << field_req_ptr->get_field_min_number_of_states() << ").");
-      } else {
-        this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
-      }
+      this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
     }
   }
 }

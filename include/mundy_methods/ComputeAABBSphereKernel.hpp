@@ -41,6 +41,7 @@
 #include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeAABB.hpp>      // for mundy::methods::ComputeAABB
 
 namespace mundy {
 
@@ -69,9 +70,9 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
     aabb_field_name_ = valid_parameter_list.get<std::string>("aabb_field_name");
 
     // Store the input params.
-    node_coord_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    radius_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    aabb_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+    node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+    radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+    aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
   }
   //@}
 
@@ -85,17 +86,17 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::PartRequirements> details_get_part_requirements(
+  static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> required_part_params;
     required_part_params.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
     required_part_params[0]->set_part_topology(stk::topology::PARTICLE);
-    required_part_params[0]->add_field_params(
-        std::make_shared<FieldRequirements<double>>(default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
-    required_part_params[0]->add_field_params(
-        std::make_shared<FieldRequirements<double>>(default_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params[0]->add_field_params(
-        std::make_shared<FieldRequirements<double>>(default_aabb_field_name_, stk::topology::ELEMENT_RANK, 4, 1));
+    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
+    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        default_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
+    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        default_aabb_field_name_, stk::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }
 
@@ -103,18 +104,33 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_get_valid_params() {
+  static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("buffer_distance", default_buffer_distance_,
                                "Buffer distance to be added to the axis-aligned boundary box.");
     default_parameter_list.set(
         "aabb_field_name", default_aabb_field_name_,
-        'Name of the element field within which the output axis-aligned boundary boxes will be written.');
+        "Name of the element field within which the output axis-aligned boundary boxes will be written.");
     default_parameter_list.set("radius_field_name", default_radius_field_name_,
                                "Name of the element field containing the sphere radius.");
     default_parameter_list.set("node_coordinate_field_name", default_node_coord_field_name_,
                                "Name of the node field containing the coordinate of the sphere's center.");
     return default_parameter_list;
+  }
+
+  /// \brief Get the unique string identifier for this class.
+  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
+  static std::string details_static_get_class_identifier() {
+    return std::string(class_identifier_);
+  }
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
+  static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+    return std::make_shared<ComputeAABBSphereKernel>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -131,13 +147,23 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   //@{
 
   static constexpr double default_buffer_distance_ = 0.0;
-  static constexpr std::string default_aabb_field_name_ = "AABB";
-  static constexpr std::string default_radius_field_name_ = "RADIUS";
-  static constexpr std::string default_node_coord_field_name_ = "NODE_COORD";
+  static constexpr std::string_view default_aabb_field_name_ = "AABB";
+  static constexpr std::string_view default_radius_field_name_ = "RADIUS";
+  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   //@}
 
   //! \name Internal members
   //@{
+
+  /// \brief The unique string identifier for this class.
+  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
+  static const std::string_view class_identifier_;
+
+  /// \brief The BulkData objects this class acts upon.
+  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+
+  /// \brief The MetaData objects this class acts upon.
+  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Buffer distance to be added to the axis-aligned boundary box.
   ///
@@ -155,13 +181,13 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   std::string node_coord_field_name_;
 
   /// \brief Element field within which the output axis-aligned boundary boxes will be written.
-  stk::mesh::Field *aabb_field_ptr_;
+  stk::mesh::Field<double> *aabb_field_ptr_ = nullptr;
 
   /// \brief Element field containing the sphere radius.
-  stk::mesh::Field *radius_field_ptr_;
+  stk::mesh::Field<double> *radius_field_ptr_ = nullptr;
 
   /// \brief Node field containing the coordinate of the sphere's center.
-  stk::mesh::Field *node_coord_field_ptr_;
+  stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
   //@}
 };  // ComputeAABBSphereKernel
 

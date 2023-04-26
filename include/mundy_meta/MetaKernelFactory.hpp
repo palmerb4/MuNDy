@@ -222,9 +222,9 @@ void MetaKernelFactory<ReturnType, RegistryIdentifier>::register_new_kernel<Kern
   const std::string key = KernelToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                              "The provided key " << key << " already exists.");
-  get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::create_new_instance));
-  get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::get_part_requirements));
-  get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::get_valid_params));
+  get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
+  get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
+  get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));
 }
 //@}
 

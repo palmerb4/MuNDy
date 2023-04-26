@@ -106,8 +106,8 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
           mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(
-          mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_part_requirements(kernel_name, part_kernel_parameter_list));
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_part_requirements(
+          kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
@@ -124,7 +124,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static std::string details_static_get_class_identifier() {
-    return "COMPUTE_AABB";
+    return std::string(class_identifier_);
   }
 
   /// \brief Generate a new instance of this class.
@@ -148,8 +148,15 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   //! \name Internal members
   //@{
 
-  /// \brief Number of parts that this method acts on.
-  stk::mesh::BulkData *const bulk_data_ptr_;
+  /// \brief The unique string identifier for this class.
+  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
+  static constexpr std::string_view class_identifier_ = "COMPUTE_AABB";
+
+  /// \brief The BulkData objects this class acts upon.
+  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+
+  /// \brief The MetaData objects this class acts upon.
+  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;

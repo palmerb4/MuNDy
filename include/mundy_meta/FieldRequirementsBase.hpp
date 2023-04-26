@@ -137,7 +137,7 @@ class FieldRequirementsBase {
   virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) = 0;
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
-  virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(const Teuchos::ParameterList &parameter_list) = 0;
+  virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(const Teuchos::ParameterList &parameter_list) const = 0;
   //@}
 };  // FieldRequirementsBase
 

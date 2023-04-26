@@ -118,7 +118,7 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static std::string details_get_class_identifier() {
-    return "COMPUTE_CONSTRAINT_VIOLATION";
+    return class_identifier_;
   }
 
   /// \brief Generate a new instance of this class.
@@ -142,8 +142,18 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
   //! \name Internal members
   //@{
 
+  /// \brief The unique string identifier for this class.
+  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
+  static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_VIOLATION";
+
+  /// \brief The BulkData objects this class acts upon.
+  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+
+  /// \brief The MetaData objects this class acts upon.
+  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  
   /// \brief Number of parts that this method acts on.
-  size_t num_parts_;
+  size_t num_parts_ = 0;
 
   /// \brief Vector of pointers to the parts that this class will act upon.
   std::vector<stk::mesh::Part *> &part_ptr_vector_;

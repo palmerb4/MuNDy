@@ -47,7 +47,8 @@ namespace methods {
 //{
 
 ComputeOBBSphereKernel::ComputeOBBSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                               const Teuchos::ParameterList &parameter_list) {
+                                               const Teuchos::ParameterList &parameter_list)
+    : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_parameter_list = parameter_list;
@@ -60,9 +61,9 @@ ComputeOBBSphereKernel::ComputeOBBSphereKernel(stk::mesh::BulkData *const bulk_d
   node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coordinate_field_name");
 
   // Store the input params.
-  obb_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
-  radius_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-  node_coord_field_ptr_ = *bulk_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+  obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
+  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
 }
 //}
 
