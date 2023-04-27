@@ -17,13 +17,4 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(compute_aabb)
-add_subdirectory(compute_bounding_radius)
-add_subdirectory(compute_mobility)
-add_subdirectory(compute_obb)
-add_subdirectory(detect_neighbors)
-add_subdirectory(generate_collision_constraints)
-add_subdirectory(refine_neighbors)
-add_subdirectory(resolve_constraints)
-add_subdirectory(solve_lcp)
-add_subdirectory(time_integration)
+add_subdirectory(non_smooth_lcp)
