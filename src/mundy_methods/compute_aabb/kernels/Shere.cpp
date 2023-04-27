@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file ComputeAABBSphereKernel.cpp
-/// \brief Definition of the ComputeAABBSphereKernel class
+/// \file Sphere.cpp
+/// \brief Definition of the ComputeAABB's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -32,22 +32,25 @@
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>           // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>                  // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>           // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>          // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>            // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeAABBSphereKernel.hpp>  // for mundy::methods::ComputeAABBSphereKernel
+#include <mundy_meta/FieldRequirements.hpp>               // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaKernel.hpp>                      // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernelFactory.hpp>               // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernelRegistry.hpp>              // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>                // for mundy::meta::PartRequirements
+#include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
 
 namespace mundy {
 
 namespace methods {
 
+namespace compute_aabb {
+
+namespace kernels {
+
 // \name Constructors and destructor
 //{
 
-ComputeAABBSphereKernel::ComputeAABBSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                                 const Teuchos::ParameterList &parameter_list)
+Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -70,7 +73,7 @@ ComputeAABBSphereKernel::ComputeAABBSphereKernel(stk::mesh::BulkData *const bulk
 // \name Actions
 //{
 
-void ComputeAABBSphereKernel::execute(const stk::mesh::Entity &element) {
+void Sphere::execute(const stk::mesh::Entity &element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
@@ -84,6 +87,10 @@ void ComputeAABBSphereKernel::execute(const stk::mesh::Entity &element) {
   aabb[5] = coords[2] + radius[0] + buffer_distance_;
 }
 //}
+
+}  // namespace kernels
+
+}  // namespace compute_aabb
 
 }  // namespace methods
 

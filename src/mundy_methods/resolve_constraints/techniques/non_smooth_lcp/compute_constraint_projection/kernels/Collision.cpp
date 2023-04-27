@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file ComputeConstraintProjectionCollisionKernel.cpp
-/// \brief Definition of the ComputeConstraintProjectionCollisionKernel class
+/// \file Collision.cpp
+/// \brief Definition of ComputeConstraintProjection's Collision kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -37,17 +37,27 @@
 #include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeConstraintProjectionCollisionKernel.hpp>  // for mundy::methods::ComputeConstraintProjectionCollisionKernel
+#include <mundy_methods/Collision.hpp>        // for mundy::methods::Collision
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_projection/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
 namespace mundy {
 
 namespace methods {
 
+namespace resolve_constraints {
+
+namespace techniques {
+
+namespace non_smooth_lcp {
+
+namespace compute_constraint_projection {
+
+namespace kernels {
+
 // \name Constructors and destructor
 //{
 
-ComputeConstraintProjectionCollisionKernel::ComputeConstraintProjectionCollisionKernel(
-    stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -74,7 +84,7 @@ ComputeConstraintProjectionCollisionKernel::ComputeConstraintProjectionCollision
 // \name Actions
 //{
 
-void ComputeConstraintProjectionCollisionKernel::execute(const stk::mesh::Entity &element) {
+void Collision::execute(const stk::mesh::Entity &element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
   const double *contact_pointI = stk::mesh::field_data(*node_coord_field_ptr_, nodes[1]);
   const double *contact_pointJ = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
@@ -83,9 +93,20 @@ void ComputeConstraintProjectionCollisionKernel::execute(const stk::mesh::Entity
 
   constraint_violation[0] = contact_normal_vecI[0] * (contact_pointJ[0] - contact_pointI[0]) +
                             contact_normal_vecI[1] * (contact_pointJ[1] - contact_pointI[1]) +
-                            contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) - minimum_allowable_separation_;
+                            contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) -
+                            minimum_allowable_separation_;
 }
 //}
+
+}  // namespace kernels
+
+}  // namespace compute_constraint_projection
+
+}  // namespace non_smooth_lcp
+
+}  // namespace techniques
+
+}  // namespace resolve_constraints
 
 }  // namespace methods
 

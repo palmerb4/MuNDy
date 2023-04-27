@@ -48,6 +48,12 @@ namespace mundy {
 
 namespace methods {
 
+namespace resolve_constraints {
+
+namespace techniques {
+
+namespace non_smooth_lcp {
+
 /// \class ComputeConstraintProjection
 /// \brief Method for computing the axis aligned boundary box of different parts.
 class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, ComputeConstraintProjection>,
@@ -170,6 +176,12 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_projection_kernel_ptrs_;
   //@}
 };  // ComputeConstraintProjection
+
+}  // namespace non_smooth_lcp
+
+}  // namespace techniques
+
+}  // namespace resolve_constraints
 
 }  // namespace methods
 

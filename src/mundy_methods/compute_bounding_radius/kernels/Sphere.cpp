@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file ComputeBoundingRadiusSphereKernel.cpp
-/// \brief Definition of the ComputeBoundingRadiusSphereKernel class
+/// \file Sphere.cpp
+/// \brief Definition of the ComputeBoundingRadius's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -37,17 +37,21 @@
 #include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeBoundingRadiusSphereKernel.hpp>  // for mundy::methods::ComputeBoundingRadiusSphereKernel
+#include <mundy_methods/Sphere.hpp>           // for mundy::methods::Sphere
+#include <mundy_methods/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::methods::compute_bounding_radius::kernels::Sphere
 
 namespace mundy {
 
 namespace methods {
 
+namespace compute_bounding_radius {
+
+namespace kernels {
+
 // \name Constructors and destructor
 //{
 
-ComputeBoundingRadiusSphereKernel::ComputeBoundingRadiusSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                                                     const Teuchos::ParameterList &parameter_list)
+Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -68,12 +72,16 @@ ComputeBoundingRadiusSphereKernel::ComputeBoundingRadiusSphereKernel(stk::mesh::
 // \name Actions
 //{
 
-void ComputeBoundingRadiusSphereKernel::execute(const stk::mesh::Entity &element) {
+void Sphere::execute(const stk::mesh::Entity &element) {
   double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
   double *bounding_radius = stk::mesh::field_data(*bounding_radius_field_ptr_, element);
   bounding_radius[0] = radius[0] + buffer_distance_;
 }
 //}
+
+}  // namespace kernels
+
+}  // namespace compute_bounding_radius
 
 }  // namespace methods
 

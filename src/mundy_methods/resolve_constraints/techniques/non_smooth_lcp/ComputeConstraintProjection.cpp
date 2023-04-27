@@ -36,16 +36,22 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>                      // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>               // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaMethod.hpp>                      // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>              // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>                // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeConstraintProjection.hpp>  // for mundy::methods::ComputeConstraintProjection
+#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintProjection.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintProjection
 
 namespace mundy {
 
 namespace methods {
+
+namespace resolve_constraints {
+
+namespace techniques {
+
+namespace non_smooth_lcp {
 
 // \name Constructors and destructor
 //{
@@ -116,6 +122,12 @@ void ComputeConstraintProjection::execute() {
   }
 }
 //}
+
+}  // namespace non_smooth_lcp
+
+}  // namespace techniques
+
+}  // namespace resolve_constraints
 
 }  // namespace methods
 

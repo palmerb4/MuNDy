@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEBOUNDINGRADIUSSPHEREKERNEL_HPP_
-#define MUNDY_METHODS_COMPUTEBOUNDINGRADIUSSPHEREKERNEL_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_
 
-/// \file ComputeBoundingRadiusSphereKernel.hpp
-/// \brief Declaration of the ComputeBoundingRadiusSphereKernel class
+/// \file Sphere.hpp
+/// \brief Declaration of the ComputeBoundingRadius's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -47,18 +47,20 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeBoundingRadiusSphereKernel
+namespace compute_bounding_radius {
+
+namespace kernels {
+
+/// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class ComputeBoundingRadiusSphereKernel
-    : public mundy::meta::MetaKernel<void, ComputeBoundingRadiusSphereKernel>,
-      public mundy::meta::MetaKernelRegistry<void, ComputeBoundingRadiusSphereKernel, ComputeBoundingRadius> {
+class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
+               public mundy::meta::MetaKernelRegistry<void, Sphere, ComputeBoundingRadius> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeBoundingRadiusSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                             const Teuchos::ParameterList &parameter_list);
+  explicit Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -92,7 +94,7 @@ class ComputeBoundingRadiusSphereKernel
     default_parameter_list.set("buffer_distance", default_buffer_distance_,
                                "Buffer distance to be added to the axis-aligned boundary box.");
     default_parameter_list.set("bounding_sphere_field_name", std::string(default_bounding_radius_field_name_),
-        "Name of the element field within which the output bounding radius will be written.");
+                               "Name of the element field within which the output bounding radius will be written.");
     default_parameter_list.set("radius_field_name", std::string(default_radius_field_name_),
                                "Name of the element field containing the sphere radius.");
     return default_parameter_list;
@@ -110,7 +112,7 @@ class ComputeBoundingRadiusSphereKernel
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeBoundingRadiusSphereKernel>(bulk_data_ptr, parameter_list);
+    return std::make_shared<Sphere>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -161,10 +163,14 @@ class ComputeBoundingRadiusSphereKernel
 
   /// \brief Element field containing the sphere radius.
   stk::mesh::Field<double> *radius_field_ptr_;
-};  // ComputeBoundingRadiusSphereKernel
+};  // Sphere
+
+}  // namespace kernels
+
+}  // namespace compute_bounding_radius
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEBOUNDINGRADIUSSPHEREKERNEL_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_

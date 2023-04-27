@@ -48,6 +48,12 @@ namespace mundy {
 
 namespace methods {
 
+namespace resolve_constraints {
+
+namespace techniques {
+
+namespace non_smooth_lcp {
+
 /// \class ComputeConstraintViolation
 /// \brief Method for computing the axis aligned boundary box of different parts.
 class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeConstraintViolation>,
@@ -170,6 +176,12 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
   std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_violation_kernel_ptrs_;
   //@}
 };  // ComputeConstraintViolation
+
+}  // namespace resolve_constraints
+
+}  // namespace techniques
+
+}  // namespace non_smooth_lcp
 
 }  // namespace methods
 

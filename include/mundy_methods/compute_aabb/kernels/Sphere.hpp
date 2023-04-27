@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEAABBSPHEREKERNEL_HPP_
-#define MUNDY_METHODS_COMPUTEAABBSPHEREKERNEL_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_AABB_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_AABB_KERNELS_SPHERE_HPP_
 
-/// \file ComputeAABBSphereKernel.hpp
-/// \brief Declaration of the ComputeAABBSphereKernel class
+/// \file Sphere.hpp
+/// \brief Declaration of the ComputeAABB's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -47,17 +47,20 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeAABBSphereKernel
+namespace compute_aabb {
+
+namespace kernels {
+
+/// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABBSphereKernel>,
-                                public mundy::meta::MetaKernelRegistry<void, ComputeAABBSphereKernel, ComputeAABB> {
+class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
+               public mundy::meta::MetaKernelRegistry<void, Sphere, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeAABBSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                   const Teuchos::ParameterList &parameter_list);
+  explicit Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -114,7 +117,7 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeAABBSphereKernel>(bulk_data_ptr, parameter_list);
+    return std::make_shared<Sphere>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -173,10 +176,14 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   /// \brief Node field containing the coordinate of the sphere's center.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
   //@}
-};  // ComputeAABBSphereKernel
+};  // Sphere
+
+}  // namespace kernels
+
+}  // namespace compute_aabb
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEAABBSPHEREKERNEL_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_AABB_KERNELS_SPHERE_HPP_

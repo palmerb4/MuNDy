@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTECONSTRAINTVIOLATIONCOLLISIONKERNEL_HPP_
-#define MUNDY_METHODS_COMPUTECONSTRAINTVIOLATIONCOLLISIONKERNEL_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_CONSTRAINT_VIOLATION_KERNEL_COLLISION_HPP_
+#define MUNDY_METHODS_COMPUTE_CONSTRAINT_VIOLATION_KERNEL_COLLISION_HPP_
 
-/// \file ComputeConstraintViolationCollisionKernel.hpp
-/// \brief Declaration of the ComputeConstraintViolationCollisionKernel class
+/// \file Collision.hpp
+/// \brief Declaration of the ComputeConstraintVolations's Collision kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -47,19 +47,26 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeConstraintViolationCollisionKernel
+namespace resolve_constraints {
+
+namespace techniques {
+
+namespace non_smooth_lcp {
+
+namespace compute_constraint_violation {
+
+namespace kernels {
+
+/// \class Collision
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class ComputeConstraintViolationCollisionKernel
-    : public mundy::meta::MetaKernel<void, ComputeConstraintViolationCollisionKernel>,
-      public mundy::meta::MetaKernelRegistry<void, ComputeConstraintViolationCollisionKernel,
-                                             ComputeConstraintViolation> {
+class Collision : public mundy::meta::MetaKernel<void, Collision>,
+                  public mundy::meta::MetaKernelRegistry<void, Collision, ComputeConstraintViolation> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeConstraintViolationCollisionKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                                     const Teuchos::ParameterList &parameter_list);
+  explicit Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -121,7 +128,7 @@ class ComputeConstraintViolationCollisionKernel
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeConstraintViolationCollisionKernel>(bulk_data_ptr, parameter_list);
+    return std::make_shared<Collision>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -149,7 +156,7 @@ class ComputeConstraintViolationCollisionKernel
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static constexpr std::string_view class_identifier_ = "SPHERE";
+  static constexpr std::string_view class_identifier_ = "COLLISION";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -186,10 +193,20 @@ class ComputeConstraintViolationCollisionKernel
   /// \brief Element field containing the sphere radius.
   stk::mesh::Field<double> *constraint_violation_field_ptr_;
   //@}
-};  // ComputeConstraintViolationCollisionKernel
+};  // Collision
+
+}  // namespace kernels
+
+}  // namespace compute_constraint_violation
+
+}  // namespace non_smooth_lcp
+
+}  // namespace techniques
+
+}  // namespace resolve_constraints
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTECONSTRAINTVIOLATIONCOLLISIONKERNEL_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_CONSTRAINT_VIOLATION_KERNEL_COLLISION_HPP_

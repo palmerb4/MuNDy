@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEOBBSPHEREKERNEL_HPP_
-#define MUNDY_METHODS_COMPUTEOBBSPHEREKERNEL_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_OBB_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_OBB_KERNELS_SPHERE_HPP_
 
-/// \file ComputeOBBSphereKernel.hpp
-/// \brief Declaration of the ComputeOBBSphereKernel class
+/// \file Sphere.hpp
+/// \brief Declaration of the ComputeOBB's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -47,17 +47,20 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeOBBSphereKernel
+namespace compute_obb {
+
+namespace kernels {
+
+/// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class ComputeOBBSphereKernel : public mundy::meta::MetaKernel<void, ComputeOBBSphereKernel>,
-                               public mundy::meta::MetaKernelRegistry<void, ComputeOBBSphereKernel, ComputeOBB> {
+class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
+               public mundy::meta::MetaKernelRegistry<void, Sphere, ComputeOBB> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit ComputeOBBSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                  const Teuchos::ParameterList &parameter_list);
+  explicit Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -113,7 +116,7 @@ class ComputeOBBSphereKernel : public mundy::meta::MetaKernel<void, ComputeOBBSp
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeOBBSphereKernel>(bulk_data_ptr, parameter_list);
+    return std::make_shared<Sphere>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -172,10 +175,14 @@ class ComputeOBBSphereKernel : public mundy::meta::MetaKernel<void, ComputeOBBSp
   /// \brief Node field containing the coordinate of the sphere's center.
   stk::mesh::Field<double> *node_coord_field_ptr_;
   //@}
-};  // ComputeOBBSphereKernel
+};  // Sphere
+
+}  // namespace kernels
+
+}  // namespace compute_obb
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEOBBSPHEREKERNEL_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_OBB_KERNELS_SPHERE_HPP_
