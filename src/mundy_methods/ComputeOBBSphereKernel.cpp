@@ -71,10 +71,10 @@ ComputeOBBSphereKernel::ComputeOBBSphereKernel(stk::mesh::BulkData *const bulk_d
 //{
 
 void ComputeOBBSphereKernel::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
-  double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
-  double *radius = stk::mesh::field_data(radius_field, element);
-  double *obb = stk::mesh::field_data(obb_field, element);
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
+  double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
+  double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
+  double *obb = stk::mesh::field_data(*obb_field_ptr_, element);
 
   obb[0] = coords[0] - radius[0] - buffer_distance_;
   obb[1] = coords[1] - radius[0] - buffer_distance_;

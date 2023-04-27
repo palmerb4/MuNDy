@@ -51,13 +51,11 @@ ComputeConstraintViolationCollisionKernel::ComputeConstraintViolationCollisionKe
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  valid_parameter_list = parameter_list;
+  Teuchos::ParameterList valid_parameter_list = parameter_list;
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fill the internal members using the internal parameter list.
-  radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
-
-  minimum_allowable_separation = valid_parameter_list.get<double>("minimum_allowable_separation");
+  minimum_allowable_separation_ = valid_parameter_list.get<double>("minimum_allowable_separation");
   node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coordinate_field_name");
   node_normal_vec_field_name_ = valid_parameter_list.get<std::string>("node_normal_vector_field_name");
   lagrange_multiplier_field_name_ = valid_parameter_list.get<std::string>("lagrange_multiplier_field_name");
@@ -69,7 +67,7 @@ ComputeConstraintViolationCollisionKernel::ComputeConstraintViolationCollisionKe
   lagrange_multiplier_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, lagrange_multiplier_field_name_);
   constraint_violation_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, constraint_violation_field_name_)
+      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, constraint_violation_field_name_);
 }
 //}
 
@@ -77,7 +75,7 @@ ComputeConstraintViolationCollisionKernel::ComputeConstraintViolationCollisionKe
 //{
 
 void ComputeConstraintViolationCollisionKernel::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
   const double *contact_pointI = stk::mesh::field_data(*node_coord_field_ptr_, nodes[1]);
   const double *contact_pointJ = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
   const double *contact_normal_vecI = stk::mesh::field_data(*node_normal_vec_field_ptr_, nodes[1]);
@@ -85,7 +83,7 @@ void ComputeConstraintViolationCollisionKernel::execute(const stk::mesh::Entity 
 
   constraint_violation[0] = contact_normal_vecI[0] * (contact_pointJ[0] - contact_pointI[0]) +
                             contact_normal_vecI[1] * (contact_pointJ[1] - contact_pointI[1]) +
-                            contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) - min_allowable_sep_;
+                            contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) - minimum_allowable_separation_;
 }
 //}
 
