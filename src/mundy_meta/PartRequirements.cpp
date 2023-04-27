@@ -375,6 +375,10 @@ void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_r
   part_subpart_map_[part_reqs_ptr->get_part_name()] = part_reqs_ptr;
 }
 
+void merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
+  merge({part_req_ptr});
+}
+
 void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs) {
   for (const auto &part_req_ptr : vector_of_part_req_ptrs) {
     // Check if the provided parameters are valid.

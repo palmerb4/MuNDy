@@ -103,8 +103,7 @@ void ComputeAABB::execute() {
   for (int i = 0; i < num_parts_; i++) {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> compute_aabb_kernel = compute_aabb_kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_part =
-        meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
+    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
         [&compute_aabb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {

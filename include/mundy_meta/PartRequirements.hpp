@@ -249,6 +249,15 @@ class PartRequirements {
   /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
   /// not need to match the current name of this part.
   ///
+  /// \param part_req_ptr [in] An \c PartRequirements object to merge with the current object.
+  void merge(const std::shared_ptr<PartRequirements> &part_req_ptr);
+
+  /// \brief Merge the current requirements with any number of other \c PartRequirements.
+  ///
+  /// Here, merging two a \c PartRequirements object with this object amounts to merging their fields. For this process
+  /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
+  /// not need to match the current name of this part.
+  ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
   /// current object.
   void merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs);

@@ -57,23 +57,7 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
 
   /// \brief Constructor
   explicit ComputeAABBSphereKernel(stk::mesh::BulkData *const bulk_data_ptr,
-                                   const Teuchos::ParameterList &parameter_list) {
-    // Store the input parameters, use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
-
-    // Fill the internal members using the internal parameter list.
-    buffer_distance_ = valid_parameter_list.get<double>("buffer_distance");
-    node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coord_field_name");
-    radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
-    aabb_field_name_ = valid_parameter_list.get<std::string>("aabb_field_name");
-
-    // Store the input params.
-    node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-    radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-    aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
-  }
+                                   const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -88,15 +72,14 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> required_part_params;
-    required_part_params.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
-    required_part_params[0]->set_part_topology(stk::topology::PARTICLE);
-    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
-    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        default_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        default_aabb_field_name_, stk::topology::ELEMENT_RANK, 4, 1));
+    std::shared_ptr<mundy::meta::PartRequirements> required_part_params;
+    required_part_params->set_part_topology(stk::topology::PARTICLE);
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_aabb_field_name_), stk::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }
 
@@ -109,11 +92,11 @@ class ComputeAABBSphereKernel : public mundy::meta::MetaKernel<void, ComputeAABB
     default_parameter_list.set("buffer_distance", default_buffer_distance_,
                                "Buffer distance to be added to the axis-aligned boundary box.");
     default_parameter_list.set(
-        "aabb_field_name", default_aabb_field_name_,
+        "aabb_field_name", std::string(default_aabb_field_name_),
         "Name of the element field within which the output axis-aligned boundary boxes will be written.");
-    default_parameter_list.set("radius_field_name", default_radius_field_name_,
+    default_parameter_list.set("radius_field_name", std::string(default_radius_field_name_),
                                "Name of the element field containing the sphere radius.");
-    default_parameter_list.set("node_coordinate_field_name", default_node_coord_field_name_,
+    default_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
                                "Name of the node field containing the coordinate of the sphere's center.");
     return default_parameter_list;
   }

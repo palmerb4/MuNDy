@@ -82,7 +82,7 @@ class MetaKernelFactory {
   /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
   /// instances.
   using NewRequirementsGenerator =
-      std::function<std::vector<std::shared_ptr<PartRequirements>>(const Teuchos::ParameterList&)>;
+      std::function<std::shared_ptr<PartRequirements>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -115,7 +115,7 @@ class MetaKernelFactory {
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
   /// is accessible via \c get_valid_params.
-  static std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
+  static std::shared_ptr<PartRequirements> get_part_requirements(
       const std::string& key, const Teuchos::ParameterList& parameter_list) {
     return get_requirement_generator_map()[key](parameter_list);
   }

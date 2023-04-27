@@ -201,6 +201,16 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
   /// match the current name of this field.
   ///
+  /// \param field_req_ptr [in] A \c FieldRequirements objects to merge with the current object.
+  void merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) override final;
+
+  /// \brief Merge the current parameters with any number of other \c FieldRequirements.
+  ///
+  /// Here, merging two a \c FieldRequirements object with this object amounts to setting the number of states to be the
+  /// maximum over all the number of states over all the \c FieldRequirements. For this process to be valid, the given
+  /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
+  /// match the current name of this field.
+  ///
   /// \param vector_of_field_req_ptrs [in] A vector of pointers to other \c FieldRequirements objects to merge with the
   /// current object.
   void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) override final;
@@ -303,7 +313,7 @@ void FieldRequirements<FieldType>::set_field_rank(const stk::topology::rank_t &f
 template <typename FieldType>
 void FieldRequirements<FieldType>::set_field_rank(const std::string &field_rank_string) {
   const stk::topology::rank_t field_rank = mundy::meta::map_string_to_rank(field_rank_string);
-  this->set_field_rank(field_rank)
+  this->set_field_rank(field_rank);
 }
 
 template <typename FieldType>
@@ -437,6 +447,11 @@ void FieldRequirements<FieldType>::check_if_valid() const {
 }
 
 template <typename FieldType>
+void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) {
+  merge({field_req_ptr});
+}
+
+template <typename FieldType>
 void FieldRequirements<FieldType>::merge(
     const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) {
   for (const auto &field_req_ptr : vector_of_field_req_ptrs) {
@@ -484,7 +499,7 @@ void FieldRequirements<FieldType>::merge(
 template <typename FieldType>
 std::shared_ptr<FieldRequirementsBase> FieldRequirements<FieldType>::create_new_instance(
     const Teuchos::ParameterList &parameter_list) const {
-  return static_create_new_instance(parameter_list)
+  return static_create_new_instance(parameter_list);
 }
 //}
 

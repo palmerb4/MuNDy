@@ -64,7 +64,7 @@ class MetaKernelBase {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  virtual std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
+  virtual std::shared_ptr<PartRequirements> get_part_requirements(
       const Teuchos::ParameterList& parameter_list) const = 0;
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
@@ -136,7 +136,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
+  std::shared_ptr<PartRequirements> get_part_requirements(
       const Teuchos::ParameterList& parameter_list) const override final;
 
   /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
@@ -150,8 +150,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::vector<std::shared_ptr<PartRequirements>> static_get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) {
+  static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
     return DerivedMetaKernel::details_static_get_part_requirements(parameter_list);
   }
 
@@ -203,7 +202,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 //{
 
 template <typename ReturnType, class DerivedMetaKernel>
-std::vector<std::shared_ptr<PartRequirements>> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
+std::shared_ptr<PartRequirements> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
     const Teuchos::ParameterList& parameter_list) const {
   return static_get_part_requirements(parameter_list);
 }

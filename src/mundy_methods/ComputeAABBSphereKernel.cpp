@@ -71,7 +71,7 @@ ComputeAABBSphereKernel::ComputeAABBSphereKernel(stk::mesh::BulkData *const bulk
 //{
 
 void ComputeAABBSphereKernel::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(element);
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
   double *aabb = stk::mesh::field_data(*aabb_field_ptr_, element);

@@ -133,6 +133,16 @@ class FieldRequirementsBase {
   /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
   /// match the current name of this field.
   ///
+  /// \param field_req_ptr [in] A \c FieldRequirements objects to merge with the current object.
+  virtual void merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) = 0;
+
+  /// \brief Merge the current parameters with any number of other \c FieldRequirements.
+  ///
+  /// Here, merging two a \c FieldRequirements object with this object amounts to setting the number of states to be the
+  /// maximum over all the number of states over all the \c FieldRequirements. For this process to be valid, the given
+  /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
+  /// match the current name of this field.
+  ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
   virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) = 0;
 
