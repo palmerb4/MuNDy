@@ -27,13 +27,13 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
+#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
+#include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
+#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
 #include <mundy_meta/MetaKernel.hpp>                // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
@@ -57,36 +57,43 @@ ComputeBoundingRadius::ComputeBoundingRadius(stk::mesh::BulkData *const bulk_dat
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "mundy::methods::ComputeBoundingRadius: bulk_data_ptr cannot be a nullptr.");
 
-  // The parts cannot intersect.
-  for (int i = 0; i < num_parts_; i++) {
-    for (int j = 0; j < num_parts_; j++) {
-      if (i = !j) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeBoundingRadius: Part "
-                                       << part_ptr_vector[i]->name() << " and "
-                                       << "Part " << part_ptr_vector[j]->name() << "intersect.");
-      }
-    }
-  }
-
-  // Store the input parameters, use default parameters for any parameter not given.
+  // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_parameter_list = parameter_list;
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
-  // Create and store the required kernels.
+  // Parse the parameters
+  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+  num_parts_ = parts_parameter_list.get<unsigned>("count");
+  part_ptr_vector_.resize(num_parts_);
   for (int i = 0; i < num_parts_; i++) {
+    // Fetch the i'th part and its parameters
+    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+    const std::string part_name = part_parameter_list.get<std::string>("name");
+    part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
+
     // Fetch the parameters for this part's kernel
-    const std::string part_name = part_ptr_vector_[i]->name();
-    const Teuchos::ParameterList &part_parameter_list = valid_parameter_list.sublist(part_name);
     const Teuchos::ParameterList &part_kernel_parameter_list =
         part_parameter_list.sublist("kernels").sublist("compute_bounding_sphere");
 
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    compute_bounding_sphere_kernels_.push_back(mundy::meta::MetaKernelFactory<void, ComputeBoundingRadius>::create_new_instance(
-        kernel_name, bulk_data_ptr, part_kernel_parameter_list));
+    compute_bounding_sphere_kernel_ptrs_.push_back(
+        mundy::meta::MetaKernelFactory<void, ComputeBoundingRadius>::create_new_instance(kernel_name, bulk_data_ptr_,
+                                                                                         part_kernel_parameter_list));
+  }
+
+  // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
+  for (int i = 0; i < num_parts_; i++) {
+    for (int j = 0; j < num_parts_; j++) {
+      if (i != j) {
+        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
+        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
+                                   "mundy::methods::ComputeBoundingRadius: Part "
+                                       << part_ptr_vector_[i]->name() << " and "
+                                       << "Part " << part_ptr_vector_[j]->name() << "intersect.");
+      }
+    }
   }
 }
 //}
@@ -96,14 +103,14 @@ ComputeBoundingRadius::ComputeBoundingRadius(stk::mesh::BulkData *const bulk_dat
 
 void ComputeBoundingRadius::execute() {
   for (int i = 0; i < num_parts_; i++) {
-    const MetaKernel &compute_bounding_sphere_kernel = compute_bounding_sphere_kernels_[i];
+    std::shared_ptr<mundy::meta::MetaKernelBase<void>> compute_bounding_sphere_kernel_ptr =
+        compute_bounding_sphere_kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_part =
-        bulk_data_ptr->mesh_meta_data().locally_owned_part() && *part_ptr_vector_[i];
+    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr, stk::topology::ELEM_RANK, locally_owned_part,
-        [&compute_bounding_sphere_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          compute_bounding_sphere_kernel->execute(element);
+        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
+        [&compute_bounding_sphere_kernel_ptr](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+          compute_bounding_sphere_kernel_ptr->execute(element);
         });
   }
 }
@@ -112,5 +119,3 @@ void ComputeBoundingRadius::execute() {
 }  // namespace methods
 
 }  // namespace mundy
-
-#endif  // MUNDY_METHODS_COMPUTEBOUNDINGRADIUS_HPP_

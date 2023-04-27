@@ -73,23 +73,30 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_get_part_requirements(
+  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+    valid_parameter_list.validateParametersAndSetDefaults(static_get_valid_params());
 
-    // Create and store the required part params.
-    std::vector<mundy::meta::PartRequirements> part_requirements(num_parts_);
-    for (int i = 0; i < num_parts_; i++) {
+    // Create and store the required part params. One per input part.
+    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
+    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
+    for (int i = 0; i < num_parts; i++) {
+      // Create a new parameter
+      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+
+      // Fetch the i'th part parameters
+      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+      const std::string part_name = part_parameter_list.get<std::string>("name");
+
       // Add method-specific requirements.
-      const std::string part_name = part_ptr_vector_[i]->name();
       part_requirements[i]->set_part_name(part_name);
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_parameter_list = valid_parameter_list.sublist(part_name);
       Teuchos::ParameterList &part_kernel_parameter_list =
           part_parameter_list.sublist("kernels").sublist("compute_constraint_violation");
 
@@ -99,15 +106,16 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
           mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>::get_part_requirements(
-          kernel_name, part_kernel_parameter_list));
+      part_requirements[i]->merge(
+          mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>::get_part_requirements(
+              kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
   }
 
   /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList details_get_valid_params() {
+  static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
         default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
@@ -117,15 +125,15 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  static std::string details_get_class_identifier() {
-    return class_identifier_;
+  static std::string details_static_get_class_identifier() {
+    return std::string(class_identifier_);
   }
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<ComputeConstraintViolation>(bulk_data_ptr, parameter_list);
   }
@@ -151,15 +159,15 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
 
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
-  
+
   /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;
 
   /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> &part_ptr_vector_;
+  std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_violation_kernels_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_violation_kernel_ptrs_;
   //@}
 };  // ComputeConstraintViolation
 

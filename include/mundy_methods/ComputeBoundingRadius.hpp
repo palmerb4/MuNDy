@@ -103,19 +103,18 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_valid_params(kernel_name));
+          mundy::meta::MetaKernelFactory<void, ComputeBoundingRadius>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_part_requirements(
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeBoundingRadius>::get_part_requirements(
           kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
   }
 
-
   /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList details_get_valid_params() {
+  static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
         default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
@@ -125,15 +124,15 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  static std::string details_get_class_identifier() {
-    return class_identifier_;
+  static std::string details_static_get_class_identifier() {
+    return std::string(class_identifier_);
   }
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<ComputeBoundingRadius>(bulk_data_ptr, parameter_list);
   }
@@ -159,14 +158,14 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
 
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
-  
+
   /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;
 
   /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> &part_ptr_vector_;
+  std::vector<stk::mesh::Part *> part_ptr_vector_;
 
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_bounding_sphere_kernels_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_bounding_sphere_kernel_ptrs_;
   //@}
 };  // ComputeBoundingRadius
 

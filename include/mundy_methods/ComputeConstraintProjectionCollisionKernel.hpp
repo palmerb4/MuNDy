@@ -36,13 +36,14 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeConstraintProjection.hpp>      // for mundy::methods::ComputeConstraintProjection
+#include <mundy_meta/FieldRequirements.hpp>               // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaKernel.hpp>                      // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernelFactory.hpp>               // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernelRegistry.hpp>              // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>                // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeConstraintProjection.hpp>  // for mundy::methods::ComputeConstraintProjection
 
+namespace mundy {
 
 namespace methods {
 
@@ -50,7 +51,8 @@ namespace methods {
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
 class ComputeConstraintProjectionCollisionKernel
     : public mundy::meta::MetaKernel<void, ComputeConstraintProjectionCollisionKernel>,
-      public mundy::meta::MetaKernelRegistry<void, ComputeConstraintProjectionCollisionKernel, ComputeConstraintProjection> {
+      public mundy::meta::MetaKernelRegistry<void, ComputeConstraintProjectionCollisionKernel,
+                                             ComputeConstraintProjection> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -70,19 +72,19 @@ class ComputeConstraintProjectionCollisionKernel
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::PartRequirements> details_get_part_requirements(
+  static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> required_part_params;
-    required_part_params.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
-    required_part_params[0]->set_part_topology(stk::topology::PARTICLE);
-    required_part_params[0]->add_field_reqs(
-        std::make_shared<mundy::meta::FieldRequirements<double>>(default_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
-    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        default_node_normal_vec_field_name_, stk::topology::NODE_RANK, 3, 1));
-    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        default_lagrange_multiplier_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params[0]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        default_constraint_violation_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
+    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
+        std::make_shared<mundy::meta::PartRequirements>();
+    required_part_params->set_part_topology(stk::topology::PARTICLE);
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_node_normal_vec_field_name_), stk::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 
@@ -90,21 +92,36 @@ class ComputeConstraintProjectionCollisionKernel
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_get_valid_params() {
+  static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("minimum_allowable_separation", default_minimum_allowable_separation_,
                                "Minimum allowable separation distance between colliding bodies.");
     default_parameter_list.set(
-        "node_coordinate_field_name", default_node_coord_field_name_,
+        "node_coordinate_field_name", std::string(default_node_coord_field_name_),
         "Name of the node field containing the coordinate of the constraint's attachment points.");
     default_parameter_list.set(
-        "node_normal_vector_field_name", default_node_normal_vec_field_name_,
+        "node_normal_vector_field_name", std::string(default_node_normal_vec_field_name_),
         "Name of the node field containing the normal vector to the constraint's attachment point.");
-    default_parameter_list.set("lagrange_multiplier_field_name", default_lagrange_multiplier_field_name_,
+    default_parameter_list.set("lagrange_multiplier_field_name", std::string(default_lagrange_multiplier_field_name_),
                                "Name of the element field containing the constraint's Lagrange multiplier.");
-    default_parameter_list.set("constraint_violation_field_name", default_constraint_violation_field_name_,
+    default_parameter_list.set("constraint_violation_field_name", std::string(default_constraint_violation_field_name_),
                                "Name of the element field containing the constraint's violation measure.");
     return default_parameter_list;
+  }
+
+  /// \brief Get the unique string identifier for this class.
+  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
+  static std::string details_static_get_class_identifier() {
+    return std::string(class_identifier_);
+  }
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_params.
+  static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+    return std::make_shared<ComputeConstraintProjectionCollisionKernel>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -129,17 +146,17 @@ class ComputeConstraintProjectionCollisionKernel
 
   //! \name Internal members
   //@{
-    
+
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static const std::string class_identifier_ = "SPHERE";
-  
-    /// \brief The BulkData objects this class acts upon.
+  static constexpr std::string_view class_identifier_ = "SPHERE";
+
+  /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
-  
+
   /// \brief Minimum allowable separation distance between colliding bodies.
   double minimum_allowable_separation_;
 
@@ -156,18 +173,18 @@ class ComputeConstraintProjectionCollisionKernel
   std::string constraint_violation_field_name_;
 
   /// \brief Node field containing the coordinate of the constraint's attachment points.
-  stk::mesh::Field<double *node_coord_field_ptr_;
+  stk::mesh::Field<double> *node_coord_field_ptr_;
 
   /// \brief Element field within which the output axis-aligned boundary boxes will be written.
   ///
   /// Per convention, the normal vector points outward from the attached surface.
-  stk::mesh::Field<double *node_normal_vec_field_ptr_;
+  stk::mesh::Field<double> *node_normal_vec_field_ptr_;
 
   /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double *lagrange_multiplier_field_ptr_;
+  stk::mesh::Field<double> *lagrange_multiplier_field_ptr_;
 
   /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double *constraint_violation_field_ptr_;
+  stk::mesh::Field<double> *constraint_violation_field_ptr_;
   //@}
 };  // ComputeConstraintProjectionCollisionKernel
 

@@ -70,8 +70,8 @@ ComputeBoundingRadiusSphereKernel::ComputeBoundingRadiusSphereKernel(stk::mesh::
 
 void ComputeBoundingRadiusSphereKernel::execute(const stk::mesh::Entity &element) {
   double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-  double *bounding_sphere = stk::mesh::field_data(*bounding_sphere_field_ptr_, element);
-  bounding_sphere[0] = radius[0] + buffer_distance_;
+  double *bounding_radius = stk::mesh::field_data(*bounding_radius_field_ptr_, element);
+  bounding_radius[0] = radius[0] + buffer_distance_;
 }
 //}
 

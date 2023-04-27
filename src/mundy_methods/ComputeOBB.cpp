@@ -56,36 +56,42 @@ ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "mundy::methods::ComputeOBB: bulk_data_ptr cannot be a nullptr.");
 
-  // The parts cannot intersect.
-  for (int i = 0; i < num_parts_; i++) {
-    for (int j = 0; j < num_parts_; j++) {
-      if (i = !j) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector[i], *part_ptr_vector[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeOBB: Part " << part_ptr_vector[i]->name() << " and "
-                                                                       << "Part " << part_ptr_vector[j]->name()
-                                                                       << "intersect.");
-      }
-    }
-  }
-
-  // Store the input parameters, use default parameters for any parameter not given.
+  // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_parameter_list = parameter_list;
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
-  // Create and store the required kernels.
+  // Parse the parameters
+  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+  num_parts_ = parts_parameter_list.get<unsigned>("count");
+  part_ptr_vector_.resize(num_parts_);
   for (int i = 0; i < num_parts_; i++) {
+    // Fetch the i'th part and its parameters
+    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+    const std::string part_name = part_parameter_list.get<std::string>("name");
+    part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
+
     // Fetch the parameters for this part's kernel
-    const std::string part_name = part_ptr_vector_[i]->name();
-    const Teuchos::ParameterList &part_parameter_list = valid_parameter_list.sublist(part_name);
     const Teuchos::ParameterList &part_kernel_parameter_list =
         part_parameter_list.sublist("kernels").sublist("compute_obb");
 
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    compute_obb_kernels_.push_back(mundy::meta::MetaKernelFactory<void, ComputeOBB>::create_new_instance(
-        kernel_name, bulk_data_ptr, part_kernel_parameter_list));
+    compute_obb_kernel_ptrs_.push_back(mundy::meta::MetaKernelFactory<void, ComputeOBB>::create_new_instance(
+        kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
+  }
+
+  // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
+  for (int i = 0; i < num_parts_; i++) {
+    for (int j = 0; j < num_parts_; j++) {
+      if (i != j) {
+        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
+        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
+                                   "mundy::methods::ComputeOBB: Part " << part_ptr_vector_[i]->name() << " and "
+                                                                       << "Part " << part_ptr_vector_[j]->name()
+                                                                       << "intersect.");
+      }
+    }
   }
 }
 //}
@@ -95,14 +101,13 @@ ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 
 void ComputeOBB::execute() {
   for (int i = 0; i < num_parts_; i++) {
-    const mundy::meta::MetaKernel &compute_obb_kernel = compute_obb_kernels_[i];
+    std::shared_ptr<mundy::meta::MetaKernelBase<void>> &compute_obb_kernel_ptr = compute_obb_kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_part =
-        bulk_data_ptr->mesh_meta_data().locally_owned_part() && *part_ptr_vector_[i];
+    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr, stk::topology::ELEM_RANK, locally_owned_part,
-        [&compute_obb_kernel](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          compute_obb_kernel->execute(element);
+        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
+        [&compute_obb_kernel_ptr](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+          compute_obb_kernel_ptr->execute(element);
         });
   }
 }
