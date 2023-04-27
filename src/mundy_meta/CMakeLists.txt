@@ -17,5 +17,8 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(mundy_meta)
-add_subdirectory(mundy_methods)
+target_sources(mundy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/FieldRequirements.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MeshBuilder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/PartRequirements.cpp
+)

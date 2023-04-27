@@ -17,5 +17,15 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(mundy_meta)
-add_subdirectory(mundy_methods)
+target_sources(mundy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeAABB.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeAABBSphereKernel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeBoundingRadius.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeBoundingRadiusSphereKernel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintProjection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintProjectionCollisionKernel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintViolation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintViolationCollisionKernel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeOBB.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeOBBSphereKernel.cpp
+    )
