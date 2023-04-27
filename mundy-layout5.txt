@@ -1,5 +1,13 @@
       
-All of Mundy + strategy implementations    
+All of Mundy
+
+The following layout displayes the class/registry structure for Mundy. In this layout, we have a more palatable naming system than using long names such as
+SolveLCPTechniqueBBPGDKernelDiffDots or my favorite ResolveConstraintsTechniqueNonSmoothLCPComputeConstraintViolationCollisionKernel.  
+        
+Because techniques and kernels are accessed via their strings and the registry, the most important thing is that our layout reflect the registry. Users will never need to write 
+mundy::methods::resolve_constraints::techniques::non_smooth_lcp::compute_constraint_violation::kernels::Sphere. This will naturally arise in their parameter list when specifying
+the kernel for compute_constraint_violation. 
+
 mundy::
   meta::
     FieldRequirements
@@ -15,8 +23,9 @@ mundy::
     MetaMethodRegistry
     PartRequirements      
   methods:: 
-    ComputeAABB
-      Kernels
+    compute_aabb::
+      ComputeAABB
+      kernels::
         Sphere
         Spherocylinder
         SuperEllipsoid
@@ -26,8 +35,9 @@ mundy::
         TorsiionalSpring
         Joint
         Hinge
-    ComputeOBB
-      Kernels
+    compute_obb::
+      ComputeOBB
+      kernels::
         Sphere
         Spherocylinder
         SuperEllipsoid
@@ -37,8 +47,9 @@ mundy::
         TorsiionalSpring
         Joint
         Hinge
-    ComputeBoundingSphere
-      Kernels
+    compute_bounding_radius::
+      ComputeBoundingRadius
+      kernels::
         Sphere
         Spherocylinder
         SuperEllipsoid
@@ -48,69 +59,94 @@ mundy::
         TorsiionalSpring
         Joint
         Hinge
-    SolveLCP
-      Techniques
-        APGD
-        BBPGD
-          Kernels
+    solve_lcp::
+      SolveLCP
+      techniques::
+        apgd::
+          APGD
+        bbpgd::
+          BBPGD
+          kernels::
             ComputeDiffDots
             ComputeGradientStep
     // neighbor methods
-    DetectNeighbors
-      Techniques
-        AABB
-        BoundingSphere
-    GhostNeighbors
-    RefineNeighbors
-      Techniques
-        OBB
+    detect_neighbors::
+      DetectNeighbors
+      techniques::
+        aabb::
+          AABB
+        bounding_sphere::
+          BoundingSphere
+    generate_ghosts::
+      GhostNeighbors
+    refine_neighbors::
+      RefineNeighbors
+      techniques::
+          obb::
+            OBB
     // constraint methods  
-    GenerateCollisionConstraints
-      Kernels
+    generate_collision_constraints::
+      GenerateCollisionConstraints
+      kernels::
         Spherocylinder
         SuperEllipsoid
         Polytope
-    ResolveConstraints
-      Techniques
-        SmoothPotential
-        SmoothPenalty
-        NonSmoothLCP
-          ComputeConstraintViolation
-            Kernels
+    resolve_constraints::
+      ResolveConstraints
+      techniques::
+        smooth_potential::
+          SmoothPotential
+        smooth_penalty::
+          SmoothPenalty
+        non_smooth_lcp::
+          NonSmoothLCP
+          compute_constraint_violation::
+            ComputeConstraintViolation
+            kernels::
               Collision
               Spring
               TorsiionalSpring
               Joint
               Hinge
-          ComputeConstraintForcing (D F)
-            Kernels
+          compute_constraint_forcing::
+            ComputeConstraintForcing (D F)
+            kernels::
               Spring
               TorsiionalSpring
               Joint
               Hinge
-          ComputeConstraintProjection
-            Techniques
-              DaiFletcher2005
-                Kernels
+          compute_constraint_projection::
+            ComputeConstraintProjection
+            techniques::
+              dai_fletcher::
+                DaiFletcher2005
+                kernels::
                   Collision
                   Spring
                   TorsiionalSpring
                   Joint
                   Hinge
-          ComputeConstraintViolationLinearizedRateOfChange (dt D^T U)
-              Collision
-              Spring
-              TorsiionalSpring
-              Joint
-              Hinge
+          compute_constraint_violation_linearized_rate_of_change::
+            ComputeConstraintViolationLinearizedRateOfChange (dt D^T U)
+              kernels::
+                Collision
+                Spring
+                TorsiionalSpring
+                Joint
+                Hinge
           ComputeConstraintJacobian (dt D^T M D)
           ComputeConstraintResidual
         NonSmoothReLCP
     // motion methods
-    TimeIntegration
-      Techniques
-        NodeEuler
-        NodeAdamsBatchford
-    ComputeMobility
-      Techniques
-        NodeEuler
+    time_integration::
+      TimeIntegration
+      techniques::
+        node_euler::
+          NodeEuler
+        node_adams_batchford::
+          NodeAdamsBatchford
+    compute_mobility::
+      ComputeMobility
+      techniques::
+        node_euler::
+          NodeEuler
