@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAKERNEL_HPP_
-#define MUNDY_META_METAKERNEL_HPP_
+#ifndef MUNDY_META_METAPAIRWISEKERNEL_HPP_
+#define MUNDY_META_METAPAIRWISEKERNEL_HPP_
 
-/// \file MetaKernel.hpp
-/// \brief Declaration of the MetaKernel class
+/// \file MetaPairwiseKernel.hpp
+/// \brief Declaration of the MetaPairwiseKernel class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
@@ -39,38 +39,39 @@ namespace mundy {
 
 namespace meta {
 
-/// \class MetaKernelBase
-/// \brief The polymorphic interface which all \c MetaKernels will share.
+/// \class MetaPairwiseKernelBase
+/// \brief The polymorphic interface which all \c MetaPairwiseKernels will share.
 ///
-/// This design pattern allows for \c MetaKernel to use CRTP to force derived classes to implement certain static
-/// functions while also having a consistant polymorphic interface that allows different \c MetaKernels to be stored in
-/// a vector of pointers.
+/// This design pattern allows for \c MetaPairwiseKernel to use CRTP to force derived classes to implement certain
+/// static functions while also having a consistant polymorphic interface that allows different \c MetaPairwiseKernels
+/// to be stored in a vector of pointers.
 ///
 /// \tparam ReturnType The return type of the execute function.
 template <typename ReturnType>
-class MetaKernelBase {
+class MetaPairwiseKernelBase {
  public:
   //! \name Attributes
   //@{
 
-  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
+  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
+  /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These
+  /// assumptions may vary based parameters in the \c parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  virtual std::shared_ptr<PartRequirements> get_part_requirements(
+  virtual std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> get_part_requirements(
       const Teuchos::ParameterList& parameter_list) const = 0;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaPairwiseKernel.
   virtual Teuchos::ParameterList get_valid_params() const = 0;
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaPairwiseKernel.
   virtual std::string get_class_identifier() const = 0;
   //@}
 
@@ -81,32 +82,32 @@ class MetaKernelBase {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  virtual std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
+  virtual std::shared_ptr<MetaPairwiseKernelBase<ReturnType>> create_new_instance(
       stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const = 0;
 
   /// \brief Run the kernel's core calculation.
-  virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
+  virtual ReturnType execute(const stk::mesh::Entity& entity1, const stk::mesh::Entity& entity2) = 0;
   //@}
-};  // MetaKernelBase
+};  // MetaPairwiseKernelBase
 
-/// \class MetaKernel
+/// \class MetaPairwiseKernel
 /// \brief An abstract interface for all of Mundy's methods.
 ///
-/// A \c MetaKernel represents an atomic unit of computation applied to a \b single multibody object in isolation
-/// (sphere, spring, hinge, etc.). Through STK and Kokkos looping constructs, a \c MetaKernel can be efficiently applied
-/// to large groups of multibody objects.
+/// A \c MetaPairwiseKernel represents an atomic unit of computation applied to a \b single multibody object in
+/// isolation (sphere, spring, hinge, etc.). Through STK and Kokkos looping constructs, a \c MetaPairwiseKernel can be
+/// efficiently applied to large groups of multibody objects.
 ///
-/// While \c MetaKernel only accepts a single multibody object, but Mundy offers two pairwise specializations:
-///  - \c MetaKernelPairwise for pairwise anti-symmetric interaction between two multibody objects.
-///  - \c MetaKernelPairwiseSymmetric for pairwise symmetric interaction between two multibody objects.
+/// While \c MetaPairwiseKernel only accepts a single multibody object, but Mundy offers two pairwise specializations:
+///  - \c MetaPairwiseKernelPairwise for pairwise anti-symmetric interaction between two multibody objects.
+///  - \c MetaPairwiseKernelPairwiseSymmetric for pairwise symmetric interaction between two multibody objects.
 ///
-/// The goal of \c MetaKernel is to wrap a kernel that acts on an STK Element with a known multibody type.
+/// The goal of \c MetaPairwiseKernel is to wrap a kernel that acts on an STK Element with a known multibody type.
 /// The wrapper can output the assumptions of the wrapped kernel with respect to the fields and topology associated with
 /// the provided element. Note, this element is part of some STK Part, so the output requirements are
 /// \c PartRequirements for that part. Requirements cannot be applied at the element-level.
 ///
-/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
-/// implement the following static member functions
+/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaPairwiseKernel
+/// must implement the following static member functions
 ///   - \c details_static_get_part_requirements implementation of the \c get_part_requirements interface.
 ///   - \c details_static_get_valid_params implementation of the \c get_valid_params interface.
 ///   - \c details_static_get_class_identifier implementation of the \c get_class_identifier interface.
@@ -115,57 +116,60 @@ class MetaKernelBase {
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
 ///
-/// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
+/// \tparam DerivedMetaPairwiseKernel A class derived from \c MetaPairwiseKernel that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
-template <typename ReturnType, class DerivedMetaKernel>
-class MetaKernel : public MetaKernelBase<ReturnType> {
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+class MetaPairwiseKernel : public MetaPairwiseKernelBase<ReturnType> {
  public:
   //! \name Getters
   //@{
 
-  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
+  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
+  /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These
+  /// assumptions may vary based parameters in the \c parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  std::shared_ptr<PartRequirements> get_part_requirements(
+  std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> get_part_requirements(
       const Teuchos::ParameterList& parameter_list) const override final;
 
-  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
+  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
+  /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These
+  /// assumptions may vary based parameters in the \c parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_static_get_part_requirements(parameter_list);
+  static std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> static_get_part_requirements(
+      const Teuchos::ParameterList& parameter_list) {
+    return DerivedMetaPairwiseKernel::details_static_get_part_requirements(parameter_list);
   }
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaPairwiseKernel.
   Teuchos::ParameterList get_valid_params() const override final;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
+  /// \brief Get the valid parameters and their default parameter list for this \c MetaPairwiseKernel.
   static Teuchos::ParameterList static_get_valid_params() {
-    return DerivedMetaKernel::details_static_get_valid_params();
+    return DerivedMetaPairwiseKernel::details_static_get_valid_params();
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaPairwiseKernel.
   std::string get_class_identifier() const override final;
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaPairwiseKernel.
   static std::string static_get_class_identifier() {
-    return DerivedMetaKernel::details_static_get_class_identifier();
+    return DerivedMetaPairwiseKernel::details_static_get_class_identifier();
   }
   //@}
 
@@ -176,22 +180,22 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
+  std::shared_ptr<MetaPairwiseKernelBase<ReturnType>> create_new_instance(
       stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const override final;
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaKernelBase<ReturnType>> static_create_new_instance(
+  static std::shared_ptr<MetaPairwiseKernelBase<ReturnType>> static_create_new_instance(
       stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, parameter_list);
+    return DerivedMetaPairwiseKernel::details_static_create_new_instance(bulk_data_ptr, parameter_list);
   }
 
   /// \brief Run the kernel's core calculation.
   virtual ReturnType execute(const stk::mesh::Entity& entity) override = 0;
   //@}
-};  // MetaKernel
+};  // MetaPairwiseKernel
 
 //! \name Template implementations
 //@{
@@ -199,19 +203,20 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 // \name Getters
 //{
 
-template <typename ReturnType, class DerivedMetaKernel>
-std::shared_ptr<PartRequirements> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>>
+MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_part_requirements(
     const Teuchos::ParameterList& parameter_list) const {
   return static_get_part_requirements(parameter_list);
 }
 
-template <typename ReturnType, class DerivedMetaKernel>
-Teuchos::ParameterList MetaKernel<ReturnType, DerivedMetaKernel>::get_valid_params() const {
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+Teuchos::ParameterList MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_valid_params() const {
   return static_get_valid_params();
 }
 
-template <typename ReturnType, class DerivedMetaKernel>
-std::string MetaKernel<ReturnType, DerivedMetaKernel>::get_class_identifier() const {
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+std::string MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_class_identifier() const {
   return static_get_class_identifier();
 }
 //}
@@ -219,8 +224,9 @@ std::string MetaKernel<ReturnType, DerivedMetaKernel>::get_class_identifier() co
 // \name Actions
 //{
 
-template <typename ReturnType, class DerivedMetaKernel>
-std::shared_ptr<MetaKernelBase<ReturnType>> MetaKernel<ReturnType, DerivedMetaKernel>::create_new_instance(
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+std::shared_ptr<MetaPairwiseKernelBase<ReturnType>>
+MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::create_new_instance(
     stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const {
   return static_create_new_instance(bulk_data_ptr, parameter_list);
 }
@@ -231,4 +237,4 @@ std::shared_ptr<MetaKernelBase<ReturnType>> MetaKernel<ReturnType, DerivedMetaKe
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_METAKERNEL_HPP_
+#endif  // MUNDY_META_METAPAIRWISEKERNEL_HPP_

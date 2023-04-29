@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_COMPUTECONSTRAINTPROJECTION_HPP_
-#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_COMPUTECONSTRAINTPROJECTION_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_HPP_
 
-/// \file ComputeConstraintProjection.hpp
-/// \brief Declaration of the ComputeConstraintProjection class
+/// \file NodeEuler.hpp
+/// \brief Declaration of ComputeMobility's NodeEuler technique.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -43,30 +43,27 @@
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeMobility.hpp>  // for mundy::meta::ComputeMobility
 
 namespace mundy {
 
 namespace methods {
 
-namespace resolve_constraints {
+namespace compute_mobility {
 
-namespace techniques {
-
-namespace non_smooth_lcp {
-
-/// \class ComputeConstraintProjection
+/// \class NodeEuler
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, ComputeConstraintProjection>,
-                                    public mundy::meta::MetaMethodRegistry<void, ComputeConstraintProjection> {
+class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
+                  public mundy::meta::MetaMethodRegistry<void, NodeEuler, ComputeMobility> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeConstraintProjection() = delete;
+  NodeEuler() = delete;
 
   /// \brief Constructor
-  ComputeConstraintProjection(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -103,18 +100,16 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_constraint_projection");
+      Teuchos::ParameterList &part_kernel_parameter_list = part_parameter_list.sublist("kernels").sublist("node_euler");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>::get_valid_params(kernel_name));
+          mundy::meta::MetaKernelFactory<void, NodeEuler>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(
-          mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>::get_part_requirements(
-              kernel_name, part_kernel_parameter_list));
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, NodeEuler>::get_part_requirements(
+          kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
@@ -125,8 +120,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
         default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("compute_constraint_projection", false,
-                          "Sublist that defines the constraint projection kernel parameters.");
+    kernel_params.sublist("node_euler", false, "Sublist that defines the node euler kernel parameters.");
     return default_parameter_list;
   }
 
@@ -141,7 +135,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeConstraintProjection>(bulk_data_ptr, parameter_list);
+    return std::make_shared<NodeEuler>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -158,7 +152,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_PROJECTION";
+  static constexpr std::string_view class_identifier_ = "NODE_EULER";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -173,18 +167,14 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_projection_kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> node_euler_kernel_ptrs_;
   //@}
-};  // ComputeConstraintProjection
+};  // NodeEuler
 
-}  // namespace non_smooth_lcp
-
-}  // namespace techniques
-
-}  // namespace resolve_constraints
+}  // namespace compute_mobility
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_COMPUTECONSTRAINTPROJECTION_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_HPP_

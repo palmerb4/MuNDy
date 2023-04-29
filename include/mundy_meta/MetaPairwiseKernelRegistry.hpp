@@ -17,43 +17,43 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAKERNELREGISTRY_HPP_
-#define MUNDY_META_METAKERNELREGISTRY_HPP_
+#ifndef MUNDY_META_METAPAIRWISEKERNELREGISTRY_HPP_
+#define MUNDY_META_METAPAIRWISEKERNELREGISTRY_HPP_
 
-/// \file MetaKernelRegistry.hpp
-/// \brief Declaration of the MetaKernelRegistry class
+/// \file MetaPairwiseKernelRegistry.hpp
+/// \brief Declaration of the MetaPairwiseKernelRegistry class
 
 // C++ core libs
 #include <type_traits>  // for std::enable_if, std::is_base_of
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaKernelFactory.hpp>  // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaPairwiseKernel.hpp>         // for mundy::meta::MetaPairwiseKernel
+#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
 
 namespace mundy {
 
 namespace meta {
 
-/// \class MetaKernelRegistry
-/// \brief A class for registering \c MetaKernels within \c MetaKernelFactory.
+/// \class MetaPairwiseKernelRegistry
+/// \brief A class for registering \c MetaPairwiseKernels within \c MetaPairwiseKernelFactory.
 ///
-/// All classes derived from \c MetaKernel, which wish to be registered within the \c MetaKernelFactory should inherit
+/// All classes derived from \c MetaPairwiseKernel, which wish to be registered within the \c MetaPairwiseKernelFactory should inherit
 /// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
 /// Pattern).
 ///
-/// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
-template <typename ReturnType, class DerivedMetaKernel, typename RegistryIdentifier = DefaultKernelIdentifier>
-struct MetaKernelRegistry {
+/// \tparam DerivedMetaPairwiseKernel A class derived from \c MetaPairwiseKernel.
+/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaPairwiseKernelFactory.
+template <typename ReturnType, class DerivedMetaPairwiseKernel, typename RegistryIdentifier = DefaultKernelIdentifier>
+struct MetaPairwiseKernelRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register \c DerivedMetaKernel with the \c MetaKernelFactory.
+  /// @brief Register \c DerivedMetaPairwiseKernel with the \c MetaPairwiseKernelFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaKernelFactory<ReturnType, RegistryIdentifier>::register_new_method<DerivedMetaKernel>();
+    MetaPairwiseKernelFactory<ReturnType, RegistryIdentifier>::register_new_method<DerivedMetaPairwiseKernel>();
     return true;
   }
   //@}
@@ -61,23 +61,23 @@ struct MetaKernelRegistry {
   //! \name Member variables
   //@{
 
-  /// @brief A flag for if the given type has been registered with the \c MetaKernelFactory or not.
+  /// @brief A flag for if the given type has been registered with the \c MetaPairwiseKernelFactory or not.
   static const bool is_registered;
   //@}
-};  // MetaKernelRegistry
+};  // MetaPairwiseKernelRegistry
 
 /// @brief Perform the static registration.
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 ///
-/// \tparam DerivedMetaKernel A class derived from \c MetaKernel.
-template <typename ReturnType, class DerivedMetaKernel, typename RegistryIdentifier>
-const bool MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier>::is_registered =
-    MetaKernelRegistry<ReturnType, DerivedMetaKernel, RegistryIdentifier>::register_type();
+/// \tparam DerivedMetaPairwiseKernel A class derived from \c MetaPairwiseKernel.
+template <typename ReturnType, class DerivedMetaPairwiseKernel, typename RegistryIdentifier>
+const bool MetaPairwiseKernelRegistry<ReturnType, DerivedMetaPairwiseKernel, RegistryIdentifier>::is_registered =
+    MetaPairwiseKernelRegistry<ReturnType, DerivedMetaPairwiseKernel, RegistryIdentifier>::register_type();
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_METAKERNELREGISTRY_HPP_
+#endif  // MUNDY_META_METAPAIRWISEKERNELREGISTRY_HPP_

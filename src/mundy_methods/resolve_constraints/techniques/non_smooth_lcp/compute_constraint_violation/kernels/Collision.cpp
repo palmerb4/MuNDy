@@ -32,11 +32,6 @@
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
 namespace mundy {
@@ -65,14 +60,13 @@ Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 
   // Fill the internal members using the internal parameter list.
   minimum_allowable_separation_ = valid_parameter_list.get<double>("minimum_allowable_separation");
-  node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coordinate_field_name");
-  node_normal_vec_field_name_ = valid_parameter_list.get<std::string>("node_normal_vector_field_name");
+  signed_sep_dist_field_name_ = valid_parameter_list.get<std::string>("signed_separation_dist_field_name");
   lagrange_multiplier_field_name_ = valid_parameter_list.get<std::string>("lagrange_multiplier_field_name");
   constraint_violation_field_name_ = valid_parameter_list.get<std::string>("constraint_violation_field_name");
 
   // Store the input params.
-  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  node_normal_vec_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_normal_vec_field_name_);
+  separation_dist_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, signed_separation_dist_field_name_);
   lagrange_multiplier_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, lagrange_multiplier_field_name_);
   constraint_violation_field_ptr_ =
@@ -85,15 +79,12 @@ Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 
 void Collision::execute(const stk::mesh::Entity &element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
-  const double *contact_pointI = stk::mesh::field_data(*node_coord_field_ptr_, nodes[1]);
-  const double *contact_pointJ = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
-  const double *contact_normal_vecI = stk::mesh::field_data(*node_normal_vec_field_ptr_, nodes[1]);
+  const double *separation_dist = stk::mesh::field_data(*separation_dist_field_ptr_, element);
+  const double *lagrange_mult = stk::mesh::field_data(*lagrange_multiplier_field_ptr_, element);
   double *constraint_violation = stk::mesh::field_data(*constraint_violation_field_ptr_, element);
 
-  constraint_violation[0] = contact_normal_vecI[0] * (contact_pointJ[0] - contact_pointI[0]) +
-                            contact_normal_vecI[1] * (contact_pointJ[1] - contact_pointI[1]) +
-                            contact_normal_vecI[2] * (contact_pointJ[2] - contact_pointI[2]) -
-                            minimum_allowable_separation_;
+  // Minimum map constraint violation.
+  constraint_violation[0] = std::min(separation_dist[0], lagrange_mult[0]);
 }
 //}
 

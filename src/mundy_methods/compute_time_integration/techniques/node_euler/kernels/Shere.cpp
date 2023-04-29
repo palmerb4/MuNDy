@@ -18,7 +18,7 @@
 // @HEADER
 
 /// \file Sphere.cpp
-/// \brief Definition of the ComputeAABB's Sphere kernel.
+/// \brief Definition of the NodeEuler's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -31,14 +31,19 @@
 #include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 
-// Mundy libs
-#include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
+// Mundy libszhan1908
+#include <mundy_methods/compute_mobility/techniques/node_euler/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
+#include <mundy_methods/utils/Quaternion.hpp>                                       // for mundy::utils::Quaternion
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_aabb {
+namespace compute_mobility {
+
+namespace techniques {
+
+namespace node_euler {
 
 namespace kernels {
 
@@ -53,15 +58,18 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fill the internal members using the internal parameter list.
-  buffer_distance_ = valid_parameter_list.get<double>("buffer_distance");
+  time_step_size_ = valid_parameter_list.get<double>("time_step_size");
   node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coord_field_name");
-  radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
-  aabb_field_name_ = valid_parameter_list.get<std::string>("aabb_field_name");
+  node_orientation_field_name_ = valid_parameter_list.get<std::string>("node_orientation_field_name");
+  node_velocity_field_name_ = valid_parameter_list.get<std::string>("node_velocity_field_name");
+  node_omega_field_name_ = valid_parameter_list.get<std::string>("node_omega_field_name");
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-  aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+  node_orientation_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_orientation_field_name_);
+  node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_velocity_field_name_);
+  node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_omega_field_name_);
 }
 //}
 
@@ -71,21 +79,32 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
 void Sphere::execute(const stk::mesh::Entity &element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-  double *aabb = stk::mesh::field_data(*aabb_field_ptr_, element);
+  double *orienntation = stk::mesh::field_data(*node_orientation_field_ptr_, nodes[0]);
+  double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, nodes[0]);
+  double *node_omega = stk::mesh::field_data(*node_omega_field_ptr_, nodes[0]);
 
-  aabb[0] = coords[0] - radius[0] - buffer_distance_;
-  aabb[1] = coords[1] - radius[0] - buffer_distance_;
-  aabb[2] = coords[2] - radius[0] - buffer_distance_;
-  aabb[3] = coords[0] + radius[0] + buffer_distance_;
-  aabb[4] = coords[1] + radius[0] + buffer_distance_;
-  aabb[5] = coords[2] + radius[0] + buffer_distance_;
+  // Euler step position.
+  coords[0] += time_step_size_ * node_velocity[0];
+  coords[1] += time_step_size_ * node_velocity[1];
+  coords[2] += time_step_size_ * node_velocity[2];
+
+  // Euler step orientation.
+  mundy::methods::utils::Quaternion quat(orienntation[0], orienntation[1], orienntation[2], orienntation[3]);
+  quat.rotate_self(node_omega[0], node_omega[1], node_omega[2], time_step_size_);
+  orientation[0] = quat.w;
+  orientation[1] = quat.x;
+  orientation[2] = quat.y;
+  orientation[3] = quat.z;
 }
 //}
 
 }  // namespace kernels
 
-}  // namespace compute_aabb
+}  // namespace node_euler
+
+}  // namespace techniques
+
+}  // namespace compute_mobility
 
 }  // namespace methods
 

@@ -11,7 +11,38 @@ the kernel for compute_constraint_violation.
 Note, we strategically choose to not put classes like ComputeAABB in the compute_aabb namespace. At first glance this is nonuntuitive, but it is imprtitive to our code's flexibilty. 
 Take, for example, time_integration::techniques::NodeEuler. This class does not currently have any techniques or required kernels, so there is no need to place it within a
 time_integration::techniques::node_euler namespace. But, down the line, we may ellect to add techniques to NodeEuler, thereby necessitating the creation of a node_euler namespace. 
-Hence, this design avoids needless nacespacing while still allowing extensibility. 
+Hence, this design avoids needless nacespacing while still allowing extensibility. It also lets us add new techniques without forcing users to change their code. All we have to do 
+is add a techniques switch to the parameters list and set the default technique to the old method.
+
+I do have a grievance. If I (a user) want to replace NonSmoothLCP with my own method, but want to retain some of its kernels, what should be done? Copying the kernels is bad practice. 
+Mundy's design needs to be flexible enough to avoid copying. Maybe registration shouldn't be done via inheritance. It gets worse; kernels are hidden in a namespace specific to 
+the class they are registered to. If I wanted to swap out NonSmoothLCP, I would have to use its registry in my class. That's not unreasonable.
+
+
+Things that are missing,
+ - What if a constraint has multiple Lagrange multipliers like friction?
+ - Periodicity
+ - How to make reading and writing the mesh easier? 
+   - Need a function that takes in an stk::io::StkMeshIoBroker and adds the fields to it. Can a parameter list be provided to specify which fields (if any) to output? 
+ - How to make partitioning more visible to the user?
+	 - Need a function for computing/populating the parallel rank field. 
+ - How to make initializing particles/constraints easier? 
+	 - Need a helper function for asigning a random initial orientation and initial position. Random position should be within some bounds.
+ - Desperately need to store a multibody type attribute. Users shouldnt have to specify the entire set of kernels for a sphere part. They should be able to declare the part as a sphere 
+   and then list the methods that it will use. Those methods should then deduce the correct kernel based on the multibody type. 
+    - Maybe add a multibody type attribute?
+    - A type attribute would help us with pairwise kernel deduction. How else is ComputeConstraintForcing supposed to assign the part requirements to the given parts?
+    - How can users add their own attributes? We could make a MultibodyTypeFactory and registry; the registry takes in a string and the factory maps that sting to an integer (and vice versa).
+    - With that technique, how should kernels state which multibody type they are made for? Also, how do we differentiate general kernels from multibody kernels?
+    - For now, I think we can keep using the current setup by introducing a pair of identifiers for each MetaPairwiseKernel. These will identify the source and target name. The input params
+      for ComputeConstraintForcing will specify two sets of parts: the source parts and the target parts. Within the parsms file the source parts will have the source identifier for the Pairwise 
+      kernel as a sublist. Within that sublist, the user will provide the source params. The same is true for the target identider, the target part, and the target params. 
+      
+
+I really really dislike our current constraint setup. Using a quad as a constraint and needing to have these extra nodes just so we can perform connections. 
+Constraints should have constraint rank and should store their contact locations, contact force, contact normal, as entity rank fields. This causes one flixable issue
+ 1. How to handle constraints that aren't connected to anything? They need to be considered in the partitioning.  
+
 
 mundy::
   meta::
@@ -23,6 +54,9 @@ mundy::
     MetaKernel
     MetaKernelFactory
     MetaKernelRegistry
+    MetaPairwiseKernel
+    MetaPairwiseKernelFactory
+    MetaPairwiseKernelRegistry
     MetaMethod
     MetaMethodFactory
     MetaMethodRegistry
@@ -146,8 +180,8 @@ mundy::
           ComputeConstraintResidual
         NonSmoothReLCP
     // motion methods
-    TimeIntegration
-    time_integration::
+    ComputeTimeIntegration
+    compute_time_integration::
       techniques::
         NodeEuler
         NodeAdamsBatchford          

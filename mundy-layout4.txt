@@ -303,7 +303,7 @@ Lessons from nalu.
  - Nalu + stk offer simd optimized loops. Long term, we should do the same. See simd_elem_field_updater 
  - MetaMethod should take in the BulkData and part it will act on in its constructor.
  - ScalarType should be templated out.   
- - Use stl::math for abs/sin/cos etc
+ - Use stk::math for abs/sin/cos etc
  - Need a kernel concept for executing operations within a kokkos loop!
  - A matrix-free linear system solver
  - Nalu allows the user to specify tasks that should be performed on the mesh during preprocessing.

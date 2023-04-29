@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_COMPUTECONSTRAINTPROJECTION_HPP_
-#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_COMPUTECONSTRAINTPROJECTION_HPP_
+#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTFORCING_HPP_
+#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTFORCING_HPP_
 
-/// \file ComputeConstraintProjection.hpp
-/// \brief Declaration of the ComputeConstraintProjection class
+/// \file ComputeConstraintForcing.hpp
+/// \brief Declaration of the ComputeConstraintForcing class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -38,11 +38,11 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaPairwiseKernel.hpp>  // for mundy::meta::MetaPairwiseKernel, mundy::meta::MetaPairwiseKernelBase
+#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -54,19 +54,19 @@ namespace techniques {
 
 namespace non_smooth_lcp {
 
-/// \class ComputeConstraintProjection
+/// \class ComputeConstraintForcing
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, ComputeConstraintProjection>,
-                                    public mundy::meta::MetaMethodRegistry<void, ComputeConstraintProjection> {
+class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeConstraintForcing>,
+                                 public mundy::meta::MetaMethodRegistry<void, ComputeConstraintForcing> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeConstraintProjection() = delete;
+  ComputeConstraintForcing() = delete;
 
   /// \brief Constructor
-  ComputeConstraintProjection(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  ComputeConstraintForcing(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -104,16 +104,17 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
 
       // Fetch the parameters for this part's kernel.
       Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_constraint_projection");
+          part_parameter_list.sublist("kernels").sublist("compute_constraint_forcing");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>::get_valid_params(kernel_name));
+      std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> part_reqs_pair =
+          mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_valid_params(kernel_name)
+              part_kernel_parameter_list.validateParametersAndSetDefaults();
 
       // Merge the kernel requirements.
       part_requirements[i]->merge(
-          mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>::get_part_requirements(
+          mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_part_requirements(
               kernel_name, part_kernel_parameter_list));
     }
 
@@ -125,8 +126,8 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
         default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("compute_constraint_projection", false,
-                          "Sublist that defines the constraint projection kernel parameters.");
+    kernel_params.sublist("compute_constraint_forcing", false,
+                          "Sublist that defines the constraint violation kernel parameters.");
     return default_parameter_list;
   }
 
@@ -141,7 +142,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeConstraintProjection>(bulk_data_ptr, parameter_list);
+    return std::make_shared<ComputeConstraintForcing>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -158,7 +159,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_PROJECTION";
+  static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_FORCING";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -173,9 +174,9 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_projection_kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> compute_constraint_forcing_kernel_ptrs_;
   //@}
-};  // ComputeConstraintProjection
+};  // ComputeConstraintForcing
 
 }  // namespace non_smooth_lcp
 
@@ -187,4 +188,4 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_COMPUTECONSTRAINTPROJECTION_HPP_
+#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTFORCING_HPP_

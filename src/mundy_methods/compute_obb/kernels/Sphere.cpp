@@ -32,12 +32,6 @@
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>              // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>                     // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>              // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>             // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>               // for mundy::meta::PartRequirements
-#include <mundy_methods/Sphere.hpp>                      // for mundy::methods::Sphere
 #include <mundy_methods/compute_obb/kernels/Sphere.hpp>  // for mundy::methods::compute_obb::kernels::Sphere
 
 namespace mundy {

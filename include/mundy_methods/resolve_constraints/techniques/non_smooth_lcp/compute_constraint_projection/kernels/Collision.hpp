@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_CONSTRAINT_PROJECTION_KERNELS_COLLISION_HPP_
-#define MUNDY_METHODS_COMPUTE_CONSTRAINT_PROJECTION_KERNELS_COLLISION_HPP_
+#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_PROJECTION_KERNEL_COLLISION_HPP_
+#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_PROJECTION_KERNEL_COLLISION_HPP_
 
 /// \file Collision.hpp
 /// \brief Declaration of the ComputeConstraintProjection's Collision kernel.
@@ -36,12 +36,12 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>               // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>                      // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>               // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>              // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>                // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeConstraintProjection.hpp>  // for mundy::methods::ComputeConstraintProjection
+#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintProjection.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintProjection
 
 namespace mundy {
 
@@ -72,7 +72,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //! \name MetaKernel interface implementation
   //@{
 
-  /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
@@ -83,15 +83,9 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
-    required_part_params->set_part_topology(stk::topology::PARTICLE);
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_normal_vec_field_name_), stk::topology::NODE_RANK, 3, 1));
+    required_part_params->set_part_topology(stk::topology::QUAD_4);
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 
@@ -101,18 +95,8 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("minimum_allowable_separation", default_minimum_allowable_separation_,
-                               "Minimum allowable separation distance between colliding bodies.");
-    default_parameter_list.set(
-        "node_coordinate_field_name", std::string(default_node_coord_field_name_),
-        "Name of the node field containing the coordinate of the constraint's attachment points.");
-    default_parameter_list.set(
-        "node_normal_vector_field_name", std::string(default_node_normal_vec_field_name_),
-        "Name of the node field containing the normal vector to the constraint's attachment point.");
     default_parameter_list.set("lagrange_multiplier_field_name", std::string(default_lagrange_multiplier_field_name_),
                                "Name of the element field containing the constraint's Lagrange multiplier.");
-    default_parameter_list.set("constraint_violation_field_name", std::string(default_constraint_violation_field_name_),
-                               "Name of the element field containing the constraint's violation measure.");
     return default_parameter_list;
   }
 
@@ -144,11 +128,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //! \name Default parameters
   //@{
 
-  static constexpr double default_minimum_allowable_separation_ = 0.0;
-  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
-  static constexpr std::string_view default_node_normal_vec_field_name_ = "NODE_NORMAL_VEC";
   static constexpr std::string_view default_lagrange_multiplier_field_name_ = "LAGRANGE_MULTIPLIER";
-  static constexpr std::string_view default_constraint_violation_field_name_ = "CONSTRAINT_VIOLATION";
   //@}
 
   //! \name Internal members
@@ -164,34 +144,11 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Minimum allowable separation distance between colliding bodies.
-  double minimum_allowable_separation_;
-
-  /// \brief Name of the node field containing the coordinate of the constraint's attachment points.
-  std::string node_coord_field_name_;
-
-  /// \brief Name of the node field containing the normal vector to the constraint's attachment point.
-  std::string node_normal_vec_field_name_;
-
   /// \brief Name of the element field containing the constraint's Lagrange multiplier.
   std::string lagrange_multiplier_field_name_;
 
-  /// \brief Name of the element field containing the constraint's violation measure.
-  std::string constraint_violation_field_name_;
-
-  /// \brief Node field containing the coordinate of the constraint's attachment points.
-  stk::mesh::Field<double> *node_coord_field_ptr_;
-
-  /// \brief Element field within which the output axis-aligned boundary boxes will be written.
-  ///
-  /// Per convention, the normal vector points outward from the attached surface.
-  stk::mesh::Field<double> *node_normal_vec_field_ptr_;
-
   /// \brief Element field containing the sphere radius.
   stk::mesh::Field<double> *lagrange_multiplier_field_ptr_;
-
-  /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *constraint_violation_field_ptr_;
   //@}
 };  // Collision
 
@@ -209,4 +166,4 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_CONSTRAINT_PROJECTION_KERNELS_COLLISION_HPP_
+#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_PROJECTION_KERNEL_COLLISION_HPP_

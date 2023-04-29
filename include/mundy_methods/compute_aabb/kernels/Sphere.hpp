@@ -66,7 +66,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   //! \name MetaKernel interface implementation
   //@{
 
-  /// \brief Get the requirements that this manager imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
@@ -144,7 +144,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const std::string_view class_identifier_;
+  static const std::string_view class_identifier_ = "SPHERE";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;

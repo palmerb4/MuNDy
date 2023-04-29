@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file Sphere.cpp
-/// \brief Definition of the ComputeAABB's Sphere kernel.
+/// \file CollisionSphere.cpp
+/// \brief Definition of the ComputeConstraintForcing's CollisionSphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -32,20 +32,26 @@
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_forcing/kernels/CollisionSphere.hpp>  // for mundy::methods::...::kernels::CollisionSphere
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_aabb {
+namespace resolve_constraints {
+
+namespace techniques {
+
+namespace non_smooth_lcp {
+
+namespace compute_constraint_forcing {
 
 namespace kernels {
 
 // \name Constructors and destructor
 //{
 
-Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+CollisionSphere::CollisionSphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -53,22 +59,23 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fill the internal members using the internal parameter list.
-  buffer_distance_ = valid_parameter_list.get<double>("buffer_distance");
   node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coord_field_name");
-  radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
-  aabb_field_name_ = valid_parameter_list.get<std::string>("aabb_field_name");
+  node_force_field_name_ = valid_parameter_list.get<std::string>("node_force_field_name");
+  node_torque_field_name_ = valid_parameter_list.get<std::string>("node_torque_field_name");
+  lagrange_multiplier_field_name_ = valid_parameter_list.get<std::string>("lagrange_multiplier_field_name");
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-  aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+  node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
+  node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_torque_field_name_);
+  lagrange_multiplier_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, lagrange_multiplier_field_name_);
 }
 //}
 
 // \name Actions
 //{
 
-void Sphere::execute(const stk::mesh::Entity &element) {
+void CollisionSphere::execute(const stk::mesh::Entity &collision_element, const stk::mesh::Entity &sphere_element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
@@ -85,7 +92,13 @@ void Sphere::execute(const stk::mesh::Entity &element) {
 
 }  // namespace kernels
 
-}  // namespace compute_aabb
+}  // namespace compute_constraint_forcing
+
+}  // namespace non_smooth_lcp
+
+}  // namespace techniques
+
+}  // namespace resolve_constraints
 
 }  // namespace methods
 

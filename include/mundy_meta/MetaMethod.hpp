@@ -43,7 +43,7 @@ namespace meta {
 /// \brief The polymorphic interface which all \c MetaMethods will share.
 ///
 /// This design pattern allows for \c MetaMethod to use CRTP to force derived classes to implement certain static
-/// functions while also having a consistant polymoirphic interface that allows different \c MetaMethods to be stored in
+/// functions while also having a consistant polymorphic interface that allows different \c MetaMethods to be stored in
 /// a vector of pointers.
 ///
 /// \tparam ReturnType The return type of the execute function.
