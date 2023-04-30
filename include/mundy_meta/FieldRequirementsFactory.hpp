@@ -115,7 +115,7 @@ class FieldRequirementsFactory {
   /// \param field_type_string [in] A field type string correspond to a registered field type.
   static Teuchos::ParameterList get_valid_params(const std::string& field_type_string) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_field_type_string(field_type_string), std::invalid_argument,
-                               "The provided field type string " << field_type_string << " is not valid.");
+                               "FieldRequirementsFactory: The provided field type string " << field_type_string << " is not valid.");
     return get_valid_params_generator_map()[field_type_string]();
   }
   //@}
@@ -189,7 +189,7 @@ template <typename FieldTypeToRegister,
 void FieldRequirementsFactory::register_new_field_type<FieldTypeToRegister, EnableIfType>(
     const std::string& field_type_string) {
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_field_type_string(field_type_string), std::invalid_argument,
-                             "The provided field type string " << field_type_string << " already exists.");
+                             "FieldRequirementsFactory: The provided field type string " << field_type_string << " already exists.");
   get_instance_generator_map().insert(
       std::make_pair(field_type_string, FieldRequirements<FieldTypeToRegister>::create_new_instance));
 }

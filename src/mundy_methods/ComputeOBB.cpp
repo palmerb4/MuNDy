@@ -54,7 +54,7 @@ ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "mundy::methods::ComputeOBB: bulk_data_ptr cannot be a nullptr.");
+                             "ComputeOBB: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -87,7 +87,7 @@ ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::
       if (i != j) {
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
         TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeOBB: Part " << part_ptr_vector_[i]->name() << " and "
+                                   "ComputeOBB: Part " << part_ptr_vector_[i]->name() << " and "
                                                                        << "Part " << part_ptr_vector_[j]->name()
                                                                        << "intersect.");
       }

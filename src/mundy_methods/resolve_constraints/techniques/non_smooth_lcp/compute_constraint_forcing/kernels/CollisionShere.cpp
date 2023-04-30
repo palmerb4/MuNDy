@@ -76,17 +76,53 @@ CollisionSphere::CollisionSphere(stk::mesh::BulkData *const bulk_data_ptr, const
 //{
 
 void CollisionSphere::execute(const stk::mesh::Entity &collision_element, const stk::mesh::Entity &sphere_element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
-  double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-  double *aabb = stk::mesh::field_data(*aabb_field_ptr_, element);
 
-  aabb[0] = coords[0] - radius[0] - buffer_distance_;
-  aabb[1] = coords[1] - radius[0] - buffer_distance_;
-  aabb[2] = coords[2] - radius[0] - buffer_distance_;
-  aabb[3] = coords[0] + radius[0] + buffer_distance_;
-  aabb[4] = coords[1] + radius[0] + buffer_distance_;
-  aabb[5] = coords[2] + radius[0] + buffer_distance_;
+  // Fetch the sphere's information.
+  stk::mesh::Entity const *sphere_nodes = bulk_data_ptr_->begin_nodes(sphere_element);
+  double *com_position = stk::mesh::field_data(*node_coord_field_ptr_, sphere_nodes[0]);
+  double *com_force = stk::mesh::field_data(nodeForceField, sphere_nodes[0]);
+  double *com_torque = stk::mesh::field_data(nodeTorqueField, sphere_nodes[0]);
+
+  // Fetch the collision constraint's information.
+  stk::mesh::Entity const *collision_nodes = bulkData.begin_nodes(collision_element);
+  double *contact_loc_left = stk::mesh::field_data(*node_coord_field_ptr_, collision_nodes[1]);
+  double *contact_loc_right = stk::mesh::field_data(*node_coord_field_ptr_, collision_nodes[2]);
+  const double linker_lag_mult = stk::mesh::field_data(linkerLagMultField, connected_elems[entity_idx])[0];
+
+  // Determine which side of the collision element the sphere is connected to.
+  bool is_left_node = bulkData.identifier(sphere_nodes[0]) == bulkData.identifier(collision_nodes[0]);
+  bool is_right_node = bulkData.identifier(sphere_nodes[0]) == bulkData.identifier(collision_nodes[3]);
+  
+  // Compute the undiced com force/torque
+  stk::math::Vec<double, 3> con_norm(3);
+  stk::math::Vec<double, 3> con_relative_position(3);
+  if (is_left_node) {
+    con_norm[0] = contact_loc_right[0] - contact_loc_left[0];
+    con_norm[1] = contact_loc_right[1] - contact_loc_left[1];
+    con_norm[2] = contact_loc_right[2] - contact_loc_left[2];
+
+    con_rel_pos[0] = contact_loc_left[0] - com_position[0];
+    con_rel_pos[1] = contact_loc_left[1] - com_position[1];
+    con_rel_pos[2] = contact_loc_left[2] - com_position[2];
+  } else if (is_right_node) {
+    con_norm[0] = contact_loc_left[0] - contact_loc_right[0];
+    con_norm[1] = contact_loc_left[1] - contact_loc_right[1];
+    con_norm[2] = contact_loc_left[2] - contact_loc_right[2];
+
+    con_rel_pos[0] = contact_loc_right[0] - com_position[0];
+    con_rel_pos[1] = contact_loc_right[1] - com_position[1];
+    con_rel_pos[2] = contact_loc_right[2] - com_position[2];
+  } else {
+    return;
+  }
+
+  com_force[0] += -linker_lag_mult * con_norm[0];
+  com_force[1] += -linker_lag_mult * con_norm[1];
+  com_force[2] += -linker_lag_mult * con_norm[2];
+
+  com_torque[0] += -linker_lag_mult * (con_rel_pos[1] * con_norm[2] - con_rel_pos[2] * con_norm[1]);
+  com_torque[1] += -linker_lag_mult * (con_rel_pos[2] * con_norm[0] - con_rel_pos[0] * con_norm[2]);
+  com_torque[2] += -linker_lag_mult * (con_rel_pos[0] * con_norm[1] - con_rel_pos[1] * con_norm[0]);
 }
 //}
 

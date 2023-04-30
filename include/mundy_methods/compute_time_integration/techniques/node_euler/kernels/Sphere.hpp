@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_KERNELS_SPHERE_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_KERNELS_SPHERE_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODE_EULER_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODE_EULER_KERNELS_SPHERE_HPP_
 
 /// \file Sphere.hpp
-/// \brief Declaration of the NodeEuler's Sphere kernel.
+/// \brief Declaration of NodeEuler's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -41,15 +41,17 @@
 #include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/compute_mobility/techniques/NodeEuler.hpp>  // for mundy::methods::compute_mobility::techniques::NodeEuler
+#include <mundy_methods/compute_time_integration/techniques/NodeEuler.hpp>  // for mundy::methods::...::techniques::NodeEuler
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_mobility {
+namespace compute_time_integration {
 
 namespace techniques {
+
+namespace local_drag {
 
 namespace kernels {
 
@@ -81,9 +83,9 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::PARTICLE);
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
+        std::string(default_orientation_field_name_), stk::topology::ELEMENT_RANK, 3, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_orientation_field_name_), stk::topology::NODE_RANK, 3, 1));
+        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_velocity_field_name_), stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -98,10 +100,10 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("time_step_size", default_time_step_size_, "The numerical timestep size.");
+    default_parameter_list.set("orientation_field_name", std::string(default_orientation_field_name_),
+                               "Name of the field containing the orientation of the sphere about its center.");
     default_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
                                "Name of the node field containing the coordinate of the sphere's center.");
-    default_parameter_list.set("node_orientation_field_name", std::string(default_node_orientation_field_name_),
-                               "Name of the node field containing the orientation of the sphere about its center.");
     default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
                                "Name of the node field containing the translational velocity of the sphere's center.");
     default_parameter_list.set("node_omega_field_name_name", std::string(default_node_omega_field_name_name_),
@@ -138,8 +140,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   //@{
 
   static constexpr double default_time_step_size_ = -1;
+  static constexpr std::string_view default_orientation_field_name_ = "ORIENTATION";
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
-  static constexpr std::string_view default_node_orientation_field_name_ = "NODE_ORIENTATION";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   static constexpr std::string_view default_node_omega_field_name_name_ = "NODE_OMEGA";
   //@}
@@ -160,11 +162,11 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \brief The numerical timestep size.
   double time_step_size_;
 
+  /// \brief Name of the field containing the orientation of the sphere about its center.
+  std::string orientation_field_name_;
+
   /// \brief Name of the node field containing the coordinate of the sphere's center.
   std::string node_coord_field_name_;
-
-  /// \brief Name of the node field containing the orientation of the sphere about its center.
-  std::string node_orientation_field_name_;
 
   /// \brief Name of the node field containing the translational velocity of the sphere's center.
   std::string node_velocity_field_name_;
@@ -188,10 +190,12 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
 }  // namespace kernels
 
+}  // namespace local_drag
+
 }  // namespace compute_aabb
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_KERNELS_SPHERE_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODE_EULER_KERNELS_SPHERE_HPP_

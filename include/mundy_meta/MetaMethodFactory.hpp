@@ -135,7 +135,7 @@ class MetaMethodFactory {
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
   static Teuchos::ParameterList get_valid_params(const std::string& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
-                               "The provided key " << key << " is not valid.");
+                               "MetaMethodFactory: The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
   }
   //@}
@@ -222,7 +222,7 @@ template <typename MethodToRegister>
 void MetaMethodFactory<ReturnType, RegistryIdentifier>::register_new_method<MethodToRegister>() {
   const std::string key = MethodToRegister<ReturnType, RegistryIdentifier>::static_get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                             "The provided key " << key << " already exists.");
+                             "MetaMethodFactory: The provided key " << key << " already exists.");
   get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::static_create_new_instance));
   get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_part_requirements));
   get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_valid_params));

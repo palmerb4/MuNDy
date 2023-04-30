@@ -41,7 +41,7 @@
 
 // Mundy libs
 #include <mundy_meta/MetaPairwiseKernel.hpp>  // for mundy::meta::MetaPairwiseKernel
-#include <mundy_meta/PartRequirements.hpp>     // for mundy::meta::PartRequirements
+#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -137,7 +137,7 @@ class MetaPairwiseKernelFactory {
   /// \param key [in] A key corresponding to a registered \c MetaPairwiseKernel.
   static Teuchos::ParameterList get_valid_params(const std::string& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
-                               "The provided key " << key << " is not valid.");
+                               "MetaPairwiseKernelFactory: The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
   }
   //@}
@@ -225,7 +225,7 @@ template <
 void MetaPairwiseKernelFactory<ReturnType, RegistryIdentifier>::register_new_kernel<KernelToRegister, EnableIfType>() {
   const std::string key = KernelToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                             "The provided key " << key << " already exists.");
+                             "MetaPairwiseKernelFactory: The provided key " << key << " already exists.");
   get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
   get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
   get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));

@@ -31,15 +31,15 @@
 #include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 
-// Mundy libszhan1908
-#include <mundy_methods/compute_mobility/techniques/node_euler/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
-#include <mundy_methods/utils/Quaternion.hpp>                                       // for mundy::utils::Quaternion
+// Mundy libs
+#include <mundy_methods/compute_time_integration/techniques/node_euler/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
+#include <mundy_methods/utils/Quaternion.hpp>  // for mundy::utils::Quaternion
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_mobility {
+namespace compute_time_integration {
 
 namespace techniques {
 
@@ -59,15 +59,14 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
 
   // Fill the internal members using the internal parameter list.
   time_step_size_ = valid_parameter_list.get<double>("time_step_size");
+  orientation_field_name_ = valid_parameter_list.get<std::string>("orientation_field_name");
   node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coord_field_name");
-  node_orientation_field_name_ = valid_parameter_list.get<std::string>("node_orientation_field_name");
   node_velocity_field_name_ = valid_parameter_list.get<std::string>("node_velocity_field_name");
   node_omega_field_name_ = valid_parameter_list.get<std::string>("node_omega_field_name");
 
   // Store the input params.
+  orientation_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, orientation_field_name_);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  node_orientation_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_orientation_field_name_);
   node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_velocity_field_name_);
   node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_omega_field_name_);
 }
@@ -78,15 +77,15 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
 
 void Sphere::execute(const stk::mesh::Entity &element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
-  double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *orienntation = stk::mesh::field_data(*node_orientation_field_ptr_, nodes[0]);
+  double *orienntation = stk::mesh::field_data(*orientation_field_ptr_, nodes[0]);
+  double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, nodes[0]);
   double *node_omega = stk::mesh::field_data(*node_omega_field_ptr_, nodes[0]);
 
   // Euler step position.
-  coords[0] += time_step_size_ * node_velocity[0];
-  coords[1] += time_step_size_ * node_velocity[1];
-  coords[2] += time_step_size_ * node_velocity[2];
+  node_coords[0] += time_step_size_ * node_velocity[0];
+  node_coords[1] += time_step_size_ * node_velocity[1];
+  node_coords[2] += time_step_size_ * node_velocity[2];
 
   // Euler step orientation.
   mundy::methods::utils::Quaternion quat(orienntation[0], orienntation[1], orienntation[2], orienntation[3]);
@@ -104,7 +103,7 @@ void Sphere::execute(const stk::mesh::Entity &element) {
 
 }  // namespace techniques
 
-}  // namespace compute_mobility
+}  // namespace compute_time_integration
 
 }  // namespace methods
 

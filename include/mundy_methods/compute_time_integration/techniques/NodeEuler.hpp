@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTFORCING_HPP_
-#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTFORCING_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODEEULER_HPP_
+#define MUNDY_METHODS_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODEEULER_HPP_
 
-/// \file ComputeConstraintForcing.hpp
-/// \brief Declaration of the ComputeConstraintForcing class
+/// \file NodeEuler.hpp
+/// \brief Declaration of ComputeTimeIntegration's NodeEuler technique.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -29,7 +29,6 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_Array.hpp>             // for Teuchos::Array
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
@@ -39,35 +38,32 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MetaPairwiseKernel.hpp>  // for mundy::meta::MetaPairwiseKernel, mundy::meta::MetaPairwiseKernelBase
-#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernelFactory.hpp>          // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 
 namespace mundy {
 
 namespace methods {
 
-namespace resolve_constraints {
+namespace compute_time_integration {
 
-namespace techniques {
-
-namespace non_smooth_lcp {
-
-/// \class ComputeConstraintForcing
+/// \class NodeEuler
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeConstraintForcing>,
-                                 public mundy::meta::MetaMethodRegistry<void, ComputeConstraintForcing> {
+class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
+                  public mundy::meta::MetaMethodRegistry<void, NodeEuler, ComputeTimeIntegration> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeConstraintForcing() = delete;
+  NodeEuler() = delete;
 
   /// \brief Constructor
-  ComputeConstraintForcing(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -88,42 +84,32 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
     valid_parameter_list.validateParametersAndSetDefaults(static_get_valid_params());
 
     // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
-    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
+    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (int i = 0; i < num_part_pairs; i++) {
-      // Create a new parameter for both the source and terget part
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    for (int i = 0; i < num_parts; i++) {
+      // Create a new parameter
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
-      // Fetch the i'th part parameters.
-      Teuchos::ParameterList &part_pair_parameter_list =
-          parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-      const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+      // Fetch the i'th part parameters
+      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+      const std::string part_name = part_parameter_list.get<std::string>("name");
 
       // Add method-specific requirements.
-      part_requirements[i - 1]->set_part_name(pair_names[0]);
-      part_requirements[i]->set_part_name(pair_names[1]);
-      part_requirements[i - 1]->set_part_rank(stk::topology::ELEMENT_RANK);
+      part_requirements[i]->set_part_name(part_name);
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_pair_parameter_list.sublist("kernels").sublist("compute_constraint_forcing");
+      Teuchos::ParameterList &part_kernel_parameter_list = part_parameter_list.sublist("kernels").sublist("node_euler");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> part_reqs_pair =
-          mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_valid_params(kernel_name)
-              part_kernel_parameter_list.validateParametersAndSetDefaults();
+      part_kernel_parameter_list.validateParametersAndSetDefaults(
+          mundy::meta::MetaKernelFactory<void, NodeEuler>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements =
-              mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_part_requirements(
-                  kernel_name, part_kernel_parameter_list);
-      part_requirements[i - 1]->merge(pair_requirements.first);
-      part_requirements[i]->merge(pair_requirements.second);
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, NodeEuler>::get_part_requirements(
+          kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
@@ -134,8 +120,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
         default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("compute_constraint_forcing", false,
-                          "Sublist that defines the constraint violation kernel parameters.");
+    kernel_params.sublist("node_euler", false, "Sublist that defines the node euler kernel parameters.");
     return default_parameter_list;
   }
 
@@ -150,7 +135,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeConstraintForcing>(bulk_data_ptr, parameter_list);
+    return std::make_shared<NodeEuler>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -167,7 +152,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_FORCING";
+  static constexpr std::string_view class_identifier_ = "NODE_EULER";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -178,22 +163,18 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
   /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;
 
-  /// \brief Vector of pointers to the part pairs that this class will act upon.
-  std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
+  /// \brief Vector of pointers to the parts that this class will act upon.
+  std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> compute_constraint_forcing_kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> node_euler_kernel_ptrs_;
   //@}
-};  // ComputeConstraintForcing
+};  // NodeEuler
 
-}  // namespace non_smooth_lcp
-
-}  // namespace techniques
-
-}  // namespace resolve_constraints
+}  // namespace compute_time_integration
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTFORCING_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODEEULER_HPP_

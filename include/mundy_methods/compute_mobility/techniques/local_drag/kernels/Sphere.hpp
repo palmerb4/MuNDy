@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_PROJECTION_KERNEL_COLLISION_HPP_
-#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_PROJECTION_KERNEL_COLLISION_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
 
-/// \file Collision.hpp
-/// \brief Declaration of the ComputeConstraintProjection's Collision kernel.
+/// \file Sphere.hpp
+/// \brief Declaration of the LocalDrag's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -41,32 +41,30 @@
 #include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintProjection.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintProjection
+#include <mundy_methods/compute_mobility/techniques/LocalDrag.hpp>  // for mundy::methods::compute_mobility::techniques::LocalDrag
 
 namespace mundy {
 
 namespace methods {
 
-namespace resolve_constraints {
+namespace compute_mobility {
 
 namespace techniques {
 
-namespace non_smooth_lcp {
-
-namespace compute_constraint_projection {
+namespace local_drag {
 
 namespace kernels {
 
-/// \class Collision
+/// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Collision : public mundy::meta::MetaKernel<void, Collision>,
-                  public mundy::meta::MetaKernelRegistry<void, Collision, ComputeConstraintProjection> {
+class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
+               public mundy::meta::MetaKernelRegistry<void, Sphere, LocalDrag> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  explicit Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -83,9 +81,15 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
       [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
-    required_part_params->set_part_topology(stk::topology::QUAD_4);
+    required_part_params->set_part_topology(stk::topology::PARTICLE);
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_node_orientation_field_name_), stk::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_node_velocity_field_name_), stk::topology::NODE_RANK, 3, 1));
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        std::string(default_node_omega_field_name_name_), stk::topology::NODE_RANK, 3, 1));
     return required_part_params;
   }
 
@@ -95,8 +99,15 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("lagrange_multiplier_field_name", std::string(default_lagrange_multiplier_field_name_),
-                               "Name of the element field containing the constraint's Lagrange multiplier.");
+    default_parameter_list.set("time_step_size", default_time_step_size_, "The numerical timestep size.");
+    default_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+                               "Name of the node field containing the coordinate of the sphere's center.");
+    default_parameter_list.set("node_orientation_field_name", std::string(default_node_orientation_field_name_),
+                               "Name of the node field containing the orientation of the sphere about its center.");
+    default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
+                               "Name of the node field containing the translational velocity of the sphere's center.");
+    default_parameter_list.set("node_omega_field_name_name", std::string(default_node_omega_field_name_name_),
+                               "Name of the node field containing the rotational velocity of the sphere's center.");
     return default_parameter_list;
   }
 
@@ -112,7 +123,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<Collision>(bulk_data_ptr, parameter_list);
+    return std::make_shared<Sphere>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -128,15 +139,19 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_lagrange_multiplier_field_name_ = "LAGRANGE_MULTIPLIER";
+  static constexpr double default_time_step_size_ = -1;
+  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
+  static constexpr std::string_view default_node_orientation_field_name_ = "NODE_ORIENTATION"; //TODO(palmerb4): this should be an element field
+  static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
+  static constexpr std::string_view default_node_omega_field_name_name_ = "NODE_OMEGA";
   //@}
 
   //! \name Internal members
   //@{
 
   /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static constexpr std::string_view class_identifier_ = "COLLISION";
+  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
+  static const std::string_view class_identifier_ = "SPHERE";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -144,26 +159,43 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Name of the element field containing the constraint's Lagrange multiplier.
-  std::string lagrange_multiplier_field_name_;
+  /// \brief The numerical timestep size.
+  double time_step_size_;
 
-  /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *lagrange_multiplier_field_ptr_;
+  /// \brief Name of the node field containing the coordinate of the sphere's center.
+  std::string node_coord_field_name_;
+
+  /// \brief Name of the node field containing the orientation of the sphere about its center.
+  std::string node_orientation_field_name_;
+
+  /// \brief Name of the node field containing the translational velocity of the sphere's center.
+  std::string node_velocity_field_name_;
+
+  /// \brief Name of the node field containing the rotational velocity of the sphere's center.
+  std::string node_omega_field_name_;
+
+  /// \brief Node field containing the coordinate of the sphere's center.
+  stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
+
+  /// \brief Node field containing the coordinate of the sphere's center.
+  stk::mesh::Field<double> *node_orientation_field_ptr_ = nullptr;
+
+  /// \brief Node field containing the coordinate of the sphere's center.
+  stk::mesh::Field<double> *node_velocity_field_ptr_ = nullptr;
+
+  /// \brief Node field containing the coordinate of the sphere's center.
+  stk::mesh::Field<double> *node_omega_field_ptr_ = nullptr;
   //@}
-};  // Collision
+};  // Sphere
 
 }  // namespace kernels
 
-}  // namespace compute_constraint_projection
+}  // namespace local_drag
 
-}  // namespace non_smooth_lcp
-
-}  // namespace techniques
-
-}  // namespace resolve_constraints
+}  // namespace compute_aabb
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_PROJECTION_KERNEL_COLLISION_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_

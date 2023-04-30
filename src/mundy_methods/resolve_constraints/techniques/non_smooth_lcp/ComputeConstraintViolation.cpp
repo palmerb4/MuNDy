@@ -61,7 +61,7 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "mundy::methods::ComputeConstraintViolation: bulk_data_ptr cannot be a nullptr.");
+                             "ComputeConstraintViolation: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -95,7 +95,7 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
       if (i != j) {
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
         TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeConstraintViolation: Part "
+                                   "ComputeConstraintViolation: Part "
                                        << part_ptr_vector_[i]->name() << " and "
                                        << "Part " << part_ptr_vector_[j]->name() << "intersect.");
       }
@@ -107,7 +107,6 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
 // \name Actions
 //{
 
-/// \brief Run the method's core calculation.
 void ComputeConstraintViolation::execute() {
   for (int i = 0; i < num_parts_; i++) {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> &compute_constraint_violation_kernel_ptr =

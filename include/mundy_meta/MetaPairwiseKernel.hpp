@@ -53,7 +53,7 @@ class MetaPairwiseKernelBase {
   //! \name Attributes
   //@{
 
-  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
+  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each source and target part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
   /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These
@@ -86,7 +86,7 @@ class MetaPairwiseKernelBase {
       stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const = 0;
 
   /// \brief Run the kernel's core calculation.
-  virtual ReturnType execute(const stk::mesh::Entity& entity1, const stk::mesh::Entity& entity2) = 0;
+  virtual ReturnType execute(const stk::mesh::Entity& source_entity, const stk::mesh::Entity& target_entity) = 0;
   //@}
 };  // MetaPairwiseKernelBase
 
@@ -124,7 +124,7 @@ class MetaPairwiseKernel : public MetaPairwiseKernelBase<ReturnType> {
   //! \name Getters
   //@{
 
-  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
+  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each source and target part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
   /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These

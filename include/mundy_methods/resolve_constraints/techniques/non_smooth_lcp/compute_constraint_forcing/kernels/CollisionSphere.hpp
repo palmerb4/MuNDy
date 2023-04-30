@@ -146,8 +146,8 @@ class CollisionSphere
 
   /// \brief Run the kernel's core calculation.
   /// \param collision_element [in] The collision constraint acted on by the kernel.
-  /// \param sphere_element [in] The sphere entity acted on by the kernel.
-  void execute(const stk::mesh::Entity &collision_element, const stk::mesh::Entity &sphere_element) override;
+  /// \param sphere_node [in] The sphere's node acted on by the kernel.
+  void execute(const stk::mesh::Entity &collision_element, const stk::mesh::Entity &sphere_node) override;
   //@}
 
  private:
@@ -167,7 +167,7 @@ class CollisionSphere
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static constexpr std::string_view class_identifier_ = "CollisionSphere";
+  static constexpr std::string_view class_identifier_ = "COLLISION_SPHERE";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;

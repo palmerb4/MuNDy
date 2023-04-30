@@ -130,7 +130,7 @@ std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data() {
 
 std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<stk::mesh::MetaData> metaData) {
   TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
-                             "mundy::meta::MeshBuilder must be given an MPI communicator before creating BulkData.");
+                             "MeshBuilder must be given an MPI communicator before creating BulkData.");
 
   return builder_.create();
 }

@@ -133,7 +133,7 @@ class MetaKernelFactory {
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
   static Teuchos::ParameterList get_valid_params(const std::string& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
-                               "The provided key " << key << " is not valid.");
+                               "MetaKernelFactory: The provided key " << key << " is not valid.");
     return get_valid_params_generator_map()[key]();
   }
   //@}
@@ -221,7 +221,7 @@ template <typename KernelToRegister,
 void MetaKernelFactory<ReturnType, RegistryIdentifier>::register_new_kernel<KernelToRegister, EnableIfType>() {
   const std::string key = KernelToRegister::get_class_identifier();
   TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                             "The provided key " << key << " already exists.");
+                             "MetaKernelFactory: The provided key " << key << " already exists.");
   get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
   get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
   get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));

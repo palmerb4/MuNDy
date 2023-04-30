@@ -159,7 +159,7 @@ stk::topology map_string_to_topology(const std::string &topology_string) {
   } else {
     TEUCHOS_TEST_FOR_EXCEPTION(
         true, std::invalid_argument,
-        "mundy::meta::PartRequirements: The provided topology string " << topology_string << " is not valid.");
+        "PartRequirements: The provided topology string " << topology_string << " is not valid.");
   }
 }
 //}
@@ -268,7 +268,7 @@ bool PartRequirements::constrains_part_rank() const {
 
 std::string PartRequirements::get_part_name() const {
   TEUCHOS_TEST_FOR_EXCEPTION(!this->constrains_part_name(), std::logic_error,
-                             "Attempting to access the part name requirement even though part name is unconstrained.");
+                             "PartRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
 
   return part_name_;
 }
@@ -276,14 +276,14 @@ std::string PartRequirements::get_part_name() const {
 stk::topology::topology_t PartRequirements::get_part_topology() const {
   TEUCHOS_TEST_FOR_EXCEPTION(
       !this->constrains_part_topology(), std::logic_error,
-      "Attempting to access the part topology requirement even though part topology is unconstrained.");
+      "PartRequirements: Attempting to access the part topology requirement even though part topology is unconstrained.");
 
   return part_topology_;
 }
 
 stk::topology::rank_t PartRequirements::get_part_rank() const {
   TEUCHOS_TEST_FOR_EXCEPTION(!this->constrains_part_rank(), std::logic_error,
-                             "Attempting to access the part rank requirement even though part rank is unconstrained.");
+                             "PartRequirements: Attempting to access the part rank requirement even though part rank is unconstrained.");
 
   return part_rank_;
 }
@@ -298,9 +298,9 @@ std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> PartR
 //{
 stk::mesh::Part &PartRequirements::declare_part(stk::mesh::MetaData *const meta_data_ptr) const {
   TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
-                             "mundy::meta::PartRequirements: MetaData pointer cannot be null).");
+                             "PartRequirements: MetaData pointer cannot be null).");
   TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_part_name(), std::logic_error,
-                             "mundy::meta::PartRequirements: Part name must be set before calling declare_part.");
+                             "PartRequirements: Part name must be set before calling declare_part.");
 
   // Declare the Part.
   stk::mesh::Part *part_ptr;
@@ -388,7 +388,7 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
     if (part_req_ptr->constrains_part_name()) {
       if (this->constrains_part_name()) {
         TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
-                                   "mundy::meta::PartRequirements: One of the inputs has incompatible name ("
+                                   "PartRequirements: One of the inputs has incompatible name ("
                                        << part_req_ptr->get_part_name() << ").");
       } else {
         this->set_part_name(part_req_ptr->get_part_name());
@@ -398,7 +398,7 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
     if (part_req_ptr->constrains_part_rank()) {
       if (this->constrains_part_rank()) {
         TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
-                                   "mundy::meta::PartRequirements: One of the inputs has incompatible rank ("
+                                   "PartRequirements: One of the inputs has incompatible rank ("
                                        << part_req_ptr->get_part_rank() << ").");
       } else {
         this->set_part_rank(part_req_ptr->get_part_rank());
@@ -409,7 +409,7 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
       if (this->constrains_part_topology()) {
         TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(),
                                    std::invalid_argument,
-                                   "mundy::meta::PartRequirements: One of the inputs has incompatible topology ("
+                                   "PartRequirements: One of the inputs has incompatible topology ("
                                        << part_req_ptr->get_part_topology() << ").");
       } else {
         this->set_part_topology(part_req_ptr->get_part_topology());
