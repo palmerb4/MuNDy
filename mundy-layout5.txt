@@ -36,8 +36,9 @@ Things that are missing,
     - With that technique, how should kernels state which multibody type they are made for? Also, how do we differentiate general kernels from multibody kernels?
     - For now, I think we can keep using the current setup by introducing a pair of identifiers for each MetaPairwiseKernel. These will identify the source and target name. The input params
       for ComputeConstraintForcing will specify two sets of parts: the source parts and the target parts. Within the parsms file the source parts will have the source identifier for the Pairwise 
-      kernel as a sublist. Within that sublist, the user will provide the source params. The same is true for the target identider, the target part, and the target params. 
-      
+      kernel as a sublist. Within that sublist, the user will provide the source params. The same is true for the target identider, the target part, and the target params.
+    - We will loop over the source part and check if the connected entity is in the target part, if so, we will run the source-target pairwise kernel.
+
 
 I really really dislike our current constraint setup. Using a quad as a constraint and needing to have these extra nodes just so we can perform connections. 
 Constraints should have constraint rank and should store their contact locations, contact force, contact normal, as entity rank fields. This causes one flixable issue
