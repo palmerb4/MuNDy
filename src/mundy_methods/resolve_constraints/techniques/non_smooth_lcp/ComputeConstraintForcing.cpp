@@ -127,7 +127,7 @@ void ComputeConstraintForcing::execute() {
         meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].second;
     stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_target_part,
                                    [&compute_constraint_forcing_kernel_ptr, &locally_owned_source_part](
-                                       const stk::mesh::BulkData &bulk_data, stk::mesh::Entity sphere_node) {
+                                       [[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity sphere_node) {
                                      // Run the forcing kernel on neighbors of the source element that are in the target
                                      // part.
                                      int num_connected_elems = bulk_data.num_elements(sphere_node);

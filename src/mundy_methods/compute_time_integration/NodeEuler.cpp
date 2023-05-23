@@ -67,7 +67,7 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
   Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
   num_parts_ = parts_parameter_list.get<unsigned>("count");
   part_ptr_vector_.resize(num_parts_);
-  for (int i = 0; i < num_parts_; i++) {
+  for (size_t i = 0; i < num_parts_; i++) {
     // Fetch the i'th part and its parameters
     Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
     const std::string part_name = part_parameter_list.get<std::string>("name");
@@ -84,8 +84,8 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
   }
 
   // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
-  for (int i = 0; i < num_parts_; i++) {
-    for (int j = 0; j < num_parts_; j++) {
+  for (size_t i = 0; i < num_parts_; i++) {
+    for (size_t j = 0; j < num_parts_; j++) {
       if (i != j) {
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
         TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
@@ -101,7 +101,7 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 //{
 
 void NodeEuler::execute() {
-  for (int i = 0; i < num_parts_; i++) {
+  for (size_t i = 0; i < num_parts_; i++) {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> node_euler_kernel_ptr = node_euler_kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];

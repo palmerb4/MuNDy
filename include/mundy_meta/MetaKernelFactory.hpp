@@ -144,7 +144,14 @@ class MetaKernelFactory {
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename KernelToRegister,
             std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, KernelToRegister>::value, bool> = true>
-  void register_new_kernel();
+  static void register_new_kernel() {
+    const std::string key = KernelToRegister::get_class_identifier();
+    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
+                              "MetaKernelFactory: The provided key " << key << " already exists.");
+    get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
+    get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
+    get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));
+  }
 
   /// \brief Generate a new instance of a registered \c MetaKernel.
   ///
@@ -211,22 +218,6 @@ class MetaKernelFactory {
   friend class MetaKernelRegistry;
   //@}
 };  // MetaKernelFactory
-
-//! \name template implementations
-//@{
-
-template <typename ReturnType, typename RegistryIdentifier>
-template <typename KernelToRegister,
-          std::enable_if_t<std::is_base_of<MetaKernelBase<ReturnType>, KernelToRegister>::value, bool> EnableIfType>
-void MetaKernelFactory<ReturnType, RegistryIdentifier>::register_new_kernel<KernelToRegister, EnableIfType>() {
-  const std::string key = KernelToRegister::get_class_identifier();
-  TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                             "MetaKernelFactory: The provided key " << key << " already exists.");
-  get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
-  get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
-  get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));
-}
-//@}
 
 }  // namespace meta
 

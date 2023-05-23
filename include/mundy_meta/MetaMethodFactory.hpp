@@ -145,7 +145,14 @@ class MetaMethodFactory {
 
   /// \brief Register a method. The key for the method is determined by its class identifier.
   template <typename MethodToRegister>
-  void register_new_method();
+  static void register_new_method() {
+    const std::string key = MethodToRegister::static_get_class_identifier();
+    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
+                              "MetaMethodFactory: The provided key " << key << " already exists.");
+    get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::static_create_new_instance));
+    get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_part_requirements));
+    get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_valid_params));
+  }
 
   /// \brief Generate a new instance of a registered \c MetaMethod.
   ///
@@ -213,22 +220,6 @@ class MetaMethodFactory {
   //@}
 };  // MetaMethodFactory
 
-//! \name template implementations
-//@{
-
-/// \brief Register a method. The key for the method is determined by its class identifier.
-template <typename ReturnType, typename RegistryIdentifier>
-template <typename MethodToRegister>
-void MetaMethodFactory<ReturnType, RegistryIdentifier>::register_new_method<MethodToRegister>() {
-  const std::string key = MethodToRegister<ReturnType, RegistryIdentifier>::static_get_class_identifier();
-  TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                             "MetaMethodFactory: The provided key " << key << " already exists.");
-  get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::static_create_new_instance));
-  get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_part_requirements));
-  get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_valid_params));
-}
-
-//@}
 }  // namespace meta
 
 }  // namespace mundy

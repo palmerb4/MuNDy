@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_
 
 /// \file Sphere.hpp
-/// \brief Declaration of the LocalDrag's Sphere kernel.
+/// \brief Declaration of the MapSurfaceForceToRigidBodyForce's Sphere kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -41,7 +41,7 @@
 #include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/compute_mobility/techniques/LocalDrag.hpp>  // for mundy::methods::compute_mobility::techniques::LocalDrag
+#include <mundy_methods/ComputeAABB.hpp>      // for mundy::methods::ComputeAABB
 
 namespace mundy {
 
@@ -49,16 +49,14 @@ namespace methods {
 
 namespace compute_mobility {
 
-namespace techniques {
-
-namespace local_drag {
+namespace map_surface_force_to_rigid_body_force {
 
 namespace kernels {
 
 /// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
 class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
-               public mundy::meta::MetaKernelRegistry<void, Sphere, LocalDrag> {
+               public mundy::meta::MetaKernelRegistry<void, Sphere, MapSurfaceForceToRigidBodyForce> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -85,11 +83,9 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_orientation_field_name_), stk::topology::NODE_RANK, 3, 1));
+        std::string(default_node_force_field_name_), stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_velocity_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_omega_field_name_name_), stk::topology::NODE_RANK, 3, 1));
+        std::string(default_node_torque_field_name_), stk::topology::NODE_RANK, 3, 1));
     return required_part_params;
   }
 
@@ -99,15 +95,12 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("time_step_size", default_time_step_size_, "The numerical timestep size.");
     default_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
                                "Name of the node field containing the coordinate of the sphere's center.");
-    default_parameter_list.set("node_orientation_field_name", std::string(default_node_orientation_field_name_),
-                               "Name of the node field containing the orientation of the sphere about its center.");
-    default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
-                               "Name of the node field containing the translational velocity of the sphere's center.");
-    default_parameter_list.set("node_omega_field_name_name", std::string(default_node_omega_field_name_name_),
-                               "Name of the node field containing the rotational velocity of the sphere's center.");
+    default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
+                               "Name of the node field containing the surface and body force.");
+    default_parameter_list.set("node_torque_field_name", std::string(default_node_torque_field_name_),
+                               "Name of the node field containing the surface and body torque.");                                             
     return default_parameter_list;
   }
 
@@ -131,19 +124,17 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   //@{
 
   /// \brief Run the kernel's core calculation.
-  /// \param element [in] The element acted on by the kernel.
-  void execute(const stk::mesh::Entity &element) override;
+  /// \param linker [in] The linker acted on by the kernel.
+  void execute(const stk::mesh::Entity &linker) override;
   //@}
 
  private:
   //! \name Default parameters
   //@{
 
-  static constexpr double default_time_step_size_ = -1;
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
-  static constexpr std::string_view default_node_orientation_field_name_ = "NODE_ORIENTATION"; //TODO(palmerb4): this should be an element field
-  static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
-  static constexpr std::string_view default_node_omega_field_name_name_ = "NODE_OMEGA";
+  static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
+  static constexpr std::string_view default_node_torque_field_name_ = "NODE_TORQUE";
   //@}
 
   //! \name Internal members
@@ -159,43 +150,34 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief The numerical timestep size.
-  double time_step_size_;
-
   /// \brief Name of the node field containing the coordinate of the sphere's center.
   std::string node_coord_field_name_;
 
-  /// \brief Name of the node field containing the orientation of the sphere about its center.
-  std::string node_orientation_field_name_;
+  /// \brief Name of the node field containing the surface and body force.
+  std::string node_force_field_name_;
 
-  /// \brief Name of the node field containing the translational velocity of the sphere's center.
-  std::string node_velocity_field_name_;
-
-  /// \brief Name of the node field containing the rotational velocity of the sphere's center.
-  std::string node_omega_field_name_;
+  /// \brief Name of the node field containing the surface and body torque.
+  std::string node_torque_field_name_;
 
   /// \brief Node field containing the coordinate of the sphere's center.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
 
-  /// \brief Node field containing the coordinate of the sphere's center.
-  stk::mesh::Field<double> *node_orientation_field_ptr_ = nullptr;
+  /// \brief Node field containing the surface and body force.
+  stk::mesh::Field<double> *node_force_field_ptr_ = nullptr;
 
-  /// \brief Node field containing the coordinate of the sphere's center.
-  stk::mesh::Field<double> *node_velocity_field_ptr_ = nullptr;
-
-  /// \brief Node field containing the coordinate of the sphere's center.
-  stk::mesh::Field<double> *node_omega_field_ptr_ = nullptr;
+  /// \brief Node field containing the surface and body torque.
+  stk::mesh::Field<double> *node_torque_field_ptr_ = nullptr;
   //@}
 };  // Sphere
 
 }  // namespace kernels
 
-}  // namespace local_drag
+}  // namespace map_surface_force_to_rigid_body_force
 
-}  // namespace compute_aabb
+}  // namespace compute_mobility
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_

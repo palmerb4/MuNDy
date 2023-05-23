@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEAABB_HPP_
-#define MUNDY_METHODS_COMPUTEAABB_HPP_
+#ifndef MUNDY_METHODS_COMPUTEMOBILITY_HPP_
+#define MUNDY_METHODS_COMPUTEMOBILITY_HPP_
 
-/// \file ComputeAABB.hpp
-/// \brief Declaration of the ComputeAABB class
+/// \file ComputeMobility.hpp
+/// \brief Declaration of the ComputeMobility class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -48,19 +48,19 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeAABB
-/// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
-                    public mundy::meta::MetaMethodRegistry<void, ComputeAABB> {
+/// \class ComputeMobility
+/// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
+class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
+                        public mundy::meta::MetaMethodRegistry<void, ComputeMobility> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeAABB() = delete;
+  ComputeMobility() = delete;
 
   /// \brief Constructor
-  ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  ComputeMobility(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -80,49 +80,23 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
     Teuchos::ParameterList valid_parameter_list = parameter_list;
     valid_parameter_list.validateParametersAndSetDefaults(static_get_valid_params());
 
-    // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
-    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (int i = 0; i < num_parts; i++) {
-      // Create a new parameter
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_parameter_list = valid_parameter_list.sublist("technique");
+    const std::string technique_name = technique_parameter_list.get<std::string>("name");
 
-      // Fetch the i'th part parameters
-      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-      const std::string part_name = part_parameter_list.get<std::string>("name");
-
-      // Add method-specific requirements.
-      part_requirements[i]->set_part_name(part_name);
-      part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
-
-      // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_aabb");
-
-      // Validate the kernel params and fill in defaults.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_valid_params(kernel_name));
-
-      // Merge the kernel requirements.
-      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeAABB>::get_part_requirements(
-          kernel_name, part_kernel_parameter_list));
-    }
-
-    return part_requirements;
+    return mundy::meta::MetaMethodFactory<void, ComputeMobility>::get_part_requirements(technique_name,
+                                                                                        technique_parameter_list);
   }
 
   /// \brief Get the default parameters for this class.
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    Teuchos::ParameterList &kernel_params =
-        default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("compute_aabb", false, "Sublist that defines the aabb kernel parameters.");
+    default_parameter_list.sublist("technique", false, "Sublist that defines the technique to use and its parameters.");
     return default_parameter_list;
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaMethod.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);
   }
@@ -133,7 +107,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeAABB>(bulk_data_ptr, parameter_list);
+    return std::make_shared<ComputeMobility>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -150,7 +124,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "COMPUTE_AABB";
+  static constexpr std::string_view class_identifier_ = "COMPUTE_MOBILITY";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -158,19 +132,13 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of parts that this method acts on.
-  size_t num_parts_ = 0;
-
-  /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
-
-  /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_aabb_kernel_ptrs_;
+  /// \brief Method corresponding to the specified technique.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> technique_ptr_;
   //@}
-};  // ComputeAABB
+};  // ComputeMobility
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEAABB_HPP_
+#endif  // MUNDY_METHODS_COMPUTEMOBILITY_HPP_

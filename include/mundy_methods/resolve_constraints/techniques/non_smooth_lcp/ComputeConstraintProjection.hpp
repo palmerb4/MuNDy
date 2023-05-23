@@ -90,7 +90,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
     Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
     const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (int i = 0; i < num_parts; i++) {
+    for (size_t i = 0; i < num_parts; i++) {
       // Create a new parameter
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 

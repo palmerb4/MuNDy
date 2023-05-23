@@ -53,7 +53,7 @@ struct MetaKernelRegistry {
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaKernelFactory<ReturnType, RegistryIdentifier>::register_new_method<DerivedMetaKernel>();
+    MetaKernelFactory<ReturnType, RegistryIdentifier>::template register_new_method<DerivedMetaKernel>();
     return true;
   }
   //@}

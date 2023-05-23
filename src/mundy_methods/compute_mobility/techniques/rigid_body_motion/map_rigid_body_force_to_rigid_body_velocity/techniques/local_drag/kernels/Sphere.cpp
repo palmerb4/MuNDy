@@ -60,20 +60,21 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
 
   // Fill the internal members using the internal parameter list.
   viscosity_ = valid_parameter_list.get<double>("viscosity");
-  force_field_name_ = valid_parameter_list.get<std::string>("force_field_name");
-  torque_field_name_ = valid_parameter_list.get<std::string>("torque_field_name");
-  velocity_field_name_ = valid_parameter_list.get<std::string>("velocity_field_name");
-  omega_field_name_ = valid_parameter_list.get<std::string>("omega_field_name");
-  orientation_field_name_ = valid_parameter_list.get<std::string>("orientation_field_name");
-  radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
+  node_force_field_name_ = valid_parameter_list.get<std::string>("node_force_field_name");
+  node_torque_field_name_ = valid_parameter_list.get<std::string>("node_torque_field_name");
+  node_velocity_field_name_ = valid_parameter_list.get<std::string>("node_velocity_field_name");
+  node_omega_field_name_ = valid_parameter_list.get<std::string>("node_omega_field_name");
+  element_orientation_field_name_ = valid_parameter_list.get<std::string>("element_orientation_field_name");
+  element_radius_field_name_ = valid_parameter_list.get<std::string>("element_radius_field_name");
 
   // Store the input params.
-  force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, force_field_name_);
-  torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, torque_field_name_);
-  velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, velocity_field_name_);
-  omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, omega_field_name_);
-  orientation_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, orientation_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+  node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_force_field_name_);
+  node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_torque_field_name_);
+  node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_velocity_field_name_);
+  node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_omega_field_name_);
+  element_orientation_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_orientation_field_name_);
+  element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_radius_field_name_);
 }
 //}
 
@@ -82,15 +83,17 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
 
 void Sphere::execute(const stk::mesh::Entity &element) {
   // Fetch the sphere's fields.
-  double *force = stk::mesh::field_data(force_field_ptr_, element);
-  double *torque = stk::mesh::field_data(torque_field_ptr_, element);
-  double *velocity = stk::mesh::field_data(velocity_field_ptr_, element);
-  double *omega = stk::mesh::field_data(omega_field_ptr_, element);
-  double *orientation = stk::mesh::field_data(orientation_field_ptr_, element);
-  double *radius = stk::mesh::field_data(radius_field_ptr_, element);
+  stk::mesh::Entity const center_node = bulk_data_ptr_->begin_nodes(element)[0];
+
+  double *node_force = stk::mesh::field_data(node_force_field_ptr_, center_node);
+  double *node_torque = stk::mesh::field_data(node_torque_field_ptr_, center_node);
+  double *node_velocity = stk::mesh::field_data(node_velocity_field_ptr_, center_node);
+  double *node_omega = stk::mesh::field_data(node_omega_field_ptr_, center_node);
+  double *elem_orient = stk::mesh::field_data(element_orientation_field_ptr_, element);
+  double *radius = stk::mesh::field_data(element_radius_field_ptr_, element);
 
   // Compute the mobility matrix for the sphere using local drag.
-  Quaternion quat(orientation[0], orientation[1], orientation[2], orientation[3]);
+  Quaternion quat(elem_orient[0], elem_orient[1], elem_orient[2], elem_orient[3]);
   const stk::math::Vec<double, 3> q = quat.rotate(stk::math::Vec<double, 3>({0, 0, 1}));
   const double qq[3][3] = {{q[0] * q[0], q[0] * q[1], q[0] * q[2]},
                            {q[1] * q[0], q[1] * q[1], q[1] * q[2]},
@@ -118,13 +121,16 @@ void Sphere::execute(const stk::mesh::Entity &element) {
       {drag_rot_inv * qq[2][0] + drag_rot_inv * Imqq[2][0], drag_rot_inv * qq[2][1] + drag_rot_inv * Imqq[2][1],
        drag_rot_inv * qq[2][2] + drag_rot_inv * Imqq[2][2]}};
 
-  // solve for the induced velocity and omega
-  velocity[0] = mob_trans[0][0] * force[0] + mob_trans[0][1] * force[1] + mob_trans[0][2] * force[2];
-  velocity[1] = mob_trans[1][0] * force[0] + mob_trans[1][1] * force[1] + mob_trans[1][2] * force[2];
-  velocity[2] = mob_trans[2][0] * force[0] + mob_trans[2][1] * force[1] + mob_trans[2][2] * force[2];
-  omega[0] = mob_rot[0][0] * torque[0] + mob_rot[0][1] * torque[1] + mob_rot[0][2] * torque[2];
-  omega[1] = mob_rot[1][0] * torque[0] + mob_rot[1][1] * torque[1] + mob_rot[1][2] * torque[2];
-  omega[2] = mob_rot[2][0] * torque[0] + mob_rot[2][1] * torque[1] + mob_rot[2][2] * torque[2];
+  // solve for the induced node_velocity and node_omega
+  node_velocity[0] =
+      mob_trans[0][0] * node_force[0] + mob_trans[0][1] * node_force[1] + mob_trans[0][2] * node_force[2];
+  node_velocity[1] =
+      mob_trans[1][0] * node_force[0] + mob_trans[1][1] * node_force[1] + mob_trans[1][2] * node_force[2];
+  node_velocity[2] =
+      mob_trans[2][0] * node_force[0] + mob_trans[2][1] * node_force[1] + mob_trans[2][2] * node_force[2];
+  node_omega[0] = mob_rot[0][0] * node_torque[0] + mob_rot[0][1] * node_torque[1] + mob_rot[0][2] * node_torque[2];
+  node_omega[1] = mob_rot[1][0] * node_torque[0] + mob_rot[1][1] * node_torque[1] + mob_rot[1][2] * node_torque[2];
+  node_omega[2] = mob_rot[2][0] * node_torque[0] + mob_rot[2][1] * node_torque[1] + mob_rot[2][2] * node_torque[2];
 }
 //}
 

@@ -84,7 +84,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
     Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
     const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (int i = 0; i < num_parts; i++) {
+    for (size_t i = 0; i < num_parts; i++) {
       // Create a new parameter
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
@@ -114,7 +114,13 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   }
 
   /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList details_static_get_valid_params() {
+  static Teuchos::ParameterList details_static_get_valid_params() { 
+    // TODO(palmerb4): This is incomplete since it doesn't specify the valid kernel params.
+    //                 In fact, there is no way to specify the valid kernel params in the current design
+    //                 since we would need to know the part names at compile time. The best solution is to use
+    //                 a data structure which I intended to implement eventually: multibody part attributes. 
+    //                 Instead of passing in a kernel per part, users should pass in a kernel per valid multibody part attribute.
+    //                 Of course, we will have also provide default kernels.
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
         default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");

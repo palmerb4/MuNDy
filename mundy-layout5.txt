@@ -20,7 +20,7 @@ the class they are registered to. If I wanted to swap out NonSmoothLCP, I would 
 
 
 Things that are missing,
- - What if a constraint has multiple Lagrange multipliers like friction?
+ - What if a constraint has multiple Lagrange multipliers like friction? The current design is sufficiently abstract to support this functionality.
  - Periodicity
  - How to make reading and writing the mesh easier? 
    - Need a function that takes in an stk::io::StkMeshIoBroker and adds the fields to it. Can a parameter list be provided to specify which fields (if any) to output? 
@@ -31,6 +31,7 @@ Things that are missing,
  - Desperately need to store a multibody type attribute. Users shouldnt have to specify the entire set of kernels for a sphere part. They should be able to declare the part as a sphere 
    and then list the methods that it will use. Those methods should then deduce the correct kernel based on the multibody type. 
     - Maybe add a multibody type attribute?
+    - Type attributes allow for something to be both a particle and a constraint.
     - A type attribute would help us with pairwise kernel deduction. How else is ComputeConstraintForcing supposed to assign the part requirements to the given parts?
     - How can users add their own attributes? We could make a MultibodyTypeFactory and registry; the registry takes in a string and the factory maps that sting to an integer (and vice versa).
     - With that technique, how should kernels state which multibody type they are made for? Also, how do we differentiate general kernels from multibody kernels?
@@ -40,9 +41,34 @@ Things that are missing,
     - We will loop over the source part and check if the connected entity is in the target part, if so, we will run the source-target pairwise kernel.
 
 
-I really really dislike our current constraint setup. Using a quad as a constraint and needing to have these extra nodes just so we can perform connections. 
-Constraints should have constraint rank and should store their contact locations, contact force, contact normal, as entity rank fields. This causes one flixable issue
- 1. How to handle constraints that aren't connected to anything? They need to be considered in the partitioning.  
+I really really dislike our current constraint setup. Using a quad as a constraint and needing to have extra nodes just so we can perform connections is hidious 
+and fails to have proper ghosting/sharing. Instead, the most promising alternative is to assign a single constraint-rank entity per particle to hold all of the dynamically attached nodes.
+For example,
+CONSTRAINT RANK:                        CONSTRAINT1
+                                       /     |     \
+   ELEMENT RANK:        SPRING1       /   SPHERE1   \       SPRING2
+                       /       \     /       |       \     /       \
+      NODE RANK:  NODE1         NODE2      NODE3      NODE4         NODE5
+Rules (that will one day be hard-coded into a single data structure):
+  1. Particles are abstract movers. They may or may not have mass, volume, acceleration, or inertia and somehow move when acted upon by forces. They are the only entities that get 
+     constraint-rank family trees. They may be standard shapes like spheres, ellipsoids, quads, cubes, hexes, tets and can be chained together to form complex shapes; although, 
+     chaining them together may require special care to resolve particle mobility and force balance. For now, we consider non-combined shapes, but with time, we will allow "globs" of 
+     connected particles.
+  2. Springs, hinges, and joints are immaterial, massless, inertialess constraints that apply force and are moved by other entities. They have element rank and may share nodes, edges, or 
+     faces with particles or other constraints. Properly accounting for sharing of lower rank entities requires care to avoid race conditions. For example, we choose to loop over all nodes
+     in the spring part, get their connected elements, and if the element is a spring, we compute and sum the force. Note, the behavior of these constraints is undefined if their nodes 
+     do not connect to a particle since they will be applying force to a massless object. It's up to the user to define what happens in this circumstance.   
+  3. Constraints-as-particles: The constraint rank entity affixed to each particle should treated as an extension of the particle themselves and even given the same name. They store the
+     dynamic connectivity information of the particle like the nodes or edges attached to a particle's smooth surface. They may connect to nodes, edges, or faces already within the particle's
+     fixed connectivity. Nodes within this family tree must be attached to the particle's surfaces, they will store a surface normal vector, velocity vector, 
+     and force vector. The first element topology of the particle's dynamic family tree must be the constrained particle; everything else is a linked entity. The constraints may also 
+     attach to other lower-ranked entities to guarentee proper propogation of information up and down the connectivity tree. For now, we only need to attach the nodes to communicate 
+     force from the constraints to the particle and velocity from the particle to the constraints. This design works for rigid and flexible particles alike.
+  5. ComputeMobility takes in the BulkData and uses it to compute the velocity of the particles/constraints. As a result, this is the class that encodes rigid body motion vs flexibility. 
+     For example, rigid body motion may require ComputeMobility to sum the force from each of the linked nodes to get a single center of mass force. This force can then be used to compute 
+     the center of mass velocity, and from there, the velocity of each linked node. Alternatively, a flexible immersed boundary would take in the force at each linked node, interpolate
+     onto the nearby grid, solve some PDE for velocity, then integrate back to the nodes. Or, for flexible fibers, one could interpolate the linked node forces into a set of collocation 
+     points, solve for the velocity of the collocation points, then interpolate the velocity back to the nodes. 
 
 
 mundy::
@@ -190,3 +216,247 @@ mundy::
     compute_mobility::
       techniques::
         NodeEuler
+
+
+
+
+
+
+Where does Mundy stand?
+- Need  
+
+Lets see the core data structures and denote them as complete. 
+If incomplete, we denote their priority.
+mundy::
+  meta::
+    (D) FieldRequirements
+    (D) FieldRequirementsBase
+    (D) FieldRequirementsFactory
+    (D) FieldRequirementsRegistry
+    (D) MeshBuilder
+    (D) MetaKernel
+    (D) MetaKernelFactory
+    (D) MetaKernelRegistry
+    (D) MetaPairwiseKernel
+    (D) MetaPairwiseKernelFactory
+    (D) MetaPairwiseKernelRegistry
+    (D) MetaMethod
+    (D) MetaMethodFactory
+    (D) MetaMethodRegistry
+    (D) PartRequirements      
+  methods:: 
+    (D) ComputeAABB
+    compute_aabb::
+      kernels::
+        (D) Sphere
+        Spherocylinder
+        SuperEllipsoid
+        Polytope
+        Collision
+        Spring
+        TorsiionalSpring
+        Joint
+        Hinge
+    (D) ComputeOBB
+    compute_obb::
+      kernels::
+        (D) Sphere
+        Spherocylinder
+        SuperEllipsoid
+        Polytope
+        Collision
+        Spring
+        TorsiionalSpring
+        Joint
+        Hinge
+    (D) ComputeBoundingRadius
+    compute_bounding_radius::
+      kernels::
+        (D) Sphere
+        Spherocylinder
+        SuperEllipsoid
+        Polytope
+        Collision
+        Spring
+        TorsiionalSpring
+        Joint
+        Hinge
+    (HIGH) SolveLCP
+    solve_lcp::
+      techniques::
+        APGDTechnique
+        (HIGH) BBPGDTechnique
+        bbpgd::
+            (HIGH) ComputeDiffDotsKernel
+            (HIGH) ComputeGradientStepKernel
+    // neighbor methods
+    (HIGH) DetectNeighbors
+    detect_neighbors::
+      techniques::
+        (HIGH) AABB
+        BoundingSphere
+    (HIGH) GhostNeighbors
+    RefineNeighbors
+    refine_neighbors::
+      techniques::
+        OBB
+    // constraint methods  
+    (HIGH) GenerateCollisionConstraints
+    generate_collision_constraints::
+      kernels::
+        (HIGH) SphereSphere
+        SphereSpherecylinder
+        SphereEllipsoid
+        SpherePolytope
+        SpherecylinderSpherecylinder
+        SpherecylinderEllipsoid
+        SpherecylinderPolytope
+        SuperEllipsoidSuperEllipsoid
+        SuperEllipsoidPolytope
+        PolytopePolytope
+    (HIGH) ResolveConstraints
+    resolve_constraints::
+      techniques::
+        SmoothPotential          
+        SmoothPenalty
+        (HIGH) NonSmoothLCP
+        non_smooth_lcp::
+          (HIGH) ComputeConstraintViolation (Constraints update their violation vield)
+          compute_constraint_violation::  
+            kernels::
+              (HIGH) Collision
+              Spring
+              TorsiionalSpring
+              Joint
+              Hinge
+          (HIGH) ComputeConstraintForcing (Constraints apply force to their connected entities)
+          compute_constraint_forcing::
+            kernels::
+              (HIGH) CollisionSphere
+              CollisionSpherocylinder
+              CollisionEllipsoid
+              CollisionPolytope
+              SpingSphere
+              SpringSpherocylidner
+              SpringEllipsoid
+              SpringPolytope
+              TorsionalSpringSphere
+              TorsionalSpringSpherocylinder
+              TorsionalSpring
+          (HIGH) ComputeConstraintProjection (Projection of constraint force onto the feasible set)
+          compute_constraint_projection::
+            techniques::
+              (HIGH) DaiFletcher2005
+              dai_fletcher::
+                kernels::
+                  (HIGH) Collision
+                  Spring
+                  TorsiionalSpring
+                  Joint
+                  Hinge
+          (HIGH) ComputeConstraintViolationLinearizedRateOfChange (dt D^T U)
+          compute_constraint_violation_linearized_rate_of_change::
+              kernels::
+                (HIGH) Collision
+                Spring
+                TorsiionalSpring
+                Joint
+                Hinge
+          (HIGH) ComputeConstraintJacobian (dt D^T M D)
+          (HIGH) ComputeConstraintResidual
+        NonSmoothReLCP
+    // motion methods
+    (HIGH) ComputeTimeIntegration
+    compute_time_integration::
+      techniques::
+        (HIGH) NodeEuler
+        NodeAdamsBatchford  
+        node_euler::
+          kernels::
+            (D) Sphere
+            Spherocylinder
+            SuperEllipsoid
+            Polytope
+            Collision
+            Spring
+            TorsiionalSpring
+            Joint
+            Hinge      
+    (D) ComputeMobility
+    compute_mobility::
+      techniques::
+        RigidBodyMotion
+        rigid_body_motion::
+          MapRigidBodyForceToRigidBodyVelocity
+          MapRigidBodyVelocityToSurfaceVelocity
+          MapSurfaceForceToRigidBodyForce
+          map_rigid_body_force_to_rigid_body_velocity::
+            techniques::
+              (D) LocalDrag
+              local_drag::
+                kernels::
+                  (D) Sphere
+                  Spherocylinder
+                  SuperEllipsoid
+                  Polytope
+          map_rigid_body_velocity_to_surface_velocity::
+            kernels::
+              (D) Sphere
+              Spherocylinder
+              SuperEllipsoid
+              Polytope
+          map_surface_force_to_rigid_body_force::
+            kernels::
+              (D) Sphere
+              Spherocylinder
+              SuperEllipsoid
+              Polytope
+
+Order I will implement things
+3. compute_mobility::techniques::LocalDrag
+  - Given the BulkData, use the surface and body forces on the particles to compute their center of mass force, 
+  - Use local drag to map this force to center of mass velocity. 
+  - Use rigid body motion to map this velocity to surface velocity.
+  (Done) 1. compute_mobility::MapSurfaceForceToRigidBodyForce
+    - Sum the surface forces to get the total force at a known location in the rigid body (not necessarily the center of mass). 
+  (Done) 2. compute_mobility::MapRigidBodyVelocityToSurfaceVelocity
+    - Use rigid body motion about a known point to compute the velocity at all surface points.
+4. ComputeMobility
+  - Parses the given parameter list and calls the given technique.
+5. compute_time_integration::techniques::NodeEuler
+  - Given the BulkData, loops over the fixed and dynamic nodes of each particle and updates their position based on a first-order Euler step. 
+  - Because this process is first-order, we naturally satisfy rigid body motion. If this process were higher order, then the surface points have the potential to leave the surface.
+    I would like to restrict rigid body motion to ComputeMobility so this is a problem for another day. 
+6. ComputeTimeIntegration
+  - Parses the given parameter list and calls the given technique.
+7. resolve_constraints::techniques::non_smooth_lcp::compute_constraint_forcing::kernels::Collision
+  - Takes in a node within the collision part, fetches the attached elements, if they are in the collision part, computes and sums the constraint force
+  - Computes and sums the constraint force from 
+8. resolve_constraints::techniques::non_smooth_lcp::compute_constraint_projection::kernels::Collision
+9. resolve_constraints::techniques::non_smooth_lcp::compute_constraint_violation::kernels::Collision
+10. resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintForcing
+  - Zeros the constraint force on all constraint nodes.
+  - Loops over the given constraint parts and runs the i'th kernel for each NODE in the i'th part.
+  - The elements of the constraints need to have some up-to-date information for this to work. For example, springs and collisions need the separation distance.
+11. resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintProjection
+  - Loops over the given constraint parts and runs the i'th kernel for each ELEMENT in the i'th part.
+12. resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintViolation
+  - Loops over the given constraint parts and runs the i'th kernel for each ELEMENT in the i'th part.
+13. resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintResidual
+  - Loops over the given constraint parts and runs the i'th kernel for each ELEMENT in the i'th part.
+14. resolve_constraints::techniques::NonSmoothLCP
+  - Perform the BBPGD non-smooth LCP solve, calling the correct sub-methods when necessary.
+15. ResolveConstraints
+  - Given BulkData with up-to-date constraints, parse the input params and call the desired technique.
+16. generate_collision_constraints::kernels::SphereSphere
+  - Given two sphere elements, generate the collision constraint between them. Make sure both elements are spheres! If they aren't just continue on. 
+17. GenerateCollisionConstraints
+  - Given the BulkData with an up-to-date nighbor list mesh attribute, generate collision constraints between any two neighbors that don't already have a collision constraint.
+  - Choose the appropriate pairwise kernel based on part membership.
+18. UpdateConstraints
+  - Given the BulkData, update the constraints as though they had just been generated. 
+
+
+
+
+

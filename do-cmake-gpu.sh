@@ -1,0 +1,23 @@
+TRILINOS_ROOT_DIR=$1
+MUNDY_SOURCE_DIR=$2
+
+echo "Using Trilinos dir: $TRILINOS_ROOT_DIR"
+echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
+
+cmake \
+-DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
+-DCMAKE_CXX_COMPILER="${TRILINOS_ROOR_DIR}/packages/kokkos/bin/nvcc_wrapper" \
+-DCMAKE_CXX_FLAGS="-O3 -lmpi" \
+-DENABLE_OPENMP=${ENABLE_OPENMP:-OFF} \
+-DENABLE_CUDA=${ENABLE_CUDA:-ON} \
+-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS:-OFF} \
+-DTrilinos_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DKokkos_ROOT:PATH=${TRILINOS_ROOT_DIR} \
+-DKokkos_ENABLE_SERIAL=ON \
+-DKokkos_ENABLE_CUDA=OFF \
+-DKokkos_ENABLE_CUDA_LAMBDA=OFF \
+${ccache_args} \
+${compiler_flags} \
+${install_dir} \
+${extra_args} \
+${MUNDY_SOURCE_DIR}

@@ -127,7 +127,12 @@ class FieldRequirementsFactory {
   /// \param field_type_string [in] The field type string to associate with \c FieldTypeToRegister.
   template <typename FieldTypeToRegister,
             std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> = true>
-  void register_new_field_type(const std::string& field_type_string);
+  void register_new_field_type(const std::string& field_type_string) {
+    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_field_type_string(field_type_string), std::invalid_argument,
+                              "FieldRequirementsFactory: The provided field type string " << field_type_string << " already exists.");
+    get_instance_generator_map().insert(
+        std::make_pair(field_type_string, FieldRequirements<FieldTypeToRegister>::create_new_instance));
+  }
 
   /// \brief Generate a new instance of a registered \c FieldRequirements.
   ///
@@ -180,20 +185,6 @@ class FieldRequirementsFactory {
   friend class FieldRequirementsRegistry;
   //@}
 };  // FieldRequirementsFactory
-
-//! \name template implementations
-//@{
-
-template <typename FieldTypeToRegister,
-          std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> EnableIfType>
-void FieldRequirementsFactory::register_new_field_type<FieldTypeToRegister, EnableIfType>(
-    const std::string& field_type_string) {
-  TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_field_type_string(field_type_string), std::invalid_argument,
-                             "FieldRequirementsFactory: The provided field type string " << field_type_string << " already exists.");
-  get_instance_generator_map().insert(
-      std::make_pair(field_type_string, FieldRequirements<FieldTypeToRegister>::create_new_instance));
-}
-//@}
 
 }  // namespace meta
 
