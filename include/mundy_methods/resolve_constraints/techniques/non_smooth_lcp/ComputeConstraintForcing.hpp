@@ -39,11 +39,11 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MetaPairwiseKernel.hpp>  // for mundy::meta::MetaPairwiseKernel, mundy::meta::MetaPairwiseKernelBase
-#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
-#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -88,41 +88,33 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
     valid_parameter_list.validateParametersAndSetDefaults(static_get_valid_params());
 
     // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
-    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
+    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (int i = 0; i < num_part_pairs; i++) {
-      // Create a new parameter for both the source and terget part.
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    for (size_t i = 0; i < num_parts; i++) {
+      // Create a new parameter
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
-      // Fetch the i'th part parameters.
-      Teuchos::ParameterList &part_pair_parameter_list =
-          parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-      const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+      // Fetch the i'th part parameters
+      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+      const std::string part_name = part_parameter_list.get<std::string>("name");
 
       // Add method-specific requirements.
-      part_requirements[i - 1]->set_part_name(pair_names[0]);
-      part_requirements[i]->set_part_name(pair_names[1]);
-      part_requirements[i - 1]->set_part_rank(stk::topology::ELEMENT_RANK);
+      part_requirements[i]->set_part_name(part_name);
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
       Teuchos::ParameterList &part_kernel_parameter_list =
-          part_pair_parameter_list.sublist("kernels").sublist("compute_constraint_forcing");
+          part_parameter_list.sublist("kernels").sublist("compute_constraint_forcing");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_valid_params(kernel_name));
+          mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
-      std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements =
-              mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_part_requirements(
-                  kernel_name, part_kernel_parameter_list);
-      part_requirements[i - 1]->merge(pair_requirements.first);
-      part_requirements[i]->merge(pair_requirements.second);
+      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>::get_part_requirements(
+          kernel_name, part_kernel_parameter_list));
     }
 
     return part_requirements;
@@ -177,11 +169,11 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
   /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;
 
-  /// \brief Vector of pointers to the part pairs that this class will act upon.
-  std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
+  /// \brief Vector of pointers to the parts that this class will act upon.
+  std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> compute_constraint_forcing_kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> kernel_ptrs_;
   //@}
 };  // ComputeConstraintForcing
 

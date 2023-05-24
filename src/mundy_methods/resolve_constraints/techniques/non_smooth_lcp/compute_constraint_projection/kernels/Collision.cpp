@@ -59,11 +59,12 @@ Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fill the internal members using the internal parameter list.
-  lagrange_multiplier_field_name_ = valid_parameter_list.get<std::string>("lagrange_multiplier_field_name");
+  element_lagrange_multiplier_field_name_ =
+      valid_parameter_list.get<std::string>("element_lagrange_multiplier_field_name");
 
   // Store the input params.
-  lagrange_multiplier_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, lagrange_multiplier_field_name_);
+  element_lagrange_multiplier_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_lagrange_multiplier_field_name_);
 }
 //}
 
@@ -72,9 +73,9 @@ Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 
 void Collision::execute(const stk::mesh::Entity &element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
-  double *lagrange_mult = stk::mesh::field_data(*lagrange_multiplier_field_ptr_, element);
+  double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, element);
 
-  // Hard-body, non-adhesive collisions must have non-negative Lagrange multiplier.
+  // Non-adhesive collisions must have non-negative Lagrange multiplier.
   lagrange_mult[0] = stk::math::max(lagrange_mult[0], 0.0);
 }
 //}

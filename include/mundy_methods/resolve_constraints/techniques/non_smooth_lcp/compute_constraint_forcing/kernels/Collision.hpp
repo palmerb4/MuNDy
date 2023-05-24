@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_FORCING_KERNEL_COLLISIONSPHERE_HPP_
-#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_FORCING_KERNEL_COLLISIONSPHERE_HPP_
+#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_FORCING_KERNEL_COLLISION_HPP_
+#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_FORCING_KERNEL_COLLISION_HPP_
 
-/// \file CollisionSphere.hpp
-/// \brief Declaration of the ComputeConstraintForcing's CollisionSphere kernel.
+/// \file Collision.hpp
+/// \brief Declaration of the ComputeConstraintForcing's Collision kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -57,17 +57,16 @@ namespace compute_constraint_forcing {
 
 namespace kernels {
 
-/// \class CollisionSphere
+/// \class Collision
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class CollisionSphere
-    : public mundy::meta::MetaPairwiseKernel<void, CollisionSphere>,
-      public mundy::meta::MetaPairwiseKernelRegistry<void, CollisionSphere, ComputeConstraintForcing> {
+class Collision : public mundy::meta::MetaPairwiseKernel<void, Collision>,
+                  public mundy::meta::MetaPairwiseKernelRegistry<void, Collision, ComputeConstraintForcing> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit CollisionSphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  explicit Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -80,31 +79,18 @@ class CollisionSphere
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-  details_static_get_part_requirements([[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
-    std::shared_ptr<mundy::meta::PartRequirements> required_sphere_part_params =
+  static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
+    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
-    required_sphere_part_params->set_part_topology(stk::topology::PARTICLE);
-    required_sphere_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_sphere_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_force_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_sphere_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_torque_field_name_), stk::topology::NODE_RANK, 3, 1));
-
-    std::shared_ptr<mundy::meta::PartRequirements> required_collision_part_params =
-        std::make_shared<mundy::meta::PartRequirements>();
-    required_collision_part_params->set_part_topology(stk::topology::QUAD_4);
+    required_part_params->set_part_topology(stk::topology::BEAM_2);
     required_collision_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
     required_collision_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_force_field_name_), stk::topology::NODE_RANK, 3, 1));
     required_collision_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_torque_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_collision_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-
-    return std::make_pair(required_collision_part_params, required_sphere_part_params);
+        std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+    return required_part_params;
   }
 
   /// \brief Get the default parameters for this class.
@@ -117,9 +103,8 @@ class CollisionSphere
                                "Name of the node field containing the coordinate of the sphere's center.");
     default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
                                "Name of the node field containing the sphere's com force.");
-    default_parameter_list.set("node_torque_field_name", std::string(default_node_torque_field_name_),
-                               "Name of the node field containing the sphere's com torque.");
-    default_parameter_list.set("lagrange_multiplier_field_name", std::string(default_lagrange_multiplier_field_name_),
+    default_parameter_list.set("element_lagrange_multiplier_field_name",
+                               std::string(default_element_lagrange_multiplier_field_name_),
                                "Name of the element field containing the constraint's Lagrange multiplier.");
 
     return default_parameter_list;
@@ -137,7 +122,7 @@ class CollisionSphere
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<CollisionSphere>(bulk_data_ptr, parameter_list);
+    return std::make_shared<Collision>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -145,21 +130,17 @@ class CollisionSphere
   //@{
 
   /// \brief Run the kernel's core calculation.
-  /// \param collision_element [in] The collision constraint acted on by the kernel.
-  /// \param sphere_node [in] The sphere's node acted on by the kernel.
-  void execute(const stk::mesh::Entity &collision_element, const stk::mesh::Entity &sphere_node) override;
+  /// \param collision_node [in] A node connected to a collision element.
+  void execute(const stk::mesh::Entity &collision_node) override;
   //@}
 
  private:
   //! \name Default parameters
   //@{
 
-  static constexpr double default_minimum_allowable_separation_ = 0.0;
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
-  static constexpr std::string_view default_node_torque_field_name_ = "NODE_TORQUE";
-  static constexpr std::string_view default_lagrange_multiplier_field_name_ = "LAGRANGE_MULTIPLIER";
-
+  static constexpr std::string_view default_element_lagrange_multiplier_field_name_ = "ELEMENT_LAGRANGE_MULTIPLIER";
   //@}
 
   //! \name Internal members
@@ -167,7 +148,7 @@ class CollisionSphere
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static constexpr std::string_view class_identifier_ = "COLLISION_SPHERE";
+  static constexpr std::string_view class_identifier_ = "COLLISION";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -184,11 +165,8 @@ class CollisionSphere
   /// \brief Name of the node field containing the force on each node.
   std::string node_force_field_name_;
 
-  /// \brief Name of the node field containing the torque on each node.
-  std::string node_torque_field_name_;
-
   /// \brief Name of the element field containing the constraint's Lagrange multiplier.
-  std::string lagrange_multiplier_field_name_;
+  std::string element_lagrange_multiplier_field_name_;
 
   /// \brief Node field containing the coordinate of the sphere's center.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
@@ -196,13 +174,10 @@ class CollisionSphere
   /// \brief Node field containing the coordinate of the force on each node.
   stk::mesh::Field<double> *node_force_field_ptr_ = nullptr;
 
-  /// \brief Node field containing the coordinate of the torque on each node.
-  stk::mesh::Field<double> *node_torque_field_ptr_ = nullptr;
-
   /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *lagrange_multiplier_field_ptr_ = nullptr;
+  stk::mesh::Field<double> *element_lagrange_multiplier_field_ptr_ = nullptr;
   //@}
-};  // CollisionSphere
+};  // Collision
 
 }  // namespace kernels
 
@@ -218,4 +193,4 @@ class CollisionSphere
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_FORCING_KERNEL_COLLISIONSPHERE_HPP_
+#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_FORCING_KERNEL_COLLISION_HPP_

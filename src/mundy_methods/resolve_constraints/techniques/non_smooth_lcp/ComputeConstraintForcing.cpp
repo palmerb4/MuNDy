@@ -69,44 +69,34 @@ ComputeConstraintForcing::ComputeConstraintForcing(stk::mesh::BulkData *const bu
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
-  num_part_pairs_ = parts_parameter_list.get<unsigned>("count");
-  part_pair_ptr_vector_.resize(num_part_pairs_);
-  for (int i = 0; i < num_part_pairs_; i++) {
-    // Fetch the i'th part and its parameters.
-    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-    const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
-    part_pair_ptr_vector_[i] =
-        std::make_pair(meta_data_ptr_->get_part(pair_names[0]), meta_data_ptr_->get_part(pair_names[1]));
+  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+  num_parts_ = parts_parameter_list.get<unsigned>("count");
+  part_ptr_vector_.resize(num_parts_);
+  for (size_t i = 0; i < num_parts_; i++) {
+    // Fetch the i'th part and its parameters
+    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+    const std::string part_name = part_parameter_list.get<std::string>("name");
+    part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
 
-    // Fetch the parameters for this part's kernel.
+    // Fetch the parameters for this part's kernel
     const Teuchos::ParameterList &part_kernel_parameter_list =
         part_parameter_list.sublist("kernels").sublist("compute_constraint_forcing");
 
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    compute_constraint_forcing_kernel_ptrs_.push_back(
-        mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>::create_new_instance(
-            kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
+    kernel_ptrs_.push_back(mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>::create_new_instance(
+        kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
-  // For this method, none of the source parts can intersect; if they did the result could be non-determinaistic.
-  // The same is true for the target parts.
-  for (int i = 0; i < num_part_pairs_; i++) {
-    for (int j = 0; j < num_part_pairs_; j++) {
+  // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
+  for (size_t i = 0; i < num_parts_; i++) {
+    for (size_t j = 0; j < num_parts_; j++) {
       if (i != j) {
-        const bool source_parts_intersect =
-            stk::mesh::intersect(*part_pair_ptr_vector_[i].first, *part_pair_ptr_vector_[j].first);
-        TEUCHOS_TEST_FOR_EXCEPTION(source_parts_intersect, std::invalid_argument,
-                                   "ComputeConstraintForcing: Source Part "
-                                       << part_pair_ptr_vector_[i].first->name() << " and "
-                                       << "Part " << part_pair_ptr_vector_[j].first->name() << "intersect.");
-        const bool target_parts_intersect =
-            stk::mesh::intersect(*part_pair_ptr_vector_[i].second, *part_pair_ptr_vector_[j].second);
-        TEUCHOS_TEST_FOR_EXCEPTION(target_parts_intersect, std::invalid_argument,
-                                   "ComputeConstraintForcing: Target Part "
-                                       << part_pair_ptr_vector_[i].second->name() << " and "
-                                       << "Part " << part_pair_ptr_vector_[j].second->name() << "intersect.");
+        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
+        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
+                                   "ComputeConstraintForcing: Part " << part_ptr_vector_[i]->name() << " and "
+                                                                     << "Part " << part_ptr_vector_[j]->name()
+                                                                     << "intersect.");
       }
     }
   }
@@ -117,28 +107,15 @@ ComputeConstraintForcing::ComputeConstraintForcing(stk::mesh::BulkData *const bu
 //{
 
 void ComputeConstraintForcing::execute() {
-  for (int i = 0; i < num_part_pairs_; i++) {
-    std::shared_ptr<mundy::meta::MetaKernelBase<void>> &compute_constraint_forcing_kernel_ptr =
-        compute_constraint_forcing_kernel_ptrs_[i];
+  // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field.
+  // This requires the new paradigm of having methods take in fields shared by the kernels.
+  for (size_t i = 0; i < num_parts_; i++) {
+    std::shared_ptr<mundy::meta::MetaKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_source_part =
-        meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
-    stk::mesh::Selector locally_owned_target_part =
-        meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].second;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_target_part,
-                                   [&compute_constraint_forcing_kernel_ptr, &locally_owned_source_part](
-                                       [[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity sphere_node) {
-                                     // Run the forcing kernel on neighbors of the source element that are in the target
-                                     // part.
-                                     int num_connected_elems = bulk_data.num_elements(sphere_node);
-                                     const stk::mesh::Entity *connected_elems = bulk_data.begin_elements(sphere_node);
-                                     for (unsigned i = 0; i < num_connected_elems; ++i) {
-                                       if (bulk_data.bucket(connected_elems[i]).member(locally_owned_source_part)) {
-                                         compute_constraint_forcing_kernel_ptr->execute(connected_elems[i],
-                                                                                        sphere_node);
-                                       }
-                                     }
-                                   });
+    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
+    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
+                                   [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                 stk::mesh::Entity node) { kernel_ptr->execute(node); });
   }
 }
 //}

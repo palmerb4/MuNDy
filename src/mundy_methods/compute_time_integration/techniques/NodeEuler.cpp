@@ -65,9 +65,9 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 
   // Parse the parameters
   Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
-  num_part_pairs_ = parts_parameter_list.get<unsigned>("count");
-  part_ptr_vector_.resize(num_part_pairs_);
-  for (size_t i = 0; i < num_part_pairs_; i++) {
+  num_parts_ = parts_parameter_list.get<unsigned>("count");
+  part_ptr_vector_.resize(num_parts_);
+  for (size_t i = 0; i < num_parts_; i++) {
     // Fetch the i'th part and its parameters
     Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
     const std::string part_name = part_parameter_list.get<std::string>("name");
@@ -89,7 +89,7 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 //{
 
 void NodeEuler::execute() {
-  for (size_t i = 0; i < num_part_pairs_; i++) {
+  for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
                                    [](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {

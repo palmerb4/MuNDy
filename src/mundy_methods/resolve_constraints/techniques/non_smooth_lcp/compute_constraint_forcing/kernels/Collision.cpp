@@ -18,7 +18,7 @@
 // @HEADER
 
 /// \file Collision.cpp
-/// \brief Definition ComputeConstraintViolation's Collision kernel
+/// \brief Definition of the ComputeConstraintForcing's Collision kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -32,7 +32,7 @@
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_forcing/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
 namespace mundy {
 
@@ -44,7 +44,7 @@ namespace techniques {
 
 namespace non_smooth_lcp {
 
-namespace compute_constraint_violation {
+namespace compute_constraint_forcing {
 
 namespace kernels {
 
@@ -59,39 +59,45 @@ Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fill the internal members using the internal parameter list.
-  signed_sep_dist_field_name_ =
-      valid_parameter_list.get<std::string>("element_constraint_violation_on_dist_field_name");
+  node_normal_field_name_ = valid_parameter_list.get<std::string>("node_normal_field_name");
+  node_force_field_name_ = valid_parameter_list.get<std::string>("node_force_field_name");
   element_lagrange_multiplier_field_name_ =
       valid_parameter_list.get<std::string>("element_lagrange_multiplier_field_name");
-  element_constraint_violation_field_name_ = valid_parameter_list.get<std::string>("element_constraint_violation_field_name");
 
   // Store the input params.
-  element_signed_separation_dist_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_signed_separation_dist_field_name_);
+  node_normal_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_normal_field_name_);
+  node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
   element_lagrange_multiplier_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_lagrange_multiplier_field_name_);
-  element_constraint_violation_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_constraint_violation_field_name_);
 }
 //}
 
 // \name Actions
 //{
 
-void Collision::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
-  const double *signed_separation_dist = stk::mesh::field_data(*element_signed_separation_dist_field_ptr_, element);
-  const double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, element);
-  double *constraint_violation = stk::mesh::field_data(*element_constraint_violation_field_ptr_, element);
+void Collision::execute(const stk::mesh::Entity &collision_node) {
+  const size_t num_collision_elements = bulkData.num_elements(collision_node);
+  stk::mesh::Entity const *collision_elements = bulkData.begin_elements(collision_node);
+  double *node_normal = stk::mesh::field_data(linkerLagMultField, collision_node);
+  double *node_force = stk::mesh::field_data(linkerLagMultField, collision_node);
 
-  // Minimum map constraint violation.
-  constraint_violation[0] = std::min(separation_dist[0], lagrange_mult[0]);
+  // Fetch the attached collision constraint's information.
+  for (int i = 0; i < num_collision_elements; i++) {
+    // TODO(palmerb4): The following requires us to switch to multibody part attibutes.
+    if (collision_part.constains(collision_elements[i])) {
+      const double linker_lag_mult = stk::mesh::field_data(linkerLagMultField, collision_elements[i])[0];
+
+      node_force[0] += -linker_lag_mult * node_normal[0];
+      node_force[1] += -linker_lag_mult * node_normal[1];
+      node_force[2] += -linker_lag_mult * node_normal[2];
+    }
+  }
 }
 //}
 
 }  // namespace kernels
 
-}  // namespace compute_constraint_violation
+}  // namespace compute_constraint_forcing
 
 }  // namespace non_smooth_lcp
 

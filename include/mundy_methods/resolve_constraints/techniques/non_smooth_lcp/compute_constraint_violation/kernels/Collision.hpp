@@ -85,11 +85,11 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::QUAD_4);
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_signed_sep_dist_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+        std::string(default_element_signed_separation_dist_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+        std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+        std::string(default_element_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 
@@ -99,13 +99,14 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("minimum_allowable_separation", default_minimum_allowable_separation_,
-                               "Minimum allowable signed separation distance between colliding bodies.");
-    default_parameter_list.set("signed_sep_dist_field_name", std::string(default_signed_sep_dist_field_name_),
+    default_parameter_list.set("element_signed_separation_dist_field_name",
+                               std::string(default_element_signed_separation_dist_field_name_),
                                "Name of the element field containing the signed separation distance collision pairs.");
-    default_parameter_list.set("lagrange_multiplier_field_name", std::string(default_lagrange_multiplier_field_name_),
+    default_parameter_list.set("element_lagrange_multiplier_field_name",
+                               std::string(default_element_lagrange_multiplier_field_name_),
                                "Name of the element field containing the constraint's Lagrange multiplier.");
-    default_parameter_list.set("constraint_violation_field_name", std::string(default_constraint_violation_field_name_),
+    default_parameter_list.set("element_constraint_violation_field_name",
+                               std::string(default_element_constraint_violation_field_name_),
                                "Name of the element field containing the constraint's violation measure.");
     return default_parameter_list;
   }
@@ -138,10 +139,10 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //! \name Default parameters
   //@{
 
-  static constexpr double default_minimum_allowable_separation_ = 0.0;
-  static constexpr std::string_view default_signed_sep_dist_field_name_ = "SIGNED_SEPARATION_DIST";
-  static constexpr std::string_view default_lagrange_multiplier_field_name_ = "LAGRANGE_MULTIPLIER";
-  static constexpr std::string_view default_constraint_violation_field_name_ = "CONSTRAINT_VIOLATION";
+  static constexpr std::string_view default_element_signed_separation_dist_field_name_ =
+      "ELEMENT_SIGNED_SEPARATION_DIST";
+  static constexpr std::string_view default_element_lagrange_multiplier_field_name_ = "ELEMENT_LAGRANGE_MULTIPLIER";
+  static constexpr std::string_view default_element_constraint_violation_field_name_ = "ELEMENT_CONSTRAINT_VIOLATION";
   //@}
 
   //! \name Internal members
@@ -157,26 +158,23 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Minimum allowable signed separation distance between colliding bodies.
-  double minimum_allowable_separation_;
-
-  /// \brief Name of the element field containing the signed separation distance collision pairs.
-  std::string signed_sep_dist_field_name_;
+  /// \brief Name of the element field containing the signed separation distance between collision pairs.
+  std::string element_signed_separation_dist_field_name_;
 
   /// \brief Name of the element field containing the constraint's Lagrange multiplier.
-  std::string lagrange_multiplier_field_name_;
+  std::string element_lagrange_multiplier_field_name_;
 
   /// \brief Name of the element field containing the constraint's violation measure.
-  std::string constraint_violation_field_name_;
+  std::string element_constraint_violation_field_name_;
 
-  /// \brief Element field containing the constraint's Lagrange multiplier.
-  stk::mesh::Field<double> *separation_dist_field_ptr_;
-
-  /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *lagrange_multiplier_field_ptr_;
+  /// \brief Element field containing the signed separation distance between collision pairs.
+  stk::mesh::Field<double> *element_signed_separation_dist_field_ptr_;
 
   /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *constraint_violation_field_ptr_;
+  stk::mesh::Field<double> *element_lagrange_multiplier_field_ptr_;
+
+  /// \brief Element field containing the sphere radius.
+  stk::mesh::Field<double> *element_constraint_violation_field_ptr_;
   //@}
 };  // Collision
 

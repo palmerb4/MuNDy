@@ -85,7 +85,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::QUAD_4);
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+        std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
 
@@ -95,7 +95,8 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("lagrange_multiplier_field_name", std::string(default_lagrange_multiplier_field_name_),
+    default_parameter_list.set("element_lagrange_multiplier_field_name",
+                               std::string(default_element_lagrange_multiplier_field_name_),
                                "Name of the element field containing the constraint's Lagrange multiplier.");
     return default_parameter_list;
   }
@@ -128,7 +129,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_lagrange_multiplier_field_name_ = "LAGRANGE_MULTIPLIER";
+  static constexpr std::string_view default_element_lagrange_multiplier_field_name_ = "ELEMENT_LAGRANGE_MULTIPLIER";
   //@}
 
   //! \name Internal members
@@ -145,10 +146,10 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Name of the element field containing the constraint's Lagrange multiplier.
-  std::string lagrange_multiplier_field_name_;
+  std::string element_lagrange_multiplier_field_name_;
 
   /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *lagrange_multiplier_field_ptr_;
+  stk::mesh::Field<double> *element_lagrange_multiplier_field_ptr_;
   //@}
 };  // Collision
 
