@@ -58,9 +58,9 @@ Rules (that will one day be hard-coded into a single data structure):
      faces with particles or other constraints. Properly accounting for sharing of lower rank entities requires care to avoid race conditions. For example, we choose to loop over all nodes
      in the spring part, get their connected elements, and if the element is a spring, we compute and sum the force. Note, the behavior of these constraints is undefined if their nodes 
      do not connect to a particle since they will be applying force to a massless object. It's up to the user to define what happens in this circumstance.   
-  3. Constraints-as-particles: The constraint rank entity affixed to each particle should treated as an extension of the particle themselves and even given the same name. They store the
-     dynamic connectivity information of the particle like the nodes or edges attached to a particle's smooth surface. They may connect to nodes, edges, or faces already within the particle's
-     fixed connectivity. Nodes within this family tree must be attached to the particle's surfaces, they will store a surface normal vector, velocity vector, 
+  3. Constraints-as-particles: Each particle will be attached to a constraint rank entity, which should be treated as an extension of the particle itself and even given the same name. The constraint
+     stores the dynamic connectivity information of the particle like the nodes or edges attached to a particle's smooth surface. They may NOT connect to nodes, edges, or faces already within the 
+     particle's fixed connectivity. Nodes within this family tree must be attached to the particle's surfaces, they will store a surface normal vector, velocity vector, 
      and force vector. The first element topology of the particle's dynamic family tree must be the constrained particle; everything else is a linked entity. The constraints may also 
      attach to other lower-ranked entities to guarentee proper propogation of information up and down the connectivity tree. For now, we only need to attach the nodes to communicate 
      force from the constraints to the particle and velocity from the particle to the constraints. This design works for rigid and flexible particles alike.
@@ -413,7 +413,7 @@ mundy::
               Polytope
 
 Order I will implement things
-3. compute_mobility::techniques::LocalDrag
+3. (Done) compute_mobility::techniques::LocalDrag
   - Given the BulkData, use the surface and body forces on the particles to compute their center of mass force, 
   - Use local drag to map this force to center of mass velocity. 
   - Use rigid body motion to map this velocity to surface velocity.
@@ -421,13 +421,13 @@ Order I will implement things
     - Sum the surface forces to get the total force at a known location in the rigid body (not necessarily the center of mass). 
   (Done) 2. compute_mobility::MapRigidBodyVelocityToSurfaceVelocity
     - Use rigid body motion about a known point to compute the velocity at all surface points.
-4. ComputeMobility
+4. (Done) ComputeMobility
   - Parses the given parameter list and calls the given technique.
-5. compute_time_integration::techniques::NodeEuler
+5. (Done) compute_time_integration::techniques::NodeEuler
   - Given the BulkData, loops over the fixed and dynamic nodes of each particle and updates their position based on a first-order Euler step. 
   - Because this process is first-order, we naturally satisfy rigid body motion. If this process were higher order, then the surface points have the potential to leave the surface.
     I would like to restrict rigid body motion to ComputeMobility so this is a problem for another day. 
-6. ComputeTimeIntegration
+6. (Done) ComputeTimeIntegration
   - Parses the given parameter list and calls the given technique.
 7. resolve_constraints::techniques::non_smooth_lcp::compute_constraint_forcing::kernels::Collision
   - Takes in a node within the collision part, fetches the attached elements, if they are in the collision part, computes and sums the constraint force

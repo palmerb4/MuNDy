@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file NodeEuler.cpp
-/// \brief Definition of ComputeTimeIntegration's NodeEuler technique.
+/// \file ComputeTimeIntegration.cpp
+/// \brief Definition of the ComputeTimeIntegration class
 
 // C++ core libs
 #include <memory>     // for std::shared_ptr, std::unique_ptr
@@ -36,27 +36,26 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaPairwiseKernelFactory.hpp>   // for mundy::meta::MetaPairwiseKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/compute_time_integration/NodeEuler.hpp>  // for mundy::methods::compute_time_integration::NodeEuler
+#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::methods::ComputeTimeIntegration
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_time_integration {
-
 // \name Constructors and destructor
 //{
 
-NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+ComputeTimeIntegration::ComputeTimeIntegration(stk::mesh::BulkData *const bulk_data_ptr,
+                                               const Teuchos::ParameterList &parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "NodeEuler: bulk_data_ptr cannot be a nullptr.");
+                             "ComputeTimeIntegration: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -64,22 +63,24 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
   num_part_pairs_ = parts_parameter_list.get<unsigned>("count");
-  part_ptr_vector_.resize(num_part_pairs_);
+  part_pair_ptr_vector_.resize(num_part_pairs_);
   for (size_t i = 0; i < num_part_pairs_; i++) {
     // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-    const std::string part_name = part_parameter_list.get<std::string>("name");
-    part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
+    Teuchos::ParameterList &part_pair_parameter_list =
+        parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
+    const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+    part_pair_ptr_vector_[i] =
+        std::make_pair(meta_data_ptr_->get_part(pair_names[0]), meta_data_ptr_->get_part(pair_names[1]));
 
     // Fetch the parameters for this part's kernel
     const Teuchos::ParameterList &part_kernel_parameter_list =
-        part_parameter_list.sublist("kernels").sublist("node_euler");
+        part_pair_parameter_list.sublist("kernels").sublist("compute_time_integration");
 
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    node_euler_kernel_ptrs_.push_back(mundy::meta::MetaPairwiseKernelFactory<void, NodeEuler>::create_new_instance(
+    kernel_ptrs_.push_back(mundy::meta::MetaPairwiseKernelFactory<void, ComputeTimeIntegration>::create_new_instance(
         kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
@@ -87,10 +88,18 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
   for (size_t i = 0; i < num_part_pairs_; i++) {
     for (size_t j = 0; j < num_part_pairs_; j++) {
       if (i != j) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "NodeEuler: Part " << part_ptr_vector_[i]->name() << " and "
-                                                      << "Part " << part_ptr_vector_[j]->name() << "intersect.");
+        const bool linker_parts_intersect =
+            stk::mesh::intersect(*part_pair_ptr_vector_[i].first, *part_ptr_vector_[j].first);
+        const bool element_parts_intersect =
+            stk::mesh::intersect(*part_pair_ptr_vector_[i].second, *part_ptr_vector_[j].second);
+        TEUCHOS_TEST_FOR_EXCEPTION(linker_parts_intersect, std::invalid_argument,
+                                   "ComputeTimeIntegration: Part " << part_pair_ptr_vector_[i].first->name() << " and "
+                                                                   << "Part " << part_ptr_vector_[j].first->name()
+                                                                   << "intersect.");
+        TEUCHOS_TEST_FOR_EXCEPTION(element_parts_intersect, std::invalid_argument,
+                                   "ComputeTimeIntegration: Part " << part_ptr_vector_[i].second->name() << " and "
+                                                                   << "Part " << part_ptr_vector_[j].second->name()
+                                                                   << "intersect.");
       }
     }
   }
@@ -100,22 +109,23 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 // \name Actions
 //{
 
-void NodeEuler::execute() {
+void ComputeTimeIntegration::execute() {
+  // TODO(palmerb4): clear the rigid body force
+  // TODO(palmerb4): what about sharing?
   for (size_t i = 0; i < num_part_pairs_; i++) {
-    std::shared_ptr<mundy::meta::MetaKernelBase<void>> node_euler_kernel_ptr = node_euler_kernel_ptrs_[i];
+    std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
+    stk::mesh::Selector locally_owned_linker_part =
+        meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-        [&node_euler_kernel_ptr](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          
-          node_euler_kernel_ptr->execute(element);
+        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_linker_part,
+        [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
+          stk::mesh::Entity linked_element = bulk_data_ptr_->begin_elements(linker)[0];
+          kernel_ptr->execute(linker, linked_element);
         });
   }
 }
 //}
-
-}  // namespace compute_time_integration
 
 }  // namespace methods
 

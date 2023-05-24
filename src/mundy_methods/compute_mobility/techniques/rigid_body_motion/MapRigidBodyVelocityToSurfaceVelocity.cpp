@@ -36,11 +36,11 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::methods::...::MapRigidBodyVelocityToSurfaceVelocity
 
 namespace mundy {
@@ -69,14 +69,16 @@ MapRigidBodyVelocityToSurfaceVelocity::MapRigidBodyVelocityToSurfaceVelocity(
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
-  num_parts_ = parts_parameter_list.get<unsigned>("count");
-  part_ptr_vector_.resize(num_parts_);
-  for (size_t i = 0; i < num_parts_; i++) {
+  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
+  num_part_pairs_ = parts_parameter_list.get<unsigned>("count");
+  part_pair_ptr_vector_.resize(num_part_pairs_);
+  for (size_t i = 0; i < num_part_pairs_; i++) {
     // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-    const std::string part_name = part_parameter_list.get<std::string>("name");
-    part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
+    Teuchos::ParameterList &part_pair_parameter_list =
+        parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
+    const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+    part_pair_ptr_vector_[i] =
+        std::make_pair(meta_data_ptr_->get_part(pair_names[0]), meta_data_ptr_->get_part(pair_names[1]));
 
     // Fetch the parameters for this part's kernel
     const Teuchos::ParameterList &part_kernel_parameter_list =
@@ -85,19 +87,26 @@ MapRigidBodyVelocityToSurfaceVelocity::MapRigidBodyVelocityToSurfaceVelocity(
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
     kernel_ptrs_.push_back(
-        mundy::meta::MetaKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>::create_new_instance(
+        mundy::meta::MetaPairwiseKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>::create_new_instance(
             kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
   // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
-  for (size_t i = 0; i < num_parts_; i++) {
-    for (size_t j = 0; j < num_parts_; j++) {
+  for (size_t i = 0; i < num_part_pairs_; i++) {
+    for (size_t j = 0; j < num_part_pairs_; j++) {
       if (i != j) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
+        const bool linker_parts_intersect =
+            stk::mesh::intersect(*part_pair_ptr_vector_[i].first, *part_ptr_vector_[j].first);
+        const bool element_parts_intersect =
+            stk::mesh::intersect(*part_pair_ptr_vector_[i].second, *part_ptr_vector_[j].second);
+        TEUCHOS_TEST_FOR_EXCEPTION(linker_parts_intersect, std::invalid_argument,
                                    "MapRigidBodyVelocityToSurfaceVelocity: Part "
-                                       << part_ptr_vector_[i]->name() << " and "
-                                       << "Part " << part_ptr_vector_[j]->name() << "intersect.");
+                                       << part_pair_ptr_vector_[i].first->name() << " and "
+                                       << "Part " << part_ptr_vector_[j].first->name() << "intersect.");
+        TEUCHOS_TEST_FOR_EXCEPTION(element_parts_intersect, std::invalid_argument,
+                                   "MapRigidBodyVelocityToSurfaceVelocity: Part "
+                                       << part_ptr_vector_[i].second->name() << " and "
+                                       << "Part " << part_ptr_vector_[j].second->name() << "intersect.");
       }
     }
   }
@@ -109,12 +118,16 @@ MapRigidBodyVelocityToSurfaceVelocity::MapRigidBodyVelocityToSurfaceVelocity(
 
 void MapRigidBodyVelocityToSurfaceVelocity::execute() {
   for (size_t i = 0; i < num_parts_; i++) {
-    std::shared_ptr<mundy::meta::MetaKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
+    std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-                                   [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                 stk::mesh::Entity linker) { kernel_ptr->execute(linker); });
+    stk::mesh::Selector locally_owned_linker_part =
+        meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_linker_part,
+        [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
+          stk::mesh::Entity linked_element = bulk_data_ptr_->begin_elements(linker)[0];
+          kernel_ptr->execute(linker, linked_element);
+        });
   }
 }
 //}

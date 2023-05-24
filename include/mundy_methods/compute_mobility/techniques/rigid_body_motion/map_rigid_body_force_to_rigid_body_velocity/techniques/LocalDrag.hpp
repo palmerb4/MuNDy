@@ -85,32 +85,41 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
     valid_parameter_list.validateParametersAndSetDefaults(static_get_valid_params());
 
     // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
-    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
+    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
+    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_parts; i++) {
-      // Create a new parameter
+    for (size_t i = 0; i < num_part_pairs; i++) {
+      // Create two new part requirement for the pair.
+      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
-      // Fetch the i'th part parameters
-      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-      const std::string part_name = part_parameter_list.get<std::string>("name");
+      // Fetch the i'th part parameters.
+      Teuchos::ParameterList &part_pair_parameter_list =
+          parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
+      const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
 
       // Add method-specific requirements.
-      part_requirements[i]->set_part_name(part_name);
+      part_requirements[i - 1]->set_part_name(pair_names[0]);
+      part_requirements[i]->set_part_name(pair_names[1]);
+      part_requirements[i - 1]->set_part_rank(stk::topology::CONSTRAINT_RANK);
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list = part_parameter_list.sublist("kernels").sublist("local_drag");
+      Teuchos::ParameterList &part_kernel_parameter_list = part_pair_parameter_list.sublist("kernels").sublist("local_drag");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<void, LocalDrag>::get_valid_params(kernel_name));
+          mundy::meta::MetaPairwiseKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>::get_valid_params(
+              kernel_name));
 
       // Merge the kernel requirements.
-      part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, LocalDrag>::get_part_requirements(
-          kernel_name, part_kernel_parameter_list));
+      std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
+          pair_requirements = mundy::meta::MetaPairwiseKernelFactory<
+              void, MapRigidBodyVelocityToSurfaceVelocity>::get_part_requirements(kernel_name,
+                                                                                  part_kernel_parameter_list);
+      part_requirements[i - 1]->merge(pair_requirements.first);
+      part_requirements[i]->merge(pair_requirements.second);
     }
 
     return part_requirements;
@@ -161,14 +170,14 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of parts that this method acts on.
-  size_t num_parts_ = 0;
+  /// \brief Number of part pairs that this method acts on.
+  size_t num_part_pairs_ = 0;
 
-  /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
+  /// \brief Vector of pointers to the part pairs that this class will act upon.
+  std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
 
-  /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> kernel_ptrs_;
+  /// \brief Kernels corresponding to each of the specified part pairs.
+  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> kernel_ptrs_;
   //@}
 };  // LocalDrag
 

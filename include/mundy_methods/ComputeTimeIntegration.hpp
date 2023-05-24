@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
+#ifndef MUNDY_METHODS_COMPUTETIMEINTEGRATION_HPP_
+#define MUNDY_METHODS_COMPUTETIMEINTEGRATION_HPP_
 
-/// \file MapSurfaceForceToRigidBodyForce.hpp
-/// \brief Declaration of the MapSurfaceForceToRigidBodyForce class
+/// \file ComputeTimeIntegration.hpp
+/// \brief Declaration of the ComputeTimeIntegration class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -48,21 +48,19 @@ namespace mundy {
 
 namespace methods {
 
-namespace compute_mobility {
-
-/// \class MapSurfaceForceToRigidBodyForce
+/// \class ComputeTimeIntegration
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
-class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, MapSurfaceForceToRigidBodyForce>,
-                                        public mundy::meta::MetaMethodRegistry<void, MapSurfaceForceToRigidBodyForce> {
+class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeIntegration>,
+                                        public mundy::meta::MetaMethodRegistry<void, ComputeTimeIntegration> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  MapSurfaceForceToRigidBodyForce() = delete;
+  ComputeTimeIntegration() = delete;
 
   /// \brief Constructor
-  MapSurfaceForceToRigidBodyForce(stk::mesh::BulkData *const bulk_data_ptr,
+  ComputeTimeIntegration(stk::mesh::BulkData *const bulk_data_ptr,
                                   const Teuchos::ParameterList &parameter_list);
   //@}
 
@@ -105,17 +103,17 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
 
       // Fetch the parameters for this part's kernel.
       Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("map_surface_force_to_rigid_body_force");
+          part_parameter_list.sublist("kernels").sublist("compute_time_integration");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaPairwiseKernelFactory<void, MapSurfaceForceToRigidBodyForce>::get_valid_params(kernel_name));
+          mundy::meta::MetaPairwiseKernelFactory<void, ComputeTimeIntegration>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
           pair_requirements =
-              mundy::meta::MetaPairwiseKernelFactory<void, MapSurfaceForceToRigidBodyForce>::get_part_requirements(
+              mundy::meta::MetaPairwiseKernelFactory<void, ComputeTimeIntegration>::get_part_requirements(
                   kernel_name, part_kernel_parameter_list);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
@@ -146,7 +144,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
   /// default parameter list is accessible via \c get_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<MapSurfaceForceToRigidBodyForce>(bulk_data_ptr, parameter_list);
+    return std::make_shared<ComputeTimeIntegration>(bulk_data_ptr, parameter_list);
   }
   //@}
 
@@ -163,7 +161,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE";
+  static constexpr std::string_view class_identifier_ = "COMPUTE_TIME_INTEGRATION";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -180,7 +178,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
   /// \brief Kernels corresponding to each of the specified part pairs.
   std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> kernel_ptrs_;
   //@}
-};  // MapSurfaceForceToRigidBodyForce
+};  // ComputeTimeIntegration
 
 }  // namespace compute_mobility
 
@@ -188,4 +186,4 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
+#endif  // MUNDY_METHODS_COMPUTETIMEINTEGRATION_HPP_

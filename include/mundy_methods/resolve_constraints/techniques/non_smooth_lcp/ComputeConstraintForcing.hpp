@@ -92,7 +92,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
     const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
     for (int i = 0; i < num_part_pairs; i++) {
-      // Create a new parameter for both the source and terget part
+      // Create a new parameter for both the source and terget part.
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
@@ -113,9 +113,8 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> part_reqs_pair =
-          mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_valid_params(kernel_name)
-              part_kernel_parameter_list.validateParametersAndSetDefaults();
+      part_kernel_parameter_list.validateParametersAndSetDefaults(
+          mundy::meta::MetaPairwiseKernelFactory<void, ComputeConstraintForcing>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>

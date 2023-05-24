@@ -214,6 +214,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
 }  // namespace local_drag
 
+}  // namespace techniques
+
 }  // namespace compute_aabb
 
 }  // namespace methods
