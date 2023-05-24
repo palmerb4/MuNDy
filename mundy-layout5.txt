@@ -321,7 +321,7 @@ mundy::
         SmoothPenalty
         (HIGH) NonSmoothLCP
         non_smooth_lcp::
-          (HIGH) ComputeConstraintViolation (Constraints update their violation vield)
+          (HIGH) ComputeConstraintViolation (Constraints update their violation field)
           compute_constraint_violation::  
             kernels::
               (HIGH) Collision
@@ -411,6 +411,35 @@ mundy::
               Spherocylinder
               SuperEllipsoid
               Polytope
+
+Do the existing methods work correctly with ghosting/sharing?
+All the existing methods loop over locally owned parts and do not perform communication. This is fine for 
+- compute_aabb
+- compute_bounding_radius
+- compute_obb
+- detect_neighbors (since it only needs the local AABB or OBB field)
+- compute_constraint_projection
+- compute_constraint_violation (needs aura communication)
+- refine_neighbors (needs aura communication)
+- generate_collision_constraints (needs aura communication)
+- compute_constraint_forcing (needs aura communication)
+but not for compute_mobility since we write out velocity to ghosted or shared nodes. We need an addition step where we communicate these changes.
+This communication occurs after the kernels, causing some issues with our current requirements setup. This issue is caused by something else that 
+has troubled me. Kernels are the ones that ask for specific fields meaning that the AABB field name may differ from kernel to kernel. It should 
+really be ComputeAABB that speifies the modified fields and the kernels that modify them. Kernels then specify kernel-specific fields. If ComputeMobility
+stored velocity and not just the kernels, then we could perform the communication with ease. The same goes for methods that should zero out fields. This 
+also doesn't work for compute_time_integration because of updating the orientation. If we change the code such that all nodes have a quaternion 
+orientation, then NodeEuler can now update the position and orientation of all nodes in the given parts and couldn't care less about linkers, particles,
+or spheres and ellipsoids. This means we can loop over local nodes and be perfectly fine. For the center-point of a sphere, orientation tells us the 
+sphere's orientation. For the endpoints of an ellipsoid, orientation tells us the tangent vector. For polytopes, orientation stores the outward normal 
+vector. I cannot think of a single particle or constraint that doesn't need oriented nodes (the same is not true for FEM nodes). Note, this is only true
+for compute_constraint_forcing because we store orientation in the nodes so looping over the locally owned nodes and fetching their connected entities works.
+
+
+
+resolve_constraints is the only method that requires
+special care for shared entities (since the other method require that the parts do not intersect). compute_constraint_forcing actually works just fine 
+
 
 Order I will implement things
 3. (Done) compute_mobility::techniques::LocalDrag
