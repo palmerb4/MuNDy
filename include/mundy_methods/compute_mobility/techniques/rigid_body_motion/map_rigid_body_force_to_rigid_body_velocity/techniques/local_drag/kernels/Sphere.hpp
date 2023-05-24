@@ -91,8 +91,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_omega_field_name_), stk::topology::NODE_RANK, 3, 1));
     required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_element_orientation_field_name_), stk::topology::ELEMENT_RANK, 3, 1));
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_element_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
@@ -112,8 +110,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
                                "Name of the node field containing the translational velocity of the sphere's center.");
     default_parameter_list.set("node_omega_field_name", std::string(default_node_omega_field_name_),
                                "Name of the node field containing the rotational velocity of the sphere's center.");
-    default_parameter_list.set("element_orientation_field_name", std::string(default_element_orientation_field_name_),
-                               "Name of the element field containing the orientation of the sphere about its center.");
     default_parameter_list.set("element_radius_field_name", std::string(default_element_radius_field_name_),
                                "Name of the element field containing the sphere's radius.");
     return default_parameter_list;
@@ -152,7 +148,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   static constexpr std::string_view default_node_torque_field_name_ = "NODE_TORQUE";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   static constexpr std::string_view default_node_omega_field_name_ = "NODE_OMEGA";
-  static constexpr std::string_view default_element_orientation_field_name_ = "ELEMENT_ORIENTATION";
   static constexpr std::string_view default_element_radius_field_name_name_ = "ELEMENT_RADIUS";
   //@}
 
@@ -184,9 +179,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \brief Name of the node field containing the rotational velocity of the sphere's center.
   std::string node_omega_field_name_;
 
-  /// \brief Name of the element field containing the orientation of the sphere about its center.
-  std::string element_orientation_field_name_;
-
   /// \brief Name of the element field containing the sphere's radius.
   std::string element_radius_field_name_;
 
@@ -201,9 +193,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
   /// \brief Node field containing the rotational velocity of the sphere's center.
   stk::mesh::Field<double> *node_omega_field_ptr_ = nullptr;
-
-  /// \brief Element field containing the orientation of the sphere about its center.
-  stk::mesh::Field<double> *element_orientation_field_ptr_ = nullptr;
 
   /// \brief Element field containing the sphere's radius.
   stk::mesh::Field<double> *element_radius_field_ptr_ = nullptr;

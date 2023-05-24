@@ -64,7 +64,6 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
   node_torque_field_name_ = valid_parameter_list.get<std::string>("node_torque_field_name");
   node_velocity_field_name_ = valid_parameter_list.get<std::string>("node_velocity_field_name");
   node_omega_field_name_ = valid_parameter_list.get<std::string>("node_omega_field_name");
-  element_orientation_field_name_ = valid_parameter_list.get<std::string>("element_orientation_field_name");
   element_radius_field_name_ = valid_parameter_list.get<std::string>("element_radius_field_name");
 
   // Store the input params.
@@ -72,8 +71,6 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
   node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_torque_field_name_);
   node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_velocity_field_name_);
   node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, node_omega_field_name_);
-  element_orientation_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_orientation_field_name_);
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_radius_field_name_);
 }
 //}
@@ -89,48 +86,21 @@ void Sphere::execute(const stk::mesh::Entity &element) {
   double *node_torque = stk::mesh::field_data(node_torque_field_ptr_, center_node);
   double *node_velocity = stk::mesh::field_data(node_velocity_field_ptr_, center_node);
   double *node_omega = stk::mesh::field_data(node_omega_field_ptr_, center_node);
-  double *elem_orient = stk::mesh::field_data(element_orientation_field_ptr_, element);
   double *radius = stk::mesh::field_data(element_radius_field_ptr_, element);
 
   // Compute the mobility matrix for the sphere using local drag.
-  Quaternion quat(elem_orient[0], elem_orient[1], elem_orient[2], elem_orient[3]);
-  const stk::math::Vec<double, 3> q = quat.rotate(stk::math::Vec<double, 3>({0, 0, 1}));
-  const double qq[3][3] = {{q[0] * q[0], q[0] * q[1], q[0] * q[2]},
-                           {q[1] * q[0], q[1] * q[1], q[1] * q[2]},
-                           {q[2] * q[0], q[2] * q[1], q[2] * q[2]}};
-  const double Imqq[3][3] = {
-      {1 - qq[0][0], -qq[0][1], -qq[0][2]}, {-qq[1][0], 1 - qq[1][1], -qq[1][2]}, {-qq[2][0], -qq[2][1], 1 - qq[2][2]}};
-  const double drag_para = 6 * stk::stk_expreval::pi() * radius[0] * viscosity_;
-  const double drag_perp = drag_para;
+  const double drag_trans = 6 * stk::stk_expreval::pi() * radius[0] * viscosity_;
   const double drag_rot = 8 * stk::stk_expreval::pi() * radius[0] * radius[0] * radius[0] * viscosity_;
-  const double drag_para_inv = 1.0 / drag_para;
-  const double drag_perp_inv = 1.0 / drag_perp;
+  const double drag_trans_inv = 1.0 / drag_trans;
   const double drag_rot_inv = 1.0 / drag_rot;
-  const double mob_trans[3][3] = {
-      {drag_para_inv * qq[0][0] + drag_perp_inv * Imqq[0][0], drag_para_inv * qq[0][1] + drag_perp_inv * Imqq[0][1],
-       drag_para_inv * qq[0][2] + drag_perp_inv * Imqq[0][2]},
-      {drag_para_inv * qq[1][0] + drag_perp_inv * Imqq[1][0], drag_para_inv * qq[1][1] + drag_perp_inv * Imqq[1][1],
-       drag_para_inv * qq[1][2] + drag_perp_inv * Imqq[1][2]},
-      {drag_para_inv * qq[2][0] + drag_perp_inv * Imqq[2][0], drag_para_inv * qq[2][1] + drag_perp_inv * Imqq[2][1],
-       drag_para_inv * qq[2][2] + drag_perp_inv * Imqq[2][2]}};
-  const double mob_rot[3][3] = {
-      {drag_rot_inv * qq[0][0] + drag_rot_inv * Imqq[0][0], drag_rot_inv * qq[0][1] + drag_rot_inv * Imqq[0][1],
-       drag_rot_inv * qq[0][2] + drag_rot_inv * Imqq[0][2]},
-      {drag_rot_inv * qq[1][0] + drag_rot_inv * Imqq[1][0], drag_rot_inv * qq[1][1] + drag_rot_inv * Imqq[1][1],
-       drag_rot_inv * qq[1][2] + drag_rot_inv * Imqq[1][2]},
-      {drag_rot_inv * qq[2][0] + drag_rot_inv * Imqq[2][0], drag_rot_inv * qq[2][1] + drag_rot_inv * Imqq[2][1],
-       drag_rot_inv * qq[2][2] + drag_rot_inv * Imqq[2][2]}};
 
   // solve for the induced node_velocity and node_omega
-  node_velocity[0] =
-      mob_trans[0][0] * node_force[0] + mob_trans[0][1] * node_force[1] + mob_trans[0][2] * node_force[2];
-  node_velocity[1] =
-      mob_trans[1][0] * node_force[0] + mob_trans[1][1] * node_force[1] + mob_trans[1][2] * node_force[2];
-  node_velocity[2] =
-      mob_trans[2][0] * node_force[0] + mob_trans[2][1] * node_force[1] + mob_trans[2][2] * node_force[2];
-  node_omega[0] = mob_rot[0][0] * node_torque[0] + mob_rot[0][1] * node_torque[1] + mob_rot[0][2] * node_torque[2];
-  node_omega[1] = mob_rot[1][0] * node_torque[0] + mob_rot[1][1] * node_torque[1] + mob_rot[1][2] * node_torque[2];
-  node_omega[2] = mob_rot[2][0] * node_torque[0] + mob_rot[2][1] * node_torque[1] + mob_rot[2][2] * node_torque[2];
+  node_velocity[0] = drag_trans_inv * node_force[0];
+  node_velocity[1] = drag_trans_inv * node_force[1];
+  node_velocity[2] = drag_trans_inv * node_force[2];
+  node_omega[0] = drag_rot_inv * node_torque[0];
+  node_omega[1] = drag_rot_inv * node_torque[1];
+  node_omega[2] = drag_rot_inv * node_torque[2];
 }
 //}
 

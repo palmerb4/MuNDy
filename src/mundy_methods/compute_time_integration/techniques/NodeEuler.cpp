@@ -36,11 +36,11 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaPairwiseKernelFactory.hpp>   // for mundy::meta::MetaPairwiseKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_time_integration/NodeEuler.hpp>  // for mundy::methods::compute_time_integration::NodeEuler
 
 namespace mundy {
@@ -72,28 +72,16 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
     Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
     const std::string part_name = part_parameter_list.get<std::string>("name");
     part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
-
-    // Fetch the parameters for this part's kernel
-    const Teuchos::ParameterList &part_kernel_parameter_list =
-        part_parameter_list.sublist("kernels").sublist("node_euler");
-
-    // Create the kernel instance.
-    const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    node_euler_kernel_ptrs_.push_back(mundy::meta::MetaPairwiseKernelFactory<void, NodeEuler>::create_new_instance(
-        kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
-  // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
-  for (size_t i = 0; i < num_part_pairs_; i++) {
-    for (size_t j = 0; j < num_part_pairs_; j++) {
-      if (i != j) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "NodeEuler: Part " << part_ptr_vector_[i]->name() << " and "
-                                                      << "Part " << part_ptr_vector_[j]->name() << "intersect.");
-      }
-    }
-  }
+  // Fill the internal members using the internal parameter list.
+  time_step_size_ = valid_parameter_list.get<double>("time_step_size");
+  node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coord_field_name");
+  node_velocity_field_name_ = valid_parameter_list.get<std::string>("node_velocity_field_name");
+
+  // Store the input params.
+  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+  node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name_);
 }
 //}
 
@@ -102,15 +90,19 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 
 void NodeEuler::execute() {
   for (size_t i = 0; i < num_part_pairs_; i++) {
-    std::shared_ptr<mundy::meta::MetaKernelBase<void>> node_euler_kernel_ptr = node_euler_kernel_ptrs_[i];
+    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
+                                   [](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
+                                     // TODO(palmerb4): Add a flag for specifying that node position has changed
+                                     // This is the best way to indicate that things like the nomal vector need updated.
 
-    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
-    stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-        [&node_euler_kernel_ptr](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          
-          node_euler_kernel_ptr->execute(element);
-        });
+                                     // Euler step position.
+                                     double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node);
+                                     double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, node);
+                                     node_coords[0] += time_step_size_ * node_velocity[0];
+                                     node_coords[1] += time_step_size_ * node_velocity[1];
+                                     node_coords[2] += time_step_size_ * node_velocity[2];
+                                   });
   }
 }
 //}

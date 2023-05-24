@@ -84,39 +84,25 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     valid_parameter_list.validateParametersAndSetDefaults(static_get_valid_params());
 
     // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
-    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
+    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_part_pairs; i++) {
-      // Create a new parameter for both the linker and element part.
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    for (size_t i = 0; i < num_parts; i++) {
+      // Create a new parameter
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
-      // Fetch the i'th part parameters.
-      Teuchos::ParameterList &part_pair_parameter_list = parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-      const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+      // Fetch the i'th part parameters
+      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
+      const std::string part_name = part_parameter_list.get<std::string>("name");
 
       // Add method-specific requirements.
-      part_requirements[i - 1]->set_part_name(pair_names[0]);
-      part_requirements[i]->set_part_name(pair_names[1]);
-      part_requirements[i - 1]->set_part_rank(stk::topology::CONSTRAINT_RANK);
-      part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
-
-      // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list = part_pair_parameter_list.sublist("kernels").sublist("node_euler");
-
-      // Validate the kernel params and fill in defaults.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<void, NodeEuler>::get_valid_params(kernel_name));
-
-      // Merge the kernel requirements.
-      std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements =
-              mundy::meta::MetaPairwiseKernelFactory<void, NodeEuler>::get_part_requirements(
-                  kernel_name, part_kernel_parameter_list);
-      part_requirements[i - 1]->merge(pair_requirements.first);
-      part_requirements[i]->merge(pair_requirements.second);
+      part_requirements[i]->set_part_name(part_name);
+      part_requirements[i]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
+      part_requirements[i]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          std::string(default_node_velocity_field_name_), stk::topology::NODE_RANK, 3, 1));
+      part_requirements[i]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          std::string(default_node_omega_field_name_name_), stk::topology::NODE_RANK, 3, 1));
     }
 
     return part_requirements;
@@ -125,9 +111,13 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   /// \brief Get the default parameters for this class.
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
-    Teuchos::ParameterList &kernel_params =
-        default_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("node_euler", false, "Sublist that defines the node euler kernel parameters.");
+    default_parameter_list.set("time_step_size", default_time_step_size_, "The numerical timestep size.");
+    default_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+                               "Name of the node field containing the coordinate of the sphere's center.");
+    default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
+                               "Name of the node field containing the translational velocity of the sphere's center.");
+    default_parameter_list.set("node_omega_field_name_name", std::string(default_node_omega_field_name_name_),
+                               "Name of the node field containing the rotational velocity of the sphere's center.");
     return default_parameter_list;
   }
 
@@ -154,6 +144,15 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr double default_time_step_size_ = -1;
+  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
+  static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
+  static constexpr std::string_view default_node_omega_field_name_name_ = "NODE_OMEGA";
+  //@}
+
   //! \name Internal members
   //@{
 
@@ -167,14 +166,32 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of part pairs that this method acts on.
+  /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;
 
-  /// \brief Vector of pointers to the part pairs that this class will act upon.
-  std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
+  /// \brief Vector of pointers to the parts that this class will act upon.
+  std::vector<stk::mesh::Part *> part_ptr_vector_;
 
-  /// \brief Kernels corresponding to each of the specified part pairs.
-  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> node_euler_kernel_ptrs_;
+  /// \brief The numerical timestep size.
+  double time_step_size_;
+
+  /// \brief Name of the node field containing the coordinate of the sphere's center.
+  std::string node_coord_field_name_;
+
+  /// \brief Name of the node field containing the translational velocity of the sphere's center.
+  std::string node_velocity_field_name_;
+
+  /// \brief Name of the node field containing the rotational velocity of the sphere's center.
+  std::string node_omega_field_name_;
+
+  /// \brief Node field containing the coordinate of the sphere's center.
+  stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
+
+  /// \brief Node field containing the translational velocity of the sphere's center.
+  stk::mesh::Field<double> *node_velocity_field_ptr_ = nullptr;
+
+  /// \brief Node field containing the rotational velocity of the sphere's center.
+  stk::mesh::Field<double> *node_omega_field_ptr_ = nullptr;
   //@}
 };  // NodeEuler
 

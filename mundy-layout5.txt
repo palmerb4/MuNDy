@@ -426,20 +426,13 @@ All the existing methods loop over locally owned parts and do not perform commun
 but not for compute_mobility since we write out velocity to ghosted or shared nodes. We need an addition step where we communicate these changes.
 This communication occurs after the kernels, causing some issues with our current requirements setup. This issue is caused by something else that 
 has troubled me. Kernels are the ones that ask for specific fields meaning that the AABB field name may differ from kernel to kernel. It should 
-really be ComputeAABB that speifies the modified fields and the kernels that modify them. Kernels then specify kernel-specific fields. If ComputeMobility
-stored velocity and not just the kernels, then we could perform the communication with ease. The same goes for methods that should zero out fields. This 
-also doesn't work for compute_time_integration because of updating the orientation. If we change the code such that all nodes have a quaternion 
-orientation, then NodeEuler can now update the position and orientation of all nodes in the given parts and couldn't care less about linkers, particles,
-or spheres and ellipsoids. This means we can loop over local nodes and be perfectly fine. For the center-point of a sphere, orientation tells us the 
-sphere's orientation. For the endpoints of an ellipsoid, orientation tells us the tangent vector. For polytopes, orientation stores the outward normal 
-vector. I cannot think of a single particle or constraint that doesn't need oriented nodes (the same is not true for FEM nodes). Note, this is only true
-for compute_constraint_forcing because we store orientation in the nodes so looping over the locally owned nodes and fetching their connected entities works.
+really be ComputeAABB that specifies the modified fields and the kernels that modify them. Kernels then specify kernel-specific fields. If ComputeMobility
+stored velocity and not just the kernels, then we could perform the communication with ease. The same goes for methods that should zero out fields. 
 
-
-
-resolve_constraints is the only method that requires
-special care for shared entities (since the other method require that the parts do not intersect). compute_constraint_forcing actually works just fine 
-
+We can make compute_time_integration work with proper sharing/ghosting so long as we loop over all nodes and update their position. Currently, this won't
+work because of updating the element orientation, but there is honestly no reason to store orientation just to have oriented spheres. If the user wants 
+an oriented sphere method, they can easily make one. As a result, NodeEuler should only update the position of all nodes in the given parts. It couldn't care
+less about linkers, particles, or spheres and ellipsoids. This means we can loop over local nodes and be perfectly fine. 
 
 Order I will implement things
 3. (Done) compute_mobility::techniques::LocalDrag
