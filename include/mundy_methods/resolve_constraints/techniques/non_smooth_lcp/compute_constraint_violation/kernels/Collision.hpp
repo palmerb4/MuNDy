@@ -17,13 +17,13 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_VIOLATION_KERNEL_COLLISION_HPP_
-#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_VIOLATION_KERNEL_COLLISION_HPP_
+#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_VIOLATION_KERNELS_COLLISION_HPP_
+#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_VIOLATION_KERNELS_COLLISION_HPP_
 
 /// \file Collision.hpp
 /// \brief Declaration of the ComputeConstraintVolations's Collision kernel.
 
-// C++ core libs
+// C++ core libsoverride
 #include <memory>  // for std::shared_ptr, std::unique_ptr
 #include <string>  // for std::string
 #include <vector>  // for std::vector
@@ -192,4 +192,4 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_VIOLATION_KERNEL_COLLISION_HPP_
+#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_VIOLATION_KERNELS_COLLISION_HPP_

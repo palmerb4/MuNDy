@@ -107,9 +107,11 @@ void LocalDrag::execute() {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-                                   [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                 stk::mesh::Entity element) { kernel_ptr->execute(element); });
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
+        [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+          kernel_ptr->execute(element);
+        });
   }
 }
 //}

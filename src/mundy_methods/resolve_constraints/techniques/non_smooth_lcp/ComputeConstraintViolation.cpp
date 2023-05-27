@@ -95,9 +95,9 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
       if (i != j) {
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
         TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "ComputeConstraintViolation: Part "
-                                       << part_ptr_vector_[i]->name() << " and "
-                                       << "Part " << part_ptr_vector_[j]->name() << "intersect.");
+                                   "ComputeConstraintViolation: Part " << part_ptr_vector_[i]->name() << " and "
+                                                                       << "Part " << part_ptr_vector_[j]->name()
+                                                                       << "intersect.");
       }
     }
   }
@@ -115,7 +115,8 @@ void ComputeConstraintViolation::execute() {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-        [&compute_constraint_violation_kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+        [&compute_constraint_violation_kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                   stk::mesh::Entity element) {
           compute_constraint_violation_kernel_ptr->execute(element);
         });
   }

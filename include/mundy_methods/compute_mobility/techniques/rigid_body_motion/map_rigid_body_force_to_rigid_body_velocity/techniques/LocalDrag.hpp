@@ -17,16 +17,17 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCALDRAG_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCALDRAG_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCALDRAG_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCALDRAG_HPP_
 
 /// \file LocalDrag.hpp
 /// \brief Declaration of the LocalDrag class
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <memory>   // for std::shared_ptr, std::unique_ptr
+#include <string>   // for std::string
+#include <utility>  // for std::pair
+#include <vector>   // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
@@ -105,7 +106,8 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list = part_pair_parameter_list.sublist("kernels").sublist("local_drag");
+      Teuchos::ParameterList &part_kernel_parameter_list =
+          part_pair_parameter_list.sublist("kernels").sublist("local_drag");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
@@ -189,4 +191,4 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCALDRAG_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCALDRAG_HPP_

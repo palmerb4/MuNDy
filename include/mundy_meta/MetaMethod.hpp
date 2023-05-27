@@ -27,6 +27,7 @@
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
+#include <vector>       // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
@@ -119,7 +120,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
-      const Teuchos::ParameterList &parameter_list) const override final;
+      const Teuchos::ParameterList &parameter_list) const final;
 
   /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
   ///
@@ -135,7 +136,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
-  Teuchos::ParameterList get_valid_params() const override final;
+  Teuchos::ParameterList get_valid_params() const final;
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
   static Teuchos::ParameterList static_get_valid_params() {
@@ -143,7 +144,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  std::string get_class_identifier() const override final;
+  std::string get_class_identifier() const final;
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static std::string static_get_class_identifier() {
@@ -159,7 +160,7 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const override final;
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///

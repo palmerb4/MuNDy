@@ -24,9 +24,10 @@
 /// \brief Declaration of the ComputeTimeIntegration class
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <memory>   // for std::shared_ptr, std::unique_ptr
+#include <string>   // for std::string
+#include <utility>  // for std::pair
+#include <vector>   // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
@@ -51,7 +52,7 @@ namespace methods {
 /// \class ComputeTimeIntegration
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
 class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeIntegration>,
-                                        public mundy::meta::MetaMethodRegistry<void, ComputeTimeIntegration> {
+                               public mundy::meta::MetaMethodRegistry<void, ComputeTimeIntegration> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -60,8 +61,7 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   ComputeTimeIntegration() = delete;
 
   /// \brief Constructor
-  ComputeTimeIntegration(stk::mesh::BulkData *const bulk_data_ptr,
-                                  const Teuchos::ParameterList &parameter_list);
+  ComputeTimeIntegration(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -179,8 +179,6 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> kernel_ptrs_;
   //@}
 };  // ComputeTimeIntegration
-
-}  // namespace compute_mobility
 
 }  // namespace methods
 

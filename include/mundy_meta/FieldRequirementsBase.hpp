@@ -29,6 +29,7 @@
 #include <stdexcept>    // for std::logic_error, std::invalid_argument
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <vector>       // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
@@ -144,10 +145,11 @@ class FieldRequirementsBase {
   /// match the current name of this field.
   ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
-  virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) = 0;
+  virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> vector_of_field_req_ptrs) = 0;
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
-  virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(const Teuchos::ParameterList &parameter_list) const = 0;
+  virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(
+      const Teuchos::ParameterList &parameter_list) const = 0;
   //@}
 };  // FieldRequirementsBase
 

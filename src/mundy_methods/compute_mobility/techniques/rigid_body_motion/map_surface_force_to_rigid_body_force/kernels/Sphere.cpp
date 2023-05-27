@@ -90,9 +90,12 @@ void Sphere::execute(const stk::mesh::Entity &linker) {
     body_node_force[0] += surface_node_force[0];
     body_node_force[1] += surface_node_force[1];
     body_node_force[2] += surface_node_force[2];
-    body_node_torque[0] += surface_node_torque[0] + relative_pos[1] * surface_node_force[2] - relative_pos[2] * surface_node_force[1];
-    body_node_torque[1] += surface_node_torque[1] + relative_pos[2] * surface_node_force[0] - relative_pos[0] * surface_node_force[2];
-    body_node_torque[2] += surface_node_torque[2] + relative_pos[0] * surface_node_force[1] - relative_pos[1] * surface_node_force[0];
+    body_node_torque[0] +=
+        surface_node_torque[0] + relative_pos[1] * surface_node_force[2] - relative_pos[2] * surface_node_force[1];
+    body_node_torque[1] +=
+        surface_node_torque[1] + relative_pos[2] * surface_node_force[0] - relative_pos[0] * surface_node_force[2];
+    body_node_torque[2] +=
+        surface_node_torque[2] + relative_pos[0] * surface_node_force[1] - relative_pos[1] * surface_node_force[0];
   }
 }
 //}

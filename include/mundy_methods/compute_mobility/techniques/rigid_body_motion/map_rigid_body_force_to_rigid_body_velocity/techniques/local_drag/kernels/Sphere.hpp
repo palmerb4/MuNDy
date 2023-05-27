@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
 
 /// \file Sphere.hpp
 /// \brief Declaration of the LocalDrag's Sphere kernel.
@@ -205,10 +205,10 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
 }  // namespace techniques
 
-}  // namespace compute_aabb
+}  // namespace compute_mobility
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCAL_DRAG_KERNELS_SPHERE_HPP_

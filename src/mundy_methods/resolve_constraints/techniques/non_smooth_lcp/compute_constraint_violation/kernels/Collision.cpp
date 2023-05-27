@@ -63,7 +63,8 @@ Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
       valid_parameter_list.get<std::string>("element_constraint_violation_on_dist_field_name");
   element_lagrange_multiplier_field_name_ =
       valid_parameter_list.get<std::string>("element_lagrange_multiplier_field_name");
-  element_constraint_violation_field_name_ = valid_parameter_list.get<std::string>("element_constraint_violation_field_name");
+  element_constraint_violation_field_name_ =
+      valid_parameter_list.get<std::string>("element_constraint_violation_field_name");
 
   // Store the input params.
   element_signed_separation_dist_field_ptr_ =

@@ -95,6 +95,7 @@ void NodeEuler::execute() {
                                    [](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed
                                      // This is the best way to indicate that things like the nomal vector need updated.
+                                     // Does STK have an observer that lets us check if fields need updated?
 
                                      // Euler step position.
                                      double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node);

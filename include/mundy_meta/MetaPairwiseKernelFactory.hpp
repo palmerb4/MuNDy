@@ -84,8 +84,8 @@ class MetaPairwiseKernelFactory {
   /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
   /// instances.
   using NewRequirementsGenerator =
-      std::function<std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>>>(
-          const Teuchos::ParameterList&) > ;
+      std::function<std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>>(
+          const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -151,7 +151,7 @@ class MetaPairwiseKernelFactory {
   static void register_new_kernel() {
     const std::string key = KernelToRegister::get_class_identifier();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                              "MetaPairwiseKernelFactory: The provided key " << key << " already exists.");
+                               "MetaPairwiseKernelFactory: The provided key " << key << " already exists.");
     get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
     get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));

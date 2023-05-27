@@ -134,8 +134,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
-  std::shared_ptr<PartRequirements> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const override final;
+  std::shared_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) const final;
 
   /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
   ///
@@ -153,7 +152,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   }
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  Teuchos::ParameterList get_valid_params() const override final;
+  Teuchos::ParameterList get_valid_params() const final;
 
   /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
   static Teuchos::ParameterList static_get_valid_params() {
@@ -161,7 +160,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
-  std::string get_class_identifier() const override final;
+  std::string get_class_identifier() const final;
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
   static std::string static_get_class_identifier() {
@@ -177,7 +176,7 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_params.
   std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const override final;
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///

@@ -24,7 +24,8 @@
 /// \brief Declaration of the FieldRequirementsRegistry class
 
 // C++ core libs
-#include <type_traits>  // for std::enable_if, std::is_base_of
+#include <string>       // for std::string
+#include <type_traits>  // for std::enable_if, std::is_trivially_copyable
 
 // Mundy libs
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory

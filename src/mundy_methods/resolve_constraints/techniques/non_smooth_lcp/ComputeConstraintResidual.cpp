@@ -90,7 +90,6 @@ double ComputeConstraintResidual::execute() {
   // Another technique would be to use the L2 norm.
   double local_residual = 0.0;
   for (size_t i = 0; i < num_parts_; i++) {
-
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     // Here, we use an internal stk function that doesn't use thread parallelism, lest we have a race condition.
     // TODO(palmerb4): Replace this function with for_each_entity_reduce (only possible after the ngp update).
@@ -98,7 +97,8 @@ double ComputeConstraintResidual::execute() {
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
         [&local_residual]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           // This is the  norm of the constraint violation
-          const double constraint_violation = stk::mesh::field_data(*element_constraint_violation_field_name_, element)[0];
+          const double constraint_violation =
+              stk::mesh::field_data(*element_constraint_violation_field_name_, element)[0];
           local_residual = std::max(local_residual, constraint_violation);
         });
   }

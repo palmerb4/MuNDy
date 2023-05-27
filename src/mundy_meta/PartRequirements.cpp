@@ -214,8 +214,7 @@ PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list)
     const Teuchos::ParameterList &subparts_sublist = parameter_list.sublist("sub_parts");
     const unsigned num_subparts = subparts_sublist.get<unsigned>("count");
     for (unsigned i = 0; i < num_subparts; i++) {
-      const Teuchos::ParameterList &subpart_i_sublist =
-          parameter_list.sublist("sub_part_" + std::to_string(i));
+      const Teuchos::ParameterList &subpart_i_sublist = parameter_list.sublist("sub_part_" + std::to_string(i));
       std::shared_ptr<PartRequirements> subpart_i = std::make_shared<PartRequirements>(subpart_i_sublist);
       this->add_subpart_reqs(subpart_i);
     }
@@ -267,23 +266,25 @@ bool PartRequirements::constrains_part_rank() const {
 }
 
 std::string PartRequirements::get_part_name() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(!this->constrains_part_name(), std::logic_error,
-                             "PartRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+  TEUCHOS_TEST_FOR_EXCEPTION(
+      !this->constrains_part_name(), std::logic_error,
+      "PartRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
 
   return part_name_;
 }
 
 stk::topology::topology_t PartRequirements::get_part_topology() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_part_topology(), std::logic_error,
-      "PartRequirements: Attempting to access the part topology requirement even though part topology is unconstrained.");
+  TEUCHOS_TEST_FOR_EXCEPTION(!this->constrains_part_topology(), std::logic_error,
+                             "PartRequirements: Attempting to access the part topology requirement even though part "
+                             "topology is unconstrained.");
 
   return part_topology_;
 }
 
 stk::topology::rank_t PartRequirements::get_part_rank() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(!this->constrains_part_rank(), std::logic_error,
-                             "PartRequirements: Attempting to access the part rank requirement even though part rank is unconstrained.");
+  TEUCHOS_TEST_FOR_EXCEPTION(
+      !this->constrains_part_rank(), std::logic_error,
+      "PartRequirements: Attempting to access the part rank requirement even though part rank is unconstrained.");
 
   return part_rank_;
 }
@@ -387,9 +388,9 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
     // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
     if (part_req_ptr->constrains_part_name()) {
       if (this->constrains_part_name()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
-                                   "PartRequirements: One of the inputs has incompatible name ("
-                                       << part_req_ptr->get_part_name() << ").");
+        TEUCHOS_TEST_FOR_EXCEPTION(
+            this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
+            "PartRequirements: One of the inputs has incompatible name (" << part_req_ptr->get_part_name() << ").");
       } else {
         this->set_part_name(part_req_ptr->get_part_name());
       }
@@ -397,9 +398,9 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
 
     if (part_req_ptr->constrains_part_rank()) {
       if (this->constrains_part_rank()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
-                                   "PartRequirements: One of the inputs has incompatible rank ("
-                                       << part_req_ptr->get_part_rank() << ").");
+        TEUCHOS_TEST_FOR_EXCEPTION(
+            this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
+            "PartRequirements: One of the inputs has incompatible rank (" << part_req_ptr->get_part_rank() << ").");
       } else {
         this->set_part_rank(part_req_ptr->get_part_rank());
       }

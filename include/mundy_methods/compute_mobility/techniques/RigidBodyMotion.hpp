@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RIGIDBODYMOTION_HPP_
-#define MUNDY_METHODS_RIGIDBODYMOTION_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGIDBODYMOTION_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGIDBODYMOTION_HPP_
 
 /// \file RigidBodyMotion.hpp
 /// \brief Declaration of the RigidBodyMotion class
@@ -199,4 +199,4 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RIGIDBODYMOTION_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGIDBODYMOTION_HPP_

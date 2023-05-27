@@ -17,16 +17,17 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
 
 /// \file MapSurfaceForceToRigidBodyForce.hpp
 /// \brief Declaration of the MapSurfaceForceToRigidBodyForce class
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <memory>   // for std::shared_ptr, std::unique_ptr
+#include <string>   // for std::string
+#include <utility>  // for std::pair
+#include <vector>   // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
@@ -188,4 +189,4 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_

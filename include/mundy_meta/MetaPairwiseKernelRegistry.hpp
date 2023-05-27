@@ -37,12 +37,13 @@ namespace meta {
 /// \class MetaPairwiseKernelRegistry
 /// \brief A class for registering \c MetaPairwiseKernels within \c MetaPairwiseKernelFactory.
 ///
-/// All classes derived from \c MetaPairwiseKernel, which wish to be registered within the \c MetaPairwiseKernelFactory should inherit
-/// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
-/// Pattern).
+/// All classes derived from \c MetaPairwiseKernel, which wish to be registered within the \c MetaPairwiseKernelFactory
+/// should inherit from this class where the template parameter is the derived type itself (follows the Curiously
+/// Recurring Template Pattern).
 ///
 /// \tparam DerivedMetaPairwiseKernel A class derived from \c MetaPairwiseKernel.
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaPairwiseKernelFactory.
+/// \tparam RegistryIdentifier A template type used to create different independent instances of
+/// \c MetaPairwiseKernelFactory.
 template <typename ReturnType, class DerivedMetaPairwiseKernel, typename RegistryIdentifier = DefaultKernelIdentifier>
 struct MetaPairwiseKernelRegistry {
   //! \name Actions
@@ -53,7 +54,8 @@ struct MetaPairwiseKernelRegistry {
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaPairwiseKernelFactory<ReturnType, RegistryIdentifier>::template register_new_method<DerivedMetaPairwiseKernel>();
+    MetaPairwiseKernelFactory<ReturnType,
+                              RegistryIdentifier>::template register_new_method<DerivedMetaPairwiseKernel>();
     return true;
   }
   //@}

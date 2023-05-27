@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_NONSMOOTHLCP_HPP_
-#define MUNDY_METHODS_NONSMOOTHLCP_HPP_
+#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NONSMOOTHLCP_HPP_
+#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NONSMOOTHLCP_HPP_
 
 /// \file NonSmoothLCP.hpp
 /// \brief Declaration of the NonSmoothLCP class
@@ -199,4 +199,4 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_NONSMOOTHLCP_HPP_
+#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NONSMOOTHLCP_HPP_

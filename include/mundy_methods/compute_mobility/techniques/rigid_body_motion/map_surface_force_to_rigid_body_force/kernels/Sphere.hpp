@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_
+#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_
 
 /// \file Sphere.hpp
 /// \brief Declaration of the MapSurfaceForceToRigidBodyForce's Sphere kernel.
@@ -100,7 +100,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
                                "Name of the node field containing the surface and body force.");
     default_parameter_list.set("node_torque_field_name", std::string(default_node_torque_field_name_),
-                               "Name of the node field containing the surface and body torque.");                                             
+                               "Name of the node field containing the surface and body torque.");
     return default_parameter_list;
   }
 
@@ -180,4 +180,4 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_

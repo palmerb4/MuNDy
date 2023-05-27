@@ -87,11 +87,29 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     return required_part_params;
   }
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
+  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("buffer_distance", default_buffer_distance_,
+                               "Buffer distance to be added to the axis-aligned boundary box.");
+    default_parameter_list.set(
+        "aabb_field_name", std::string(default_aabb_field_name_),
+        "Name of the element field within which the output axis-aligned boundary boxes will be written.");
+    default_parameter_list.set("radius_field_name", std::string(default_radius_field_name_),
+                               "Name of the element field containing the sphere radius.");
+    default_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+                               "Name of the node field containing the coordinate of the sphere's center.");
+    return default_parameter_list;
+  }
+
+  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  static Teuchos::ParameterList details_static_get_valid_transient_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("buffer_distance", default_buffer_distance_,
                                "Buffer distance to be added to the axis-aligned boundary box.");

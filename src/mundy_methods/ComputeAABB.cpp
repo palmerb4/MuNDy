@@ -88,8 +88,7 @@ ComputeAABB::ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
         TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
                                    "ComputeAABB: Part " << part_ptr_vector_[i]->name() << " and "
-                                                                        << "Part " << part_ptr_vector_[j]->name()
-                                                                        << "intersect.");
+                                                        << "Part " << part_ptr_vector_[j]->name() << "intersect.");
       }
     }
   }

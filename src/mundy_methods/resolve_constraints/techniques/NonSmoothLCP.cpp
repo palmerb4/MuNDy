@@ -116,12 +116,12 @@ void NonSmoothLCP::execute() {
     if (ite_count > 0) {
       // Take a projected gradient step.
       // TODO(palmerb4): How do we pass alpha to this method?
-      // Well, we need to break our parameters into those that impact the field values and those that don't. 
-      // These are the fixed and transient parameters. 
-      // alpha is a transient parameter and can therefore be passed into execute. 
-      // Ok, having execute accept and parse the parameters could be detimental to performance, 
+      // Well, we need to break our parameters into those that impact the field values and those that don't.
+      // These are the fixed and transient parameters.
+      // alpha is a transient parameter and can therefore be passed into execute.
+      // Ok, having execute accept and parse the parameters could be detimental to performance,
       // Why don't we add a set_transient_parameters function.
-      cpmpute_gradient_step_method_ptr_->execute();  
+      cpmpute_gradient_step_method_ptr_->execute();
       compute_constraint_projection_method_ptr_->execute();
     }
 
@@ -168,8 +168,8 @@ void NonSmoothLCP::execute() {
 
   // If the maximum number of iterations is surpassed, we optionally throw an error.
   if (ite_count >= con_ite_max && throw_on_failed_to_converge_) {
-    ThrowRequireMsg(false, "NonSmoothLCP: Failed to converge in " << max_num_iterations_ << " iterations. \n
-                            Current residual is " << residual);
+    ThrowRequireMsg(false, "NonSmoothLCP: Failed to converge in "
+                               << max_num_iterations_ << " iterations. \n Current residual is " << residual);
   }
 }
 //}
