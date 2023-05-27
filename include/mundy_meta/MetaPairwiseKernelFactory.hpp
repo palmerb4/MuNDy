@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAPAIRWISEKERNELFACTORY_HPP_
-#define MUNDY_META_METAPAIRWISEKERNELFACTORY_HPP_
+#ifndef MUNDY_META_METAKERNELFACTORY_HPP_
+#define MUNDY_META_METAKERNELFACTORY_HPP_
 
 /// \file MetaPairwiseKernelFactory.hpp
 /// \brief Declaration of the MetaPairwiseKernelFactory class
@@ -68,7 +68,8 @@ struct DefaultKernelIdentifier {};  // DefaultKernelIdentifier
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
-/// \tparam RegistryIdentifier A template type used to create different independent instances of
+/// \tparam ReturnType The return type of the \c MetaPairwiseKernel's execute function.
+/// \tparam RegistryIdentifier A template type used to create different independent instances of \c
 /// MetaPairwiseKernelFactory.
 template <typename ReturnType, typename RegistryIdentifier = DefaultKernelIdentifier>
 class MetaPairwiseKernelFactory {
@@ -105,40 +106,54 @@ class MetaPairwiseKernelFactory {
     return get_instance_generator_map().count(key) != 0;
   }
 
-  /// \brief Get the requirements that this a registered \c MetaPairwiseKernel imposes upon each particle and/or
-  /// constraint.
+  /// \brief Get the requirements that this a registered \c MetaPairwiseKernel imposes upon each part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made a registered
   /// \c MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c execute function. These
-  /// assumptions may vary based parameters in the \c parameter_list.
+  /// assumptions may vary based parameters in the \c fixed_parameter_list.
   ///
   /// The registered \c MetaPairwiseKernel accessed by this function is fetched based on the provided key. This key must
   /// be valid; that is, \c is_valid_key(key) must return true. To register a \c MetaPairwiseKernel with this factory,
-  /// use the provided \c register_new_method function.
+  /// use the provided \c register_new_kernel function.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaPairwiseKernel.
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
-  /// is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A default fixed
+  /// parameter list is accessible via \c get_valid_fixed_params.
   static std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> get_part_requirements(
-      const std::string& key, const Teuchos::ParameterList& parameter_list) {
-    return get_requirement_generator_map()[key](parameter_list);
+      const std::string& key, const Teuchos::ParameterList& fixed_parameter_list) {
+    return get_requirement_generator_map()[key](fixed_parameter_list);
   }
 
-  /// \brief Get the default parameter list for a registered \c MetaPairwiseKernel.
+  /// \brief Get the default fixed parameter list for a registered \c MetaPairwiseKernel.
   ///
   /// The registered \c MetaPairwiseKernel accessed by this function is fetched based on the provided key. This key must
   /// be valid; that is, is_valid_key(key) must return true. To register a \c MetaPairwiseKernel with this factory, use
   /// the provided \c register_new_method function.
   ///
-  /// \note This function does not cache its return value, so
-  /// each time you call this function, a new \c Teuchos::ParameterList will be created. You can save the result
-  /// yourself if you wish to reuse it.
+  /// \note This function does not cache its return value, so each time you call this function, a new
+  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaPairwiseKernel.
-  static Teuchos::ParameterList get_valid_params(const std::string& key) {
+  static Teuchos::ParameterList get_valid_fixed_params(const std::string& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaPairwiseKernelFactory: The provided key " << key << " is not valid.");
-    return get_valid_params_generator_map()[key]();
+    return get_valid_fixed_params_generator_map()[key]();
+  }
+
+  /// \brief Get the default transient parameter list for a registered \c MetaPairwiseKernel.
+  ///
+  /// The registered \c MetaPairwiseKernel accessed by this function is fetched based on the provided key. This key must
+  /// be valid; that is, is_valid_key(key) must return true. To register a \c MetaPairwiseKernel with this factory, use
+  /// the provided \c register_new_kernel function.
+  ///
+  /// \note This function does not cache its return value, so each time you call this function, a new
+  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
+  ///
+  /// \param key [in] A key corresponding to a registered \c MetaPairwiseKernel.
+  static Teuchos::ParameterList get_valid_transient_params(const std::string& key) {
+    TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
+                               "MetaPairwiseKernelFactory: The provided key " << key << " is not valid.");
+    return get_valid_transient_params_generator_map()[key]();
   }
   //@}
 
@@ -154,22 +169,25 @@ class MetaPairwiseKernelFactory {
                                "MetaPairwiseKernelFactory: The provided key " << key << " already exists.");
     get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
-    get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));
+    get_valid_fixed_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_fixed_params));
+    get_valid_transient_params_generator_map().insert(
+        std::make_pair(key, KernelToRegister::static_get_valid_transient_params));
   }
 
   /// \brief Generate a new instance of a registered \c MetaPairwiseKernel.
   ///
   /// The registered \c MetaPairwiseKernel accessed by this function is fetched based on the provided key. This key must
   /// be valid; that is, \c is_valid_key(key) must return true. To register a \c MetaPairwiseKernel with this factory,
-  /// use the provided \c register_new_method function.
+  /// use the provided \c register_new_kernel function.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaPairwiseKernel.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaPairwiseKernelBase<ReturnType>> create_new_instance(
-      const std::string& key, stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) {
-    return get_instance_generator_map()[key](bulk_data_ptr, parameter_list);
+      const std::string& key, stk::mesh::BulkData* const bulk_data_ptr,
+      const Teuchos::ParameterList& fixed_parameter_list) {
+    return get_instance_generator_map()[key](bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 
@@ -201,10 +219,16 @@ class MetaPairwiseKernelFactory {
     return requirement_generator_map;
   }
 
-  static DefaultParamsGeneratorMap& get_valid_params_generator_map() {
+  static DefaultParamsGeneratorMap& get_valid_fixed_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static DefaultParamsGeneratorMap default_params_generator_map;
-    return default_params_generator_map;
+    static DefaultParamsGeneratorMap default_fixed_params_generator_map;
+    return default_fixed_params_generator_map;
+  }
+
+  static DefaultParamsGeneratorMap& get_valid_transient_params_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static DefaultParamsGeneratorMap default_transient_params_generator_map;
+    return default_transient_params_generator_map;
   }
   //@}
 
@@ -214,9 +238,9 @@ class MetaPairwiseKernelFactory {
   /// \brief Every concrete \c MetaPairwiseKernel that inherits from the \c MetaPairwiseKernelRegistry will be added to
   /// this factory's registry. This process requires friendship <3.
   ///
-  /// \note For devs: Unfortunitely, "Friend declarations cannot refer to partial specializations," so there is no way
-  /// to only have \c MetaPairwiseKernelRegistrys with the same identifier be friends with this factory. Instead, ALL
-  /// MetaPairwiseKernelRegistrys are friends, including the ones we don't want.
+  /// \note For devs: Unfortunately, "Friend declarations cannot refer to partial specializations," so there is no way
+  /// to only have \c MetaPairwiseKernelRegistries with the same identifier be friends with this factory. Instead, ALL
+  /// MetaPairwiseKernelRegistries are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
   template <typename, class, typename>
   friend class MetaPairwiseKernelRegistry;
   //@}
@@ -226,4 +250,4 @@ class MetaPairwiseKernelFactory {
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_METAPAIRWISEKERNELFACTORY_HPP_
+#endif  // MUNDY_META_METAKERNELFACTORY_HPP_

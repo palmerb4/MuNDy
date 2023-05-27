@@ -67,7 +67,8 @@ struct DefaultKernelIdentifier {};  // DefaultKernelIdentifier
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaKernelFactory.
+/// \tparam ReturnType The return type of the \c MetaKernel's execute function.
+/// \tparam RegistryIdentifier A template type used to create different independent instances of \c MetaKernelFactory.
 template <typename ReturnType, typename RegistryIdentifier = DefaultKernelIdentifier>
 class MetaKernelFactory {
  public:
@@ -81,8 +82,7 @@ class MetaKernelFactory {
 
   /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
   /// instances.
-  using NewRequirementsGenerator =
-      std::function<std::shared_ptr<PartRequirements>(const Teuchos::ParameterList&)>;
+  using NewRequirementsGenerator = std::function<std::shared_ptr<PartRequirements>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -102,39 +102,54 @@ class MetaKernelFactory {
     return get_instance_generator_map().count(key) != 0;
   }
 
-  /// \brief Get the requirements that this a registered \c MetaKernel imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this a registered \c MetaKernel imposes upon each part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made a registered
   /// \c MetaKernel with respect to the parts, topology, and fields input into the \c execute function. These
-  /// assumptions may vary based parameters in the \c parameter_list.
+  /// assumptions may vary based parameters in the \c fixed_parameter_list.
   ///
   /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, \c is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
-  /// provided \c register_new_method function.
+  /// provided \c register_new_kernel function.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
-  /// is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> get_part_requirements(
-      const std::string& key, const Teuchos::ParameterList& parameter_list) {
-    return get_requirement_generator_map()[key](parameter_list);
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A default fixed
+  /// parameter list is accessible via \c get_valid_fixed_params.
+  static std::shared_ptr<PartRequirements> get_part_requirements(const std::string& key,
+                                                                 const Teuchos::ParameterList& fixed_parameter_list) {
+    return get_requirement_generator_map()[key](fixed_parameter_list);
   }
 
-  /// \brief Get the default parameter list for a registered \c MetaKernel.
+  /// \brief Get the default fixed parameter list for a registered \c MetaKernel.
   ///
   /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
   /// provided \c register_new_method function.
   ///
-  /// \note This function does not cache its return value, so
-  /// each time you call this function, a new \c Teuchos::ParameterList will be created. You can save the result
-  /// yourself if you wish to reuse it.
+  /// \note This function does not cache its return value, so each time you call this function, a new
+  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
-  static Teuchos::ParameterList get_valid_params(const std::string& key) {
+  static Teuchos::ParameterList get_valid_fixed_params(const std::string& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaKernelFactory: The provided key " << key << " is not valid.");
-    return get_valid_params_generator_map()[key]();
+    return get_valid_fixed_params_generator_map()[key]();
+  }
+
+  /// \brief Get the default transient parameter list for a registered \c MetaKernel.
+  ///
+  /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
+  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
+  /// provided \c register_new_kernel function.
+  ///
+  /// \note This function does not cache its return value, so each time you call this function, a new
+  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
+  ///
+  /// \param key [in] A key corresponding to a registered \c MetaKernel.
+  static Teuchos::ParameterList get_valid_transient_params(const std::string& key) {
+    TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
+                               "MetaKernelFactory: The provided key " << key << " is not valid.");
+    return get_valid_transient_params_generator_map()[key]();
   }
   //@}
 
@@ -147,26 +162,28 @@ class MetaKernelFactory {
   static void register_new_kernel() {
     const std::string key = KernelToRegister::get_class_identifier();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                              "MetaKernelFactory: The provided key " << key << " already exists.");
+                               "MetaKernelFactory: The provided key " << key << " already exists.");
     get_instance_generator_map().insert(std::make_pair(key, KernelToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_part_requirements));
-    get_valid_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_params));
+    get_valid_fixed_params_generator_map().insert(std::make_pair(key, KernelToRegister::static_get_valid_fixed_params));
+    get_valid_transient_params_generator_map().insert(
+        std::make_pair(key, KernelToRegister::static_get_valid_transient_params));
   }
 
   /// \brief Generate a new instance of a registered \c MetaKernel.
   ///
   /// The registered \c MetaKernel accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, \c is_valid_key(key) must return true. To register a \c MetaKernel with this factory, use the
-  /// provided \c register_new_method function.
+  /// provided \c register_new_kernel function.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaKernel.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(const std::string& key,
-                                                                         stk::mesh::BulkData* const bulk_data_ptr,
-                                                                         const Teuchos::ParameterList& parameter_list) {
-    return get_instance_generator_map()[key](bulk_data_ptr, parameter_list);
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  static std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
+      const std::string& key, stk::mesh::BulkData* const bulk_data_ptr,
+      const Teuchos::ParameterList& fixed_parameter_list) {
+    return get_instance_generator_map()[key](bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 
@@ -198,10 +215,16 @@ class MetaKernelFactory {
     return requirement_generator_map;
   }
 
-  static DefaultParamsGeneratorMap& get_valid_params_generator_map() {
+  static DefaultParamsGeneratorMap& get_valid_fixed_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static DefaultParamsGeneratorMap default_params_generator_map;
-    return default_params_generator_map;
+    static DefaultParamsGeneratorMap default_fixed_params_generator_map;
+    return default_fixed_params_generator_map;
+  }
+
+  static DefaultParamsGeneratorMap& get_valid_transient_params_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static DefaultParamsGeneratorMap default_transient_params_generator_map;
+    return default_transient_params_generator_map;
   }
   //@}
 
@@ -211,9 +234,9 @@ class MetaKernelFactory {
   /// \brief Every concrete \c MetaKernel that inherits from the \c MetaKernelRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   ///
-  /// \note For devs: Unfortunitely, "Friend declarations cannot refer to partial specializations," so there is no way
-  /// to only have \c MetaKernelRegistrys with the same identifier be friends with this factory. Instead, ALL
-  /// MetaKernelRegistrys are friends, including the ones we don't want.
+  /// \note For devs: Unfortunately, "Friend declarations cannot refer to partial specializations," so there is no way
+  /// to only have \c MetaKernelRegistries with the same identifier be friends with this factory. Instead, ALL
+  /// MetaKernelRegistries are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
   template <typename, class, typename>
   friend class MetaKernelRegistry;
   //@}

@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAPAIRWISEKERNEL_HPP_
-#define MUNDY_META_METAPAIRWISEKERNEL_HPP_
+#ifndef MUNDY_META_METAKERNEL_HPP_
+#define MUNDY_META_METAKERNEL_HPP_
 
 /// \file MetaPairwiseKernel.hpp
 /// \brief Declaration of the MetaPairwiseKernel class
@@ -27,7 +27,6 @@
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
-#include <utility>      // for std::pair
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
@@ -51,29 +50,40 @@ namespace meta {
 template <typename ReturnType>
 class MetaPairwiseKernelBase {
  public:
-  //! \name Attributes
+  //! \name Getters
   //@{
 
-  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each source and target part.
+  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
-  /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These
-  /// assumptions may vary based parameters in the \c parameter_list.
+  /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c execute function. These
+  /// assumptions may vary based on parameters in the \c fixed_parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  /// \note Fixed parameters are those that change the part requirements.
   virtual std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const = 0;
+      const Teuchos::ParameterList& fixed_parameter_list) const = 0;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaPairwiseKernel.
-  virtual Teuchos::ParameterList get_valid_params() const = 0;
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaPairwiseKernel.
+  virtual Teuchos::ParameterList get_valid_fixed_params() const = 0;
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaPairwiseKernel.
+  virtual Teuchos::ParameterList get_valid_transient_params() const = 0;
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
   /// MetaPairwiseKernel.
   virtual std::string get_class_identifier() const = 0;
+  //@}
+
+  //! \name Setters
+  //@{
+
+  /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
+  virtual Teuchos::ParameterList set_transient_params() const = 0;
   //@}
 
   //! \name Actions
@@ -81,13 +91,13 @@ class MetaPairwiseKernelBase {
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   virtual std::shared_ptr<MetaPairwiseKernelBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const = 0;
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) const = 0;
 
   /// \brief Run the kernel's core calculation.
-  virtual ReturnType execute(const stk::mesh::Entity& source_entity, const stk::mesh::Entity& target_entity) = 0;
+  virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
   //@}
 };  // MetaPairwiseKernelBase
 
@@ -110,7 +120,8 @@ class MetaPairwiseKernelBase {
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaPairwiseKernel
 /// must implement the following static member functions
 ///   - \c details_static_get_part_requirements implementation of the \c get_part_requirements interface.
-///   - \c details_static_get_valid_params implementation of the \c get_valid_params interface.
+///   - \c details_static_get_valid_fixed_params implementation of the \c get_valid_fixed_params interface.
+///   - \c details_static_get_valid_transient_params implementation of the \c get_valid_transient_params interface.
 ///   - \c details_static_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_static_create_new_instance implementation of the \c create_new_instance interface.
 ///
@@ -125,42 +136,55 @@ class MetaPairwiseKernel : public MetaPairwiseKernelBase<ReturnType> {
   //! \name Getters
   //@{
 
-  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each source and target part.
+  /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
   /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These
-  /// assumptions may vary based parameters in the \c parameter_list.
+  /// assumptions may vary based on parameters in the \c fixed_parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  /// \note Fixed parameters are those that change the part requirements.
   std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const final;
+      const Teuchos::ParameterList& fixed_parameter_list) const final;
 
   /// \brief Get the requirements that this \c MetaPairwiseKernel imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c
   /// MetaPairwiseKernel with respect to the parts, topology, and fields input into the \c run function. These
-  /// assumptions may vary based parameters in the \c parameter_list.
+  /// assumptions may vary based on parameters in the \c fixed_parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  /// \note Fixed parameters are those that change the part requirements.
   static std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>> static_get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaPairwiseKernel::details_static_get_part_requirements(parameter_list);
+      const Teuchos::ParameterList& fixed_parameter_list) {
+    return DerivedMetaPairwiseKernel::details_static_get_part_requirements(fixed_parameter_list);
   }
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaPairwiseKernel.
-  Teuchos::ParameterList get_valid_params() const final;
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaPairwiseKernel.
+  /// \note Fixed parameters are those that change the part requirements and are fixed upon instantiation.
+  Teuchos::ParameterList get_valid_fixed_params() const final;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaPairwiseKernel.
-  static Teuchos::ParameterList static_get_valid_params() {
-    return DerivedMetaPairwiseKernel::details_static_get_valid_params();
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaPairwiseKernel.
+  static Teuchos::ParameterList static_get_valid_fixed_params() {
+    return DerivedMetaPairwiseKernel::details_static_get_valid_fixed_params();
+  }
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaPairwiseKernel.
+  /// \note Transient parameters are those that have no impact on the part requirements and can be set after
+  /// instantiation using \c set_transient_params.
+  Teuchos::ParameterList get_valid_transient_params() const final;
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaPairwiseKernel.
+  static Teuchos::ParameterList static_get_valid_transient_params() {
+    return DerivedMetaPairwiseKernel::details_static_get_valid_transient_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
@@ -174,23 +198,30 @@ class MetaPairwiseKernel : public MetaPairwiseKernelBase<ReturnType> {
   }
   //@}
 
+  //! \name Setters
+  //@{
+
+  /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
+  virtual Teuchos::ParameterList set_transient_params() const override = 0;
+  //@}
+
   //! \name Actions
   //@{
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   std::shared_ptr<MetaPairwiseKernelBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const final;
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaPairwiseKernelBase<ReturnType>> static_create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaPairwiseKernel::details_static_create_new_instance(bulk_data_ptr, parameter_list);
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) {
+    return DerivedMetaPairwiseKernel::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
 
   /// \brief Run the kernel's core calculation.
@@ -207,13 +238,18 @@ class MetaPairwiseKernel : public MetaPairwiseKernelBase<ReturnType> {
 template <typename ReturnType, class DerivedMetaPairwiseKernel>
 std::pair<std::shared_ptr<PartRequirements>, std::shared_ptr<PartRequirements>>
 MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_part_requirements(
-    const Teuchos::ParameterList& parameter_list) const {
-  return static_get_part_requirements(parameter_list);
+    const Teuchos::ParameterList& fixed_parameter_list) const {
+  return static_get_part_requirements(fixed_parameter_list);
 }
 
 template <typename ReturnType, class DerivedMetaPairwiseKernel>
-Teuchos::ParameterList MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_valid_params() const {
-  return static_get_valid_params();
+Teuchos::ParameterList MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_valid_fixed_params() const {
+  return static_get_valid_fixed_params();
+}
+
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+Teuchos::ParameterList MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_valid_transient_params() const {
+  return static_get_valid_transient_params();
 }
 
 template <typename ReturnType, class DerivedMetaPairwiseKernel>
@@ -228,8 +264,8 @@ std::string MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::get_class
 template <typename ReturnType, class DerivedMetaPairwiseKernel>
 std::shared_ptr<MetaPairwiseKernelBase<ReturnType>>
 MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::create_new_instance(
-    stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const {
-  return static_create_new_instance(bulk_data_ptr, parameter_list);
+    stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) const {
+  return static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
 }
 //}
 //@}
@@ -238,4 +274,4 @@ MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel>::create_new_instance(
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_METAPAIRWISEKERNEL_HPP_
+#endif  // MUNDY_META_METAKERNEL_HPP_

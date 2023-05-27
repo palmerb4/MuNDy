@@ -50,28 +50,39 @@ namespace meta {
 template <typename ReturnType>
 class MetaKernelBase {
  public:
-  //! \name Attributes
+  //! \name Getters
   //@{
 
   /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// with respect to the parts, topology, and fields input into the \c execute function. These assumptions may vary
+  /// based on parameters in the \c fixed_parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  /// \note Fixed parameters are those that change the part requirements.
   virtual std::shared_ptr<PartRequirements> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const = 0;
+      const Teuchos::ParameterList& fixed_parameter_list) const = 0;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  virtual Teuchos::ParameterList get_valid_params() const = 0;
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.
+  virtual Teuchos::ParameterList get_valid_fixed_params() const = 0;
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaKernel.
+  virtual Teuchos::ParameterList get_valid_transient_params() const = 0;
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
   virtual std::string get_class_identifier() const = 0;
+  //@}
+
+  //! \name Setters
+  //@{
+
+  /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
+  virtual Teuchos::ParameterList set_transient_params() const = 0;
   //@}
 
   //! \name Actions
@@ -79,10 +90,10 @@ class MetaKernelBase {
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   virtual std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const = 0;
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) const = 0;
 
   /// \brief Run the kernel's core calculation.
   virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
@@ -108,7 +119,8 @@ class MetaKernelBase {
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
 ///   - \c details_static_get_part_requirements implementation of the \c get_part_requirements interface.
-///   - \c details_static_get_valid_params implementation of the \c get_valid_params interface.
+///   - \c details_static_get_valid_fixed_params implementation of the \c get_valid_fixed_params interface.
+///   - \c details_static_get_valid_transient_params implementation of the \c get_valid_transient_params interface.
 ///   - \c details_static_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_static_create_new_instance implementation of the \c create_new_instance interface.
 ///
@@ -127,36 +139,51 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
   /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// based on parameters in the \c fixed_parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  std::shared_ptr<PartRequirements> get_part_requirements(const Teuchos::ParameterList& parameter_list) const final;
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  /// \note Fixed parameters are those that change the part requirements.
+  std::shared_ptr<PartRequirements> get_part_requirements(
+      const Teuchos::ParameterList& fixed_parameter_list) const final;
 
   /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
   /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// based on parameters in the \c fixed_parameter_list.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_static_get_part_requirements(parameter_list);
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  /// \note Fixed parameters are those that change the part requirements.
+  static std::shared_ptr<PartRequirements> static_get_part_requirements(
+      const Teuchos::ParameterList& fixed_parameter_list) {
+    return DerivedMetaKernel::details_static_get_part_requirements(fixed_parameter_list);
   }
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  Teuchos::ParameterList get_valid_params() const final;
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.
+  /// \note Fixed parameters are those that change the part requirements and are fixed upon instantiation.
+  Teuchos::ParameterList get_valid_fixed_params() const final;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  static Teuchos::ParameterList static_get_valid_params() {
-    return DerivedMetaKernel::details_static_get_valid_params();
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.
+  static Teuchos::ParameterList static_get_valid_fixed_params() {
+    return DerivedMetaKernel::details_static_get_valid_fixed_params();
+  }
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaKernel.
+  /// \note Transient parameters are those that have no impact on the part requirements and can be set after
+  /// instantiation using \c set_transient_params.
+  Teuchos::ParameterList get_valid_transient_params() const final;
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaKernel.
+  static Teuchos::ParameterList static_get_valid_transient_params() {
+    return DerivedMetaKernel::details_static_get_valid_transient_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
@@ -168,23 +195,30 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
   }
   //@}
 
+  //! \name Setters
+  //@{
+
+  /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
+  virtual Teuchos::ParameterList set_transient_params() const override = 0;
+  //@}
+
   //! \name Actions
   //@{
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const final;
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaKernelBase<ReturnType>> static_create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, parameter_list);
+      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) {
+    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
 
   /// \brief Run the kernel's core calculation.
@@ -200,13 +234,18 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 
 template <typename ReturnType, class DerivedMetaKernel>
 std::shared_ptr<PartRequirements> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
-    const Teuchos::ParameterList& parameter_list) const {
-  return static_get_part_requirements(parameter_list);
+    const Teuchos::ParameterList& fixed_parameter_list) const {
+  return static_get_part_requirements(fixed_parameter_list);
 }
 
 template <typename ReturnType, class DerivedMetaKernel>
-Teuchos::ParameterList MetaKernel<ReturnType, DerivedMetaKernel>::get_valid_params() const {
-  return static_get_valid_params();
+Teuchos::ParameterList MetaKernel<ReturnType, DerivedMetaKernel>::get_valid_fixed_params() const {
+  return static_get_valid_fixed_params();
+}
+
+template <typename ReturnType, class DerivedMetaKernel>
+Teuchos::ParameterList MetaKernel<ReturnType, DerivedMetaKernel>::get_valid_transient_params() const {
+  return static_get_valid_transient_params();
 }
 
 template <typename ReturnType, class DerivedMetaKernel>
@@ -220,8 +259,8 @@ std::string MetaKernel<ReturnType, DerivedMetaKernel>::get_class_identifier() co
 
 template <typename ReturnType, class DerivedMetaKernel>
 std::shared_ptr<MetaKernelBase<ReturnType>> MetaKernel<ReturnType, DerivedMetaKernel>::create_new_instance(
-    stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const {
-  return static_create_new_instance(bulk_data_ptr, parameter_list);
+    stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& fixed_parameter_list) const {
+  return static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
 }
 //}
 //@}

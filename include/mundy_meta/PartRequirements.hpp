@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_PARTPARAMS_HPP_
-#define MUNDY_META_PARTPARAMS_HPP_
+#ifndef MUNDY_META_PARTREQUIREMENTS_HPP_
+#define MUNDY_META_PARTREQUIREMENTS_HPP_
 
 /// \file PartRequirements.hpp
 /// \brief Declaration of the PartRequirements class
@@ -100,6 +100,7 @@ namespace meta {
 ///     - HEX_8 or HEXAHEDRON_8                  -> stk::topology::HEX_8
 ///     - HEX_20 or HEXAHEDRON_20                -> stk::topology::HEX_20
 ///     - HEX_27 or HEXAHEDRON_27                -> stk::topology::HEX_27
+///   - Super topologies
 ///     - SUPEREDGE<N>                           -> create_superedge_topology(N)
 ///     - SUPERFACE<N>                           -> create_superface_topology(N)
 ///     - SUPERELEMENT<N>                        -> create_superelement_topology(N)
@@ -294,4 +295,4 @@ class PartRequirements {
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_PARTPARAMS_HPP_
+#endif  // MUNDY_META_PARTREQUIREMENTS_HPP_

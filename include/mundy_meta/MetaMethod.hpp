@@ -57,19 +57,30 @@ class MetaMethodBase {
   /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaMethod
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// with respect to the parts, topology, and fields input into the \c execute function. These assumptions may vary
+  /// based on parameters in the \c fixed_parameter_list.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  /// \note Fixed parameters are those that change the part requirements.
   virtual std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
-      const Teuchos::ParameterList &parameter_list) const = 0;
+      const Teuchos::ParameterList &fixed_parameter_list) const = 0;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
-  virtual Teuchos::ParameterList get_valid_params() const = 0;
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaMethod.
+  virtual Teuchos::ParameterList get_valid_fixed_params() const = 0;
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaMethod.
+  virtual Teuchos::ParameterList get_valid_transient_params() const = 0;
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   virtual std::string get_class_identifier() const = 0;
+  //@}
+
+  //! \name Setters
+  //@{
+
+  /// \brief Set the transient parameters. If a valid parameter is not provided, we use the default value.
+  virtual Teuchos::ParameterList set_transient_params() const = 0;
   //@}
 
   //! \name Actions
@@ -77,10 +88,10 @@ class MetaMethodBase {
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   virtual std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const = 0;
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const = 0;
 
   /// \brief Run the method's core calculation.
   virtual ReturnType execute() = 0;
@@ -96,7 +107,8 @@ class MetaMethodBase {
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethod must
 /// implement the following static member functions
 ///   - \c details_static_get_part_requirements implementation of the \c get_part_requirements interface.
-///   - \c details_static_get_valid_params implementation of the \c get_valid_params interface.
+///   - \c details_static_get_valid_fixed_params implementation of the \c get_valid_fixed_params interface.
+///   - \c details_static_get_valid_transient_params implementation of the \c get_valid_transient_params interface.
 ///   - \c details_static_get_class_identifier implementation of the \c get_class_identifier interface.
 ///   - \c details_static_create_new_instance implementation of the \c create_new_instance interface.
 ///
@@ -115,32 +127,43 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaMethod
   /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// based on parameters in the \c fixed_parameter_list.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
-      const Teuchos::ParameterList &parameter_list) const final;
+      const Teuchos::ParameterList &fixed_parameter_list) const final;
 
   /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaMethod
   /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// based on parameters in the \c fixed_parameter_list.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<PartRequirements>> static_get_part_requirements(
-      const Teuchos::ParameterList &parameter_list) {
-    return DerivedMetaMethod::details_static_get_part_requirements(parameter_list);
+      const Teuchos::ParameterList &fixed_parameter_list) {
+    return DerivedMetaMethod::details_static_get_part_requirements(fixed_parameter_list);
   }
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
-  Teuchos::ParameterList get_valid_params() const final;
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaMethod.
+  /// \note Fixed parameters are those that change the part requirements and are fixed upon instantiation.
+  Teuchos::ParameterList get_valid_fixed_params() const final;
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaMethod.
-  static Teuchos::ParameterList static_get_valid_params() {
-    return DerivedMetaMethod::details_static_get_valid_params();
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaMethod.
+  /// \note Transient parameters are those that have no impact on the part requirements and can be changed using
+  /// \c set_transient_params.
+  Teuchos::ParameterList get_valid_transient_params() const final;
+
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaMethod.
+  static Teuchos::ParameterList static_get_valid_fixed_params() {
+    return DerivedMetaMethod::details_static_get_valid_fixed_params();
+  }
+
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaMethod.
+  static Teuchos::ParameterList static_get_valid_transient_params() {
+    return DerivedMetaMethod::details_static_get_valid_transient_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -152,23 +175,30 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
   }
   //@}
 
+  //! \name Setters
+  //@{
+
+  /// \brief Set the transient parameters. If a valid parameter is not provided, we use the default value.
+  virtual Teuchos::ParameterList set_transient_params() const override = 0;
+  //@}
+
   //! \name Actions
   //@{
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const final;
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaMethodBase<ReturnType>> static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return DerivedMetaMethod::details_static_create_new_instance(bulk_data_ptr, parameter_list);
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+    return DerivedMetaMethod::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
 
   /// \brief Run the method's core calculation.
@@ -183,13 +213,18 @@ class MetaMethod : public MetaMethodBase<ReturnType> {
 //{
 template <typename ReturnType, class DerivedMetaMethod>
 std::vector<std::shared_ptr<PartRequirements>> MetaMethod<ReturnType, DerivedMetaMethod>::get_part_requirements(
-    const Teuchos::ParameterList &parameter_list) const {
-  return static_get_part_requirements(parameter_list);
+    const Teuchos::ParameterList &fixed_parameter_list) const {
+  return static_get_part_requirements(fixed_parameter_list);
 }
 
 template <typename ReturnType, class DerivedMetaMethod>
-Teuchos::ParameterList MetaMethod<ReturnType, DerivedMetaMethod>::get_valid_params() const {
-  return static_get_valid_params();
+Teuchos::ParameterList MetaMethod<ReturnType, DerivedMetaMethod>::get_valid_fixed_params() const {
+  return static_get_valid_fixed_params();
+}
+
+template <typename ReturnType, class DerivedMetaMethod>
+Teuchos::ParameterList MetaMethod<ReturnType, DerivedMetaMethod>::get_valid_transient_params() const {
+  return static_get_valid_transient_params();
 }
 
 template <typename ReturnType, class DerivedMetaMethod>
@@ -203,8 +238,8 @@ std::string MetaMethod<ReturnType, DerivedMetaMethod>::get_class_identifier() co
 
 template <typename ReturnType, class DerivedMetaMethod>
 std::shared_ptr<MetaMethodBase<ReturnType>> MetaMethod<ReturnType, DerivedMetaMethod>::create_new_instance(
-    stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) const {
-  return static_create_new_instance(bulk_data_ptr, parameter_list);
+    stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const {
+  return static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
 }
 //}
 //@}

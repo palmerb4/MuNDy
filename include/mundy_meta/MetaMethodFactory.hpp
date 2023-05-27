@@ -59,17 +59,13 @@ struct DefaultMethodIdentifier {};  // DefaultMethodIdentifier
 /// importantly, it enables users to add their own \c MetaMethods without modifying Mundy's source code.
 ///
 /// It's important to note that the static members of this factory will be shared between any \c MetaMethodFactories
-/// with the same template \c RegistryIdentifier. We use the default identifier to register all of Mundy's
-/// \c MetaMethods.
-///
-/// \note This factory does not store an instance of \c MetaMethod; rather, it stores maps from a string to some of
-/// \c MetaMethod's static member functions.
+/// with the same template \c RegistryIdentifier.
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
 /// \tparam ReturnType The return type of the \c MetaMethod's execute function.
+/// \tparam RegistryIdentifier A template type used to create different independent instances of \c MetaMethodFactory.
 template <typename ReturnType, typename RegistryIdentifier = DefaultMethodIdentifier>
 class MetaMethodFactory {
  public:
@@ -104,39 +100,54 @@ class MetaMethodFactory {
     return get_instance_generator_map().count(key) != 0;
   }
 
-  /// \brief Get the requirements that this a registered \c MetaMethod imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this a registered \c MetaMethod imposes upon each part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made a registered \c
   /// MetaMethod with respect to the parts, topology, and fields input into the \c execute function. These assumptions
-  /// may vary based parameters in the \c parameter_list.
+  /// may vary based parameters in the \c fixed_parameter_list.
   ///
   /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
   /// provided \c register_new_method function.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list
-  /// is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A default fixed
+  /// parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
-      const std::string& key, const Teuchos::ParameterList& parameter_list) {
-    return get_requirement_generator_map()[key](parameter_list);
+      const std::string& key, const Teuchos::ParameterList& fixed_parameter_list) {
+    return get_requirement_generator_map()[key](fixed_parameter_list);
   }
 
-  /// \brief Get the default parameter list for a registered \c MetaMethod.
+  /// \brief Get the default fixed parameter list for a registered \c MetaMethod.
   ///
   /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
   /// provided \c register_new_method function.
   ///
-  /// \note This function does not cache its return value, so
-  /// each time you call this function, a new \c Teuchos::ParameterList will be created. You can save the result
-  /// yourself if you wish to reuse it.
+  /// \note This function does not cache its return value, so each time you call this function, a new
+  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
-  static Teuchos::ParameterList get_valid_params(const std::string& key) {
+  static Teuchos::ParameterList get_valid_fixed_params(const std::string& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaMethodFactory: The provided key " << key << " is not valid.");
-    return get_valid_params_generator_map()[key]();
+    return get_valid_fixed_params_generator_map()[key]();
+  }
+
+  /// \brief Get the default transient parameter list for a registered \c MetaMethod.
+  ///
+  /// The registered \c MetaMethod accessed by this function is fetched based on the provided key. This key must be
+  /// valid; that is, is_valid_key(key) must return true. To register a \c MetaMethod with this factory, use the
+  /// provided \c register_new_method function.
+  ///
+  /// \note This function does not cache its return value, so each time you call this function, a new
+  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
+  ///
+  /// \param key [in] A key corresponding to a registered \c MetaMethod.
+  static Teuchos::ParameterList get_valid_transient_params(const std::string& key) {
+    TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
+                               "MetaMethodFactory: The provided key " << key << " is not valid.");
+    return get_valid_transient_params_generator_map()[key]();
   }
   //@}
 
@@ -148,10 +159,12 @@ class MetaMethodFactory {
   static void register_new_method() {
     const std::string key = MethodToRegister::static_get_class_identifier();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
-                              "MetaMethodFactory: The provided key " << key << " already exists.");
+                               "MetaMethodFactory: The provided key " << key << " already exists.");
     get_instance_generator_map().insert(std::make_pair(key, MethodToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_part_requirements));
-    get_valid_params_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_valid_params));
+    get_valid_fixed_params_generator_map().insert(std::make_pair(key, MethodToRegister::static_get_valid_fixed_params));
+    get_valid_transient_params_generator_map().insert(
+        std::make_pair(key, MethodToRegister::static_get_valid_transient_params));
   }
 
   /// \brief Generate a new instance of a registered \c MetaMethod.
@@ -162,12 +175,12 @@ class MetaMethodFactory {
   ///
   /// \param key [in] A key corresponding to a registered \c MetaMethod.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(const std::string& key,
-                                                                         stk::mesh::BulkData* const bulk_data_ptr,
-                                                                         const Teuchos::ParameterList& parameter_list) {
-    return get_instance_generator_map()[key](bulk_data_ptr, parameter_list);
+  /// \param fixed_parameter_list [in] Optional list of parameters for setting up this class. A
+  /// default parameter list is accessible via \c get_valid_fixed_params.
+  static std::shared_ptr<MetaMethodBase<ReturnType>> create_new_instance(
+      const std::string& key, stk::mesh::BulkData* const bulk_data_ptr,
+      const Teuchos::ParameterList& fixed_parameter_list) {
+    return get_instance_generator_map()[key](bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 
@@ -199,10 +212,16 @@ class MetaMethodFactory {
     return requirement_generator_map;
   }
 
-  static DefaultParamsGeneratorMap& get_valid_params_generator_map() {
+  static DefaultParamsGeneratorMap& get_valid_fixed_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static DefaultParamsGeneratorMap default_params_generator_map;
-    return default_params_generator_map;
+    static DefaultParamsGeneratorMap default_fixed_params_generator_map;
+    return default_fixed_params_generator_map;
+  }
+
+  static DefaultParamsGeneratorMap& get_valid_transient_params_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static DefaultParamsGeneratorMap default_transient_params_generator_map;
+    return default_transient_params_generator_map;
   }
   //@}
 
@@ -212,9 +231,9 @@ class MetaMethodFactory {
   /// \brief Every concrete \c MetaMethod that inherits from the \c MetaMethodRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   ///
-  /// \note For devs: Unfortunitely, "Friend declarations cannot refer to partial specializations," so there is no way
+  /// \note For devs: Unfortunately, "Friend declarations cannot refer to partial specializations," so there is no way
   /// to only have \c MetaMethodRegistry with the same identifier be friends with this factory. Instead, ALL
-  /// \c MetaMethodRegistry are friends, including the ones we don't want.
+  /// \c MetaMethodRegistry are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
   template <typename, class, typename>
   friend class MetaMethodRegistry;
   //@}
