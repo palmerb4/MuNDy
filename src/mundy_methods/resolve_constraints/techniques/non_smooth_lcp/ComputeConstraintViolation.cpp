@@ -57,7 +57,7 @@ namespace non_smooth_lcp {
 //{
 
 ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *const bulk_data_ptr,
-                                                       const Teuchos::ParameterList &parameter_list)
+                                                       const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
@@ -65,8 +65,8 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Parse the parameters
   Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
@@ -89,7 +89,7 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
             kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
-  // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
+  // For this method, the parts cannot intersect, if they did the result could be non-deterministic.
   for (size_t i = 0; i < num_parts_; i++) {
     for (size_t j = 0; j < num_parts_; j++) {
       if (i != j) {
@@ -101,6 +101,18 @@ ComputeConstraintViolation::ComputeConstraintViolation(stk::mesh::BulkData *cons
       }
     }
   }
+}
+//}
+
+// \name MetaMethod interface implementation
+//{
+
+Teuchos::ParameterList ComputeConstraintViolation::set_transient_params(
+    const Teuchos::ParameterList &transient_parameter_list) const {
+  // Store the input parameters, use default parameters for any parameter not given.
+  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
+  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
 }
 //}
 

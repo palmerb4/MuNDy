@@ -54,7 +54,7 @@ namespace techniques {
 // \name Constructors and destructor
 //{
 
-NonSmoothLCP::NonSmoothLCP(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+NonSmoothLCP::NonSmoothLCP(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
@@ -62,8 +62,8 @@ NonSmoothLCP::NonSmoothLCP(stk::mesh::BulkData *const bulk_data_ptr, const Teuch
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Fetch the parameters for this part's sub-methods.
   Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
@@ -91,13 +91,25 @@ NonSmoothLCP::NonSmoothLCP(stk::mesh::BulkData *const bulk_data_ptr, const Teuch
 }
 //}
 
+// \name MetaMethod interface implementation
+//{
+
+Teuchos::ParameterList NonSmoothLCP::set_transient_params(
+    const Teuchos::ParameterList &transient_parameter_list) const {
+  // Store the input parameters, use default parameters for any parameter not given.
+  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
+  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+}
+//}
+
 // \name Actions
 //{
 
 void NonSmoothLCP::execute() {
-  // The following is the BBPGD solution to the linear complemenarity problem
+  // The following is the BBPGD solution to the linear complementarity problem
 
-  // Fill the Lagreange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
+  // Fill the Lagrange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     // Here, we use an internal stk function that doesn't use thread parallelism, lest we have a race condition.
@@ -119,7 +131,7 @@ void NonSmoothLCP::execute() {
       // Well, we need to break our parameters into those that impact the field values and those that don't.
       // These are the fixed and transient parameters.
       // alpha is a transient parameter and can therefore be passed into execute.
-      // Ok, having execute accept and parse the parameters could be detimental to performance,
+      // Ok, having execute accept and parse the parameters could be detrimental to performance,
       // Why don't we add a set_transient_parameters function.
       cpmpute_gradient_step_method_ptr_->execute();
       compute_constraint_projection_method_ptr_->execute();

@@ -128,6 +128,9 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<Sphere>(bulk_data_ptr, fixed_parameter_list);
   }
+
+  /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
+  Teuchos::ParameterList set_transient_params(const Teuchos::ParameterList& transient_parameter_list) const override;
   //@}
 
   //! \name Actions

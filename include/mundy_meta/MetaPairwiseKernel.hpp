@@ -83,7 +83,7 @@ class MetaPairwiseKernelBase {
   //@{
 
   /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
-  virtual Teuchos::ParameterList set_transient_params() const = 0;
+  virtual Teuchos::ParameterList set_transient_params(const Teuchos::ParameterList& transient_parameter_list) const = 0;
   //@}
 
   //! \name Actions
@@ -202,7 +202,8 @@ class MetaPairwiseKernel : public MetaPairwiseKernelBase<ReturnType> {
   //@{
 
   /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
-  virtual Teuchos::ParameterList set_transient_params() const override = 0;
+  virtual Teuchos::ParameterList set_transient_params(
+      const Teuchos::ParameterList& transient_parameter_list) const override = 0;
   //@}
 
   //! \name Actions

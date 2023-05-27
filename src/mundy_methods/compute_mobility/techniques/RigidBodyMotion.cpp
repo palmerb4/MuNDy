@@ -54,7 +54,8 @@ namespace techniques {
 // \name Constructors and destructor
 //{
 
-RigidBodyMotion::RigidBodyMotion(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+RigidBodyMotion::RigidBodyMotion(stk::mesh::BulkData *const bulk_data_ptr,
+                                 const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
@@ -62,8 +63,8 @@ RigidBodyMotion::RigidBodyMotion(stk::mesh::BulkData *const bulk_data_ptr, const
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Fetch the parameters for this part's sub-methods.
   Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
@@ -88,6 +89,18 @@ RigidBodyMotion::RigidBodyMotion(stk::mesh::BulkData *const bulk_data_ptr, const
   map_surface_force_to_rigid_body_force_method_ptr_ =
       mundy::meta::MetaMethodFactory<void, RigidBodyMotion>::create_new_instance(sf_to_rbf_class_id, bulk_data_ptr_,
                                                                                  part_map_sf_to_rbf_parameter_list);
+}
+//}
+
+// \name MetaMethod interface implementation
+//{
+
+Teuchos::ParameterList RigidBodyMotion::set_transient_params(
+    const Teuchos::ParameterList &transient_parameter_list) const {
+  // Store the input parameters, use default parameters for any parameter not given.
+  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
+  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
 }
 //}
 

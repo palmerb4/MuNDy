@@ -52,7 +52,7 @@ namespace compute_time_integration {
 // \name Constructors and destructor
 //{
 
-NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
@@ -60,8 +60,8 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Parse the parameters
   Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
@@ -75,13 +75,26 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
   }
 
   // Fill the internal members using the internal parameter list.
-  time_step_size_ = valid_parameter_list.get<double>("time_step_size");
-  node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coord_field_name");
-  node_velocity_field_name_ = valid_parameter_list.get<std::string>("node_velocity_field_name");
+  node_coord_field_name_ = valid_fixed_parameter_list.get<std::string>("node_coord_field_name");
+  node_velocity_field_name_ = valid_fixed_parameter_list.get<std::string>("node_velocity_field_name");
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
   node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name_);
+}
+//}
+
+// \name MetaKernel interface implementation
+//{
+
+Teuchos::ParameterList Sphere::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
+  // Store the input parameters, use default parameters for any parameter not given.
+  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
+  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+
+  // Fill the internal members using the internal parameter list.
+  time_step_size_ = valid_transient_parameter_list.get<double>("time_step_size");
 }
 //}
 
@@ -94,8 +107,8 @@ void NodeEuler::execute() {
     stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
                                    [](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed
-                                     // This is the best way to indicate that things like the nomal vector need updated.
-                                     // Does STK have an observer that lets us check if fields need updated?
+                                     // This is the best way to indicate that things like the normal vector need
+                                     // updated. Does STK have an observer that lets us check if fields need updated?
 
                                      // Euler step position.
                                      double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node);

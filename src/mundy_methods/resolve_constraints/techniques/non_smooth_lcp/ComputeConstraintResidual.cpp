@@ -57,7 +57,7 @@ namespace non_smooth_lcp {
 //{
 
 ComputeConstraintResidual::ComputeConstraintResidual(stk::mesh::BulkData *const bulk_data_ptr,
-                                                     const Teuchos::ParameterList &parameter_list)
+                                                     const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
@@ -65,8 +65,8 @@ ComputeConstraintResidual::ComputeConstraintResidual(stk::mesh::BulkData *const 
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Parse the parameters
   Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
@@ -78,6 +78,18 @@ ComputeConstraintResidual::ComputeConstraintResidual(stk::mesh::BulkData *const 
     const std::string part_name = part_parameter_list.get<std::string>("name");
     part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
   }
+}
+//}
+
+// \name MetaMethod interface implementation
+//{
+
+Teuchos::ParameterList ComputeConstraintResidual::set_transient_params(
+    const Teuchos::ParameterList &transient_parameter_list) const {
+  // Store the input parameters, use default parameters for any parameter not given.
+  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
+  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
 }
 //}
 

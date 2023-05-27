@@ -45,23 +45,36 @@ namespace kernels {
 // \name Constructors and destructor
 //{
 
-Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Fill the internal members using the internal parameter list
-  buffer_distance_ = valid_parameter_list.get<double>("buffer_distance");
-  obb_field_name_ = valid_parameter_list.get<std::string>("obb_field_name");
-  radius_field_name_ = valid_parameter_list.get<std::string>("radius_field_name");
-  node_coord_field_name_ = valid_parameter_list.get<std::string>("node_coordinate_field_name");
+  obb_field_name_ = valid_fixed_parameter_list.get<std::string>("obb_field_name");
+  radius_field_name_ = valid_fixed_parameter_list.get<std::string>("radius_field_name");
+  node_coord_field_name_ = valid_fixed_parameter_list.get<std::string>("node_coordinate_field_name");
 
   // Store the input params.
   obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
   radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+}
+//}
+
+// \name MetaKernel interface implementation
+//{
+
+Teuchos::ParameterList Sphere::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
+  // Store the input parameters, use default parameters for any parameter not given.
+  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
+  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+
+  // Fill the internal members using the internal parameter list.
+  buffer_distance_ = valid_fixed_parameter_list.get<double>("buffer_distance");
 }
 //}
 
