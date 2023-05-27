@@ -238,7 +238,7 @@ class PartRequirements {
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
-  /// TODO: Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
+  /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
   /// \param part_reqs_ptr [in] Pointer to the sub-part requirements to add to the part.
   void add_subpart_reqs(std::shared_ptr<PartRequirements> part_reqs_ptr);

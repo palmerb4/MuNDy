@@ -289,7 +289,7 @@ stk::topology::rank_t PartRequirements::get_part_rank() const {
 }
 
 std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> PartRequirements::get_part_field_map() {
-  // TODO(palmerb4): This is such an ugly and incorrect way to give other access to our internal fields.
+  // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal fields.
   return part_ranked_field_maps_;
 }
 //}

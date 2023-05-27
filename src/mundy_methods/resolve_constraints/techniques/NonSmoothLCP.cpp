@@ -97,7 +97,7 @@ NonSmoothLCP::NonSmoothLCP(stk::mesh::BulkData *const bulk_data_ptr, const Teuch
 void NonSmoothLCP::execute() {
   // The following is the BBPGD solution to the linear complemenarity problem
 
-  // Fill the lagreange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
+  // Fill the Lagreange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     // Here, we use an internal stk function that doesn't use thread parallelism, lest we have a race condition.
@@ -115,7 +115,13 @@ void NonSmoothLCP::execute() {
   while (ite_count < max_num_iterations_) {
     if (ite_count > 0) {
       // Take a projected gradient step.
-      cpmpute_gradient_step_method_ptr_->execute();  // TODO(palmerb4): How do we pass alpha to this method?
+      // TODO(palmerb4): How do we pass alpha to this method?
+      // Well, we need to break our parameters into those that impact the field values and those that don't. 
+      // These are the fixed and transient parameters. 
+      // alpha is a transient parameter and can therefore be passed into execute. 
+      // Ok, having execute accept and parse the parameters could be detimental to performance, 
+      // Why don't we add a set_transient_parameters function.
+      cpmpute_gradient_step_method_ptr_->execute();  
       compute_constraint_projection_method_ptr_->execute();
     }
 
