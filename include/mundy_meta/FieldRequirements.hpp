@@ -153,10 +153,10 @@ class FieldRequirements : public FieldRequirementsBase {
   /// Will throw an error if the minimum number of field states.
   unsigned get_field_min_number_of_states() const final;
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
   Teuchos::ParameterList get_valid_params() const final;
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
   static Teuchos::ParameterList static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("name", "INVALID", "Name of the field.");

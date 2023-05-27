@@ -69,7 +69,7 @@ ComputeConstraintForcing::ComputeConstraintForcing(stk::mesh::BulkData *const bu
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+  Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
   num_parts_ = parts_parameter_list.get<unsigned>("count");
   part_ptr_vector_.resize(num_parts_);
   for (size_t i = 0; i < num_parts_; i++) {

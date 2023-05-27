@@ -191,7 +191,7 @@ class PartRequirements {
   /// \brief field_rank [in] Rank associated with the retrieved fields.
   std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_field_map();
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
   static Teuchos::ParameterList get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("name", "INVALID", "Name of the part.");

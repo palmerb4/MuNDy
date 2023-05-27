@@ -66,7 +66,7 @@ RigidBodyMotion::RigidBodyMotion(stk::mesh::BulkData *const bulk_data_ptr, const
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fetch the parameters for this part's sub-methods.
-  Teuchos::ParameterList &technique_parameter_list = valid_parameter_list.sublist("technique");
+  Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
   const std::string technique_name = technique_parameter_list.get<std::string>("name");
   Teuchos::ParameterList &part_map_rbf_to_rbv_parameter_list =
       part_parameter_list.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");

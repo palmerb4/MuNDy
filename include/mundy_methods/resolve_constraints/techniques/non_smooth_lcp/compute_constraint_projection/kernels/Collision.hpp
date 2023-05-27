@@ -66,7 +66,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //@{
 
   /// \brief Constructor
-  explicit Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  explicit Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -74,13 +74,13 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
   /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::QUAD_4);
@@ -89,16 +89,25 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     return required_part_params;
   }
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("element_lagrange_multiplier_field_name",
+  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
+    static Teuchos::ParameterList default_fixed_parameter_list;
+    default_fixed_parameter_list.set("element_lagrange_multiplier_field_name",
                                std::string(default_element_lagrange_multiplier_field_name_),
                                "Name of the element field containing the constraint's Lagrange multiplier.");
-    return default_parameter_list;
+    return default_fixed_parameter_list;
+  }
+
+  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  static Teuchos::ParameterList details_static_get_valid_transient_params() {
+    static Teuchos::ParameterList default_transient_parameter_list;
+    return default_transient_parameter_list;
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -109,11 +118,11 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<Collision>(bulk_data_ptr, parameter_list);
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+    return std::make_shared<Collision>(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 

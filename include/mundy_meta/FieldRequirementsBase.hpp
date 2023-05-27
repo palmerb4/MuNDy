@@ -98,7 +98,7 @@ class FieldRequirementsBase {
   /// Will throw an error if the minimum number of field states.
   virtual unsigned get_field_min_number_of_states() const = 0;
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
   virtual Teuchos::ParameterList get_valid_params() const = 0;
   //@}
 

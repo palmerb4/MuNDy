@@ -62,7 +62,7 @@ ComputeMobility::ComputeMobility(stk::mesh::BulkData *const bulk_data_ptr, const
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Fetch the technique sublist and return its parameters.
-  Teuchos::ParameterList &technique_parameter_list = valid_parameter_list.sublist("technique");
+  Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
   const std::string technique_name = technique_parameter_list.get<std::string>("name");
 
   technique_ptr_ = mundy::meta::MetaMethodFactory<void, ComputeMobility>::create_new_instance(

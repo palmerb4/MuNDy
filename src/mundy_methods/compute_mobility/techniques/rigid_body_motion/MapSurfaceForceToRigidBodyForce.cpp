@@ -69,7 +69,7 @@ MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(stk::mesh::Bulk
   valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_part_pairs");
+  Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_part_pairs");
   num_part_pairs_ = parts_parameter_list.get<unsigned>("count");
   part_pair_ptr_vector_.resize(num_part_pairs_);
   for (size_t i = 0; i < num_part_pairs_; i++) {

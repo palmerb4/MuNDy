@@ -60,7 +60,7 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
   ComputeOBB() = delete;
 
   /// \brief Constructor
-  ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list);
+  ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -68,20 +68,20 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_parameter_list = parameter_list;
-    valid_parameter_list.validateParametersAndSetDefaults(static_get_valid_params());
+    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
     const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
     for (size_t i = 0; i < num_parts; i++) {
@@ -113,7 +113,7 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
     return part_requirements;
   }
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     Teuchos::ParameterList &kernel_params =
@@ -129,8 +129,8 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<ComputeOBB>(bulk_data_ptr, parameter_list);
