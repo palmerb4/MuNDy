@@ -17,34 +17,14 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_HPP_
+#ifndef MUNDY_METHODS_UTILS_QUATERNION_HPP_
+#define MUNDY_METHODS_UTILS_QUATERNION_HPP_
 
-/// \file NodeEuler.hpp
-/// \brief Declaration of ComputeMobility's NodeEuler technique.
+/// \file Quaternion.hpp
+/// \brief Declaration of the Quaternion helper class
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
-
-// Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_math/StkMath.hpp>          // for stk::math::sqrt, stk::math::sin, etc.
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>     // for stk::topology
-
-// Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeMobility.hpp>  // for mundy::meta::ComputeMobility
+#include <limits>  // for std::numeric_limits
 
 namespace mundy {
 
@@ -66,7 +46,7 @@ struct Quaternion {
 
   /// \brief Construct from existing quaternion stored as a vector.
   /// \param q An existing quaternion satisfying q = q[0] + q[1]i + q[2]j + q[3]k.
-  Quaternion(const stk::math::Vec<double, 4> &q) {
+  explicit Quaternion(const stk::math::Vec<double, 4> &q) {
     w = q[0];
     x = q[1];
     y = q[2];
@@ -78,7 +58,7 @@ struct Quaternion {
   /// \param qw The scalar component.
   /// \param qx The first complex component.
   /// \param qy The second complex component.
-  /// \param qz The thirs complex component.
+  /// \param qz The third complex component.
   Quaternion(const double qw, const double qx, const double qy, const double qz) {
     w = qw;
     x = qx;
@@ -142,9 +122,9 @@ struct Quaternion {
   // set a unit random quaternion representing uniform distribution on sphere surface
   void from_unit_random() {
     // non threadsafe random unit quaternion
-    const double u1 = (double)rand() / RAND_MAX;
-    const double u2 = (double)rand() / RAND_MAX;
-    const double u3 = (double)rand() / RAND_MAX;
+    const double u1 = static_cast<double>(rand_r()) / RAND_MAX;
+    const double u2 = static_cast<double>(rand_r()) / RAND_MAX;
+    const double u3 = static_cast<double>(rand_r()) / RAND_MAX;
     from_unit_random(u1, u2, u3);
   }
 
@@ -169,9 +149,9 @@ struct Quaternion {
     const double t8 = -z * z;
     const double t9 = z * w;
     const double t10 = -w * w;
-    return stk::math::Vec<double, 3>({double(2.0) * ((t8 + t10) * v[0] + (t6 - t4) * v[1] + (t3 + t7) * v[2]) + v[0],
-                                      double(2.0) * ((t4 + t6) * v[0] + (t5 + t10) * v[1] + (t9 - t2) * v[2]) + v[1],
-                                      double(2.0) * ((t7 - t3) * v[0] + (t2 + t9) * v[1] + (t5 + t8) * v[2]) + v[2]});
+    return stk::math::Vec<double, 3>({2.0 * ((t8 + t10) * v[0] + (t6 - t4) * v[1] + (t3 + t7) * v[2]) + v[0],
+                                      2.0 * ((t4 + t6) * v[0] + (t5 + t10) * v[1] + (t9 - t2) * v[2]) + v[1],
+                                      2.0 * ((t7 - t3) * v[0] + (t2 + t9) * v[1] + (t5 + t8) * v[2]) + v[2]});
   }
 
   // rotate a point v in 3D space around a given point p using this quaternion
@@ -243,5 +223,5 @@ struct Quaternion {
 }  // namespace methods
 
 }  // namespace mundy
-
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_NODEEULER_HPP_
+#endif  // MUNDY_METHODS_UTILS_QUATERNION_HPP_
+#endif  // MUNDY_METHODS_UTILS_QUATERNION_HPP__

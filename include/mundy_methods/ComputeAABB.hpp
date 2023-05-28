@@ -122,8 +122,8 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
     //                 Instead of passing in a kernel per part, users should pass in a kernel per valid multibody part
     //                 attribute. Of course, we will have also provide default kernels.
     static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params =
-        default_fixed_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
+    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
+        "kernels", false, "Sublist that defines the kernels and their parameters.");
     kernel_params.sublist("compute_aabb", false, "Sublist that defines the aabb kernel parameters.");
     return default_fixed_parameter_list;
   }

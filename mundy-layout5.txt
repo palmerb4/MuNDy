@@ -19,8 +19,12 @@ Mundy's design needs to be flexible enough to avoid copying. Maybe registration 
 the class they are registered to. If I wanted to swap out NonSmoothLCP, I would have to use its registry in my class. That's not unreasonable.
 
 
+
+
+
+
 Things that are missing,
- - What if a constraint has multiple Lagrange multipliers like friction? The current design is sufficiently abstract to support this functionality.
+ - What if a constraint has multiple Lagrange multipliers like friction? The current design is sufficiently abstract to support this functionality. (Not any more)
  - Periodicity
  - How to make reading and writing the mesh easier? 
    - Need a function that takes in an stk::io::StkMeshIoBroker and adds the fields to it. Can a parameter list be provided to specify which fields (if any) to output? 
@@ -473,7 +477,7 @@ Order I will implement things
 16. generate_collision_constraints::kernels::SphereSphere
   - Given two sphere elements, generate the collision constraint between them. Make sure both elements are spheres! If they aren't just continue on. 
 17. GenerateCollisionConstraints
-  - Given the BulkData with an up-to-date nighbor list mesh attribute, generate collision constraints between any two neighbors that don't already have a collision constraint.
+  - Given the BulkData with an up-to-date neighbor list mesh attribute, generate collision constraints between any two neighbors that don't already have a collision constraint.
   - Choose the appropriate pairwise kernel based on part membership.
 18. UpdateConstraints
   - Given the BulkData, update the constraints as though they had just been generated. 
@@ -482,10 +486,31 @@ Order I will implement things
 
 
 There are some BIG changes that need to occur. Those are
+0. Passing fields/parameters to sub-methods/sub-kernels.
 1. The parameters for all methods and kernels need broken into fixed and transient parameters.
 2. All details_static_get_valid_params need updated to return the kernel/submethod params. 
    It should look a lot like details_static_get_part_requirements
-3. Need a way to have default parameters for different multiboidy types withoyt the user needing to specify every single kernel. 
+3. Need a way to have default parameters for different multiboidy types without the user needing to specify every single kernel. 
    One promising method is to have a parameter like, use_present_default_parameters: SPHERE. 
 
+
+Kernels allow methods to perform different actions upon one part vs another. One of the core issues is that users currently specify ALL kernels for EVERY part. Not only that, 
+there is currently no way to fetch the default/valid parameters. What we want is a set of default parameters such that the users can identify their part as a sphere and it 
+automatically use the sphere kernels. A multibody type identifier would take care of this. For example, each method/sub-method would parse its registered multibody types, 
+get the requirements for each, and then output those. Now, if we do this right, then there should be a method for adding a sub-multibody type, such as a colored sphere, that
+picks up some of the sphere's defaults but is able to overwrite others. Why does it need to pick up the defaults? We need a checker that can tell if a multibody type is a 
+sub-type. That way, we only need to specify kernels for colored spheres in a few isolated locations. Can this be achieved using part inheritance? For example, we always add
+a sphere part and if you are a sub-part of the sphere part then you automatically pick up the sphere kernels. OHHHH, we need a way to specify multibody types as sub-multibody 
+types such that we can generate the set of parts for those multibody types and have them be subparts of their parent type. 
+
+To be honest, the current design almost achieves this. Colored spheres are spheres, so they can be used with the sphere kernel so long as you list their kernels as being 
+sphere kernels. PartRequirements allowed subparting. The ColoredSphere kernels could explicitly identify the ColoredSpheres are subparts of Spheres. THE PART REQUIREMENTS
+CAN ENCODE THE MULTIBODY TYPE AND WE CAN USE THEM TO CREATE THE MULTIBODY INHERITANCE TREE! Ok, this is a big big change and I'm happy we figured it out. In the meantime, 
+I'll turn off parameter validation and will expect users to specify all parameters exactly.
+
+sphere_part, ellipsoid_part, collision_part, etc. 
+     |
+colored_sphere_part
+
+The kernels and methods all specify 
 
