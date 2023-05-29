@@ -127,13 +127,7 @@ void NonSmoothLCP::execute() {
   while (ite_count < max_num_iterations_) {
     if (ite_count > 0) {
       // Take a projected gradient step.
-      // TODO(palmerb4): How do we pass alpha to this method?
-      // Well, we need to break our parameters into those that impact the field values and those that don't.
-      // These are the fixed and transient parameters.
-      // alpha is a transient parameter and can therefore be passed into execute.
-      // Ok, having execute accept and parse the parameters could be detrimental to performance,
-      // Why don't we add a set_transient_parameters function.
-      cpmpute_gradient_step_method_ptr_->execute();
+      compute_gradient_step_method_ptr_->execute();
       compute_constraint_projection_method_ptr_->execute();
     }
 
@@ -148,7 +142,7 @@ void NonSmoothLCP::execute() {
     // violation.
     compute_linearized_rate_of_change_of_constraint_violation->execute();
 
-    // Compute the global constraint residuial.
+    // Compute the global constraint residual.
     compute_constraint_violation_method_ptr_->execute();
     double residual = compute_constraint_residual_method_ptr_->execute();
 
@@ -164,13 +158,14 @@ void NonSmoothLCP::execute() {
       alpha = 1.0 / residual;
     } else if (ite_count % 2 ==) {
       // Barzilai-Borwein step size Choice 1.
-      a = xkdiff_dot_xkdiff;
-      b = xkdiff_dot_gkdiff;
+      alpha = xkdiff_dot_xkdiff / xkdiff_dot_gkdiff;
     } else {
       // Barzilai-Borwein step size Choice 2.
-      a = xkdiff_dot_gkdiff;
-      b = gkdiff_dot_gkdiff;
+      alpha = xkdiff_dot_gkdiff / gkdiff_dot_gkdiff;
     }
+    Teuchos::ParameterList constraint_projection_transient_parameter_list;
+    constraint_projection_transient_parameter_list->set("step_size", alpha);
+    compute_constraint_projection_method_ptr_->set_transient_params(constraint_projection_transient_parameter_list);
 
     // Rotate the state of the xk and gk.
     bulk_data_ptr_->update_field_data_states(element_lagrange_multiplier_field_ptr_);

@@ -17,13 +17,14 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHODREGISTRY_HPP_
-#define MUNDY_META_METAMETHODREGISTRY_HPP_
+#ifndef MUNDY_META_METAREGISTRY_HPP_
+#define MUNDY_META_METAREGISTRY_HPP_
 
-/// \file MetaMethodRegistry.hpp
-/// \brief Declaration of the MetaMethodRegistry class
+/// \file MetaRegistry.hpp
+/// \brief Declaration of the MetaRegistry class
 
 // C++ core libs
+#include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
 
 // Mundy libs
@@ -34,26 +35,29 @@ namespace mundy {
 
 namespace meta {
 
-/// \class MetaMethodRegistry
+/// \class MetaRegistry
 /// \brief A class for registering \c MetaMethods within \c MetaMethodFactory.
 ///
 /// All classes derived from \c MetaMethod, which wish to be registered within the \c MetaMethodFactory should inherit
 /// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
 /// Pattern).
 ///
-/// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
+/// \tparam BaseType A polymorphic base type shared by each registered class.
+/// \tparam ClassToRegister A class derived from \c MetaMethod.
+/// \tparam RegistrationType The type of each class's identifier.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
-template <typename ReturnType, class DerivedMetaMethod, typename RegistryIdentifier = DefaultMethodIdentifier>
-struct MetaMethodRegistry {
+template <typename BaseType, class ClassToRegister, typename RegistrationType = std::string,
+          typename RegistryIdentifier = DefaultMethodIdentifier>
+struct MetaRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register \c DerivedMetaMethod with the \c MetaMethodFactory.
+  /// @brief Register \c ClassToRegister with the \c MetaMethodFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaMethodFactory<ReturnType, RegistryIdentifier>::template register_new_method<DerivedMetaMethod>();
+    MetaMethodFactory<BaseType, RegistrationType, RegistryIdentifier>::template register_new_method<ClassToRegister>();
     return true;
   }
   //@}
@@ -64,20 +68,18 @@ struct MetaMethodRegistry {
   /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
   static const bool is_registered;
   //@}
-};  // MetaMethodRegistry
+};  // MetaRegistry
 
 /// @brief Perform the static registration.
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-///
-/// \tparam DerivedMetaMethod A class derived from \c MetaMethod.
-template <typename ReturnType, class DerivedMetaMethod, typename RegistryIdentifier>
-const bool MetaMethodRegistry<ReturnType, DerivedMetaMethod, RegistryIdentifier>::is_registered =
-    MetaMethodRegistry<ReturnType, DerivedMetaMethod, RegistryIdentifier>::register_type();
+template <typename BaseType, class ClassToRegister, typename RegistrationType, typename RegistryIdentifier>
+const bool MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIdentifier>::is_registered =
+    MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIdentifier>::register_type();
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_METAMETHODREGISTRY_HPP_
+#endif  // MUNDY_META_METAREGISTRY_HPP_

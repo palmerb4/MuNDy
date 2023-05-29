@@ -97,8 +97,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_aabb");
+      Teuchos::ParameterList &part_kernel_parameter_list = part_parameter_list.sublist("kernels");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");

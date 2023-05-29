@@ -129,8 +129,11 @@ Teuchos::ParameterList MapSurfaceForceToRigidBodyForce::set_transient_params(
 //{
 
 void MapSurfaceForceToRigidBodyForce::execute() {
-  // TODO(palmerb4): clear the rigid body force
-  // TODO(palmerb4): what about sharing?
+  // TODO(palmerb4): The following won't function correctly if the center body nodes are shared.
+  // Is there a way to assert that an entity is not shared?
+
+  // Currently we sum into the body force. Shall we add alpha and beta (like Tpetra) to let users choose
+  // if the summation will occur or not. This also makes clear that the summation occurs.
   for (size_t i = 0; i < num_part_pairs_; i++) {
     std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 

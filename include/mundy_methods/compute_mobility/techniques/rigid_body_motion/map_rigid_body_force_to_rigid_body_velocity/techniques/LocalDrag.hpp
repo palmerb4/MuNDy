@@ -72,6 +72,13 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   LocalDrag(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
+  //! \name Typedefs
+  //@{
+
+  /// \brief The factory associated with this class's kernels.
+  using KernelFactory = mundy::meta::MetaPairwiseKernelFactory<void, LocalDrag>;
+  //@}
+
   //! \name MetaMethod interface implementation
   //@{
 
@@ -110,20 +117,15 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_pair_parameter_list.sublist("kernels").sublist("local_drag");
+      Teuchos::ParameterList &part_kernel_parameter_list = part_pair_parameter_list.sublist("kernels");
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaPairwiseKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>::get_valid_params(
-              kernel_name));
+      part_kernel_parameter_list.validateParametersAndSetDefaults(KernelFactory::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements = mundy::meta::MetaPairwiseKernelFactory<
-              void, MapRigidBodyVelocityToSurfaceVelocity>::get_part_requirements(kernel_name,
-                                                                                  part_kernel_parameter_list);
+          pair_requirements = KernelFactory::get_part_requirements(kernel_name, part_kernel_parameter_list);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
     }
@@ -131,12 +133,66 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
     return part_requirements;
   }
 
-  /// \brief Get the default transient parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
-        "kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("local_drag", false, "Sublist that defines the local drag kernel parameters.");
+  /// \brief Validate the given set of fixed parameters and fill in any missing parameters with defaults.
+  static void details_static_validate_fixed_params_set_defaults(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
+    // Note, both .sublist and .get will throw an error if the requested name doesn't exist or has the wrong type.
+
+    // Loop over each of the provided part pairs and check their params.
+    // These fields to not have defaults.
+    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_part_pairs");
+    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
+    for (size_t i = 0; i < num_part_pairs; i++) {
+      // Fetch the i'th part parameters.
+      Teuchos::ParameterList &part_pair_parameter_list =
+          parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
+      part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+
+      // Fetch the parameters for this part's kernel.
+      Teuchos::ParameterList &part_kernel_parameter_list = part_pair_parameter_list.sublist("kernels");
+
+      // Validate the kernel params and fill in defaults.
+      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
+      part_kernel_parameter_list.validateParameters(KernelFactory::get_valid_params(kernel_name));
+
+      // Merge the kernel requirements.
+      std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
+          pair_requirements = KernelFactory::get_part_requirements(kernel_name, part_kernel_parameter_list);
+      part_requirements[i - 1]->merge(pair_requirements.first);
+      part_requirements[i]->merge(pair_requirements.second);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // Get the kernel params.
+    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist("kernels");
+
+    // Loop over each of the given kernels and validate them using using our registered kernels.
+    const unsigned num_kernels = kernel_params.get<unsigned>("count");
+    for (int i = 0; i < num_kernels; i++) {
+
+      kernel_params KernelFactory::
+    }
+
+    // Validate the kernel params and fill in defaults.
+    const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
+    part_kernel_parameter_list.validateParametersAndSetDefaults(KernelFactory::get_valid_params(kernel_name));
+
     return default_fixed_parameter_list;
   }
 

@@ -486,7 +486,7 @@ Order I will implement things
 
 
 There are some BIG changes that need to occur. Those are
-0. Passing fields/parameters to sub-methods/sub-kernels.
+0. Passing fields/parameters to sub-methods/sub-kernels. (Who should be the one to zero out the fields?)
 1. The parameters for all methods and kernels need broken into fixed and transient parameters.
 2. All details_static_get_valid_params need updated to return the kernel/submethod params. 
    It should look a lot like details_static_get_part_requirements
@@ -506,7 +506,26 @@ types such that we can generate the set of parts for those multibody types and h
 To be honest, the current design almost achieves this. Colored spheres are spheres, so they can be used with the sphere kernel so long as you list their kernels as being 
 sphere kernels. PartRequirements allowed subparting. The ColoredSphere kernels could explicitly identify the ColoredSpheres are subparts of Spheres. THE PART REQUIREMENTS
 CAN ENCODE THE MULTIBODY TYPE AND WE CAN USE THEM TO CREATE THE MULTIBODY INHERITANCE TREE! Ok, this is a big big change and I'm happy we figured it out. In the meantime, 
-I'll turn off parameter validation and will expect users to specify all parameters exactly.
+I'll turn off parameter validation and will expect users to specify all parameters exactly. Methods must be given field names and cannot set them explicitly because the 
+same method may need ran twice: once with one set of field names then again with another set. This creates an issue for our design since we can't assign fields to our
+inheritance tree if the fields don'e have names! Nevermind, the part requirements take in the fixed parameters, so we are able to access the field names. 
+
+Not every kernel has a multibody type associated with it. I could have kernels for acting on a grid that perform different actions based on topology. Kernels are meant to 
+perform a different action on a specific group based on some identifying attribute about that group. If we better abstract our kernels to reduce duplicative code, then 
+we can introduce different kernels based on the thing that sets them apart. That's the class identifier. What you're getting at is that the class identifier type should be 
+templated. Multibody kernels are just those that are identified by a mundy::multibody::multibody_t, topology kernels are those that are identified by an
+stk::topology::topology_t, general kernels are those that are identified by a string name. 
+
+For example, you could have a MultibodyKernel acts on a specific multibody type or you could have a topology ke
+
+
+
+
+
+I don't think that we should force all multibody types to have the same aabb field name or same node force name. Now, it's better for performance if we do, but it's an
+unnecessary restriction. The only reason we wanted to make the change, where methods fetch and then pass down the chain fields like aabb, was to allow certain methods
+to zero-out force fields. Instead, why don't we loop over each of the kernels, fetch their force field and zero it out? That would require us to force all sub-kernels
+to have a parameter with the aabb_field_name. I'm ok with that.
 
 sphere_part, ellipsoid_part, collision_part, etc. 
      |
@@ -514,3 +533,53 @@ colored_sphere_part
 
 The kernels and methods all specify 
 
+
+What are the required parameters for every method? 
+
+
+What we currently do:
+ComputeAABB
+  input_parts:
+    count: 2
+    input_part_0:
+      name:
+      kernels:
+        name: sphere
+        buffer_distance:
+        aabb_field_name:
+        radius_field_name:
+    input_part_1:
+      name:
+      kernels:
+        name: ellipsoid
+        buffer_distance:
+        aabb_field_name:
+        axis_length_field_name:
+
+What we should do with multibody types:
+ComputeAABB
+  kernels:
+    count: 2
+    kernel_0: 
+      multibody_type: sphere
+      buffer_distance:
+      aabb_field_name:
+      radius_field_name:
+    kernel_1: 
+      multibody_type: ellipsoid
+      axis_length_field_name:
+
+What we expect the user to provide:
+ComputeAABB
+  kernels:
+    count: 2
+    kernel_0: 
+      multibody_type: sphere
+      buffer_distance:
+      aabb_field_name:
+      radius_field_name:
+    kernel_1: 
+      multibody_type: ellipsoid
+      buffer_distance:
+      aabb_field_name:
+      axis_length_field_name:
