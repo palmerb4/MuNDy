@@ -156,7 +156,7 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const std::string_view class_identifier_ = "SPHERE";
+  static const mundy::multibody::multibody_t class_identifier_ = mundy::multibody::get_multibody_type("SPHERE");
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;

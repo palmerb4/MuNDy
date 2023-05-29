@@ -36,11 +36,11 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaPairwiseKernelFactory
-#include <mundy_meta/MetaPairwiseKernel.hpp>  // for mundy::meta::MetaPairwiseKernel, mundy::meta::MetaPairwiseKernelBase
-#include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaPairwiseKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintForcing
 
 namespace mundy {
@@ -59,8 +59,8 @@ namespace kernels {
 
 /// \class Collision
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Collision : public mundy::meta::MetaPairwiseKernel<void, Collision>,
-                  public mundy::meta::MetaPairwiseKernelRegistry<void, Collision, ComputeConstraintForcing> {
+class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
+                  public mundy::meta::MetaMultibodyKernelRegistry<void, Collision, ComputeConstraintForcing> {
  public:
   //! \name Constructors and destructor
   //@{

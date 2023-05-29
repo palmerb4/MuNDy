@@ -131,6 +131,23 @@ class MetaPairwiseKernel
   //@}
 };  // MetaPairwiseKernel
 
+/// \brief Partial specialization for MetaPairwiseKernelBases, identified by a mundy multibody type.
+template <typename ReturnType>
+using MetaMultibodyPairwiseKernelBase = MetaPairwiseKernelBase<ReturnType, mundy::multibody::multibody_t>;
+
+/// \brief Partial specialization for MetaPairwiseKernels, identified by a mundy multibody type.
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+using MetaMultibodyPairwiseKernel = MetaPairwiseKernel<ReturnType, DerivedMetaKernel, mundy::multibody::multibody_t>;
+
+/// \brief Partial specialization for MetaPairwiseKernels, identified by an stk topology type.
+template <typename ReturnType>
+using MetaMultibodyPairwiseKernelBase = MetaPairwiseKernelBase<ReturnType, stk::topology::topology_t>;
+
+/// \brief Partial specialization for MetaPairwiseKernels, identified by an stk topology type.
+template <typename ReturnType, class DerivedMetaPairwiseKernel>
+using MetaMultibodyPairwiseKernel =
+    MetaPairwiseKernel<ReturnType, DerivedMetaPairwiseKernel, stk::topology::topology_t>;
+
 }  // namespace meta
 
 }  // namespace mundy

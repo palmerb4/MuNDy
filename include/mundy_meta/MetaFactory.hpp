@@ -247,39 +247,42 @@ class MetaFactory {
 };  // MetaFactory
 
 /// \brief Partial specialization for MetaMethods.
-template <typename RegistrationType = std::string, typename RegistryIdentifier = GlobalIdentifier>
-using MetaMethodFactory = MetaFactory<MetaMethodBase<ReturnType>, RegistrationType, RegistryIdentifier>;
+template <typename ReturnType, typename RegistrationType = std::string, typename RegistryIdentifier = GlobalIdentifier>
+using MetaMethodFactory =
+    MetaFactory<MetaMethodBase<ReturnType, RegistryIdentifier>, RegistrationType, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaKernels.
-template <typename RegistrationType = std::string, typename RegistryIdentifier = GlobalIdentifier>
-using MetaKernelFactory = MetaFactory<MetaKernelBase<ReturnType>, RegistrationType, RegistryIdentifier>;
+template <typename ReturnType, typename RegistrationType = std::string, typename RegistryIdentifier = GlobalIdentifier>
+using MetaKernelFactory =
+    MetaFactory<MetaKernelBase<ReturnType, RegistryIdentifier>, RegistrationType, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaPairwiseKernels.
-template <typename RegistrationType = std::string, typename RegistryIdentifier = GlobalIdentifier>
-using MetaPairwiseKernelFactory = MetaFactory<MetaPairwiseKernelBase<ReturnType>, RegistrationType, RegistryIdentifier>;
+template <typename ReturnType, typename RegistrationType = std::string, typename RegistryIdentifier = GlobalIdentifier>
+using MetaPairwiseKernelFactory =
+    MetaFactory<MetaPairwiseKernelBase<ReturnType, RegistryIdentifier>, RegistrationType, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
-template <typename RegistryIdentifier = GlobalIdentifier>
+template <typename ReturnType, typename RegistryIdentifier = GlobalIdentifier>
 using MetaMultibodyKernelFactory = MetaKernelFactory<mundy::multibody::multibody_t, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaPairwiseKernels, identified by a mundy multibody type.
 /// To make a new key use:
 ///     auto key = std::make_pair(multibody_t1, multibody_t2)
 /// This key can then be used like any other key.
-template <typename RegistryIdentifier = GlobalIdentifier>
+template <typename ReturnType, typename RegistryIdentifier = GlobalIdentifier>
 using MetaMultibodyPairwiseKernelFactory =
     MetaPairwiseKernelFactory<std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
                               RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
-template <typename RegistryIdentifier = GlobalIdentifier>
+template <typename ReturnType, typename RegistryIdentifier = GlobalIdentifier>
 using MetaTopologyKernelFactory = MetaKernelFactory<stk::topology::topology_t, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaPairwiseKernels, identified by a pair of stk topology types.
 /// To make a new key use:
 ///     auto key = std::make_pair(topology_t1, topology_t2)
 /// This key can then be used like any other key.
-template <typename RegistryIdentifier = GlobalIdentifier>
+template <typename ReturnType, typename RegistryIdentifier = GlobalIdentifier>
 using MetaTopologyPairwiseKernelFactory =
     MetaPairwiseKernelFactory<std::pair<stk::topology::topology_t, stk::topology::topology_t>, RegistryIdentifier>;
 

@@ -129,6 +129,22 @@ class MetaKernel
   //@}
 };  // MetaKernel
 
+/// \brief Partial specialization for MetaKernelBases, identified by a mundy multibody type.
+template <typename ReturnType>
+using MetaMultibodyKernelBase = MetaKernelBase<ReturnType, mundy::multibody::multibody_t>;
+
+/// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
+template <typename ReturnType, class DerivedMetaKernel>
+using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, mundy::multibody::multibody_t>;
+
+/// \brief Partial specialization for MetaKernels, identified by an stk topology type.
+template <typename ReturnType>
+using MetaMultibodyKernelBase = MetaKernelBase<ReturnType, stk::topology::topology_t>;
+
+/// \brief Partial specialization for MetaKernels, identified by an stk topology type.
+template <typename ReturnType, class DerivedMetaKernel>
+using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, stk::topology::topology_t>;
+
 }  // namespace meta
 
 }  // namespace mundy

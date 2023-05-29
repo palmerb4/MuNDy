@@ -94,7 +94,7 @@ void Collision::execute(const stk::mesh::Entity &collision_node) {
 
   // Fetch the attached collision constraint's information.
   for (int i = 0; i < num_collision_elements; i++) {
-    // TODO(palmerb4): The following requires us to switch to multibody part attibutes.
+    // TODO(palmerb4): The following requires us to switch to multibody part attributes.
     if (collision_part.constains(collision_elements[i])) {
       const double linker_lag_mult = stk::mesh::field_data(linkerLagMultField, collision_elements[i])[0];
 

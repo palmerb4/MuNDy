@@ -55,8 +55,8 @@ namespace kernels {
 
 /// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
-               public mundy::meta::MetaKernelRegistry<void, Sphere, MapSurfaceForceToRigidBodyForce> {
+class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
+               public mundy::meta::MetaMultibodyKernelRegistry<void, Sphere, MapSurfaceForceToRigidBodyForce> {
  public:
   //! \name Constructors and destructor
   //@{

@@ -583,3 +583,71 @@ ComputeAABB
       buffer_distance:
       aabb_field_name:
       axis_length_field_name:
+
+
+
+What should mundy multibody look like? 
+Well, if we store a multibody base type (just like stk::topology), then we can have sub-multibody types. 
+
+Big issue. mundy::multibody needs to be extensible. I state this because that is the only way for users to swap out multibody kernels for their own. 
+This way, colored spheres can be a multibody type, allowing users to make their own multibody kernel specializations for them. Otherwise, colored spheres
+would only ever act like spheres. We shouldn't use enums directly. I would rather have a static map from string to int. The int is our multibody type.
+From there, can we map from mundy::multibody::multibody_t to mundy::multibody in a way that users can extend? This way we can add a method for automatically
+mapping mundy::multibody to an stk::topology.
+
+static const mundy::multibody::multibody_t class_identifier_ = mundy::multibody::Sphere::get_id();
+
+There's no way to go the other direction without using pointers. You'd have to map to Multibody directly, which would discard all information about the sphere. 
+Because these classes are entirely static, the factory can store all of their methods in jump tables. Then we either use the id or the string to call the correct method. 
+
+This means that Multibody can use CRTP to force each derived class to implement a certain static interface, the factory will store this interface. 
+If we name the factory multibody, then we can do things like
+
+unsigned id = mundy::MultibodyFactory::get_id("SPHERE");
+std::string name = mundy::MultibodyFactory::get_name(id);
+mundy::MultibodyFactory::get_topology(multibody_name);
+mundy::MultibodyFactory::get_topology(multibody_id);
+mundy::MultibodyFactory::is_valid(multibody_id);
+mundy::MultibodyFactory::is_valid(multibody_name);
+mundy::MultibodyFactory::has_parent(multibody_id);
+mundy::MultibodyFactory::has_parent(multibody_name);
+mundy::MultibodyFactory::get_parent(multibody_id);
+mundy::MultibodyFactory::get_parent(multibody_name);
+
+mundy::
+  Multibody
+  MultibodyRegistry
+  MultibodyFactory
+  multibody_types::
+    Sphere
+    Collision
+
+Now, we do the same thing as MetaMethod, we use a string to register each multibody type (Sphere, Collision, Spring) and sequentially assign them an integer ID. 
+The problem I have is that there's no need to output shared pointers to MultibodyBase everywhere; I want to directly interface with mundy::Multibody
+
+I cannot force the children to implement a set static interface without using CRTP. Is that a bad thing? 
+Well, I won't be able to use mundy::Multibody directly and I cannot output mundy::Sphere directly without outputting a pointer to MultibodyBase. 
+
+class mundy::Multibody:
+  public:
+    using multibody_t = unsigned;
+
+    static 
+
+  private:
+    static constexpr std::string_view name_ = "INVALID";
+    static constexpr multibody_t type_ = MultibodyRegistry::get_multibody_type(name_); 
+    static constexpr stk::topology topology_ = stk::topology::INVALID_TOPOLOGY;
+
+
+Just like topology_data, we can use the following to convert our integer id to compile-time information like name, type, topology. 
+mundy::multibody::multibody_data<mundy::multibody::multibody_t>
+
+Unlike MetaMethod or MetaKernel, each multibody_data contains the same amount of information as all the others and they are entirely static entities. 
+
+
+
+
+
+mundy::multibody<multibody_t>
+
