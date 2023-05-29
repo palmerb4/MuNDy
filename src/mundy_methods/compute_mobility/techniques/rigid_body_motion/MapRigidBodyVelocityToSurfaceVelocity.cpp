@@ -36,11 +36,11 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
-#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::methods::...::MapRigidBodyVelocityToSurfaceVelocity
 
 namespace mundy {

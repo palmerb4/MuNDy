@@ -38,11 +38,11 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -100,7 +100,7 @@ class MapRigidBodyForceToRigidBodyVelocity
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
     static Teuchos::ParameterList default_fixed_parameter_list;
     default_fixed_parameter_list.sublist("technique", false,
-        "Sublist that defines the technique to use and its parameters.");
+                                         "Sublist that defines the technique to use and its parameters.");
     return default_fixed_parameter_list;
   }
 
@@ -109,7 +109,6 @@ class MapRigidBodyForceToRigidBodyVelocity
     static Teuchos::ParameterList default_transient_parameter_list;
     return default_transient_parameter_list;
   }
-
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other
   /// \c MetaMethod.

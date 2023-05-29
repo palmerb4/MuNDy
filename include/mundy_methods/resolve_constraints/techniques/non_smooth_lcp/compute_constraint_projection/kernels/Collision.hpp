@@ -36,11 +36,11 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintProjection.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintProjection
 
 namespace mundy {
@@ -79,7 +79,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
@@ -96,8 +96,8 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
     static Teuchos::ParameterList default_fixed_parameter_list;
     default_fixed_parameter_list.set("element_lagrange_multiplier_field_name",
-                               std::string(default_element_lagrange_multiplier_field_name_),
-                               "Name of the element field containing the constraint's Lagrange multiplier.");
+                                     std::string(default_element_lagrange_multiplier_field_name_),
+                                     "Name of the element field containing the constraint's Lagrange multiplier.");
     return default_fixed_parameter_list;
   }
 

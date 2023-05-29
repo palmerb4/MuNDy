@@ -36,11 +36,11 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintViolation.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintViolation
 
 namespace mundy {

@@ -36,11 +36,11 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_mobility/techniques/LocalDrag.hpp>  // for mundy::methods::compute_mobility::techniques::LocalDrag
 
 namespace mundy {
@@ -77,7 +77,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();

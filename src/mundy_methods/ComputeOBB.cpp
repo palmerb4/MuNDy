@@ -36,12 +36,12 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeOBB.hpp>       // for mundy::methods::ComputeOBB
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeOBB.hpp>     // for mundy::methods::ComputeOBB
 
 namespace mundy {
 
@@ -98,8 +98,7 @@ ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList ComputeOBB::set_transient_params(
-    const Teuchos::ParameterList &transient_parameter_list) const {
+Teuchos::ParameterList ComputeOBB::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;

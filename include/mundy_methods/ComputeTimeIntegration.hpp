@@ -39,11 +39,11 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MetaPairwiseKernelFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
-#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -125,8 +125,8 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
     static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params =
-        default_fixed_parameter_list.sublist("kernels", false, "Sublist that defines the kernels and their parameters.");
+    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
+        "kernels", false, "Sublist that defines the kernels and their parameters.");
     kernel_params.sublist("map_surface_force_to_rigid_body_force", false,
                           "Sublist that defines the map's kernel parameters.");
     return default_fixed_parameter_list;

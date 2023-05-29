@@ -37,10 +37,10 @@
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernelPairwise.hpp>  // for mundy::meta::MetaKernelPairwise, mundy::meta::MetaKernelPairwiseBase
-#include <mundy_meta/MetaKernelPairwiseFactory.hpp>   // for mundy::meta::MetaKernelPairwiseFactory
-#include <mundy_meta/MetaKernelPairwiseRegistry.hpp>  // for mundy::meta::MetaKernelPairwiseRegistry
-#include <mundy_meta/PartRequirements.hpp>            // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/MetaPairwiseKernel.hpp>  // for mundy::meta::MetaPairwiseKernel, mundy::meta::MetaPairwiseKernelBase
+#include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaPairwiseKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintForcing
 
 namespace mundy {
@@ -79,7 +79,7 @@ class Collision : public mundy::meta::MetaPairwiseKernel<void, Collision>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
@@ -100,12 +100,12 @@ class Collision : public mundy::meta::MetaPairwiseKernel<void, Collision>,
   static Teuchos::ParameterList details_static_get_valid_params() {
     static Teuchos::ParameterList default_fixed_parameter_list;
     default_fixed_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
-                               "Name of the node field containing the coordinate of the sphere's center.");
+                                     "Name of the node field containing the coordinate of the sphere's center.");
     default_fixed_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
-                               "Name of the node field containing the sphere's com force.");
+                                     "Name of the node field containing the sphere's com force.");
     default_fixed_parameter_list.set("element_lagrange_multiplier_field_name",
-                               std::string(default_element_lagrange_multiplier_field_name_),
-                               "Name of the element field containing the constraint's Lagrange multiplier.");
+                                     std::string(default_element_lagrange_multiplier_field_name_),
+                                     "Name of the element field containing the constraint's Lagrange multiplier.");
     return default_fixed_parameter_list;
   }
 
@@ -119,7 +119,7 @@ class Collision : public mundy::meta::MetaPairwiseKernel<void, Collision>,
   }
 
   /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaKernelPairwiseRegistry.
+  /// By unique, we mean with respect to other kernels in our \c MetaPairwiseKernelRegistry.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);
   }

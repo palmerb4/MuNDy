@@ -260,23 +260,28 @@ using MetaPairwiseKernelFactory = MetaFactory<MetaPairwiseKernelBase<ReturnType>
 
 /// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
 template <typename RegistryIdentifier = GlobalIdentifier>
-using MetaTopologyKernelFactory =
-    MetaFactory<MetaKernelBase<ReturnType>, mundy::multibody::multibody_t, RegistryIdentifier>;
+using MetaMultibodyKernelFactory = MetaKernelFactory<mundy::multibody::multibody_t, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaPairwiseKernels, identified by a mundy multibody type.
+/// To make a new key use:
+///     auto key = std::make_pair(multibody_t1, multibody_t2)
+/// This key can then be used like any other key.
 template <typename RegistryIdentifier = GlobalIdentifier>
-using MetaTopologyPairwiseKernelFactory =
-    MetaFactory<MetaPairwiseKernelBase<ReturnType>, stk::multibody::multibody_t, RegistryIdentifier>;
+using MetaMultibodyPairwiseKernelFactory =
+    MetaPairwiseKernelFactory<std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
+                              RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
 template <typename RegistryIdentifier = GlobalIdentifier>
-using MetaTopologyKernelFactory =
-    MetaFactory<MetaKernelBase<ReturnType>, stk::topology::topology_t, RegistryIdentifier>;
+using MetaTopologyKernelFactory = MetaKernelFactory<stk::topology::topology_t, RegistryIdentifier>;
 
-/// \brief Partial specialization for MetaPairwiseKernels, identified by an stk topology type.
+/// \brief Partial specialization for MetaPairwiseKernels, identified by a pair of stk topology types.
+/// To make a new key use:
+///     auto key = std::make_pair(topology_t1, topology_t2)
+/// This key can then be used like any other key.
 template <typename RegistryIdentifier = GlobalIdentifier>
 using MetaTopologyPairwiseKernelFactory =
-    MetaFactory<MetaPairwiseKernelBase<ReturnType>, stk::topology::topology_t, RegistryIdentifier>;
+    MetaPairwiseKernelFactory<std::pair<stk::topology::topology_t, stk::topology::topology_t>, RegistryIdentifier>;
 
 }  // namespace meta
 

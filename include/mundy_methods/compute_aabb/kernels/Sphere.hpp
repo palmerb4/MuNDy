@@ -36,12 +36,12 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeAABB.hpp>      // for mundy::methods::ComputeAABB
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeAABB.hpp>     // for mundy::methods::ComputeAABB
 
 namespace mundy {
 
@@ -53,8 +53,8 @@ namespace kernels {
 
 /// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
-               public mundy::meta::MetaKernelRegistry<void, Sphere, ComputeAABB> {
+class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
+               public mundy::meta::MetaMultibodyKernelRegistry<void, Sphere, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -73,7 +73,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::PartRequirements> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
@@ -130,7 +130,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   }
 
   /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
-  Teuchos::ParameterList set_transient_params(const Teuchos::ParameterList& transient_parameter_list) const override;
+  Teuchos::ParameterList set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const override;
   //@}
 
   //! \name Actions
