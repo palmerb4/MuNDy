@@ -17,4 +17,9 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(techniques)
+add_subdirectory(rigid_body_motion)
+
+target_sources(mundy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/RigidBodyMotion.cpp
+)
+

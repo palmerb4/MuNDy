@@ -20,5 +20,7 @@
 target_sources(mundy PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ComputeAABB.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComputeBoundingRadius.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeMobility.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComputeOBB.cpp
-    )
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeTimeIntegration.cpp
+)

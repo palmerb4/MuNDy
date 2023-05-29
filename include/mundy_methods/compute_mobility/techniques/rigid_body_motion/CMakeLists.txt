@@ -16,3 +16,7 @@
 #
 # **********************************************************************************************************************
 # @HEADER
+
+add_subdirectory(map_rigid_body_force_to_rigid_body_velocity)
+add_subdirectory(map_rigid_body_velocity_to_surface_velocity)
+add_subdirectory(map_surface_force_to_rigid_body_force)

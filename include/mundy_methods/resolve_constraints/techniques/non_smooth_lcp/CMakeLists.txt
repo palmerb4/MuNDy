@@ -20,3 +20,4 @@
 add_subdirectory(compute_constraint_forcing)
 add_subdirectory(compute_constraint_projection)
 add_subdirectory(compute_constraint_violation)
+add_subdirectory(solve_lcp)
