@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MULTIBODY_MULTIBODYREGISTRY_HPP_
-#define MUNDY_MULTIBODY_MULTIBODYREGISTRY_HPP_
+#ifndef MUNDY_MULTIBODY_REGISTRY_HPP_
+#define MUNDY_MULTIBODY_REGISTRY_HPP_
 
-/// \file MultibodyRegistry.hpp
-/// \brief Declaration of the MultibodyRegistry class
+/// \file Registry.hpp
+/// \brief Declaration of the Registry class
 
 // C++ core libs
 #include <string>       // for std::string
@@ -29,30 +29,32 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
-#include <mundy_multibody/Multibody.hpp>         // for mundy::meta::Multibody
-#include <mundy_multibody/MultibodyFactory.hpp>  // for mundy::meta::MultibodyFactory
+#include <mundy_multibody/Factory.hpp>  // for mundy::meta::Factory
+#include <mundy_multibody/MultibodyType.hpp>     // for mundy::meta::MultibodyType
 
 namespace mundy {
 
-/// \class MultibodyRegistry
-/// \brief A class for registering new \c Multibody types within \c MultibodyFactory.
+namespace multibody {
+
+/// \class Registry
+/// \brief A class for registering new \c MultibodyType types within \c Factory.
 ///
-/// All classes derived from \c Multibody, which wish to be registered within the \c MultibodyFactory should inherit
+/// All classes derived from \c MultibodyType, which wish to be registered within the \c Factory should inherit
 /// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
 /// Pattern).
 ///
-/// \tparam ClassToRegister A class derived from \c Multibody.
+/// \tparam ClassToRegister A class derived from \c MultibodyType.
 template <class ClassToRegister>
-struct MultibodyRegistry {
+struct Registry {
   //! \name Actions
   //@{
 
-  /// @brief Register \c ClassToRegister with the \c MultibodyFactory.
+  /// @brief Register \c ClassToRegister with the \c Factory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MultibodyFactory::template register_new_method<ClassToRegister>();
+    Factory::template register_new_method<ClassToRegister>();
     return true;
   }
   //@}
@@ -60,18 +62,20 @@ struct MultibodyRegistry {
   //! \name Member variables
   //@{
 
-  /// @brief A flag for if the given type has been registered with the \c MultibodyFactory or not.
+  /// @brief A flag for if the given type has been registered with the \c Factory or not.
   static const bool is_registered;
   //@}
-};  // MultibodyRegistry
+};  // Registry
 
 /// @brief Perform the static registration.
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 template <class ClassToRegister>
-const bool MultibodyRegistry<ClassToRegister>::is_registered = MultibodyRegistry<ClassToRegister>::register_type();
+const bool Registry<ClassToRegister>::is_registered = Registry<ClassToRegister>::register_type();
+
+}  // namespace multibody
 
 }  // namespace mundy
 
-#endif  // MUNDY_MULTIBODY_MULTIBODYREGISTRY_HPP_
+#endif  // MUNDY_MULTIBODY_REGISTRY_HPP_

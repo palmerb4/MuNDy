@@ -20,8 +20,8 @@
 #ifndef MUNDY_MULTIBODY_MULTIBODY_HPP_
 #define MUNDY_MULTIBODY_MULTIBODY_HPP_
 
-/// \file Multibody.hpp
-/// \brief Declaration of the Multibody class
+/// \file MultibodyType.hpp
+/// \brief Declaration of the MultibodyType class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
@@ -31,10 +31,12 @@
 
 namespace mundy {
 
-/// \class Multibody
+namespace multibody {
+
+/// \class MultibodyType
 /// \brief The static interface for all of Mundy's multibody objects, be they rigid bodies and/or constraints.
 ///
-/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c Multibody must
+/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MultibodyType must
 /// implement the following static member functions
 /// - \c details_get_name             implementation of the \c get_name             interface.
 /// - \c details_get_topology         implementation of the \c get_topology         interface (both versions).
@@ -42,31 +44,43 @@ namespace mundy {
 /// - \c details_get_parent_multibody implementation of the \c get_parent_multibody interface (both versions).
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
-/// \c Multibody<DerivedClass> be made a friend of \c DerivedClass.
+/// \c MultibodyType<DerivedClass> be made a friend of \c DerivedClass.
 ///
-/// \tparam DerivedClass A class derived from \c Multibody that implements the desired
+/// \tparam DerivedClass A class derived from \c MultibodyType that implements the desired
 /// interface.
 template <class DerivedClass>
-class Multibody {
+class MultibodyType {
   //! \name Getters
   //@{
 
+  /// \brief Get the name associated with this multibody object.
+  /// This name must be unique and not shared by any other multibody object.
   static constexpr inline std::string_view get_name() {
     return DerivedClass::details_get_name();
   }
 
+  /// \brief Get the topology of the multibody object.
   static constexpr inline stk::topology get_topology() {
     return DerivedClass::details_get_topology();
   }
 
-  static constexpr inline bool has_parent_multibody() {
+  /// \brief Get the rank of the multibody object.
+  static constexpr inline stk::topology get_rank() {
+    return DerivedClass::details_get_rank();
+  }
+
+  /// \brief Get if this multibody object is a subset of another.
+  static constexpr inline bool has_parent() {
     return DerivedClass::details_has_parent_multibody();
   }
 
-  static constexpr inline bool get_parent_multibody() {
+  /// \brief Get the parent to this multibody object.
+  static constexpr inline bool get_parent_name() {
     return DerivedClass::details_get_parent_multibody();
   }
-};  // Multibody
+};  // MultibodyType
+
+}  // namespace multibody
 
 }  // namespace mundy
 
