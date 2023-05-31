@@ -159,7 +159,8 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static constexpr std::string_view class_identifier_ = "COLLISION";
+  static const mundy::multibody::Factory::FastIdType class_identifier_ =
+      mundy::multibody::Factory::get_fast_id("COLLISION");
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;

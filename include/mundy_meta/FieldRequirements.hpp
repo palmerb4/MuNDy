@@ -37,6 +37,7 @@
 #include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
+#include <stk_util/util/CSet.hpp>        // for stk::CSet
 
 // Mundy libs
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
@@ -125,6 +126,16 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
   void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) final;
 
+  /// \brief Require that the field have a specific field attribute with known type.
+  ///
+  /// \note Attributes are fetched from an stk::mesh::Field via the attribute<T> routine. As a result, the identifying
+  /// feature of an attribute is its type. If you attempt to add a new attribute requirement when an attribute of that
+  /// type already exists, then the contents of the two attributes must match.
+  template <class T>
+  void add_field_attribute_reqs(const std::shared_ptr<T> some_attribute_ptr) {
+    field_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
+  }
+
   /// \brief Get if the field name is constrained or not.
   bool constrains_field_name() const final;
 
@@ -153,7 +164,7 @@ class FieldRequirements : public FieldRequirementsBase {
   /// Will throw an error if the minimum number of field states.
   unsigned get_field_min_number_of_states() const final;
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
+  /// \brief Return the default transient parameters for this class (those that do not impact the part requirements).
   Teuchos::ParameterList get_valid_params() const final;
 
   /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
@@ -171,8 +182,11 @@ class FieldRequirements : public FieldRequirementsBase {
   //! \name Actions
   //@{
 
-  /// \brief Declare/create the field that this class defines.
+  /// \brief Declare/create the field that this class defines and assign it to a part.
   void declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
+
+  /// \brief Declare/create the field that this class defines and assign it to the mesh.
+  void declare_field_on_mesh(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
 
   /// \brief Delete the field name constraint (if it exists).
   void delete_field_name_constraint() final;
@@ -197,8 +211,7 @@ class FieldRequirements : public FieldRequirementsBase {
   ///
   /// Here, merging two a \c FieldRequirements object with this object amounts to setting the number of states to be the
   /// maximum over all the number of states over all the \c FieldRequirements. For this process to be valid, the given
-  /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
-  /// match the current name of this field.
+  /// \c FieldRequirements must have the same rank, type, and dimension. 
   ///
   /// \param field_req_ptr [in] A \c FieldRequirements objects to merge with the current object.
   void merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) final;
@@ -207,8 +220,7 @@ class FieldRequirements : public FieldRequirementsBase {
   ///
   /// Here, merging two a \c FieldRequirements object with this object amounts to setting the number of states to be the
   /// maximum over all the number of states over all the \c FieldRequirements. For this process to be valid, the given
-  /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
-  /// match the current name of this field.
+  /// \c FieldRequirements must have the same rank, type, and dimension.
   ///
   /// \param vector_of_field_req_ptrs [in] A vector of pointers to other \c FieldRequirements objects to merge with the
   /// current object.
@@ -248,6 +260,9 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief If the minimum number of rotating states that this field will have is set or not.
   bool field_min_number_of_states_is_set_;
+
+  /// \brief Any attributes associated with this field.
+  stk::CSet field_attributes_;
 };  // FieldRequirements
 
 //! \name template implementations

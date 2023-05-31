@@ -110,7 +110,7 @@ MeshBuilder &MeshBuilder::set_bucket_capacity(const unsigned bucket_capacity) {
   return *this;
 }
 
-MeshBuilder &MeshBuilder::set_upward_connectivity(const bool enable_upward_connectivity) {
+MeshBuilder &MeshBuilder::set_upward_connectivity_flag(const bool enable_upward_connectivity) {
   upward_connectivity_flag_ = enable_upward_connectivity;
   builder_.set_upward_connectivity(upward_connectivity_flag_);
   return *this;

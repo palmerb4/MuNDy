@@ -20,8 +20,8 @@
 #ifndef MUNDY_MULTIBODY_FACTORY_HPP_
 #define MUNDY_MULTIBODY_FACTORY_HPP_
 
-/// \file Fastory.hpp
-/// \brief Declaration of the Fastory class
+/// \file Factory.hpp
+/// \brief Declaration of the Factory class
 
 // C++ core libs
 #include <functional>  // for std::function
@@ -37,7 +37,7 @@ namespace mundy {
 
 namespace multibody {
 
-/// \class Fastory
+/// \class Factory
 /// \brief A factory containing generation routines for classes derived from \c MultibodyType.
 ///
 /// The goal of \c MultibodyType, as with most factories, is to provide an abstraction for case switches between
@@ -46,7 +46,7 @@ namespace multibody {
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
-class Fastory {
+class Factory {
  public:
   //! \name Typedefs
   //@{
@@ -89,7 +89,7 @@ class Fastory {
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static FastIdType get_fast_id(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
-                               "Fastory: The provided class's name '" << name << "' is not valid.");
+                               "Factory: The provided class's name '" << name << "' is not valid.");
     return get_name_to_id_map()[name];
   }
 
@@ -98,7 +98,7 @@ class Fastory {
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static std::string_view get_name(const FastIdType fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
-                               "Fastory: The provided class's id '" << fast_id << "' is not valid.");
+                               "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_name_generator_map()[fast_id]();
   }
 
@@ -107,7 +107,7 @@ class Fastory {
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static std::topology get_topology(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
-                               "Fastory: The provided class's name '" << name << "' is not valid.");
+                               "Factory: The provided class's name '" << name << "' is not valid.");
     const FastIdType fast_id = get_fast_id(name);
     return get_topology(fast_id);
   }
@@ -117,7 +117,7 @@ class Fastory {
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static std::topology get_topology(const FastIdType fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
-                               "Fastory: The provided class's id '" << fast_id << "' is not valid.");
+                               "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_topology_generator_map()[fast_id]();
   }
 
@@ -126,7 +126,7 @@ class Fastory {
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static bool has_parent(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
-                               "Fastory: The provided class's name '" << name << "' is not valid.");
+                               "Factory: The provided class's name '" << name << "' is not valid.");
     const FastIdType fast_id = get_fast_id(name);
     return has_parent(fast_id);
   }
@@ -136,7 +136,7 @@ class Fastory {
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static bool has_parent(const FastIdType fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
-                               "Fastory: The provided class's id '" << fast_id << "' is not valid.");
+                               "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_has_parent_generator_map()[fast_id]();
   }
 
@@ -145,7 +145,7 @@ class Fastory {
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static bool get_parent_fast_id(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
-                               "Fastory: The provided class's name '" << name << "' is not valid.");
+                               "Factory: The provided class's name '" << name << "' is not valid.");
     const FastIdType fast_id = get_fast_id(name);
     return get_parent_fast_id(fast_id);
   }
@@ -155,7 +155,7 @@ class Fastory {
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false.
   static bool get_parent_fast_id(const FastIdType fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
-                               "Fastory: The provided class's id '" << fast_id << "' is not valid.");
+                               "Factory: The provided class's id '" << fast_id << "' is not valid.");
     std::string_view parent_name = get_parent_name(fast_id);
     return get_fast_id(parent_name);
   }
@@ -165,7 +165,7 @@ class Fastory {
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static bool get_parent_name(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
-                               "Fastory: The provided class's name '" << name << "' is not valid.");
+                               "Factory: The provided class's name '" << name << "' is not valid.");
     const FastIdType fast_id = get_fast_id(name);
     return get_parent_name(fast_id);
   }
@@ -175,7 +175,7 @@ class Fastory {
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static bool get_parent_name(const FastIdType fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
-                               "Fastory: The provided class's id '" << fast_id << "' is not valid.");
+                               "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_parent_name_generator_map()[fast_id]();
   }
   //@}
@@ -188,7 +188,7 @@ class Fastory {
   static void register_new_class() {
     const std::string_view name = ClassToRegister::get_name();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
-                               "Fastory: The provided class's name '" << name << "' already exists.");
+                               "Factory: The provided class's name '" << name << "' already exists.");
     number_of_registered_types_++;
 
     FastIdType fast_id = number_of_registered_types_ - 1;
@@ -264,7 +264,7 @@ class Fastory {
   /// registry. This process requires friendship <3.
   friend class MultibodyRegistry;
   //@}
-};  // Fastory
+};  // Factory
 
 }  // namespace multibody
 

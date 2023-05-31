@@ -136,6 +136,7 @@ class PartRequirements {
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
   PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank);
+  
   /// \brief Construct from a parameter list.
   ///
   /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid
@@ -244,6 +245,16 @@ class PartRequirements {
   /// \param part_reqs_ptr [in] Pointer to the sub-part requirements to add to the part.
   void add_subpart_reqs(std::shared_ptr<PartRequirements> part_reqs_ptr);
 
+  /// \brief Require that the part have a specific part attribute with known type.
+  ///
+  /// \note Attributes are fetched from an stk::mesh::Part via the attribute<T> routine. As a result, the identifying
+  /// feature of an attribute is its type. If you attempt to add a new attribute requirement when an attribute of that
+  /// type already exists, then the contents of the two attributes must match.
+  template <class T>
+  void add_part_attribute_reqs(const std::shared_ptr<T> some_attribute_ptr) {
+    part_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
+  }
+
   /// \brief Merge the current requirements with any number of other \c PartRequirements.
   ///
   /// Here, merging two a \c PartRequirements object with this object amounts to merging their fields. For this process
@@ -289,6 +300,9 @@ class PartRequirements {
 
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
+
+  /// \brief Any attributes associated with this part.
+  stk::CSet part_attributes_;
 };  // PartRequirements
 
 }  // namespace meta
