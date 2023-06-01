@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_PARTPARAMS_HPP_
-#define MUNDY_META_PARTPARAMS_HPP_
+#ifndef MUNDY_META_PARTREQUIREMENTS_HPP_
+#define MUNDY_META_PARTREQUIREMENTS_HPP_
 
 /// \file PartRequirements.hpp
 /// \brief Declaration of the PartRequirements class
@@ -100,6 +100,7 @@ namespace meta {
 ///     - HEX_8 or HEXAHEDRON_8                  -> stk::topology::HEX_8
 ///     - HEX_20 or HEXAHEDRON_20                -> stk::topology::HEX_20
 ///     - HEX_27 or HEXAHEDRON_27                -> stk::topology::HEX_27
+///   - Super topologies
 ///     - SUPEREDGE<N>                           -> create_superedge_topology(N)
 ///     - SUPERFACE<N>                           -> create_superface_topology(N)
 ///     - SUPERELEMENT<N>                        -> create_superelement_topology(N)
@@ -135,6 +136,7 @@ class PartRequirements {
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
   PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank);
+  
   /// \brief Construct from a parameter list.
   ///
   /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid
@@ -190,7 +192,7 @@ class PartRequirements {
   /// \brief field_rank [in] Rank associated with the retrieved fields.
   std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_field_map();
 
-  /// \brief Get the default parameters for this class.
+  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
   static Teuchos::ParameterList get_valid_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("name", "INVALID", "Name of the part.");
@@ -233,30 +235,32 @@ class PartRequirements {
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
-  /// \param field_reqs_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_reqs_ptr);
+  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
+  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
-  /// TODO: Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
+  /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
-  /// \param part_reqs_ptr [in] Pointer to the sub-part requirements to add to the part.
-  void add_subpart_reqs(std::shared_ptr<PartRequirements> part_reqs_ptr);
+  /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
+  void add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
-  /// \brief Merge the current requirements with any number of other \c PartRequirements.
+  /// \brief Require that the part have a specific part attribute with known type.
   ///
-  /// Here, merging two a \c PartRequirements object with this object amounts to merging their fields. For this process
-  /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
-  /// not need to match the current name of this part.
+  /// \note Attributes are fetched from an stk::mesh::Part via the attribute<T> routine. As a result, the identifying
+  /// feature of an attribute is its type. If you attempt to add a new attribute requirement when an attribute of that
+  /// type already exists, then the contents of the two attributes must match.
+  template <class T>
+  void add_part_attribute_req(const std::shared_ptr<T> some_attribute_ptr) {
+    part_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
+  }
+
+  /// \brief Merge the current requirements with another \c PartRequirements.
   ///
   /// \param part_req_ptr [in] An \c PartRequirements object to merge with the current object.
   void merge(const std::shared_ptr<PartRequirements> &part_req_ptr);
 
   /// \brief Merge the current requirements with any number of other \c PartRequirements.
-  ///
-  /// Here, merging two a \c PartRequirements object with this object amounts to merging their fields. For this process
-  /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
-  /// not need to match the current name of this part.
   ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
   /// current object.
@@ -288,10 +292,13 @@ class PartRequirements {
 
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
+
+  /// \brief Any attributes associated with this part.
+  stk::CSet part_attributes_;
 };  // PartRequirements
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_PARTPARAMS_HPP_
+#endif  // MUNDY_META_PARTREQUIREMENTS_HPP_

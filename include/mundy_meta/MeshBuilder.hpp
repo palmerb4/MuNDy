@@ -65,7 +65,7 @@ class MeshBuilder {
   MeshBuilder &set_spatial_dimension(const unsigned spatial_dimension);
 
   /// \brief Set the names assigned to each rank.
-  /// \param entity_rank_names [in] The snames assigned to each rank.
+  /// \param entity_rank_names [in] The names assigned to each rank.
   MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
 
   /// \brief Set the MPI communicator to be used by STK.
@@ -89,7 +89,7 @@ class MeshBuilder {
 
   /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  MeshBuilder &set_upward_connectivity(const bool enable_upward_connectivity);
+  MeshBuilder &set_upward_connectivity_flag(const bool enable_upward_connectivity);
   //@}
 
   //! @name Actions

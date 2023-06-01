@@ -57,8 +57,9 @@ hierarchies:
             number_of_states: 1
             type: DOUBLE
 
+
 methods:
-  count: 3
+  count: 4
   method_0:
     name: RESOLVE_CONSTRAINTS
     resolve_constraints_technique:
@@ -93,3 +94,20 @@ methods:
         kernels:
           time_integration_kernel: 
             name: INERTIAL
+  method_3:
+    name: COMPUTE_CONSTRAINT_FORCING
+    input_part_pairs:
+      count: 2
+      input_part_pair_0:
+        name: [COLLISIONS, SPHERES] 
+        kernels:
+          compute_constraint_forcing: 
+            name: COLLISION_SPHERE
+      input_part_pair_1:
+        name: [COLLISIONS, ELLIPSOIDS] 
+        kernels:
+          compute_constraint_forcing: 
+            name: COLLISION_ELLIPSOID
+
+
+

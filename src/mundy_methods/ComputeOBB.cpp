@@ -36,12 +36,12 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaKernelFactory.hpp>   // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeOBB.hpp>       // for mundy::methods::ComputeOBB
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeOBB.hpp>     // for mundy::methods::ComputeOBB
 
 namespace mundy {
 
@@ -50,22 +50,22 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list)
+ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "mundy::methods::ComputeOBB: bulk_data_ptr cannot be a nullptr.");
+                             "ComputeOBB: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_parameter_list = parameter_list;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_params());
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_parameter_list.sublist("input_parts");
+  Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
   num_parts_ = parts_parameter_list.get<unsigned>("count");
   part_ptr_vector_.resize(num_parts_);
-  for (int i = 0; i < num_parts_; i++) {
+  for (size_t i = 0; i < num_parts_; i++) {
     // Fetch the i'th part and its parameters
     Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
     const std::string part_name = part_parameter_list.get<std::string>("name");
@@ -81,18 +81,28 @@ ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::
         kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
-  // For this method, the parts cannot intersect, if they did the result could be non-determinaistic.
-  for (int i = 0; i < num_parts_; i++) {
-    for (int j = 0; j < num_parts_; j++) {
+  // For this method, the parts cannot intersect, if they did the result could be non-deterministic.
+  for (size_t i = 0; i < num_parts_; i++) {
+    for (size_t j = 0; j < num_parts_; j++) {
       if (i != j) {
         const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
         TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "mundy::methods::ComputeOBB: Part " << part_ptr_vector_[i]->name() << " and "
-                                                                       << "Part " << part_ptr_vector_[j]->name()
-                                                                       << "intersect.");
+                                   "ComputeOBB: Part " << part_ptr_vector_[i]->name() << " and "
+                                                       << "Part " << part_ptr_vector_[j]->name() << "intersect.");
       }
     }
   }
+}
+//}
+
+// \name MetaMethod interface implementation
+//{
+
+Teuchos::ParameterList ComputeOBB::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
+  // Store the input parameters, use default parameters for any parameter not given.
+  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
+  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
 }
 //}
 
@@ -100,13 +110,13 @@ ComputeOBB::ComputeOBB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 //{
 
 void ComputeOBB::execute() {
-  for (int i = 0; i < num_parts_; i++) {
+  for (size_t i = 0; i < num_parts_; i++) {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> &compute_obb_kernel_ptr = compute_obb_kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-        [&compute_obb_kernel_ptr](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+        [&compute_obb_kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           compute_obb_kernel_ptr->execute(element);
         });
   }

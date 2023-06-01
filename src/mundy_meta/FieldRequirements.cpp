@@ -64,7 +64,7 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string) {
   } else {
     TEUCHOS_TEST_FOR_EXCEPTION(
         true, std::invalid_argument,
-        "mundy::meta::FieldRequirements: The provided rank string " << rank_string << " is not valid.");
+        "The provided rank string " << rank_string << " is not valid.");
   }
 }
 //}

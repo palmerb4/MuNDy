@@ -110,7 +110,7 @@ MeshBuilder &MeshBuilder::set_bucket_capacity(const unsigned bucket_capacity) {
   return *this;
 }
 
-MeshBuilder &MeshBuilder::set_upward_connectivity(const bool enable_upward_connectivity) {
+MeshBuilder &MeshBuilder::set_upward_connectivity_flag(const bool enable_upward_connectivity) {
   upward_connectivity_flag_ = enable_upward_connectivity;
   builder_.set_upward_connectivity(upward_connectivity_flag_);
   return *this;
@@ -130,9 +130,9 @@ std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data() {
 
 std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<stk::mesh::MetaData> metaData) {
   TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
-                             "mundy::meta::MeshBuilder must be given an MPI communicator before creating BulkData.");
+                             "MeshBuilder must be given an MPI communicator before creating BulkData.");
 
-  return builder_.create();
+  return builder_.create(metaData);
 }
 //}
 

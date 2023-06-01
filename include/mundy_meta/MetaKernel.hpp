@@ -27,13 +27,15 @@
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
+#include <vector>       // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
+#include <mundy_meta/PartRequirements.hpp>                      // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -43,130 +45,72 @@ namespace meta {
 /// \brief The polymorphic interface which all \c MetaKernels will share.
 ///
 /// This design pattern allows for \c MetaKernel to use CRTP to force derived classes to implement certain static
-/// functions while also having a consistant polymoirphic interface that allows different \c MetaKernels to be stored in
+/// functions while also having a consistant polymorphic interface that allows different \c MetaKernels to be stored in
 /// a vector of pointers.
 ///
 /// \tparam ReturnType The return type of the execute function.
-template <typename ReturnType>
-class MetaKernelBase {
+/// \tparam RegistrationType The type of this class's identifier.
+template <typename ReturnType, typename RegistrationType = std::string>
+class MetaKernelBase : virtual public HasMeshRequirementsAndIsRegisterableBase<RegistrationType> {
  public:
-  //! \name Attributes
-  //@{
-
-  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
-  ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  virtual std::shared_ptr<PartRequirements> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const = 0;
-
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  virtual Teuchos::ParameterList get_valid_params() const = 0;
-
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
-  virtual std::string get_class_identifier() const = 0;
-  //@}
-
   //! \name Actions
   //@{
 
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  virtual std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const = 0;
-
-  /// \brief Run the kernel's core calculation.
-  /// TODO(palmerb4): The different types of execute functions should be made into a separate interface so we can
-  /// combine them with MetaKernel using multiple inheritance!
-  virtual ReturnType execute(const stk::mesh::Entity& entity) = 0;
+  /// \brief Run the method's core calculation.
+  virtual ReturnType execute(stk::mesh::Entity entity) = 0;
   //@}
 };  // MetaKernelBase
 
 /// \class MetaKernel
-/// \brief An abstract interface for all of Mundy's methods.
-///
-/// A \c MetaKernel represents an atomic unit of computation applied to a \b single multibody object in isolation
-/// (sphere, spring, hinge, etc.). Through STK and Kokkos looping constructs, a \c MetaKernel can be efficiently applied
-/// to large groups of multibody objects.
-///
-/// While \c MetaKernel only accepts a single multibody object, but Mundy offers two pairwise specializations:
-///  - \c MetaKernelPairwise for pairwise anti-symmetric interaction between two multibody objects.
-///  - \c MetaKernelPairwiseSymmetric for pairwise symmetric interaction between two multibody objects.
-///
-/// The goal of \c MetaKernel is to wrap a kernel that acts on an STK Element with a known multibody type.
-/// The wrapper can output the assumptions of the wrapped kernel with respect to the fields and topology associated with
-/// the provided element. Note, this element is part of some STK Part, so the output requirements are
-/// \c PartRequirements for that part. Requirements cannot be applied at the element-level.
+/// \brief The static interface that encodes a class's assumptions about the structure and contents of an STK mesh.
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
-///   - \c details_static_get_part_requirements implementation of the \c get_part_requirements interface.
-///   - \c details_static_get_valid_params implementation of the \c get_valid_params interface.
-///   - \c details_static_get_class_identifier implementation of the \c get_class_identifier interface.
-///   - \c details_static_create_new_instance implementation of the \c create_new_instance interface.
+/// - \c details_static_get_part_requirements implementation of the \c static_get_part_requirements interface.
+/// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
+/// - \c details_static_get_valid_transient_params implementation of the \c static_get_valid_transient_params interface.
+/// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
+/// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
-/// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
+/// \c MetaKernel<DerivedMetaKernel> be made a friend of \c DerivedMetaKernel.
 ///
-/// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
 /// \tparam ReturnType The return type of the execute function.
-template <typename ReturnType, class DerivedMetaKernel>
-class MetaKernel : public MetaKernelBase<ReturnType> {
+/// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
+/// \tparam RegistrationType The type of this class's identifier.
+template <typename ReturnType, class DerivedMetaKernel, typename RegistrationType = std::string>
+class MetaKernel
+    : virtual public MetaKernelBase<ReturnType, RegistrationType>,
+      virtual public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType, DerivedMetaKernel>, RegistrationType> {
  public:
   //! \name Getters
   //@{
 
   /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
+  /// The set part requirements returned by this function are meant to encode the assumptions made by this class
+  /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
+  /// based on parameters in the \c fixed_parameter_list but not the \c transient_parameter_list.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  std::shared_ptr<PartRequirements> get_part_requirements(
-      const Teuchos::ParameterList& parameter_list) const override final;
-
-  /// \brief Get the requirements that this \c MetaKernel imposes upon each input part.
-  ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this \c MetaKernel
-  /// with respect to the parts, topology, and fields input into the \c run function. These assumptions may vary
-  /// based parameters in the \c parameter_list.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<PartRequirements> static_get_part_requirements(const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_static_get_part_requirements(parameter_list);
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  static std::vector<std::shared_ptr<PartRequirements>> details_static_get_part_requirements(
+      const Teuchos::ParameterList &fixed_parameter_list) {
+    return DerivedMetaKernel::details_static_get_part_requirements(fixed_parameter_list);
   }
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  Teuchos::ParameterList get_valid_params() const override final;
+  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.
+  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
+    return DerivedMetaKernel::details_static_get_valid_fixed_params();
+  }
 
-  /// \brief Get the valid parameters and their default parameter list for this \c MetaKernel.
-  static Teuchos::ParameterList static_get_valid_params() {
-    return DerivedMetaKernel::details_static_get_valid_params();
+  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaKernel.
+  static Teuchos::ParameterList details_static_get_valid_transient_params() {
+    return DerivedMetaKernel::details_static_get_valid_transient_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
-  std::string get_class_identifier() const override final;
-
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
-  static std::string static_get_class_identifier() {
+  static RegistrationType details_static_get_class_identifier() {
     return DerivedMetaKernel::details_static_get_class_identifier();
   }
   //@}
@@ -176,58 +120,30 @@ class MetaKernel : public MetaKernelBase<ReturnType> {
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  std::shared_ptr<MetaKernelBase<ReturnType>> create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const override final;
-
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for setting up this class. A
-  /// default parameter list is accessible via \c get_valid_params.
-  static std::shared_ptr<MetaKernelBase<ReturnType>> static_create_new_instance(
-      stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) {
-    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, parameter_list);
+  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
+  static std::shared_ptr<MetaKernelBase<ReturnType, RegistrationType>> details_static_create_new_instance(
+      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
-
-  /// \brief Run the kernel's core calculation.
-  virtual ReturnType execute(const stk::mesh::Entity& entity) override = 0;
   //@}
 };  // MetaKernel
 
-//! \name Template implementations
-//@{
+/// \brief Partial specialization for MetaKernelBases, identified by a mundy multibody type.
+template <typename ReturnType>
+using MetaMultibodyKernelBase = MetaKernelBase<ReturnType, mundy::multibody::multibody_t>;
 
-// \name Getters
-//{
-
+/// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
 template <typename ReturnType, class DerivedMetaKernel>
-std::shared_ptr<PartRequirements> MetaKernel<ReturnType, DerivedMetaKernel>::get_part_requirements(
-    const Teuchos::ParameterList& parameter_list) const {
-  return static_get_part_requirements(parameter_list);
-}
+using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, mundy::multibody::multibody_t>;
 
+/// \brief Partial specialization for MetaKernels, identified by an stk topology type.
+template <typename ReturnType>
+using MetaMultibodyKernelBase = MetaKernelBase<ReturnType, stk::topology::topology_t>;
+
+/// \brief Partial specialization for MetaKernels, identified by an stk topology type.
 template <typename ReturnType, class DerivedMetaKernel>
-Teuchos::ParameterList MetaKernel<ReturnType, DerivedMetaKernel>::get_valid_params() const {
-  return static_get_valid_params();
-}
-
-template <typename ReturnType, class DerivedMetaKernel>
-std::string MetaKernel<ReturnType, DerivedMetaKernel>::get_class_identifier() const {
-  return static_get_class_identifier();
-}
-//}
-
-// \name Actions
-//{
-
-template <typename ReturnType, class DerivedMetaKernel>
-std::shared_ptr<MetaKernelBase<ReturnType>> MetaKernel<ReturnType, DerivedMetaKernel>::create_new_instance(
-    stk::mesh::BulkData* const bulk_data_ptr, const Teuchos::ParameterList& parameter_list) const {
-  return static_create_new_instance(bulk_data_ptr, parameter_list);
-}
-//}
-//@}
+using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, stk::topology::topology_t>;
 
 }  // namespace meta
 
