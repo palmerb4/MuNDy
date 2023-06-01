@@ -84,11 +84,11 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::BEAM_2);
-    required_collision_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_collision_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_collision_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_collision_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_force_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_collision_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_collision_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }

@@ -655,6 +655,9 @@ The current TODO:
 2. Store the multibody type on the parts 
   2.1. Update the PartRequirements to support part attributes and field attributes
 3. Update the valid parameters of every Method to reflect the change multibody kernels. 
+4. Change the part requirements to use the provided parameters. These are not MeshRequirements. 
+  4.1. If a field name is not provided, use the default.
+  4.2. Assign mesh fields, attributes, parts, subparts, and all fields.
 4. A PartVector should be passed into the execute command rather than passing the names to the Params. We'll 
    find the intersection of that PartVector and each multibody type to choose the correct kernel. 
 5. Update the constructors of each kernel and method to populate their temporaries with defaults. 

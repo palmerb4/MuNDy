@@ -151,6 +151,7 @@ class MeshRequirements {
 
   /// \brief Get the default parameters for this class.
   static Teuchos::ParameterList get_valid_params() {
+    // TODO(palmerb4): This is wrong. We have sub-parameters that specify the fields and parts.
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("spatial_dimension", default_spatial_dimension_,
                                "Dimension of the space within which the parts and entities reside.");
@@ -177,7 +178,7 @@ class MeshRequirements {
   ///
   /// The only setting that must be specified before declaring the mesh is the MPI communicator; all other settings have
   /// default options which will be used if not set.
-  std::shared_ptr<stk::mesh::MetaData> &declare_mesh() const;
+  std::shared_ptr<stk::mesh::BulkData> &declare_mesh() const;
 
   /// \brief Delete the spatial dimension constraint (if it exists).
   void delete_spatial_dimension_constraint() const;
@@ -215,38 +216,32 @@ class MeshRequirements {
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
-  /// \param field_reqs_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_reqs_ptr);
+  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
+  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
   ///
-  /// \param part_reqs_ptr [in] Pointer to the part requirements to add to the mesh.
-  void add_part_reqs(std::shared_ptr<PartRequirements> part_reqs_ptr);
+  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
+  void add_part_req(std::shared_ptr<PartRequirements> part_req_ptr);
 
-  /// \brief Require that the part have a specific part attribute with known type.
+  /// \brief Require that the mesh have a specific mesh attribute with known type.
   ///
-  /// \note Attributes are fetched from an stk::mesh::Part via the attribute<T> routine. As a result, the identifying
-  /// feature of an attribute is its type. If you attempt to add a new attribute requirement when an attribute of that
-  /// type already exists, then the contents of the two attributes must match.
+  /// \note Attributes are fetched from an stk::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
   template <class T>
-  void add_part_attribute_reqs(const std::shared_ptr<T> some_attribute_ptr) {
-    part_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
+  void add_mesh_attribute_req(const std::shared_ptr<T> some_attribute_ptr) {
+    mesh_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
   }
 
-  /// \brief Merge the current requirements with any number of other \c MeshRequirements.
-  ///
-  /// Here, merging a \c MeshRequirements object with this object amounts to merging their attributes, parts, and
-  /// fields. For this process to be valid, the given \c MeshRequirements must have the same spacial dimension.
+  /// \brief Merge the current requirements with another \c MeshRequirements.
   ///
   /// \param part_req_ptr [in] An \c MeshRequirements object to merge with the current object.
   void merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr);
 
   /// \brief Merge the current requirements with any number of other \c MeshRequirements.
-  ///
-  /// Here, merging a \c MeshRequirements object with this object amounts to merging their attributes, parts, and
-  /// fields. For this process to be valid, the given \c MeshRequirements must have the same spacial dimension.
   ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c MeshRequirements objects to merge with the
   /// current object.
@@ -266,33 +261,57 @@ class MeshRequirements {
   static constexpr bool default_upward_connectivity_flag_ = true;
   //@}
 
-  /// \brief Name of the part.
-  std::string part_name_;
+  /// @brief The dimension of the space within which the parts and entities reside.
+  unsigned spatial_dimension_;
 
-  /// \brief Topology of entities in the part.
-  stk::topology::topology_t part_topology_;
+  /// @brief The names assigned to each rank.
+  std::vector<std::string> entity_rank_names_;
 
-  /// \brief Rank of the part.
-  stk::topology::rank_t part_rank_;
+  /// @brief The MPI communicator to be used by STK.
+  stk::ParallelMachine communicator_;
 
-  /// \brief If the name of the part is set or not.
-  bool part_name_is_set_ = false;
+  /// @brief The chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
+  stk::mesh::BulkData::AutomaticAuraOption aura_option_;
 
-  /// \brief If the topology of entities in the part is set or not.
-  bool part_topology_is_set_ = false;
+  /// @brief Pointer to an existing field data manager.
+  stk::mesh::FieldDataManager *field_data_manager_ptr_;
 
-  /// \brief If the rank of the part is set or not.
-  bool part_rank_is_set_ = false;
+  /// @brief Upper bound on the number of mesh entities that may be associated with a single bucket.
+  unsigned bucket_capacity_;
+
+  /// @brief A flag specifying if upward connectivity will be enabled or not.
+  bool upward_connectivity_flag_;
+
+  /// \brief If the spacial dimension is set or not.
+  bool spatial_dimension_is_set_ = false;
+
+  /// \brief If the names of each rank are set or not.
+  bool entity_rank_names_is_set_ = false;
+
+  /// \brief If the MPI communicator is set or not.
+  bool comm_is_set_ = false;
+
+  /// \brief If the aura option is set or not.
+  bool aura_option_is_set_ = false;
+
+  /// \brief If the field manager is set or not.
+  bool field_data_manager_ptr_is_set_ = false;
+
+  /// \brief If the bucket capacity is set or not.
+  bool bucket_capacity_is_set_ = false;
+
+  /// \brief If the upward connectivity flag is set or not.
+  bool enable_upward_connectivity_is_set_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
   std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_{
       stk::topology::NUM_RANKS};
 
-  /// \brief A map from subpart name to the part params of each sub-part.
-  std::map<std::string, std::shared_ptr<MeshRequirements>> part_subpart_map_;
+  /// \brief A map from part name to the part params for that part.
+  std::map<std::string, std::shared_ptr<PartRequirements>> mesh_part_map_;
 
-  /// \brief Any attributes associated with this part.
-  stk::CSet part_attributes_;
+  /// \brief Any attributes associated with this mesh.
+  stk::CSet mesh_attributes_;
 };  // MeshRequirements
 
 }  // namespace meta

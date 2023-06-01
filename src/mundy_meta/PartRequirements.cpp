@@ -205,7 +205,7 @@ PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list)
       const std::string field_type_string = field_i_sublist.get<std::string>("type");
       std::shared_ptr<FieldRequirementsBase> field_i =
           FieldRequirementsFactory::create_new_instance(field_type_string, field_i_sublist);
-      this->add_field_reqs(field_i);
+      this->add_field_req(field_i);
     }
   }
 
@@ -317,15 +317,15 @@ stk::mesh::Part &PartRequirements::declare_part(stk::mesh::MetaData *const meta_
   // Loop over each rank's field map.
   for (auto const &part_field_map : part_ranked_field_maps_) {
     // Loop over each field and attempt to merge it.
-    for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
-      field_reqs_ptr->declare_field_on_part(meta_data_ptr, *part_ptr);
+    for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
+      field_req_ptr->declare_field_on_part(meta_data_ptr, *part_ptr);
     }
   }
 
   // Declare the sub-parts and declare them as sub-parts.
   // Each sub-part will. in turn, declare their fields and subparts.
-  for ([[maybe_unused]] auto const &[subpart_name, subpart_reqs_ptr] : part_subpart_map_) {
-    stk::mesh::Part &subpart = subpart_reqs_ptr->declare_part(meta_data_ptr);
+  for ([[maybe_unused]] auto const &[subpart_name, subpart_req_ptr] : part_subpart_map_) {
+    stk::mesh::Part &subpart = subpart_req_ptr->declare_part(meta_data_ptr);
     meta_data_ptr->declare_part_subset(*part_ptr, subpart);
   }
 
@@ -348,32 +348,32 @@ void PartRequirements::check_if_valid() const {
   ThrowRequireMsg(false, "not implemented yet");
 }
 
-void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_reqs_ptr) {
+void PartRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
   // Check if the provided parameters are valid.
-  field_reqs_ptr->check_if_valid();
+  field_req_ptr->check_if_valid();
 
   // If a field with the same name and rank exists, attempt to merge them.
   // Otherwise, create a new field entity.
-  const std::string field_name = field_reqs_ptr->get_field_name();
-  const unsigned field_rank = field_reqs_ptr->get_field_rank();
+  const std::string field_name = field_req_ptr->get_field_name();
+  const unsigned field_rank = field_req_ptr->get_field_rank();
 
   auto &part_field_map = part_ranked_field_maps_[field_rank];
   const bool name_already_exists = (part_field_map.count(field_name) != 0);
   if (name_already_exists) {
-    part_field_map[field_name]->merge({field_reqs_ptr});
+    part_field_map[field_name]->merge({field_req_ptr});
   } else {
-    part_field_map[field_name] = field_reqs_ptr;
+    part_field_map[field_name] = field_req_ptr;
   }
 }
 
-void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_reqs_ptr) {
+void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
   // Check if the provided parameters are valid.
-  part_reqs_ptr->check_if_valid();
+  part_req_ptr->check_if_valid();
 
   // Check for conflicts?
 
   // Store the params.
-  part_subpart_map_[part_reqs_ptr->get_part_name()] = part_reqs_ptr;
+  part_subpart_map_[part_req_ptr->get_part_name()] = part_req_ptr;
 }
 
 void merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
@@ -420,8 +420,8 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
     // Loop over each rank's field map.
     for (auto const &part_field_map : part_req_ptr->get_part_field_map()) {
       // Loop over each field and attempt to merge it.
-      for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
-        this->add_field_reqs(field_reqs_ptr);
+      for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
+        this->add_field_req(field_req_ptr);
       }
     }
   }

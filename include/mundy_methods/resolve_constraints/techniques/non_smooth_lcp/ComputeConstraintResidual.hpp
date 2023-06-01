@@ -102,7 +102,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<double, Compute
       // Add method-specific requirements.
       part_requirements[i]->set_part_name(part_name);
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
-      part_requirements[i]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
           std::string(default_element_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     }
 

@@ -78,11 +78,11 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::PARTICLE);
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_obb_field_name_), stk::topology::ELEMENT_RANK, 4, 1));
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
     return required_part_params;
   }

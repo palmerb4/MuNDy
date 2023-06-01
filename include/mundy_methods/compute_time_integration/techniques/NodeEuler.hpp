@@ -97,11 +97,11 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
 
       // Add method-specific requirements.
       part_requirements[i]->set_part_name(part_name);
-      part_requirements[i]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
           std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-      part_requirements[i]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
           std::string(default_node_velocity_field_name_), stk::topology::NODE_RANK, 3, 1));
-      part_requirements[i]->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
           std::string(default_node_omega_field_name_name_), stk::topology::NODE_RANK, 3, 1));
     }
 

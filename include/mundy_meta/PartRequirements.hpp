@@ -235,15 +235,15 @@ class PartRequirements {
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
-  /// \param field_reqs_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_reqs_ptr);
+  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
+  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
-  /// \param part_reqs_ptr [in] Pointer to the sub-part requirements to add to the part.
-  void add_subpart_reqs(std::shared_ptr<PartRequirements> part_reqs_ptr);
+  /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
+  void add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
   /// \brief Require that the part have a specific part attribute with known type.
   ///
@@ -251,24 +251,16 @@ class PartRequirements {
   /// feature of an attribute is its type. If you attempt to add a new attribute requirement when an attribute of that
   /// type already exists, then the contents of the two attributes must match.
   template <class T>
-  void add_part_attribute_reqs(const std::shared_ptr<T> some_attribute_ptr) {
+  void add_part_attribute_req(const std::shared_ptr<T> some_attribute_ptr) {
     part_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
   }
 
-  /// \brief Merge the current requirements with any number of other \c PartRequirements.
-  ///
-  /// Here, merging two a \c PartRequirements object with this object amounts to merging their fields. For this process
-  /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
-  /// not need to match the current name of this part.
+  /// \brief Merge the current requirements with another \c PartRequirements.
   ///
   /// \param part_req_ptr [in] An \c PartRequirements object to merge with the current object.
   void merge(const std::shared_ptr<PartRequirements> &part_req_ptr);
 
   /// \brief Merge the current requirements with any number of other \c PartRequirements.
-  ///
-  /// Here, merging two a \c PartRequirements object with this object amounts to merging their fields. For this process
-  /// to be valid, the given \c PartRequirements must have the same topology and rank. The name of the other part does
-  /// not need to match the current name of this part.
   ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
   /// current object.

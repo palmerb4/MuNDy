@@ -211,7 +211,7 @@ class FieldRequirements : public FieldRequirementsBase {
   ///
   /// Here, merging two a \c FieldRequirements object with this object amounts to setting the number of states to be the
   /// maximum over all the number of states over all the \c FieldRequirements. For this process to be valid, the given
-  /// \c FieldRequirements must have the same rank, type, and dimension. 
+  /// \c FieldRequirements must have the same rank, type, and dimension.
   ///
   /// \param field_req_ptr [in] A \c FieldRequirements objects to merge with the current object.
   void merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) final;
