@@ -51,12 +51,14 @@ namespace meta {
 /// \tparam ReturnType The return type of the execute function.
 /// \tparam RegistrationType The type of this class's identifier.
 template <typename ReturnType, typename RegistrationType = std::string>
-class MetaKernelBase : virtual public HasMeshRequirementsAndIsRegisterableBase<RegistrationType> {
+class MetaKernelBase
+    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKernelBase<ReturnType, RegistrationType>,
+                                                              RegistrationType> {
  public:
   //! \name Actions
   //@{
 
-  /// \brief Run the method's core calculation.
+  /// \brief Run the kernel's core calculation.
   virtual ReturnType execute(stk::mesh::Entity entity) = 0;
   //@}
 };  // MetaKernelBase
@@ -83,6 +85,12 @@ class MetaKernel
     : virtual public MetaKernelBase<ReturnType, RegistrationType>,
       virtual public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType, DerivedMetaKernel>, RegistrationType> {
  public:
+  //! \name TypeDefs
+  //@{
+
+  using PolymorphicBase = MetaKernelBase<ReturnType, RegistrationType>;
+  //@}
+
   //! \name Getters
   //@{
 

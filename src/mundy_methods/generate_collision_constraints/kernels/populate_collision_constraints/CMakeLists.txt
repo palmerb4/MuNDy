@@ -17,4 +17,6 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(populate_collision_constraints)
+target_sources(mundy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Sphere.cpp
+)

@@ -171,7 +171,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute(const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:

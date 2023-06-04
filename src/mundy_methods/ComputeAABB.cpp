@@ -109,7 +109,7 @@ Teuchos::ParameterList ComputeAABB::set_transient_params(const Teuchos::Paramete
 // \name Actions
 //{
 
-void ComputeAABB::execute() {
+void ComputeAABB::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_parts_; i++) {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> compute_aabb_kernel_ptr = compute_aabb_kernel_ptrs_[i];
 

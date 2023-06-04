@@ -118,7 +118,7 @@ Teuchos::ParameterList ComputeConstraintForcing::set_transient_params(
 // \name Actions
 //{
 
-void ComputeConstraintForcing::execute() {
+void ComputeConstraintForcing::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field.
   // This requires the new paradigm of having methods take in fields shared by the kernels.
   for (size_t i = 0; i < num_parts_; i++) {

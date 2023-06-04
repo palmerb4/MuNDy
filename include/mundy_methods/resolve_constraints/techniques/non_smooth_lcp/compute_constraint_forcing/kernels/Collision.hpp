@@ -119,7 +119,7 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
   }
 
   /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaPairwiseKernelRegistry.
+  /// By unique, we mean with respect to other kernels in our \c MetaTwoWayKernelRegistry.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);
   }

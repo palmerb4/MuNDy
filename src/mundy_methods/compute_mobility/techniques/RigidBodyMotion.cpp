@@ -107,7 +107,7 @@ Teuchos::ParameterList RigidBodyMotion::set_transient_params(
 // \name Actions
 //{
 
-void RigidBodyMotion::execute() {
+void RigidBodyMotion::execute(const stk::mesh::Selector &input_selector) {
   map_surface_force_to_rigid_body_force_method_ptr_->execute();
   map_rigid_body_force_to_rigid_body_velocity_method_ptr_->execute();
   map_rigid_body_velocity_to_surface_velocity_method_ptr_->execute();

@@ -39,7 +39,7 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
@@ -111,12 +111,12 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
       part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaPairwiseKernelFactory<void, MapSurfaceForceToRigidBodyForce>::get_valid_params(kernel_name));
+          mundy::meta::MetaTwoWayKernelFactory<void, MapSurfaceForceToRigidBodyForce>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
           pair_requirements =
-              mundy::meta::MetaPairwiseKernelFactory<void, MapSurfaceForceToRigidBodyForce>::get_part_requirements(
+              mundy::meta::MetaTwoWayKernelFactory<void, MapSurfaceForceToRigidBodyForce>::get_part_requirements(
                   kernel_name, part_kernel_parameter_list);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
@@ -161,7 +161,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute(const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:
@@ -185,7 +185,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
   std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified part pairs.
-  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>>> kernel_ptrs_;
   //@}
 };  // MapSurfaceForceToRigidBodyForce
 

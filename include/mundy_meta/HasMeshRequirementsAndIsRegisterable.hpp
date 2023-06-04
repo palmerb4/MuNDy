@@ -107,7 +107,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
 /// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
 ///
-/// The derived class must also have a static PolymorphicBase type.
+/// The derived class must also have a static polymorphic_base_type type.
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c HasMeshRequirementsAndIsRegisterable<DerivedClass> be made a friend of \c DerivedClass.
@@ -117,7 +117,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
 /// \tparam RegistrationType The type of this class's identifier.
 template <class DerivedClass, typename RegistrationType = std::string>
 class HasMeshRequirementsAndIsRegisterable
-    : virtual public HasMeshRequirementsAndIsRegisterableBase<DerivedClass::PolymorphicBase, RegistrationType> {
+    : virtual public HasMeshRequirementsAndIsRegisterableBase<DerivedClass::polymorphic_base_type, RegistrationType> {
  public:
   //! \name Getters
   //@{
@@ -178,14 +178,14 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::shared_ptr<DerivedClass::PolymorphicBase> create_new_instance(
+  std::shared_ptr<DerivedClass::polymorphic_base_type> create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<DerivedClass::PolymorphicBase> static_create_new_instance(
+  static std::shared_ptr<DerivedClass::polymorphic_base_type> static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedClass::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
@@ -226,7 +226,7 @@ RegistrationType HasMeshRequirementsAndIsRegisterable<DerivedClass, Registration
 //{
 
 template <class DerivedClass, typename RegistrationType>
-std::shared_ptr<DerivedClass::PolymorphicBase>
+std::shared_ptr<DerivedClass::polymorphic_base_type>
 HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::create_new_instance(
     stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const {
   return static_create_new_instance(bulk_data_ptr, fixed_parameter_list);

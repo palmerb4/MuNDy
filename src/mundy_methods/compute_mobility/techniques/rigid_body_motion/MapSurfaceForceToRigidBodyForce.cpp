@@ -36,7 +36,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
@@ -87,7 +87,7 @@ MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(stk::mesh::Bulk
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
     kernel_ptrs_.push_back(
-        mundy::meta::MetaPairwiseKernelFactory<void, MapSurfaceForceToRigidBodyForce>::create_new_instance(
+        mundy::meta::MetaTwoWayKernelFactory<void, MapSurfaceForceToRigidBodyForce>::create_new_instance(
             kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
@@ -128,14 +128,14 @@ Teuchos::ParameterList MapSurfaceForceToRigidBodyForce::set_transient_params(
 // \name Actions
 //{
 
-void MapSurfaceForceToRigidBodyForce::execute() {
+void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): The following won't function correctly if the center body nodes are shared.
   // Is there a way to assert that an entity is not shared?
 
   // Currently we sum into the body force. Shall we add alpha and beta (like Tpetra) to let users choose
   // if the summation will occur or not. This also makes clear that the summation occurs.
   for (size_t i = 0; i < num_part_pairs_; i++) {
-    std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
+    std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_linker_part =
         meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;

@@ -36,7 +36,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaFactory.hpp>                // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_meta/MetaFactory.hpp>                // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
@@ -80,7 +80,7 @@ ComputeTimeIntegration::ComputeTimeIntegration(stk::mesh::BulkData *const bulk_d
 
     // Create the kernel instance.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    kernel_ptrs_.push_back(mundy::meta::MetaPairwiseKernelFactory<void, ComputeTimeIntegration>::create_new_instance(
+    kernel_ptrs_.push_back(mundy::meta::MetaTwoWayKernelFactory<void, ComputeTimeIntegration>::create_new_instance(
         kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
   }
 
@@ -121,11 +121,11 @@ Teuchos::ParameterList ComputeTimeIntegration::set_transient_params(
 // \name Actions
 //{
 
-void ComputeTimeIntegration::execute() {
+void ComputeTimeIntegration::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): clear the rigid body force
   // TODO(palmerb4): what about sharing?
   for (size_t i = 0; i < num_part_pairs_; i++) {
-    std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
+    std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_linker_part =
         meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;

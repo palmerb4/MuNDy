@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTEAABB_HPP_
-#define MUNDY_METHODS_COMPUTEAABB_HPP_
+#ifndef MUNDY_METHODS_GENERATECOLLISIONCONSTRAINTS_HPP_
+#define MUNDY_METHODS_GENERATECOLLISIONCONSTRAINTS_HPP_
 
-/// \file ComputeAABB.hpp
-/// \brief Declaration of the ComputeAABB class
+/// \file GenerateCollisionConstraints.hpp
+/// \brief Declaration of the GenerateCollisionConstraints class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -48,24 +48,25 @@ namespace mundy {
 
 namespace methods {
 
-/// \class ComputeAABB
+/// \class GenerateCollisionConstraints
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
-                    public mundy::meta::MetaMethodRegistry<void, ComputeAABB> {
+class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, GenerateCollisionConstraints>,
+                                     public mundy::meta::MetaMethodRegistry<void, GenerateCollisionConstraints> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeAABB() = delete;
+  GenerateCollisionConstraints() = delete;
 
   /// \brief Constructor
-  ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  GenerateCollisionConstraints(stk::mesh::BulkData *const bulk_data_ptr,
+                               const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name Typedefs
   //@{
-  using KernelFactory = mundy::meta::MetaMultibodyKernelFactory<void, ComputeAABB>;
+  using KernelFactory = mundy::meta::MetaMultibodyKernelFactory<void, GenerateCollisionConstraints>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -99,28 +100,29 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   ///
   /// The only required parameter is "enabled_multibody_type_names" which must specify the name of at least one
   /// multibody type to enable. This compute aabb kernel associated with this type must be registered with
-  /// MetaMultibodyKernelFactory<void, ComputeAABB>.
+  /// MetaMultibodyKernelFactory<void, GenerateCollisionConstraints>.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *fixed_parameter_list_ptr) {
     Teuchos::ParameterList params = &fixed_parameter_list_ptr;
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        params.isParameter("enabled_multibody_type_names"), std::invalid_argument,
-        "ComputeAABB: The provided parameter list must include the set of enabled multibody type names.");
+    TEUCHOS_TEST_FOR_EXCEPTION(params.isParameter("enabled_multibody_type_names"), std::invalid_argument,
+                               "GenerateCollisionConstraints: The provided parameter list must include the set of "
+                               "enabled multibody type names.");
     Teuchos::Array &enabled_multibody_type_names =
         params.get<Teuchos::Array<std::string>>("enabled_multibody_type_names");
     TEUCHOS_TEST_FOR_EXCEPTION(enabled_multibody_type_names.size() != 0, std::invalid_argument,
-                               "ComputeAABB: The enabled multibody type names must not be empty.");
+                               "GenerateCollisionConstraints: The enabled multibody type names must not be empty.");
 
     Teuchos::ParameterList &compute_aabb_kernel_params =
         fixed_parameter_list_ptr->sublist("kernels", false).sublist("compute_aabb", false);
     for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
-      TEUCHOS_TEST_FOR_EXCEPTION(
-          mundy::multibody::Factory::is_valid(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeAABB: Failed to find a multibody type with name (" << enabled_multibody_type_name << ").");
-      TEUCHOS_TEST_FOR_EXCEPTION(
-          KernelFactory::is_valid_key(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeAABB: Failed to find a compute_aabb kernel associated with the provided multibody type name ("
-              << enabled_multibody_type_name << ").");
+      TEUCHOS_TEST_FOR_EXCEPTION(mundy::multibody::Factory::is_valid(enabled_multibody_type_name),
+                                 std::invalid_argument,
+                                 "GenerateCollisionConstraints: Failed to find a multibody type with name ("
+                                     << enabled_multibody_type_name << ").");
+      TEUCHOS_TEST_FOR_EXCEPTION(KernelFactory::is_valid_key(enabled_multibody_type_name), std::invalid_argument,
+                                 "GenerateCollisionConstraints: Failed to find a compute_aabb kernel associated with "
+                                 "the provided multibody type name ("
+                                     << enabled_multibody_type_name << ").");
       Teuchos::ParameterList &multibody_params = compute_aabb_kernel_params.sublist(enabled_multibody_type_name, false);
       KernelFactory::validate_fixed_parameters_and_set_defaults(enabled_multibody_type_name, multibody_params);
     }
@@ -143,7 +145,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<ComputeAABB>(bulk_data_ptr, fixed_parameter_list);
+    return std::make_shared<GenerateCollisionConstraints>(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 
@@ -160,7 +162,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "COMPUTE_AABB";
+  static constexpr std::string_view class_identifier_ = "GENERATE_COLLISION_CONSTRAINTS";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -177,10 +179,10 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// \brief Kernels corresponding to each of the specified parts.
   std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_aabb_kernel_ptrs_;
   //@}
-};  // ComputeAABB
+};  // GenerateCollisionConstraints
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTEAABB_HPP_
+#endif  // MUNDY_METHODS_GENERATECOLLISIONCONSTRAINTS_HPP_

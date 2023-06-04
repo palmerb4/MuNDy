@@ -87,7 +87,7 @@ Teuchos::ParameterList ComputeMobility::set_transient_params(
 //{
 
 void ComputeMobility::execute(const stk::mesh::Selector &input_selector) {
-  technique_ptr_->execute();
+  technique_ptr_->execute(input_selector);
 }
 //}
 

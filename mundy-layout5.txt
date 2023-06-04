@@ -39,8 +39,8 @@ Things that are missing,
     - A type attribute would help us with pairwise kernel deduction. How else is ComputeConstraintForcing supposed to assign the part requirements to the given parts?
     - How can users add their own attributes? We could make a MultibodyTypeFactory and registry; the registry takes in a string and the factory maps that sting to an integer (and vice versa).
     - With that technique, how should kernels state which multibody type they are made for? Also, how do we differentiate general kernels from multibody kernels?
-    - For now, I think we can keep using the current setup by introducing a pair of identifiers for each MetaPairwiseKernel. These will identify the source and target name. The input params
-      for ComputeConstraintForcing will specify two sets of parts: the source parts and the target parts. Within the parsms file the source parts will have the source identifier for the Pairwise 
+    - For now, I think we can keep using the current setup by introducing a pair of identifiers for each MetaTwoWayKernel. These will identify the source and target name. The input params
+      for ComputeConstraintForcing will specify two sets of parts: the source parts and the target parts. Within the parsms file the source parts will have the source identifier for the TwoWay 
       kernel as a sublist. Within that sublist, the user will provide the source params. The same is true for the target identider, the target part, and the target params.
     - We will loop over the source part and check if the connected entity is in the target part, if so, we will run the source-target pairwise kernel.
 
@@ -85,9 +85,9 @@ mundy::
     MetaKernel
     MetaKernelFactory
     MetaKernelRegistry
-    MetaPairwiseKernel
-    MetaPairwiseKernelFactory
-    MetaPairwiseKernelRegistry
+    MetaTwoWayKernel
+    MetaTwoWayKernelFactory
+    MetaTwoWayKernelRegistry
     MetaMethod
     MetaMethodFactory
     MetaMethodRegistry
@@ -241,9 +241,9 @@ mundy::
     (D) MetaKernel
     (D) MetaKernelFactory
     (D) MetaKernelRegistry
-    (D) MetaPairwiseKernel
-    (D) MetaPairwiseKernelFactory
-    (D) MetaPairwiseKernelRegistry
+    (D) MetaTwoWayKernel
+    (D) MetaTwoWayKernelFactory
+    (D) MetaTwoWayKernelRegistry
     (D) MetaMethod
     (D) MetaMethodFactory
     (D) MetaMethodRegistry
@@ -470,9 +470,9 @@ Order I will implement things
   - Loops over the given constraint parts and runs the i'th kernel for each ELEMENT in the i'th part.
 13. (Done) resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintResidual
   - Loops over the given constraint parts and runs the i'th kernel for each ELEMENT in the i'th part.
-14. resolve_constraints::techniques::NonSmoothLCP
+14. (Done) resolve_constraints::techniques::NonSmoothLCP
   - Perform the BBPGD non-smooth LCP solve, calling the correct sub-methods when necessary.
-15. ResolveConstraints
+15. (Done) ResolveConstraints
   - Given BulkData with up-to-date constraints, parse the input params and call the desired technique.
 16. generate_collision_constraints::kernels::SphereSphere
   - Given two sphere elements, generate the collision constraint between them. Make sure both elements are spheres! If they aren't just continue on. 

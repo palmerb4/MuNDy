@@ -96,7 +96,7 @@ Teuchos::ParameterList ComputeConstraintResidual::set_transient_params(
 // \name Actions
 //{
 
-double ComputeConstraintResidual::execute() {
+double ComputeConstraintResidual::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): Break the following into techniques.
   // The following returns the constraint residual as the L1 norm of the constraint violation over the given parts.
   // Another technique would be to use the L2 norm.

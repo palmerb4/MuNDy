@@ -76,7 +76,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   //@{
 
   /// \brief The factory associated with this class's kernels.
-  using KernelFactory = mundy::meta::MetaPairwiseKernelFactory<void, LocalDrag>;
+  using KernelFactory = mundy::meta::MetaTwoWayKernelFactory<void, LocalDrag>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -221,7 +221,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute(const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:
@@ -245,7 +245,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified part pairs.
-  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>>> kernel_ptrs_;
   //@}
 };  // LocalDrag
 

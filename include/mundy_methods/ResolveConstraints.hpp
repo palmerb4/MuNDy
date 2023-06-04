@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTPROJECTION_HPP_
-#define MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTPROJECTION_HPP_
+#ifndef MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_
+#define MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_
 
-/// \file ComputeConstraintProjection.hpp
-/// \brief Declaration of the ComputeConstraintProjection class
+/// \file ResolveConstraints.hpp
+/// \brief Declaration of the ResolveConstraints class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -48,26 +48,19 @@ namespace mundy {
 
 namespace methods {
 
-namespace resolve_constraints {
-
-namespace techniques {
-
-namespace non_smooth_lcp {
-
-/// \class ComputeConstraintProjection
-/// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, ComputeConstraintProjection>,
-                                    public mundy::meta::MetaMethodRegistry<void, ComputeConstraintProjection> {
+/// \class ResolveConstraints
+/// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
+class ResolveConstraints : public mundy::meta::MetaMethod<void, ResolveConstraints>,
+                           public mundy::meta::MetaMethodRegistry<void, ResolveConstraints> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeConstraintProjection() = delete;
+  ResolveConstraints() = delete;
 
   /// \brief Constructor
-  ComputeConstraintProjection(stk::mesh::BulkData *const bulk_data_ptr,
-                              const Teuchos::ParameterList &fixed_parameter_list);
+  ResolveConstraints(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -87,47 +80,19 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
     Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
     valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
-    // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
-    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_parts; i++) {
-      // Create a new parameter
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
+    const std::string technique_name = technique_parameter_list.get<std::string>("name");
 
-      // Fetch the i'th part parameters
-      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-      const std::string part_name = part_parameter_list.get<std::string>("name");
-
-      // Add method-specific requirements.
-      part_requirements[i]->set_part_name(part_name);
-      part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
-
-      // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_constraint_projection");
-
-      // Validate the kernel params and fill in defaults.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>::get_valid_params(kernel_name));
-
-      // Merge the kernel requirements.
-      part_requirements[i]->merge(
-          mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>::get_part_requirements(
-              kernel_name, part_kernel_parameter_list));
-    }
-
-    return part_requirements;
+    return mundy::meta::MetaMethodFactory<void, ResolveConstraints>::get_part_requirements(technique_name,
+                                                                                           technique_parameter_list);
   }
 
   /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
     static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
-        "kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("compute_constraint_projection", false,
-                          "Sublist that defines the constraint projection kernel parameters.");
+    default_fixed_parameter_list.sublist("technique", false,
+                                         "Sublist that defines the technique to use and its parameters.");
     return default_fixed_parameter_list;
   }
 
@@ -137,7 +102,8 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
     return default_transient_parameter_list;
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaMethod.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);
   }
@@ -148,7 +114,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<ComputeConstraintProjection>(bulk_data_ptr, fixed_parameter_list);
+    return std::make_shared<ResolveConstraints>(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 
@@ -165,7 +131,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_PROJECTION";
+  static constexpr std::string_view class_identifier_ = "RESOLVE_CONSTRAINTS";
 
   /// \brief The BulkData objects this class acts upon.
   stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -173,25 +139,13 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   /// \brief The MetaData objects this class acts upon.
   stk::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of parts that this method acts on.
-  size_t num_parts_ = 0;
-
-  /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
-
-  /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_projection_kernel_ptrs_;
+  /// \brief Method corresponding to the specified technique.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> technique_ptr_;
   //@}
-};  // ComputeConstraintProjection
-
-}  // namespace non_smooth_lcp
-
-}  // namespace techniques
-
-}  // namespace resolve_constraints
+};  // ResolveConstraints
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTPROJECTION_HPP_
+#endif  // MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_

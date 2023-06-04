@@ -106,7 +106,7 @@ Teuchos::ParameterList NonSmoothLCP::set_transient_params(
 // \name Actions
 //{
 
-void NonSmoothLCP::execute() {
+void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   // The following is the BBPGD solution to the linear complementarity problem
 
   // Fill the Lagrange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.

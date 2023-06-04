@@ -98,7 +98,7 @@ Teuchos::ParameterList MapRigidBodyForceToRigidBodyVelocity::set_transient_param
 // \name Actions
 //{
 
-void MapRigidBodyForceToRigidBodyVelocity::execute() {
+void MapRigidBodyForceToRigidBodyVelocity::execute(const stk::mesh::Selector &input_selector) {
   technique_ptr_->execute();
 }
 //}
