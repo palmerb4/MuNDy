@@ -28,13 +28,18 @@
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <utility>      // for std::move
 #include <vector>       // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
 #include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
+#include <stk_mesh/base/Types.hpp>     // for EntityRank, etc
 #include <stk_topology/topology.hpp>   // for stk::topology
+
+// Boost libs
+#include <boost/hana.hpp>
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
@@ -44,274 +49,530 @@ namespace mundy {
 
 namespace meta {
 
+//! \name Shorthand types
+//@{
+
+/// @brief Shorthand type for an empty heterogeneous map.
+using EmptyMap = decltype(boost::hana::make_map());
+
+/// @brief Shorthand type for an empty tuple.
+using EmptyTuple = decltype(boost::hana::make_tuple());
+//@}
+
 /// \class MeshRequirements
-/// \brief A set requirements imposed upon a MetaMesh, its Parts, and its Fields.
+/// \brief A set of requirements imposed upon the structure and contents of a MetaMesh.
+///
+/// Note, the templates for this class are an implementation detail and something that you need not specify directly;
+/// instead, the easiest way to interact with this class is to chain function calls:
+///     MeshRequirements reqs;
+///     reqs.declare_part("parent")
+///         .declare_part("child")
+///         .declare_part_subset("parent", "child");
+/// However, if you wish to break up construction into multiple steps, you'll need to introduce a new \c
+/// MeshRequirements object by using "auto." It may feel tempting to write reqs = reqs.declare_part("parent"), but this
+/// will throw an error since declare_part returns a \c MeshRequirements instance that is larger than the original reqs
+/// object. Instead, use
+///     MeshRequirements reqs;
+///     auto reqs_new = reqs.declare_part("parent");
+///     /* other stuff */
+///     reqs_new.declare_part("child")
+///             .declare_part_subset("parent", "child");
+/// At first glance, one might also think that returning different a succession of ever-growing \c MeshRequirements
+/// classes would lead to tons of undesirable copies. For example, one could think that an intermediate copy is made
+/// after each call to declare_part:
+///     MeshRequirements reqs;
+///     reqs.declare_part("parent")                   /* copy here? */
+///         .declare_part("child")                    /* copy here? */
+///         .declare_part_subset("parent", "child");  /* copy here? */
+/// Instead, Mundy uses move semantics with perfect forwarding to reduce unnecessary copies. As a result, the actual
+/// behavior of \c MeshRequirements is:
+///     MeshRequirements reqs;
+///     reqs.declare_part("parent")  /* copy here to preserve reqs for later use */
+///         .declare_part("child")   /* move here since the output from reqs.declare_part("parent") is never stored */
+///         .declare_part_subset("parent", "child");  /* move here ... */
+template <typename FieldIdMap = EmptyMap, typename PartIdMap = EmptyMap, typename AttributeIdMap = EmptyMap,
+          typename IdToFieldMap = EmptyMap, typename IdToPartMap = EmptyMap, typename MeshAttributes = EmptyTuple>
 class MeshRequirements {
  public:
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Default construction is allowed
-  /// Default construction corresponds to having no requirements.
+  /// \brief Default construction is allowed.
+  /// Default construction corresponds to having no requirements and is perfectly valid.
   MeshRequirements() = default;
 
-  /// \brief Construct from a parameter list.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for specifying the mesh requirements. The set of valid
-  /// parameters is accessible via \c get_valid_params.
-  explicit MeshRequirements(const Teuchos::ParameterList &parameter_list);
-  //@}
-
-  //! \name Setters and Getters
-  //@{
-
-  /// \brief Set the spatial dimension of the mash.
-  /// \param spatial_dimension [in] The dimension of the space within which the parts and entities reside.
-  void set_spatial_dimension(const unsigned spatial_dimension);
-
-  /// \brief Set the names assigned to each rank.
-  /// \param entity_rank_names [in] The names assigned to each rank.
-  MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
-
-  /// \brief Set the MPI communicator to be used by STK.
-  /// \param comm [in] The MPI communicator.
-  MeshBuilder &set_communicator(const stk::ParallelMachine &comm);
-
-  /// \brief Set the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  /// \param aura_option [in] The chosen Aura option.
-  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option);
-
-  /// \brief Set the field data manager.
-  /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
-  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
-
-  /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
-  ///
-  /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
-  ///
-  /// \param bucket_capacity [in] The bucket capacity.
-  MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity);
-
-  /// \brief Set the flag specifying if upward connectivity will be enabled or not.
-  /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  MeshBuilder &set_upward_connectivity_flag(const bool enable_upward_connectivity);
-
-  /// \brief Get if the spatial dimension is constrained or not.
-  bool constrains_spatial_dimension() const;
-
-  /// \brief Get if the entity rank names are constrained or not.
-  bool constrains_entity_rank_names() const;
-
-  /// \brief Get if the communicator is constrained or not.
-  bool constrains_communicator() const;
-
-  /// \brief Get if the aura option is constrained or not.
-  bool constrains_aura_option() const;
-
-  /// \brief Get if the field data manager is constrained or not.
-  bool constrains_field_data_manager() const;
-
-  /// \brief Get if the bucket capacity is constrained or not.
-  bool constrains_bucket_capacity() const;
-
-  /// \brief Get if the upward connectivity flag is constrained or not.
-  bool constrains_upward_connectivity_flag() const;
-
-  /// \brief Get if the given type is a constrained mesh attribute or not.
-  template <class T>
-  void constrains_field_attribute() const {
-    return field_attributes_.template get<std::shared_ptr<T>>() != nullptr;
+  /// \brief Copy constructor.
+  MeshRequirements(const MeshRequirements<FieldIdMap, PartIdMap, AttributeIdMap, IdToFieldMap, IdToPartMap,
+                                          MeshAttributes> &other_reqs)
+      : field_id_map_(other_reqs.field_id_map_),
+        part_id_map_(other_reqs.part_id_map_),
+        att_id_map_(other_reqs.att_id_map_),
+        id_to_field_map_(other_reqs.id_to_field_map_),
+        id_to_part_map_(other_reqs.id_to_part_map_),
+        mesh_atts_(other_reqs.mesh_atts_) {
   }
 
-  /// \brief Return the dimension of the space within which the parts and entities reside.
-  unsigned get_spatial_dimension() const;
-
-  /// \brief Return the names assigned to each rank.
-  std::vector<std::string> get_entity_rank_names() const;
-
-  /// \brief Return the MPI communicator to be used by STK.
-  stk::ParallelMachine get_communicator() const;
-
-  /// \brief Return the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  stk::mesh::BulkData::AutomaticAuraOption get_aura_option() const;
-
-  /// \brief Return the field data manager.
-  stk::mesh::FieldDataManager *const get_field_data_manager() const;
-
-  /// \brief Return the upper bound on the number of mesh entities that may be associated with a single bucket.
-  unsigned get_bucket_capacity() const;
-
-  /// \brief Return if upward connectivity will be enabled or not.
-  /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  bool get_upward_connectivity_flag() const;
-
-  /// \brief Return the mesh field map.
-  /// \brief field_rank [in] Rank associated with the retrieved fields.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_mesh_field_map();
-
-  /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList get_valid_params() {
-    // TODO(palmerb4): This is wrong. We have sub-parameters that specify the fields and parts.
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("spatial_dimension", default_spatial_dimension_,
-                               "Dimension of the space within which the parts and entities reside.");
-    default_parameter_list.set("entity_rank_names", default_entity_rank_names_,
-                               "Vector of names assigned to each rank.");
-    default_parameter_list.set("communicator", default_communicator_, "MPI communicator to be used by STK..");
-    default_parameter_list.set("aura_option", default_aura_option_, "The chosen Aura option.");
-    default_parameter_list.set("field_data_manager_ptr", default_field_data_manager_ptr_,
-                               "A pointer to a preexisting field data manager.");
-    default_parameter_list.set(
-        "bucket_capacity", default_bucket_capacity_,
-        "Upper bound on the number of mesh entities that may be associated with a single bucket.");
-    default_parameter_list.set("upward_connectivity_flag", default_upward_connectivity_flag_,
-                               "Flag specifying if upward connectivity will be enabled or not.");
-    return default_parameter_list;
+  /// \brief Move constructor.
+  MeshRequirements(
+      MeshRequirements<FieldIdMap, PartIdMap, AttributeIdMap, IdToFieldMap, IdToPartMap, MeshAttributes> &&other_reqs)
+      : field_id_map_(std::move(other_reqs.field_id_map_)),
+        part_id_map_(std::move(other_reqs.part_id_map_)),
+        att_id_map_(std::move(other_reqs.att_id_map_)),
+        id_to_field_map_(std::move(other_reqs.id_to_field_map_)),
+        id_to_part_map_(std::move(other_reqs.id_to_part_map_)),
+        mesh_atts_(std::move(other_reqs.mesh_atts_)) {
   }
+
+  /// \brief Destructor.
+  ~MeshRequirements() = default;
   //@}
 
   //! \name Actions
   //@{
 
-  /// \brief Declare the mesh that this class defines including any of its fields, parts, and their
-  /// fields/parts/subparts.
-  ///
-  /// The only setting that must be specified before declaring the mesh is the MPI communicator; all other settings have
-  /// default options which will be used if not set.
-  std::shared_ptr<stk::mesh::BulkData> &declare_mesh() const;
-
-  /// \brief Delete the spatial dimension constraint (if it exists).
-  void delete_spatial_dimension_constraint() const;
-
-  /// \brief Delete the entity rank names constraint (if it exists).
-  void delete_entity_rank_names_constraint() const;
-
-  /// \brief Delete the communicator constraint (if it exists).
-  void delete_communicator_constraint() const;
-
-  /// \brief Delete the aura option constraint (if it exists).
-  void delete_aura_option_constraint() const;
-
-  /// \brief Delete the field data manager constraint (if it exists).
-  void delete_field_data_manager_constraint() const;
-
-  /// \brief Delete the bucket capacity constraint (if it exists).
-  void delete_bucket_capacity_constraint() const;
-
-  /// \brief Delete the upward connectivity flag constraint (if it exists).
-  void delete_upward_connectivity_flag_constraint() const;
-
-  /// \brief Delete the specified attribute constraint (if it exists).
-  template <class T>
-  void delete_mesh_attribute_constraint() const {
-    auto value = mesh_attributes_.template get<std::shared_ptr<T>>();
-    mesh_attributes_.template remove<std::shared_ptr<T>>(value);
-  }
-
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means:
   ///   - TODO(palmerb4): What are the mesh invariants set by STK?
-  void check_if_valid() const;
+  void check_if_valid() const {
+  }
 
-  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
+  /// \brief Declare a part with a given rank. It may explicitly contain any entity of lower rank with optional forced
+  /// induction.
   ///
-  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+  /// Redeclaration of a previously declared part is perfectly valid given that they have the same rank and induction.
+  /// If the existing part only has its name set, then redeclaration will set the rank and arg_no_force. Otherwise, we
+  /// check for compatibility.
+  ///
+  /// \param part_name Name of the part.
+  /// \param rank Maximum rank of entities in the part.
+  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  constexpr auto declare_part(const std::string_view &part_name, const stk::mesh::EntityRank &rank,
+                              const bool &arg_force_no_induce = false) const & {
+    // Check if the part already exists.
+    if constexpr (boost::hana::contains(new_part_id_map, part_name)) {
+      // The part exists, check for compatibility.
+      auto existing_part = boost::hana::at_key(new_part_id_map, part_name);
+      static_assert(existing_part.state == PartRequirements::NAME_AND_TOPOLOGY_SET,
+                    "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
+                        << "however, the part was previously declared with a given topology.");
+      static_assert(existing_part.state == PartRequirements::INVALID_STATE,
+                    "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
+                        << "however, the previously declared part is currently invalid. \n"
+                        << "Odd... please contact the development team.");
+      static_assert(existing_part.arg_force_no_induce == arg_force_no_induce,
+                    "MeshRequirements: Attempting to redeclare a part with a given induction flag ( "
+                        << arg_force_no_induce << " ); \n"
+                        << "however, the part was previously declared with a different induction flag ( "
+                        << existing_part.arg_force_no_induce << ").");
 
-  /// \brief Add the provided part to the mesh, given that it is valid.
-  ///
-  /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
-  ///
-  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
-  void add_part_req(std::shared_ptr<PartRequirements> part_req_ptr);
+      // Create the updated part requirements and replace the old one. 
+      // Uses move semantics to avoid copying.
+      PartRequirements pr{part_name, stk::topology::INVALID_TOPOLOGY, rank, arg_force_no_induce,
+                          PartRequirements::NAME_AND_RANK_SET};
 
-  /// \brief Require that the mesh have a specific mesh attribute with known type.
+      // Plundering not allowed, creates a copy of the internal members of *this.
+      auto new_id_to_part_map = boost::hana::erase_key(id_to_part_map_, part_id_map_[part_name]);
+
+      MeshRequirements<FieldIdMap, NewPartIdMap, AttributeIdMap, IdToFieldMap, NewIdToPartMap, MeshAttributes>(
+          field_id_map_, part_id_map, att_id_map_, id_to_field_map_, id_to_part_map, mesh_atts_);
+      using new_tuple_type = decltype(new_tuple);
+      return MapWrapper<new_tuple_type>{new_tuple};
+    } else {
+
+      auto new_part_id_map = boost::hana::append(part_id_map_, std::forward<T>(t));
+    }
+  }
+
+  /// \brief Declare a part with a given rank. It may explicitly contain any entity of lower rank with optional forced
+  /// induction.
   ///
-  /// \note Attributes are fetched from an stk::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  template <class T>
-  void add_mesh_attribute_req(const std::shared_ptr<T> some_attribute_ptr) {
-    mesh_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
+  /// Redeclaration of a previously declared part is perfectly valid given that they have the same rank and induction.
+  /// In this sense, redeclaration is a no-op with a compatibility check.
+  ///
+  /// \param part_name Name of the part.
+  /// \param rank Maximum rank of entities in the part.
+  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  constexpr auto declare_part(const std::string_view &part_name, const stk::mesh::EntityRank &rank,
+                              const bool &arg_force_no_induce = false) && {
+  }
+
+  /// \brief Declare a part with given topology. It may contain any element with the given topology with optional forced
+  /// induction of downward connected entities.
+  ///
+  /// Redeclaration of a previously declared part is perfectly valid given that they have the same topology and
+  /// induction. In this sense, redeclaration is a no-op with a compatibility check.
+  ///
+  /// \param part_name Name of the part.
+  /// \param topology Topology of entities in the part.
+  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  constexpr auto declare_part_with_topology(const std::string_view &part_name,
+                                            const stk::topology::topology_t &topology,
+                                            const bool &arg_force_no_induce = false) const & {
+  }
+
+  /// \brief Declare a part with given topology. It may contain any element with the given topology with optional forced
+  /// induction of downward connected entities.
+  ///
+  /// Redeclaration of a previously declared part is perfectly valid given that they have the same topology and
+  /// induction. In this sense, redeclaration is a no-op with a compatibility check.
+  ///
+  /// \param part_name Name of the part.
+  /// \param topology Topology of entities in the part.
+  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  constexpr auto declare_part_with_topology(const std::string_view &part_name,
+                                            const stk::topology::topology_t &topology,
+                                            const bool &arg_force_no_induce = false) &&;
+
+  /// \brief Declare a part without rank or topology (these will need set later).
+  ///
+  /// Redeclaration of a previously declared part is perfectly valid. In this sense, redeclaration is a no-op with a
+  /// compatibility check.
+  ///
+  /// \param part_name Name of the part.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  constexpr auto declare_part(const std::string_view &part_name) const &;
+
+  /// \brief Declare a part without rank or topology (these will need set later).
+  ///
+  /// Redeclaration of a previously declared part is perfectly valid. In this sense, redeclaration is a no-op with a
+  /// compatibility check.
+  ///
+  /// \param part_name Name of the part.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  constexpr auto declare_part(const std::string_view &part_name) &&;
+
+  /// \brief Declare a subset relation between two parts.
+  ///
+  /// An important comment: If you do specify verifyFieldRestrictions = true, this check will be delayed until the
+  /// entire mesh is constructed.
+  ///
+  /// Redeclaration of a previously declared subset relation is perfectly valid. There's no need to force two
+  /// declarations to have the same verifyFieldRestrictions, so if any declaration sets this flag to true, then the
+  /// check will be performed. In this sense, redeclaration will update verifyFieldRestrictions and check compatibility.
+  ///
+  /// \param superset_part_name Name of the parent/superset part.
+  /// \param subset_part_name Name of the child/subset part.
+  /// \param verifyFieldRestrictions Flag specifying if STK should validate the field restriction for the parts.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  constexpr auto declare_part_subset(const std::string_view &superset_part_name,
+                                     const std::string_view &subset_part_name,
+                                     const bool &verifyFieldRestrictions = true) const &;
+
+  /// \brief Declare a subset relation between two parts.
+  ///
+  /// An important comment: If you do specify verifyFieldRestrictions = true, this check will be delayed until the
+  /// entire mesh is constructed.
+  ///
+  /// Redeclaration of a previously declared subset relation is perfectly valid. There's no need to force two
+  /// declarations to have the same verifyFieldRestrictions, so if any declaration sets this flag to true, then the
+  /// check will be performed. In this sense, redeclaration will update verifyFieldRestrictions and check compatibility.
+  ///
+  /// \param superset_part_name Name of the parent/superset part.
+  /// \param subset_part_name Name of the child/subset part.
+  /// \param verifyFieldRestrictions Flag specifying if STK should validate the field restriction for the parts.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  constexpr auto declare_part_subset(const std::string_view &superset_part_name,
+                                     const std::string_view &subset_part_name,
+                                     const bool &verifyFieldRestrictions = true) &&;
+
+  /// \brief Declare a part attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \param part_name Name of the part to store the attribute on.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute(const std::string_view &part_name) const & {
+  }
+
+  /// \brief Declare a part attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \param part_name Name of the part to store the attribute on.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute(const std::string_view &part_name) && {
+  }
+
+  /// \brief Declare a field attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \param field_name Name of the field to store the attribute on.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute(const std::string_view &field_name) const & {
+  }
+
+  /// \brief Declare a field attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \param field_name Name of the field to store the attribute on.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute(const std::string_view &field_name) && {
+  }
+
+  /// \brief Declare a mesh attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute() const & {
+  }
+
+  /// \brief Declare a mesh attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute() && {
+  }
+
+  /// \brief Declare a new field.
+  ///
+  /// Redeclaration of a previously declared field (that is, declaring a field with the same name and rank) is perfectly
+  /// valid. Note, redeclaration with a larger min_number_of_states will overwrite the previous requested minimum number
+  /// of states. This behavior is consistant with the definition of number of states being the last N values of the
+  /// field. If one algorithm requires N states and another M > N, then storing M states won't effect the first
+  /// algorithm.
+  ///
+  /// * There are certain limitations on what can or cannot be a field type.
+  /// TODO(palmerb4): What are these are these requirements explicitly?
+  ///
+  /// \tparam FieldType The field type*
+  /// \param entity_rank The rank of entities associated with this field.
+  /// \param field_name The name of the field.
+  /// \param dimension The dimension of the field. For example, a dimension of three would be a vector.
+  /// \param min_number_of_states The minimum number of previous field values that STK should maintain.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  template <typename FieldType>
+  constexpr auto declare_field(const stk::topology::rank_t &entity_rank, const std::string_view &field_name,
+                               const unsigned dimension, const unsigned &min_number_of_states = 1) const & {
+  }
+
+  /// \brief Declare a new field.
+  ///
+  /// Redeclaration of a previously declared field (that is, declaring a field with the same name and rank) is perfectly
+  /// valid. Note, redeclaration with a larger min_number_of_states will overwrite the previous requested minimum number
+  /// of states. This behavior is consistant with the definition of number of states being the last N values of the
+  /// field. If one algorithm requires N states and another M > N, then storing M states won't effect the first
+  /// algorithm.
+  ///
+  /// * There are certain limitations on what can or cannot be a field type.
+  /// TODO(palmerb4): What are these are these requirements explicitly?
+  ///
+  /// \tparam FieldType
+  /// \param entity_rank The rank of entities associated with this field.
+  /// \param field_name The name of the field.
+  /// \param dimension The dimension of the field. For example, a dimension of three would be a vector.
+  /// \param min_number_of_states The minimum number of previous field values that STK should maintain.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  template <typename FieldType>
+  constexpr auto declare_field(const stk::topology::rank_t &entity_rank, const std::string_view &field_name,
+                               const unsigned dimension, const unsigned &min_number_of_states = 1) && {
+  }
+
+  /// \brief Put an already-declared field on an already-declared part.
+  ///
+  /// Redeclaration of an existing field-part connection, is perfectly valid and will perform a no-op.
+  ///
+  /// \param field_name The name of an already-declared field.
+  /// \param part_name The name of an already-declared part, which should contain said field.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  constexpr auto put_field_on_mesh(const std::string_view &field_name, const std::string_view &part_name) const & {
+  }
+
+  /// \brief Put an already-declared field on an already-declared part.
+  ///
+  /// Redeclaration of an existing field-part connection, is perfectly valid and will perform a no-op.
+  ///
+  /// \param field_name The name of an already-declared field.
+  /// \param part_name The name of an already-declared part, which should contain said field.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  constexpr auto put_field_on_mesh(const std::string_view &field_name, const std::string_view &part_name) && {
   }
 
   /// \brief Merge the current requirements with another \c MeshRequirements.
   ///
-  /// \param part_req_ptr [in] An \c MeshRequirements object to merge with the current object.
-  void merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr);
-
-  /// \brief Merge the current requirements with any number of other \c MeshRequirements.
+  /// The merge process (effectively) involves the following:
+  ///   - call declare_attribute for each field/part/mesh attribute in the other reqs.
+  ///   - call declare_part for each part in the other reqs.
+  ///   - call declare_part_subset for each subset relation in the other reqs.
+  ///   - call declare_field for each field in the other reqs.
   ///
-  /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c MeshRequirements objects to merge with the
-  /// current object.
-  void merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs);
+  /// As an example, consider the following example:
+  ///     // Create and merge two sets of requirements.
+  ///     MeshRequirements reqs1;
+  ///     reqs1.declare_part("animal")
+  ///         .declare_field<double>(stk::topology::ENTITY_RANK, "height", 1)
+  ///         .put_field_on_mesh("height", "animal");
+  ///     MeshRequirements reqs2;
+  ///     reqs2.declare_part("animal")
+  ///          .declare_field<double>(stk::topology::ENTITY_RANK, "height", 2)
+  ///          .put_field_on_mesh("height", "animal")
+  ///          .declare_part("cat")
+  ///          .declare_part_subset("animal", "cat");
+  ///     auto merged_reqs = reqs1.merge(reqs2);
+  ///     // Create the equivalent requirements for comparison.
+  ///     MeshRequirements reqs3;
+  ///     reqs3.declare_part("animal")
+  ///          .declare_field<double>(stk::topology::ENTITY_RANK, "height", 2)
+  ///          .put_field_on_mesh("height", "animal")
+  ///          .declare_part("cat")
+  ///          .declare_part_subset("animal", "cat");
+  ///     static_assert(merged_reqs == reqs3);
+  ///
+  /// \tparam OtherMeshRequirements The type of the other MeshRequirements.
+  /// \param other_reqs [in] Some other \c MeshRequirements object to merge with the current object.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  template <typename OtherMeshRequirements>
+  constexpr auto merge(OtherMeshRequirements &&other_reqs) const & {
+  }
+
+  /// \brief Merge the current requirements with another \c MeshRequirements.
+  ///
+  /// The merge process (effectively) involves the following:
+  ///   - call declare_attribute for each field/part/mesh attribute in the other reqs.
+  ///   - call declare_part for each part in the other reqs.
+  ///   - call declare_part_subset for each subset relation in the other reqs.
+  ///   - call declare_field for each field in the other reqs.
+  ///
+  /// As an example, consider the following example:
+  ///     // Create and merge two sets of requirements.
+  ///     MeshRequirements reqs1;
+  ///     reqs1.declare_part("animal")
+  ///         .declare_field<double>(stk::topology::ENTITY_RANK, "height", 1)
+  ///         .put_field_on_mesh("height", "animal");
+  ///     MeshRequirements reqs2;
+  ///     reqs2.declare_part("animal")
+  ///          .declare_field<double>(stk::topology::ENTITY_RANK, "height", 2)
+  ///          .put_field_on_mesh("height", "animal")
+  ///          .declare_part("cat")
+  ///          .declare_part_subset("animal", "cat");
+  ///     auto merged_reqs = reqs1.merge(reqs2);
+  ///     // Create the equivalent requirements for comparison.
+  ///     MeshRequirements reqs3;
+  ///     reqs3.declare_part("animal")
+  ///          .declare_field<double>(stk::topology::ENTITY_RANK, "height", 2)
+  ///          .put_field_on_mesh("height", "animal")
+  ///          .declare_part("cat")
+  ///          .declare_part_subset("animal", "cat");
+  ///     static_assert(merged_reqs == reqs3);
+  ///
+  /// \tparam OtherMeshRequirements The type of the other MeshRequirements.
+  /// \param other_reqs [in] Some other \c MeshRequirements object to merge with the current object.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  template <typename OtherMeshRequirements>
+  constexpr auto merge(OtherMeshRequirements &&other_reqs) && {
+  }
   //@}
 
  private:
-  //! \name Default parameters
+  //! \name Private constructors
   //@{
 
-  static constexpr unsigned default_spatial_dimension_ = 3;
-  static std::vector<std::string> default_entity_rank_names_ = std::vector<std::string>();
-  static constexpr stk::ParallelMachine default_communicator_ = MPI_COMM_NULL;
-  static constexpr stk::mesh::BulkData::AutomaticAuraOption default_aura_option_ = stk::mesh::BulkData::AUTO_AURA;
-  static constexpr stk::mesh::FieldDataManager *default_field_data_manager_ptr_ = nullptr;
-  static constexpr unsigned default_bucket_capacity_ = stk::mesh::impl::BucketRepository::default_bucket_capacity;
-  static constexpr bool default_upward_connectivity_flag_ = true;
+  /// @brief Constructor will full fill.
+  /// @param field_id_map A map from field name and rank to field ordinal.
+  /// @param part_id_map A map from part name part ordinal.
+  /// @param att_id_map A map from attribute typeid attribute ordinal.
+  /// @param id_to_field_map A map from field ordinal to the actual field requirements.
+  /// @param id_to_part_map A map from part ordinal to the actual part requirements.
+  /// @param mesh_atts A tuple of mesh attributes (stored as att ordinals).
+  MeshRequirements(FieldIdMap field_id_map, PartIdMap part_id_map, AttributeIdMap att_id_map,
+                   IdToFieldMap id_to_field_map, IdToPartMap id_to_part_map, MeshAttributes mesh_atts)
+      : field_id_map_(field_id_map),
+        part_id_map_(part_id_map),
+        att_id_map_(att_id_map),
+        id_to_field_map_(id_to_field_map),
+        id_to_part_map_(id_to_part_map),
+        mesh_atts_(mesh_atts) {
+  }
+
   //@}
 
-  /// @brief The dimension of the space within which the parts and entities reside.
-  unsigned spatial_dimension_;
+  //! \name Private helper classes
+  //@{
 
-  /// @brief The names assigned to each rank.
-  std::vector<std::string> entity_rank_names_;
+  struct PartRequirements {
+    enum state_t : int8_t { INVALID_STATE, NAME_SET, NAME_AND_RANK_SET, NAME_AND_TOPOLOGY_SET };
+    std::string_view name;
+    stk::topology_topology_t topology;
+    stk::mesh::EntityRank rank;
+    bool arg_force_no_induce;
+    state_t state = INVALID_STATE;
+  };  // PartRequirements
 
-  /// @brief The MPI communicator to be used by STK.
-  stk::ParallelMachine communicator_;
+  template <typename FieldType>
+  struct FieldRequirements {
+    stk::topology::rank_t entity_rank;
+    std::string_view field_name;
+    unsigned dimension;
+    unsigned min_number_of_states;
+    using type = FieldType;
+  };  // FieldRequirements
+  //@}
 
-  /// @brief The chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  stk::mesh::BulkData::AutomaticAuraOption aura_option_;
+  //! \name Internal members
+  //@{
 
-  /// @brief Pointer to an existing field data manager.
-  stk::mesh::FieldDataManager *field_data_manager_ptr_;
+  /// \brief A map from field name and rank to field ordinal.
+  FieldIdMap field_id_map_;
 
-  /// @brief Upper bound on the number of mesh entities that may be associated with a single bucket.
-  unsigned bucket_capacity_;
+  /// \brief A map from part name part ordinal.
+  PartIdMap part_id_map_;
 
-  /// @brief A flag specifying if upward connectivity will be enabled or not.
-  bool upward_connectivity_flag_;
+  /// \brief A map from attribute typeid attribute ordinal.
+  AttributeIdMap att_id_map_;
 
-  /// \brief If the spacial dimension is set or not.
-  bool spatial_dimension_is_set_ = false;
+  /// \brief A map from field ordinal to the actual field requirements.
+  IdToFieldMap id_to_field_map_;
 
-  /// \brief If the names of each rank are set or not.
-  bool entity_rank_names_is_set_ = false;
+  /// \brief A map from part ordinal to the actual part requirements.
+  IdToPartMap id_to_part_map_;
 
-  /// \brief If the MPI communicator is set or not.
-  bool comm_is_set_ = false;
-
-  /// \brief If the aura option is set or not.
-  bool aura_option_is_set_ = false;
-
-  /// \brief If the field manager is set or not.
-  bool field_data_manager_ptr_is_set_ = false;
-
-  /// \brief If the bucket capacity is set or not.
-  bool bucket_capacity_is_set_ = false;
-
-  /// \brief If the upward connectivity flag is set or not.
-  bool enable_upward_connectivity_is_set_ = false;
-
-  /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_{
-      stk::topology::NUM_RANKS};
-
-  /// \brief A map from part name to the part params for that part.
-  std::map<std::string, std::shared_ptr<PartRequirements>> mesh_part_map_;
-
-  /// \brief Any attributes associated with this mesh.
-  stk::CSet mesh_attributes_;
+  /// \brief A tuple of mesh attributes (stored as att ordinals).
+  MeshAttributes mesh_atts_;
+  //@}
 };  // MeshRequirements
 
 }  // namespace meta

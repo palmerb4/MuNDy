@@ -46,59 +46,6 @@ namespace mundy {
 
 namespace meta {
 
-namespace impl {
-
-//! \name Helper functions
-//@{
-
-/// \class are_types_unique
-/// \brief Value semantics class for checking if a set of types are unique.
-///
-/// Usage:
-///    static_assert(are_types_unique<int, double, double>::value); // will throw
-///    static_assert(are_types_unique<int, double, bool>::value);   // will not throw
-///    static_assert(are_types_unique<int, double, bool, float, unsigned, std::string,>::value);   // will not throw
-template <typename... Ts>
-struct are_types_unique {
-  static constexpr bool value = true;
-};  // are_types_unique
-
-template <typename T1, typename T2, typename... Trest>
-struct are_types_unique<T1, T2, Trest...> {
-  static constexpr bool value =
-      !std::is_same_v<T1, T2> && are_types_unique<T1, Trest...>::value && are_types_unique<T2, Trest...>::value;
-};  // are_types_unique
-
-/// \class tuple_cat_t
-/// \brief A helper type for fetching the return type of std::tuple_cat.
-template <typename... Tuples>
-using tuple_cat_t = decltype(std::tuple_cat(std::declval<Tuples>()...));
-
-/// \class unique_tuple
-/// \brief A helper class for filtering out non-unique types from a tuple.
-///
-/// Usage:
-///     using ExampleTupleType = std::tuple<int, char, int, char, float, char, double>;
-///     using FilteredTupleType = unique_tuple<ExampleTupleType>::type;
-///     static_assert(std::is_same_v<FilteredTupleType, std::tuple<int, char, float, double>>)
-template <typename T, typename... Ts>
-struct unique {
-  using type = T;
-};
-
-template <typename... Ts, typename U, typename... Us>
-struct unique<std::tuple<Ts...>, U, Us...>
-    : std::conditional_t<(std::is_same_v<U, Ts> || ...), unique<std::tuple<Ts...>, Us...>,
-                         unique<std::tuple<Ts..., U>, Us...>> {};
-
-template <typename>
-struct unique_tuple;
-
-template <typename... Ts>
-struct unique_tuple<std::tuple<Ts...>> : unique<std::tuple<>, Ts...> {};
-}  // namespace impl
-//@}
-
 /// \class FieldRequirements
 /// \brief A set of necessary parameters for declaring a new field.
 ///
@@ -109,8 +56,7 @@ struct unique_tuple<std::tuple<Ts...>> : unique<std::tuple<>, Ts...> {};
 ///
 /// \tparam FieldType Type for elements in the field.
 /// \tparam FieldAttributeTypes A set of required field attribute types. Warning, types must be unique.
-template <typename FieldType, typename... FieldAttributeTypes,
-          std::enable_if_t<impl::are_types_unique<FieldAttributeTypes>::value, bool> = true>
+template <typename FieldType>
 class FieldRequirements {
  public:
   //! \name Typedefs
