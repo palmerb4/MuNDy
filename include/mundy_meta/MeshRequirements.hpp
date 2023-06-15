@@ -90,8 +90,11 @@ using EmptyTuple = decltype(boost::hana::make_tuple());
 ///     reqs.declare_part("parent")  /* copy here to preserve reqs for later use */
 ///         .declare_part("child")   /* move here since the output from reqs.declare_part("parent") is never stored */
 ///         .declare_part_subset("parent", "child");  /* move here ... */
-template <typename FieldIdMap = EmptyMap, typename PartIdMap = EmptyMap, typename AttributeIdMap = EmptyMap,
-          typename IdToFieldMap = EmptyMap, typename IdToPartMap = EmptyMap, typename MeshAttributes = EmptyTuple>
+template <typename FieldDimMap = EmptyMap, typename FieldMinNumStatesMap = EmptyMap,
+          typename FieldAttributesMap = EmptyMap, typename PartStateMap = EmptyMap, typename PartTopologyMap = EmptyMap,
+          typename PartRankMap = EmptyMap, typename PartNoInductionMap = EmptyMap, typename PartFieldMap = EmptyMap,
+          typename PartSubPartMap = EmptyMap, typename PartAttributesMap = EmptyMap,
+          typename MeshAttributes = EmptyTuple>
 class MeshRequirements {
  public:
   //! \name Constructors and destructor
@@ -102,24 +105,36 @@ class MeshRequirements {
   MeshRequirements() = default;
 
   /// \brief Copy constructor.
-  MeshRequirements(const MeshRequirements<FieldIdMap, PartIdMap, AttributeIdMap, IdToFieldMap, IdToPartMap,
-                                          MeshAttributes> &other_reqs)
-      : field_id_map_(other_reqs.field_id_map_),
-        part_id_map_(other_reqs.part_id_map_),
-        att_id_map_(other_reqs.att_id_map_),
-        id_to_field_map_(other_reqs.id_to_field_map_),
-        id_to_part_map_(other_reqs.id_to_part_map_),
+  MeshRequirements(const MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap,
+                                          PartTopologyMap, PartRankMap, PartNoInductionMap, PartFieldMap,
+                                          PartSubPartMap, PartAttributesMap, MeshAttributes> &other_reqs)
+      : field_dim_map_(other_reqs.field_dim_map_),
+        field_min_num_states_map_(other_reqs.field_min_num_states_map_),
+        field_att_map_(other_reqs.field_att_map_),
+        part_state_map_(other_reqs.part_state_map_),
+        part_topology_map_(other_reqs.part_topology_map_),
+        part_rank_map_(other_reqs.part_rank_map_),
+        part_no_induce_map_(other_reqs.part_no_induce_map_),
+        part_field_map_(other_reqs.part_field_map_),
+        part_subpart_map_(other_reqs.part_subpart_map_),
+        part_att_map_(other_reqs.part_att_map_),
         mesh_atts_(other_reqs.mesh_atts_) {
   }
 
   /// \brief Move constructor.
-  MeshRequirements(
-      MeshRequirements<FieldIdMap, PartIdMap, AttributeIdMap, IdToFieldMap, IdToPartMap, MeshAttributes> &&other_reqs)
-      : field_id_map_(std::move(other_reqs.field_id_map_)),
-        part_id_map_(std::move(other_reqs.part_id_map_)),
-        att_id_map_(std::move(other_reqs.att_id_map_)),
-        id_to_field_map_(std::move(other_reqs.id_to_field_map_)),
-        id_to_part_map_(std::move(other_reqs.id_to_part_map_)),
+  MeshRequirements(MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap,
+                                    PartTopologyMap, PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap,
+                                    PartAttributesMap, MeshAttributes> &&other_reqs)
+      : field_dim_map_(std::move(other_reqs.field_dim_map_)),
+        field_min_num_states_map_(std::move(other_reqs.field_min_num_states_map_)),
+        field_att_map_(std::move(other_reqs.field_att_map_)),
+        part_state_map_(std::move(other_reqs.part_state_map_)),
+        part_topology_map_(std::move(other_reqs.part_topology_map_)),
+        part_rank_map_(std::move(other_reqs.part_rank_map_)),
+        part_no_induce_map_(std::move(other_reqs.part_no_induce_map_)),
+        part_field_map_(std::move(other_reqs.part_field_map_)),
+        part_subpart_map_(std::move(other_reqs.part_subpart_map_)),
+        part_att_map_(std::move(other_reqs.part_att_map_)),
         mesh_atts_(std::move(other_reqs.mesh_atts_)) {
   }
 
@@ -130,13 +145,6 @@ class MeshRequirements {
   //! \name Actions
   //@{
 
-  /// \brief Ensure that the current set of parameters is valid.
-  ///
-  /// Here, valid means:
-  ///   - TODO(palmerb4): What are the mesh invariants set by STK?
-  void check_if_valid() const {
-  }
-
   /// \brief Declare a part with a given rank. It may explicitly contain any entity of lower rank with optional forced
   /// induction.
   ///
@@ -146,42 +154,56 @@ class MeshRequirements {
   ///
   /// \param part_name Name of the part.
   /// \param rank Maximum rank of entities in the part.
-  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \param force_no_induce Flag specifying if sub-entities of part members should not become induced members.
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
   constexpr auto declare_part(const std::string_view &part_name, const stk::mesh::EntityRank &rank,
-                              const bool &arg_force_no_induce = false) const & {
+                              const bool &force_no_induce = false) const & {
     // Check if the part already exists.
     if constexpr (boost::hana::contains(new_part_id_map, part_name)) {
       // The part exists, check for compatibility.
-      auto existing_part = boost::hana::at_key(new_part_id_map, part_name);
-      static_assert(existing_part.state == PartRequirements::NAME_AND_TOPOLOGY_SET,
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == NAME_AND_TOPOLOGY_SET,
                     "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
                         << "however, the part was previously declared with a given topology.");
-      static_assert(existing_part.state == PartRequirements::INVALID_STATE,
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == INVALID_STATE,
                     "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
                         << "however, the previously declared part is currently invalid. \n"
                         << "Odd... please contact the development team.");
-      static_assert(existing_part.arg_force_no_induce == arg_force_no_induce,
+      static_assert(boost::hana::at_key(part_no_induce_map_, part_name) == force_no_induce,
                     "MeshRequirements: Attempting to redeclare a part with a given induction flag ( "
-                        << arg_force_no_induce << " ); \n"
-                        << "however, the part was previously declared with a different induction flag ( "
-                        << existing_part.arg_force_no_induce << ").");
+                        << force_no_induce << " ) incompatible with the existing flag");
 
-      // Create the updated part requirements and replace the old one. 
-      // Uses move semantics to avoid copying.
-      PartRequirements pr{part_name, stk::topology::INVALID_TOPOLOGY, rank, arg_force_no_induce,
-                          PartRequirements::NAME_AND_RANK_SET};
-
-      // Plundering not allowed, creates a copy of the internal members of *this.
-      auto new_id_to_part_map = boost::hana::erase_key(id_to_part_map_, part_id_map_[part_name]);
-
-      MeshRequirements<FieldIdMap, NewPartIdMap, AttributeIdMap, IdToFieldMap, NewIdToPartMap, MeshAttributes>(
-          field_id_map_, part_id_map, att_id_map_, id_to_field_map_, id_to_part_map, mesh_atts_);
-      using new_tuple_type = decltype(new_tuple);
-      return MapWrapper<new_tuple_type>{new_tuple};
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{
+          field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+          part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
+          mesh_atts_};
     } else {
+      // The part does not exist, expand the existing maps using copies of the contents of *this.
+      constexpr auto new_part_state_map =
+          boost::hana::insert(part_state_map_, hana::make_pair(part_name, NAME_AND_RANK_SET));
+      constexpr auto new_part_rank_map = boost::hana::insert(part_rank_map_, hana::make_pair(part_name, rank));
+      constexpr auto new_part_no_induce_map =
+          boost::hana::insert(part_no_induce_map_, hana::make_pair(part_name, force_no_induce));
 
-      auto new_part_id_map = boost::hana::append(part_id_map_, std::forward<T>(t));
+      using NewPartStateMap = decltype(new_part_state_map);
+      using NewPartRankMap = decltype(new_part_rank_map);
+      using NewPartNoInductionMap = decltype(new_part_no_induce_map);
+
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, NewPartStateMap, PartTopologyMap,
+                              NewPartRankMap, NewPartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{field_dim_map_,
+                                              field_min_num_states_map_,
+                                              field_att_map_,
+                                              std::move(new_part_state_map),
+                                              part_topology_map_,
+                                              std::move(new_part_rank_map),
+                                              std::move(new_part_no_induce_map),
+                                              part_field_map_,
+                                              part_subpart_map_,
+                                              part_att_map_,
+                                              mesh_atts_};
     }
   }
 
@@ -193,10 +215,64 @@ class MeshRequirements {
   ///
   /// \param part_name Name of the part.
   /// \param rank Maximum rank of entities in the part.
-  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \param force_no_induce Flag specifying if sub-entities of part members should not become induced members.
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
   constexpr auto declare_part(const std::string_view &part_name, const stk::mesh::EntityRank &rank,
-                              const bool &arg_force_no_induce = false) && {
+                              const bool &force_no_induce = false) && {
+    // Check if the part already exists.
+    if constexpr (boost::hana::contains(new_part_id_map, part_name)) {
+      // The part exists, check for compatibility.
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == NAME_AND_TOPOLOGY_SET,
+                    "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
+                        << "however, the part was previously declared with a given topology.");
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == INVALID_STATE,
+                    "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
+                        << "however, the previously declared part is currently invalid. \n"
+                        << "Odd... please contact the development team.");
+      static_assert(boost::hana::at_key(part_rank_map_, part_name) == rank,
+                    "MeshRequirements: Attempting to redeclare a part with a given rank ( "
+                        << rank << " ) different than the existing rank ("
+                        << boost::hana::at_key(part_rank_map_, part_name) << ").");
+      static_assert(boost::hana::at_key(part_no_induce_map_, part_name) == force_no_induce,
+                    "MeshRequirements: Attempting to redeclare a part with a given induction flag ( "
+                        << force_no_induce << " ) incompatible with the existing flag");
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),      std::move(part_state_map_),
+                                              std::move(part_topology_map_),  std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_), std::move(part_field_map_),
+                                              std::move(part_subpart_map_),   std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    } else {
+      // The part does not exist, expand the existing maps using the contents of *this.
+      constexpr auto new_part_state_map =
+          boost::hana::insert(std::move(part_state_map_), hana::make_pair(part_name, NAME_AND_RANK_SET));
+      constexpr auto new_part_rank_map =
+          boost::hana::insert(std::move(part_rank_map_), hana::make_pair(part_name, rank));
+      constexpr auto new_part_no_induce_map =
+          boost::hana::insert(std::move(part_no_induce_map_), hana::make_pair(part_name, force_no_induce));
+
+      using NewPartStateMap = decltype(new_part_state_map);
+      using NewPartRankMap = decltype(new_part_rank_map);
+      using NewPartNoInductionMap = decltype(new_part_no_induce_map);
+
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, NewPartStateMap, PartTopologyMap,
+                              NewPartRankMap, NewPartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),
+                                              std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),
+                                              std::move(new_part_state_map),
+                                              std::move(part_topology_map_),
+                                              std::move(new_part_rank_map),
+                                              std::move(new_part_no_induce_map),
+                                              std::move(part_field_map_),
+                                              std::move(part_subpart_map_),
+                                              std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    }
   }
 
   /// \brief Declare a part with given topology. It may contain any element with the given topology with optional forced
@@ -207,11 +283,63 @@ class MeshRequirements {
   ///
   /// \param part_name Name of the part.
   /// \param topology Topology of entities in the part.
-  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \param force_no_induce Flag specifying if sub-entities of part members should not become induced members.
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
   constexpr auto declare_part_with_topology(const std::string_view &part_name,
                                             const stk::topology::topology_t &topology,
-                                            const bool &arg_force_no_induce = false) const & {
+                                            const bool &force_no_induce = false) const & {
+    // Check if the part already exists.
+    if constexpr (boost::hana::contains(new_part_id_map, part_name)) {
+      // The part exists, check for compatibility.
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == NAME_AND_RANK_SET,
+                    "MeshRequirements: Attempting to redeclare a part with a given topology; \n"
+                        << "however, the part was previously declared with a given rank.");
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == INVALID_STATE,
+                    "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
+                        << "however, the previously declared part is currently invalid. \n"
+                        << "Odd... please contact the development team.");
+      static_assert(boost::hana::at_key(part_topology_map_, part_name) == topology,
+                    "MeshRequirements: Attempting to redeclare a part with a given topology ( "
+                        << rank << " ) different than the existing topology ("
+                        << boost::hana::at_key(part_rank_map_, part_name) << ").");
+      static_assert(boost::hana::at_key(part_no_induce_map_, part_name) == force_no_induce,
+                    "MeshRequirements: Attempting to redeclare a part with a given induction flag ( "
+                        << force_no_induce << " ) incompatible with the existing flag");
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{
+          field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+          part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
+          mesh_atts_};
+    } else {
+      // The part does not exist, expand the existing maps using copies of the contents of *this.
+      constexpr auto new_part_state_map =
+          boost::hana::insert(part_state_map_, hana::make_pair(part_name, NAME_AND_RANK_SET));
+      constexpr auto new_part_topology_map =
+          boost::hana::insert(part_topology_map_, hana::make_pair(part_name, topology));
+      constexpr auto new_part_no_induce_map =
+          boost::hana::insert(part_no_induce_map_, hana::make_pair(part_name, force_no_induce));
+
+      using NewPartStateMap = decltype(new_part_state_map);
+      using NewPartTopologyMap = decltype(new_part_topology_map);
+      using NewPartNoInductionMap = decltype(new_part_no_induce_map);
+
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, NewPartStateMap,
+                              NewPartTopologyMap, PartRankMap, NewPartNoInductionMap, PartFieldMap, PartSubPartMap,
+                              PartAttributesMap, MeshAttributes>{field_dim_map_,
+                                                                 field_min_num_states_map_,
+                                                                 field_att_map_,
+                                                                 std::move(new_part_state_map),
+                                                                 std::move(new_part_topology_map_),
+                                                                 part_rank_map_,
+                                                                 std::move(new_part_no_induce_map),
+                                                                 part_field_map_,
+                                                                 part_subpart_map_,
+                                                                 part_att_map_,
+                                                                 mesh_atts_};
+    }
   }
 
   /// \brief Declare a part with given topology. It may contain any element with the given topology with optional forced
@@ -222,92 +350,221 @@ class MeshRequirements {
   ///
   /// \param part_name Name of the part.
   /// \param topology Topology of entities in the part.
-  /// \param arg_force_no_induce Flag specifying if sub-entities of part members should not become induced members.
+  /// \param force_no_induce Flag specifying if sub-entities of part members should not become induced members.
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
   constexpr auto declare_part_with_topology(const std::string_view &part_name,
                                             const stk::topology::topology_t &topology,
-                                            const bool &arg_force_no_induce = false) &&;
+                                            const bool &force_no_induce = false) && {
+    // Check if the part already exists.
+    if constexpr (boost::hana::contains(new_part_id_map, part_name)) {
+      // The part exists, check for compatibility.
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == NAME_AND_RANK_SET,
+                    "MeshRequirements: Attempting to redeclare a part with a given topology; \n"
+                        << "however, the part was previously declared with a given rank.");
+      static_assert(boost::hana::at_key(part_state_map_, part_name) == INVALID_STATE,
+                    "MeshRequirements: Attempting to redeclare a part with a given rank; \n"
+                        << "however, the previously declared part is currently invalid. \n"
+                        << "Odd... please contact the development team.");
+      static_assert(boost::hana::at_key(part_topology_map_, part_name) == topology,
+                    "MeshRequirements: Attempting to redeclare a part with a given topology ( "
+                        << rank << " ) different than the existing topology ("
+                        << boost::hana::at_key(part_rank_map_, part_name) << ").");
+      static_assert(boost::hana::at_key(part_no_induce_map_, part_name) == force_no_induce,
+                    "MeshRequirements: Attempting to redeclare a part with a given induction flag ( "
+                        << force_no_induce << " ) incompatible with the existing flag");
 
-  /// \brief Declare a part without rank or topology (these will need set later).
-  ///
-  /// Redeclaration of a previously declared part is perfectly valid. In this sense, redeclaration is a no-op with a
-  /// compatibility check.
-  ///
-  /// \param part_name Name of the part.
-  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
-  constexpr auto declare_part(const std::string_view &part_name) const &;
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),      std::move(part_state_map_),
+                                              std::move(part_topology_map_),  std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_), std::move(part_field_map_),
+                                              std::move(part_subpart_map_),   std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    } else {
+      // The part does not exist, expand the existing maps using the contents of *this.
+      constexpr auto new_part_state_map =
+          boost::hana::insert(std::move(part_state_map_), hana::make_pair(part_name, NAME_AND_RANK_SET));
+      constexpr auto new_part_topology_map =
+          boost::hana::insert(std::move(part_topology_map_), hana::make_pair(part_name, topology));
+      constexpr auto new_part_no_induce_map =
+          boost::hana::insert(std::move(part_no_induce_map_), hana::make_pair(part_name, force_no_induce));
 
-  /// \brief Declare a part without rank or topology (these will need set later).
-  ///
-  /// Redeclaration of a previously declared part is perfectly valid. In this sense, redeclaration is a no-op with a
-  /// compatibility check.
-  ///
-  /// \param part_name Name of the part.
-  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
-  constexpr auto declare_part(const std::string_view &part_name) &&;
+      using NewPartStateMap = decltype(new_part_state_map);
+      using NewPartTopologyMap = decltype(new_part_topology_map);
+      using NewPartNoInductionMap = decltype(new_part_no_induce_map);
 
-  /// \brief Declare a subset relation between two parts.
-  ///
-  /// An important comment: If you do specify verifyFieldRestrictions = true, this check will be delayed until the
-  /// entire mesh is constructed.
-  ///
-  /// Redeclaration of a previously declared subset relation is perfectly valid. There's no need to force two
-  /// declarations to have the same verifyFieldRestrictions, so if any declaration sets this flag to true, then the
-  /// check will be performed. In this sense, redeclaration will update verifyFieldRestrictions and check compatibility.
-  ///
-  /// \param superset_part_name Name of the parent/superset part.
-  /// \param subset_part_name Name of the child/subset part.
-  /// \param verifyFieldRestrictions Flag specifying if STK should validate the field restriction for the parts.
-  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
-  constexpr auto declare_part_subset(const std::string_view &superset_part_name,
-                                     const std::string_view &subset_part_name,
-                                     const bool &verifyFieldRestrictions = true) const &;
-
-  /// \brief Declare a subset relation between two parts.
-  ///
-  /// An important comment: If you do specify verifyFieldRestrictions = true, this check will be delayed until the
-  /// entire mesh is constructed.
-  ///
-  /// Redeclaration of a previously declared subset relation is perfectly valid. There's no need to force two
-  /// declarations to have the same verifyFieldRestrictions, so if any declaration sets this flag to true, then the
-  /// check will be performed. In this sense, redeclaration will update verifyFieldRestrictions and check compatibility.
-  ///
-  /// \param superset_part_name Name of the parent/superset part.
-  /// \param subset_part_name Name of the child/subset part.
-  /// \param verifyFieldRestrictions Flag specifying if STK should validate the field restriction for the parts.
-  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
-  constexpr auto declare_part_subset(const std::string_view &superset_part_name,
-                                     const std::string_view &subset_part_name,
-                                     const bool &verifyFieldRestrictions = true) &&;
-
-  /// \brief Declare a part attribute with the given type.
-  ///
-  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
-  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
-  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
-  ///
-  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
-  ///
-  /// \tparam AttributeType The attribute type to store on the mesh.
-  /// \param part_name Name of the part to store the attribute on.
-  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
-  template <typename AttributeType>
-  constexpr auto declare_attribute(const std::string_view &part_name) const & {
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, NewPartStateMap,
+                              NewPartTopologyMap, PartRankMap, NewPartNoInductionMap, PartFieldMap, PartSubPartMap,
+                              PartAttributesMap, MeshAttributes>{std::move(field_dim_map_),
+                                                                 std::move(field_min_num_states_map_),
+                                                                 std::move(field_att_map_),
+                                                                 std::move(new_part_state_map),
+                                                                 std::move(new_part_topology_map),
+                                                                 std::move(part_rank_map_),
+                                                                 std::move(new_part_no_induce_map),
+                                                                 std::move(part_field_map_),
+                                                                 std::move(part_subpart_map_),
+                                                                 std::move(part_att_map_),
+                                                                 std::move(mesh_atts_)};
+    }
   }
 
-  /// \brief Declare a part attribute with the given type.
+  /// \brief Declare a subset relation between two parts.
   ///
-  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
-  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
-  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  /// An important comment: If you do specify verifyFieldRestrictions = true, this check will be delayed until the
+  /// entire mesh is constructed.
   ///
-  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  /// Redeclaration of a previously declared subset relation is perfectly valid and will simply perform a no-op.
   ///
-  /// \tparam AttributeType The attribute type to store on the mesh.
-  /// \param part_name Name of the part to store the attribute on.
+  /// \param superset_part_name Name of the parent/superset part.
+  /// \param subset_part_name Name of the child/subset part.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  constexpr auto declare_part_subset(const std::string_view &superset_part_name,
+                                     const std::string_view &subset_part_name) const & {
+    if constexpr (boost::hana::contains(part_subpart_map_, superset_part_name)) {
+      // The given superset part has subset parts.
+      if constexpr (boost::hana::contains(part_subpart_map_[superset_part_name], subset_part_name)) {
+        // The given subset relation exists; do nothing.
+
+        // Plundering not allowed, uses copies of the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{
+            field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+            part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
+            mesh_atts_};
+      } else {
+        // The given subset relation doesn't exist; create it using a copy of the existing data.
+        constexpr auto new_subpart_tuple = boost::hana::append(part_subpart_map_[superset_part_name], subset_part_name);
+
+        // Get the updated map.
+        constexpr auto tmp_map = boost::hana::erase_key(part_subpart_map_, superset_part_name);
+        constexpr auto new_part_subpart_map =
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(superset_part_name, new_subpart_tuple));
+
+        using NewPartSubPartMap = decltype(new_part_subpart_map);
+
+        // Plundering not allowed, uses copies of the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, NewPartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{field_dim_map_,
+                                                field_min_num_states_map_,
+                                                field_att_map_,
+                                                part_state_map_,
+                                                part_topology_map_,
+                                                part_rank_map_,
+                                                part_no_induce_map_,
+                                                part_field_map_,
+                                                std::move(new_part_subpart_map),
+                                                part_att_map_,
+                                                mesh_atts_};
+      }
+    } else {
+      // The given superset part has no existing subset parts.
+
+      // Insert the new relation into the graph.
+      constexpr auto new_part_subpart_map = boost::hana::insert(
+          part_subpart_map_, boost::hana::make_pair(superset_part_name, boost::hana::make_tuple(subset_part_name)));
+
+      using NewPartSubPartMap = decltype(new_part_subpart_map);
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, NewPartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{field_dim_map_,
+                                              field_min_num_states_map_,
+                                              field_att_map_,
+                                              part_state_map_,
+                                              part_topology_map_,
+                                              part_rank_map_,
+                                              part_no_induce_map_,
+                                              part_field_map_,
+                                              std::move(new_part_subpart_map),
+                                              part_att_map_,
+                                              mesh_atts_};
+    }
+  }
+
+  /// \brief Declare a subset relation between two parts.
+  ///
+  /// An important comment: If you do specify verifyFieldRestrictions = true, this check will be delayed until the
+  /// entire mesh is constructed.
+  ///
+  /// Redeclaration of a previously declared subset relation is perfectly valid and will simply perform a no-op.
+  ///
+  /// \param superset_part_name Name of the parent/superset part.
+  /// \param subset_part_name Name of the child/subset part.
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
-  template <typename AttributeType>
-  constexpr auto declare_attribute(const std::string_view &part_name) && {
+  constexpr auto declare_part_subset(const std::string_view &superset_part_name,
+                                     const std::string_view &subset_part_name) && {
+    if constexpr (boost::hana::contains(part_subpart_map_, superset_part_name)) {
+      // The given superset part has subset parts.
+      if constexpr (boost::hana::contains(part_subpart_map_[superset_part_name], subset_part_name)) {
+        // The given subset relation exists; do nothing.
+
+        // Plundering allowed, uses move semantics to steal the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                                std::move(field_att_map_),      std::move(part_state_map_),
+                                                std::move(part_topology_map_),  std::move(part_rank_map_),
+                                                std::move(part_no_induce_map_), std::move(part_field_map_),
+                                                std::move(part_subpart_map_),   std::move(part_att_map_),
+                                                std::move(mesh_atts_)};
+      } else {
+        // The given subset relation doesn't exist; create it using the existing data.
+        constexpr auto new_subpart_tuple =
+            boost::hana::append(std::move(part_subpart_map_[superset_part_name]), subset_part_name);
+
+        // Get the updated map.
+        constexpr auto tmp_map = boost::hana::erase_key(std::move(part_subpart_map_), superset_part_name);
+        constexpr auto new_part_subpart_map = boost::hana::insert(
+            std::move(tmp_map), boost::hana::make_pair(superset_part_name, std::move(new_subpart_tuple)));
+
+        using NewPartSubPartMap = decltype(new_part_subpart_map);
+
+        // Plundering allowed, uses move semantics to steal the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, NewPartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{std::move(field_dim_map_),
+                                                std::move(field_min_num_states_map_),
+                                                std::move(field_att_map_),
+                                                std::move(part_state_map_),
+                                                std::move(part_topology_map_),
+                                                std::move(part_rank_map_),
+                                                std::move(part_no_induce_map_),
+                                                std::move(part_field_map_),
+                                                std::move(new_part_subpart_map),
+                                                std::move(part_att_map_),
+                                                std::move(mesh_atts_)};
+      }
+    } else {
+      // The given superset part has no existing subset parts.
+
+      // Insert the new relation into the graph.
+      constexpr auto new_part_subpart_map =
+          boost::hana::insert(std::move(part_subpart_map_),
+                              boost::hana::make_pair(superset_part_name, boost::hana::make_tuple(subset_part_name)));
+
+      using NewPartSubPartMap = decltype(new_part_subpart_map);
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, NewPartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),
+                                              std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),
+                                              std::move(part_state_map_),
+                                              std::move(part_topology_map_),
+                                              std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_),
+                                              std::move(part_field_map_),
+                                              std::move(new_part_subpart_map),
+                                              std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    }
   }
 
   /// \brief Declare a field attribute with the given type.
@@ -323,6 +580,68 @@ class MeshRequirements {
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
   template <typename AttributeType>
   constexpr auto declare_attribute(const std::string_view &field_name) const & {
+    if constexpr (boost::hana::contains(field_att_map_, field_name)) {
+      // The given field has attributes.
+      if constexpr (boost::hana::contains(field_att_map_[field_name], boost::hana::type_c<AttributeType>)) {
+        // The given attribute already exists; do nothing.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{
+            field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+            part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
+            mesh_atts_};
+      } else {
+        // The given attribute doesn't exist; append it to a copy of the existing attributes.
+        constexpr auto new_attribute_tuple =
+            boost::hana::append(field_att_map_[field_name], boost::hana::type_c<AttributeType>);
+
+        // Get the updated map.
+        constexpr auto tmp_map = boost::hana::erase_key(field_att_map_, field_name);
+        constexpr auto new_field_att_map =
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(field_name, std::move(new_attribute_tuple)));
+
+        using NewFieldAttributesMap = decltype(new_field_att_map);
+
+        // Plundering not allowed, uses copies of the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, NewFieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{field_dim_map_,
+                                                field_min_num_states_map_,
+                                                std::move(new_field_att_map),
+                                                part_state_map_,
+                                                part_topology_map_,
+                                                part_rank_map_,
+                                                part_no_induce_map_,
+                                                part_field_map_,
+                                                part_subpart_map_,
+                                                part_att_map_,
+                                                mesh_atts_};
+      }
+    } else {
+      // The given field lacks attributes.
+
+      // Insert the new tuple into the graph.
+      constexpr auto new_field_att_map = boost::hana::insert(
+          field_att_map_,
+          boost::hana::make_pair(field_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+
+      using NewFieldAttributesMap = decltype(new_field_att_map);
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, NewFieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{field_dim_map_,
+                                              field_min_num_states_map_,
+                                              std::move(new_field_att_map),
+                                              part_state_map_,
+                                              part_topology_map_,
+                                              part_rank_map_,
+                                              part_no_induce_map_,
+                                              part_field_map_,
+                                              part_subpart_map_,
+                                              part_att_map_,
+                                              mesh_atts_};
+    }
   }
 
   /// \brief Declare a field attribute with the given type.
@@ -338,6 +657,192 @@ class MeshRequirements {
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
   template <typename AttributeType>
   constexpr auto declare_attribute(const std::string_view &field_name) && {
+    if constexpr (boost::hana::contains(field_att_map_, field_name)) {
+      // The given field has attributes.
+      if constexpr (boost::hana::contains(field_att_map_[field_name], boost::hana::type_c<AttributeType>)) {
+        // The given attribute already exists; do nothing.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                                std::move(field_att_map_),      std::move(part_state_map_),
+                                                std::move(part_topology_map_),  std::move(part_rank_map_),
+                                                std::move(part_no_induce_map_), std::move(part_field_map_),
+                                                std::move(part_subpart_map_),   std::move(part_att_map_),
+                                                std::move(mesh_atts_)};
+      } else {
+        // The given attribute doesn't exist; append it to the existing attributes.
+        constexpr auto new_attribute_tuple =
+            boost::hana::append(std::move(field_att_map_[field_name]), boost::hana::type_c<AttributeType>);
+
+        // Get the updated map.
+        constexpr auto tmp_map = boost::hana::erase_key(std::move(field_att_map_), field_name);
+        constexpr auto new_field_att_map =
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(field_name, std::move(new_attribute_tuple)));
+
+        using NewFieldAttributesMap = decltype(new_field_att_map);
+
+        // Plundering allowed, uses move semantics to steal the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                                std::move(new_field_att_map),   std::move(part_state_map_),
+                                                std::move(part_topology_map_),  std::move(part_rank_map_),
+                                                std::move(part_no_induce_map_), std::move(part_field_map_),
+                                                std::move(part_subpart_map_),   std::move(part_att_map_),
+                                                std::move(mesh_atts_)};
+      }
+    } else {
+      // The given field lacks attributes.
+
+      // Insert the new tuple into the graph.
+      constexpr auto new_field_att_map = boost::hana::insert(
+          std::move(field_att_map_),
+          boost::hana::make_pair(field_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+
+      using NewFieldAttributesMap = decltype(new_field_att_map);
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, NewFieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                              std::move(new_field_att_map),   std::move(part_state_map_),
+                                              std::move(part_topology_map_),  std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_), std::move(part_field_map_),
+                                              std::move(part_subpart_map_),   std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    }
+  }
+
+  /// \brief Declare a part attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \param part_name Name of the part to store the attribute on.
+  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute(const std::string_view &part_name) const & {
+    if constexpr (boost::hana::contains(part_att_map_, part_name)) {
+      // The given field has attributes.
+      if constexpr (boost::hana::contains(part_att_map_[part_name], boost::hana::type_c<AttributeType>)) {
+        // The given attribute already exists; do nothing.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{
+            field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+            part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
+            mesh_atts_};
+      } else {
+        // The given attribute doesn't exist; append it to a copy of the existing attributes.
+        constexpr auto new_attribute_tuple =
+            boost::hana::append(part_att_map_[part_name], boost::hana::type_c<AttributeType>);
+
+        // Get the updated map.
+        constexpr auto tmp_map = boost::hana::erase_key(part_att_map_, part_name);
+        constexpr auto new_part_att_map =
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_attribute_tuple)));
+
+        using NewPartAttributesMap = decltype(new_part_att_map);
+
+        // Plundering not allowed, uses copies of the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, NewPartAttributesMap,
+                                MeshAttributes>{
+            field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+            part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, std::move(new_part_att_map),
+            mesh_atts_};
+      }
+    } else {
+      // The given field lacks attributes.
+
+      // Insert the new tuple into the graph.
+      constexpr auto new_part_att_map = boost::hana::insert(
+          part_att_map_,
+          boost::hana::make_pair(part_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+
+      using NewPartAttributesMap = decltype(new_part_att_map);
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, NewPartAttributesMap,
+                              MeshAttributes>{
+          field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+          part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, std::move(new_part_att_map_),
+          mesh_atts_};
+    }
+  }
+
+  /// \brief Declare a part attribute with the given type.
+  ///
+  /// An important comment: Notice that we only pass a type to this interface and not an instance of the attribute. When
+  /// the mesh is constructed, STK will generate an internal attribute with the given type, the instance of which can be
+  /// fetched as an AttributeType pointer. This pointer will initially be a nullptr.
+  ///
+  /// Redeclaration of a previously declared AttributeType is perfectly valid and will simply perform a no-op.
+  ///
+  /// \tparam AttributeType The attribute type to store on the mesh.
+  /// \param part_name Name of the part to store the attribute on.
+  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
+  template <typename AttributeType>
+  constexpr auto declare_attribute(const std::string_view &part_name) && {
+    if constexpr (boost::hana::contains(part_att_map_, part_name)) {
+      // The given field has attributes.
+      if constexpr (boost::hana::contains(part_att_map_[part_name], boost::hana::type_c<AttributeType>)) {
+        // The given attribute already exists; do nothing.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                                MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                                std::move(field_att_map_),      std::move(part_state_map_),
+                                                std::move(part_topology_map_),  std::move(part_rank_map_),
+                                                std::move(part_no_induce_map_), std::move(part_field_map_),
+                                                std::move(part_subpart_map_),   std::move(part_att_map_),
+                                                std::move(mesh_atts_)};
+      } else {
+        // The given attribute doesn't exist; append it to the existing attributes.
+        constexpr auto new_attribute_tuple =
+            boost::hana::append(std::move(part_att_map_[part_name]), boost::hana::type_c<AttributeType>);
+
+        // Get the updated map.
+        constexpr auto tmp_map = boost::hana::erase_key(std::move(part_att_map_), part_name);
+        constexpr auto new_part_att_map =
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_attribute_tuple)));
+
+        using NewPartAttributesMap = decltype(new_part_att_map);
+
+        // Plundering allowed, uses move semantics to steal the contents of *this.
+        return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                                PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, NewPartAttributesMap,
+                                MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                                std::move(field_att_map_),      std::move(part_state_map_),
+                                                std::move(part_topology_map_),  std::move(part_rank_map_),
+                                                std::move(part_no_induce_map_), std::move(part_field_map_),
+                                                std::move(part_subpart_map_),   std::move(new_part_att_map),
+                                                std::move(mesh_atts_)};
+      }
+    } else {
+      // The given field lacks attributes.
+
+      // Insert the new tuple into the graph.
+      constexpr auto new_part_att_map = boost::hana::insert(
+          std::move(part_att_map_),
+          boost::hana::make_pair(part_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+
+      using NewPartAttributesMap = decltype(new_part_att_map);
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, NewPartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),      std::move(part_state_map_),
+                                              std::move(part_topology_map_),  std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_), std::move(part_field_map_),
+                                              std::move(part_subpart_map_),   std::move(new_part_att_map),
+                                              std::move(mesh_atts_)};
+    }
   }
 
   /// \brief Declare a mesh attribute with the given type.
@@ -352,6 +857,28 @@ class MeshRequirements {
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
   template <typename AttributeType>
   constexpr auto declare_attribute() const & {
+    if constexpr (boost::hana::contains(mesh_atts_, boost::hana::type_c<AttributeType>)) {
+      // The given attribute already exists; do nothing.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{
+          field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+          part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
+          mesh_atts_};
+    } else {
+      // The given attribute doesn't exist; append it to a copy of the existing attributes.
+      constexpr auto new_mesh_atts = boost::hana::append(part_att_map_[part_name], boost::hana::type_c<AttributeType>);
+
+      using NewMeshAttributes = decltype(new_mesh_atts);
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              NewMeshAttributes>{field_dim_map_,      field_min_num_states_map_, field_att_map_,
+                                                 part_state_map_,     part_topology_map_,        part_rank_map_,
+                                                 part_no_induce_map_, part_field_map_,           part_subpart_map_,
+                                                 part_att_map_,       std::move(new_mesh_atts)};
+    }
   }
 
   /// \brief Declare a mesh attribute with the given type.
@@ -366,6 +893,32 @@ class MeshRequirements {
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
   template <typename AttributeType>
   constexpr auto declare_attribute() && {
+    if constexpr (boost::hana::contains(mesh_atts_, boost::hana::type_c<AttributeType>)) {
+      // The given attribute already exists; do nothing.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),      std::move(part_state_map_),
+                                              std::move(part_topology_map_),  std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_), std::move(part_field_map_),
+                                              std::move(part_subpart_map_),   std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    } else {
+      // The given attribute doesn't exist; append it to the existing attributes.
+      constexpr auto new_mesh_atts = boost::hana::append(std::move(mesh_atts_), boost::hana::type_c<AttributeType>);
+
+      using NewMeshAttributes = decltype(new_mesh_atts);
+
+      // Plundering not allowed, uses the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              NewMeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                                 std::move(field_att_map_),      std::move(part_state_map_),
+                                                 std::move(part_topology_map_),  std::move(part_rank_map_),
+                                                 std::move(part_no_induce_map_), std::move(part_field_map_),
+                                                 std::move(part_subpart_map_),   std::move(part_att_map_),
+                                                 std::move(new_mesh_atts)};
+    }
   }
 
   /// \brief Declare a new field.
@@ -388,6 +941,53 @@ class MeshRequirements {
   template <typename FieldType>
   constexpr auto declare_field(const stk::topology::rank_t &entity_rank, const std::string_view &field_name,
                                const unsigned dimension, const unsigned &min_number_of_states = 1) const & {
+    // Check if the field (with the given rank and name) already exists.
+    constexpr auto key = boost::hana::make_pair(entity_rank, field_name);
+    if constexpr (boost::hana::contains(field_dim_map_, key)) {
+      // The field exists, check for compatibility.
+      static_assert(boost::hana::at_key(field_dim_map_, key) == dimension,
+                    "MeshRequirements: Attempting to redeclare a field with name '"
+                        << field_name << "' and rank '" << entity_rank << "; \n"
+                        << "however, the given dimension '" << dimension
+                        << "' is incompatible with the previously declared dimension '"
+                        << boost::hana::at_key(field_dim_map_, key) << "'.");
+
+      constexpr auto new_field_min_num_states_map(field_min_num_states_map_);
+      boost::hana::at_key(new_field_min_num_states_map, key) = min_number_of_states;
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{field_dim_map_,      std::move(new_field_min_num_states_map),
+                                              field_att_map_,      part_state_map_,
+                                              part_topology_map_,  part_rank_map_,
+                                              part_no_induce_map_, part_field_map_,
+                                              part_subpart_map_,   part_att_map_,
+                                              mesh_atts_};
+    } else {
+      // The field doesn't exists, expand the existing maps using copies of the contents of *this.
+      constexpr auto new_field_dim_map = boost::hana::insert(field_dim_map_, hana::make_pair(key, dimension));
+      constexpr auto new_field_min_num_states_map =
+          boost::hana::insert(field_min_num_states_map_, hana::make_pair(key, min_number_of_states));
+
+      using NewFieldDimMap = decltype(new_field_dim_map);
+      using NewFieldMinNumStatesMap = decltype(new_field_min_num_states_map);
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<NewFieldDimMap, NewFieldMinNumStatesMap, FieldAttributesMap, PartStateMap,
+                              PartTopologyMap, PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap,
+                              PartAttributesMap, MeshAttributes>{std::move(new_field_dim_map),
+                                                                 std::move(new_field_min_num_states_map),
+                                                                 field_att_map_,
+                                                                 part_state_map,
+                                                                 part_topology_map_,
+                                                                 part_rank_map_,
+                                                                 part_no_induce_map,
+                                                                 part_field_map_,
+                                                                 part_subpart_map_,
+                                                                 part_att_map_,
+                                                                 mesh_atts_};
+    }
   }
 
   /// \brief Declare a new field.
@@ -410,6 +1010,50 @@ class MeshRequirements {
   template <typename FieldType>
   constexpr auto declare_field(const stk::topology::rank_t &entity_rank, const std::string_view &field_name,
                                const unsigned dimension, const unsigned &min_number_of_states = 1) && {
+    // Check if the field (with the given rank and name) already exists.
+    constexpr auto key = boost::hana::make_pair(entity_rank, field_name);
+    if constexpr (boost::hana::contains(field_dim_map_, key)) {
+      // The field exists, check for compatibility.
+      static_assert(boost::hana::at_key(field_dim_map_, key) == dimension,
+                    "MeshRequirements: Attempting to redeclare a field with name '"
+                        << field_name << "' and rank '" << entity_rank << "; \n"
+                        << "however, the given dimension '" << dimension
+                        << "' is incompatible with the previously declared dimension '"
+                        << boost::hana::at_key(field_dim_map_, key) << "'.");
+
+      // TODO(palmerb4): this is incompatible with constexpr. pop and replace.
+      boost::hana::at_key(field_min_num_states_map_, key) = min_number_of_states;
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),      std::move(part_state_map_),
+                                              std::move(part_topology_map_),  std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_), std::move(part_field_map_),
+                                              std::move(part_subpart_map_),   std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    } else {
+      // The field doesn't exists, expand the existing maps using copies of the contents of *this.
+      constexpr auto new_field_dim_map =
+          boost::hana::insert(std::move(field_dim_map_), hana::make_pair(key, dimension));
+      constexpr auto new_field_min_num_states_map =
+          boost::hana::insert(std::move(field_min_num_states_map_), hana::make_pair(key, min_number_of_states));
+
+      using NewFieldDimMap = decltype(new_field_dim_map);
+      using NewFieldMinNumStatesMap = decltype(new_field_min_num_states_map);
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<NewFieldDimMap, NewFieldMinNumStatesMap, FieldAttributesMap, PartStateMap,
+                              PartTopologyMap, PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap,
+                              PartAttributesMap, MeshAttributes>{
+          std::move(new_field_dim_map),  std::move(new_field_min_num_states_map),
+          std::move(field_att_map_),     std::move(part_state_map_),
+          std::move(part_topology_map_), std::move(part_rank_map_),
+          std::move(part_no_induce_map), std::move(part_field_map_),
+          std::move(part_subpart_map_),  std::move(part_att_map_),
+          std::move(mesh_atts_)};
+    }
   }
 
   /// \brief Put an already-declared field on an already-declared part.
@@ -417,9 +1061,44 @@ class MeshRequirements {
   /// Redeclaration of an existing field-part connection, is perfectly valid and will perform a no-op.
   ///
   /// \param field_name The name of an already-declared field.
+  /// \param field_entity_rank The rank of entities associated with the field.
   /// \param part_name The name of an already-declared part, which should contain said field.
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
-  constexpr auto put_field_on_mesh(const std::string_view &field_name, const std::string_view &part_name) const & {
+  constexpr auto put_field_on_mesh(const std::string_view &field_name, const stk::topology::rank_t &field_entity_rank,
+                                   const std::string_view &part_name) const & {
+    // Check if the relation between part and field (with the given rank and name) already exists.
+    if constexpr (boost::hana::contains(part_field_map_, part_name)) {
+      // The field exists on the given part; do nothing.
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{
+          field_dim_map_, field_min_num_states_map_, field_att_map_,  part_state_map_,   part_topology_map_,
+          part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
+          mesh_atts_};
+    } else {
+      // The field doesn't exist on the part, append it to the existing field tuple using the contents of *this.
+      constexpr auto new_field_tuple =
+          boost::hana::append(part_field_map_[part_name], boost::hana::make_pair(field_entity_rank, field_name));
+
+      // Get the updated map.
+      constexpr auto tmp_map = boost::hana::erase_key(part_field_map_, part_name);
+      constexpr auto new_part_field_map =
+          boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_field_tuple)));
+
+      using NewPartFieldMap = decltype(new_part_field_map);
+
+      // Plundering not allowed, uses copies of the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, NewPartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{field_dim_map_,     field_min_num_states_map_,
+                                              field_att_map_,     part_state_map_,
+                                              part_topology_map_, part_rank_map_,
+                                              part_no_induce_map, std::move(new_part_field_map),
+                                              part_subpart_map_,  part_att_map_,
+                                              mesh_atts_};
+    }
   }
 
   /// \brief Put an already-declared field on an already-declared part.
@@ -429,10 +1108,46 @@ class MeshRequirements {
   /// \param field_name The name of an already-declared field.
   /// \param part_name The name of an already-declared part, which should contain said field.
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
-  constexpr auto put_field_on_mesh(const std::string_view &field_name, const std::string_view &part_name) && {
+  constexpr auto put_field_on_mesh(const std::string_view &field_name, const stk::topology::rank_t &field_entity_rank,
+                                   const std::string_view &part_name) && {
+    // Check if the relation between part and field (with the given rank and name) already exists.
+    if constexpr (boost::hana::contains(part_field_map_, part_name)) {
+      // The field exists on the given part; do nothing.
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),      std::move(part_state_map_),
+                                              std::move(part_topology_map_),  std::move(part_rank_map_),
+                                              std::move(part_no_induce_map_), std::move(part_field_map_),
+                                              std::move(part_subpart_map_),   std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    } else {
+      // The field doesn't exist on the part, append it to the existing field tuple using the contents of *this.
+      constexpr auto new_field_tuple = boost::hana::append(std::move(part_field_map_[part_name]),
+                                                           boost::hana::make_pair(field_entity_rank, field_name));
+
+      // Get the updated map.
+      constexpr auto tmp_map = boost::hana::erase_key(std::move(part_field_map_), part_name);
+      constexpr auto new_part_field_map =
+          boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_field_tuple)));
+
+      using NewPartFieldMap = decltype(new_part_field_map);
+
+      // Plundering allowed, uses move semantics to steal the contents of *this.
+      return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
+                              PartRankMap, PartNoInductionMap, NewPartFieldMap, PartSubPartMap, PartAttributesMap,
+                              MeshAttributes>{std::move(field_dim_map_),     std::move(field_min_num_states_map_),
+                                              std::move(field_att_map_),     std::move(part_state_map_),
+                                              std::move(part_topology_map_), std::move(part_rank_map_),
+                                              std::move(part_no_induce_map), std::move(new_part_field_map),
+                                              std::move(part_subpart_map_),  std::move(part_att_map_),
+                                              std::move(mesh_atts_)};
+    }
   }
 
-  /// \brief Merge the current requirements with another \c MeshRequirements.
+  /// \brief Merge any number of \c MeshRequirements with the current requirements.
   ///
   /// The merge process (effectively) involves the following:
   ///   - call declare_attribute for each field/part/mesh attribute in the other reqs.
@@ -462,48 +1177,136 @@ class MeshRequirements {
   ///          .declare_part_subset("animal", "cat");
   ///     static_assert(merged_reqs == reqs3);
   ///
-  /// \tparam OtherMeshRequirements The type of the other MeshRequirements.
-  /// \param other_reqs [in] Some other \c MeshRequirements object to merge with the current object.
-  /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
-  template <typename OtherMeshRequirements>
-  constexpr auto merge(OtherMeshRequirements &&other_reqs) const & {
-  }
+  /// \tparam FirstMeshRequirements The type of the first MeshRequirements.
+  /// \tparam OtherMeshRequirements The type(s) of the other MeshRequirements.
+  /// \param first_mesh_reqs [in] The first \c MeshRequirements object to merge with the current object.
+  /// \param other_mesh_reqs [in] Any number of other \c MeshRequirements object to merge with the current object.
+  /// \return The updated \c MeshRequirements with the newest modifications.
+  template <typename FirstMeshRequirements, typename... OtherMeshRequirements>
+  constexpr auto merge(FirstMeshRequirements &&first_mesh_reqs, OtherMeshRequirements... &&other_mesh_reqs) &const {
+    // Methodology:
+    // Merge *this with first_mesh_reqs and then merge the result with other_mesh_reqs.
+    // Recurse until other_mesh_reqs is empty.
 
-  /// \brief Merge the current requirements with another \c MeshRequirements.
-  ///
-  /// The merge process (effectively) involves the following:
-  ///   - call declare_attribute for each field/part/mesh attribute in the other reqs.
-  ///   - call declare_part for each part in the other reqs.
-  ///   - call declare_part_subset for each subset relation in the other reqs.
-  ///   - call declare_field for each field in the other reqs.
-  ///
-  /// As an example, consider the following example:
-  ///     // Create and merge two sets of requirements.
-  ///     MeshRequirements reqs1;
-  ///     reqs1.declare_part("animal")
-  ///         .declare_field<double>(stk::topology::ENTITY_RANK, "height", 1)
-  ///         .put_field_on_mesh("height", "animal");
-  ///     MeshRequirements reqs2;
-  ///     reqs2.declare_part("animal")
-  ///          .declare_field<double>(stk::topology::ENTITY_RANK, "height", 2)
-  ///          .put_field_on_mesh("height", "animal")
-  ///          .declare_part("cat")
-  ///          .declare_part_subset("animal", "cat");
-  ///     auto merged_reqs = reqs1.merge(reqs2);
-  ///     // Create the equivalent requirements for comparison.
-  ///     MeshRequirements reqs3;
-  ///     reqs3.declare_part("animal")
-  ///          .declare_field<double>(stk::topology::ENTITY_RANK, "height", 2)
-  ///          .put_field_on_mesh("height", "animal")
-  ///          .declare_part("cat")
-  ///          .declare_part_subset("animal", "cat");
-  ///     static_assert(merged_reqs == reqs3);
-  ///
-  /// \tparam OtherMeshRequirements The type of the other MeshRequirements.
-  /// \param other_reqs [in] Some other \c MeshRequirements object to merge with the current object.
-  /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
-  template <typename OtherMeshRequirements>
-  constexpr auto merge(OtherMeshRequirements &&other_reqs) && {
+    // Preform the initial merge by merging each of our individual maps/tuples.
+    // Note, the intersection of two maps in boost::hana returns key, value pairs in the first map for which key shows
+    // up in the second map. Similarly, the symmetric_difference of two maps in boost::hana returns key, value pairs
+    // from each map that do not show up in the intersection. We use this concept to efficiently check for conflicts.
+
+    // TODO(palmerb4): use set instead of tuple when our types need to be unique. This will help with merging.
+    // TODO(palmerb4): equality is not allowed for things to be constexpr instead, we need to pop and insert.
+    // TODO(palmerb4): constexpr everything!
+
+    // For field_dim_map_, all fields that intersect must have the same dimension.
+    // TODO(palmerb4): The key for the fields is a rank name pair.
+    constexpr auto new_field_dim_map_part1 = boost::hana::intersection(field_dim_map_, first_mesh_reqs.field_dim_map_);
+    boost::hana::for_each(new_field_dim_map_part1, [&](auto pair) {
+      static_assert(first_mesh_reqs.field_dim_map_[boost::hana::first(pair)] == boost::hana::second(pair),
+                    "MeshRequirements: Invalid input.\n"
+                    "One of the provided MeshRequirements has a field with an invalid dimension.\n"
+                        << "Invalid field name: " << boost::hana::first(pair)
+                        << ". Invalid field dimension: " << first_mesh_reqs.field_dim_map_[boost::hana::first(pair)]
+                        << "\nExpected dimension: " << boost::hana::second(pair));
+    });
+    constexpr auto new_field_dim_map_part2 =
+        boost::hana::symmetric_difference(field_dim_map_, first_mesh_reqs.field_dim_map_);
+    constexpr auto new_field_dim_map =
+        boost::hana::union_(std::move(new_field_dim_map_part1), std::move(new_field_dim_map_part2));
+
+    // For field_min_num_states_map_, merge the maps, keeping the largest min num states for fields in the intersection.
+    constexpr auto new_field_min_num_states_map_part1 =
+        boost::hana::intersection(field_min_num_states_map_, first_mesh_reqs.field_min_num_states_map_);
+    boost::hana::for_each(new_field_dim_map_part1, [&](auto pair) {
+      // TODO(palmerb4): incompatible with constexpr.
+      boost::hana::second(pair) =
+          std::max(first_mesh_reqs.field_dim_map_[boost::hana::first(pair)], boost::hana::second(pair));
+    });
+    constexpr auto new_field_min_num_states_map_part2 =
+        boost::hana::symmetric_difference(field_dim_map_, first_mesh_reqs.field_dim_map_);
+    constexpr auto new_field_min_num_states_map =
+        boost::hana::union_(std::move(new_field_dim_map_part1), std::move(new_field_dim_map_part2));
+
+    // For field_att_map_, merge the maps keeping only the unique types in each tuple.
+    // TODO(palmerb4): If we switch everything to tuples then this merge is trivial.
+
+    // For part_state_map_, all parts in the intersection must be in the same state.
+    constexpr auto new_part_state_map_part1 =
+        boost::hana::intersection(part_state_map_, first_mesh_reqs.part_state_map_);
+    boost::hana::for_each(new_part_state_map_part1, [&](auto pair) {
+      static_assert(first_mesh_reqs.part_state_map_[boost::hana::first(pair)] == boost::hana::second(pair),
+                    "MeshRequirements: Invalid input.\n"
+                    "One of the provided MeshRequirements has a part with an invalid state.\n"
+                        << "Invalid part name: " << boost::hana::first(pair)
+                        << ". Invalid part state: " << first_mesh_reqs.part_state_map_[boost::hana::first(pair)]
+                        << "\nExpected state: " << boost::hana::second(pair));
+    });
+    constexpr auto new_part_state_map_part2 =
+        boost::hana::symmetric_difference(part_state_map_, first_mesh_reqs.part_state_map_);
+    constexpr auto new_part_state_map =
+        boost::hana::union_(std::move(new_part_state_map_part1), std::move(new_part_state_map_part2));
+
+    // For part_topology_map_, all parts in the intersection must have the same topology.
+    constexpr auto new_part_topology_map_part1 =
+        boost::hana::intersection(part_topology_map_, first_mesh_reqs.part_topology_map_);
+    boost::hana::for_each(new_part_topology_map_part1, [&](auto pair) {
+      static_assert(first_mesh_reqs.part_topology_map_[boost::hana::first(pair)] == boost::hana::second(pair),
+                    "MeshRequirements: Invalid input.\n"
+                    "One of the provided MeshRequirements has a part with an invalid topology.\n"
+                        << "Invalid part name: " << boost::hana::first(pair)
+                        << ". Invalid part topology: " << first_mesh_reqs.part_topology_map_[boost::hana::first(pair)]
+                        << "\nExpected topology: " << boost::hana::second(pair));
+    });
+    constexpr auto new_part_topology_map_part2 =
+        boost::hana::symmetric_difference(part_topology_map_, first_mesh_reqs.part_topology_map_);
+    constexpr auto new_part_topology_map =
+        boost::hana::union_(std::move(new_part_topology_map_part1), std::move(new_part_topology_map_part2));
+
+    // For part_rank_map_, all parts in the intersection must have the same rank.
+    constexpr auto new_part_rank_map_part1 = boost::hana::intersection(part_rank_map_, first_mesh_reqs.part_rank_map_);
+    boost::hana::for_each(new_part_rank_map_part1, [&](auto pair) {
+      static_assert(first_mesh_reqs.part_rank_map_[boost::hana::first(pair)] == boost::hana::second(pair),
+                    "MeshRequirements: Invalid input.\n"
+                    "One of the provided MeshRequirements has a part with an invalid rank.\n"
+                        << "Invalid part name: " << boost::hana::first(pair)
+                        << ". Invalid part rank: " << first_mesh_reqs.part_rank_map_[boost::hana::first(pair)]
+                        << "\nExpected rank: " << boost::hana::second(pair));
+    });
+    constexpr auto new_part_rank_map_part2 =
+        boost::hana::symmetric_difference(part_rank_map_, first_mesh_reqs.part_rank_map_);
+    constexpr auto new_part_rank_map =
+        boost::hana::union_(std::move(new_part_rank_map_part1), std::move(new_part_rank_map_part2));
+
+    // For part_no_induce_map_, all parts in the intersection must have the same induction flag.
+    constexpr auto new_part_no_induce_map_part1 =
+        boost::hana::intersection(part_no_induce_map_, first_mesh_reqs.part_no_induce_map_);
+    boost::hana::for_each(new_part_no_induce_map_part1, [&](auto pair) {
+      static_assert(first_mesh_reqs.part_no_induce_map_[boost::hana::first(pair)] == boost::hana::second(pair),
+                    "MeshRequirements: Invalid input.\n"
+                    "One of the provided MeshRequirements has a part with an invalid induction flag.\n"
+                        << "Invalid part name: " << boost::hana::first(pair) << ". Invalid part induction flag: "
+                        << first_mesh_reqs.part_no_induce_map_[boost::hana::first(pair)]
+                        << "\nExpected flag: " << boost::hana::second(pair));
+    });
+    constexpr auto new_part_no_induce_map_part2 =
+        boost::hana::symmetric_difference(part_no_induce_map_, first_mesh_reqs.part_no_induce_map_);
+    constexpr auto new_part_no_induce_map =
+        boost::hana::union_(std::move(new_part_no_induce_map_part1), std::move(new_part_no_induce_map_part2));
+
+    // For part_field_map_, because the fields have already been merged, we can merge the unique elements of each tuple.
+
+    // For part_subpart_map_, because the parts have already been merged, we can merge the unique elements of each
+    // tuple.
+
+    // For part_att_map_, merge the maps keeping only the unique types in each tuple. For mesh_atts_, keep only
+    // the unique types in each tuple.
+
+    if constexpr (sizeof...(other_mesh_reqs) > 1) {
+      // Recurse!
+      return SOMETHING.merge(std::forward<OtherMeshRequirements>(other_mesh_reqs));
+    } else {
+      // Recursion complete, return the requirements.
+      return SOMETHING;
+    }
   }
   //@}
 
@@ -511,67 +1314,90 @@ class MeshRequirements {
   //! \name Private constructors
   //@{
 
-  /// @brief Constructor will full fill.
-  /// @param field_id_map A map from field name and rank to field ordinal.
-  /// @param part_id_map A map from part name part ordinal.
-  /// @param att_id_map A map from attribute typeid attribute ordinal.
-  /// @param id_to_field_map A map from field ordinal to the actual field requirements.
-  /// @param id_to_part_map A map from part ordinal to the actual part requirements.
-  /// @param mesh_atts A tuple of mesh attributes (stored as att ordinals).
-  MeshRequirements(FieldIdMap field_id_map, PartIdMap part_id_map, AttributeIdMap att_id_map,
-                   IdToFieldMap id_to_field_map, IdToPartMap id_to_part_map, MeshAttributes mesh_atts)
-      : field_id_map_(field_id_map),
-        part_id_map_(part_id_map),
-        att_id_map_(att_id_map),
-        id_to_field_map_(id_to_field_map),
-        id_to_part_map_(id_to_part_map),
+  /// \brief Constructor will full fill.
+  /// \param field_dim_map A map from field name to field dimension.
+  /// \param field_min_num_states_map A map from field name to field min num states.
+  /// \param field_att_map A map from field name to field attributes (stored as a tuple).
+  /// \param part_state_map A map from part name to part state.
+  /// \param part_topology_map A map from part name to part topology.
+  /// \param part_rank_map A map from part name to part rank.
+  /// \param part_no_induce_map A map from part name to part force no induction flag.
+  /// \param part_field_map_ A map from part name to part field names (stored as a tuple).
+  /// \param part_subpart_map A map from part name to part subpart names (stored as a tuple).
+  /// \param part_att_map A map from part name to part attributes (stored as a tuple).
+  /// \param mesh_atts A tuple of mesh attributes.
+  MeshRequirements(FieldDimMap field_dim_map, FieldMinNumStatesMap field_min_num_states_map,
+                   FieldAttributesMap field_att_map, PartStateMap part_state_map, PartTopologyMap part_topology_map,
+                   PartRankMap part_rank_map, PartNoInductionMap part_no_induce_map, PartFieldMap part_field_map_,
+                   PartSubPartMap part_subpart_map, PartAttributesMap part_att_map, MeshAttributes mesh_atts)
+      : field_dim_map_(field_dim_map),
+        field_min_num_states_map_(field_min_num_states_map),
+        field_att_map_(field_att_map),
+        part_state_map_(part_state_map),
+        part_topology_map_(part_topology_map),
+        part_rank_map_(part_rank_map),
+        part_no_induce_map_(part_no_induce_map),
+        part_field_map_(part_field_map),
+        part_subpart_map_(part_subpart_map),
+        part_att_map_(part_att_map),
         mesh_atts_(mesh_atts) {
   }
-
   //@}
 
-  //! \name Private helper classes
+  //! \name Helper enums
   //@{
 
-  struct PartRequirements {
-    enum state_t : int8_t { INVALID_STATE, NAME_SET, NAME_AND_RANK_SET, NAME_AND_TOPOLOGY_SET };
-    std::string_view name;
-    stk::topology_topology_t topology;
-    stk::mesh::EntityRank rank;
-    bool arg_force_no_induce;
-    state_t state = INVALID_STATE;
-  };  // PartRequirements
-
-  template <typename FieldType>
-  struct FieldRequirements {
-    stk::topology::rank_t entity_rank;
-    std::string_view field_name;
-    unsigned dimension;
-    unsigned min_number_of_states;
-    using type = FieldType;
-  };  // FieldRequirements
+  /// \brief An enum for determining the state of a part.
+  enum part_state_t : int8_t { INVALID_STATE, NAME_AND_RANK_SET, NAME_AND_TOPOLOGY_SET };
   //@}
 
   //! \name Internal members
   //@{
 
-  /// \brief A map from field name and rank to field ordinal.
-  FieldIdMap field_id_map_;
+  /// \brief A map from field name to field dimension.
+  FieldDimMap field_dim_map_;
 
-  /// \brief A map from part name part ordinal.
-  PartIdMap part_id_map_;
+  /// \brief A map from field name to field min num states.
+  FieldMinNumStatesMap field_min_num_states_map_;
 
-  /// \brief A map from attribute typeid attribute ordinal.
-  AttributeIdMap att_id_map_;
+  /// \brief A map from field name to field attributes (stored as a tuple).
+  FieldAttributesMap field_att_map_;
 
-  /// \brief A map from field ordinal to the actual field requirements.
-  IdToFieldMap id_to_field_map_;
+  /// \brief A map from part name to part state.
+  PartStateMap part_state_map_;
 
-  /// \brief A map from part ordinal to the actual part requirements.
-  IdToPartMap id_to_part_map_;
+  /// \brief A map from part name to part topology.
+  PartTopologyMap part_topology_map_;
 
-  /// \brief A tuple of mesh attributes (stored as att ordinals).
+  /// \brief A map from part name to part rank.
+  PartRankMap part_rank_map_;
+
+  /// \brief A map from part name to part force no induction flag.
+  PartNoInductionMap part_no_induce_map_;
+
+  /// \brief  A map from part name to part field names (stored as a tuple).
+  PartFieldMap part_field_map_;
+
+  /// \brief A map from part name to part subpart names (stored as a tuple).
+  PartSubPartMap part_subpart_map_;
+
+  /// \brief A map from part name to part attributes (stored as a tuple).
+  PartAttributesMap part_att_map_;
+
+  /// \brief A tuple of mesh attributes.
   MeshAttributes mesh_atts_;
+  //@}
+
+  //! \name Friends
+  //@{
+
+  /// \brief We're friends with every other MeshRequirements.
+  /// TODO(palmerb4): Although this violates encapsulation, I can find no other way to have merge to work. Ideally, we
+  /// would be friends with a non-member function (like tuple_cat), but I don't see how one could write the friend
+  /// declaration for such a class.
+  template <typename, typename, typename, typename, typename, typename, typename, typename, typename, typename,
+            typename>
+  friend class MeshRequirements;
   //@}
 };  // MeshRequirements
 
