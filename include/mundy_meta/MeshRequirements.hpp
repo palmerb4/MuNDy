@@ -86,7 +86,7 @@ using EmptySet = decltype(boost::hana::make_set());
 ///     reqs.declare_part("parent")  /* copy here to preserve reqs for later use */
 ///         .declare_part("child")   /* move here since the output from reqs.declare_part("parent") is never stored */
 ///         .declare_part_subset("parent", "child");  /* move here ... */
-/// Note, if reqs isn't needed later, use std::move to tell the compiler.
+/// Note, if reqs isn't needed later, use std::move to tell the compiler to cannibalize it.
 ///     MeshRequirements reqs;
 ///     std::move(reqs).declare_part("parent")        /* move here */
 ///         .declare_part("child")                    /* move here */
@@ -579,7 +579,7 @@ class MeshRequirements {
   /// \param field_name Name of the field to store the attribute on.
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
   template <typename AttributeType>
-  constexpr auto declare_attribute(const std::string_view &field_name) const & {
+  constexpr auto declare_field_attribute(const std::string_view &field_name) const & {
     if constexpr (boost::hana::contains(field_att_map_, field_name)) {
       // The given field has attributes.
       if constexpr (boost::hana::contains(field_att_map_[field_name], boost::hana::type_c<AttributeType>)) {
@@ -656,7 +656,7 @@ class MeshRequirements {
   /// \param field_name Name of the field to store the attribute on.
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
   template <typename AttributeType>
-  constexpr auto declare_attribute(const std::string_view &field_name) && {
+  constexpr auto declare_field_attribute(const std::string_view &field_name) && {
     if constexpr (boost::hana::contains(field_att_map_, field_name)) {
       // The given field has attributes.
       if constexpr (boost::hana::contains(field_att_map_[field_name], boost::hana::type_c<AttributeType>)) {
@@ -725,7 +725,7 @@ class MeshRequirements {
   /// \param part_name Name of the part to store the attribute on.
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
   template <typename AttributeType>
-  constexpr auto declare_attribute(const std::string_view &part_name) const & {
+  constexpr auto declare_part_attribute(const std::string_view &part_name) const & {
     if constexpr (boost::hana::contains(part_att_map_, part_name)) {
       // The given field has attributes.
       if constexpr (boost::hana::contains(part_att_map_[part_name], boost::hana::type_c<AttributeType>)) {
@@ -787,7 +787,7 @@ class MeshRequirements {
   /// \param part_name Name of the part to store the attribute on.
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
   template <typename AttributeType>
-  constexpr auto declare_attribute(const std::string_view &part_name) && {
+  constexpr auto declare_part_attribute(const std::string_view &part_name) && {
     if constexpr (boost::hana::contains(part_att_map_, part_name)) {
       // The given field has attributes.
       if constexpr (boost::hana::contains(part_att_map_[part_name], boost::hana::type_c<AttributeType>)) {
@@ -855,7 +855,7 @@ class MeshRequirements {
   /// \tparam AttributeType The attribute type to store on the mesh.
   /// \return The updated MeshRequirements with the newest modifications and a copy of the contents of *this.
   template <typename AttributeType>
-  constexpr auto declare_attribute() const & {
+  constexpr auto declare_mesh_attribute() const & {
     if constexpr (boost::hana::contains(mesh_atts_, boost::hana::type_c<AttributeType>)) {
       // The given attribute already exists; do nothing.
       return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
@@ -891,7 +891,7 @@ class MeshRequirements {
   /// \tparam AttributeType The attribute type to store on the mesh.
   /// \return The updated MeshRequirements with the newest modifications and perfect forwarding of *this.
   template <typename AttributeType>
-  constexpr auto declare_attribute() && {
+  constexpr auto declare_mesh_attribute() && {
     if constexpr (boost::hana::contains(mesh_atts_, boost::hana::type_c<AttributeType>)) {
       // The given attribute already exists; do nothing.
       return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
@@ -1186,7 +1186,7 @@ class MeshRequirements {
   /// \param other_mesh_reqs [in] Any number of other \c MeshRequirements object to merge with the current object.
   /// \return The updated \c MeshRequirements with the newest modifications.
   template <typename FirstMeshRequirements, typename... OtherMeshRequirements>
-  constexpr auto merge(FirstMeshRequirements &&first_mesh_reqs, OtherMeshRequirements... &&other_mesh_reqs) &const {
+  constexpr auto merge(FirstMeshRequirements &&first_mesh_reqs, OtherMeshRequirements &&...other_mesh_reqs) const & {
     // Methodology:
     // Merge *this with first_mesh_reqs and then merge the result with other_mesh_reqs.
     // Recurse until other_mesh_reqs is empty.

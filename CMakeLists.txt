@@ -49,6 +49,10 @@ if(ENABLE_CUDA)
         ${CUDA_CUBLAS_LIBRARIES})
 endif()
 
+# ################################################### BOOST ############################################################
+find_package(Boost REQUIRED HINTS $ENV{BOOST_ROOT})
+target_link_libraries(mundy PUBLIC Boost::boost)
+
 # ################################################# TRILINOS ############################################################
 set(CMAKE_PREFIX_PATH ${Trilinos_DIR} ${CMAKE_PREFIX_PATH})
 find_package(Trilinos QUIET REQUIRED)
