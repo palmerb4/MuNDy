@@ -24,6 +24,7 @@
 /// \brief Declaration of the MeshRequirements class
 
 // C++ core libs
+#include <algorithm>    // for std::max
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
@@ -32,7 +33,6 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
 #include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
 #include <stk_mesh/base/Types.hpp>     // for EntityRank, etc
@@ -40,10 +40,6 @@
 
 // Boost libs
 #include <boost/hana.hpp>
-
-// Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -55,8 +51,8 @@ namespace meta {
 /// @brief Shorthand type for an empty heterogeneous map.
 using EmptyMap = decltype(boost::hana::make_map());
 
-/// @brief Shorthand type for an empty tuple.
-using EmptyTuple = decltype(boost::hana::make_tuple());
+/// @brief Shorthand type for an empty set.
+using EmptySet = decltype(boost::hana::make_set());
 //@}
 
 /// \class MeshRequirements
@@ -90,11 +86,15 @@ using EmptyTuple = decltype(boost::hana::make_tuple());
 ///     reqs.declare_part("parent")  /* copy here to preserve reqs for later use */
 ///         .declare_part("child")   /* move here since the output from reqs.declare_part("parent") is never stored */
 ///         .declare_part_subset("parent", "child");  /* move here ... */
+/// Note, if reqs isn't needed later, use std::move to tell the compiler.
+///     MeshRequirements reqs;
+///     std::move(reqs).declare_part("parent")        /* move here */
+///         .declare_part("child")                    /* move here */
+///         .declare_part_subset("parent", "child");  /* move here */
 template <typename FieldDimMap = EmptyMap, typename FieldMinNumStatesMap = EmptyMap,
           typename FieldAttributesMap = EmptyMap, typename PartStateMap = EmptyMap, typename PartTopologyMap = EmptyMap,
           typename PartRankMap = EmptyMap, typename PartNoInductionMap = EmptyMap, typename PartFieldMap = EmptyMap,
-          typename PartSubPartMap = EmptyMap, typename PartAttributesMap = EmptyMap,
-          typename MeshAttributes = EmptyTuple>
+          typename PartSubPartMap = EmptyMap, typename PartAttributesMap = EmptyMap, typename MeshAttributes = EmptySet>
 class MeshRequirements {
  public:
   //! \name Constructors and destructor
@@ -437,12 +437,12 @@ class MeshRequirements {
             mesh_atts_};
       } else {
         // The given subset relation doesn't exist; create it using a copy of the existing data.
-        constexpr auto new_subpart_tuple = boost::hana::append(part_subpart_map_[superset_part_name], subset_part_name);
+        constexpr auto new_subpart_set = boost::hana::append(part_subpart_map_[superset_part_name], subset_part_name);
 
         // Get the updated map.
         constexpr auto tmp_map = boost::hana::erase_key(part_subpart_map_, superset_part_name);
         constexpr auto new_part_subpart_map =
-            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(superset_part_name, new_subpart_tuple));
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(superset_part_name, new_subpart_set));
 
         using NewPartSubPartMap = decltype(new_part_subpart_map);
 
@@ -466,7 +466,7 @@ class MeshRequirements {
 
       // Insert the new relation into the graph.
       constexpr auto new_part_subpart_map = boost::hana::insert(
-          part_subpart_map_, boost::hana::make_pair(superset_part_name, boost::hana::make_tuple(subset_part_name)));
+          part_subpart_map_, boost::hana::make_pair(superset_part_name, boost::hana::make_set(subset_part_name)));
 
       using NewPartSubPartMap = decltype(new_part_subpart_map);
 
@@ -515,13 +515,13 @@ class MeshRequirements {
                                                 std::move(mesh_atts_)};
       } else {
         // The given subset relation doesn't exist; create it using the existing data.
-        constexpr auto new_subpart_tuple =
+        constexpr auto new_subpart_set =
             boost::hana::append(std::move(part_subpart_map_[superset_part_name]), subset_part_name);
 
         // Get the updated map.
         constexpr auto tmp_map = boost::hana::erase_key(std::move(part_subpart_map_), superset_part_name);
         constexpr auto new_part_subpart_map = boost::hana::insert(
-            std::move(tmp_map), boost::hana::make_pair(superset_part_name, std::move(new_subpart_tuple)));
+            std::move(tmp_map), boost::hana::make_pair(superset_part_name, std::move(new_subpart_set)));
 
         using NewPartSubPartMap = decltype(new_part_subpart_map);
 
@@ -546,7 +546,7 @@ class MeshRequirements {
       // Insert the new relation into the graph.
       constexpr auto new_part_subpart_map =
           boost::hana::insert(std::move(part_subpart_map_),
-                              boost::hana::make_pair(superset_part_name, boost::hana::make_tuple(subset_part_name)));
+                              boost::hana::make_pair(superset_part_name, boost::hana::make_set(subset_part_name)));
 
       using NewPartSubPartMap = decltype(new_part_subpart_map);
 
@@ -592,13 +592,13 @@ class MeshRequirements {
             mesh_atts_};
       } else {
         // The given attribute doesn't exist; append it to a copy of the existing attributes.
-        constexpr auto new_attribute_tuple =
+        constexpr auto new_attribute_set =
             boost::hana::append(field_att_map_[field_name], boost::hana::type_c<AttributeType>);
 
         // Get the updated map.
         constexpr auto tmp_map = boost::hana::erase_key(field_att_map_, field_name);
         constexpr auto new_field_att_map =
-            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(field_name, std::move(new_attribute_tuple)));
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(field_name, std::move(new_attribute_set)));
 
         using NewFieldAttributesMap = decltype(new_field_att_map);
 
@@ -620,10 +620,10 @@ class MeshRequirements {
     } else {
       // The given field lacks attributes.
 
-      // Insert the new tuple into the graph.
+      // Insert the new set into the graph.
       constexpr auto new_field_att_map = boost::hana::insert(
           field_att_map_,
-          boost::hana::make_pair(field_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+          boost::hana::make_pair(field_name, boost::hana::make_set(boost::hana::type_c<AttributeType>)));
 
       using NewFieldAttributesMap = decltype(new_field_att_map);
 
@@ -671,13 +671,13 @@ class MeshRequirements {
                                                 std::move(mesh_atts_)};
       } else {
         // The given attribute doesn't exist; append it to the existing attributes.
-        constexpr auto new_attribute_tuple =
+        constexpr auto new_attribute_set =
             boost::hana::append(std::move(field_att_map_[field_name]), boost::hana::type_c<AttributeType>);
 
         // Get the updated map.
         constexpr auto tmp_map = boost::hana::erase_key(std::move(field_att_map_), field_name);
         constexpr auto new_field_att_map =
-            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(field_name, std::move(new_attribute_tuple)));
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(field_name, std::move(new_attribute_set)));
 
         using NewFieldAttributesMap = decltype(new_field_att_map);
 
@@ -694,10 +694,10 @@ class MeshRequirements {
     } else {
       // The given field lacks attributes.
 
-      // Insert the new tuple into the graph.
+      // Insert the new set into the graph.
       constexpr auto new_field_att_map = boost::hana::insert(
           std::move(field_att_map_),
-          boost::hana::make_pair(field_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+          boost::hana::make_pair(field_name, boost::hana::make_set(boost::hana::type_c<AttributeType>)));
 
       using NewFieldAttributesMap = decltype(new_field_att_map);
 
@@ -738,13 +738,13 @@ class MeshRequirements {
             mesh_atts_};
       } else {
         // The given attribute doesn't exist; append it to a copy of the existing attributes.
-        constexpr auto new_attribute_tuple =
+        constexpr auto new_attribute_set =
             boost::hana::append(part_att_map_[part_name], boost::hana::type_c<AttributeType>);
 
         // Get the updated map.
         constexpr auto tmp_map = boost::hana::erase_key(part_att_map_, part_name);
         constexpr auto new_part_att_map =
-            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_attribute_tuple)));
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_attribute_set)));
 
         using NewPartAttributesMap = decltype(new_part_att_map);
 
@@ -759,10 +759,9 @@ class MeshRequirements {
     } else {
       // The given field lacks attributes.
 
-      // Insert the new tuple into the graph.
+      // Insert the new set into the graph.
       constexpr auto new_part_att_map = boost::hana::insert(
-          part_att_map_,
-          boost::hana::make_pair(part_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+          part_att_map_, boost::hana::make_pair(part_name, boost::hana::make_set(boost::hana::type_c<AttributeType>)));
 
       using NewPartAttributesMap = decltype(new_part_att_map);
 
@@ -803,13 +802,13 @@ class MeshRequirements {
                                                 std::move(mesh_atts_)};
       } else {
         // The given attribute doesn't exist; append it to the existing attributes.
-        constexpr auto new_attribute_tuple =
+        constexpr auto new_attribute_set =
             boost::hana::append(std::move(part_att_map_[part_name]), boost::hana::type_c<AttributeType>);
 
         // Get the updated map.
         constexpr auto tmp_map = boost::hana::erase_key(std::move(part_att_map_), part_name);
         constexpr auto new_part_att_map =
-            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_attribute_tuple)));
+            boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_attribute_set)));
 
         using NewPartAttributesMap = decltype(new_part_att_map);
 
@@ -826,10 +825,10 @@ class MeshRequirements {
     } else {
       // The given field lacks attributes.
 
-      // Insert the new tuple into the graph.
+      // Insert the new set into the graph.
       constexpr auto new_part_att_map = boost::hana::insert(
           std::move(part_att_map_),
-          boost::hana::make_pair(part_name, boost::hana::make_tuple(boost::hana::type_c<AttributeType>)));
+          boost::hana::make_pair(part_name, boost::hana::make_set(boost::hana::type_c<AttributeType>)));
 
       using NewPartAttributesMap = decltype(new_part_att_map);
 
@@ -952,8 +951,10 @@ class MeshRequirements {
                         << "' is incompatible with the previously declared dimension '"
                         << boost::hana::at_key(field_dim_map_, key) << "'.");
 
-      constexpr auto new_field_min_num_states_map(field_min_num_states_map_);
-      boost::hana::at_key(new_field_min_num_states_map, key) = min_number_of_states;
+      constexpr unsigned max_min_num_states =
+          std::max(boost::hana::at_key(field_min_num_states_map_, key), min_number_of_states);
+      constexpr auto tmp_map = boost::hana::remove_at(field_min_num_states_map_, key);
+      constexpr auto new_field_min_num_states_map = boost::hana::insert(std::move(tmp_map), key, max_min_num_states);
 
       // Plundering not allowed, uses copies of the contents of *this.
       return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
@@ -1021,13 +1022,15 @@ class MeshRequirements {
                         << "' is incompatible with the previously declared dimension '"
                         << boost::hana::at_key(field_dim_map_, key) << "'.");
 
-      // TODO(palmerb4): this is incompatible with constexpr. pop and replace.
-      boost::hana::at_key(field_min_num_states_map_, key) = min_number_of_states;
+      constexpr unsigned max_min_num_states =
+          std::max(boost::hana::at_key(field_min_num_states_map_, key), min_number_of_states);
+      constexpr auto tmp_map = boost::hana::remove_at(std::move(field_min_num_states_map_), key);
+      constexpr auto new_field_min_num_states_map = boost::hana::insert(std::move(tmp_map), key, max_min_num_states);
 
       // Plundering allowed, uses move semantics to steal the contents of *this.
       return MeshRequirements<FieldDimMap, FieldMinNumStatesMap, FieldAttributesMap, PartStateMap, PartTopologyMap,
                               PartRankMap, PartNoInductionMap, PartFieldMap, PartSubPartMap, PartAttributesMap,
-                              MeshAttributes>{std::move(field_dim_map_),      std::move(field_min_num_states_map_),
+                              MeshAttributes>{std::move(field_dim_map_),      std::move(new_field_min_num_states_map),
                                               std::move(field_att_map_),      std::move(part_state_map_),
                                               std::move(part_topology_map_),  std::move(part_rank_map_),
                                               std::move(part_no_induce_map_), std::move(part_field_map_),
@@ -1078,14 +1081,14 @@ class MeshRequirements {
           part_rank_map_, part_no_induce_map_,       part_field_map_, part_subpart_map_, part_att_map_,
           mesh_atts_};
     } else {
-      // The field doesn't exist on the part, append it to the existing field tuple using the contents of *this.
-      constexpr auto new_field_tuple =
+      // The field doesn't exist on the part, append it to the existing field set using the contents of *this.
+      constexpr auto new_field_set =
           boost::hana::append(part_field_map_[part_name], boost::hana::make_pair(field_entity_rank, field_name));
 
       // Get the updated map.
       constexpr auto tmp_map = boost::hana::erase_key(part_field_map_, part_name);
       constexpr auto new_part_field_map =
-          boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_field_tuple)));
+          boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_field_set)));
 
       using NewPartFieldMap = decltype(new_part_field_map);
 
@@ -1124,14 +1127,14 @@ class MeshRequirements {
                                               std::move(part_subpart_map_),   std::move(part_att_map_),
                                               std::move(mesh_atts_)};
     } else {
-      // The field doesn't exist on the part, append it to the existing field tuple using the contents of *this.
-      constexpr auto new_field_tuple = boost::hana::append(std::move(part_field_map_[part_name]),
-                                                           boost::hana::make_pair(field_entity_rank, field_name));
+      // The field doesn't exist on the part, append it to the existing field set using the contents of *this.
+      constexpr auto new_field_set = boost::hana::append(std::move(part_field_map_[part_name]),
+                                                         boost::hana::make_pair(field_entity_rank, field_name));
 
       // Get the updated map.
       constexpr auto tmp_map = boost::hana::erase_key(std::move(part_field_map_), part_name);
       constexpr auto new_part_field_map =
-          boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_field_tuple)));
+          boost::hana::insert(std::move(tmp_map), boost::hana::make_pair(part_name, std::move(new_field_set)));
 
       using NewPartFieldMap = decltype(new_part_field_map);
 
@@ -1188,24 +1191,37 @@ class MeshRequirements {
     // Merge *this with first_mesh_reqs and then merge the result with other_mesh_reqs.
     // Recurse until other_mesh_reqs is empty.
 
-    // Preform the initial merge by merging each of our individual maps/tuples.
+    // Preform the initial merge by merging each of our individual maps/sets.
     // Note, the intersection of two maps in boost::hana returns key, value pairs in the first map for which key shows
     // up in the second map. Similarly, the symmetric_difference of two maps in boost::hana returns key, value pairs
     // from each map that do not show up in the intersection. We use this concept to efficiently check for conflicts.
+    auto union_over_intersecting_maps_of_sets = [](auto map_of_sets1, auto map_of_sets2) {
+      return hana::fold_left(map_of_sets1, hana::make_map(), [&](auto new_map, auto pair) {
+        // The two maps overlap, merge their sets for the given key.
+        constexpr auto key = hana::first(pair);
+        return hana::insert(new_map, hana::make_pair(key, boost::hana::union_(hana::second(pair), map_of_sets2[key])));
+      });
+    };
 
-    // TODO(palmerb4): use set instead of tuple when our types need to be unique. This will help with merging.
+    auto max_over_intersecting_maps = [](auto map1, auto map2) {
+      return hana::fold_left(map1, hana::make_map(), [&](auto new_map, auto pair) {
+        // The two maps overlap, merge their sets for the given key.
+        constexpr auto key = hana::first(pair);
+        return hana::insert(new_map, hana::make_pair(key, std::max(hana::second(pair), map2[key])));
+      });
+    };
+
     // TODO(palmerb4): equality is not allowed for things to be constexpr instead, we need to pop and insert.
-    // TODO(palmerb4): constexpr everything!
 
     // For field_dim_map_, all fields that intersect must have the same dimension.
-    // TODO(palmerb4): The key for the fields is a rank name pair.
     constexpr auto new_field_dim_map_part1 = boost::hana::intersection(field_dim_map_, first_mesh_reqs.field_dim_map_);
     boost::hana::for_each(new_field_dim_map_part1, [&](auto pair) {
       static_assert(first_mesh_reqs.field_dim_map_[boost::hana::first(pair)] == boost::hana::second(pair),
                     "MeshRequirements: Invalid input.\n"
                     "One of the provided MeshRequirements has a field with an invalid dimension.\n"
-                        << "Invalid field name: " << boost::hana::first(pair)
-                        << ". Invalid field dimension: " << first_mesh_reqs.field_dim_map_[boost::hana::first(pair)]
+                        << "Invalid field name: " << boost::hana::second(boost::hana::first(pair))
+                        << " | Invalid field rank: " << boost::hana::first(boost::hana::first(pair))
+                        << " | Invalid field dimension: " << first_mesh_reqs.field_dim_map_[boost::hana::first(pair)]
                         << "\nExpected dimension: " << boost::hana::second(pair));
     });
     constexpr auto new_field_dim_map_part2 =
@@ -1214,20 +1230,22 @@ class MeshRequirements {
         boost::hana::union_(std::move(new_field_dim_map_part1), std::move(new_field_dim_map_part2));
 
     // For field_min_num_states_map_, merge the maps, keeping the largest min num states for fields in the intersection.
-    constexpr auto new_field_min_num_states_map_part1 =
-        boost::hana::intersection(field_min_num_states_map_, first_mesh_reqs.field_min_num_states_map_);
-    boost::hana::for_each(new_field_dim_map_part1, [&](auto pair) {
-      // TODO(palmerb4): incompatible with constexpr.
-      boost::hana::second(pair) =
-          std::max(first_mesh_reqs.field_dim_map_[boost::hana::first(pair)], boost::hana::second(pair));
-    });
+    constexpr auto new_field_min_num_states_map_part1 = max_over_intersecting_maps(
+        boost::hana::intersection(field_min_num_states_map_, first_mesh_reqs.field_min_num_states_map_),
+        first_mesh_reqs.field_min_num_states_map_);
+
     constexpr auto new_field_min_num_states_map_part2 =
         boost::hana::symmetric_difference(field_dim_map_, first_mesh_reqs.field_dim_map_);
     constexpr auto new_field_min_num_states_map =
         boost::hana::union_(std::move(new_field_dim_map_part1), std::move(new_field_dim_map_part2));
 
-    // For field_att_map_, merge the maps keeping only the unique types in each tuple.
-    // TODO(palmerb4): If we switch everything to tuples then this merge is trivial.
+    // For field_att_map_, merge the maps and their internal set.
+    constexpr auto new_field_att_map_part1 = union_over_intersecting_maps_of_sets(
+        boost::hana::intersection(field_att_map_, first_mesh_reqs.field_att_map_), first_mesh_reqs.field_att_map_);
+    constexpr auto new_field_att_map_part2 =
+        boost::hana::symmetric_difference(field_att_map_, first_mesh_reqs.field_att_map_);
+    constexpr auto new_field_att_map =
+        boost::hana::union_(std::move(new_field_att_map_part1), std::move(new_field_att_map_part2));
 
     // For part_state_map_, all parts in the intersection must be in the same state.
     constexpr auto new_part_state_map_part1 =
@@ -1292,20 +1310,64 @@ class MeshRequirements {
     constexpr auto new_part_no_induce_map =
         boost::hana::union_(std::move(new_part_no_induce_map_part1), std::move(new_part_no_induce_map_part2));
 
-    // For part_field_map_, because the fields have already been merged, we can merge the unique elements of each tuple.
+    // For part_field_map_, because the fields have already been merged, we can merge each set.
+    constexpr auto new_part_field_map_part1 = union_over_intersecting_maps_of_sets(
+        boost::hana::intersection(part_field_map_, first_mesh_reqs.part_field_map_), first_mesh_reqs.part_field_map_);
+    constexpr auto new_part_field_map_part2 =
+        boost::hana::symmetric_difference(part_field_map_, first_mesh_reqs.part_field_map_);
+    constexpr auto new_part_field_map =
+        boost::hana::union_(std::move(new_part_field_map_part1), std::move(new_part_field_map_part2));
 
-    // For part_subpart_map_, because the parts have already been merged, we can merge the unique elements of each
-    // tuple.
+    // For part_subpart_map_, because the parts have already been merged, we can merge each set.
+    constexpr auto new_part_subpart_map_part1 = union_over_intersecting_maps_of_sets(
+        boost::hana::intersection(part_subpart_map_, first_mesh_reqs.part_subpart_map_),
+        first_mesh_reqs.part_subpart_map_);
+    constexpr auto new_part_subpart_map_part2 =
+        boost::hana::symmetric_difference(part_subpart_map_, first_mesh_reqs.part_subpart_map_);
+    constexpr auto new_part_subpart_map =
+        boost::hana::union_(std::move(new_part_subpart_map_part1), std::move(new_part_subpart_map_part2));
 
-    // For part_att_map_, merge the maps keeping only the unique types in each tuple. For mesh_atts_, keep only
-    // the unique types in each tuple.
+    // For part_att_map_, merge the maps and their internal sets.
+    constexpr auto new_part_att_map_part1 = union_over_intersecting_maps_of_sets(
+        boost::hana::intersection(part_att_map_, first_mesh_reqs.part_att_map_), first_mesh_reqs.part_att_map_);
+    constexpr auto new_part_att_map_part2 =
+        boost::hana::symmetric_difference(part_att_map_, first_mesh_reqs.part_att_map_);
+    constexpr auto new_part_att_map =
+        boost::hana::union_(std::move(new_part_att_map_part1), std::move(new_part_att_map_part2));
+
+    // For mesh_atts_, merge each set.
+    constexpr auto new_mesh_atts = boost::hana::union_(mesh_atts_, first_mesh_reqs.mesh_atts_);
+
+    // Create the merged mesh using the new maps/sets.
+    using NewFieldDimMap = decltype(new_field_dim_map);
+    using NewFieldMinNumStatesMap = decltype(new_field_min_num_states_map);
+    using NewFieldAttributesMap = decltype(new_field_att_map);
+    using NewPartStateMap = decltype(new_part_state_map);
+    using NewPartTopologyMap = decltype(new_part_topology_map);
+    using NewPartRankMap = decltype(new_part_rank_map);
+    using NewPartNoInductionMap = decltype(new_part_no_induce_map);
+    using NewPartFieldMap = decltype(new_part_field_map);
+    using NewPartSubPartMap = decltype(new_part_subpart_map);
+    using NewPartAttributesMap = decltype(new_part_att_map);
+    using NewMeshAttributes = decltype(new_mesh_atts);
+
+    constexpr auto new_mesh_reqs =
+        MeshRequirements<NewFieldDimMap, NewFieldMinNumStatesMap, NewFieldAttributesMap, NewPartStateMap,
+                         NewPartTopologyMap, NewPartRankMap, NewPartNoInductionMap, NewPartFieldMap, NewPartSubPartMap,
+                         NewPartAttributesMap, NewMeshAttributes>{
+            new_field_dim_map_,      new_field_min_num_states_map_,
+            new_field_att_map_,      new_part_state_map_,
+            new_part_topology_map_,  new_part_rank_map_,
+            new_part_no_induce_map_, new_part_field_map_,
+            new_part_subpart_map_,   new_part_att_map_,
+            new_mesh_atts_};
 
     if constexpr (sizeof...(other_mesh_reqs) > 1) {
       // Recurse!
-      return SOMETHING.merge(std::forward<OtherMeshRequirements>(other_mesh_reqs));
+      return std::move(new_mesh_reqs).merge(std::forward<OtherMeshRequirements>(other_mesh_reqs));
     } else {
       // Recursion complete, return the requirements.
-      return SOMETHING;
+      return std::move(new_mesh_reqs);
     }
   }
   //@}
@@ -1317,15 +1379,15 @@ class MeshRequirements {
   /// \brief Constructor will full fill.
   /// \param field_dim_map A map from field name to field dimension.
   /// \param field_min_num_states_map A map from field name to field min num states.
-  /// \param field_att_map A map from field name to field attributes (stored as a tuple).
+  /// \param field_att_map A map from field name to field attributes (stored as a set).
   /// \param part_state_map A map from part name to part state.
   /// \param part_topology_map A map from part name to part topology.
   /// \param part_rank_map A map from part name to part rank.
   /// \param part_no_induce_map A map from part name to part force no induction flag.
-  /// \param part_field_map_ A map from part name to part field names (stored as a tuple).
-  /// \param part_subpart_map A map from part name to part subpart names (stored as a tuple).
-  /// \param part_att_map A map from part name to part attributes (stored as a tuple).
-  /// \param mesh_atts A tuple of mesh attributes.
+  /// \param part_field_map_ A map from part name to part field names (stored as a set).
+  /// \param part_subpart_map A map from part name to part subpart names (stored as a set).
+  /// \param part_att_map A map from part name to part attributes (stored as a set).
+  /// \param mesh_atts A set of mesh attributes.
   MeshRequirements(FieldDimMap field_dim_map, FieldMinNumStatesMap field_min_num_states_map,
                    FieldAttributesMap field_att_map, PartStateMap part_state_map, PartTopologyMap part_topology_map,
                    PartRankMap part_rank_map, PartNoInductionMap part_no_induce_map, PartFieldMap part_field_map_,
@@ -1360,7 +1422,7 @@ class MeshRequirements {
   /// \brief A map from field name to field min num states.
   FieldMinNumStatesMap field_min_num_states_map_;
 
-  /// \brief A map from field name to field attributes (stored as a tuple).
+  /// \brief A map from field name to field attributes (stored as a set).
   FieldAttributesMap field_att_map_;
 
   /// \brief A map from part name to part state.
@@ -1375,16 +1437,16 @@ class MeshRequirements {
   /// \brief A map from part name to part force no induction flag.
   PartNoInductionMap part_no_induce_map_;
 
-  /// \brief  A map from part name to part field names (stored as a tuple).
+  /// \brief  A map from part name to part field names (stored as a set).
   PartFieldMap part_field_map_;
 
-  /// \brief A map from part name to part subpart names (stored as a tuple).
+  /// \brief A map from part name to part subpart names (stored as a set).
   PartSubPartMap part_subpart_map_;
 
-  /// \brief A map from part name to part attributes (stored as a tuple).
+  /// \brief A map from part name to part attributes (stored as a set).
   PartAttributesMap part_att_map_;
 
-  /// \brief A tuple of mesh attributes.
+  /// \brief A set of mesh attributes.
   MeshAttributes mesh_atts_;
   //@}
 
@@ -1392,9 +1454,9 @@ class MeshRequirements {
   //@{
 
   /// \brief We're friends with every other MeshRequirements.
-  /// TODO(palmerb4): Although this violates encapsulation, I can find no other way to have merge to work. Ideally, we
-  /// would be friends with a non-member function (like tuple_cat), but I don't see how one could write the friend
-  /// declaration for such a class.
+  /// TODO(palmerb4): Although this violates encapsulation, I can find no other way to make merge work. Ideally, we
+  /// would be friends with a non-member function (like tuple_cat), but how would one be fiends with such a function
+  /// when the return type is type deduced?
   template <typename, typename, typename, typename, typename, typename, typename, typename, typename, typename,
             typename>
   friend class MeshRequirements;
