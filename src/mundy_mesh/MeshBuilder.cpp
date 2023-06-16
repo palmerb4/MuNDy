@@ -31,16 +31,16 @@
 #include <stk_mesh/base/BulkData.hpp>              // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>      // for stl::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
-#include <stk_mesh/base/MetaData.hpp>              // for stk::mesh::MetaData
 #include <stk_mesh/baseImpl/BucketRepository.hpp>  // stk::impl::BucketRepository
 #include <stk_util/parallel/Parallel.hpp>          // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_meta/MeshBuilder.hpp>  // for mundy::meta::MeshBuilder
+#include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
 
 namespace mundy {
 
-namespace meta {
+namespace mesh {
 
 // \name Constructors and destructor
 //{
@@ -120,7 +120,7 @@ MeshBuilder &MeshBuilder::set_upward_connectivity_flag(const bool enable_upward_
 // @name Actions
 //{
 
-std::shared_ptr<stk::mesh::MetaData> MeshBuilder::create_meta_data() {
+std::shared_ptr<mundy::mesh::MetaData> MeshBuilder::create_meta_data() {
   return builder_.create_meta_data();
 }
 
@@ -128,14 +128,14 @@ std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data() {
   return this->create_bulk_data(this->create_meta_data());
 }
 
-std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<stk::mesh::MetaData> metaData) {
+std::unique_ptr<stk::mesh::BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<mundy::mesh::MetaData> metaData) {
   TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
-                             "MeshBuilder must be given an MPI communicator before creating BulkData.");
+                             "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
 
-  return builder_.create(metaData);
+  return builder_.create(MetaData);
 }
 //}
 
-}  // namespace meta
+}  // namespace mesh
 
 }  // namespace mundy

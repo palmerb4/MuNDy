@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_MESHBUILDER_HPP_
-#define MUNDY_META_MESHBUILDER_HPP_
+#ifndef MUNDY_MESH_MESHBUILDER_HPP_
+#define MUNDY_MESH_MESHBUILDER_HPP_
 
 /// \file MeshBuilder.cpp
 /// \brief Declaration of the MeshBuilder class
@@ -32,18 +32,19 @@
 #include <stk_mesh/base/BulkData.hpp>          // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>       // for stk::mesh::MeshBuilder
-#include <stk_mesh/base/MetaData.hpp>          // for stk::mesh::MetaData
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
+
+// Mundy libs
+#include <mundy_mesh/MetaDataWrapper.hpp>  // for mundy::mesh::MetaDataWrapper
 
 namespace mundy {
 
-namespace meta {
+namespace mesh {
 
 /// \class MeshBuilder
 /// \brief A helper class for building an STK BulkData entity.
 ///
-/// This class is merely a duplicate of STK's \c MeshBuilder. Although duplicative code is discouraged, we chose to wrap
-/// all of \c MeshBuilder's functionality to improve its readability and documentation.
+/// This class is a duplicate of STK's \c MeshBuilder with our MetaMeshWrapper in place of STK's MetaMesh.
 class MeshBuilder {
  public:
   //! \name Constructors and destructor
@@ -54,7 +55,6 @@ class MeshBuilder {
 
   /// \brief Constructor with given given communicator.
   explicit MeshBuilder(stk::ParallelMachine comm);
-
   //@}
 
   //! @name Setters
@@ -95,14 +95,14 @@ class MeshBuilder {
   //! @name Actions
   //@{
 
-  /// \brief Create a new MetaData instance.
-  std::shared_ptr<stk::mesh::MetaData> create_meta_data();
+  /// \brief Create a new MetaDataWrapper instance.
+  std::shared_ptr<MetaDataWrapper> create_meta_data();
 
   /// \brief Create a new BulkData instance.
-  std::unique_ptr<stk::mesh::BulkData> create_bulk_data();
+  std::unique_ptr<MetaDataWrapper> create_bulk_data();
 
   /// \brief Create a new BulkData instance using an existing MetaData instance.
-  std::unique_ptr<stk::mesh::BulkData> create_bulk_data(std::shared_ptr<stk::mesh::MetaData> meta_data);
+  std::unique_ptr<stk::mesh::BulkData> create_bulk_data(std::shared_ptr<MetaDataWrapper> meta_data);
   //@}
 
  private:
@@ -139,8 +139,8 @@ class MeshBuilder {
   //@}
 };  // MeshBuilder
 
-}  // namespace meta
+}  // namespace mesh
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_MESHBUILDER_HPP_
+#endif  // MUNDY_MESH_MESHBUILDER_HPP_

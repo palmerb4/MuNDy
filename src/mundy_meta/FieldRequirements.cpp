@@ -17,9 +17,6 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_FIELDREQUIREMENTS_HPP_
-#define MUNDY_META_FIELDREQUIREMENTS_HPP_
-
 /// \file FieldRequirements.cpp
 /// \brief Definition of the FieldRequirements class
 
@@ -62,9 +59,8 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string) {
   } else if (rank_string == "INVALID_RANK") {
     return stk::topology::INVALID_RANK;
   } else {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        true, std::invalid_argument,
-        "The provided rank string " << rank_string << " is not valid.");
+    TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument,
+                               "The provided rank string " << rank_string << " is not valid.");
   }
 }
 //}
@@ -72,5 +68,3 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string) {
 }  // namespace meta
 
 }  // namespace mundy
-
-#endif  // MUNDY_META_FIELDREQUIREMENTS_HPP_

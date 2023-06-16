@@ -471,6 +471,8 @@ void FieldRequirements<FieldType>::merge(
     // Check if the provided parameters are valid.
     field_req_ptr->check_if_valid();
 
+    // TODO(palmerb4): Check field type via some typeid.
+
     // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
     if (field_req_ptr->constrains_field_name()) {
       if (this->constrains_field_name()) {
