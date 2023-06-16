@@ -29,13 +29,13 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
@@ -56,7 +56,7 @@ namespace rigid_body_motion {
 // \name Constructors and destructor
 //{
 
-MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(stk::mesh::BulkData *const bulk_data_ptr,
+MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                  const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
@@ -141,7 +141,7 @@ void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_s
         meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_linker_part,
-        [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
+        [&kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
           stk::mesh::Entity linked_element = bulk_data_ptr_->begin_elements(linker)[0];
           kernel_ptr->execute(linker, linked_element);
         });

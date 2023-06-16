@@ -34,11 +34,6 @@ struct MultibodyAttribute {
   Factory::FastIdType value;
 };  // MultibodyAttribute
 
-
-
-
-
-
 }  // namespace multibody
 
 }  // namespace mundy

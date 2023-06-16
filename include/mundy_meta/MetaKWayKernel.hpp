@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/PartRequirements.hpp>                      // for mundy::meta::PartRequirements
 
@@ -137,7 +138,7 @@ class MetaKWayKernel
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaKWayKernelBase<ReturnType, RegistrationType>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedMetaKWayKernel::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
   //@}

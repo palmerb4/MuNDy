@@ -32,12 +32,12 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
+#include <mundy_meta/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -216,7 +216,7 @@ class PartRequirements {
   /// In each case, the part name must be set or an error will be thrown.
   ///
   /// \note Redeclaration of a previously declared part, will return the previous part.
-  stk::mesh::Part &declare_part(stk::mesh::MetaData *const meta_data_ptr) const;
+  stk::mesh::Part &declare_part(mundy::mesh::MetaData *const meta_data_ptr) const;
 
   /// \brief Delete the part name constraint (if it exists).
   void delete_part_name_constraint();

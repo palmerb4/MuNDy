@@ -30,7 +30,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
 #include <stk_topology/topology.hpp>   // for stk::topology
@@ -42,6 +41,8 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeAABB.hpp>     // for mundy::methods::ComputeAABB
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -60,7 +61,7 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
   //@{
 
   /// \brief Constructor
-  explicit Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  explicit Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -125,7 +126,7 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<Sphere>(bulk_data_ptr, fixed_parameter_list);
   }
 
@@ -160,10 +161,10 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
       mundy::multibody::Factory::get_fast_id("SPHERE");
 
   /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
   /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Buffer distance to be added to the axis-aligned boundary box.
   ///

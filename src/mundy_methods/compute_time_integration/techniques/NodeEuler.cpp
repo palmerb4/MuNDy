@@ -29,13 +29,13 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
@@ -52,7 +52,7 @@ namespace compute_time_integration {
 // \name Constructors and destructor
 //{
 
-NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
+NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
@@ -105,7 +105,7 @@ void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
-                                   [](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
+                                   [](const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed
                                      // This is the best way to indicate that things like the normal vector need
                                      // updated. Does STK have an observer that lets us check if fields need updated?

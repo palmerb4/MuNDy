@@ -32,7 +32,6 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -44,6 +43,8 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -61,7 +62,7 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   ComputeTimeIntegration() = delete;
 
   /// \brief Constructor
-  ComputeTimeIntegration(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -149,7 +150,7 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<ComputeTimeIntegration>(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
@@ -170,10 +171,10 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   static constexpr std::string_view class_identifier_ = "COMPUTE_TIME_INTEGRATION";
 
   /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
   /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of part pairs that this method acts on.
   size_t num_part_pairs_ = 0;

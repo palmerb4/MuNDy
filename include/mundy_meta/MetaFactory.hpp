@@ -36,15 +36,15 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaTwoWayKernel.hpp>  // for mundy::meta::MetaTwoWayKernel
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -87,7 +87,7 @@ class MetaFactory {
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// class.
   using NewClassGenerator =
-      std::function<std::shared_ptr<PolymorphicBaseType>(stk::mesh::BulkData* const, const Teuchos::ParameterList&)>;
+      std::function<std::shared_ptr<PolymorphicBaseType>(mundy::mesh::BulkData* const, const Teuchos::ParameterList&)>;
 
   /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
   /// instances.
@@ -190,7 +190,7 @@ class MetaFactory {
   /// \param fixed_parameter_list [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<PolymorphicBaseType> create_new_instance(const RegistrationType& key,
-                                                                  stk::mesh::BulkData* const bulk_data_ptr,
+                                                                  mundy::mesh::BulkData* const bulk_data_ptr,
                                                                   const Teuchos::ParameterList& fixed_parameter_list) {
     return get_instance_generator_map()[key](bulk_data_ptr, fixed_parameter_list);
   }

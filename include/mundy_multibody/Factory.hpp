@@ -262,6 +262,7 @@ class Factory {
 
   /// \brief Every concrete class that inherits from the MultibodyRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
+  template <class>
   friend class MultibodyRegistry;
   //@}
 };  // Factory

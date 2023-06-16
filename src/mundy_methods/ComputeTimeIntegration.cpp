@@ -29,7 +29,6 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -41,6 +40,7 @@
 #include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>                   // for mundy::mesh::BulkData
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::methods::ComputeTimeIntegration
 
 namespace mundy {
@@ -50,7 +50,7 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeTimeIntegration::ComputeTimeIntegration(stk::mesh::BulkData *const bulk_data_ptr,
+ComputeTimeIntegration::ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr,
                                                const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
@@ -131,7 +131,7 @@ void ComputeTimeIntegration::execute(const stk::mesh::Selector &input_selector) 
         meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_linker_part,
-        [&kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
+        [&kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
           stk::mesh::Entity linked_element = bulk_data_ptr_->begin_elements(linker)[0];
           kernel_ptr->execute(linker, linked_element);
         });

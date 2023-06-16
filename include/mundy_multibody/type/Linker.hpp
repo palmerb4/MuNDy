@@ -37,12 +37,12 @@ namespace type {
 
 /// \class Linker
 /// \brief The static interface for all of Mundy's multibody Linker objects.
-class Linker {
+class Linker : Multibody<Liker> {
   //! \name Getters
   //@{
 
   /// \brief Get the Linker's name.
-  /// This name must be unique and not shared by any other Linker object.
+  /// This name must be unique and not shared by any other multibody object.
   static constexpr inline std::string_view details_get_name() {
     return "LINKER";
   }

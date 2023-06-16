@@ -29,7 +29,6 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -42,6 +41,7 @@
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
+#include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -50,7 +50,7 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeMobility::ComputeMobility(stk::mesh::BulkData *const bulk_data_ptr,
+ComputeMobility::ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr,
                                  const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.

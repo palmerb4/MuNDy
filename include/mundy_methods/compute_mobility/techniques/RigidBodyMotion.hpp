@@ -31,7 +31,6 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -43,6 +42,8 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -62,7 +63,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
   RigidBodyMotion() = delete;
 
   /// \brief Constructor
-  RigidBodyMotion(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  RigidBodyMotion(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -162,7 +163,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<RigidBodyMotion>(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
@@ -183,10 +184,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
   static constexpr std::string_view class_identifier_ = "RIGID_BODY_MOTION";
 
   /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
   /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Method for mapping from rigid body force to rigid body velocity.
   std::shared_ptr<mundy::meta::MetaMethodBase<void>> map_rigid_body_force_to_rigid_body_velocity_method_ptr_;

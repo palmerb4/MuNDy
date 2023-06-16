@@ -28,11 +28,11 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>               // for Teuchos::ParameterList
 #include <stk_expreval/stk_expreval/Constant.hpp>  // for stk::stk_expreval::pi()
-#include <stk_mesh/base/BulkData.hpp>              // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>                // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>                 // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>                                                  // for mundy::mesh::BulkData
 #include <mundy_methods/compute_mobility/techniques/local_drag/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
 #include <mundy_methods/utils/Quaternion.hpp>                                       // for mundy::utils::Quaternion
 
@@ -51,7 +51,7 @@ namespace kernels {
 // \name Constructors and destructor
 //{
 
-Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
+Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.

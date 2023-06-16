@@ -17,61 +17,69 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
-#define MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
+#ifndef MUNDY_MESH_BULKDATA_HPP_
+#define MUNDY_MESH_BULKDATA_HPP_
 
-/// \file Sphere.hpp
-/// \brief Declaration of the Sphere class
+/// \file BulkData.hpp
+/// \brief Declaration of the BulkData class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
+#include <typeindex>    // for std::type_index
 #include <vector>       // for std::vector
+
+// Trilinos libs
+#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
+
+// Mundy libs
+#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
 
-namespace multibody {
+namespace mesh {
 
-namespace type {
-
-/// \class Sphere
-/// \brief The static interface for all of Mundy's multibody Sphere objects.
-class Sphere : Multibody<Sphere> {
+/// \class BulkData
+/// \brief A extension of STK's BulkData, with streamlined access to Mundy's stk wrappers.
+///
+/// For now, this extension simply stores and returns our MetaData wrapper
+class BulkData : public stk::mesh::BulkData {
+ public:
   //! \name Getters
   //@{
 
-  /// \brief Get the Sphere's name.
-  /// This name must be unique and not shared by any other multibody object.
-  static constexpr inline std::string_view details_get_name() {
-    return "SPHERE";
+  /// \brief Fetch the meta data manager for this bulk data manager.
+  const MetaData &mesh_meta_data() const {
+    return *meta_data_ptr_;
   }
 
-  /// \brief Get the Sphere's topology.
-  static constexpr inline stk::topology details_get_topology() {
-    return stk::topology::PARTICLE;
+  /// \brief Fetch the meta data manager for this bulk data manager.
+  MetaData &mesh_meta_data() {
+    return *meta_data_ptr_;
   }
 
-  /// \brief Get the Sphere's rank.
-  static constexpr inline stk::topology details_get_rank() {
-    return stk::topology::ELEMENT_RANK;
+  /// \brief Fetch the pointer to the meta data manager for this bulk data manager.
+  const std::shared_ptr<MetaData> mesh_meta_data_ptr() const {
+    return meta_data_ptr_;
   }
 
-  /// \brief Get if the Sphere has a parent multibody type.
-  static constexpr inline bool details_has_parent() {
-    return false;
+  /// \brief Fetch the pointer to the meta data manager for this bulk data manager.
+  std::shared_ptr<MetaData> mesh_meta_data_ptr() {
+    return meta_data_ptr_;
   }
+  //@}
 
-  /// \brief Get the parent multibody type of the Sphere.
-  static constexpr inline bool details_get_parent_name() {
-    return "INVALID";
-  }
-};  // Sphere
+ private:
+  //! \name Internal members
+  //@{
 
-}  // namespace type
+  std::shared_ptr<MetaData> meta_data_ptr_;
+  //@}
+};  // BulkData
 
-}  // namespace multibody
+}  // namespace mesh
 
 }  // namespace mundy
 
-#endif  // MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
+#endif  // MUNDY_MESH_BULKDATA_HPP_

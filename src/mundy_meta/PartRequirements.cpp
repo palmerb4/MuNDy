@@ -32,11 +32,11 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
@@ -297,7 +297,7 @@ std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> PartR
 
 // \name Actions
 //{
-stk::mesh::Part &PartRequirements::declare_part(stk::mesh::MetaData *const meta_data_ptr) const {
+stk::mesh::Part &PartRequirements::declare_part(mundy::mesh::MetaData *const meta_data_ptr) const {
   TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
                              "PartRequirements: MetaData pointer cannot be null).");
   TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_part_name(), std::logic_error,

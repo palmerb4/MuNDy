@@ -36,7 +36,6 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 
 // Mundy libs

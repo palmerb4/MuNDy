@@ -29,13 +29,13 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
@@ -54,7 +54,7 @@ namespace techniques {
 // \name Constructors and destructor
 //{
 
-NonSmoothLCP::NonSmoothLCP(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
+NonSmoothLCP::NonSmoothLCP(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
@@ -116,7 +116,7 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
     // TODO(palmerb4): Replace this function with for_each_entity_reduce (only possible after the ngp update).
     stk::mesh::impl::for_each_selected_entity_run_no_threads(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-        []([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+        []([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           stk::mesh::field_data(*element_constraint_violation_field_name_, element)[0] = 0.0;
         });
   }

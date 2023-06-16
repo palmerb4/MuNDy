@@ -29,13 +29,13 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
@@ -56,7 +56,7 @@ namespace non_smooth_lcp {
 // \name Constructors and destructor
 //{
 
-ComputeConstraintProjection::ComputeConstraintProjection(stk::mesh::BulkData *const bulk_data_ptr,
+ComputeConstraintProjection::ComputeConstraintProjection(mundy::mesh::BulkData *const bulk_data_ptr,
                                                          const Teuchos::ParameterList &fixed_parameter_list)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
@@ -127,7 +127,7 @@ void ComputeConstraintProjection::execute(const stk::mesh::Selector &input_selec
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
-        [&compute_constraint_projection_kernel_ptr]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+        [&compute_constraint_projection_kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data,
                                                     stk::mesh::Entity element) {
           compute_constraint_projection_kernel_ptr->execute(element);
         });

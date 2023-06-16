@@ -40,7 +40,7 @@ namespace mundy {
 namespace mesh {
 
 /// \class MetaData
-/// \brief A extension of STK's MetaData with better suited for some of Mundy's requirements.
+/// \brief A extension of STK's MetaData, better suited for some of Mundy's requirements.
 ///
 /// For now, this extension modifies how attributes are created and stored.
 class MetaData : public stk::mesh::MetaData {
@@ -115,7 +115,7 @@ class MetaData : public stk::mesh::MetaData {
   std::map<unsigned, std::map<std::type_index, std::any>> part_to_part_attributes_map_;
   std::map<std::type_index, std::any> mesh_attributes_map_;
   //@}
-};  // MetaDataBase
+};  // MetaData
 
 //! \name Template implementations
 //@{

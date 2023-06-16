@@ -31,7 +31,6 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -43,6 +42,8 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -60,7 +61,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   ComputeAABB() = delete;
 
   /// \brief Constructor
-  ComputeAABB(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
   //! \name Typedefs
@@ -76,7 +77,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static void details_static_declare_mesh_requirements([[maybe_unused]] stk::mesh::MetaData *const meta_data_ptr,
+  static void details_static_declare_mesh_requirements([[maybe_unused]] mundy::mesh::MetaData *const meta_data_ptr,
                                                        const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -142,7 +143,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<ComputeAABB>(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
@@ -163,10 +164,10 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   static constexpr std::string_view class_identifier_ = "COMPUTE_AABB";
 
   /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
   /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;

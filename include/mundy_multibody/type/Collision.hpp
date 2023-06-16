@@ -37,12 +37,12 @@ namespace type {
 
 /// \class Collision
 /// \brief The static interface for all of Mundy's multibody Collision objects.
-class Collision {
+class Collision : Multibody<Collision> {
   //! \name Getters
   //@{
 
   /// \brief Get the Collision's name.
-  /// This name must be unique and not shared by any other Collision object.
+  /// This name must be unique and not shared by any other multibody object.
   static constexpr inline std::string_view details_get_name() {
     return "COLLISION";
   }

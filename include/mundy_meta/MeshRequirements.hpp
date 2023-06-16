@@ -32,13 +32,13 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -77,9 +77,9 @@ class MeshRequirements {
   /// \param comm [in] The MPI communicator.
   MeshBuilder &set_communicator(const stk::ParallelMachine &comm);
 
-  /// \brief Set the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
+  /// \brief Set the chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
   /// \param aura_option [in] The chosen Aura option.
-  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option);
+  MeshBuilder &set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
@@ -132,8 +132,8 @@ class MeshRequirements {
   /// \brief Return the MPI communicator to be used by STK.
   stk::ParallelMachine get_communicator() const;
 
-  /// \brief Return the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  stk::mesh::BulkData::AutomaticAuraOption get_aura_option() const;
+  /// \brief Return the chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
+  mundy::mesh::BulkData::AutomaticAuraOption get_aura_option() const;
 
   /// \brief Return the field data manager.
   stk::mesh::FieldDataManager *const get_field_data_manager() const;
@@ -178,7 +178,7 @@ class MeshRequirements {
   ///
   /// The only setting that must be specified before declaring the mesh is the MPI communicator; all other settings have
   /// default options which will be used if not set.
-  std::shared_ptr<stk::mesh::BulkData> &declare_mesh() const;
+  std::shared_ptr<mundy::mesh::BulkData> &declare_mesh() const;
 
   /// \brief Delete the spatial dimension constraint (if it exists).
   void delete_spatial_dimension_constraint() const;
@@ -228,7 +228,7 @@ class MeshRequirements {
 
   /// \brief Require that the mesh have a specific mesh attribute with known type.
   ///
-  /// \note Attributes are fetched from an stk::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// \note Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
   /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
   /// attribute of that type already exists, then the contents of the two attributes must match.
   template <class T>
@@ -255,7 +255,7 @@ class MeshRequirements {
   static constexpr unsigned default_spatial_dimension_ = 3;
   static std::vector<std::string> default_entity_rank_names_ = std::vector<std::string>();
   static constexpr stk::ParallelMachine default_communicator_ = MPI_COMM_NULL;
-  static constexpr stk::mesh::BulkData::AutomaticAuraOption default_aura_option_ = stk::mesh::BulkData::AUTO_AURA;
+  static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
   static constexpr stk::mesh::FieldDataManager *default_field_data_manager_ptr_ = nullptr;
   static constexpr unsigned default_bucket_capacity_ = stk::mesh::impl::BucketRepository::default_bucket_capacity;
   static constexpr bool default_upward_connectivity_flag_ = true;
@@ -270,8 +270,8 @@ class MeshRequirements {
   /// @brief The MPI communicator to be used by STK.
   stk::ParallelMachine communicator_;
 
-  /// @brief The chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  stk::mesh::BulkData::AutomaticAuraOption aura_option_;
+  /// @brief The chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
+  mundy::mesh::BulkData::AutomaticAuraOption aura_option_;
 
   /// @brief Pointer to an existing field data manager.
   stk::mesh::FieldDataManager *field_data_manager_ptr_;

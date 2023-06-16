@@ -34,13 +34,13 @@
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 #include <stk_util/util/CSet.hpp>        // for stk::CSet
 
 // Mundy libs
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -183,10 +183,10 @@ class FieldRequirements : public FieldRequirementsBase {
   //@{
 
   /// \brief Declare/create the field that this class defines and assign it to a part.
-  void declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
+  void declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
 
   /// \brief Declare/create the field that this class defines and assign it to the mesh.
-  void declare_field_on_mesh(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
+  void declare_field_on_mesh(mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
 
   /// \brief Delete the field name constraint (if it exists).
   void delete_field_name_constraint() final;
@@ -414,7 +414,7 @@ Teuchos::ParameterList FieldRequirements<FieldType>::get_valid_params() const {
 //{
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr,
+void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
                                                          const stk::mesh::Part &part) const {
   TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
                              "FieldRequirements: MetaData pointer cannot be null).");

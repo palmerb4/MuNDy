@@ -32,11 +32,12 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 #include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
@@ -114,7 +115,7 @@ MeshBuilder &MeshRequirements::set_communicator(const stk::ParallelMachine &comm
   this->check_if_valid();
 }
 
-MeshBuilder &MeshRequirements::set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option) {
+MeshBuilder &MeshRequirements::set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option) {
   aura_option_ = aura_option;
   aura_option_is_set_ = true;
   this->check_if_valid();
@@ -184,7 +185,7 @@ stk::ParallelMachine MeshRequirements::get_communicator() const {
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
 }
 
-stk::mesh::BulkData::AutomaticAuraOption MeshRequirements::get_aura_option() const {
+mundy::mesh::BulkData::AutomaticAuraOption MeshRequirements::get_aura_option() const {
   TEUCHOS_TEST_FOR_EXCEPTION(
       !this->constrains_aura_option(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
@@ -223,7 +224,7 @@ std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_m
 
 // \name Actions
 //{
-std::shared_ptr<stk::mesh::BulkData> &MeshRequirements::declare_mesh() const {
+std::shared_ptr<mundy::mesh::BulkData> &MeshRequirements::declare_mesh() const {
   TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_communicator(), std::logic_error,
                              "MeshRequirements: The MPI communicator must be ste before calling declare_part.");
 
@@ -250,8 +251,8 @@ std::shared_ptr<stk::mesh::BulkData> &MeshRequirements::declare_mesh() const {
     mesh_builder.set_upward_connectivity_flag(this->get_upward_connectivity_flag());
   }
 
-  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mesh_builder.create_bulk_data();
-  stk::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_builder.create_bulk_data();
+  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Declare the mesh's fields.
   // Loop over each rank's field map.
@@ -412,8 +413,6 @@ void merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr) {
   for (auto const &part_ptr : mesh_req_ptr->get_mesh_part_map()) {
     this->add_part_req(part_ptr);
   }
-
-  
 }
 
 void MeshRequirements::merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs) {

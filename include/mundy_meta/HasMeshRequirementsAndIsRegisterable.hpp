@@ -35,6 +35,7 @@
 
 // Mundy libs
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -91,7 +92,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  virtual std::shared_ptr<BaseType> create_new_instance(stk::mesh::BulkData *const bulk_data_ptr,
+  virtual std::shared_ptr<BaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
                                                         const Teuchos::ParameterList &fixed_parameter_list) const = 0;
   //@}
 };  // HasMeshRequirementsAndIsRegisterableBase
@@ -179,14 +180,14 @@ class HasMeshRequirementsAndIsRegisterable
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   std::shared_ptr<DerivedClass::polymorphic_base_type> create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const final;
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<DerivedClass::polymorphic_base_type> static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedClass::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
@@ -228,7 +229,7 @@ RegistrationType HasMeshRequirementsAndIsRegisterable<DerivedClass, Registration
 template <class DerivedClass, typename RegistrationType>
 std::shared_ptr<DerivedClass::polymorphic_base_type>
 HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::create_new_instance(
-    stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const {
+    mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const {
   return static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
 }
 //}

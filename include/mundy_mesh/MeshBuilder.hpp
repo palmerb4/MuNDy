@@ -29,13 +29,13 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <stk_mesh/base/BulkData.hpp>          // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>       // for stk::mesh::MeshBuilder
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/MetaDataWrapper.hpp>  // for mundy::mesh::MetaDataWrapper
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -44,7 +44,7 @@ namespace mesh {
 /// \class MeshBuilder
 /// \brief A helper class for building an STK BulkData entity.
 ///
-/// This class is a duplicate of STK's \c MeshBuilder with our MetaMeshWrapper in place of STK's MetaMesh.
+/// This class is a duplicate of STK's \c MeshBuilder with our extended BulkData and MetaMesh in place of STK's.
 class MeshBuilder {
  public:
   //! \name Constructors and destructor
@@ -95,14 +95,14 @@ class MeshBuilder {
   //! @name Actions
   //@{
 
-  /// \brief Create a new MetaDataWrapper instance.
-  std::shared_ptr<MetaDataWrapper> create_meta_data();
+  /// \brief Create a new MetaData instance.
+  std::shared_ptr<MetaData> create_meta_data();
 
   /// \brief Create a new BulkData instance.
-  std::unique_ptr<MetaDataWrapper> create_bulk_data();
+  std::unique_ptr<MetaData> create_bulk_data();
 
   /// \brief Create a new BulkData instance using an existing MetaData instance.
-  std::unique_ptr<stk::mesh::BulkData> create_bulk_data(std::shared_ptr<MetaDataWrapper> meta_data);
+  std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> meta_data);
   //@}
 
  private:
@@ -120,7 +120,7 @@ class MeshBuilder {
   bool has_comm_;
 
   /// \brief Chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  stk::mesh::BulkData::AutomaticAuraOption aura_option_;
+  BulkData::AutomaticAuraOption aura_option_;
 
   /// \brief Pointer to an existing field data manager.
   stk::mesh::FieldDataManager *field_data_manager_ptr_;

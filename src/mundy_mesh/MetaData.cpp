@@ -33,7 +33,6 @@
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 

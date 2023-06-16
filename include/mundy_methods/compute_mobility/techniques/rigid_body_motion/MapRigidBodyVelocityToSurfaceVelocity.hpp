@@ -32,18 +32,19 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaTwoWayKernelFactory
-#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -64,7 +65,7 @@ class MapRigidBodyVelocityToSurfaceVelocity
   MapRigidBodyVelocityToSurfaceVelocity() = delete;
 
   /// \brief Constructor
-  MapRigidBodyVelocityToSurfaceVelocity(stk::mesh::BulkData *const bulk_data_ptr,
+  MapRigidBodyVelocityToSurfaceVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
                                         const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
@@ -117,9 +118,9 @@ class MapRigidBodyVelocityToSurfaceVelocity
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements = mundy::meta::MetaTwoWayKernelFactory<
-              void, MapRigidBodyVelocityToSurfaceVelocity>::get_part_requirements(kernel_name,
-                                                                                  part_kernel_parameter_list);
+          pair_requirements =
+              mundy::meta::MetaTwoWayKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>::get_part_requirements(
+                  kernel_name, part_kernel_parameter_list);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
     }
@@ -154,7 +155,7 @@ class MapRigidBodyVelocityToSurfaceVelocity
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<MapRigidBodyVelocityToSurfaceVelocity>(bulk_data_ptr, parameter_list);
   }
   //@}
@@ -175,10 +176,10 @@ class MapRigidBodyVelocityToSurfaceVelocity
   static constexpr std::string_view class_identifier_ = "MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY";
 
   /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
   /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of part pairs that this method acts on.
   size_t num_part_pairs_ = 0;
