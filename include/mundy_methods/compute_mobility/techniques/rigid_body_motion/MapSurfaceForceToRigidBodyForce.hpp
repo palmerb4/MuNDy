@@ -38,13 +38,14 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
 
 namespace mundy {
 
@@ -52,10 +53,14 @@ namespace methods {
 
 namespace compute_mobility {
 
+namespace techniques {
+
+namespace rigid_body_motion {
+
 /// \class MapSurfaceForceToRigidBodyForce
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
 class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, MapSurfaceForceToRigidBodyForce>,
-                                        public mundy::meta::MetaMethodRegistry<void, MapSurfaceForceToRigidBodyForce> {
+                                        public RigidBodyMotion::OurMethodRegistry<MapSurfaceForceToRigidBodyForce> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -78,7 +83,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
+  static std::shared_ptr<mundy::meta::MeshRequirements>(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -189,6 +194,10 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
   std::vector<std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>>> kernel_ptrs_;
   //@}
 };  // MapSurfaceForceToRigidBodyForce
+
+}  // namespace rigid_body_motion
+
+}  // namespace techniques
 
 }  // namespace compute_mobility
 

@@ -27,6 +27,7 @@
 #include <functional>   // for std::function
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <set>          // for std::set
 #include <stdexcept>    // for std::logic_error, std::invalid_argument
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
@@ -40,11 +41,11 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaTwoWayKernel.hpp>  // for mundy::meta::MetaTwoWayKernel
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -92,7 +93,7 @@ class MetaFactory {
   /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
   /// instances.
   using NewRequirementsGenerator =
-      std::function<std::vector<std::shared_ptr<PartRequirements>>(const Teuchos::ParameterList&)>;
+      std::function<std::vector<std::shared_ptr<MeshRequirements>>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -102,11 +103,16 @@ class MetaFactory {
   //@{
 
   /// \brief Get the number of classes this factory recognizes.
-  static size_t get_number_of_subclasses() {
-    return get_instance_generator_map().size();
+  static size_t num_registered_classes() {
+    return get_internal_keys().size();
   }
 
-  /// \brief Get if the provided key is valid or not
+  /// \brief Get the set of all registered keys.
+  static std::set<RegistrationType> get_keys() {
+    return get_internal_keys();
+  }
+
+  /// \brief Get if the provided key is valid or not.
   /// \param key [in] A key that may or may not correspond to a registered class.
   static bool is_valid_key(const RegistrationType& key) {
     return get_instance_generator_map().count(key) != 0;
@@ -125,7 +131,7 @@ class MetaFactory {
   /// \param key [in] A key corresponding to a registered class.
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A default fixed
   /// parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
+  static std::vector<std::shared_ptr<MeshRequirements>> get_mesh_requirements(
       const RegistrationType& key, const Teuchos::ParameterList& fixed_parameter_list) {
     return get_requirement_generator_map()[key](fixed_parameter_list);
   }
@@ -172,6 +178,7 @@ class MetaFactory {
     const RegistrationType key = ClassToRegister::static_get_class_identifier();
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                                "MetaFactory: The provided key " << key << " already exists.");
+    get_internal_keys().insert(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_part_requirements));
     get_valid_fixed_params_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_valid_fixed_params));
@@ -200,6 +207,9 @@ class MetaFactory {
   //! \name Typedefs
   //@{
 
+  /// \brief A set of keys.
+  using SetOfKeys = std::set<RegistrationType>;
+
   /// \brief A map from key to a function for generating a new class.
   using InstanceGeneratorMap = std::map<RegistrationType, NewClassGenerator>;
 
@@ -210,8 +220,14 @@ class MetaFactory {
   using DefaultParamsGeneratorMap = std::map<RegistrationType, NewDefaultParamsGenerator>;
   //@}
 
-  //! \name Attributes
+  //! \name Internal getters
   //@{
+  static SetOfKeys& get_internal_keys() {
+    // Static: One and the same instance for all function calls.
+    static SetOfKeys keys;
+    return keys;
+  }
+
   static InstanceGeneratorMap& get_instance_generator_map() {
     // Static: One and the same instance for all function calls.
     static InstanceGeneratorMap instance_generator_map;
@@ -247,7 +263,7 @@ class MetaFactory {
   /// to only have classRegistry with the same identifier be friends with this factory. Instead, ALL
   /// classRegistry are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
   template <typename, class, typename>
-  friend class MetaMethodRegistry;
+  friend class MetaRegistry;
   //@}
 };  // MetaFactory
 

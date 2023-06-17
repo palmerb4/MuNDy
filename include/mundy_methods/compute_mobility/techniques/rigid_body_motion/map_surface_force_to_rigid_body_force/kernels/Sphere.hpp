@@ -29,20 +29,20 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_methods/ComputeAABB.hpp>     // for mundy::methods::ComputeAABB
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp>  // for mundy::methods::...::MapSurfaceForceToRigidBodyForce
 
 namespace mundy {
 
@@ -50,14 +50,18 @@ namespace methods {
 
 namespace compute_mobility {
 
+namespace techniques {
+
+namespace rigid_body_motion {
+
 namespace map_surface_force_to_rigid_body_force {
 
 namespace kernels {
 
 /// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
-               public mundy::meta::MetaMultibodyKernelRegistry<void, Sphere, MapSurfaceForceToRigidBodyForce> {
+class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
+               public MapSurfaceForceToRigidBodyForce::OurKernelRegistry<Sphere> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -76,7 +80,7 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
+  static std::shared_ptr<mundy::meta::MeshRequirements>(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
@@ -152,8 +156,7 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const mundy::multibody::Factory::FastIdType class_identifier_ =
-      mundy::multibody::Factory::get_fast_id("SPHERE");
+  static const std::string class_identifier_ = "SPHERE";
 
   /// \brief The BulkData objects this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -184,6 +187,10 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
 }  // namespace kernels
 
 }  // namespace map_surface_force_to_rigid_body_force
+
+}  // namespace rigid_body_motion
+
+}  // namespace techniques
 
 }  // namespace compute_mobility
 

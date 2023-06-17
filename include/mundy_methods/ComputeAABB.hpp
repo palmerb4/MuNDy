@@ -37,13 +37,13 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -52,7 +52,7 @@ namespace methods {
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
 class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
-                    public mundy::meta::MetaMethodRegistry<void, ComputeAABB> {
+                    public mundy::meta::MetaMethodRegistry<void, ComputeAABB, std::string> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -66,68 +66,68 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
 
   //! \name Typedefs
   //@{
-  using KernelFactory = mundy::meta::MetaMultibodyKernelFactory<void, ComputeAABB>;
+
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, std::string, ComputeAABB>;
+
+  template<typename ClassToRegister>
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, std::string, ComputeAABB>;
   //@}
 
   //! \name MetaMethod interface implementation
   //@{
 
-  /// \brief Declare the requirements that this method imposes upon the structure, attributes, parts, and fields of the
-  /// mesh.
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static void details_static_declare_mesh_requirements([[maybe_unused]] mundy::mesh::MetaData *const meta_data_ptr,
-                                                       const Teuchos::ParameterList &fixed_parameter_list) {
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_fixed_params = fixed_parameter_list;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
+    const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
-    // This method itself does not impose requirements, but the kernels might.
-    Teuchos::Array &enabled_multibody_type_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_multibody_type_names");
-    Teuchos::ParameterList &compute_aabb_kernel_params = valid_fixed_params.sublist("kernels").sublist("compute_aabb");
-    for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
-      Teuchos::ParameterList &multibody_params = compute_aabb_kernel_params.sublist(enabled_multibody_type_name);
-      mundy::multibody::Factory::declare_mesh_requirements(enabled_multibody_type_name, meta_data_ptr,
-                                                           multibody_params);
+    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements;
+    for (size_t i = 0; i < num_specified_kernels; i++) {
+      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::string(i));
+      const std::string kernel_name = kernel_params.get<std::string>("name");
+      mesh_requirements->merge(mundy::multibody::Factory::get_mesh_requirements(kernel_name, kernel_params));
     }
   }
 
   /// \brief Validate the default fixed parameters for this class (those that impact the mesh requirements) and set
   /// their defaults.
-  ///
-  /// The only required parameter is "enabled_multibody_type_names" which must specify the name of at least one
-  /// multibody type to enable. This compute aabb kernel associated with this type must be registered with
-  /// MetaMultibodyKernelFactory<void, ComputeAABB>.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *fixed_parameter_list_ptr) {
     Teuchos::ParameterList params = &fixed_parameter_list_ptr;
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        params.isParameter("enabled_multibody_type_names"), std::invalid_argument,
-        "ComputeAABB: The provided parameter list must include the set of enabled multibody type names.");
-    Teuchos::Array &enabled_multibody_type_names =
-        params.get<Teuchos::Array<std::string>>("enabled_multibody_type_names");
-    TEUCHOS_TEST_FOR_EXCEPTION(enabled_multibody_type_names.size() != 0, std::invalid_argument,
-                               "ComputeAABB: The enabled multibody type names must not be empty.");
 
-    Teuchos::ParameterList &compute_aabb_kernel_params =
-        fixed_parameter_list_ptr->sublist("kernels", false).sublist("compute_aabb", false);
-    for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
-      TEUCHOS_TEST_FOR_EXCEPTION(
-          mundy::multibody::Factory::is_valid(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeAABB: Failed to find a multibody type with name (" << enabled_multibody_type_name << ").");
-      TEUCHOS_TEST_FOR_EXCEPTION(
-          KernelFactory::is_valid_key(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeAABB: Failed to find a compute_aabb kernel associated with the provided multibody type name ("
-              << enabled_multibody_type_name << ").");
-      Teuchos::ParameterList &multibody_params = compute_aabb_kernel_params.sublist(enabled_multibody_type_name, false);
-      KernelFactory::validate_fixed_parameters_and_set_defaults(enabled_multibody_type_name, multibody_params);
+    if (params.isSublist("kernels")) {
+      // Only validate and fill parameters for the given kernels.
+      Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", true);
+      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
+      for (size_t i = 0; i < num_specified_kernels; i++) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::string(i));
+        const std::string kernel_name = kernel_params.get<std::string>("name");
+        OurKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, kernel_params);
+      }
+    } else {
+      // Validate and fill parameters for any kernel in our registry.
+      Teuchos::ParameterList &kernels_sublist = params.sublist("kernel_params", false);
+      const unsigned num_specified_kernels = kernels_sublist.set("count", OurKernelFactory::num_registered_classes());
+      for (auto &key : OurKernelFactory::get_keys()) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::string(i), false);
+        kernel_params.set("name", key);
+        OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, kernel_params);
+      }
     }
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements) and
+  /// \brief Get the default transient parameters for this class (those that do not impact the mesh requirements) and
   /// set their defaults.
   static void details_static_validate_transient_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *transient_parameter_list_ptr) {

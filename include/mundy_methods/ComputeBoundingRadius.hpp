@@ -37,13 +37,13 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -64,16 +64,27 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
   ComputeBoundingRadius(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
+  //! \name Typedefs
+  //@{
+
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, std::string, ComputeBoundingRadius>;
+
+  template<typename ClassToRegister>
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, std::string, ComputeBoundingRadius>;
+  //@}
+
   //! \name MetaMethod interface implementation
   //@{
 
-  /// \brief Declare the requirements that this method imposes upon the structure, attributes, parts, and fields of the
-  /// mesh.
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static void details_static_declare_mesh_requirements([[maybe_unused]] mundy::mesh::MetaData *const meta_data_ptr,
-                                                       const Teuchos::ParameterList &fixed_parameter_list) {
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_fixed_params = fixed_parameter_list;
@@ -82,25 +93,19 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
     // This method itself does not impose requirements, but the kernels might.
     Teuchos::Array &enabled_multibody_type_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_multibody_type_names");
-    Teuchos::ParameterList &compute_aabb_kernel_params = valid_fixed_params.sublist("kernels").sublist("compute_aabb");
+    Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist("kernels").sublist("compute_bounding_radius");
     for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
-      Teuchos::ParameterList &multibody_params = compute_aabb_kernel_params.sublist(enabled_multibody_type_name);
+      Teuchos::ParameterList &multibody_params = kernel_params.sublist(enabled_multibody_type_name);
       mundy::multibody::Factory::declare_mesh_requirements(enabled_multibody_type_name, meta_data_ptr,
                                                            multibody_params);
     }
   }
-
   /// \brief Validate the default fixed parameters for this class (those that impact the mesh requirements) and set
   /// their defaults.
   ///
-  /// The only required parameter is
-  /// kernels:
-  ///   compute_aabb:
-  ///     enabled_multibody_type_names:
-  ///
-  /// enabled_multibody_type_names must specify a nonempty vector of strings to the enabled multibody types. Now, only
-  /// certain multibody types are enabled based on the set of registered MultibodyKernels. To add a new multibody type,
-  /// register the corresponding kernel with this class's KernelFactory.
+  /// The only required parameter is "enabled_multibody_type_names" which must specify the name of at least one
+  /// multibody type to enable. The compute_bounding_radius kernel associated with this type must be registered with our
+  /// kernel factory.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *fixed_parameter_list_ptr) {
     Teuchos::ParameterList params = &fixed_parameter_list_ptr;
@@ -112,22 +117,23 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
     TEUCHOS_TEST_FOR_EXCEPTION(enabled_multibody_type_names.size() != 0, std::invalid_argument,
                                "ComputeBoundingRadius: The enabled multibody type names must not be empty.");
 
-    Teuchos::ParameterList &compute_aabb_kernel_params =
-        fixed_parameter_list_ptr->sublist("kernels", false).sublist("compute_aabb", false);
+    Teuchos::ParameterList &kernel_params =
+        fixed_parameter_list_ptr->sublist("kernels", false).sublist("compute_bounding_radius", false);
     for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
       TEUCHOS_TEST_FOR_EXCEPTION(
           mundy::multibody::Factory::is_valid(enabled_multibody_type_name), std::invalid_argument,
           "ComputeBoundingRadius: Failed to find a multibody type with name (" << enabled_multibody_type_name << ").");
-      TEUCHOS_TEST_FOR_EXCEPTION(KernelFactory::is_valid_key(enabled_multibody_type_name), std::invalid_argument,
-                                 "ComputeBoundingRadius: Failed to find a compute_aabb kernel associated with the "
-                                 "provided multibody type name ("
-                                     << enabled_multibody_type_name << ").");
-      Teuchos::ParameterList &multibody_params = compute_aabb_kernel_params.sublist(enabled_multibody_type_name, false);
-      KernelFactory::validate_fixed_parameters_and_set_defaults(enabled_multibody_type_name, multibody_params);
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          OurKernelFactory::is_valid_key(enabled_multibody_type_name), std::invalid_argument,
+          "ComputeBoundingRadius: Failed to find a compute_bounding_radius kernel associated with the "
+          "provided multibody type name ("
+              << enabled_multibody_type_name << ").");
+      Teuchos::ParameterList &multibody_params = kernel_params.sublist(enabled_multibody_type_name, false);
+      OurKernelFactory::validate_fixed_parameters_and_set_defaults(enabled_multibody_type_name, multibody_params);
     }
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements) and
+  /// \brief Get the default transient parameters for this class (those that do not impact the mesh requirements) and
   /// set their defaults.
   static void details_static_validate_transient_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *transient_parameter_list_ptr) {

@@ -108,7 +108,7 @@ class MetaKWayKernel
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<PartRequirements>> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedMetaKWayKernel::details_static_get_part_requirements(fixed_parameter_list);
   }

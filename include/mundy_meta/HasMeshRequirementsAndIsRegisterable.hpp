@@ -34,8 +34,8 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -65,7 +65,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   /// \note Fixed parameters are those that change the part requirements.
-  virtual std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
+  virtual std::vector<std::shared_ptr<MeshRequirements>> get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) const = 0;
 
   /// \brief Get the valid fixed parameters and their default parameter list for this class.
@@ -131,7 +131,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::vector<std::shared_ptr<PartRequirements>> get_part_requirements(
+  std::vector<std::shared_ptr<MeshRequirements>> get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) const final;
 
   /// \brief Get the requirements that this \c HasMeshRequirementsAndIsRegisterable imposes upon each input part.
@@ -142,7 +142,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<PartRequirements>> static_get_part_requirements(
+  static std::vector<std::shared_ptr<MeshRequirements>> static_get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedClass::details_static_get_part_requirements(fixed_parameter_list);
   }
@@ -199,7 +199,7 @@ class HasMeshRequirementsAndIsRegisterable
 // \name Getters
 //{
 template <class DerivedClass, typename RegistrationType>
-std::vector<std::shared_ptr<PartRequirements>>
+std::vector<std::shared_ptr<MeshRequirements>>
 HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::get_part_requirements(
     const Teuchos::ParameterList &fixed_parameter_list) const {
   return static_get_part_requirements(fixed_parameter_list);

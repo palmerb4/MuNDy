@@ -29,9 +29,9 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
-#include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaMethodFactory
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaMethodFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaTwoWayKernel.hpp>  // for mundy::meta::MetaTwoWayKernel
 
 namespace mundy {
@@ -82,47 +82,45 @@ const bool MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIde
     MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIdentifier>::register_type();
 
 /// \brief Partial specialization for MetaMethods.
-template <typename RegistrationType = std::string, typename RegistryIdentifier = GlobalIdentifier>
-
-template <class ClassToRegister, typename RegistrationType = std::string,
+template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
           typename RegistryIdentifier = DefaultMethodIdentifier>
 using MetaMethodRegistry = MetaRegistry<MetaMethodBase<ReturnType>, RegistrationType, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaKernels.
-template <class ClassToRegister, typename RegistrationType = std::string,
+template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
           typename RegistryIdentifier = DefaultMethodIdentifier>
 using MetaKernelRegistry = MetaRegistry<MetaKernelBase<ReturnType>, RegistrationType, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaTwoWayKernels.
-template <class ClassToRegister, typename RegistrationType = std::string,
+template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
           typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaTwoWayKernelRegistry =
-    MetaRegistry<MetaTwoWayKernelBase<ReturnType>, RegistrationType, RegistryIdentifier>;
+using MetaTwoWayKernelRegistry = MetaRegistry<MetaTwoWayKernelBase<ReturnType>, RegistrationType, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
-template <class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaMultibodyKernelRegistry = MetaKernelRegistry<mundy::multibody::multibody_t, RegistryIdentifier>;
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
+using MetaMultibodyKernelRegistry = MetaKernelRegistry<ReturnType, mundy::multibody::multibody_t, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaTwoWayKernels, identified by a mundy multibody type.
 /// To make a new key use:
 ///     auto key = std::make_pair(multibody_t1, multibody_t2)
 /// This key can then be used like any other key.
-template <class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
 using MetaMultibodyTwoWayKernelRegistry =
-    MetaTwoWayKernelRegistry<std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
-                               RegistryIdentifier>;
+    MetaTwoWayKernelRegistry<ReturnType, std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
+                             RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
-template <class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaTopologyKernelRegistry = MetaKernelRegistry<stk::topology::topology_t, RegistryIdentifier>;
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
+using MetaTopologyKernelRegistry = MetaKernelRegistry<ReturnType, stk::topology::topology_t, RegistryIdentifier>;
 
 /// \brief Partial specialization for MetaTwoWayKernels, identified by a pair of stk topology types.
 /// To make a new key use:
 ///     auto key = std::make_pair(topology_t1, topology_t2)
 /// This key can then be used like any other key.
-template <class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
 using MetaTopologyTwoWayKernelRegistry =
-    MetaTwoWayKernelRegistry<std::pair<stk::topology::topology_t, stk::topology::topology_t>, RegistryIdentifier>;
+    MetaTwoWayKernelRegistry<ReturnType, std::pair<stk::topology::topology_t, stk::topology::topology_t>,
+                             RegistryIdentifier>;
 }  // namespace meta
 
 }  // namespace mundy

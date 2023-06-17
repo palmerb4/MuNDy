@@ -31,13 +31,13 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
-#include <mundy_meta/MetaData.hpp>  // for mundy::mesh::MetaData
+#include <mundy_meta/MetaData.hpp>           // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -136,7 +136,7 @@ class PartRequirements {
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
   PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank);
-  
+
   /// \brief Construct from a parameter list.
   ///
   /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid

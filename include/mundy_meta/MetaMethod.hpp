@@ -34,9 +34,9 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/PartRequirements.hpp>                      // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -103,7 +103,7 @@ class MetaMethod
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<PartRequirements>> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedMetaMethod::details_static_get_part_requirements(fixed_parameter_list);
   }

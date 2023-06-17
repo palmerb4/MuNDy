@@ -38,13 +38,13 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -62,20 +62,21 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   ComputeTimeIntegration() = delete;
 
   /// \brief Constructor
-  ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr,
+                         const Teuchos::ParameterList &fixed_parameter_list);
   //@}
 
-  //! \name MetaMethod interface implementation
+  //! \name Typedefs
   //@{
 
-  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
-  ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, std::string, ComputeMobility>;
+
+  template <typename ClassToRegister>
+  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, std::string, ComputeMobility>;
+  //@}
+
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -113,9 +114,8 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements =
-              mundy::meta::MetaTwoWayKernelFactory<void, ComputeTimeIntegration>::get_part_requirements(
-                  kernel_name, part_kernel_parameter_list);
+          pair_requirements = mundy::meta::MetaTwoWayKernelFactory<void, ComputeTimeIntegration>::get_part_requirements(
+              kernel_name, part_kernel_parameter_list);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
     }
@@ -133,7 +133,7 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
     return default_fixed_parameter_list;
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
+  /// \brief Get the default transient parameters for this class (those that do not impact the mesh requirements).
   static Teuchos::ParameterList details_static_get_valid_transient_params() {
     static Teuchos::ParameterList default_transient_parameter_list;
     return default_transient_parameter_list;

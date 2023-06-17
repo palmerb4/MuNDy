@@ -37,13 +37,13 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -67,19 +67,24 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
 
   //! \name Typedefs
   //@{
-  using KernelFactory = mundy::meta::MetaMultibodyKernelFactory<void, GenerateCollisionConstraints>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, std::string, GenerateCollisionConstraints>;
+
+  template<typename ClassToRegister>
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, std::string, ComputeOBB>;
   //@}
 
   //! \name MetaMethod interface implementation
   //@{
 
-  /// \brief Declare the requirements that this method imposes upon the structure, attributes, parts, and fields of the
-  /// mesh.
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static void details_static_declare_mesh_requirements([[maybe_unused]] mundy::mesh::MetaData *const meta_data_ptr,
-                                                       const Teuchos::ParameterList &fixed_parameter_list) {
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_fixed_params = fixed_parameter_list;
@@ -129,7 +134,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
     }
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements) and
+  /// \brief Get the default transient parameters for this class (those that do not impact the mesh requirements) and
   /// set their defaults.
   static void details_static_validate_transient_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *transient_parameter_list_ptr) {

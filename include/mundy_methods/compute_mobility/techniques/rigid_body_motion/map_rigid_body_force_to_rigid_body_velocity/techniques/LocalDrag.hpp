@@ -38,13 +38,13 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>            // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -90,7 +90,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
+  static std::shared_ptr<mundy::meta::MeshRequirements>(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
@@ -163,30 +163,12 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
       part_requirements[i]->merge(pair_requirements.second);
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     // Get the kernel params.
     Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist("kernels");
 
     // Loop over each of the given kernels and validate them using using our registered kernels.
     const unsigned num_kernels = kernel_params.get<unsigned>("count");
     for (int i = 0; i < num_kernels; i++) {
-
       kernel_params KernelFactory::
     }
 

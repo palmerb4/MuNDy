@@ -52,7 +52,7 @@ namespace meta {
 /// between different methods. This factory is a bit different in that it always users to register different field types
 /// such that a \c FieldRequirements<FieldType> can then be generated based on the registered FieldType and its
 /// corresponding string. This allows us to generate field requirements with custom types. Most importantly, it enables
-/// users to add their own triviallyu copiable field types without modifying Mundy's source code.
+/// users to add their own trivially copyable field types without modifying Mundy's source code.
 ///
 /// The current set of registered field types and their string corresponding identifier is:
 ///  - SHORT              -> short

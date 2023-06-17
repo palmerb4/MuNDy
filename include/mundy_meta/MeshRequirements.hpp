@@ -31,14 +31,14 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
 
 namespace mundy {
 

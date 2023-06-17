@@ -149,6 +149,7 @@ bool MetaData::remove_attribute(const stk::mesh::Part &part) {
   std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
   const unsigned part_id = part.id();
 
+  // TODO(palmerb4): Attributes should be inherited. Check if any of our parents are in the list.
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {
     const bool attribute_exists = (part_to_part_attributes_map_[part_id].count(attribute_type_index) != 0);

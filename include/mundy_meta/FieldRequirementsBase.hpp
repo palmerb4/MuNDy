@@ -39,7 +39,7 @@
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/MetaData.hpp>    // for mundy::mesh::MetaData
+#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
 

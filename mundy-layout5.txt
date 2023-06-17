@@ -653,8 +653,10 @@ mesh attributes.
 The current TODO:
 (DONE) 1. Use the multibody factory to fetch the correct kernels
 2. Store the multibody type on the parts 
-  2.1. Update the PartRequirements to support part attributes and field attributes
-3. Update the valid parameters of every Method to reflect the change multibody kernels. 
+  (Done) 2.1. Update the PartRequirements to support part attributes and field attributes
+  2.2. Replace details_static_declare_mesh_requirements with the old style
+3. Update the valid parameters of every Method to reflect the changes to multibody kernels. 
+  3.1. ComputeAABB.hpp somewhat reflects this change but not ComputeAABB.cpp.
 4. Change the part requirements to use the provided parameters. These are not MeshRequirements. 
   4.1. If a field name is not provided, use the default.
   4.2. Assign mesh fields, attributes, parts, subparts, and all fields.
@@ -662,6 +664,10 @@ The current TODO:
    find the intersection of that PartVector and each multibody type to choose the correct kernel. 
 5. Update the constructors of each kernel and method to populate their temporaries with defaults. 
 6. Store the neighbor list as a mesh attribute. 
-  6.1. Instead of returning PartRequirements we should return MeshRequirements, which stores a vector of PartRequirements and any mesh attributes.
+  6.1. (Done) Instead of returning PartRequirements we should return MeshRequirements, which stores a vector of PartRequirements and any mesh attributes.
 7. 
 
+
+
+Using a fast id instead of a string seems tempting for choosing our kernels but the user needs to specify the kernel name in the
+parameters, which means that the identifier needs to a string.

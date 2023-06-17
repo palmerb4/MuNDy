@@ -30,20 +30,20 @@
 #include <vector>   // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_methods/ComputeAABB.hpp>     // for mundy::methods::ComputeAABB
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                         // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>                // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>                      // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                       // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaRegistry.hpp>                     // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
+#include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 
 namespace mundy {
 
@@ -56,9 +56,8 @@ namespace kernels {
 /// \class CollisionSphereSphere
 /// \brief Concrete implementation of a \c MetaMultibodyTwoWayKernel for generating a collision constraint between two
 /// spheres.
-class CollisionSphereSphere : public mundy::meta::MetaMultibodyThreeWayKernel<void, CollisionSphereSphere>,
-                              public mundy::meta::MetaMultibodyThreeWayKernelRegistry<void, CollisionSphereSphere,
-                                                                                      GenerateCollisionConstraints> {
+class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphereSphere>,
+                              public GenerateCollisionConstraints::OurKernelRegistry<CollisionSphereSphere> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -78,7 +77,7 @@ class CollisionSphereSphere : public mundy::meta::MetaMultibodyThreeWayKernel<vo
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c
   /// PartRequirements will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
+  static std::shared_ptr<mundy::meta::MeshRequirements>(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
@@ -166,9 +165,7 @@ class CollisionSphereSphere : public mundy::meta::MetaMultibodyThreeWayKernel<vo
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const std::array<mundy::multibody::multibody_t, 3> class_identifier_ = {
-      mundy::multibody::Factory::get_multibody_t("COLLISION"), mundy::multibody::Factory::get_multibody_t("SPHERE"),
-      mundy::multibody::Factory::get_multibody_t("SPHERE")};
+  static constexpr std::string_view class_identifier_ = "COLLISIONSPHERESPHERE";
 
   /// \brief The BulkData objects this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
