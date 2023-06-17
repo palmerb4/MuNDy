@@ -28,7 +28,8 @@
 
 // Trilinos libs
 #include <Teuchos_TestForException.hpp>            // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/FieldDataManager.hpp>      // for stl::mesh::FieldDataManager
+#include <stk_mesh/BulkData.hpp>                   // for stk::mesh::BulkData
+#include <stk_mesh/base/FieldDataManager.hpp>      // for stk::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
 #include <stk_mesh/baseImpl/BucketRepository.hpp>  // stk::impl::BucketRepository
 #include <stk_util/parallel/Parallel.hpp>          // for stk::ParallelMachine
@@ -49,9 +50,10 @@ MeshBuilder::MeshBuilder()
     : builder_(MPI_COMM_NULL),
       comm_(MPI_COMM_NULL),
       has_comm_(false),
-      aura_option_(BulkData::AUTO_AURA),
+      auto_aura_option_(stki::mesh::BulkData::AUTO_AURA),
       field_data_manager_ptr_(nullptr),
-      bucket_capacity_(stk::mesh::impl::BucketRepository::default_bucket_capacity),
+      initial_bucket_capacity_(stk::mesh::get_default_initial_bucket_capacity()),
+      maximum_bucket_capacity_(stk::mesh::get_default_maximum_bucket_capacity()),
       spatial_dimension_(0),
       entity_rank_names_(),
       upward_connectivity_flag_(true) {
@@ -61,9 +63,10 @@ MeshBuilder::MeshBuilder(stk::ParallelMachine comm)
     : builder_(comm),
       comm_(comm),
       has_comm_(true),
-      aura_option_(BulkData::AUTO_AURA),
+      auto_aura_option_(stk::mesh::BulkData::AUTO_AURA),
       field_data_manager_ptr_(nullptr),
-      bucket_capacity_(stk::mesh::impl::BucketRepository::default_bucket_capacity),
+      initial_bucket_capacity_(stk::mesh::get_default_initial_bucket_capacity()),
+      maximum_bucket_capacity_(stk::mesh::get_default_maximum_bucket_capacity()),
       spatial_dimension_(0),
       entity_rank_names_(),
       upward_connectivity_flag_(true) {
@@ -75,44 +78,48 @@ MeshBuilder::MeshBuilder(stk::ParallelMachine comm)
 
 MeshBuilder &MeshBuilder::set_spatial_dimension(const unsigned spatial_dimension) {
   spatial_dimension_ = spatial_dimension;
-  builder_.set_spatial_dimension(spatial_dimension_);
   return *this;
 }
 
 MeshBuilder &MeshBuilder::set_entity_rank_names(const std::vector<std::string> &entity_rank_names) {
   entity_rank_names_ = entity_rank_names;
-  builder_.set_entity_rank_names(entity_rank_names_);
   return *this;
 }
 
 MeshBuilder &MeshBuilder::set_communicator(const stk::ParallelMachine &comm) {
   comm_ = comm;
   has_comm_ = true;
-  builder_.set_communicator(comm_);
   return *this;
 }
 
-MeshBuilder &MeshBuilder::set_aura_option(const BulkData::AutomaticAuraOption &aura_option) {
-  aura_option_ = aura_option;
-  builder_.set_aura_option(aura_option_);
+MeshBuilder &MeshBuilder::set_auto_aura_option(const BulkData::AutomaticAuraOption &auto_aura_option) {
+  auto_aura_option_ = auto_aura_option;
   return *this;
 }
 
 MeshBuilder &MeshBuilder::set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr) {
   field_data_manager_ptr_ = field_data_manager_ptr;
-  builder_.set_field_data_manager(field_data_manager_ptr_);
   return *this;
 }
 
 MeshBuilder &MeshBuilder::set_bucket_capacity(const unsigned bucket_capacity) {
-  bucket_capacity_ = bucket_capacity;
-  builder_.set_bucket_capacity(bucket_capacity_);
+  initial_bucket_capacity_ = bucket_capacity;
+  maximum_bucket_capacity_ = bucket_capacity;
+  return *this;
+}
+
+MeshBuilder &MeshBuilder::set_initial_bucket_capacity(const unsigned initial_bucket_capacity) {
+  initial_bucket_capacity_ = initial_bucket_capacity;
+  return *this;
+}
+
+MeshBuilder &MeshBuilder::set_maximum_bucket_capacity(const unsigned maximum_bucket_capacity) {
+  maximum_bucket_capacity_ = maximum_bucket_capacity;
   return *this;
 }
 
 MeshBuilder &MeshBuilder::set_upward_connectivity_flag(const bool enable_upward_connectivity) {
   upward_connectivity_flag_ = enable_upward_connectivity;
-  builder_.set_upward_connectivity(upward_connectivity_flag_);
   return *this;
 }
 //}
@@ -120,19 +127,28 @@ MeshBuilder &MeshBuilder::set_upward_connectivity_flag(const bool enable_upward_
 // @name Actions
 //{
 
+std::shared_ptr<stk::mesh::impl::AuraGhosting> MeshBuilder::create_aura_ghosting() {
+  if (upward_connectivity_flag_) {
+    return std::make_shared<stk::mesh::impl::AuraGhosting>();
+  }
+  return std::make_shared<stk::mesh::impl::AuraGhostingDownwardConnectivity>();
+}
+
 std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
-  return builder_.create_meta_data();
+  return std::make_shared<MetaData>(spatial_dimension, entity_rank_names);
 }
 
 std::unique_ptr<BulkData> MeshBuilder::create_bulk_data() {
   return this->create_bulk_data(this->create_meta_data());
 }
 
-std::unique_ptr<BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<MetaData> metaData) {
+std::unique_ptr<BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<MetaData> meta_data) {
   TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
                              "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
 
-  return builder_.create(MetaData);
+  return std::unique_ptr<BulkData>(new BulkData(meta_data, comm_, auto_aura_option_, field_data_manager_ptr_,
+                                                initial_bucket_capacity_, maximum_bucket_capacity_,
+                                                create_aura_ghosting(), upward_connectivity_flag_));
 }
 //}
 

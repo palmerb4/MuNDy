@@ -31,7 +31,12 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
+#include <Teuchos_TestForException.hpp>        // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/Bucket.hpp>            // stk::mesh::get_default_maximum_bucket_capacity
+#include <stk_mesh/base/BulkData.hpp>          // for stk::mesh::BulkData
+#include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
+#include <stk_mesh/base/MeshBuilder.hpp>       // for stk::mesh::MeshBuilder
+#include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
 
 // Mundy libs
 #include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
@@ -46,6 +51,15 @@ namespace mesh {
 /// For now, this extension simply stores and returns our MetaData wrapper
 class BulkData : public stk::mesh::BulkData {
  public:
+  //! \name Constructors and destructor
+  //@{
+
+  /// \brief Destructor.
+  virtual ~BulkData() {
+    meta_data_ptr_ = nullptr;
+  }
+  //@}
+
   //! \name Getters
   //@{
 
@@ -67,6 +81,33 @@ class BulkData : public stk::mesh::BulkData {
   /// \brief Fetch the pointer to the meta data manager for this bulk data manager.
   std::shared_ptr<MetaData> mesh_meta_data_ptr() {
     return meta_data_ptr_;
+  }
+  //@}
+
+ protected:
+  //! \name Constructor
+  //@{
+
+  /// \brief This constructor wraps and extends that of stk's BulkData.
+  /// \param meta_data_ptr [in] A pointer to this mesh's meta data manager.
+  /// \param comm [in] The MPI communicator.
+  /// \param auto_aura_option [in] The chosen automatic Aura option.
+  /// \param field_data_manager_ptr [in] A pointer to an existing field data manager.
+  /// \param initial_bucket_capacity [in] The initial bucket capacity.
+  /// \param bucket_capacity [in] The maximum bucket capacity.
+  /// \param aura_ghosting_ptr [in] A pointer to this mesh's aura ghosting manager.
+  /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
+  BulkData(std::shared_ptr<MetaData> meta_data_ptr, stk::ParallelMachine comm,
+           enum stk::mesh::BulkData::AutomaticAuraOption auto_aura_option = stk::mesh::BulkData::AUTO_AURA,
+           stk::mesh::FieldDataManager *field_data_manager_ptr = nullptr,
+           unsigned initial_bucket_capacity = stk::mesh::get_default_initial_bucket_capacity(),
+           unsigned maximum_bucket_capacity = stk::mesh::get_default_maximum_bucket_capacity(),
+           std::shared_ptr<stk::mesh::impl::AuraGhosting> aura_ghosting_ptr =
+               std::shared_ptr<stk::mesh::impl::AuraGhosting>(),
+           bool upward_connectivity_flag = true)
+      : stk::mesh::BulkData(meta_data_ptr, comm, auto_aura_option, field_data_manager_ptr, initial_bucket_capacity,
+                            maximum_bucket_capacity, aura_ghosting_ptr, upward_connectivity_flag),
+        meta_data_ptr_(meta_data_ptr) {
   }
   //@}
 

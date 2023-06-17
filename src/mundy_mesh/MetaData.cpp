@@ -41,12 +41,23 @@
 
 namespace mundy {
 
-namespace meta {
+namespace mesh {
+
+// \name Constructor
+//{
+
+MetaData::MetaData() : stk::mesh::MetaData() {
+}
+
+MetaData::MetaData(size_t spatial_dimension, const std::vector<std::string> &rank_names)
+    : stk::mesh::MetaData(spatial_dimension, rank_names) {
+}
+//}
 
 // \name Actions
 //{
 
-void MetaData::declare_attribute(const stk::mesh::Field &field, const std::any &attribute) {
+void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::any &attribute) {
   std::type_index attribute_type_index = std::type_index(attribute.type());
   const unsigned field_id = field.mesh_meta_data_ordinal();
 
@@ -92,6 +103,6 @@ void MetaData::declare_attribute(const std::any &attribute) {
 }
 //}
 
-}  // namespace meta
+}  // namespace mesh
 
 }  // namespace mundy

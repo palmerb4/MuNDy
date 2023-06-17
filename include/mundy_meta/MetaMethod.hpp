@@ -56,6 +56,13 @@ class MetaMethodBase
     : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaMethodBase<ReturnType, RegistrationType>,
                                                               RegistrationType> {
  public:
+  //! \name Setters
+  //@{
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) = 0;
+  //@}
+
   //! \name Actions
   //@{
 
@@ -71,7 +78,7 @@ class MetaMethodBase
 /// implement the following static member functions
 /// - \c details_static_get_part_requirements implementation of the \c static_get_part_requirements interface.
 /// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
-/// - \c details_static_get_valid_transient_params implementation of the \c static_get_valid_transient_params interface.
+/// - \c details_static_get_valid_mutable_params implementation of the \c static_get_valid_mutable_params interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
 /// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
 ///
@@ -99,7 +106,7 @@ class MetaMethod
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c transient_parameter_list.
+  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
@@ -113,9 +120,9 @@ class MetaMethod
     return DerivedMetaMethod::details_static_get_valid_fixed_params();
   }
 
-  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaMethod.
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    return DerivedMetaMethod::details_static_get_valid_transient_params();
+  /// \brief Get the valid mutable parameters and their default parameter list for this \c MetaMethod.
+  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
+    return DerivedMetaMethod::details_static_get_valid_mutable_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.

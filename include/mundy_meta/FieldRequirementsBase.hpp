@@ -100,8 +100,46 @@ class FieldRequirementsBase {
   /// Will throw an error if the minimum number of field states.
   virtual unsigned get_field_min_number_of_states() const = 0;
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  virtual Teuchos::ParameterList get_valid_params() const = 0;
+  /// \brief Validate the given parameters and set the default values if not provided.
+  static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
+    if (parameter_list_ptr->isParameter("name")) {
+      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "FieldRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string");
+    } else {
+      parameter_list_ptr->set("name", "INVALID", "Name of the field.");
+    }
+
+    if (parameter_list_ptr->isParameter("rank")) {
+      const bool valid_type = ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
+                               (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "FieldRequirements: Type error. Given a parameter with name 'rank' but with a "
+                                     << "type other than std::string or stk::topology::rank_t");
+    } else {
+      parameter_list_ptr->set("rank", stk::topology::INVALID_RANK, "Rank of the field, in string form.");
+    }
+
+    if (parameter_list_ptr->isParameter("dimension")) {
+      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("dimension");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "FieldRequirements: Type error. Given a parameter with name 'dimension' but with a type other than unsigned");
+    } else {
+      parameter_list_ptr->set("dimension", 0, "Dimension of the part.");
+    }
+
+    if (parameter_list_ptr->isParameter("min_number_of_states")) {
+      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("min_number_of_states");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "FieldRequirements: Type error. Given a parameter with name 'min_number_of_states' "
+                                 "but with a type other than unsigned");
+    } else {
+      parameter_list_ptr->set("min_number_of_states", 1,
+                              "Minimum number of rotating states that this field will have.");
+    }
+  }
   //@}
 
   //! \name Actions
@@ -109,6 +147,9 @@ class FieldRequirementsBase {
 
   /// \brief Declare/create the field that this class defines.
   virtual void declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const = 0;
+
+  /// \brief Declare/create the field that this class defines and assign it to the entire mesh.
+  virtual void declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const = 0;
 
   /// \brief Delete the field name constraint (if it exists).
   virtual void delete_field_name_constraint() = 0;
@@ -128,6 +169,30 @@ class FieldRequirementsBase {
   /// case. We will however, leave this checker incase the class grows and the set of requirements is no longer
   /// automatically satisfied.
   virtual void check_if_valid() const = 0;
+
+  /// \brief Store a copy of an attribute on this field.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on this field.
+  virtual void add_field_attribute(std::any &some_attribute) = 0;
+
+  /// \brief Store an attribute on this field.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on this field.
+  virtual void add_field_attribute(std::any &&some_attribute) = 0;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///

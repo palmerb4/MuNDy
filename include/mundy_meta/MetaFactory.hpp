@@ -122,7 +122,7 @@ class MetaFactory {
   ///
   /// The set of part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c transient_parameter_list.
+  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
@@ -152,7 +152,7 @@ class MetaFactory {
     return get_valid_fixed_params_generator_map()[key]();
   }
 
-  /// \brief Get the default transient parameter list for a registered class.
+  /// \brief Get the default mutable parameter list for a registered class.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
@@ -162,10 +162,10 @@ class MetaFactory {
   /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
   ///
   /// \param key [in] A key corresponding to a registered class.
-  static Teuchos::ParameterList get_valid_transient_params(const RegistrationType& key) {
+  static Teuchos::ParameterList get_valid_mutable_params(const RegistrationType& key) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaFactory: The provided key " << key << " is not valid.");
-    return get_valid_transient_params_generator_map()[key]();
+    return get_valid_mutable_params_generator_map()[key]();
   }
   //@}
 
@@ -182,8 +182,8 @@ class MetaFactory {
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_part_requirements));
     get_valid_fixed_params_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_valid_fixed_params));
-    get_valid_transient_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::static_get_valid_transient_params));
+    get_valid_mutable_params_generator_map().insert(
+        std::make_pair(key, ClassToRegister::static_get_valid_mutable_params));
   }
 
   /// \brief Generate a new instance of a registered class.
@@ -246,10 +246,10 @@ class MetaFactory {
     return default_fixed_params_generator_map;
   }
 
-  static DefaultParamsGeneratorMap& get_valid_transient_params_generator_map() {
+  static DefaultParamsGeneratorMap& get_valid_mutable_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static DefaultParamsGeneratorMap default_transient_params_generator_map;
-    return default_transient_params_generator_map;
+    static DefaultParamsGeneratorMap default_mutable_params_generator_map;
+    return default_mutable_params_generator_map;
   }
   //@}
 

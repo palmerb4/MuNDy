@@ -71,30 +71,30 @@ class MeshRequirements {
 
   /// \brief Set the names assigned to each rank.
   /// \param entity_rank_names [in] The names assigned to each rank.
-  MeshBuilder &set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
+  void set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
 
   /// \brief Set the MPI communicator to be used by STK.
   /// \param comm [in] The MPI communicator.
-  MeshBuilder &set_communicator(const stk::ParallelMachine &comm);
+  void set_communicator(const stk::ParallelMachine &comm);
 
   /// \brief Set the chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
   /// \param aura_option [in] The chosen Aura option.
-  MeshBuilder &set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option);
+  void set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
-  MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
+  void set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
 
   /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
   ///
   /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
   ///
   /// \param bucket_capacity [in] The bucket capacity.
-  MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity);
+  void set_bucket_capacity(const unsigned bucket_capacity);
 
   /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  MeshBuilder &set_upward_connectivity_flag(const bool enable_upward_connectivity);
+  void set_upward_connectivity_flag(const bool enable_upward_connectivity);
 
   /// \brief Get if the spatial dimension is constrained or not.
   bool constrains_spatial_dimension() const;
@@ -136,7 +136,7 @@ class MeshRequirements {
   mundy::mesh::BulkData::AutomaticAuraOption get_aura_option() const;
 
   /// \brief Return the field data manager.
-  stk::mesh::FieldDataManager *const get_field_data_manager() const;
+  stk::mesh::FieldDataManager *get_field_data_manager() const;
 
   /// \brief Return the upper bound on the number of mesh entities that may be associated with a single bucket.
   unsigned get_bucket_capacity() const;
@@ -145,28 +145,79 @@ class MeshRequirements {
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
   bool get_upward_connectivity_flag() const;
 
-  /// \brief Return the mesh field map.
-  /// \brief field_rank [in] Rank associated with the retrieved fields.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_mesh_field_map();
+  /// \brief Return the mesh field map for each rank.
+  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_mesh_ranked_field_map();
 
-  /// \brief Get the default parameters for this class.
-  static Teuchos::ParameterList get_valid_params() {
-    // TODO(palmerb4): This is wrong. We have sub-parameters that specify the fields and parts.
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("spatial_dimension", default_spatial_dimension_,
-                               "Dimension of the space within which the parts and entities reside.");
-    default_parameter_list.set("entity_rank_names", default_entity_rank_names_,
-                               "Vector of names assigned to each rank.");
-    default_parameter_list.set("communicator", default_communicator_, "MPI communicator to be used by STK..");
-    default_parameter_list.set("aura_option", default_aura_option_, "The chosen Aura option.");
-    default_parameter_list.set("field_data_manager_ptr", default_field_data_manager_ptr_,
-                               "A pointer to a preexisting field data manager.");
-    default_parameter_list.set(
-        "bucket_capacity", default_bucket_capacity_,
-        "Upper bound on the number of mesh entities that may be associated with a single bucket.");
-    default_parameter_list.set("upward_connectivity_flag", default_upward_connectivity_flag_,
-                               "Flag specifying if upward connectivity will be enabled or not.");
-    return default_parameter_list;
+  /// \brief Return the mesh part map.
+  std::map<std::string, std::shared_ptr<PartRequirements>> get_mesh_part_map();
+
+  /// \brief Validate the given parameters and set the default values if not provided.
+  static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
+    if (parameter_list_ptr->isParameter("spatial_dimension")) {
+      parameter_list_ptr->get<unsigned>("spatial_dimension");
+    } else {
+      parameter_list_ptr->set("spatial_dimension", default_spatial_dimension_,
+                              "Dimension of the space within which the parts and entities reside.");
+    }
+
+    if (parameter_list_ptr->isParameter("entity_rank_names")) {
+      parameter_list_ptr->get<Teuchos::Array<std::string>>("entity_rank_names");
+    } else {
+      parameter_list_ptr->set("entity_rank_names", default_entity_rank_names_,
+                              "Vector of names assigned to each rank.");
+    }
+
+    if (parameter_list_ptr->isParameter("communicator")) {
+      parameter_list_ptr->get<stk::ParallelMachine>("communicator");
+    } else {
+      parameter_list_ptr->set("communicator", default_communicator_, "MPI communicator to be used by STK..");
+    }
+
+    if (parameter_list_ptr->isParameter("aura_option")) {
+      parameter_list_ptr->get<mundy::mesh::BulkData::AutomaticAuraOption>("aura_option");
+    } else {
+      parameter_list_ptr->set("aura_option", default_aura_option_, "The chosen Aura option.");
+    }
+
+    if (parameter_list_ptr->isParameter("field_data_manager_ptr")) {
+      parameter_list_ptr->get<stk::mesh::FieldDataManager *>("field_data_manager_ptr");
+    } else {
+      parameter_list_ptr->set("field_data_manager_ptr", default_field_data_manager_ptr_,
+                              "A pointer to a preexisting field data manager.");
+    }
+
+    if (parameter_list_ptr->isParameter("bucket_capacity")) {
+      parameter_list_ptr->get<unsigned>("bucket_capacity");
+    } else {
+      parameter_list_ptr->set(
+          "bucket_capacity", default_bucket_capacity_,
+          "Upper bound on the number of mesh entities that may be associated with a single bucket.");
+    }
+
+    if (parameter_list_ptr->isParameter("upward_connectivity_flag")) {
+      parameter_list_ptr->get<bool>("upward_connectivity_flag");
+    } else {
+      parameter_list_ptr->set("upward_connectivity_flag", default_upward_connectivity_flag_,
+                              "Flag specifying if upward connectivity will be enabled or not.");
+    }
+
+    if (parameter_list_ptr->isSublist("fields")) {
+      Teuchos::ParameterList &fields_sublist = parameter_list_ptr->sublist("fields");
+      const unsigned num_fields = fields_sublist.get<unsigned>("count");
+      for (unsigned i = 0; i < num_fields; i++) {
+        Teuchos::ParameterList &field_i_sublist = parameter_list_ptr->sublist("field_" + std::to_string(i));
+        FieldRequirementsBase::validate_parameters_and_set_defaults(&field_i_sublist);
+      }
+    }
+
+    if (parameter_list_ptr->isSublist("parts")) {
+      Teuchos::ParameterList &fields_sublist = parameter_list_ptr->sublist("parts");
+      const unsigned num_fields = fields_sublist.get<unsigned>("count");
+      for (unsigned i = 0; i < num_fields; i++) {
+        Teuchos::ParameterList &part_i_sublist = parameter_list_ptr->sublist("parts_" + std::to_string(i));
+        PartRequirements::validate_parameters_and_set_defaults(&part_i_sublist);
+      }
+    }
   }
   //@}
 
@@ -178,32 +229,32 @@ class MeshRequirements {
   ///
   /// The only setting that must be specified before declaring the mesh is the MPI communicator; all other settings have
   /// default options which will be used if not set.
-  std::shared_ptr<mundy::mesh::BulkData> &declare_mesh() const;
+  std::shared_ptr<mundy::mesh::BulkData> declare_mesh() const;
 
   /// \brief Delete the spatial dimension constraint (if it exists).
-  void delete_spatial_dimension_constraint() const;
+  void delete_spatial_dimension_constraint();
 
   /// \brief Delete the entity rank names constraint (if it exists).
-  void delete_entity_rank_names_constraint() const;
+  void delete_entity_rank_names_constraint();
 
   /// \brief Delete the communicator constraint (if it exists).
-  void delete_communicator_constraint() const;
+  void delete_communicator_constraint();
 
   /// \brief Delete the aura option constraint (if it exists).
-  void delete_aura_option_constraint() const;
+  void delete_aura_option_constraint();
 
   /// \brief Delete the field data manager constraint (if it exists).
-  void delete_field_data_manager_constraint() const;
+  void delete_field_data_manager_constraint();
 
   /// \brief Delete the bucket capacity constraint (if it exists).
-  void delete_bucket_capacity_constraint() const;
+  void delete_bucket_capacity_constraint();
 
   /// \brief Delete the upward connectivity flag constraint (if it exists).
-  void delete_upward_connectivity_flag_constraint() const;
+  void delete_upward_connectivity_flag_constraint();
 
   /// \brief Delete the specified attribute constraint (if it exists).
   template <class T>
-  void delete_mesh_attribute_constraint() const {
+  void delete_mesh_attribute_constraint() {
     auto value = mesh_attributes_.template get<std::shared_ptr<T>>();
     mesh_attributes_.template remove<std::shared_ptr<T>>(value);
   }
@@ -226,14 +277,34 @@ class MeshRequirements {
   /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
   void add_part_req(std::shared_ptr<PartRequirements> part_req_ptr);
 
-  /// \brief Require that the mesh have a specific mesh attribute with known type.
+  /// \brief Store a copy of an attribute on the mesh.
   ///
-  /// \note Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
   /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
   /// attribute of that type already exists, then the contents of the two attributes must match.
-  template <class T>
-  void add_mesh_attribute_req(const std::shared_ptr<T> some_attribute_ptr) {
-    mesh_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on the mesh.
+  void add_mesh_attribute(std::any &some_attribute) {
+    std::type_index attribute_type_index = std::type_index(some_attribute.type());
+    mesh_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
+  }
+
+  /// \brief Store an attribute on the mesh.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on the mesh.
+  void add_mesh_attribute(std::any &&some_attribute) {
+    std::type_index attribute_type_index = std::type_index(some_attribute.type());
+    mesh_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
   }
 
   /// \brief Merge the current requirements with another \c MeshRequirements.
@@ -253,7 +324,7 @@ class MeshRequirements {
   //@{
 
   static constexpr unsigned default_spatial_dimension_ = 3;
-  static std::vector<std::string> default_entity_rank_names_ = std::vector<std::string>();
+  static const inline Teuchos::Array<std::string> default_entity_rank_names_ = Teuchos::Array<std::string>();
   static constexpr stk::ParallelMachine default_communicator_ = MPI_COMM_NULL;
   static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
   static constexpr stk::mesh::FieldDataManager *default_field_data_manager_ptr_ = nullptr;
@@ -289,7 +360,7 @@ class MeshRequirements {
   bool entity_rank_names_is_set_ = false;
 
   /// \brief If the MPI communicator is set or not.
-  bool comm_is_set_ = false;
+  bool communicator_is_set_ = false;
 
   /// \brief If the aura option is set or not.
   bool aura_option_is_set_ = false;
@@ -301,17 +372,17 @@ class MeshRequirements {
   bool bucket_capacity_is_set_ = false;
 
   /// \brief If the upward connectivity flag is set or not.
-  bool enable_upward_connectivity_is_set_ = false;
+  bool upward_connectivity_flag_is_set_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_{
+  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> mesh_ranked_field_maps_{
       stk::topology::NUM_RANKS};
 
   /// \brief A map from part name to the part params for that part.
   std::map<std::string, std::shared_ptr<PartRequirements>> mesh_part_map_;
 
-  /// \brief Any attributes associated with this mesh.
-  stk::CSet mesh_attributes_;
+  /// \brief A map from attribute type to this field's attributes.
+  std::map<std::type_index, std::any> mesh_attributes_map_;
 };  // MeshRequirements
 
 }  // namespace meta

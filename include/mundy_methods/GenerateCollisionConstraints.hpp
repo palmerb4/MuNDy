@@ -67,6 +67,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
 
   //! \name Typedefs
   //@{
+
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, std::string, GenerateCollisionConstraints>;
 
   template<typename ClassToRegister>
@@ -134,10 +135,10 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
     }
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the mesh requirements) and
+  /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements) and
   /// set their defaults.
-  static void details_static_validate_transient_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *transient_parameter_list_ptr) {
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_parameter_list_ptr) {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -153,6 +154,9 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<GenerateCollisionConstraints>(bulk_data_ptr, fixed_parameter_list);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
   //@}
 
   //! \name Actions

@@ -33,6 +33,9 @@
 // Trilinos libs
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 
+// Mundy libs
+#include <mundy_multibody/Multibody.hpp>  // for mundy::multibody::Multibody
+
 namespace mundy {
 
 namespace multibody {
@@ -40,7 +43,7 @@ namespace multibody {
 /// \class Factory
 /// \brief A factory containing generation routines for classes derived from \c MultibodyType.
 ///
-/// The goal of \c MultibodyType, as with most factories, is to provide an abstraction for case switches between
+/// The goal of this factory, as with most factories, is to provide an abstraction for case switches between
 /// different methods. This factory is a bit different in that it always users to register new classes derived from
 /// \c MultibodyType and associate them with corresponding keys without modifying Mundy's source code.
 ///
@@ -50,9 +53,6 @@ class Factory {
  public:
   //! \name Typedefs
   //@{
-
-  /// \brief A numeric type with fast comparison operator.
-  using FastIdType = unsigned;
 
   /// \brief A function that returns an std::string_view.
   using StringViewGenerator = std::function<std::string_view()>;
@@ -80,14 +80,14 @@ class Factory {
 
   /// \brief Get if the provided fast id is valid or not
   /// \param fast_id [in] A fast id that may or may not correspond to a registered class.
-  static bool is_valid(const FastIdType fast_id) {
+  static bool is_valid(const multibody_t fast_id) {
     return get_name_generator_map().count(fast_id) != 0;
   }
 
   /// \brief Get the fast id corresponding to a registered class with the given name.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static FastIdType get_fast_id(const std::string_view& name) {
+  static multibody_t get_fast_id(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     return get_name_to_id_map()[name];
@@ -96,7 +96,7 @@ class Factory {
   /// \brief Get the name corresponding to a registered class with the given fast id.
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
-  static std::string_view get_name(const FastIdType fast_id) {
+  static std::string_view get_name(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_name_generator_map()[fast_id]();
@@ -108,14 +108,14 @@ class Factory {
   static std::topology get_topology(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
-    const FastIdType fast_id = get_fast_id(name);
+    const multibody_t fast_id = get_fast_id(name);
     return get_topology(fast_id);
   }
 
   /// \brief Get the topology corresponding to a registered class with the given fast id.
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
-  static std::topology get_topology(const FastIdType fast_id) {
+  static std::topology get_topology(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_topology_generator_map()[fast_id]();
@@ -127,14 +127,14 @@ class Factory {
   static bool has_parent(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
-    const FastIdType fast_id = get_fast_id(name);
+    const multibody_t fast_id = get_fast_id(name);
     return has_parent(fast_id);
   }
 
   /// \brief Get the if the registered class with the given fast id has a parent multibody type.
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
-  static bool has_parent(const FastIdType fast_id) {
+  static bool has_parent(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_has_parent_generator_map()[fast_id]();
@@ -146,14 +146,14 @@ class Factory {
   static bool get_parent_fast_id(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
-    const FastIdType fast_id = get_fast_id(name);
+    const multibody_t fast_id = get_fast_id(name);
     return get_parent_fast_id(fast_id);
   }
 
   /// \brief Get the parent multibody type's fast id corresponding to a registered class with the given fast id.
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false.
-  static bool get_parent_fast_id(const FastIdType fast_id) {
+  static bool get_parent_fast_id(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     std::string_view parent_name = get_parent_name(fast_id);
@@ -166,14 +166,14 @@ class Factory {
   static bool get_parent_name(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
-    const FastIdType fast_id = get_fast_id(name);
+    const multibody_t fast_id = get_fast_id(name);
     return get_parent_name(fast_id);
   }
 
   /// \brief Get the parent multibody type's name corresponding to a registered class with the given fast id.
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
-  static bool get_parent_name(const FastIdType fast_id) {
+  static bool get_parent_name(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_parent_name_generator_map()[fast_id]();
@@ -191,7 +191,7 @@ class Factory {
                                "Factory: The provided class's name '" << name << "' already exists.");
     number_of_registered_types_++;
 
-    FastIdType fast_id = number_of_registered_types_ - 1;
+    multibody_t fast_id = number_of_registered_types_ - 1;
     get_name_to_id_map().insert(std::make_pair(name, fast_id));
     get_name_generator_map().insert(std::make_pair(fast_id, name));
     get_topology_generator_map().insert(std::make_pair(fast_id, ClassToRegister::get_topology));
@@ -204,23 +204,23 @@ class Factory {
   //! \name Internal member
   //@{
 
-  static FastIdType number_of_registered_types_ = 0;
+  static multibody_t number_of_registered_types_ = 0;
   //@}
 
   //! \name Typedefs
   //@{
 
   /// \brief A map from a string_view to fast id.
-  using NameToFastIdMap = std::map<std::string_view, FastIdType>;
+  using NameToFastIdMap = std::map<std::string_view, multibody_t>;
 
   /// \brief A map from fast id to a function that returns a string view.
-  using FastIdToStringViewGeneratorMap = std::map<FastIdType, StringViewGenerator>;
+  using FastIdToStringViewGeneratorMap = std::map<multibody_t, StringViewGenerator>;
 
   /// \brief A map from fast id to a function that returns an stk::topology.
-  using FastIdToTopologyGeneratorMap = std::map<FastIdType, TopologyGenerator>;
+  using FastIdToTopologyGeneratorMap = std::map<multibody_t, TopologyGenerator>;
 
-  /// \brief A function that takes in a FastIdType and returns a boolean.
-  using FastIdToBooleanGeneratorMap = std::map<FastIdType, BooleanGenerator>;
+  /// \brief A function that takes in a multibody_t and returns a boolean.
+  using FastIdToBooleanGeneratorMap = std::map<multibody_t, BooleanGenerator>;
   //@}
 
   //! \name Attributes
@@ -263,7 +263,7 @@ class Factory {
   /// \brief Every concrete class that inherits from the MultibodyRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   template <class>
-  friend class MultibodyRegistry;
+  friend class Registry;
   //@}
 };  // Factory
 

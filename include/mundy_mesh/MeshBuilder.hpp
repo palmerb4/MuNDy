@@ -30,7 +30,6 @@
 
 // Trilinos libs
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
-#include <stk_mesh/base/MeshBuilder.hpp>       // for stk::mesh::MeshBuilder
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
 
 // Mundy libs
@@ -73,8 +72,8 @@ class MeshBuilder {
   MeshBuilder &set_communicator(const stk::ParallelMachine &comm);
 
   /// \brief Set the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  /// \param aura_option [in] The chosen Aura option.
-  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option);
+  /// \param auto_aura_option [in] The chosen Aura option.
+  MeshBuilder &set_auto_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &auto_aura_option);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
@@ -87,6 +86,20 @@ class MeshBuilder {
   /// \param bucket_capacity [in] The bucket capacity.
   MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity);
 
+  /// \brief Set the initial upper bound on the number of mesh entities that may be associated with a single bucket.
+  ///
+  /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
+  ///
+  /// \param initial_bucket_capacity [in] The initial bucket capacity.
+  MeshBuilder &set_initial_bucket_capacity(const unsigned initial_bucket_capacity);
+
+  /// \brief Set the maximum upper bound on the number of mesh entities that may be associated with a single bucket.
+  ///
+  /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
+  ///
+  /// \param bucket_capacity [in] The maximum bucket capacity.
+  MeshBuilder &set_maximum_bucket_capacity(const unsigned maximum_bucket_capacity);
+
   /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
   MeshBuilder &set_upward_connectivity_flag(const bool enable_upward_connectivity);
@@ -95,11 +108,14 @@ class MeshBuilder {
   //! @name Actions
   //@{
 
+  /// \brief Create a new aura ghosting instance.
+  std::shared_ptr<stk::mesh::impl::AuraGhosting> MeshBuilder::create_aura_ghosting();
+
   /// \brief Create a new MetaData instance.
   std::shared_ptr<MetaData> create_meta_data();
 
   /// \brief Create a new BulkData instance.
-  std::unique_ptr<MetaData> create_bulk_data();
+  std::unique_ptr<BulkData> create_bulk_data();
 
   /// \brief Create a new BulkData instance using an existing MetaData instance.
   std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> meta_data);
@@ -120,13 +136,16 @@ class MeshBuilder {
   bool has_comm_;
 
   /// \brief Chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  BulkData::AutomaticAuraOption aura_option_;
+  BulkData::AutomaticAuraOption auto_aura_option_;
 
   /// \brief Pointer to an existing field data manager.
   stk::mesh::FieldDataManager *field_data_manager_ptr_;
 
-  /// \brief Upper bound on the number of mesh entities that may be associated with a single bucket.
-  unsigned bucket_capacity_;
+  /// \brief Initial upper bound on the number of mesh entities that may be associated with a single bucket.
+  unsigned initial_bucket_capacity_;
+
+  /// \brief Maximum upper bound on the number of mesh entities that may be associated with a single bucket.
+  unsigned maximum_bucket_capacity_;
 
   /// \brief Spatial dimension of the mash.
   unsigned spatial_dimension_;

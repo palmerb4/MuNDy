@@ -95,7 +95,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     return required_part_params;
   }
 
-  /// \brief Get the default transient parameters for this class (those that impact the part requirements).
+  /// \brief Get the default mutable parameters for this class (those that impact the part requirements).
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
@@ -116,14 +116,14 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     return default_fixed_parameter_list;
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
+  /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    default_transient_parameter_list.set("time_step_size", default_time_step_size_, "The numerical timestep size.");
-    return default_transient_parameter_list;
+  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
+    static Teuchos::ParameterList default_mutable_parameter_list;
+    default_mutable_parameter_list.set("time_step_size", default_time_step_size_, "The numerical timestep size.");
+    return default_mutable_parameter_list;
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -140,6 +140,9 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<Sphere>(bulk_data_ptr, fixed_parameter_list);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
   //@}
 
   //! \name Actions

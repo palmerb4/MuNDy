@@ -102,16 +102,16 @@ LocalDrag::LocalDrag(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList LocalDrag::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
+Teuchos::ParameterList LocalDrag::set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+  Teuchos::ParameterList valid_mutable_parameter_list = mutable_parameter_list;
+  valid_mutable_parameter_list.validateParametersAndSetDefaults(this->get_valid_mutable_params());
 
-  // Fill the internal transient parameters and set the transient parameters of each registered kernel.
-  // In this case, all kernels have the same transient parameter (viscosity), so we simply pass along our list.
+  // Fill the internal mutable parameters and set the mutable parameters of each registered kernel.
+  // In this case, all kernels have the same mutable parameter (viscosity), so we simply pass along our list.
   for (int i = 0; i < kernel_ptrs_.size(); i++) {
-    kernel_ptrs_[i]->set_transient_params(valid_transient_parameter_list);
+    kernel_ptrs_[i]->set_mutable_params(valid_mutable_parameter_list);
   }
 }
 //}

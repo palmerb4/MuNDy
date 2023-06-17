@@ -487,7 +487,7 @@ Order I will implement things
 
 There are some BIG changes that need to occur. Those are
 0. Passing fields/parameters to sub-methods/sub-kernels. (Who should be the one to zero out the fields?)
-1. The parameters for all methods and kernels need broken into fixed and transient parameters.
+1. The parameters for all methods and kernels need broken into fixed and mutable parameters.
 2. All details_static_get_valid_params need updated to return the kernel/submethod params. 
    It should look a lot like details_static_get_part_requirements
 3. Need a way to have default parameters for different multiboidy types without the user needing to specify every single kernel. 
@@ -671,3 +671,8 @@ The current TODO:
 
 Using a fast id instead of a string seems tempting for choosing our kernels but the user needs to specify the kernel name in the
 parameters, which means that the identifier needs to a string.
+
+Part/Field/Mesh requirements all need std::any attributes, which get declared properly.
+These attributes need included in the merge process.
+
+Part/Field/Mesh requirements need a way to take in any number of requirements into their parameter_list constructor. This can't happen until I figure out Meulu's parser.

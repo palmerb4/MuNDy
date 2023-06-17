@@ -92,12 +92,14 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
     const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
-    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements;
+    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
     for (size_t i = 0; i < num_specified_kernels; i++) {
       Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::string(i));
       const std::string kernel_name = kernel_params.get<std::string>("name");
-      mesh_requirements->merge(mundy::multibody::Factory::get_mesh_requirements(kernel_name, kernel_params));
+      mesh_requirements_ptr->merge(mundy::multibody::Factory::get_mesh_requirements(kernel_name, kernel_params));
     }
+
+    return mesh_requirements_ptr;
   }
 
   /// \brief Validate the default fixed parameters for this class (those that impact the mesh requirements) and set
@@ -127,10 +129,10 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
     }
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the mesh requirements) and
+  /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements) and
   /// set their defaults.
-  static void details_static_validate_transient_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *transient_parameter_list_ptr) {
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_parameter_list_ptr) {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -146,6 +148,9 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<ComputeAABB>(bulk_data_ptr, fixed_parameter_list);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
   //@}
 
   //! \name Actions

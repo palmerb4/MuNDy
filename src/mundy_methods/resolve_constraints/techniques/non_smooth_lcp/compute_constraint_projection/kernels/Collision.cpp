@@ -71,11 +71,11 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Collision::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
+Teuchos::ParameterList Collision::set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+  Teuchos::ParameterList valid_mutable_parameter_list = mutable_parameter_list;
+  valid_mutable_parameter_list.validateParametersAndSetDefaults(this->get_valid_mutable_params());
 }
 //}
 

@@ -60,7 +60,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
   ///
   /// The set of part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c transient_parameter_list.
+  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
@@ -71,8 +71,8 @@ class HasMeshRequirementsAndIsRegisterableBase {
   /// \brief Get the valid fixed parameters and their default parameter list for this class.
   virtual Teuchos::ParameterList get_valid_fixed_params() const = 0;
 
-  /// \brief Get the valid transient parameters and their default parameter list for this class.
-  virtual Teuchos::ParameterList get_valid_transient_params() const = 0;
+  /// \brief Get the valid mutable parameters and their default parameter list for this class.
+  virtual Teuchos::ParameterList get_valid_mutable_params() const = 0;
 
   /// \brief Get the class identifier.
   virtual RegistrationType get_class_identifier() const = 0;
@@ -81,8 +81,8 @@ class HasMeshRequirementsAndIsRegisterableBase {
   //! \name Setters
   //@{
 
-  /// \brief Set the transient parameters. If a valid parameter is not provided, we use the default value.
-  virtual Teuchos::ParameterList set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const = 0;
+  /// \brief Set the mutable parameters. If a valid parameter is not provided, we use the default value.
+  virtual Teuchos::ParameterList set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) const = 0;
   //@}
 
   //! \name Actions
@@ -104,7 +104,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
 /// HasMeshRequirementsAndIsRegisterable must implement the following static member functions
 /// - \c details_static_get_part_requirements implementation of the \c static_get_part_requirements interface.
 /// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
-/// - \c details_static_get_valid_transient_params implementation of the \c static_get_valid_transient_params interface.
+/// - \c details_static_get_valid_mutable_params implementation of the \c static_get_valid_mutable_params interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
 /// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
 ///
@@ -127,7 +127,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c transient_parameter_list.
+  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
@@ -138,7 +138,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c transient_parameter_list.
+  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
@@ -150,17 +150,17 @@ class HasMeshRequirementsAndIsRegisterable
   /// \brief Get the valid fixed parameters and their default parameter list for this class.
   Teuchos::ParameterList get_valid_fixed_params() const final;
 
-  /// \brief Get the valid transient parameters and their default parameter list for this class.
-  Teuchos::ParameterList get_valid_transient_params() const final;
+  /// \brief Get the valid mutable parameters and their default parameter list for this class.
+  Teuchos::ParameterList get_valid_mutable_params() const final;
 
   /// \brief Get the valid fixed parameters and their default parameter list for this class.
   static Teuchos::ParameterList static_get_valid_fixed_params() {
     return DerivedClass::details_static_get_valid_fixed_params();
   }
 
-  /// \brief Get the valid transient parameters and their default parameter list for this class.
-  static Teuchos::ParameterList static_get_valid_transient_params() {
-    return DerivedClass::details_static_get_valid_transient_params();
+  /// \brief Get the valid mutable parameters and their default parameter list for this class.
+  static Teuchos::ParameterList static_get_valid_mutable_params() {
+    return DerivedClass::details_static_get_valid_mutable_params();
   }
 
   /// \brief Get the unique class identifier.
@@ -213,8 +213,8 @@ Teuchos::ParameterList HasMeshRequirementsAndIsRegisterable<DerivedClass, Regist
 
 template <class DerivedClass, typename RegistrationType>
 Teuchos::ParameterList
-HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::get_valid_transient_params() const {
-  return static_get_valid_transient_params();
+HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::get_valid_mutable_params() const {
+  return static_get_valid_mutable_params();
 }
 
 template <class DerivedClass, typename RegistrationType>

@@ -156,10 +156,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
     return default_fixed_parameter_list;
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    return default_transient_parameter_list;
+  /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
+  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
+    static Teuchos::ParameterList default_mutable_parameter_list;
+    return default_mutable_parameter_list;
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
@@ -176,6 +176,9 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return std::make_shared<RigidBodyMotion>(bulk_data_ptr, fixed_parameter_list);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
   //@}
 
   //! \name Actions

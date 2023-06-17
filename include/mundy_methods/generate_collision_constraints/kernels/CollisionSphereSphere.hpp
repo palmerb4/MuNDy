@@ -108,15 +108,15 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
     return default_fixed_parameter_list;
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
+  /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    default_transient_parameter_list.set("buffer_distance", default_buffer_distance_,
+  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
+    static Teuchos::ParameterList default_mutable_parameter_list;
+    default_mutable_parameter_list.set("buffer_distance", default_buffer_distance_,
                                          "Buffer distance to be added to the axis-aligned boundary box.");
-    return default_transient_parameter_list;
+    return default_mutable_parameter_list;
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -134,8 +134,8 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
     return std::make_shared<CollisionSphereSphere>(bulk_data_ptr, fixed_parameter_list);
   }
 
-  /// \brief Set the transient parameters. If a parameter is not provided, we use the default value.
-  Teuchos::ParameterList set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const override;
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  Teuchos::ParameterList set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) const override;
   //@}
 
   //! \name Actions

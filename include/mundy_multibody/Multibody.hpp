@@ -33,6 +33,8 @@ namespace mundy {
 
 namespace multibody {
 
+using multibody_t = unsigned;
+
 /// \class Multibody
 /// \brief The static interface for all of Mundy's multibody objects, be they rigid bodies and/or constraints.
 ///
