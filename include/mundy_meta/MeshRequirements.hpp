@@ -34,6 +34,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 #include <stk_topology/topology.hpp>  // for stk::topology
+#include <stk_mesh/base/Bucket.hpp>   // for stk::mesh::get_default_bucket_capacity
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
@@ -116,12 +117,6 @@ class MeshRequirements {
 
   /// \brief Get if the upward connectivity flag is constrained or not.
   bool constrains_upward_connectivity_flag() const;
-
-  /// \brief Get if the given type is a constrained mesh attribute or not.
-  template <class T>
-  void constrains_field_attribute() const {
-    return field_attributes_.template get<std::shared_ptr<T>>() != nullptr;
-  }
 
   /// \brief Return the dimension of the space within which the parts and entities reside.
   unsigned get_spatial_dimension() const;
@@ -255,13 +250,6 @@ class MeshRequirements {
   /// \brief Delete the upward connectivity flag constraint (if it exists).
   void delete_upward_connectivity_flag_constraint();
 
-  /// \brief Delete the specified attribute constraint (if it exists).
-  template <class T>
-  void delete_mesh_attribute_constraint() {
-    auto value = mesh_attributes_.template get<std::shared_ptr<T>>();
-    mesh_attributes_.template remove<std::shared_ptr<T>>(value);
-  }
-
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means:
@@ -325,7 +313,7 @@ class MeshRequirements {
   static constexpr stk::ParallelMachine default_communicator_ = MPI_COMM_NULL;
   static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
   static constexpr stk::mesh::FieldDataManager *default_field_data_manager_ptr_ = nullptr;
-  static constexpr unsigned default_bucket_capacity_ = stk::mesh::impl::BucketRepository::default_bucket_capacity;
+  static const unsigned default_bucket_capacity_ = stk::mesh::get_default_bucket_capacity();
   static constexpr bool default_upward_connectivity_flag_ = true;
   //@}
 

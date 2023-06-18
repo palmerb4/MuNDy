@@ -28,7 +28,7 @@
 
 // Trilinos libs
 #include <Teuchos_TestForException.hpp>            // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/BulkData.hpp>                   // for stk::mesh::BulkData
+#include <stk_mesh/base/BulkData.hpp>              // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>      // for stk::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
 #include <stk_mesh/baseImpl/BucketRepository.hpp>  // stk::impl::BucketRepository
@@ -135,7 +135,7 @@ std::shared_ptr<stk::mesh::impl::AuraGhosting> MeshBuilder::create_aura_ghosting
 }
 
 std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
-  return std::make_shared<MetaData>(spatial_dimension, entity_rank_names);
+  return std::make_shared<MetaData>(spatial_dimension_, entity_rank_names_);
 }
 
 std::unique_ptr<BulkData> MeshBuilder::create_bulk_data() {

@@ -32,7 +32,6 @@
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaTwoWayKernel.hpp>  // for mundy::meta::MetaTwoWayKernel
 
 namespace mundy {
 
