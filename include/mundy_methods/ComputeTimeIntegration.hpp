@@ -80,12 +80,12 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
-    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Create and store the required part params.
-    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_part_pairs");
-    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
+    Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_part_pairs");
+    const unsigned num_part_pairs = parts_params.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
     for (size_t i = 0; i < num_part_pairs; i++) {
       // Create a new part requirement.
@@ -93,9 +93,9 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
       // Fetch the i'th part parameters.
-      Teuchos::ParameterList &part_pair_parameter_list =
-          parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-      const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+      Teuchos::ParameterList &part_pair_params =
+          parts_params.sublist("input_part_pair_" + std::to_string(i));
+      const Teuchos::Array<std::string> pair_names = part_pair_params.get<Teuchos::Array<std::string>>("name");
 
       // Add method-specific requirements.
       part_requirements[i - 1]->set_part_name(pair_names[0]);
@@ -104,18 +104,18 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_time_integration");
+      Teuchos::ParameterList &part_kernel_params =
+          part_params.sublist("kernels").sublist("compute_time_integration");
 
       // Validate the kernel params and fill in defaults.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
+      const std::string kernel_name = part_kernel_params.get<std::string>("name");
+      part_kernel_params.validateParametersAndSetDefaults(
           mundy::meta::MetaTwoWayKernelFactory<void, ComputeTimeIntegration>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
           pair_requirements = mundy::meta::MetaTwoWayKernelFactory<void, ComputeTimeIntegration>::get_part_requirements(
-              kernel_name, part_kernel_parameter_list);
+              kernel_name, part_kernel_params);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
     }
@@ -125,18 +125,18 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
 
   /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
+    static Teuchos::ParameterList default_fixed_params;
+    Teuchos::ParameterList &kernel_params = default_fixed_params.sublist(
         "kernels", false, "Sublist that defines the kernels and their parameters.");
     kernel_params.sublist("map_surface_force_to_rigid_body_force", false,
                           "Sublist that defines the map's kernel parameters.");
-    return default_fixed_parameter_list;
+    return default_fixed_params;
   }
 
   /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements).
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_parameter_list;
-    return default_mutable_parameter_list;
+    static Teuchos::ParameterList default_mutable_params;
+    return default_mutable_params;
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other

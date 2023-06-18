@@ -99,14 +99,14 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+    static Teuchos::ParameterList default_fixed_params;
+    default_fixed_params.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
                                      "Name of the node field containing the coordinate of the sphere's center.");
-    default_fixed_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
+    default_fixed_params.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
                                      "Name of the node field containing the surface and body velocity.");
-    default_fixed_parameter_list.set("node_omega_field_name", std::string(default_node_omega_field_name_),
+    default_fixed_params.set("node_omega_field_name", std::string(default_node_omega_field_name_),
                                      "Name of the node field containing the surface and body rotational velocity.");
-    return default_fixed_parameter_list;
+    return default_fixed_params;
   }
 
   /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
@@ -114,8 +114,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_parameter_list;
-    return default_mutable_parameter_list;
+    static Teuchos::ParameterList default_mutable_params;
+    return default_mutable_params;
   }
 
   /// \brief Get the unique string identifier for this class.

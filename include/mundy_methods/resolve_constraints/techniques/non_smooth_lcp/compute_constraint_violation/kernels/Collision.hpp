@@ -99,17 +99,17 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.set(
+    static Teuchos::ParameterList default_fixed_params;
+    default_fixed_params.set(
         "element_signed_separation_dist_field_name", std::string(default_element_signed_separation_dist_field_name_),
         "Name of the element field containing the signed separation distance collision pairs.");
-    default_fixed_parameter_list.set("element_lagrange_multiplier_field_name",
+    default_fixed_params.set("element_lagrange_multiplier_field_name",
                                      std::string(default_element_lagrange_multiplier_field_name_),
                                      "Name of the element field containing the constraint's Lagrange multiplier.");
-    default_fixed_parameter_list.set("element_constraint_violation_field_name",
+    default_fixed_params.set("element_constraint_violation_field_name",
                                      std::string(default_element_constraint_violation_field_name_),
                                      "Name of the element field containing the constraint's violation measure.");
-    return default_fixed_parameter_list;
+    return default_fixed_params;
   }
 
   /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
@@ -117,8 +117,8 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_mutable_parameter_list;
-    return default_mutable_parameter_list;
+    static Teuchos::ParameterList default_mutable_params;
+    return default_mutable_params;
   }
 
   /// \brief Get the unique string identifier for this class.

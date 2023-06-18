@@ -90,13 +90,13 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.set(
+    static Teuchos::ParameterList default_fixed_params;
+    default_fixed_params.set(
         "bounding_sphere_field_name", std::string(default_bounding_radius_field_name_),
         "Name of the element field within which the output bounding radius will be written.");
-    default_fixed_parameter_list.set("radius_field_name", std::string(default_radius_field_name_),
+    default_fixed_params.set("radius_field_name", std::string(default_radius_field_name_),
                                      "Name of the element field containing the sphere radius.");
-    return default_fixed_parameter_list;
+    return default_fixed_params;
   }
 
   /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
@@ -104,10 +104,10 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
   /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
   /// will be created. You can save the result yourself if you wish to reuse it.
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_parameter_list;
-    default_mutable_parameter_list.set("buffer_distance", default_buffer_distance_,
+    static Teuchos::ParameterList default_mutable_params;
+    default_mutable_params.set("buffer_distance", default_buffer_distance_,
                                          "Buffer distance to be added to the axis-aligned boundary box.");
-    return default_mutable_parameter_list;
+    return default_mutable_params;
   }
 
   /// \brief Get the unique string identifier for this class.

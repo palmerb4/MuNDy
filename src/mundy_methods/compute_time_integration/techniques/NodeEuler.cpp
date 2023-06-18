@@ -60,23 +60,23 @@ NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
-  num_parts_ = parts_parameter_list.get<unsigned>("count");
+  Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
+  num_parts_ = parts_params.get<unsigned>("count");
   part_ptr_vector_.resize(num_parts_);
   for (size_t i = 0; i < num_parts_; i++) {
     // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-    const std::string part_name = part_parameter_list.get<std::string>("name");
+    Teuchos::ParameterList &part_params = parts_params.sublist("input_part_" + std::to_string(i));
+    const std::string part_name = part_params.get<std::string>("name");
     part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
   }
 
   // Fill the internal members using the internal parameter list.
-  node_coord_field_name_ = valid_fixed_parameter_list.get<std::string>("node_coord_field_name");
-  node_velocity_field_name_ = valid_fixed_parameter_list.get<std::string>("node_velocity_field_name");
+  node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
+  node_velocity_field_name_ = valid_fixed_params.get<std::string>("node_velocity_field_name");
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
@@ -90,11 +90,11 @@ NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_mutable_parameter_list = mutable_params;
-  valid_mutable_parameter_list.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
 
   // Fill the internal members using the internal parameter list.
-  time_step_size_ = valid_mutable_parameter_list.get<double>("time_step_size");
+  time_step_size_ = valid_mutable_params.get<double>("time_step_size");
 }
 //}
 

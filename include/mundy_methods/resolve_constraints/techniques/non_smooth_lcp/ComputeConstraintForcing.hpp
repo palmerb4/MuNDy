@@ -97,37 +97,37 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
-    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
-    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
+    Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
+    const unsigned num_parts = parts_params.get<unsigned>("count");
     std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
     for (size_t i = 0; i < num_parts; i++) {
       // Create a new parameter
       part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
 
       // Fetch the i'th part parameters
-      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-      const std::string part_name = part_parameter_list.get<std::string>("name");
+      Teuchos::ParameterList &part_params = parts_params.sublist("input_part_" + std::to_string(i));
+      const std::string part_name = part_params.get<std::string>("name");
 
       // Add method-specific requirements.
       part_requirements[i]->set_part_name(part_name);
       part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
 
       // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_constraint_forcing");
+      Teuchos::ParameterList &part_kernel_params =
+          part_params.sublist("kernels").sublist("compute_constraint_forcing");
 
       // Validate the kernel params and fill in defaults.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
+      const std::string kernel_name = part_kernel_params.get<std::string>("name");
+      part_kernel_params.validateParametersAndSetDefaults(
           mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       part_requirements[i]->merge(mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>::get_part_requirements(
-          kernel_name, part_kernel_parameter_list));
+          kernel_name, part_kernel_params));
     }
 
     return part_requirements;
@@ -135,18 +135,18 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
 
   /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
+    static Teuchos::ParameterList default_fixed_params;
+    Teuchos::ParameterList &kernel_params = default_fixed_params.sublist(
         "kernels", false, "Sublist that defines the kernels and their parameters.");
     kernel_params.sublist("compute_constraint_forcing", false,
                           "Sublist that defines the constraint violation kernel parameters.");
-    return default_fixed_parameter_list;
+    return default_fixed_params;
   }
 
   /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_parameter_list;
-    return default_mutable_parameter_list;
+    static Teuchos::ParameterList default_mutable_params;
+    return default_mutable_params;
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.

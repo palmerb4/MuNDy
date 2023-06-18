@@ -65,15 +65,15 @@ MapRigidBodyForceToRigidBodyVelocity::MapRigidBodyForceToRigidBodyVelocity(
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Fetch the technique sublist and return its parameters.
-  Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
-  const std::string technique_name = technique_parameter_list.get<std::string>("name");
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
 
   technique_ptr_ = mundy::meta::MetaMethodFactory<void, MapRigidBodyForceToRigidBodyVelocity>::create_new_instance(
-      technique_name, bulk_data_ptr_, technique_parameter_list);
+      technique_name, bulk_data_ptr_, technique_params);
 }
 //}
 
@@ -84,13 +84,13 @@ Teuchos::ParameterList MapRigidBodyForceToRigidBodyVelocity::set_mutable_params(
     const Teuchos::ParameterList &mutable_params) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_mutable_parameter_list = mutable_params;
-  valid_mutable_parameter_list.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
 
   // Fill the internal mutable parameters and set the mutable parameters of each registered kernel.
   // In this case, all kernels have the same mutable parameter (viscosity), so we simply pass along our list.
   for (int i = 0; i < kernel_ptrs_.size(); i++) {
-    kernel_ptrs_[i]->set_mutable_params(valid_mutable_parameter_list);
+    kernel_ptrs_[i]->set_mutable_params(valid_mutable_params);
   }
 }
 //}

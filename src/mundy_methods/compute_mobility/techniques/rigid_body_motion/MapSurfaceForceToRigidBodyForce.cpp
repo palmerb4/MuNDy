@@ -65,30 +65,30 @@ MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(mundy::mesh::Bu
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
-  valid_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  valid_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_part_pairs");
-  num_part_pairs_ = parts_parameter_list.get<unsigned>("count");
+  Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_part_pairs");
+  num_part_pairs_ = parts_params.get<unsigned>("count");
   part_pair_ptr_vector_.resize(num_part_pairs_);
   for (size_t i = 0; i < num_part_pairs_; i++) {
     // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_pair_parameter_list =
-        parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-    const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+    Teuchos::ParameterList &part_pair_params =
+        parts_params.sublist("input_part_pair_" + std::to_string(i));
+    const Teuchos::Array<std::string> pair_names = part_pair_params.get<Teuchos::Array<std::string>>("name");
     part_pair_ptr_vector_[i] =
         std::make_pair(meta_data_ptr_->get_part(pair_names[0]), meta_data_ptr_->get_part(pair_names[1]));
 
     // Fetch the parameters for this part's kernel
-    const Teuchos::ParameterList &part_kernel_parameter_list =
-        part_pair_parameter_list.sublist("kernels").sublist("map_surface_force_to_rigid_body_force");
+    const Teuchos::ParameterList &part_kernel_params =
+        part_pair_params.sublist("kernels").sublist("map_surface_force_to_rigid_body_force");
 
     // Create the kernel instance.
-    const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
+    const std::string kernel_name = part_kernel_params.get<std::string>("name");
     kernel_ptrs_.push_back(
         mundy::meta::MetaTwoWayKernelFactory<void, MapSurfaceForceToRigidBodyForce>::create_new_instance(
-            kernel_name, bulk_data_ptr_, part_kernel_parameter_list));
+            kernel_name, bulk_data_ptr_, part_kernel_params));
   }
 
   // For this method, the parts cannot intersect, if they did the result could be non-deterministic.
@@ -120,8 +120,8 @@ Teuchos::ParameterList MapSurfaceForceToRigidBodyForce::set_mutable_params(
     const Teuchos::ParameterList &mutable_params) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_mutable_parameter_list = mutable_params;
-  valid_mutable_parameter_list.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
 }
 //}
 

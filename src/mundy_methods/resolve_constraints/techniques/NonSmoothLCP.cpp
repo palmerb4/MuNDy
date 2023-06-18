@@ -62,32 +62,32 @@ NonSmoothLCP::NonSmoothLCP(mundy::mesh::BulkData *const bulk_data_ptr, const Teu
 
   // Validate the input params. Use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Fetch the parameters for this part's sub-methods.
-  Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
-  const std::string technique_name = technique_parameter_list.get<std::string>("name");
-  Teuchos::ParameterList &part_map_rbf_to_rbv_parameter_list =
-      part_parameter_list.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
-  Teuchos::ParameterList &part_map_rbv_to_sv_parameter_list =
-      part_parameter_list.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
-  Teuchos::ParameterList &part_map_sf_to_rbf_parameter_list =
-      part_parameter_list.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  Teuchos::ParameterList &part_map_rbf_to_rbv_params =
+      part_params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
+  Teuchos::ParameterList &part_map_rbv_to_sv_params =
+      part_params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
+  Teuchos::ParameterList &part_map_sf_to_rbf_params =
+      part_params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
 
   // Initialize and store the sub-methods.
-  const std::string rbf_to_rbv_class_id = part_map_rbf_to_rbv_parameter_list.get<std::string>("class_id");
-  const std::string rbv_to_sv_class_id = part_map_rbv_to_sv_parameter_list.get<std::string>("class_id");
-  const std::string sf_to_rbf_class_id = part_map_sf_to_rbf_parameter_list.get<std::string>("class_id");
+  const std::string rbf_to_rbv_class_id = part_map_rbf_to_rbv_params.get<std::string>("class_id");
+  const std::string rbv_to_sv_class_id = part_map_rbv_to_sv_params.get<std::string>("class_id");
+  const std::string sf_to_rbf_class_id = part_map_sf_to_rbf_params.get<std::string>("class_id");
   map_rigid_body_force_to_rigid_body_velocity_method_ptr_ =
       mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::create_new_instance(rbf_to_rbv_class_id, bulk_data_ptr_,
-                                                                              part_map_rbf_to_rbv_parameter_list);
+                                                                              part_map_rbf_to_rbv_params);
   map_rigid_body_velocity_to_surface_velocity_method_ptr_ =
       mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::create_new_instance(rbv_to_sv_class_id, bulk_data_ptr_,
-                                                                              part_map_rbv_to_sv_parameter_list);
+                                                                              part_map_rbv_to_sv_params);
   map_surface_force_to_rigid_body_force_method_ptr_ =
       mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::create_new_instance(sf_to_rbf_class_id, bulk_data_ptr_,
-                                                                              part_map_sf_to_rbf_parameter_list);
+                                                                              part_map_sf_to_rbf_params);
 }
 //}
 
@@ -98,8 +98,8 @@ Teuchos::ParameterList NonSmoothLCP::set_mutable_params(
     const Teuchos::ParameterList &mutable_params) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_mutable_parameter_list = mutable_params;
-  valid_mutable_parameter_list.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
 }
 //}
 
@@ -163,9 +163,9 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
       // Barzilai-Borwein step size Choice 2.
       alpha = xkdiff_dot_gkdiff / gkdiff_dot_gkdiff;
     }
-    Teuchos::ParameterList constraint_projection_mutable_parameter_list;
-    constraint_projection_mutable_parameter_list->set("step_size", alpha);
-    compute_constraint_projection_method_ptr_->set_mutable_params(constraint_projection_mutable_parameter_list);
+    Teuchos::ParameterList constraint_projection_mutable_params;
+    constraint_projection_mutable_params->set("step_size", alpha);
+    compute_constraint_projection_method_ptr_->set_mutable_params(constraint_projection_mutable_params);
 
     // Rotate the state of the xk and gk.
     bulk_data_ptr_->update_field_data_states(element_lagrange_multiplier_field_ptr_);

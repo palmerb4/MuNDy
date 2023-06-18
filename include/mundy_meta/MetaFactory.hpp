@@ -145,10 +145,10 @@ class MetaFactory {
                                                          Teuchos::ParameterList const* fixed_params_ptr) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaFactory: The provided key " << key << " is not valid.");
-    return get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
+    get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
   }
 
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  /// \brief Vvalidate_fixed_parameters_and_set_defaultsalidate the mutable parameters and use defaults for unset parameters.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
@@ -159,7 +159,7 @@ class MetaFactory {
                                                            Teuchos::ParameterList const* mutable_params_ptr) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaFactory: The provided key " << key << " is not valid.");
-    return get_validate_mutable_params_generator_map()[key](mutable_params_ptr);
+    get_validate_mutable_params_generator_map()[key](mutable_params_ptr);
   }
   //@}
 

@@ -96,28 +96,28 @@ class MapRigidBodyForceToRigidBodyVelocity
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
-    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Fetch the technique sublist and return its parameters.
-    Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
-    const std::string technique_name = technique_parameter_list.get<std::string>("name");
+    Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+    const std::string technique_name = technique_params.get<std::string>("name");
 
-    return OurMethodFactory::get_part_requirements(technique_name, technique_parameter_list);
+    return OurMethodFactory::get_part_requirements(technique_name, technique_params);
   }
 
   /// \brief Get the default mutable parameters for this class (those that impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.sublist("technique", false,
+    static Teuchos::ParameterList default_fixed_params;
+    default_fixed_params.sublist("technique", false,
                                          "Sublist that defines the technique to use and its parameters.");
-    return default_fixed_parameter_list;
+    return default_fixed_params;
   }
 
   /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_parameter_list;
-    return default_mutable_parameter_list;
+    static Teuchos::ParameterList default_mutable_params;
+    return default_mutable_params;
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other
