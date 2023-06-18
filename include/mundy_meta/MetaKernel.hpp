@@ -54,13 +54,13 @@ namespace meta {
 template <typename ReturnType, typename RegistrationType = std::string>
 class MetaKernelBase
     : virtual public HasMeshRequirementsAndIsRegisterableInterface<MetaKernelBase<ReturnType, RegistrationType>,
-                                                              RegistrationType> {
+                                                                   RegistrationType> {
  public:
   //! \name Setters
   //@{
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) = 0;
+  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) = 0;
   //@}
 
   //! \name Actions
@@ -77,8 +77,10 @@ class MetaKernelBase
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
 /// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
-/// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
-/// - \c details_static_get_valid_mutable_params implementation of the \c static_get_valid_mutable_params interface.
+/// - \c details_static_validate_fixed_parameters_and_set_defaults implementation of the
+///     \c static_validate_fixed_parameters_and_set_defaults interface.
+/// - \c details_static_validate_mutable_parameters_and_set_defaults implementation of the
+///     \c static_validate_mutable_parameters_and_set_defaults interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
 /// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
 ///
@@ -111,26 +113,28 @@ class MetaKernel
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
+  /// based on parameters in the \c fixed_params but not the \c mutable_params.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKernel_t::details_static_get_mesh_requirements(fixed_parameter_list);
+      const Teuchos::ParameterList &fixed_params) {
+    return DerivedMetaKernel_t::details_static_get_mesh_requirements(fixed_params);
   }
 
-  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    return DerivedMetaKernel_t::details_static_get_valid_fixed_params();
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void static_validate_fixed_parameters_and_set_defaults(
+      Teuchos::ParameterList const *fixed_params_ptr) {
+    DerivedMetaKernel_t::static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
   }
 
-  /// \brief Get the valid mutable parameters and their default parameter list for this \c MetaKernel.
-  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    return DerivedMetaKernel_t::details_static_get_valid_mutable_params();
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      Teuchos::ParameterList const *mutable_params_ptr) {
+    DerivedMetaKernel_t::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
+  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
   static RegistrationType details_static_get_class_identifier() {
     return DerivedMetaKernel_t::details_static_get_class_identifier();
   }
@@ -141,11 +145,11 @@ class MetaKernel
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaKernelBase<ReturnType, RegistrationType>> details_static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKernel_t::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return DerivedMetaKernel_t::details_static_create_new_instance(bulk_data_ptr, fixed_params);
   }
   //@}
 };  // MetaKernel

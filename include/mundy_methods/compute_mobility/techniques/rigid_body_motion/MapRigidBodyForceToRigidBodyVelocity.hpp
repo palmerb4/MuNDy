@@ -70,7 +70,16 @@ class MapRigidBodyForceToRigidBodyVelocity
 
   /// \brief Constructor
   MapRigidBodyForceToRigidBodyVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
-                                       const Teuchos::ParameterList &fixed_parameter_list);
+                                       const Teuchos::ParameterList &fixed_params);
+  //@}
+
+  //! \name Typedefs
+  //@{
+
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, MapRigidBodyForceToRigidBodyVelocity>;
+
+  template <typename ClassToRegister>
+  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, MapRigidBodyForceToRigidBodyVelocity>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -78,24 +87,23 @@ class MapRigidBodyForceToRigidBodyVelocity
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements>(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+    Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
     valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Fetch the technique sublist and return its parameters.
     Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
     const std::string technique_name = technique_parameter_list.get<std::string>("name");
 
-    return mundy::meta::MetaMethodFactory<void, MapRigidBodyForceToRigidBodyVelocity>::get_part_requirements(
-        technique_name, technique_parameter_list);
+    return OurMethodFactory::get_part_requirements(technique_name, technique_parameter_list);
   }
 
   /// \brief Get the default mutable parameters for this class (those that impact the part requirements).
@@ -120,15 +128,15 @@ class MapRigidBodyForceToRigidBodyVelocity
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<MapRigidBodyForceToRigidBodyVelocity>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<MapRigidBodyForceToRigidBodyVelocity>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions

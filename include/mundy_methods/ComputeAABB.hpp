@@ -39,11 +39,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
 
@@ -51,8 +51,8 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::string>,
-                    public mundy::meta::GlobalMetaMethodRegistry<void, ComputeAABB, std::string> {
+class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
+                    public mundy::meta::GlobalMetaMethodRegistry<void, ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -61,16 +61,16 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::strin
   ComputeAABB() = delete;
 
   /// \brief Constructor
-  ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name Typedefs
   //@{
 
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, std::string, ComputeAABB>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeAABB>;
 
-  template<typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, std::string, ComputeAABB>;
+  template <typename ClassToRegister>
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeAABB>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -78,25 +78,25 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::strin
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_params = fixed_parameter_list;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
     const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
     std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
     for (size_t i = 0; i < num_specified_kernels; i++) {
-      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::string(i));
+      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
       const std::string kernel_name = kernel_params.get<std::string>("name");
-      mesh_requirements_ptr->merge(mundy::multibody::Factory::get_mesh_requirements(kernel_name, kernel_params));
+      mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
     }
 
     return mesh_requirements_ptr;
@@ -105,15 +105,15 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::strin
   /// \brief Validate the default fixed parameters for this class (those that impact the mesh requirements) and set
   /// their defaults.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_parameter_list_ptr) {
-    Teuchos::ParameterList params = &fixed_parameter_list_ptr;
+      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+    Teuchos::ParameterList params = *fixed_params_ptr;
 
     if (params.isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", true);
       const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
       for (size_t i = 0; i < num_specified_kernels; i++) {
-        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::string(i));
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
         const std::string kernel_name = kernel_params.get<std::string>("name");
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, kernel_params);
       }
@@ -122,9 +122,9 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::strin
       Teuchos::ParameterList &kernels_sublist = params.sublist("kernel_params", false);
       const unsigned num_specified_kernels = kernels_sublist.set("count", OurKernelFactory::num_registered_classes());
       for (auto &key : OurKernelFactory::get_keys()) {
-        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::string(i), false);
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
         kernel_params.set("name", key);
-        OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, kernel_params);
+        OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
       }
     }
   }
@@ -132,7 +132,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::strin
   /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements) and
   /// set their defaults.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_parameter_list_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -142,15 +142,15 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::strin
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<ComputeAABB>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<ComputeAABB>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions

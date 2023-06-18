@@ -60,21 +60,21 @@ class HasMeshRequirementsAndIsRegisterableInterface {
   ///
   /// The set of part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
+  /// based on parameters in the \c fixed_params but not the \c mutable_params.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   /// \note Fixed parameters are those that change the part requirements.
   virtual std::vector<std::shared_ptr<MeshRequirements>> get_part_requirements(
-      const Teuchos::ParameterList &fixed_parameter_list) const = 0;
+      const Teuchos::ParameterList &fixed_params) const = 0;
 
-  /// \brief Get the valid fixed parameters and their default parameter list for this class.
-  virtual Teuchos::ParameterList get_valid_fixed_params() const = 0;
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  virtual void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) const = 0;
 
-  /// \brief Get the valid mutable parameters and their default parameter list for this class.
-  virtual Teuchos::ParameterList get_valid_mutable_params() const = 0;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  virtual void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) const = 0;
 
-  /// \brief Get the class identifier.
+  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
   virtual RegistrationType get_class_identifier() const = 0;
   //@}
 
@@ -82,7 +82,7 @@ class HasMeshRequirementsAndIsRegisterableInterface {
   //@{
 
   /// \brief Set the mutable parameters. If a valid parameter is not provided, we use the default value.
-  virtual Teuchos::ParameterList set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) const = 0;
+  virtual Teuchos::ParameterList set_mutable_params(const Teuchos::ParameterList &mutable_params) const = 0;
   //@}
 
   //! \name Actions
@@ -90,10 +90,10 @@ class HasMeshRequirementsAndIsRegisterableInterface {
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  virtual std::shared_ptr<DerivedInterface> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const = 0;
+  virtual std::shared_ptr<DerivedInterface> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                const Teuchos::ParameterList &fixed_params) const = 0;
   //@}
 };  // HasMeshRequirementsAndIsRegisterableInterface
 
@@ -103,8 +103,10 @@ class HasMeshRequirementsAndIsRegisterableInterface {
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c
 /// HasMeshRequirementsAndIsRegisterable must implement the following static member functions
 /// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
-/// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
-/// - \c details_static_get_valid_mutable_params implementation of the \c static_get_valid_mutable_params interface.
+/// - \c details_static_validate_fixed_parameters_and_set_defaults implementation of the
+///     \c static_validate_fixed_parameters_and_set_defaults interface.
+/// - \c details_static_validate_mutable_parameters_and_set_defaults implementation of the
+///     \c static_validate_mutable_parameters_and_set_defaults interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
 /// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
 ///
@@ -125,46 +127,46 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
+  /// based on parameters in the \c fixed_params but not the \c mutable_params.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   std::vector<std::shared_ptr<MeshRequirements>> get_part_requirements(
-      const Teuchos::ParameterList &fixed_parameter_list) const final;
+      const Teuchos::ParameterList &fixed_params) const final;
 
   /// \brief Get the requirements that this \c HasMeshRequirementsAndIsRegisterable imposes upon each input part.
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
+  /// based on parameters in the \c fixed_params but not the \c mutable_params.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<MeshRequirements>> static_get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedClass::details_static_get_mesh_requirements(fixed_parameter_list);
+      const Teuchos::ParameterList &fixed_params) {
+    return DerivedClass::details_static_get_mesh_requirements(fixed_params);
   }
 
-  /// \brief Get the valid fixed parameters and their default parameter list for this class.
-  Teuchos::ParameterList get_valid_fixed_params() const final;
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) const final;
 
-  /// \brief Get the valid mutable parameters and their default parameter list for this class.
-  Teuchos::ParameterList get_valid_mutable_params() const final;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) const final;
 
-  /// \brief Get the valid fixed parameters and their default parameter list for this class.
-  static Teuchos::ParameterList static_get_valid_fixed_params() {
-    return DerivedClass::details_static_get_valid_fixed_params();
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void static_validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) {
+    DerivedClass::details_static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
   }
 
-  /// \brief Get the valid mutable parameters and their default parameter list for this class.
-  static Teuchos::ParameterList static_get_valid_mutable_params() {
-    return DerivedClass::details_static_get_valid_mutable_params();
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void static_validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) {
+    DerivedClass::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
   }
 
-  /// \brief Get the unique class identifier.
+  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
   RegistrationType get_class_identifier() const final;
 
-  /// \brief Get the unique class identifier.
+  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
   static RegistrationType static_get_class_identifier() {
     return DerivedClass::details_static_get_class_identifier();
   }
@@ -175,18 +177,18 @@ class HasMeshRequirementsAndIsRegisterable
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   std::shared_ptr<DerivedInterface> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                        const Teuchos::ParameterList &fixed_parameter_list) const final;
+                                                        const Teuchos::ParameterList &fixed_params) const final;
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<DerivedInterface> static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedClass::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
+  static std::shared_ptr<DerivedInterface> static_create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                      const Teuchos::ParameterList &fixed_params) {
+    return DerivedClass::details_static_create_new_instance(bulk_data_ptr, fixed_params);
   }
   //@}
 };  // HasMeshRequirementsAndIsRegisterable
@@ -199,20 +201,20 @@ class HasMeshRequirementsAndIsRegisterable
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
 std::vector<std::shared_ptr<MeshRequirements>>
 HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_part_requirements(
-    const Teuchos::ParameterList &fixed_parameter_list) const {
-  return static_get_mesh_requirements(fixed_parameter_list);
+    const Teuchos::ParameterList &fixed_params) const {
+  return static_get_mesh_requirements(fixed_params);
 }
 
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-Teuchos::ParameterList
-HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_valid_fixed_params() const {
-  return static_get_valid_fixed_params();
+void HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::
+    validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) const {
+  static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
 }
 
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-Teuchos::ParameterList HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface,
-                                                            RegistrationType>::get_valid_mutable_params() const {
-  return static_get_valid_mutable_params();
+void HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::
+    validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) const {
+  static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
 }
 
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
@@ -228,8 +230,8 @@ HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, Registratio
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
 std::shared_ptr<DerivedInterface>
 HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::create_new_instance(
-    mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const {
-  return static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
+    mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) const {
+  return static_create_new_instance(bulk_data_ptr, fixed_params);
 }
 //}
 //@}

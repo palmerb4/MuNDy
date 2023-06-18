@@ -91,11 +91,10 @@ class MetaFactory {
 
   /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
   /// instances.
-  using NewRequirementsGenerator =
-      std::function<std::vector<std::shared_ptr<MeshRequirements>>(const Teuchos::ParameterList&)>;
+  using NewRequirementsGenerator = std::function<std::shared_ptr<MeshRequirements>(const Teuchos::ParameterList&)>;
 
-  /// \brief A function type that produces a Teuchos::ParameterList instance.
-  using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
+  /// \brief A function type that accepts a Teuchos::ParameterList pointer.
+  using NewParamsValidatorGenerator = std::function<void(Teuchos::ParameterList const *)>;
   //@}
 
   //! \name Getters
@@ -121,50 +120,46 @@ class MetaFactory {
   ///
   /// The set of part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c mutable_parameter_list.
+  /// based on parameters in the \c fixed_params but not the \c mutable_params.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
   /// provided \c register_new_class function.
   ///
   /// \param key [in] A key corresponding to a registered class.
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A default fixed
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A default fixed
   /// parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<MeshRequirements>> get_mesh_requirements(
-      const RegistrationType& key, const Teuchos::ParameterList& fixed_parameter_list) {
-    return get_requirement_generator_map()[key](fixed_parameter_list);
+      const RegistrationType& key, const Teuchos::ParameterList& fixed_params) {
+    return get_requirement_generator_map()[key](fixed_params);
   }
 
-  /// \brief Get the default fixed parameter list for a registered class.
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
   /// provided \c register_new_class function.
   ///
-  /// \note This function does not cache its return value, so each time you call this function, a new
-  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
-  ///
   /// \param key [in] A key corresponding to a registered class.
-  static Teuchos::ParameterList get_valid_fixed_params(const RegistrationType& key) {
+  static void validate_fixed_parameters_and_set_defaults(const RegistrationType& key,
+                                                         Teuchos::ParameterList const* fixed_params_ptr) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaFactory: The provided key " << key << " is not valid.");
-    return get_valid_fixed_params_generator_map()[key]();
+    return get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
   }
 
-  /// \brief Get the default mutable parameter list for a registered class.
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
   /// provided \c register_new_class function.
   ///
-  /// \note This function does not cache its return value, so each time you call this function, a new
-  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
-  ///
   /// \param key [in] A key corresponding to a registered class.
-  static Teuchos::ParameterList get_valid_mutable_params(const RegistrationType& key) {
+  static void validate_mutable_parameters_and_set_defaults(const RegistrationType& key,
+                                                           Teuchos::ParameterList const* mutable_params_ptr) {
     TEUCHOS_TEST_FOR_EXCEPTION(is_valid_key(key), std::invalid_argument,
                                "MetaFactory: The provided key " << key << " is not valid.");
-    return get_valid_mutable_params_generator_map()[key]();
+    return get_validate_mutable_params_generator_map()[key](mutable_params_ptr);
   }
   //@}
 
@@ -179,8 +174,8 @@ class MetaFactory {
       get_internal_keys().erase(key);
       get_instance_generator_map().erase(key);
       get_requirement_generator_map().erase(key);
-      get_valid_fixed_params_generator_map().erase(key);
-      get_valid_mutable_params_generator_map().erase(key);
+      get_validate_fixed_params_generator_map().erase(key);
+      get_validate_mutable_params_generator_map().erase(key);
     }
 
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
@@ -188,9 +183,10 @@ class MetaFactory {
     get_internal_keys().insert(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_mesh_requirements));
-    get_valid_fixed_params_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_valid_fixed_params));
-    get_valid_mutable_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::static_get_valid_mutable_params));
+    get_validate_fixed_params_generator_map().insert(
+        std::make_pair(key, ClassToRegister::static_validate_fixed_parameters_and_set_defaults));
+    get_validate_mutable_params_generator_map().insert(
+        std::make_pair(key, ClassToRegister::static_validate_mutable_parameters_and_set_defaults));
   }
 
   /// \brief Generate a new instance of a registered class.
@@ -201,12 +197,12 @@ class MetaFactory {
   ///
   /// \param key [in] A key corresponding to a registered class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of parameters for setting up this class. A
   /// default parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<PolymorphicBaseType> create_new_instance(const RegistrationType& key,
                                                                   mundy::mesh::BulkData* const bulk_data_ptr,
-                                                                  const Teuchos::ParameterList& fixed_parameter_list) {
-    return get_instance_generator_map()[key](bulk_data_ptr, fixed_parameter_list);
+                                                                  const Teuchos::ParameterList& fixed_params) {
+    return get_instance_generator_map()[key](bulk_data_ptr, fixed_params);
   }
   //@}
 
@@ -224,7 +220,7 @@ class MetaFactory {
   using RequirementGeneratorMap = std::map<RegistrationType, NewRequirementsGenerator>;
 
   /// \brief A map from key to a function for generating a class's part default requirements.
-  using DefaultParamsGeneratorMap = std::map<RegistrationType, NewDefaultParamsGenerator>;
+  using ParamsValidatorGeneratorMap = std::map<RegistrationType, NewParamsValidatorGenerator>;
   //@}
 
   //! \name Internal getters
@@ -247,29 +243,29 @@ class MetaFactory {
     return requirement_generator_map;
   }
 
-  static DefaultParamsGeneratorMap& get_valid_fixed_params_generator_map() {
+  static ParamsValidatorGeneratorMap& get_validate_fixed_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static DefaultParamsGeneratorMap default_fixed_params_generator_map;
-    return default_fixed_params_generator_map;
+    static ParamsValidatorGeneratorMap fixed_params_validator_generator_map;
+    return fixed_params_validator_generator_map;
   }
 
-  static DefaultParamsGeneratorMap& get_valid_mutable_params_generator_map() {
+  static ParamsValidatorGeneratorMap& get_validate_mutable_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static DefaultParamsGeneratorMap default_mutable_params_generator_map;
-    return default_mutable_params_generator_map;
+    static ParamsValidatorGeneratorMap mutable_params_validator_generator_map;
+    return mutable_params_validator_generator_map;
   }
   //@}
 
   //! \name Friends
   //@{
 
-  /// \brief Every concrete class that inherits from the classRegistry will be added to this factory's
+  /// \brief Every concrete class that inherits from the MetaRegistry will be added to this factory's
   /// registry. This process requires friendship <3.
   ///
   /// \note For devs: Unfortunately, "Friend declarations cannot refer to partial specializations," so there is no way
-  /// to only have classRegistry with the same identifier be friends with this factory. Instead, ALL
-  /// classRegistry are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
-  template <typename, class, typename>
+  /// to only have MetaRegistry with the same identifier be friends with this factory. Instead, ALL
+  /// MetaRegistry are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
+  template <typename, class, typename, typename, bool>
   friend class MetaRegistry;
   //@}
 };  // MetaFactory
@@ -322,8 +318,7 @@ using GlobalMetaTopologyKernelFactory = MetaKernelFactory<stk::topology::topolog
 //@{
 
 /// \brief Partial specialization for \c MetaKWayKernel.
-template <std::size_t K, typename ReturnType,
-          typename RegistryIdentifier, typename RegistrationType = std::string>
+template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
 using MetaKWayKernelFactory =
     MetaFactory<MetaKWayKernelBase<K, ReturnType, RegistryIdentifier>, RegistryIdentifier, RegistrationType>;
 

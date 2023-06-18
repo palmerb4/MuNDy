@@ -70,14 +70,16 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   LocalDrag() = delete;
 
   /// \brief Constructor
-  LocalDrag(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  LocalDrag(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name Typedefs
   //@{
 
-  /// \brief The factory associated with this class's kernels.
-  using KernelFactory = mundy::meta::MetaTwoWayKernelFactory<void, LocalDrag>;
+  using OurKernelFactory = mundy::meta::MetaTwoWayKernelFactory<void, LocalDrag>;
+
+  template <typename ClassToRegister>
+  using OurKernelRegistry = mundy::meta::MetaTwoWayKernelFactory<void, ClassToRegister, LocalDrag>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -85,16 +87,15 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements>(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
+  static std::shared_ptr<mundy::meta::MeshRequirements>([[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+    Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
     valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Create and store the required part params. One per input part.
@@ -122,11 +123,11 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(KernelFactory::get_valid_params(kernel_name));
+      part_kernel_parameter_list.validateParametersAndSetDefaults(OurKernelFactory::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements = KernelFactory::get_part_requirements(kernel_name, part_kernel_parameter_list);
+          pair_requirements = OurKernelFactory::get_part_requirements(kernel_name, part_kernel_parameter_list);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
     }
@@ -136,7 +137,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 
   /// \brief Validate the given set of fixed parameters and fill in any missing parameters with defaults.
   static void details_static_validate_fixed_params_set_defaults(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Note, both .sublist and .get will throw an error if the requested name doesn't exist or has the wrong type.
 
     // Loop over each of the provided part pairs and check their params.
@@ -154,11 +155,11 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 
       // Validate the kernel params and fill in defaults.
       const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParameters(KernelFactory::get_valid_params(kernel_name));
+      part_kernel_parameter_list.validateParameters(OurKernelFactory::get_valid_params(kernel_name));
 
       // Merge the kernel requirements.
       std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements = KernelFactory::get_part_requirements(kernel_name, part_kernel_parameter_list);
+          pair_requirements = OurKernelFactory::get_part_requirements(kernel_name, part_kernel_parameter_list);
       part_requirements[i - 1]->merge(pair_requirements.first);
       part_requirements[i]->merge(pair_requirements.second);
     }
@@ -169,12 +170,12 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
     // Loop over each of the given kernels and validate them using using our registered kernels.
     const unsigned num_kernels = kernel_params.get<unsigned>("count");
     for (int i = 0; i < num_kernels; i++) {
-      kernel_params KernelFactory::
+      kernel_params OurKernelFactory::
     }
 
     // Validate the kernel params and fill in defaults.
     const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-    part_kernel_parameter_list.validateParametersAndSetDefaults(KernelFactory::get_valid_params(kernel_name));
+    part_kernel_parameter_list.validateParametersAndSetDefaults(OurKernelFactory::get_valid_params(kernel_name));
 
     return default_fixed_parameter_list;
   }
@@ -192,15 +193,15 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<LocalDrag>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<LocalDrag>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions

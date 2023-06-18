@@ -46,11 +46,11 @@ namespace kernels {
 //{
 
 CollisionSphereSphere::CollisionSphereSphere(mundy::mesh::BulkData *const bulk_data_ptr,
-                                             const Teuchos::ParameterList &fixed_parameter_list)
+                                             const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+  Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
   valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Fill the internal members using the internal parameter list.
@@ -69,10 +69,10 @@ CollisionSphereSphere::CollisionSphereSphere(mundy::mesh::BulkData *const bulk_d
 //{
 
 Teuchos::ParameterList CollisionSphereSphere::set_mutable_params(
-    const Teuchos::ParameterList &mutable_parameter_list) const {
+    const Teuchos::ParameterList &mutable_params) const {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_mutable_parameter_list = mutable_parameter_list;
+  Teuchos::ParameterList valid_mutable_parameter_list = mutable_params;
   valid_mutable_parameter_list.validateParametersAndSetDefaults(this->get_valid_mutable_params());
 
   // Fill the internal members using the internal parameter list.

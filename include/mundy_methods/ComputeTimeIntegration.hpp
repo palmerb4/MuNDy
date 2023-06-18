@@ -63,24 +63,24 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
 
   /// \brief Constructor
   ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr,
-                         const Teuchos::ParameterList &fixed_parameter_list);
+                         const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name Typedefs
   //@{
 
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, std::string, ComputeMobility>;
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeMobility>;
 
   template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, std::string, ComputeMobility>;
+  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeMobility>;
   //@}
 
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+    Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
     valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Create and store the required part params.
@@ -147,15 +147,15 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<ComputeTimeIntegration>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<ComputeTimeIntegration>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions

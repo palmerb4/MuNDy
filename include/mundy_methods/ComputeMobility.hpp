@@ -61,16 +61,16 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   ComputeMobility() = delete;
 
   /// \brief Constructor
-  ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name Typedefs
   //@{
 
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, std::string, ComputeMobility>;
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeMobility>;
 
   template<typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, std::string, ComputeMobility>;
+  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeMobility>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -78,16 +78,16 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default parameters for any parameter not given.
     // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
+    Teuchos::ParameterList valid_fixed_parameter_list = fixed_params;
     valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
 
     // Fetch the technique sublist and return its parameters.
@@ -118,8 +118,8 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   /// multibody type to enable. The compute_obb kernel associated with this type must be registered with our kernel
   /// factory.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_parameter_list_ptr) {
-    Teuchos::ParameterList params = &fixed_parameter_list_ptr;
+      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+    Teuchos::ParameterList params = *fixed_params_ptr;
     TEUCHOS_TEST_FOR_EXCEPTION(
         params.isParameter("enabled_multibody_type_names"), std::invalid_argument,
         "ComputeMobility: The provided parameter list must include the set of enabled multibody type names.");
@@ -129,7 +129,7 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
                                "ComputeMobility: The enabled multibody type names must not be empty.");
 
     Teuchos::ParameterList &kernel_params =
-        fixed_parameter_list_ptr->sublist("kernels", false).sublist("compute_obb", false);
+        fixed_params_ptr->sublist("kernels", false).sublist("compute_obb", false);
     for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
       TEUCHOS_TEST_FOR_EXCEPTION(
           mundy::multibody::Factory::is_valid(enabled_multibody_type_name), std::invalid_argument,
@@ -146,7 +146,7 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements) and
   /// set their defaults.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_parameter_list_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
@@ -157,15 +157,15 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<ComputeMobility>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<ComputeMobility>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_parameter_list) override;
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
