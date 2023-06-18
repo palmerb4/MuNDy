@@ -53,7 +53,7 @@ namespace meta {
 /// \tparam RegistrationType The type of this class's identifier.
 template <typename ReturnType, typename RegistrationType = std::string>
 class MetaKernelBase
-    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKernelBase<ReturnType, RegistrationType>,
+    : virtual public HasMeshRequirementsAndIsRegisterableInterface<MetaKernelBase<ReturnType, RegistrationType>,
                                                               RegistrationType> {
  public:
   //! \name Setters
@@ -76,7 +76,7 @@ class MetaKernelBase
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
-/// - \c details_static_get_part_requirements implementation of the \c static_get_part_requirements interface.
+/// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
 /// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
 /// - \c details_static_get_valid_mutable_params implementation of the \c static_get_valid_mutable_params interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
@@ -85,16 +85,16 @@ class MetaKernelBase
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaKernel<DerivedMetaKernel> be made a friend of \c DerivedMetaKernel.
 ///
-/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template shaddowing
-/// by internal typedefs.
+/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template
+/// shaddowing by internal typedefs.
 ///
 /// \tparam ReturnType_t The return type of the execute function.
 /// \tparam DerivedMetaKernel_t A class derived from \c MetaKernel that implements the desired interface.
 /// \tparam RegistrationType_t The type of this class's identifier.
 template <typename ReturnType_t, class DerivedMetaKernel_t, typename RegistrationType_t = std::string>
-class MetaKernel : virtual public MetaKernelBase<ReturnType_t, RegistrationType_t>,
-                   virtual public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType_t, DerivedMetaKernel_t>,
-                                                                       RegistrationType_t> {
+class MetaKernel
+    : virtual public MetaKernelBase<ReturnType_t, RegistrationType_t>,
+      public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType_t, DerivedMetaKernel_t>, RegistrationType_t> {
  public:
   //! \name Typedefs
   //@{
@@ -115,9 +115,9 @@ class MetaKernel : virtual public MetaKernelBase<ReturnType_t, RegistrationType_
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_mesh_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKernel_t::details_static_get_part_requirements(fixed_parameter_list);
+    return DerivedMetaKernel_t::details_static_get_mesh_requirements(fixed_parameter_list);
   }
 
   /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.

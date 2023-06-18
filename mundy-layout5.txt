@@ -489,7 +489,7 @@ There are some BIG changes that need to occur. Those are
 0. Passing fields/parameters to sub-methods/sub-kernels. (Who should be the one to zero out the fields?)
 1. The parameters for all methods and kernels need broken into fixed and mutable parameters.
 2. All details_static_get_valid_params need updated to return the kernel/submethod params. 
-   It should look a lot like details_static_get_part_requirements
+   It should look a lot like details_static_get_mesh_requirements
 3. Need a way to have default parameters for different multiboidy types without the user needing to specify every single kernel. 
    One promising method is to have a parameter like, use_present_default_parameters: SPHERE. 
 

@@ -42,7 +42,7 @@
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
@@ -52,7 +52,7 @@ namespace methods {
 /// \class ResolveConstraints
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class ResolveConstraints : public mundy::meta::MetaMethod<void, ResolveConstraints>,
-                           public mundy::meta::MetaMethodRegistry<void, ResolveConstraints> {
+                           public mundy::meta::GlobalMetaMethodRegistry<void, ResolveConstraints> {
  public:
   //! \name Constructors and destructor
   //@{

@@ -53,8 +53,8 @@ namespace meta {
 /// \tparam RegistrationType The type of this class's identifier.
 template <typename ReturnType, typename RegistrationType = std::string>
 class MetaMethodBase
-    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaMethodBase<ReturnType, RegistrationType>,
-                                                              RegistrationType> {
+    : virtual public HasMeshRequirementsAndIsRegisterableInterface<MetaMethodBase<ReturnType, RegistrationType>,
+                                                                   RegistrationType> {
  public:
   //! \name Setters
   //@{
@@ -76,7 +76,7 @@ class MetaMethodBase
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethod must
 /// implement the following static member functions
-/// - \c details_static_get_part_requirements implementation of the \c static_get_part_requirements interface.
+/// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
 /// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
 /// - \c details_static_get_valid_mutable_params implementation of the \c static_get_valid_mutable_params interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
@@ -85,8 +85,8 @@ class MetaMethodBase
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
 ///
-/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template shaddowing
-/// by internal typedefs.
+/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template
+/// shaddowing by internal typedefs.
 ///
 /// \tparam ReturnType_t The return type of the execute function.
 /// \tparam DerivedMetaMethod_t A class derived from \c MetaMethod that implements the desired interface.
@@ -94,7 +94,8 @@ class MetaMethodBase
 template <typename ReturnType_t, class DerivedMetaMethod_t, typename RegistrationType_t = std::string>
 class MetaMethod
     : virtual public MetaMethodBase<ReturnType_t, RegistrationType_t>,
-      virtual public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t>, RegistrationType_t> {
+      public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t>,
+                                                  MetaMethodBase<ReturnType_t, RegistrationType_t>, RegistrationType_t> {
  public:
   //! \name Typedefs
   //@{
@@ -103,7 +104,6 @@ class MetaMethod
   using RegistrationType = RegistrationType_t;
   using PolymorphicBase = MetaMethodBase<ReturnType, RegistrationType>;
   //@}
-
 
   //! \name Getters
   //@{
@@ -116,9 +116,9 @@ class MetaMethod
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_part_requirements(
+  static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_mesh_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaMethod_t::details_static_get_part_requirements(fixed_parameter_list);
+    return DerivedMetaMethod_t::details_static_get_mesh_requirements(fixed_parameter_list);
   }
 
   /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaMethod.
@@ -144,7 +144,7 @@ class MetaMethod
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<MetaMethodBase<ReturnType, RegistrationType>> details_static_create_new_instance(
+  static std::shared_ptr<PolymorphicBase> details_static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedMetaMethod_t::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }

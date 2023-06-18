@@ -43,7 +43,7 @@
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
@@ -53,7 +53,7 @@ namespace methods {
 /// \class ComputeTimeIntegration
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
 class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeIntegration>,
-                               public mundy::meta::MetaMethodRegistry<void, ComputeTimeIntegration> {
+                               public mundy::meta::GlobalMetaMethodRegistry<void, ComputeTimeIntegration> {
  public:
   //! \name Constructors and destructor
   //@{

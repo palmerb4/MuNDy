@@ -42,7 +42,7 @@
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
@@ -52,7 +52,7 @@ namespace methods {
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
-                        public mundy::meta::MetaMethodRegistry<void, ComputeMobility> {
+                        public mundy::meta::GlobalMetaMethodRegistry<void, ComputeMobility> {
  public:
   //! \name Constructors and destructor
   //@{

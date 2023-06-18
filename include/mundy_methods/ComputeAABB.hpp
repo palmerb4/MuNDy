@@ -42,7 +42,7 @@
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
@@ -51,8 +51,8 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
-                    public mundy::meta::MetaMethodRegistry<void, ComputeAABB, std::string> {
+class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB, std::string>,
+                    public mundy::meta::GlobalMetaMethodRegistry<void, ComputeAABB, std::string> {
  public:
   //! \name Constructors and destructor
   //@{

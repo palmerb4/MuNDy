@@ -187,7 +187,7 @@ class MetaFactory {
                                "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().insert(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::static_create_new_instance));
-    get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_part_requirements));
+    get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_mesh_requirements));
     get_valid_fixed_params_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_valid_fixed_params));
     get_valid_mutable_params_generator_map().insert(
         std::make_pair(key, ClassToRegister::static_get_valid_mutable_params));

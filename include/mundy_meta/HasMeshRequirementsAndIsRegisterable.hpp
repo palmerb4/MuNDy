@@ -41,17 +41,17 @@ namespace mundy {
 
 namespace meta {
 
-/// \class HasMeshRequirementsAndIsRegisterableBase
+/// \class HasMeshRequirementsAndIsRegisterableInterface
 /// \brief The polymorphic interface that encodes a class's assumptions about the structure and contents of an STK mesh.
 ///
 /// This design pattern allows for \c HasMeshRequirementsAndIsRegisterable to use CRTP to force derived classes to
 /// implement certain static functions while also having a consistant polymorphic interface that allows different
 /// \c HasMeshRequirementsAndIsRegisterables to be stored in a vector of pointers.
 ///
-/// \tparam BaseType The polymorphic base type returned by create_new_instance.
+/// \tparam DerivedInterface The polymorphic interface returned by create_new_instance.
 /// \tparam RegistrationType The type of this class's identifier.
-template <typename BaseType, typename RegistrationType = std::string>
-class HasMeshRequirementsAndIsRegisterableBase {
+template <typename DerivedInterface, typename RegistrationType = std::string>
+class HasMeshRequirementsAndIsRegisterableInterface {
  public:
   //! \name Getters
   //@{
@@ -92,23 +92,21 @@ class HasMeshRequirementsAndIsRegisterableBase {
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  virtual std::shared_ptr<BaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                        const Teuchos::ParameterList &fixed_parameter_list) const = 0;
+  virtual std::shared_ptr<DerivedInterface> create_new_instance(
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const = 0;
   //@}
-};  // HasMeshRequirementsAndIsRegisterableBase
+};  // HasMeshRequirementsAndIsRegisterableInterface
 
 /// \class HasMeshRequirementsAndIsRegisterable
 /// \brief The static interface that encodes a class's assumptions about the structure and contents of an STK mesh.
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c
 /// HasMeshRequirementsAndIsRegisterable must implement the following static member functions
-/// - \c details_static_get_part_requirements implementation of the \c static_get_part_requirements interface.
+/// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
 /// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
 /// - \c details_static_get_valid_mutable_params implementation of the \c static_get_valid_mutable_params interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
 /// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
-///
-/// The derived class must also have a static PolymorphicBaseType type.
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c HasMeshRequirementsAndIsRegisterable<DerivedClass> be made a friend of \c DerivedClass.
@@ -116,10 +114,9 @@ class HasMeshRequirementsAndIsRegisterableBase {
 /// \tparam DerivedClass A class derived from \c HasMeshRequirementsAndIsRegisterable that implements the desired
 /// interface.
 /// \tparam RegistrationType The type of this class's identifier.
-template <class DerivedClass, typename RegistrationType = std::string>
+template <class DerivedClass, class DerivedInterface, typename RegistrationType = std::string>
 class HasMeshRequirementsAndIsRegisterable
-    : virtual public HasMeshRequirementsAndIsRegisterableBase<typename DerivedClass::PolymorphicBaseType,
-                                                              RegistrationType> {
+    : virtual public HasMeshRequirementsAndIsRegisterableInterface<DerivedInterface, RegistrationType> {
  public:
   //! \name Getters
   //@{
@@ -143,9 +140,9 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<MeshRequirements>> static_get_part_requirements(
+  static std::vector<std::shared_ptr<MeshRequirements>> static_get_mesh_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedClass::details_static_get_part_requirements(fixed_parameter_list);
+    return DerivedClass::details_static_get_mesh_requirements(fixed_parameter_list);
   }
 
   /// \brief Get the valid fixed parameters and their default parameter list for this class.
@@ -180,14 +177,14 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::shared_ptr<typename DerivedClass::PolymorphicBaseType> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const final;
+  std::shared_ptr<DerivedInterface> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                        const Teuchos::ParameterList &fixed_parameter_list) const final;
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<typename DerivedClass::PolymorphicBaseType> static_create_new_instance(
+  static std::shared_ptr<DerivedInterface> static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
     return DerivedClass::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
@@ -199,27 +196,28 @@ class HasMeshRequirementsAndIsRegisterable
 
 // \name Getters
 //{
-template <class DerivedClass, typename RegistrationType>
+template <class DerivedClass, class DerivedInterface, typename RegistrationType>
 std::vector<std::shared_ptr<MeshRequirements>>
-HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::get_part_requirements(
+HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_part_requirements(
     const Teuchos::ParameterList &fixed_parameter_list) const {
-  return static_get_part_requirements(fixed_parameter_list);
+  return static_get_mesh_requirements(fixed_parameter_list);
 }
 
-template <class DerivedClass, typename RegistrationType>
-Teuchos::ParameterList HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::get_valid_fixed_params()
-    const {
+template <class DerivedClass, class DerivedInterface, typename RegistrationType>
+Teuchos::ParameterList
+HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_valid_fixed_params() const {
   return static_get_valid_fixed_params();
 }
 
-template <class DerivedClass, typename RegistrationType>
-Teuchos::ParameterList HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::get_valid_mutable_params()
-    const {
+template <class DerivedClass, class DerivedInterface, typename RegistrationType>
+Teuchos::ParameterList HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface,
+                                                            RegistrationType>::get_valid_mutable_params() const {
   return static_get_valid_mutable_params();
 }
 
-template <class DerivedClass, typename RegistrationType>
-RegistrationType HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::get_class_identifier() const {
+template <class DerivedClass, class DerivedInterface, typename RegistrationType>
+RegistrationType
+HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_class_identifier() const {
   return static_get_class_identifier();
 }
 //}
@@ -227,9 +225,9 @@ RegistrationType HasMeshRequirementsAndIsRegisterable<DerivedClass, Registration
 // \name Actions
 //{
 
-template <class DerivedClass, typename RegistrationType>
-std::shared_ptr<typename DerivedClass::PolymorphicBaseType>
-HasMeshRequirementsAndIsRegisterable<DerivedClass, RegistrationType>::create_new_instance(
+template <class DerivedClass, class DerivedInterface, typename RegistrationType>
+std::shared_ptr<DerivedInterface>
+HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::create_new_instance(
     mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) const {
   return static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
 }
