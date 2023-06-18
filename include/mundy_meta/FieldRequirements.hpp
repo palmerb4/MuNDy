@@ -25,11 +25,14 @@
 
 // C++ core libs
 #include <algorithm>    // for std::max
+#include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <stdexcept>    // for std::logic_error, std::invalid_argument
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <utility>      // for std::move
 #include <vector>       // for std::vector
+
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
@@ -153,6 +156,12 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief Return the minimum number of field states.
   /// Will throw an error if the minimum number of field states.
   unsigned get_field_min_number_of_states() const final;
+
+  /// \brief Return the typeinfo related to the field's type.
+  const std::type_info &get_field_type_info() const final;
+
+  /// \brief Return the map from typeindex to field attribute.
+  std::map<std::type_index, std::any> get_field_attributes_map() final;
   //@}
 
   //! \name Actions
@@ -193,10 +202,7 @@ class FieldRequirements : public FieldRequirementsBase {
   /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
   ///
   /// \param some_attribute Any attribute that you wish to store on this field.
-  void add_field_attribute(std::any &some_attribute) final {
-    std::type_index attribute_type_index = std::type_index(some_attribute.type());
-    field_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
-  }
+  void add_field_attribute(const std::any &some_attribute) final;
 
   /// \brief Store an attribute on this field.
   ///
@@ -208,10 +214,7 @@ class FieldRequirements : public FieldRequirementsBase {
   /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
   ///
   /// \param some_attribute Any attribute that you wish to store on this field.
-  void add_field_attribute(std::any &&some_attribute) final {
-    std::type_index attribute_type_index = std::type_index(some_attribute.type());
-    field_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
-  }
+  void add_field_attribute(std::any &&some_attribute) final;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///
@@ -245,6 +248,9 @@ class FieldRequirements : public FieldRequirementsBase {
  private:
   /// \brief Name of the field.
   std::string field_name_;
+
+  /// \brief Typeinfo related to the field's type.
+  static const inline std::type_info &field_type_info_ = typeid(FieldType);
 
   /// \brief Rank that the field will be assigned to.
   stk::topology::rank_t field_rank_;
@@ -398,6 +404,16 @@ unsigned FieldRequirements<FieldType>::get_field_min_number_of_states() const {
 
   return field_min_number_of_states_;
 }
+
+template <typename FieldType>
+const std::type_info &FieldRequirements<FieldType>::get_field_type_info() const {
+  return field_type_info_;
+}
+
+template <typename FieldType>
+std::map<std::type_index, std::any> FieldRequirements<FieldType>::get_field_attributes_map() {
+  return field_attributes_map_;
+}
 //}
 
 // \name Actions
@@ -471,54 +487,76 @@ void FieldRequirements<FieldType>::check_if_valid() const {
 }
 
 template <typename FieldType>
+void FieldRequirements<FieldType>::add_field_attribute(const std::any &some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  field_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
+}
+
+template <typename FieldType>
+void FieldRequirements<FieldType>::add_field_attribute(std::any &&some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  field_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+}
+
+template <typename FieldType>
 void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) {
-  merge({field_req_ptr});
+  // TODO(palmerb4): Move this to a friend non-member function.
+  // TODO(palmerb4): Optimize this function for perfect forwarding.
+
+  // Check if the provided parameters are valid.
+  field_req_ptr->check_if_valid();
+
+  // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
+  TEUCHOS_TEST_FOR_EXCEPTION(
+      this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
+      "FieldRequirements: Field type mismatch between our field type and the given requirements.");
+
+  if (field_req_ptr->constrains_field_name()) {
+    if (this->constrains_field_name()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
+          "FieldRequirements: One of the inputs has incompatible name (" << field_req_ptr->get_field_name() << ").");
+    } else {
+      this->set_field_name(field_req_ptr->get_field_name());
+    }
+  }
+
+  if (field_req_ptr->constrains_field_rank()) {
+    if (this->constrains_field_rank()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
+          "FieldRequirements: One of the inputs has incompatible rank (" << field_req_ptr->get_field_rank() << ").");
+    } else {
+      this->set_field_rank(field_req_ptr->get_field_rank());
+    }
+  }
+
+  if (field_req_ptr->constrains_field_dimension()) {
+    if (this->constrains_field_dimension()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_dimension() == field_req_ptr->get_field_dimension(),
+                                 std::invalid_argument,
+                                 "FieldRequirements: One of the inputs has incompatible dimension ("
+                                     << field_req_ptr->get_field_dimension() << ").");
+    } else {
+      this->set_field_dimension(field_req_ptr->get_field_dimension());
+    }
+  }
+
+  if (field_req_ptr->constrains_field_min_number_of_states()) {
+    this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
+  }
+
+  // Loop over the attribute map.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : field_req_ptr->get_field_attributes_map()) {
+    this->add_field_attribute(attribute);
+  }
 }
 
 template <typename FieldType>
 void FieldRequirements<FieldType>::merge(
     const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) {
   for (const auto &field_req_ptr : vector_of_field_req_ptrs) {
-    // Check if the provided parameters are valid.
-    field_req_ptr->check_if_valid();
-
-    // TODO(palmerb4): Check field type via some typeid.
-
-    // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-    if (field_req_ptr->constrains_field_name()) {
-      if (this->constrains_field_name()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
-            "FieldRequirements: One of the inputs has incompatible name (" << field_req_ptr->get_field_name() << ").");
-      } else {
-        this->set_field_name(field_req_ptr->get_field_name());
-      }
-    }
-
-    if (field_req_ptr->constrains_field_rank()) {
-      if (this->constrains_field_rank()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
-            "FieldRequirements: One of the inputs has incompatible rank (" << field_req_ptr->get_field_rank() << ").");
-      } else {
-        this->set_field_rank(field_req_ptr->get_field_rank());
-      }
-    }
-
-    if (field_req_ptr->constrains_field_dimension()) {
-      if (this->constrains_field_dimension()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_dimension() == field_req_ptr->get_field_dimension(),
-                                   std::invalid_argument,
-                                   "FieldRequirements: One of the inputs has incompatible dimension ("
-                                       << field_req_ptr->get_field_dimension() << ").");
-      } else {
-        this->set_field_dimension(field_req_ptr->get_field_dimension());
-      }
-    }
-
-    if (field_req_ptr->constrains_field_min_number_of_states()) {
-      this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
-    }
+    merge(field_req_ptr);
   }
 }
 

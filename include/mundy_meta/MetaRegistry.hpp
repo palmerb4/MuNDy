@@ -50,7 +50,7 @@ namespace meta {
 /// \tparam RegistrationType The type of each class's identifier.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
 template <typename BaseType, class ClassToRegister, typename RegistrationType = std::string,
-          typename RegistryIdentifier = DefaultMethodIdentifier>
+          typename RegistryIdentifier = DefaultMethodIdentifier, bool overwrite_existing = false>
 struct MetaRegistry {
   //! \name Actions
   //@{
@@ -60,7 +60,8 @@ struct MetaRegistry {
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
   static inline bool register_type() {
-    MetaMethodFactory<BaseType, RegistrationType, RegistryIdentifier>::template register_new_method<ClassToRegister>();
+    MetaMethodFactory<BaseType, RegistrationType, RegistryIdentifier>::template register_new_method<ClassToRegister>(
+        overwrite_existing);
     return true;
   }
   //@}
@@ -77,50 +78,61 @@ struct MetaRegistry {
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-template <typename BaseType, class ClassToRegister, typename RegistrationType, typename RegistryIdentifier>
-const bool MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIdentifier>::is_registered =
-    MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIdentifier>::register_type();
+template <typename BaseType, class ClassToRegister, typename RegistrationType, typename RegistryIdentifier,
+          bool overwrite_existing>
+const bool MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIdentifier,
+                        overwrite_existing>::is_registered =
+    MetaRegistry<BaseType, ClassToRegister, RegistrationType, RegistryIdentifier, overwrite_existing>::register_type();
 
 /// \brief Partial specialization for MetaMethods.
 template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
-          typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaMethodRegistry = MetaRegistry<MetaMethodBase<ReturnType>, RegistrationType, RegistryIdentifier>;
+          typename RegistryIdentifier = DefaultMethodIdentifier, bool overwrite_existing = false>
+using MetaMethodRegistry =
+    MetaRegistry<MetaMethodBase<ReturnType>, RegistrationType, RegistryIdentifier, overwrite_existing>;
 
 /// \brief Partial specialization for MetaKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
-          typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaKernelRegistry = MetaRegistry<MetaKernelBase<ReturnType>, RegistrationType, RegistryIdentifier>;
+          typename RegistryIdentifier = DefaultMethodIdentifier, bool overwrite_existing = false>
+using MetaKernelRegistry =
+    MetaRegistry<MetaKernelBase<ReturnType>, RegistrationType, RegistryIdentifier, overwrite_existing>;
 
 /// \brief Partial specialization for MetaTwoWayKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
-          typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaTwoWayKernelRegistry = MetaRegistry<MetaTwoWayKernelBase<ReturnType>, RegistrationType, RegistryIdentifier>;
+          typename RegistryIdentifier = DefaultMethodIdentifier, bool overwrite_existing = false>
+using MetaTwoWayKernelRegistry =
+    MetaRegistry<MetaTwoWayKernelBase<ReturnType>, RegistrationType, RegistryIdentifier, overwrite_existing>;
 
 /// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaMultibodyKernelRegistry = MetaKernelRegistry<ReturnType, mundy::multibody::multibody_t, RegistryIdentifier>;
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier,
+          bool overwrite_existing = false>
+using MetaMultibodyKernelRegistry =
+    MetaKernelRegistry<ReturnType, mundy::multibody::multibody_t, RegistryIdentifier, overwrite_existing>;
 
 /// \brief Partial specialization for MetaTwoWayKernels, identified by a mundy multibody type.
 /// To make a new key use:
 ///     auto key = std::make_pair(multibody_t1, multibody_t2)
 /// This key can then be used like any other key.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier,
+          bool overwrite_existing = false>
 using MetaMultibodyTwoWayKernelRegistry =
     MetaTwoWayKernelRegistry<ReturnType, std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
-                             RegistryIdentifier>;
+                             RegistryIdentifier, overwrite_existing>;
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
-using MetaTopologyKernelRegistry = MetaKernelRegistry<ReturnType, stk::topology::topology_t, RegistryIdentifier>;
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier,
+          bool overwrite_existing = false>
+using MetaTopologyKernelRegistry =
+    MetaKernelRegistry<ReturnType, stk::topology::topology_t, RegistryIdentifier, overwrite_existing>;
 
 /// \brief Partial specialization for MetaTwoWayKernels, identified by a pair of stk topology types.
 /// To make a new key use:
 ///     auto key = std::make_pair(topology_t1, topology_t2)
 /// This key can then be used like any other key.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier>
+template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier = DefaultMethodIdentifier,
+          bool overwrite_existing = false>
 using MetaTopologyTwoWayKernelRegistry =
     MetaTwoWayKernelRegistry<ReturnType, std::pair<stk::topology::topology_t, stk::topology::topology_t>,
-                             RegistryIdentifier>;
+                             RegistryIdentifier, overwrite_existing>;
 }  // namespace meta
 
 }  // namespace mundy

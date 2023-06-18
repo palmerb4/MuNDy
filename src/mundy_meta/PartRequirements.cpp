@@ -306,6 +306,14 @@ PartRequirements::get_part_ranked_field_map() {
   // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal fields.
   return part_ranked_field_maps_;
 }
+
+std::map<std::string, std::shared_ptr<PartRequirements>> PartRequirements::get_part_subpart_map() {
+  return part_subpart_map_;
+}
+
+std::map<std::type_index, std::any> PartRequirements::get_part_attributes_map() {
+  return part_attributes_map_;
+}
 //}
 
 // \name Actions
@@ -358,7 +366,7 @@ void PartRequirements::delete_part_rank_constraint() {
 }
 
 void PartRequirements::check_if_valid() const {
-  ThrowRequireMsg(false, "not implemented yet");
+  // TODO(palmerb4): What are the requirements for validity?
 }
 
 void PartRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
@@ -389,54 +397,76 @@ void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_r
   part_subpart_map_[part_req_ptr->get_part_name()] = part_req_ptr;
 }
 
+void PartRequirements::add_part_attribute(const std::any &some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  part_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
+}
+
+void PartRequirements::add_part_attribute(std::any &&some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  part_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+}
+
 void merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
-  merge({part_req_ptr});
+  // TODO(palmerb4): Move this to a friend non-member function.
+  // TODO(palmerb4): Optimize this function for perfect forwarding.
+
+  // Check if the provided parameters are valid.
+  part_req_ptr->check_if_valid();
+
+  // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
+  if (part_req_ptr->constrains_part_name()) {
+    if (this->constrains_part_name()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
+          "PartRequirements: One of the inputs has incompatible name (" << part_req_ptr->get_part_name() << ").");
+    } else {
+      this->set_part_name(part_req_ptr->get_part_name());
+    }
+  }
+
+  if (part_req_ptr->constrains_part_rank()) {
+    if (this->constrains_part_rank()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
+          "PartRequirements: One of the inputs has incompatible rank (" << part_req_ptr->get_part_rank() << ").");
+    } else {
+      this->set_part_rank(part_req_ptr->get_part_rank());
+    }
+  }
+
+  if (part_req_ptr->constrains_part_topology()) {
+    if (this->constrains_part_topology()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(), std::invalid_argument,
+                                 "PartRequirements: One of the inputs has incompatible topology ("
+                                     << part_req_ptr->get_part_topology() << ").");
+    } else {
+      this->set_part_topology(part_req_ptr->get_part_topology());
+    }
+  }
+
+  // Loop over each rank's field map.
+  for (auto const &part_field_map : part_req_ptr->get_part_ranked_field_map()) {
+    // Loop over each field and attempt to merge it.
+    for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
+      this->add_field_req(field_req_ptr);
+    }
+  }
+
+  // Loop over the subpart map.
+  for ([[maybe_unused]] auto const &[part_name, part_req_ptr] : part_req_ptr->get_part_subpart_map()) {
+    this->add_subpart_reqs(part_req_ptr);
+  }
+
+  // Loop over the attribute map.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : part_req_ptr->get_part_attributes_map()) {
+    this->add_part_attribute(attribute);
+  }
 }
 
 void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs) {
   for (const auto &part_req_ptr : vector_of_part_req_ptrs) {
-    // Check if the provided parameters are valid.
-    part_req_ptr->check_if_valid();
-
-    // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-    if (part_req_ptr->constrains_part_name()) {
-      if (this->constrains_part_name()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
-            "PartRequirements: One of the inputs has incompatible name (" << part_req_ptr->get_part_name() << ").");
-      } else {
-        this->set_part_name(part_req_ptr->get_part_name());
-      }
-    }
-
-    if (part_req_ptr->constrains_part_rank()) {
-      if (this->constrains_part_rank()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
-            "PartRequirements: One of the inputs has incompatible rank (" << part_req_ptr->get_part_rank() << ").");
-      } else {
-        this->set_part_rank(part_req_ptr->get_part_rank());
-      }
-    }
-
-    if (part_req_ptr->constrains_part_topology()) {
-      if (this->constrains_part_topology()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(),
-                                   std::invalid_argument,
-                                   "PartRequirements: One of the inputs has incompatible topology ("
-                                       << part_req_ptr->get_part_topology() << ").");
-      } else {
-        this->set_part_topology(part_req_ptr->get_part_topology());
-      }
-    }
-
-    // Loop over each rank's field map.
-    for (auto const &part_field_map : part_req_ptr->get_part_ranked_field_map()) {
-      // Loop over each field and attempt to merge it.
-      for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
-        this->add_field_req(field_req_ptr);
-      }
-    }
+    merge(part_req_ptr);
   }
 }
 //}

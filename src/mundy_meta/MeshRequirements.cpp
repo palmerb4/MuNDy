@@ -28,6 +28,7 @@
 #include <string>       // for std::string, std::stoi
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
 #include <vector>       // for std::vector
+#include <utility>      // for std::move
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
@@ -336,8 +337,19 @@ void MeshRequirements::add_part_req(std::shared_ptr<PartRequirements> part_req_p
   mesh_part_map_[part_req_ptr->get_part_name()] = part_req_ptr;
 }
 
+void MeshRequirements::add_mesh_attribute(const std::any &some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  mesh_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
+}
+
+void MeshRequirements::add_mesh_attribute(std::any &&some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  mesh_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+}
+
 void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr) {
-  // TODO(palmerb4): Merge attributes
+  // TODO(palmerb4): Move this to a friend non-member function.
+  // TODO(palmerb4): Optimize this function for perfect forwarding.
 
   // Check if the provided parameters are valid.
   mesh_req_ptr->check_if_valid();
@@ -416,6 +428,11 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   // Loop over the part map.
   for ([[maybe_unused]] auto &[part_name, part_req_ptr] : mesh_req_ptr->get_mesh_part_map()) {
     this->add_part_req(part_req_ptr);
+  }
+
+  // Loop over the attribute map.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : mesh_req_ptr->get_mesh_attributes_map()) {
+    this->add_mesh_attribute(attribute);
   }
 }
 

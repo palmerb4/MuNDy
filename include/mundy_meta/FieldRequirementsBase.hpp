@@ -30,6 +30,7 @@
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
 #include <vector>       // for std::vector
+#include <map>          // for std::map
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
@@ -100,6 +101,16 @@ class FieldRequirementsBase {
   /// Will throw an error if the minimum number of field states.
   virtual unsigned get_field_min_number_of_states() const = 0;
 
+  /// \brief Return the typeinfo related to the field's type.
+  virtual const std::type_info &get_field_type_info() const = 0;
+
+  /// \brief Return the map from typeindex to field attribute.
+  virtual std::map<std::type_index, std::any> get_field_attributes_map() = 0;
+  //@}
+
+  //! \name Actions
+  //@{
+
   /// \brief Validate the given parameters and set the default values if not provided.
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
     if (parameter_list_ptr->isParameter("name")) {
@@ -140,10 +151,6 @@ class FieldRequirementsBase {
                               "Minimum number of rotating states that this field will have.");
     }
   }
-  //@}
-
-  //! \name Actions
-  //@{
 
   /// \brief Declare/create the field that this class defines.
   virtual void declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const = 0;
@@ -180,7 +187,7 @@ class FieldRequirementsBase {
   /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
   ///
   /// \param some_attribute Any attribute that you wish to store on this field.
-  virtual void add_field_attribute(std::any &some_attribute) = 0;
+  virtual void add_field_attribute(const std::any &some_attribute) = 0;
 
   /// \brief Store an attribute on this field.
   ///

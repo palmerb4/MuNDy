@@ -174,8 +174,16 @@ class MetaFactory {
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
   template <typename ClassToRegister>
-  static void register_new_class() {
+  static void register_new_class(const bool overwrite_existing = false) {
     const RegistrationType key = ClassToRegister::static_get_class_identifier();
+    if (overwrite_existing) {
+      get_internal_keys().erase(key);
+      get_instance_generator_map().erase(key);
+      get_requirement_generator_map().erase(key);
+      get_valid_fixed_params_generator_map().erase(key);
+      get_valid_mutable_params_generator_map().erase(key);
+    }
+
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid_key(key), std::invalid_argument,
                                "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().insert(key);

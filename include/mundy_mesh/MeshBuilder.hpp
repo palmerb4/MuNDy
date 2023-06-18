@@ -109,7 +109,7 @@ class MeshBuilder {
   //@{
 
   /// \brief Create a new aura ghosting instance.
-  std::shared_ptr<stk::mesh::impl::AuraGhosting> MeshBuilder::create_aura_ghosting();
+  std::shared_ptr<stk::mesh::impl::AuraGhosting> create_aura_ghosting();
 
   /// \brief Create a new MetaData instance.
   std::shared_ptr<MetaData> create_meta_data();

@@ -29,6 +29,7 @@
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <typeindex>    // for std::type_index
 #include <vector>       // for std::vector
+#include <map>          // for std::map
 
 // Trilinos libs
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field
@@ -195,7 +196,7 @@ bool MetaData::remove_attribute() {
 
 template <class AttributeTypeToFetch>
 AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::FieldBase &field) {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
+  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
   const unsigned field_id = field.mesh_meta_data_ordinal();
 
   const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
@@ -213,7 +214,7 @@ AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::FieldBase &field)
 
 template <class AttributeTypeToFetch>
 AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::Part &part) {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
+  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
   const unsigned part_id = part.id();
 
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
@@ -231,7 +232,7 @@ AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::Part &part) {
 
 template <class AttributeTypeToFetch>
 AttributeTypeToFetch &MetaData::get_attribute() {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
+  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
 
   const bool attribute_exists = (mesh_attributes_map_.count(attribute_type_index) != 0);
   if (attribute_exists) {

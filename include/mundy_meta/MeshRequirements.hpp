@@ -151,6 +151,9 @@ class MeshRequirements {
   /// \brief Return the mesh part map.
   std::map<std::string, std::shared_ptr<PartRequirements>> get_mesh_part_map();
 
+  /// \brief Return the mesh attribute map.
+  std::map<std::type_index, std::any> get_mesh_attributes_map();
+
   /// \brief Validate the given parameters and set the default values if not provided.
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
     if (parameter_list_ptr->isParameter("spatial_dimension")) {
@@ -287,10 +290,7 @@ class MeshRequirements {
   /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
   ///
   /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(std::any &some_attribute) {
-    std::type_index attribute_type_index = std::type_index(some_attribute.type());
-    mesh_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
-  }
+  void add_mesh_attribute(const std::any &some_attribute);
 
   /// \brief Store an attribute on the mesh.
   ///
@@ -302,10 +302,7 @@ class MeshRequirements {
   /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
   ///
   /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(std::any &&some_attribute) {
-    std::type_index attribute_type_index = std::type_index(some_attribute.type());
-    mesh_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
-  }
+  void add_mesh_attribute(std::any &&some_attribute);
 
   /// \brief Merge the current requirements with another \c MeshRequirements.
   ///

@@ -99,14 +99,21 @@ class BulkData : public stk::mesh::BulkData {
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
   BulkData(std::shared_ptr<MetaData> meta_data_ptr, stk::ParallelMachine comm,
            enum stk::mesh::BulkData::AutomaticAuraOption auto_aura_option = stk::mesh::BulkData::AUTO_AURA,
+#ifdef SIERRA_MIGRATION
+           bool add_fmwk_data = false,
+#endif
            stk::mesh::FieldDataManager *field_data_manager_ptr = nullptr,
            unsigned initial_bucket_capacity = stk::mesh::get_default_initial_bucket_capacity(),
            unsigned maximum_bucket_capacity = stk::mesh::get_default_maximum_bucket_capacity(),
            std::shared_ptr<stk::mesh::impl::AuraGhosting> aura_ghosting_ptr =
                std::shared_ptr<stk::mesh::impl::AuraGhosting>(),
            bool upward_connectivity_flag = true)
-      : stk::mesh::BulkData(meta_data_ptr, comm, auto_aura_option, field_data_manager_ptr, initial_bucket_capacity,
-                            maximum_bucket_capacity, aura_ghosting_ptr, upward_connectivity_flag),
+      : stk::mesh::BulkData(std::static_pointer_cast<stk::mesh::MetaData>(meta_data_ptr), comm, auto_aura_option,
+#ifdef SIERRA_MIGRATION
+                            add_fmwk_data,
+#endif
+                            field_data_manager_ptr, initial_bucket_capacity, maximum_bucket_capacity, aura_ghosting_ptr,
+                            upward_connectivity_flag),
         meta_data_ptr_(meta_data_ptr) {
   }
   //@}

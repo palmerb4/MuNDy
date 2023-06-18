@@ -28,6 +28,7 @@
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <utility>      // for std::move
 #include <vector>       // for std::vector
 
 // Trilinos libs
@@ -196,8 +197,13 @@ class PartRequirements {
   stk::topology::rank_t get_part_rank() const;
 
   /// \brief Return the part field map.
-  /// \param field_rank [in] Rank associated with the retrieved fields.
   std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_ranked_field_map();
+
+  /// \brief Return the part subpart map.
+  std::map<std::string, std::shared_ptr<PartRequirements>> get_part_subpart_map();
+
+  /// \brief Return the part attribute map.
+  std::map<std::type_index, std::any> get_part_attributes_map();
 
   /// \brief Validate the given parameters and set the default values if not provided.
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
@@ -292,10 +298,7 @@ class PartRequirements {
   /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
   ///
   /// \param some_attribute Any attribute that you wish to store on this part.
-  void add_part_attribute(std::any &some_attribute) {
-    std::type_index attribute_type_index = std::type_index(some_attribute.type());
-    part_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
-  }
+  void add_part_attribute(const std::any &some_attribute);
 
   /// \brief Store an attribute on this part.
   ///
@@ -307,10 +310,7 @@ class PartRequirements {
   /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
   ///
   /// \param some_attribute Any attribute that you wish to store on this part.
-  void add_part_attribute(std::any &&some_attribute) {
-    std::type_index attribute_type_index = std::type_index(some_attribute.type());
-    part_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
-  }
+  void add_part_attribute(std::any &&some_attribute);
 
   /// \brief Merge the current requirements with another \c PartRequirements.
   ///
