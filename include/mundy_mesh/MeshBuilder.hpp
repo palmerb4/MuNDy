@@ -75,6 +75,10 @@ class MeshBuilder {
   /// \param auto_aura_option [in] The chosen Aura option.
   MeshBuilder &set_auto_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &auto_aura_option);
 
+  /// \brief Set the add framework data flag.
+  /// \param add_fmwk_data_flag [in] A Siera-specific flag, whose purpose is unbeknownst to me.
+  MeshBuilder &set_add_fmwk_data_flag(bool add_fmwk_data_flag);
+
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
   MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
@@ -137,6 +141,9 @@ class MeshBuilder {
 
   /// \brief Chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
   BulkData::AutomaticAuraOption auto_aura_option_;
+
+  /// \brief A Siera-specific flag, whose purpose is unbeknownst to me.
+  bool add_fmwk_data_flag_;
 
   /// \brief Pointer to an existing field data manager.
   stk::mesh::FieldDataManager *field_data_manager_ptr_;

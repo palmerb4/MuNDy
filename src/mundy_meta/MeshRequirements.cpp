@@ -21,20 +21,22 @@
 /// \brief Definition of the MeshRequirements class
 
 // C++ core libs
+#include <iostream>
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <regex>        // for std::regex_match
 #include <stdexcept>    // for std::logic_error, std::invalid_argument
 #include <string>       // for std::string, std::stoi
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
-#include <vector>       // for std::vector
 #include <utility>      // for std::move
+#include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
+#include <Teuchos_TestForException.hpp>    // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
+#include <stk_topology/topology.hpp>       // for stk::topology
+#include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
@@ -44,9 +46,21 @@
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 #include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
 
+// This fixes compilation errors with OpenMPI 4.
+// The cause of the error is that OpenMPI defines MPI_Comm (and therefore stk::ParallelMachine) as a pointer to an
+// incomplete type. However, Teuchos::ParameterList's get function requires a complete type.
+// (see https://github.com/hpc4cmb/toast/issues/298)
+struct ompi_communicator_t {};
+
 namespace mundy {
 
 namespace meta {
+
+// \name Default parameters (those that can't be inlined)
+//{
+
+const unsigned MeshRequirements::default_bucket_capacity_ = stk::mesh::get_default_bucket_capacity();
+//}
 
 // \name Constructors and destructor
 //{
@@ -60,7 +74,12 @@ MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list)
   // Store the core parameters.
   this->set_spatial_dimension(parameter_list.get<unsigned>("spatial_dimension"));
   this->set_entity_rank_names(parameter_list.get<Teuchos::Array<std::string>>("entity_rank_names").toVector());
+
+  const std::type_info &ti2 = typeid(stk::ParallelMachine);
+  std::cout << ti2.name() << std::endl;
+
   this->set_communicator(parameter_list.get<stk::ParallelMachine>("communicator"));
+
   this->set_aura_option(parameter_list.get<mundy::mesh::BulkData::AutomaticAuraOption>("aura_option"));
   this->set_field_data_manager(parameter_list.get<stk::mesh::FieldDataManager *>("field_data_manager_ptr"));
   this->set_bucket_capacity(parameter_list.get<unsigned>("bucket_capacity"));
@@ -270,7 +289,7 @@ std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
   }
 
   // Declare the mesh's parts.
-    for ([[maybe_unused]] auto const &[part_name, part_req_ptr] : mesh_part_map_) {
+  for ([[maybe_unused]] auto const &[part_name, part_req_ptr] : mesh_part_map_) {
     part_req_ptr->declare_part_on_mesh(&meta_data);
   }
 

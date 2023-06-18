@@ -31,10 +31,11 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
-#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
-#include <stk_topology/topology.hpp>  // for stk::topology
-#include <stk_mesh/base/Bucket.hpp>   // for stk::mesh::get_default_bucket_capacity
+#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
+#include <stk_mesh/base/Bucket.hpp>        // for stk::mesh::get_default_bucket_capacity
+#include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
+#include <stk_topology/topology.hpp>       // for stk::topology
+#include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
@@ -152,40 +153,63 @@ class MeshRequirements {
   /// \brief Validate the given parameters and set the default values if not provided.
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
     if (parameter_list_ptr->isParameter("spatial_dimension")) {
-      parameter_list_ptr->get<unsigned>("spatial_dimension");
+      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("spatial_dimension");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
+                                 "with a type other than unsigned");
     } else {
       parameter_list_ptr->set("spatial_dimension", default_spatial_dimension_,
                               "Dimension of the space within which the parts and entities reside.");
     }
 
     if (parameter_list_ptr->isParameter("entity_rank_names")) {
-      parameter_list_ptr->get<Teuchos::Array<std::string>>("entity_rank_names");
+      const bool valid_type =
+          parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<Teuchos::Array<std::string>>("entity_rank_names");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
+                                 "with a type other than Teuchos::Array<std::string>");
     } else {
       parameter_list_ptr->set("entity_rank_names", default_entity_rank_names_,
                               "Vector of names assigned to each rank.");
     }
 
-    if (parameter_list_ptr->isParameter("communicator")) {
-      parameter_list_ptr->get<stk::ParallelMachine>("communicator");
-    } else {
-      parameter_list_ptr->set("communicator", default_communicator_, "MPI communicator to be used by STK..");
-    }
+    // if (parameter_list_ptr->isParameter("communicator")) {
+    //   const bool valid_type =
+    //       parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::ParallelMachine>("communicator");
+    //   TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+    //                              "MeshRequirements: Type error. Given a parameter with name 'communicator' but with a "
+    //                              "type other than stk::ParallelMachine");
+    // } else {
+    //   parameter_list_ptr->set("communicator", default_communicator_, "MPI communicator to be used by STK.");
+    // }
 
     if (parameter_list_ptr->isParameter("aura_option")) {
-      parameter_list_ptr->get<mundy::mesh::BulkData::AutomaticAuraOption>("aura_option");
+      const bool valid_type =
+          parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<mundy::mesh::BulkData::AutomaticAuraOption>(
+              "aura_option");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
+                                 "type other than mundy::mesh::BulkData::AutomaticAuraOption");
     } else {
       parameter_list_ptr->set("aura_option", default_aura_option_, "The chosen Aura option.");
     }
 
     if (parameter_list_ptr->isParameter("field_data_manager_ptr")) {
-      parameter_list_ptr->get<stk::mesh::FieldDataManager *>("field_data_manager_ptr");
+      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::mesh::FieldDataManager *>(
+          "field_data_manager_ptr");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
+                                 "but with a type other than stk::mesh::FieldDataManager *");
     } else {
       parameter_list_ptr->set("field_data_manager_ptr", default_field_data_manager_ptr_,
                               "A pointer to a preexisting field data manager.");
     }
 
     if (parameter_list_ptr->isParameter("bucket_capacity")) {
-      parameter_list_ptr->get<unsigned>("bucket_capacity");
+      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("bucket_capacity");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
+                                 "a type other than unsigned");
     } else {
       parameter_list_ptr->set(
           "bucket_capacity", default_bucket_capacity_,
@@ -193,7 +217,10 @@ class MeshRequirements {
     }
 
     if (parameter_list_ptr->isParameter("upward_connectivity_flag")) {
-      parameter_list_ptr->get<bool>("upward_connectivity_flag");
+      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<bool>("upward_connectivity_flag");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
+                                 "but with a type other than bool");
     } else {
       parameter_list_ptr->set("upward_connectivity_flag", default_upward_connectivity_flag_,
                               "Flag specifying if upward connectivity will be enabled or not.");
@@ -313,7 +340,7 @@ class MeshRequirements {
   static constexpr stk::ParallelMachine default_communicator_ = MPI_COMM_NULL;
   static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
   static constexpr stk::mesh::FieldDataManager *default_field_data_manager_ptr_ = nullptr;
-  static const unsigned default_bucket_capacity_ = stk::mesh::get_default_bucket_capacity();
+  static const unsigned default_bucket_capacity_;  // Unlike the others, this parameter cannot be filled inline.
   static constexpr bool default_upward_connectivity_flag_ = true;
   //@}
 

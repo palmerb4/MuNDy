@@ -27,12 +27,13 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
-#include <Teuchos_TestForException.hpp>            // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>              // for stk::mesh::BulkData
-#include <stk_mesh/base/FieldDataManager.hpp>      // for stk::mesh::FieldDataManager
-#include <stk_mesh/base/MeshBuilder.hpp>           // for stk::mesh::MeshBuilder
-#include <stk_mesh/baseImpl/BucketRepository.hpp>  // stk::impl::BucketRepository
-#include <stk_util/parallel/Parallel.hpp>          // for stk::ParallelMachine
+#include <Teuchos_TestForException.hpp>                            // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/BulkData.hpp>                              // for stk::mesh::BulkData
+#include <stk_mesh/base/FieldDataManager.hpp>                      // for stk::mesh::FieldDataManager
+#include <stk_mesh/base/MeshBuilder.hpp>                           // for stk::mesh::MeshBuilder
+#include <stk_mesh/baseImpl/AuraGhostingDownwardConnectivity.hpp>  // for stk::mesh::impl::AuraGhostingDownwardConnectivity
+#include <stk_mesh/baseImpl/BucketRepository.hpp>                  // stk::impl::BucketRepository
+#include <stk_util/parallel/Parallel.hpp>                          // for stk::ParallelMachine
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>     // for BulkData
@@ -50,7 +51,7 @@ MeshBuilder::MeshBuilder()
     : builder_(MPI_COMM_NULL),
       comm_(MPI_COMM_NULL),
       has_comm_(false),
-      auto_aura_option_(stki::mesh::BulkData::AUTO_AURA),
+      auto_aura_option_(stk::mesh::BulkData::AUTO_AURA),
       field_data_manager_ptr_(nullptr),
       initial_bucket_capacity_(stk::mesh::get_default_initial_bucket_capacity()),
       maximum_bucket_capacity_(stk::mesh::get_default_maximum_bucket_capacity()),
@@ -94,6 +95,11 @@ MeshBuilder &MeshBuilder::set_communicator(const stk::ParallelMachine &comm) {
 
 MeshBuilder &MeshBuilder::set_auto_aura_option(const BulkData::AutomaticAuraOption &auto_aura_option) {
   auto_aura_option_ = auto_aura_option;
+  return *this;
+}
+
+MeshBuilder &MeshBuilder::set_add_fmwk_data_flag(bool add_fmwk_data_flag) {
+  add_fmwk_data_flag_ = add_fmwk_data_flag;
   return *this;
 }
 
@@ -142,13 +148,17 @@ std::unique_ptr<BulkData> MeshBuilder::create_bulk_data() {
   return this->create_bulk_data(this->create_meta_data());
 }
 
-std::unique_ptr<BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<MetaData> meta_data) {
+std::unique_ptr<BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<MetaData> meta_data_ptr) {
   TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
                              "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
 
-  return std::unique_ptr<BulkData>(new BulkData(meta_data, comm_, auto_aura_option_, field_data_manager_ptr_,
-                                                initial_bucket_capacity_, maximum_bucket_capacity_,
-                                                create_aura_ghosting(), upward_connectivity_flag_));
+  return std::unique_ptr<BulkData>(new BulkData(meta_data_ptr, comm_, auto_aura_option_,
+#ifdef SIERRA_MIGRATION
+                                                add_fmwk_data_flag_,
+#endif
+                                                field_data_manager_ptr_, initial_bucket_capacity_,
+                                                maximum_bucket_capacity_, create_aura_ghosting(),
+                                                upward_connectivity_flag_));
 }
 //}
 

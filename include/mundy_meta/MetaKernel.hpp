@@ -85,17 +85,22 @@ class MetaKernelBase
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaKernel<DerivedMetaKernel> be made a friend of \c DerivedMetaKernel.
 ///
-/// \tparam ReturnType The return type of the execute function.
-/// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
-/// \tparam RegistrationType The type of this class's identifier.
-template <typename ReturnType, class DerivedMetaKernel, typename RegistrationType = std::string>
-class MetaKernel
-    : virtual public MetaKernelBase<ReturnType, RegistrationType>,
-      virtual public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType, DerivedMetaKernel>, RegistrationType> {
+/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template shaddowing
+/// by internal typedefs.
+///
+/// \tparam ReturnType_t The return type of the execute function.
+/// \tparam DerivedMetaKernel_t A class derived from \c MetaKernel that implements the desired interface.
+/// \tparam RegistrationType_t The type of this class's identifier.
+template <typename ReturnType_t, class DerivedMetaKernel_t, typename RegistrationType_t = std::string>
+class MetaKernel : virtual public MetaKernelBase<ReturnType_t, RegistrationType_t>,
+                   virtual public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType_t, DerivedMetaKernel_t>,
+                                                                       RegistrationType_t> {
  public:
-  //! \name TypeDefs
+  //! \name Typedefs
   //@{
 
+  using ReturnType = ReturnType_t;
+  using RegistrationType = RegistrationType_t;
   using PolymorphicBase = MetaKernelBase<ReturnType, RegistrationType>;
   //@}
 
@@ -112,22 +117,22 @@ class MetaKernel
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKernel::details_static_get_part_requirements(fixed_parameter_list);
+    return DerivedMetaKernel_t::details_static_get_part_requirements(fixed_parameter_list);
   }
 
   /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    return DerivedMetaKernel::details_static_get_valid_fixed_params();
+    return DerivedMetaKernel_t::details_static_get_valid_fixed_params();
   }
 
   /// \brief Get the valid mutable parameters and their default parameter list for this \c MetaKernel.
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    return DerivedMetaKernel::details_static_get_valid_mutable_params();
+    return DerivedMetaKernel_t::details_static_get_valid_mutable_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
   static RegistrationType details_static_get_class_identifier() {
-    return DerivedMetaKernel::details_static_get_class_identifier();
+    return DerivedMetaKernel_t::details_static_get_class_identifier();
   }
   //@}
 
@@ -140,10 +145,13 @@ class MetaKernel
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaKernelBase<ReturnType, RegistrationType>> details_static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
+    return DerivedMetaKernel_t::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 };  // MetaKernel
+
+//! \name Partial Specializations
+//@{
 
 /// \brief Partial specialization for MetaKernelBases, identified by a mundy multibody type.
 template <typename ReturnType>
@@ -155,11 +163,12 @@ using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, mundy::mul
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
 template <typename ReturnType>
-using MetaMultibodyKernelBase = MetaKernelBase<ReturnType, stk::topology::topology_t>;
+using MetaTopologyKernelBase = MetaKernelBase<ReturnType, stk::topology::topology_t>;
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
 template <typename ReturnType, class DerivedMetaKernel>
-using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, stk::topology::topology_t>;
+using MetaTopologyKernel = MetaKernel<ReturnType, DerivedMetaKernel, stk::topology::topology_t>;
+//@}
 
 }  // namespace meta
 

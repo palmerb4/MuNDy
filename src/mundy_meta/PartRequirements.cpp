@@ -407,7 +407,7 @@ void PartRequirements::add_part_attribute(std::any &&some_attribute) {
   part_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
 }
 
-void merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
+void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 

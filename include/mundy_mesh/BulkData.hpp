@@ -39,11 +39,19 @@
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
+#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
 
 namespace mundy {
 
 namespace mesh {
+
+//! \name Forward declarations
+//@{
+// clang-format off
+
+namespace mundy { namespace mesh { class MeshBuilder; } }
+// clang-format on
+//@}
 
 /// \class BulkData
 /// \brief A extension of STK's BulkData, with streamlined access to Mundy's stk wrappers.
@@ -100,7 +108,7 @@ class BulkData : public stk::mesh::BulkData {
   BulkData(std::shared_ptr<MetaData> meta_data_ptr, stk::ParallelMachine comm,
            enum stk::mesh::BulkData::AutomaticAuraOption auto_aura_option = stk::mesh::BulkData::AUTO_AURA,
 #ifdef SIERRA_MIGRATION
-           bool add_fmwk_data = false,
+           bool add_fmwk_data_flag = false,
 #endif
            stk::mesh::FieldDataManager *field_data_manager_ptr = nullptr,
            unsigned initial_bucket_capacity = stk::mesh::get_default_initial_bucket_capacity(),
@@ -110,7 +118,7 @@ class BulkData : public stk::mesh::BulkData {
            bool upward_connectivity_flag = true)
       : stk::mesh::BulkData(std::static_pointer_cast<stk::mesh::MetaData>(meta_data_ptr), comm, auto_aura_option,
 #ifdef SIERRA_MIGRATION
-                            add_fmwk_data,
+                            add_fmwk_data_flag,
 #endif
                             field_data_manager_ptr, initial_bucket_capacity, maximum_bucket_capacity, aura_ghosting_ptr,
                             upward_connectivity_flag),
@@ -123,6 +131,12 @@ class BulkData : public stk::mesh::BulkData {
   //@{
 
   std::shared_ptr<MetaData> meta_data_ptr_;
+  //@}
+
+  //! \name Friends!
+  //@{
+
+  friend class MeshBuilder;
   //@}
 };  // BulkData
 

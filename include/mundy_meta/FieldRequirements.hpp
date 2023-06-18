@@ -69,15 +69,15 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string);
 /// \class FieldRequirements
 /// \brief A set of necessary parameters for declaring a new field.
 ///
-/// \tparam FieldType Type for elements in the field.
-template <typename FieldType>
+/// \tparam FieldType_t Type for elements in the field.
+template <typename FieldType_t>
 class FieldRequirements : public FieldRequirementsBase {
  public:
   //! \name Typedefs
   //@{
 
-  /// \tparam field_type Type for elements in the field. Set by the template parameter.
-  typedef FieldType field_type;
+  /// \tparam FieldType Type for elements in the field. Set by the template parameter.
+  using FieldType = FieldType_t;
   //@}
 
   //! \name Constructors and destructor

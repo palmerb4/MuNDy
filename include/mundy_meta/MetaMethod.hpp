@@ -85,19 +85,25 @@ class MetaMethodBase
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
 ///
-/// \tparam ReturnType The return type of the execute function.
-/// \tparam DerivedMetaMethod A class derived from \c MetaMethod that implements the desired interface.
-/// \tparam RegistrationType The type of this class's identifier.
-template <typename ReturnType, class DerivedMetaMethod, typename RegistrationType = std::string>
+/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template shaddowing
+/// by internal typedefs.
+///
+/// \tparam ReturnType_t The return type of the execute function.
+/// \tparam DerivedMetaMethod_t A class derived from \c MetaMethod that implements the desired interface.
+/// \tparam RegistrationType_t The type of this class's identifier.
+template <typename ReturnType_t, class DerivedMetaMethod_t, typename RegistrationType_t = std::string>
 class MetaMethod
-    : virtual public MetaMethodBase<ReturnType, RegistrationType>,
-      virtual public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType, DerivedMetaMethod>, RegistrationType> {
+    : virtual public MetaMethodBase<ReturnType_t, RegistrationType_t>,
+      virtual public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t>, RegistrationType_t> {
  public:
-  //! \name TypeDefs
+  //! \name Typedefs
   //@{
 
+  using ReturnType = ReturnType_t;
+  using RegistrationType = RegistrationType_t;
   using PolymorphicBase = MetaMethodBase<ReturnType, RegistrationType>;
   //@}
+
 
   //! \name Getters
   //@{
@@ -112,22 +118,22 @@ class MetaMethod
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaMethod::details_static_get_part_requirements(fixed_parameter_list);
+    return DerivedMetaMethod_t::details_static_get_part_requirements(fixed_parameter_list);
   }
 
   /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaMethod.
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    return DerivedMetaMethod::details_static_get_valid_fixed_params();
+    return DerivedMetaMethod_t::details_static_get_valid_fixed_params();
   }
 
   /// \brief Get the valid mutable parameters and their default parameter list for this \c MetaMethod.
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    return DerivedMetaMethod::details_static_get_valid_mutable_params();
+    return DerivedMetaMethod_t::details_static_get_valid_mutable_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static RegistrationType details_static_get_class_identifier() {
-    return DerivedMetaMethod::details_static_get_class_identifier();
+    return DerivedMetaMethod_t::details_static_get_class_identifier();
   }
   //@}
 
@@ -140,7 +146,7 @@ class MetaMethod
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaMethodBase<ReturnType, RegistrationType>> details_static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaMethod::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
+    return DerivedMetaMethod_t::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 };  // MetaMethod

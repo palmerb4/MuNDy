@@ -54,7 +54,7 @@ namespace meta {
 /// \tparam RegistrationType The type of this class's identifier.
 template <std::size_t K, typename ReturnType, typename RegistrationType = std::string>
 class MetaKWayKernelBase
-    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKWayKernelBase<N, ReturnType, RegistrationType>,
+    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKWayKernelBase<K, ReturnType, RegistrationType>,
                                                               RegistrationType> {
  public:
   //! \name Setters
@@ -86,22 +86,26 @@ class MetaKWayKernelBase
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaKWayKernel<DerivedMetaKWayKernel> be made a friend of \c DerivedMetaKWayKernel.
 ///
+/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template shaddowing
+/// by internal typedefs.
+///
 /// \tparam N The number of entities passed to execute.
-/// \tparam ReturnType The return type of the execute function.
-/// \tparam DerivedMetaKWayKernel A class derived from \c MetaKWayKernel that implements the desired interface.
-/// \tparam RegistrationType The type of this class's identifier.
-template <std::size_t N, typename ReturnType, class DerivedMetaKWayKernel, typename RegistrationType = std::string>
+/// \tparam ReturnType_t The return type of the execute function.
+/// \tparam DerivedMetaKWayKernel_t A class derived from \c MetaKWayKernel that implements the desired interface.
+/// \tparam RegistrationType_t The type of this class's identifier.
+template <std::size_t K, typename ReturnType_t, class DerivedMetaKWayKernel_t,
+          typename RegistrationType_t = std::string>
 class MetaKWayKernel
-    : virtual public MetaKWayKernelBase<N, ReturnType, RegistrationType>,
-      virtual public HasMeshRequirementsAndIsRegisterable<MetaKWayKernelBase<N, ReturnType, DerivedMetaKWayKernel>,
-                                                          RegistrationType> {
+    : virtual public MetaKWayKernelBase<K, ReturnType_t, RegistrationType_t>,
+      virtual public HasMeshRequirementsAndIsRegisterable<MetaKWayKernelBase<K, ReturnType_t, DerivedMetaKWayKernel_t>,
+                                                          RegistrationType_t> {
  public:
   //! \name Typedefs
   //@{
 
-  using return_type = ReturnType;
-  using registration_type = RegistrationType;
-  using polymorphic_base_type = MetaKWayKernelBase<N, ReturnType, RegistrationType>;
+  using ReturnType = ReturnType_t;
+  using RegistrationType = RegistrationType_t;
+  using PolymorphicBaseType = MetaKWayKernelBase<K, ReturnType, RegistrationType>;
   //@}
 
   //! \name Getters
@@ -117,23 +121,23 @@ class MetaKWayKernel
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::vector<std::shared_ptr<MeshRequirements>> details_static_get_part_requirements(
       const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKWayKernel::details_static_get_part_requirements(fixed_parameter_list);
+    return DerivedMetaKWayKernel_t::details_static_get_part_requirements(fixed_parameter_list);
   }
 
   /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKWayKernel.
   static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    return DerivedMetaKWayKernel::details_static_get_valid_fixed_params();
+    return DerivedMetaKWayKernel_t::details_static_get_valid_fixed_params();
   }
 
   /// \brief Get the valid mutable parameters and their default parameter list for this \c MetaKWayKernel.
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    return DerivedMetaKWayKernel::details_static_get_valid_mutable_params();
+    return DerivedMetaKWayKernel_t::details_static_get_valid_mutable_params();
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
   /// MetaKWayKernel.
   static RegistrationType details_static_get_class_identifier() {
-    return DerivedMetaKWayKernel::details_static_get_class_identifier();
+    return DerivedMetaKWayKernel_t::details_static_get_class_identifier();
   }
   //@}
 
@@ -144,9 +148,9 @@ class MetaKWayKernel
   ///
   /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<MetaKWayKernelBase<ReturnType, RegistrationType>> details_static_create_new_instance(
+  static std::shared_ptr<MetaKWayKernelBase<K, ReturnType, RegistrationType>> details_static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKWayKernel::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
+    return DerivedMetaKWayKernel_t::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
   }
   //@}
 };  // MetaKWayKernel
@@ -161,7 +165,7 @@ using MetaMultibodyKWayKernelBase = MetaKWayKernelBase<K, ReturnType, std::array
 /// \brief Partial specialization for MetaKWayKernel, identified by a mundy multibody type.
 template <std::size_t K, typename ReturnType, class DerivedMetaKWayKernel>
 using MetaMultibodyKWayKernel =
-    MetaKWayKernel<K, ReturnType, DerivedMetaKernel, std::array<mundy::multibody::multibody_t, K>>;
+    MetaKWayKernel<K, ReturnType, DerivedMetaKWayKernel, std::array<mundy::multibody::multibody_t, K>>;
 
 /// \brief Partial specialization for MetaKWayKernelBase, identified by an stk topology type.
 template <std::size_t K, typename ReturnType>
@@ -182,7 +186,7 @@ using MetaTwoWayKernelBase = MetaKWayKernelBase<2, ReturnType, RegistrationType>
 
 /// \brief Partial specialization for MetaKWayKernels, with two entities.
 template <typename ReturnType, class DerivedMetaKWayKernel, typename RegistrationType = std::string>
-using MetaTwoWayKernel = MetaKWayKernel<2, ReturnType, DerivedMetaKernel, RegistrationType>;
+using MetaTwoWayKernel = MetaKWayKernel<2, ReturnType, DerivedMetaKWayKernel, RegistrationType>;
 
 /// \brief Partial specialization for MetaTwoWayKernelBase, identified by a mundy multibody type.
 template <typename ReturnType>
@@ -190,7 +194,7 @@ using MetaMultibodyTwoWayKernelBase = MetaMultibodyKWayKernelBase<2, ReturnType>
 
 /// \brief Partial specialization for MetaTwoWayKernel, identified by a mundy multibody type.
 template <typename ReturnType, class DerivedMetaKWayKernel>
-using MetaMultibodyTwoWayKernel = MetaMultibodyKWayKernel<2, ReturnType, DerivedMetaKernel>;
+using MetaMultibodyTwoWayKernel = MetaMultibodyKWayKernel<2, ReturnType, DerivedMetaKWayKernel>;
 
 /// \brief Partial specialization for MetaTwoWayKernelBase, identified by an stk topology type.
 template <typename ReturnType>
@@ -210,7 +214,7 @@ using MetaThreeWayKernelBase = MetaKWayKernelBase<3, ReturnType, RegistrationTyp
 
 /// \brief Partial specialization for MetaKWayKernels, with three entities.
 template <typename ReturnType, class DerivedMetaKWayKernel, typename RegistrationType = std::string>
-using MetaThreeWayKernel = MetaKWayKernel<3, ReturnType, DerivedMetaKernel, RegistrationType>;
+using MetaThreeWayKernel = MetaKWayKernel<3, ReturnType, DerivedMetaKWayKernel, RegistrationType>;
 
 /// \brief Partial specialization for MetaThreeWayKernelBase, identified by a mundy multibody type.
 template <typename ReturnType>
@@ -218,7 +222,7 @@ using MetaMultibodyThreeWayKernelBase = MetaMultibodyKWayKernelBase<3, ReturnTyp
 
 /// \brief Partial specialization for MetaThreeWayKernel, identified by a mundy multibody type.
 template <typename ReturnType, class DerivedMetaKWayKernel>
-using MetaMultibodyThreeWayKernel = MetaMultibodyKWayKernel<3, ReturnType, DerivedMetaKernel>;
+using MetaMultibodyThreeWayKernel = MetaMultibodyKWayKernel<3, ReturnType, DerivedMetaKWayKernel>;
 
 /// \brief Partial specialization for MetaThreeWayKernelBase, identified by an stk topology type.
 template <typename ReturnType>
