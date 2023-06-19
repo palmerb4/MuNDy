@@ -90,50 +90,43 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements>(
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-    // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
-    const unsigned num_parts = parts_params.get<unsigned>("count");
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_parts; i++) {
-      // Create a new parameter
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    // Fill the requirements using the given parameter list.
+    // For now, we allow this method to assign these fields to the entire mesh.
+    // TODO (palmerb4): This should only apply to constraint-type multibody types.
+    std::string element_constraint_violation_field_name = valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
 
-      // Fetch the i'th part parameters
-      Teuchos::ParameterList &part_params = parts_params.sublist("input_part_" + std::to_string(i));
-      const std::string part_name = part_params.get<std::string>("name");
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
-      // Add method-specific requirements.
-      part_requirements[i]->set_part_name(part_name);
-      part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
-      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          std::string(default_element_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    }
-
-    return part_requirements;
+    return mesh_reqs;
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_params;
-    default_fixed_params.set("element_constraint_violation_field_name",
-                                     std::string(default_element_constraint_violation_field_name_),
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+    if (fixed_params_ptr->isParameter("element_constraint_violation_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "ComputeConstraintResidual: Type error. Given a parameter with name 'element_constraint_violation_field_name' but "
+                                 << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("element_constraint_violation_field_name", std::string(default_element_constraint_violation_field_name_),
                                      "Name of the element field containing the constraint's violation measure.");
-    return default_fixed_params;
+    }
   }
 
-  /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_params;
-    return default_mutable_params;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -181,11 +174,8 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
   /// \brief The MetaData objects this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of parts that this method acts on.
-  size_t num_parts_ = 0;
-
-  /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
+  /// \brief Pointer to the part containing all multibody constraints.
+  stk::mesh::Part *constraint_part_ptr_;
 
   /// \brief Name of the element field containing the constraint's violation measure.
   std::string element_constraint_violation_field_name_;

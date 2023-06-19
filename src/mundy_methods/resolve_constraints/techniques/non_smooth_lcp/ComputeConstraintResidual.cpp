@@ -108,7 +108,7 @@ double ComputeConstraintResidual::execute(const stk::mesh::Selector &input_selec
     stk::mesh::impl::for_each_selected_entity_run_no_threads(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
         [&local_residual]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          // This is the  norm of the constraint violation
+          // This is the  norm of the constraint violation.
           const double constraint_violation =
               stk::mesh::field_data(*element_constraint_violation_field_name_, element)[0];
           local_residual = std::max(local_residual, constraint_violation);

@@ -94,11 +94,11 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
     // Fetch the parameters for this part's sub-methods.
     Teuchos::ParameterList &map_rbf_to_rbv_params =
-        part_params.sublist("submethods").sublist("map_rigid_body_force_to_rigid_body_velocity");
+        valid_fixed_params.sublist("submethods").sublist("map_rigid_body_force_to_rigid_body_velocity");
     Teuchos::ParameterList &map_rbv_to_sv_params =
-        part_params.sublist("submethods").sublist("map_rigid_body_velocity_to_surface_velocity");
+        valid_fixed_params.sublist("submethods").sublist("map_rigid_body_velocity_to_surface_velocity");
     Teuchos::ParameterList &map_sf_to_rbf_params =
-        part_params.sublist("submethods").sublist("map_surface_force_to_rigid_body_force");
+        valid_fixed_params.sublist("submethods").sublist("map_surface_force_to_rigid_body_force");
 
     // Collect and merge the submethod requirements.
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
@@ -122,7 +122,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
     Teuchos::ParameterList &map_sf_to_rbf_params =
         fixed_params_ptr->sublist("submethods", false).sublist("map_surface_force_to_rigid_body_force", false);
 
-    if (map_rbf_to_rbv_params->isParameter("name")) {
+    if (map_rbf_to_rbv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity parameter with name 'name' but "
@@ -144,7 +144,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
           "Name of the method for mapping from rigid body velocity to surface velocity.");
     }
 
-    if (map_sf_to_rbf_params->isParameter("name")) {
+    if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
@@ -209,9 +209,9 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
     const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
     const std::string rbv_to_sv_name = map_rbv_to_sv_params.get<std::string>("name");
     const std::string sf_to_rbf_name = map_sf_to_rbf_params.get<std::string>("name");
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(rbf_to_rbv_name, &map_rbf_to_rbv_params);
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(rbv_to_sv_name, &map_rbv_to_sv_params);
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(sf_to_rbf_name, &map_sf_to_rbf_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(rbf_to_rbv_name, &map_rbf_to_rbv_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(rbv_to_sv_name, &map_rbv_to_sv_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(sf_to_rbf_name, &map_sf_to_rbf_params);
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c

@@ -668,10 +668,13 @@ The current TODO:
 7. 
 
 
-TO AVOID RACE CONDITIONS, MULTIBODY TYPES SHOULD NOT HAVE INHERITANCE. 
+TO AVOID RACE CONDITIONS, MULTIBODY TYPES SHOULD NOT HAVE INHERITANCE. NEVERMIND! WE NEED IT. 
+Add a Body and Constraint multibody type that the bodies inherit from and the constraints inherit from. This way we can perform actions only on bodies or only on constraints.
 
+HOW CAN PART ATTRIBUTES BE INHERITED WITHOUT COPYING THEM?
 
 Using a fast id instead of a string seems tempting for choosing our kernels but the user needs to specify the kernel name in the
 parameters, which means that the identifier needs to a string. We could overcome this with a map from string multibody type to fast id.
 
 Part/Field/Mesh requirements need a way to take in any number of requirements into their parameter_list constructor. This can't happen until I figure out Meulu's parser.
+

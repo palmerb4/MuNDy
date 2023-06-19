@@ -73,50 +73,78 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //! \name MetaKernel interface implementation
   //@{
 
-  /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements>(
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
-        std::make_shared<mundy::meta::PartRequirements>();
-    required_part_params->set_part_topology(stk::topology::BEAM_2);
-    required_collision_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_collision_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_force_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_collision_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    return required_part_params;
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+
+    // Fill the requirements using the given parameter list.
+    std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
+    std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
+    std::string element_lagrange_multiplier_field_name = valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+
+    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs->set_part_name("COLLISION");
+    part_reqs->set_part_topology(stk::topology::BEAM_2);
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("COLLISION"));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_force_field_name, stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_part_req(part_reqs);
+    return multibody_part_params;
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_fixed_params;
-    default_fixed_params.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
-                                     "Name of the node field containing the coordinate of the sphere's center.");
-    default_fixed_params.set("node_force_field_name", std::string(default_node_force_field_name_),
-                                     "Name of the node field containing the sphere's com force.");
-    default_fixed_params.set("element_lagrange_multiplier_field_name",
-                                     std::string(default_element_lagrange_multiplier_field_name_),
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+    if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Collision: Type error. Given a parameter with name 'node_coordinate_field_name' but "
+                                 << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+                                     "Name of the node field containing the node's spatial coordinate.");
+    }
+
+    if (fixed_params_ptr->isParameter("node_force_field_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Collision: Type error. Given a parameter with name 'node_force_field_name' but "
+                                 << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set(
+          "node_force_field_name", std::string(default_node_force_field_name_),
+                                     "Name of the node field containing force on the constraint's entpoints.");
+    }
+
+    if (fixed_params_ptr->isParameter("element_lagrange_multiplier_field_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_lagrange_multiplier_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Collision: Type error. Given a parameter with name 'element_lagrange_multiplier_field_name' but "
+                                 "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("element_lagrange_multiplier_field_name", std::string(default_element_lagrange_multiplier_field_name_),
                                      "Name of the element field containing the constraint's Lagrange multiplier.");
-    return default_fixed_params;
+    }
   }
 
-  /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_mutable_params;
-    return default_mutable_params;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
   }
 
   /// \brief Get the unique string identifier for this class.

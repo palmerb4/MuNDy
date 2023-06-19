@@ -84,86 +84,167 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements>(
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-    // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
-    const unsigned num_parts = parts_params.get<unsigned>("count");
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_parts; i++) {
-      // Create a new parameter
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    // Fetch the parameters for this part's sub-methods.
+    Teuchos::ParameterList &compute_constraint_forcing_params =
+        valid_fixed_params.sublist("submethods").sublist("compute_constraint_forcing");
+    Teuchos::ParameterList &compute_constraint_projection_params =
+        valid_fixed_params.sublist("submethods").sublist("compute_constraint_projection");
+    Teuchos::ParameterList &compute_constraint_residual_params =
+        valid_fixed_params.sublist("submethods").sublist("compute_constraint_residual");
+    Teuchos::ParameterList &compute_constraint_violation_params =
+        valid_fixed_params.sublist("submethods").sublist("compute_constraint_violation");
 
-      // Fetch the i'th part parameters
-      Teuchos::ParameterList &part_params = parts_params.sublist("input_part_" + std::to_string(i));
-      const std::string part_name = part_params.get<std::string>("name");
+    // Collect and merge the submethod requirements.
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    const std::string compute_constraint_forcing_name = compute_constraint_forcing_params.get<std::string>("name");
+    const std::string compute_constraint_projection_name = compute_constraint_projection_params.get<std::string>("name");
+    const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
+    const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
+    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_forcing_name, compute_constraint_forcing_params));
+    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_projection_name, compute_constraint_projection_params));
+    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_residual_name, compute_constraint_residual_params));
+    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_violation_name, compute_constraint_violation_params));
+    return mesh_reqs;
+  }
 
-      // Add method-specific requirements.
-      part_requirements[i]->set_part_name(part_name);
-      part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+    Teuchos::ParameterList &compute_constraint_forcing_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_forcing", false);
+    Teuchos::ParameterList &compute_constraint_projection_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_projection", false);
+    Teuchos::ParameterList &compute_constraint_residual_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_residual", false);
+    Teuchos::ParameterList &compute_constraint_violation_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_violation", false);
 
-      // Fetch the parameters for this part's sub-methods.
-      Teuchos::ParameterList &part_map_rbf_to_rbv_params =
-          part_params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
-      Teuchos::ParameterList &part_map_rbv_to_sv_params =
-          part_params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
-      Teuchos::ParameterList &part_map_sf_to_rbf_params =
-          part_params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
-
-      // Validate the method params and fill in defaults.
-      const std::string rbf_to_rbv_class_id = part_map_rbf_to_rbv_params.get<std::string>("class_id");
-      part_map_rbf_to_rbv_params.validateParametersAndSetDefaults(
-          mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::get_valid_params(class_id));
-      const std::string rbv_to_sv_class_id = part_map_rbv_to_sv_params.get<std::string>("class_id");
-      part_map_rbv_to_sv_params.validateParametersAndSetDefaults(
-          mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::get_valid_params(class_id));
-      const std::string sf_to_rbf_class_id = part_map_sf_to_rbf_params.get<std::string>("class_id");
-      part_map_sf_to_rbf_params.validateParametersAndSetDefaults(
-          mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::get_valid_params(class_id));
-
-      // Merge the method requirements.
-      part_requirements[i]->merge(mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::get_part_requirements(
-          rbf_to_rbv_class_id, part_map_rbf_to_rbv_params));
-      part_requirements[i]->merge(mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::get_part_requirements(
-          rbv_to_sv_class_id, part_map_rbv_to_sv_params));
-      part_requirements[i]->merge(mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::get_part_requirements(
-          sf_to_rbf_class_id, part_map_sf_to_rbf_params));
+    if (compute_constraint_forcing_params->isParameter("name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      compute_constraint_forcing_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for computing the force induced by the constraints on their nodes.");
     }
 
-    return part_requirements;
+    if (map_rbv_to_sv_params.isParameter("name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      map_rbv_to_sv_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for projecting the constraints onto the feasable solution space.");
+    }
+
+    if (map_sf_to_rbf_params.isParameter("name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      map_sf_to_rbf_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for computing the global residual quantifying the constraint violation.");
+    }
+
+    if (map_sf_to_rbf_params.isParameter("name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      map_sf_to_rbf_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for computing the amount of violation of all constraints.");
+    }
+
+    const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
+    const std::string rbv_to_sv_name = map_rbv_to_sv_params.get<std::string>("name");
+    const std::string sf_to_rbf_name = map_sf_to_rbf_params.get<std::string>("name");
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(rbf_to_rbv_name, &map_rbf_to_rbv_params);
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(rbv_to_sv_name, &map_rbv_to_sv_params);
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(sf_to_rbf_name, &map_sf_to_rbf_params);
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_params;
-    Teuchos::ParameterList &method_params = default_fixed_params.sublist(
-        "methods", false, "Sublist that defines the sub-methods and their parameters.");
-    kernel_params.sublist(
-        "map_rigid_body_force_to_rigid_body_velocity", false,
-        "Sublist that defines the parameters for mapping from rigid body force to rigid body velocity.");
-    kernel_params.sublist(
-        "map_rigid_body_velocity_to_surface_velocity", false,
-        "Sublist that defines the parameters for mapping from rigid body velocity to surface velocity.");
-    kernel_params.sublist("map_surface_force_to_rigid_body_force", false,
-                          "Sublist that defines the parameters for mapping from surface force to rigid body force.");
-    return default_fixed_params;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+    Teuchos::ParameterList &compute_constraint_forcing_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_forcing", false);
+    Teuchos::ParameterList &compute_constraint_projection_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_projection", false);
+    Teuchos::ParameterList &compute_constraint_residual_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_residual", false);
+    Teuchos::ParameterList &compute_constraint_violation_params =
+        part_params.sublist("submethods", false).sublist("compute_constraint_violation", false);
+
+    if (compute_constraint_forcing_params->isParameter("name")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      compute_constraint_forcing_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for computing the force induced by the constraints on their nodes.");
+    }
+
+    if (map_rbv_to_sv_params.isParameter("name")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      map_rbv_to_sv_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for projecting the constraints onto the feasable solution space.");
+    }
+
+    if (map_sf_to_rbf_params.isParameter("name")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      map_sf_to_rbf_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for computing the global residual quantifying the constraint violation.");
+    }
+
+    if (map_sf_to_rbf_params.isParameter("name")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
+                                 << "with a type other than std::string");
+    } else {
+      map_sf_to_rbf_params.set(
+          "name", std::string(default_map_rbf_to_rbv_name_),
+          "Name of the method for computing the amount of violation of all constraints.");
+    }
+
+    const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
+    const std::string rbv_to_sv_name = map_rbv_to_sv_params.get<std::string>("name");
+    const std::string sf_to_rbf_name = map_sf_to_rbf_params.get<std::string>("name");
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(rbf_to_rbv_name, &map_rbf_to_rbv_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(rbv_to_sv_name, &map_rbv_to_sv_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(sf_to_rbf_name, &map_sf_to_rbf_params);
   }
 
-  /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_params;
-    return default_mutable_params;
-  }
-
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other
+  /// \c MetaMethod.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);
   }
@@ -202,14 +283,17 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
   /// \brief The MetaData objects this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Method for mapping from rigid body force to rigid body velocity.
-  std::shared_ptr<mundy::meta::MetaMethodBase<void>> map_rigid_body_force_to_rigid_body_velocity_method_ptr_;
+  /// \brief Method for computing the force induced by the constraints on their nodes.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> compute_constraint_forcing_method_ptr_;
 
-  /// \brief Method for mapping from rigid body velocity to surface velocity.
-  std::shared_ptr<mundy::meta::MetaMethodBase<void>> map_rigid_body_velocity_to_surface_velocity_method_ptr_;
+  /// \brief Method for projecting the constraints onto the feasable solution space.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> compute_constraint_projection_method_ptr_;
 
-  /// \brief Method for mapping from surface force to rigid body force.
-  std::shared_ptr<mundy::meta::MetaMethodBase<void>> map_surface_force_to_rigid_body_force_method_ptr_;
+  /// \brief Method for computing the global residual quantifying the constraint violation.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> compute_constraint_residual_method_ptr_;
+
+  /// \brief Method for computing the amount of violation of all constraints.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> compute_constraint_violation_method_ptr_;
   //@}
 };  // NonSmoothLCP
 

@@ -70,6 +70,40 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
   //! \name MetaKernel interface implementation
   //@{
 
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
+  ///
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+
+    // Fill the requirements using the given parameter list.
+    std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
+    std::string radius_field_name = valid_fixed_params.get<std::string>("radius_field_name");
+    std::string aabb_field_name = valid_fixed_params.get<std::string>("aabb_field_name");
+
+    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs->set_part_name("SPHERE");
+    part_reqs->set_part_topology(stk::topology::PARTICLE);
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        aabb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
+
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_part_req(part_reqs);
+    return multibody_part_params;
+  }
+
+
   /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
