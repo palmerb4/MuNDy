@@ -90,14 +90,13 @@ class MapRigidBodyForceToRigidBodyVelocity
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements>(
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fetch the technique sublist and return its parameters.
     Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
@@ -106,18 +105,40 @@ class MapRigidBodyForceToRigidBodyVelocity
     return OurMethodFactory::get_part_requirements(technique_name, technique_params);
   }
 
-  /// \brief Get the default mutable parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_params;
-    default_fixed_params.sublist("technique", false,
-                                         "Sublist that defines the technique to use and its parameters.");
-    return default_fixed_params;
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = fixed_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+    }
+
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, technique_params);
   }
 
-  /// \brief Get the default mutable parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_params;
-    return default_mutable_params;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = mutable_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+    }
+
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, technique_params);
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other

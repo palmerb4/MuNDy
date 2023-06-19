@@ -39,11 +39,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
 
@@ -69,7 +69,7 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
 
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeMobility>;
 
-  template<typename ClassToRegister>
+  template <typename ClassToRegister>
   using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeMobility>;
   //@}
 
@@ -85,10 +85,9 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fetch the technique sublist and return its parameters.
     Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
@@ -97,56 +96,40 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
     return OurMethodFactory::get_part_requirements(technique_name, technique_params);
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_params;
-    default_fixed_params.sublist("technique", false,
-                                         "Sublist that defines the technique to use and its parameters.");
-    return default_fixed_params;
-  }
-
-  /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements).
-  static Teuchos::ParameterList details_static_get_valid_mutable_params() {
-    static Teuchos::ParameterList default_mutable_params;
-    return default_mutable_params;
-  }
-
-  /// \brief Validate the default fixed parameters for this class (those that impact the mesh requirements) and set
-  /// their defaults.
-  ///
-  /// The only required parameter is "enabled_multibody_type_names" which must specify the name of at least one
-  /// multibody type to enable. The compute_obb kernel associated with this type must be registered with our kernel
-  /// factory.
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
-    Teuchos::ParameterList params = *fixed_params_ptr;
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        params.isParameter("enabled_multibody_type_names"), std::invalid_argument,
-        "ComputeMobility: The provided parameter list must include the set of enabled multibody type names.");
-    Teuchos::Array &enabled_multibody_type_names =
-        params.get<Teuchos::Array<std::string>>("enabled_multibody_type_names");
-    TEUCHOS_TEST_FOR_EXCEPTION(enabled_multibody_type_names.size() != 0, std::invalid_argument,
-                               "ComputeMobility: The enabled multibody type names must not be empty.");
-
-    Teuchos::ParameterList &kernel_params =
-        fixed_params_ptr->sublist("kernels", false).sublist("compute_obb", false);
-    for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = fixed_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
-          mundy::multibody::Factory::is_valid(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeMobility: Failed to find a multibody type with name (" << enabled_multibody_type_name << ").");
-      TEUCHOS_TEST_FOR_EXCEPTION(
-          OurKernelFactory::is_valid_key(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeMobility: Failed to find a compute_obb kernel associated with the provided multibody type name ("
-              << enabled_multibody_type_name << ").");
-      Teuchos::ParameterList &multibody_params = kernel_params.sublist(enabled_multibody_type_name, false);
-      OurKernelFactory::validate_fixed_parameters_and_set_defaults(enabled_multibody_type_name, multibody_params);
+          valid_type, std::invalid_argument,
+          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
     }
+
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, technique_params);
   }
 
-  /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements) and
-  /// set their defaults.
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = mutable_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+    }
+
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, technique_params);
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
@@ -176,6 +159,12 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_technique_name_ = "RIGID_BODY_MOTION";
+  //@}
+
   //! \name Internal members
   //@{
 

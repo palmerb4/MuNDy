@@ -672,9 +672,6 @@ TO AVOID RACE CONDITIONS, MULTIBODY TYPES SHOULD NOT HAVE INHERITANCE.
 
 
 Using a fast id instead of a string seems tempting for choosing our kernels but the user needs to specify the kernel name in the
-parameters, which means that the identifier needs to a string. 
-
-Even more importantly, once someone registers a kernel with a certain multibody type, that kernel cannot be replaced. I'm not sure how to 
-resolve this and still have kernels automatically associated with a certain multibody type. Can registration be removed?
+parameters, which means that the identifier needs to a string. We could overcome this with a map from string multibody type to fast id.
 
 Part/Field/Mesh requirements need a way to take in any number of requirements into their parameter_list constructor. This can't happen until I figure out Meulu's parser.

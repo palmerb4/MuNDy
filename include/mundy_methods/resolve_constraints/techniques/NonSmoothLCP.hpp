@@ -194,7 +194,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "RIGID_BODY_MOTION";
+  static constexpr std::string_view class_identifier_ = "NON_SMOOTH_LCP";
 
   /// \brief The BulkData objects this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

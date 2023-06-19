@@ -65,7 +65,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   /// \note Fixed parameters are those that change the part requirements.
-  virtual std::vector<std::shared_ptr<MeshRequirements>> get_part_requirements(
+  virtual std::shared_ptr<MeshRequirements> get_part_requirements(
       const Teuchos::ParameterList &fixed_params) const = 0;
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
@@ -82,7 +82,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
   //@{
 
   /// \brief Set the mutable parameters. If a valid parameter is not provided, we use the default value.
-  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) const = 0;
+  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) = 0;
   //@}
 
   //! \name Actions
@@ -131,7 +131,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::vector<std::shared_ptr<MeshRequirements>> get_part_requirements(
+  std::shared_ptr<MeshRequirements> get_part_requirements(
       const Teuchos::ParameterList &fixed_params) const final;
 
   /// \brief Get the requirements that this \c HasMeshRequirementsAndIsRegisterable imposes upon each input part.
@@ -142,7 +142,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<MeshRequirements>> static_get_mesh_requirements(
+  static std::shared_ptr<MeshRequirements> static_get_mesh_requirements(
       const Teuchos::ParameterList &fixed_params) {
     return DerivedClass::details_static_get_mesh_requirements(fixed_params);
   }
@@ -199,7 +199,7 @@ class HasMeshRequirementsAndIsRegisterable
 // \name Getters
 //{
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-std::vector<std::shared_ptr<MeshRequirements>>
+std::shared_ptr<MeshRequirements>
 HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_part_requirements(
     const Teuchos::ParameterList &fixed_params) const {
   return static_get_mesh_requirements(fixed_params);

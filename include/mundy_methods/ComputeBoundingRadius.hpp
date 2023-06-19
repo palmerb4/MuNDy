@@ -39,11 +39,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
 
@@ -69,7 +69,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeBoundingRadius>;
 
-  template<typename ClassToRegister>
+  template <typename ClassToRegister>
   using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeBoundingRadius>;
   //@}
 
@@ -85,58 +85,76 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
+    const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
-    // This method itself does not impose requirements, but the kernels might.
-    Teuchos::Array &enabled_multibody_type_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_multibody_type_names");
-    Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist("kernels").sublist("compute_bounding_radius");
-    for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
-      Teuchos::ParameterList &multibody_params = kernel_params.sublist(enabled_multibody_type_name);
-      mundy::multibody::Factory::declare_mesh_requirements(enabled_multibody_type_name, meta_data_ptr,
-                                                           multibody_params);
+    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
+    for (size_t i = 0; i < num_specified_kernels; i++) {
+      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+      const std::string kernel_name = kernel_params.get<std::string>("name");
+      mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
     }
+
+    return mesh_requirements_ptr;
   }
-  /// \brief Validate the default fixed parameters for this class (those that impact the mesh requirements) and set
-  /// their defaults.
-  ///
-  /// The only required parameter is "enabled_multibody_type_names" which must specify the name of at least one
-  /// multibody type to enable. The compute_bounding_radius kernel associated with this type must be registered with our
-  /// kernel factory.
+
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
     Teuchos::ParameterList params = *fixed_params_ptr;
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        params.isParameter("enabled_multibody_type_names"), std::invalid_argument,
-        "ComputeBoundingRadius: The provided parameter list must include the set of enabled multibody type names.");
-    Teuchos::Array &enabled_multibody_type_names =
-        params.get<Teuchos::Array<std::string>>("enabled_multibody_type_names");
-    TEUCHOS_TEST_FOR_EXCEPTION(enabled_multibody_type_names.size() != 0, std::invalid_argument,
-                               "ComputeBoundingRadius: The enabled multibody type names must not be empty.");
 
-    Teuchos::ParameterList &kernel_params =
-        fixed_params_ptr->sublist("kernels", false).sublist("compute_bounding_radius", false);
-    for (const auto enabled_multibody_type_name : enabled_multibody_type_names) {
-      TEUCHOS_TEST_FOR_EXCEPTION(
-          mundy::multibody::Factory::is_valid(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeBoundingRadius: Failed to find a multibody type with name (" << enabled_multibody_type_name << ").");
-      TEUCHOS_TEST_FOR_EXCEPTION(
-          OurKernelFactory::is_valid_key(enabled_multibody_type_name), std::invalid_argument,
-          "ComputeBoundingRadius: Failed to find a compute_bounding_radius kernel associated with the "
-          "provided multibody type name ("
-              << enabled_multibody_type_name << ").");
-      Teuchos::ParameterList &multibody_params = kernel_params.sublist(enabled_multibody_type_name, false);
-      OurKernelFactory::validate_fixed_parameters_and_set_defaults(enabled_multibody_type_name, multibody_params);
+    if (params.isSublist("kernels")) {
+      // Only validate and fill parameters for the given kernels.
+      Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", true);
+      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
+      for (size_t i = 0; i < num_specified_kernels; i++) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+        const std::string kernel_name = kernel_params.get<std::string>("name");
+        OurKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, &kernel_params);
+      }
+    } else {
+      // Validate and fill parameters for any kernel in our registry.
+      Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", false);
+      const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
+      kernels_sublist.set("count", num_specified_kernels);
+      int i = 0;
+      for (auto &key : OurKernelFactory::get_keys()) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
+        kernel_params.set("name", key);
+        OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
+        i++;
+      }
     }
   }
 
-  /// \brief Get the default mutable parameters for this class (those that do not impact the mesh requirements) and
-  /// set their defaults.
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+    if (mutable_params_ptr->isSublist("kernels")) {
+      // Only validate and fill parameters for the given kernels.
+      Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);
+      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
+      for (size_t i = 0; i < num_specified_kernels; i++) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+        const std::string kernel_name = kernel_params.get<std::string>("name");
+        OurKernelFactory::validate_mutable_parameters_and_set_defaults(kernel_name, &kernel_params);
+      }
+    } else {
+      // Validate and fill parameters for any kernel in our registry.
+      Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", false);
+      const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
+      kernels_sublist.set("count", num_specified_kernels);
+      int i = 0;
+      for (auto &key : OurKernelFactory::get_keys()) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
+        kernel_params.set("name", key);
+        OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
+        i++;
+      }
+    }
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -178,13 +196,14 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
   /// \brief The MetaData objects this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of parts that this method acts on.
-  size_t num_parts_ = 0;
+  /// \brief Number of active multibody types.
+  size_t num_multibody_types_ = 0;
 
-  /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
+  /// \brief Vector of pointers to the active multibody parts this class acts upon.
+  std::vector<stk::mesh::Part *> multibody_part_ptr_vector_;
 
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_bounding_sphere_kernel_ptrs_;
+  /// \brief Vector of kernels, one for each active multibody part.
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> multibody_kernel_ptrs_;
   //@}
 };  // ComputeBoundingRadius
 

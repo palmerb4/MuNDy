@@ -177,8 +177,8 @@ class MeshRequirements {
     //   const bool valid_type =
     //       parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::ParallelMachine>("communicator");
     //   TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-    //                              "MeshRequirements: Type error. Given a parameter with name 'communicator' but with a "
-    //                              "type other than stk::ParallelMachine");
+    //                              "MeshRequirements: Type error. Given a parameter with name 'communicator' but with a
+    //                              " "type other than stk::ParallelMachine");
     // } else {
     //   parameter_list_ptr->set("communicator", default_communicator_, "MPI communicator to be used by STK.");
     // }

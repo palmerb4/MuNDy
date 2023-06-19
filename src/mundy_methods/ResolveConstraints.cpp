@@ -75,7 +75,7 @@ ComputeMobility::ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr,
 //{
 
 Teuchos::ParameterList ComputeMobility::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) const {
+    const Teuchos::ParameterList &mutable_params) {
   // Store the input parameters, use default parameters for any parameter not given.
   // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
   Teuchos::ParameterList valid_mutable_params = mutable_params;

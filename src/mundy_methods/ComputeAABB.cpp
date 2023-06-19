@@ -29,6 +29,7 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -77,8 +78,7 @@ ComputeAABB::ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuch
 // \name MetaMethod interface implementation
 //{
 
-void ComputeAABB::set_mutable_params(
-    [[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
+void ComputeAABB::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
 }
 //}
 
@@ -89,13 +89,18 @@ void ComputeAABB::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
+
     stk::mesh::Selector locally_owned_intersection_with_part_i =
-        meta_data_ptr_->locally_owned_part() & *multibody_part_ptr_i & input_selector;
-    stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_intersection_with_part_i,
-        [&multibody_kernel_ptr_i]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          multibody_kernel_ptr_i->execute(element);
-        });
+        stk::mesh::Selector(meta_data_ptr_->locally_owned_part());
+    locally_owned_intersection_with_part_i &= stk::mesh::Selector(*multibody_part_ptr_i);
+    locally_owned_intersection_with_part_i &= input_selector;
+
+    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
+                                   stk::topology::ELEM_RANK, locally_owned_intersection_with_part_i,
+                                   [&multibody_kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                             const stk::mesh::Entity &element) {
+                                     multibody_kernel_ptr_i->execute(element);
+                                   });
   }
 }
 //}
