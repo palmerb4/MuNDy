@@ -86,18 +86,19 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
 
     // Fill the requirements using the given parameter list.
     // For now, we allow this method to assign these fields to the entire mesh.
-    // TODO (palmerb4): Should we restrict ourselves to just the multibody types? If so, how and what are the reprocussions?
+    // TODO (palmerb4): Should we restrict ourselves to just the multibody types? If so, how and what are the
+    // reprocussions?
     std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
     std::string node_omega_field_name_name = valid_fixed_params.get<std::string>("node_omega_field_name_name");
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
-    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
-    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_omega_field_name_name, stk::topology::NODE_RANK, 3, 1));
+    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
 
     return mesh_reqs;
   }
@@ -110,21 +111,21 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'node_coordinate_field_name' but "
-                                 << "with a type other than std::string");
+                                     << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the node's spatial coordinate.");
     }
 
     if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'node_velocity_field_name' but "
-                                 << "with a type other than std::string");
+                                     << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set(
-          "node_velocity_field_name", std::string(default_node_velocity_field_name_),
-        "Name of the node field containing the node's translational velocity.");
+      fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
+                            "Name of the node field containing the node's translational velocity.");
     }
 
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
@@ -134,7 +135,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
                                  "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
-        "Name of the node field containing the node's rotational velocity.");
+                            "Name of the node field containing the node's rotational velocity.");
     }
   }
 
@@ -145,10 +146,9 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned double>("time_step_size");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'buffer_distance' but "
-                                 << "with a type other than unsigned double");
+                                     << "with a type other than unsigned double");
     } else {
-      mutable_params_ptr->set("time_step_size", default_time_step_size_,
-                              "The numerical timestep size.");
+      mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
     }
   }
 

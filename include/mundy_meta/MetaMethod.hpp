@@ -54,7 +54,7 @@ namespace meta {
 template <typename ReturnType, typename RegistrationType = std::string>
 class MetaMethodBase
     : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaMethodBase<ReturnType, RegistrationType>,
-                                                                   RegistrationType> {
+                                                              RegistrationType> {
  public:
   //! \name Setters
   //@{
@@ -94,10 +94,11 @@ class MetaMethodBase
 /// \tparam DerivedMetaMethod_t A class derived from \c MetaMethod that implements the desired interface.
 /// \tparam RegistrationType_t The type of this class's identifier.
 template <typename ReturnType_t, class DerivedMetaMethod_t, typename RegistrationType_t = std::string>
-class MetaMethod : virtual public MetaMethodBase<ReturnType_t, RegistrationType_t>,
-                   public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t, RegistrationType_t>,
-                                                               MetaMethodBase<ReturnType_t, RegistrationType_t>,
-                                                               RegistrationType_t> {
+class MetaMethod
+    : virtual public MetaMethodBase<ReturnType_t, RegistrationType_t>,
+      public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t, RegistrationType_t>,
+                                                  MetaMethodBase<ReturnType_t, RegistrationType_t>,
+                                                  RegistrationType_t> {
  public:
   //! \name Typedefs
   //@{

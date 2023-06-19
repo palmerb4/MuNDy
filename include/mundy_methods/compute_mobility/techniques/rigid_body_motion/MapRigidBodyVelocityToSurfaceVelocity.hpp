@@ -40,11 +40,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
 
 namespace mundy {
@@ -80,7 +80,8 @@ class MapRigidBodyVelocityToSurfaceVelocity
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>;
 
   template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, MapRigidBodyVelocityToSurfaceVelocity>;
+  using OurKernelRegistry =
+      mundy::meta::MetaKernelRegistry<void, ClassToRegister, MapRigidBodyVelocityToSurfaceVelocity>;
   //@}
 
   //! \name MetaMethod interface implementation

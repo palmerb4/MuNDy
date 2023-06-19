@@ -24,12 +24,12 @@
 /// \brief Declaration of the MetaData class
 
 // C++ core libs
+#include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <typeindex>    // for std::type_index
 #include <vector>       // for std::vector
-#include <map>          // for std::map
 
 // Trilinos libs
 #include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field

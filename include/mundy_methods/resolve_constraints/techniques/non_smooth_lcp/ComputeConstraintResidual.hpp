@@ -39,11 +39,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
 namespace mundy {
@@ -68,8 +68,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
   ComputeConstraintResidual() = delete;
 
   /// \brief Constructor
-  ComputeConstraintResidual(mundy::mesh::BulkData *const bulk_data_ptr,
-                            const Teuchos::ParameterList &fixed_params);
+  ComputeConstraintResidual(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name Typedefs
@@ -78,8 +77,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintResidual>;
 
   template <typename ClassToRegister>
-  using OurKernelRegistry =
-      mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeConstraintResidual>;
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeConstraintResidual>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -100,7 +98,8 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
     // Fill the requirements using the given parameter list.
     // For now, we allow this method to assign these fields to the entire mesh.
     // TODO (palmerb4): This should only apply to constraint-type multibody types.
-    std::string element_constraint_violation_field_name = valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
+    std::string element_constraint_violation_field_name =
+        valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -116,11 +115,13 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "ComputeConstraintResidual: Type error. Given a parameter with name 'element_constraint_violation_field_name' but "
-                                 << "with a type other than std::string");
+                                 "ComputeConstraintResidual: Type error. Given a parameter with name "
+                                 "'element_constraint_violation_field_name' but "
+                                     << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("element_constraint_violation_field_name", std::string(default_element_constraint_violation_field_name_),
-                                     "Name of the element field containing the constraint's violation measure.");
+      fixed_params_ptr->set("element_constraint_violation_field_name",
+                            std::string(default_element_constraint_violation_field_name_),
+                            "Name of the element field containing the constraint's violation measure.");
     }
   }
 

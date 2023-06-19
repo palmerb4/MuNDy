@@ -129,8 +129,8 @@ class MetaFactory {
   /// \param key [in] A key corresponding to a registered class.
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A default fixed
   /// parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<MeshRequirements> get_mesh_requirements(
-      const RegistrationType& key, const Teuchos::ParameterList& fixed_params) {
+  static std::shared_ptr<MeshRequirements> get_mesh_requirements(const RegistrationType& key,
+                                                                 const Teuchos::ParameterList& fixed_params) {
     return get_requirement_generator_map()[key](fixed_params);
   }
 

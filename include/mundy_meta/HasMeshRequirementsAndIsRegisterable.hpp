@@ -65,8 +65,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   /// \note Fixed parameters are those that change the part requirements.
-  virtual std::shared_ptr<MeshRequirements> get_part_requirements(
-      const Teuchos::ParameterList &fixed_params) const = 0;
+  virtual std::shared_ptr<MeshRequirements> get_part_requirements(const Teuchos::ParameterList &fixed_params) const = 0;
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   virtual void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) const = 0;
@@ -131,8 +130,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::shared_ptr<MeshRequirements> get_part_requirements(
-      const Teuchos::ParameterList &fixed_params) const final;
+  std::shared_ptr<MeshRequirements> get_part_requirements(const Teuchos::ParameterList &fixed_params) const final;
 
   /// \brief Get the requirements that this \c HasMeshRequirementsAndIsRegisterable imposes upon each input part.
   ///
@@ -142,8 +140,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<MeshRequirements> static_get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<MeshRequirements> static_get_mesh_requirements(const Teuchos::ParameterList &fixed_params) {
     return DerivedClass::details_static_get_mesh_requirements(fixed_params);
   }
 

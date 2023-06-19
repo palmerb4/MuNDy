@@ -87,12 +87,12 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
     part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        obb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_req(
+        std::make_shared<mundy::meta::FieldRequirements<double>>(obb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
+    part_reqs->add_field_req(
+        std::make_shared<mundy::meta::FieldRequirements<double>>(radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
@@ -106,11 +106,10 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("obb_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'obb_field_name' but "
-                                 << "with a type other than std::string");
+                                     << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set(
-          "obb_field_name", std::string(default_obb_field_name_),
-        "Element field within which the output object-aligned boundary boxes will be written.");
+      fixed_params_ptr->set("obb_field_name", std::string(default_obb_field_name_),
+                            "Element field within which the output object-aligned boundary boxes will be written.");
     }
 
     if (fixed_params_ptr->isParameter("radius_field_name")) {
@@ -120,7 +119,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
                                  "with a type other than std::string");
     } else {
       fixed_params_ptr->set("radius_field_name", std::string(default_radius_field_name_),
-                                     "Name of the element field containing the sphere radius.");
+                            "Name of the element field containing the sphere radius.");
     }
 
     if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
@@ -128,10 +127,10 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_coordinate_field_name' but "
-                                 << "with a type other than std::string");
+                                     << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
-                                     "Name of the node field containing the coordinate of the sphere's center.");
+                            "Name of the node field containing the coordinate of the sphere's center.");
     }
   }
 
@@ -142,7 +141,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
-                                 << "with a type other than unsigned");
+                                     << "with a type other than unsigned");
     } else {
       mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
                               "Buffer distance to be added to the axis-aligned boundary box.");

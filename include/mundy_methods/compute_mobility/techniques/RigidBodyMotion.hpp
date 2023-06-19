@@ -125,34 +125,34 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
     if (map_rbf_to_rbv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity parameter with name 'name' but "
-                                 << "with a type other than std::string");
+                                 "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity "
+                                 "parameter with name 'name' but "
+                                     << "with a type other than std::string");
     } else {
-      map_rbf_to_rbv_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for mapping from rigid body force to rigid body velocity.");
+      map_rbf_to_rbv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                                "Name of the method for mapping from rigid body force to rigid body velocity.");
     }
 
     if (map_rbv_to_sv_params->isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity parameter with name 'name' but "
-                                 << "with a type other than std::string");
+                                 "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
+                                 "parameter with name 'name' but "
+                                     << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for mapping from rigid body velocity to surface velocity.");
+      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for mapping from rigid body velocity to surface velocity.");
     }
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for mapping from surface force to rigid body force.");
+      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for mapping from surface force to rigid body force.");
     }
 
     const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
@@ -176,34 +176,34 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
     if (map_rbf_to_rbv_params.isParameter("name")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity parameter with name 'name' but "
-                                 << "with a type other than std::string");
+                                 "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity "
+                                 "parameter with name 'name' but "
+                                     << "with a type other than std::string");
     } else {
-      map_rbf_to_rbv_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for mapping from rigid body force to rigid body velocity.");
+      map_rbf_to_rbv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                                "Name of the method for mapping from rigid body force to rigid body velocity.");
     }
 
     if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity parameter with name 'name' but "
-                                 << "with a type other than std::string");
+                                 "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
+                                 "parameter with name 'name' but "
+                                     << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for mapping from rigid body velocity to surface velocity.");
+      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for mapping from rigid body velocity to surface velocity.");
     }
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for mapping from surface force to rigid body force.");
+      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for mapping from surface force to rigid body force.");
     }
 
     const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");

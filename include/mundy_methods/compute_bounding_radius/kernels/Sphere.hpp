@@ -105,19 +105,19 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
                                  "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
                                  "with a type other than std::string");
     } else {
-      fixed_params_ptr->set(
-          "radius_field_name", std::string(default_radius_field_name_),
-                             "Name of the element field containing the sphere radius.");
+      fixed_params_ptr->set("radius_field_name", std::string(default_radius_field_name_),
+                            "Name of the element field containing the sphere radius.");
     }
 
     if (fixed_params_ptr->isParameter("bounding_sphere_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("bounding_sphere_field_name");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("bounding_sphere_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'bounding_sphere_field_name' but "
                                  "with a type other than std::string");
     } else {
       fixed_params_ptr->set("bounding_sphere_field_name", std::string(default_bounding_sphere_field_name_),
-                             "Name of the element field within which the output bounding radius will be written.");
+                            "Name of the element field within which the output bounding radius will be written.");
     }
   }
 
@@ -134,7 +134,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
                               "Buffer distance to be added to the bounding radius.");
     }
   }
-
 
   /// \brief Get the unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.

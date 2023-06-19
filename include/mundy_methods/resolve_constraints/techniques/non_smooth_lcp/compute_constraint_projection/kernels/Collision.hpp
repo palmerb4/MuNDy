@@ -86,7 +86,8 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    std::string element_lagrange_multiplier_field_name = valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+    std::string element_lagrange_multiplier_field_name =
+        valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("COLLISION");
@@ -104,13 +105,16 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("element_lagrange_multiplier_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_lagrange_multiplier_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Collision: Type error. Given a parameter with name 'element_lagrange_multiplier_field_name' but "
-                                 "with a type other than std::string");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_lagrange_multiplier_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Collision: Type error. Given a parameter with name 'element_lagrange_multiplier_field_name' but "
+          "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("element_lagrange_multiplier_field_name", std::string(default_element_lagrange_multiplier_field_name_),
-                                     "Name of the element field containing the constraint's Lagrange multiplier.");
+      fixed_params_ptr->set("element_lagrange_multiplier_field_name",
+                            std::string(default_element_lagrange_multiplier_field_name_),
+                            "Name of the element field containing the constraint's Lagrange multiplier.");
     }
   }
 
@@ -118,7 +122,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
   }
-  
+
   /// \brief Get the unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
   static std::string details_static_get_class_identifier() {

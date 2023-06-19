@@ -40,11 +40,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
 namespace mundy {
@@ -69,8 +69,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
   ComputeConstraintForcing() = delete;
 
   /// \brief Constructor
-  ComputeConstraintForcing(mundy::mesh::BulkData *const bulk_data_ptr,
-                           const Teuchos::ParameterList &fixed_params);
+  ComputeConstraintForcing(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name Typedefs
@@ -79,8 +78,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>;
 
   template <typename ClassToRegister>
-  using OurKernelRegistry =
-      mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeConstraintForcing>;
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeConstraintForcing>;
   //@}
 
   //! \name MetaMethod interface implementation

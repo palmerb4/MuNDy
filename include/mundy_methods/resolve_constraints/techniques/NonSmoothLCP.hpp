@@ -105,13 +105,18 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     // Collect and merge the submethod requirements.
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     const std::string compute_constraint_forcing_name = compute_constraint_forcing_params.get<std::string>("name");
-    const std::string compute_constraint_projection_name = compute_constraint_projection_params.get<std::string>("name");
+    const std::string compute_constraint_projection_name =
+        compute_constraint_projection_params.get<std::string>("name");
     const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
     const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_forcing_name, compute_constraint_forcing_params));
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_projection_name, compute_constraint_projection_params));
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_residual_name, compute_constraint_residual_params));
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_violation_name, compute_constraint_violation_params));
+    mesh_reqs->merge(
+        OurMethodFactory::get_part_requirements(compute_constraint_forcing_name, compute_constraint_forcing_params));
+    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_projection_name,
+                                                             compute_constraint_projection_params));
+    mesh_reqs->merge(
+        OurMethodFactory::get_part_requirements(compute_constraint_residual_name, compute_constraint_residual_params));
+    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_violation_name,
+                                                             compute_constraint_violation_params));
     return mesh_reqs;
   }
 
@@ -129,9 +134,10 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_forcing_params->isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
       compute_constraint_forcing_params.set(
           "name", std::string(default_map_rbf_to_rbv_name_),
@@ -140,20 +146,21 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for projecting the constraints onto the feasable solution space.");
+      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for projecting the constraints onto the feasable solution space.");
     }
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
       map_sf_to_rbf_params.set(
           "name", std::string(default_map_rbf_to_rbv_name_),
@@ -162,13 +169,13 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for computing the amount of violation of all constraints.");
+      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for computing the amount of violation of all constraints.");
     }
 
     const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
@@ -193,9 +200,10 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_forcing_params->isParameter("name")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
       compute_constraint_forcing_params.set(
           "name", std::string(default_map_rbf_to_rbv_name_),
@@ -204,20 +212,21 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for projecting the constraints onto the feasable solution space.");
+      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for projecting the constraints onto the feasable solution space.");
     }
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
       map_sf_to_rbf_params.set(
           "name", std::string(default_map_rbf_to_rbv_name_),
@@ -226,13 +235,13 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
+              << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
-          "Name of the method for computing the amount of violation of all constraints.");
+      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+                               "Name of the method for computing the amount of violation of all constraints.");
     }
 
     const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");

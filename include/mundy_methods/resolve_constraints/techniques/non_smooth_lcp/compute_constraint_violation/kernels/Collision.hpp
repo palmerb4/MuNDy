@@ -86,9 +86,12 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    std::string element_signed_separation_dist_field_name = valid_fixed_params.get<std::string>("element_signed_separation_dist_field_name");
-    std::string element_lagrange_multiplier_field_name = valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
-    std::string element_constraint_violation_field_name = valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
+    std::string element_signed_separation_dist_field_name =
+        valid_fixed_params.get<std::string>("element_signed_separation_dist_field_name");
+    std::string element_lagrange_multiplier_field_name =
+        valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+    std::string element_constraint_violation_field_name =
+        valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("COLLISION");
@@ -112,33 +115,40 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_signed_separation_dist_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Collision: Type error. Given a parameter with name 'element_signed_separation_dist_field_name' but "
-                                 << "with a type other than std::string");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Collision: Type error. Given a parameter with name 'element_signed_separation_dist_field_name' but "
+              << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("element_signed_separation_dist_field_name", std::string(default_element_signed_separation_dist_field_name_),
-        "Name of the element field containing the signed separation distance collision pairs.");
+      fixed_params_ptr->set("element_signed_separation_dist_field_name",
+                            std::string(default_element_signed_separation_dist_field_name_),
+                            "Name of the element field containing the signed separation distance collision pairs.");
     }
 
     if (fixed_params_ptr->isParameter("element_lagrange_multiplier_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_lagrange_multiplier_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Collision: Type error. Given a parameter with name 'element_lagrange_multiplier_field_name' but "
-                                 "with a type other than std::string");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_lagrange_multiplier_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Collision: Type error. Given a parameter with name 'element_lagrange_multiplier_field_name' but "
+          "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("element_lagrange_multiplier_field_name", std::string(default_element_lagrange_multiplier_field_name_),
-                                     "Name of the element field containing the constraint's Lagrange multiplier.");
+      fixed_params_ptr->set("element_lagrange_multiplier_field_name",
+                            std::string(default_element_lagrange_multiplier_field_name_),
+                            "Name of the element field containing the constraint's Lagrange multiplier.");
     }
 
     if (fixed_params_ptr->isParameter("element_constraint_violation_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Collision: Type error. Given a parameter with name 'element_constraint_violation_field_name' but "
-                                 << "with a type other than std::string");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Collision: Type error. Given a parameter with name 'element_constraint_violation_field_name' but "
+              << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set(
-          "element_constraint_violation_field_name", std::string(default_element_constraint_violation_field_name_),
-                                     "Name of the element field containing the constraint's violation measure.");
+      fixed_params_ptr->set("element_constraint_violation_field_name",
+                            std::string(default_element_constraint_violation_field_name_),
+                            "Name of the element field containing the constraint's violation measure.");
     }
   }
 
@@ -190,7 +200,6 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
   static const std::string class_identifier_ = "COLLISION";
-
 
   /// \brief The BulkData objects this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

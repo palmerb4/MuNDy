@@ -118,19 +118,19 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
                                  "Sphere: Type error. Given a parameter with name 'aabb_field_name' but "
                                  "with a type other than std::string");
     } else {
-      fixed_params_ptr->set(
-          "node_force_field_name", std::string(default_node_force_field_name_),
-                             "Name of the node field containing the force on the sphere's center.");
+      fixed_params_ptr->set("node_force_field_name", std::string(default_node_force_field_name_),
+                            "Name of the node field containing the force on the sphere's center.");
     }
 
     if (fixed_params_ptr->isParameter("node_torque_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_torque_field_name");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_torque_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_torque_field_name' but "
                                  "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_torque_field_name", std::string(default_node_torque_field_name_),
-                             "Name of the node field containing the torque on the sphere's center.");
+                            "Name of the node field containing the torque on the sphere's center.");
     }
 
     if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
@@ -141,12 +141,11 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
                                  "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
-                             "Name of the node field containing the translational velocity of the sphere's center.");
+                            "Name of the node field containing the translational velocity of the sphere's center.");
     }
 
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
                                  "with a type other than std::string");
@@ -163,11 +162,11 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
                                  "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coordinate_field_name", std::string(default_element_radius_field_name_),
-                             "Name of the element field containing the sphere's radius.");
+                            "Name of the element field containing the sphere's radius.");
     }
   }
   //@}
-  
+
  private:
   //! \name Default parameters
   //@{

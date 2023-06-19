@@ -106,7 +106,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("aabb_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'aabb_field_name' but "
-                                 << "with a type other than std::string");
+                                     << "with a type other than std::string");
     } else {
       fixed_params_ptr->set(
           "aabb_field_name", std::string(default_aabb_field_name_),
@@ -128,7 +128,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_coordinate_field_name' but "
-                                 << "with a type other than std::string");
+                                     << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
@@ -142,7 +142,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
-                                 << "with a type other than unsigned");
+                                     << "with a type other than unsigned");
     } else {
       mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
                               "Buffer distance to be added to the axis-aligned boundary box.");

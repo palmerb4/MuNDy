@@ -97,11 +97,10 @@ class MetaKWayKernelBase
 /// \tparam RegistrationType_t The type of this class's identifier.
 template <std::size_t K, typename ReturnType_t, class DerivedMetaKWayKernel_t,
           typename RegistrationType_t = std::string>
-class MetaKWayKernel
-    : virtual public MetaKWayKernelBase<K, ReturnType_t, RegistrationType_t>,
-      public HasMeshRequirementsAndIsRegisterable<MetaKWayKernel<K, ReturnType_t, DerivedMetaKWayKernel_t, RegistrationType_t>,
-                                                  MetaKWayKernelBase<K, ReturnType_t, RegistrationType_t>,
-                                                  RegistrationType_t> {
+class MetaKWayKernel : virtual public MetaKWayKernelBase<K, ReturnType_t, RegistrationType_t>,
+                       public HasMeshRequirementsAndIsRegisterable<
+                           MetaKWayKernel<K, ReturnType_t, DerivedMetaKWayKernel_t, RegistrationType_t>,
+                           MetaKWayKernelBase<K, ReturnType_t, RegistrationType_t>, RegistrationType_t> {
  public:
   //! \name Typedefs
   //@{

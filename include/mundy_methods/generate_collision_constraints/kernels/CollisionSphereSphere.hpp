@@ -91,18 +91,17 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
     part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        aabb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_req(
+        std::make_shared<mundy::meta::FieldRequirements<double>>(radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_req(
+        std::make_shared<mundy::meta::FieldRequirements<double>>(aabb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
     return multibody_part_params;
   }
-
 
   /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
   ///
@@ -111,8 +110,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c
   /// PartRequirements will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements>(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<mundy::meta::MeshRequirements>([[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::PARTICLE);
@@ -135,10 +133,9 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
         "aabb_field_name", std::string(default_aabb_field_name_),
         "Name of the element field within which the output axis-aligned boundary boxes will be written.");
     default_fixed_params.set("radius_field_name", std::string(default_radius_field_name_),
-                                     "Name of the element field containing the CollisionSphereSphere radius.");
-    default_fixed_params.set(
-        "node_coordinate_field_name", std::string(default_node_coord_field_name_),
-        "Name of the node field containing the coordinate of the CollisionSphereSphere's center.");
+                             "Name of the element field containing the CollisionSphereSphere radius.");
+    default_fixed_params.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+                             "Name of the node field containing the coordinate of the CollisionSphereSphere's center.");
     return default_fixed_params;
   }
 
@@ -149,7 +146,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
   static Teuchos::ParameterList details_static_get_valid_mutable_params() {
     static Teuchos::ParameterList default_mutable_params;
     default_mutable_params.set("buffer_distance", default_buffer_distance_,
-                                         "Buffer distance to be added to the axis-aligned boundary box.");
+                               "Buffer distance to be added to the axis-aligned boundary box.");
     return default_mutable_params;
   }
 
