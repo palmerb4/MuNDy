@@ -668,6 +668,8 @@ The current TODO:
 7. 
 
 
+TO AVOID RACE CONDITIONS, MULTIBODY TYPES SHOULD NOT HAVE INHERITANCE. 
+
 
 Using a fast id instead of a string seems tempting for choosing our kernels but the user needs to specify the kernel name in the
 parameters, which means that the identifier needs to a string. 

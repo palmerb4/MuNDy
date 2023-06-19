@@ -85,8 +85,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+    // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
@@ -119,7 +118,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
       }
     } else {
       // Validate and fill parameters for any kernel in our registry.
-      Teuchos::ParameterList &kernels_sublist = params.sublist("kernel_params", false);
+      Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", false);
       const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
       kernels_sublist.set("count", num_specified_kernels);
       int i = 0;
@@ -177,14 +176,14 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// \brief The MetaData objects this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of parts that this method acts on.
-  size_t num_parts_ = 0;
+  /// \brief Number of active multibody types.
+  size_t num_multibody_types_ = 0;
 
-  /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
+  /// \brief Vector of pointers to the active multibody parts this class acts upon.
+  std::vector<stk::mesh::Part *> multibody_part_ptr_vector_;
 
-  /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_aabb_kernel_ptrs_;
+  /// \brief Vector of kernels, one for each active multibody part.
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> multibody_kernel_ptrs_;
   //@}
 };  // ComputeAABB
 

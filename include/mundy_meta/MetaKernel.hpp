@@ -53,7 +53,7 @@ namespace meta {
 /// \tparam RegistrationType The type of this class's identifier.
 template <typename ReturnType, typename RegistrationType = std::string>
 class MetaKernelBase
-    : virtual public HasMeshRequirementsAndIsRegisterableInterface<MetaKernelBase<ReturnType, RegistrationType>,
+    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKernelBase<ReturnType, RegistrationType>,
                                                                    RegistrationType> {
  public:
   //! \name Setters
@@ -96,7 +96,9 @@ class MetaKernelBase
 template <typename ReturnType_t, class DerivedMetaKernel_t, typename RegistrationType_t = std::string>
 class MetaKernel
     : virtual public MetaKernelBase<ReturnType_t, RegistrationType_t>,
-      public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType_t, DerivedMetaKernel_t>, RegistrationType_t> {
+      public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType_t, DerivedMetaKernel_t, RegistrationType_t>, 
+                                                  MetaKernelBase<ReturnType_t, RegistrationType_t>,
+                                                  RegistrationType_t> {
  public:
   //! \name Typedefs
   //@{

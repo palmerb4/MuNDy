@@ -53,7 +53,7 @@ namespace meta {
 /// \tparam RegistrationType The type of this class's identifier.
 template <typename ReturnType, typename RegistrationType = std::string>
 class MetaMethodBase
-    : virtual public HasMeshRequirementsAndIsRegisterableInterface<MetaMethodBase<ReturnType, RegistrationType>,
+    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaMethodBase<ReturnType, RegistrationType>,
                                                                    RegistrationType> {
  public:
   //! \name Setters
@@ -95,7 +95,7 @@ class MetaMethodBase
 /// \tparam RegistrationType_t The type of this class's identifier.
 template <typename ReturnType_t, class DerivedMetaMethod_t, typename RegistrationType_t = std::string>
 class MetaMethod : virtual public MetaMethodBase<ReturnType_t, RegistrationType_t>,
-                   public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t>,
+                   public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t, RegistrationType_t>,
                                                                MetaMethodBase<ReturnType_t, RegistrationType_t>,
                                                                RegistrationType_t> {
  public:

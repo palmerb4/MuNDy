@@ -81,8 +81,8 @@ class MetaFactory {
   //@{
 
   using PolymorphicBaseType = PolymorphicBaseType_t;
-  using RegistrationType = RegistrationType_t;
   using RegistryIdentifier = RegistryIdentifier_t;
+  using RegistrationType = RegistrationType_t;
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// class.
@@ -94,7 +94,7 @@ class MetaFactory {
   using NewRequirementsGenerator = std::function<std::shared_ptr<MeshRequirements>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that accepts a Teuchos::ParameterList pointer.
-  using NewParamsValidatorGenerator = std::function<void(Teuchos::ParameterList const *)>;
+  using NewParamsValidatorGenerator = std::function<void(Teuchos::ParameterList const*)>;
   //@}
 
   //! \name Getters
@@ -148,7 +148,8 @@ class MetaFactory {
     get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
   }
 
-  /// \brief Vvalidate_fixed_parameters_and_set_defaultsalidate the mutable parameters and use defaults for unset parameters.
+  /// \brief Vvalidate_fixed_parameters_and_set_defaultsalidate the mutable parameters and use defaults for unset
+  /// parameters.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
@@ -276,12 +277,11 @@ class MetaFactory {
 /// \brief Partial specialization for \c MetaMethods.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
 using MetaMethodFactory =
-    MetaFactory<MetaMethodBase<ReturnType, RegistryIdentifier>, RegistryIdentifier, RegistrationType>;
+    MetaFactory<MetaMethodBase<ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaMethods.
 template <typename ReturnType, typename RegistrationType = std::string>
-using GlobalMetaMethodFactory =
-    MetaFactory<MetaMethodBase<ReturnType, GlobalIdentifier>, GlobalIdentifier, RegistrationType>;
+using GlobalMetaMethodFactory = MetaMethodFactory<ReturnType, GlobalIdentifier, RegistrationType>;
 //@}
 
 /// \name Type specializations for generating \c MetaKernels.
@@ -290,62 +290,58 @@ using GlobalMetaMethodFactory =
 /// \brief Partial specialization for \c MetaKernels.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
 using MetaKernelFactory =
-    MetaFactory<MetaKernelBase<ReturnType, RegistryIdentifier>, RegistryIdentifier, RegistrationType>;
+    MetaFactory<MetaKernelBase<ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for \c MetaKernels, identified by a mundy multibody type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaMultibodyKernelFactory = MetaKernelFactory<mundy::multibody::multibody_t, RegistryIdentifier>;
+using MetaMultibodyKernelFactory = MetaKernelFactory<ReturnType, RegistryIdentifier, mundy::multibody::multibody_t>;
 
 /// \brief Partial specialization for \c MetaKernels, identified by an stk topology type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaTopologyKernelFactory = MetaKernelFactory<stk::topology::topology_t, RegistryIdentifier>;
+using MetaTopologyKernelFactory = MetaKernelFactory<ReturnType, RegistryIdentifier, stk::topology::topology_t>;
 
 /// \brief Partial specialization for global \c MetaKernels.
 template <typename ReturnType, typename RegistrationType = std::string>
-using GlobalMetaKernelFactory =
-    MetaFactory<MetaKernelBase<ReturnType, GlobalIdentifier>, GlobalIdentifier, RegistrationType>;
+using GlobalMetaKernelFactory = MetaKernelFactory<ReturnType, GlobalIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaKernels, identified by a mundy multibody type.
 template <typename ReturnType>
-using GlobalMetaMultibodyKernelFactory = MetaKernelFactory<mundy::multibody::multibody_t, GlobalIdentifier>;
+using GlobalMetaMultibodyKernelFactory = GlobalMetaKernelFactory<ReturnType, mundy::multibody::multibody_t>;
 
 /// \brief Partial specialization for global \c MetaKernels, identified by an stk topology type.
 template <typename ReturnType>
-using GlobalMetaTopologyKernelFactory = MetaKernelFactory<stk::topology::topology_t, GlobalIdentifier>;
+using GlobalMetaTopologyKernelFactory = GlobalMetaKernelFactory<ReturnType, stk::topology::topology_t>;
 //@}
 
 /// \name Type specializations for generating \c MetaKWayKernels.
 //@{
 
-/// \brief Partial specialization for \c MetaKWayKernel.
+/// \brief Partial specialization for \c MetaKWayKernels.
 template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
 using MetaKWayKernelFactory =
-    MetaFactory<MetaKWayKernelBase<K, ReturnType, RegistryIdentifier>, RegistryIdentifier, RegistrationType>;
+    MetaFactory<MetaKWayKernelBase<K, ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for \c MetaKWayKernels, identified by a mundy multibody type.
 template <std::size_t K, typename ReturnType, typename RegistryIdentifier>
-using MetaKWayMultibodyKernelFactory =
-    MetaKWayKernelFactory<K, std::array<mundy::multibody::multibody_t, K>, RegistryIdentifier>;
+using MetaMultibodyKWayKernelFactory =
+    MetaKWayKernelFactory<K, ReturnType, RegistryIdentifier, mundy::multibody::multibody_t>;
 
 /// \brief Partial specialization for \c MetaKWayKernels, identified by an stk topology type.
 template <std::size_t K, typename ReturnType, typename RegistryIdentifier>
-using MetaKWayTopologyKernelFactory =
-    MetaKWayKernelFactory<K, std::array<stk::topology::topology_t, K>, RegistryIdentifier>;
+using MetaTopologyKWayKernelFactory =
+    MetaKWayKernelFactory<K, ReturnType, RegistryIdentifier, stk::topology::topology_t>;
 
-/// \brief Partial specialization for \c MetaKWayKernel.
+/// \brief Partial specialization for global \c MetaKWayKernels.
 template <std::size_t K, typename ReturnType, typename RegistrationType = std::string>
-using GlobalMetaKWayKernelFactory =
-    MetaFactory<MetaKWayKernelBase<K, ReturnType, GlobalIdentifier>, GlobalIdentifier, RegistrationType>;
+using GlobalMetaKWayKernelFactory = MetaKWayKernelFactory<K, ReturnType, GlobalIdentifier, RegistrationType>;
 
-/// \brief Partial specialization for \c MetaKWayKernels, identified by a mundy multibody type.
+/// \brief Partial specialization for global \c MetaKWayKernels, identified by a mundy multibody type.
 template <std::size_t K, typename ReturnType>
-using GlobalMetaKWayMultibodyKernelFactory =
-    MetaKWayKernelFactory<K, std::array<mundy::multibody::multibody_t, K>, GlobalIdentifier>;
+using GlobalMetaMultibodyKWayKernelFactory = GlobalMetaKWayKernelFactory<K, ReturnType, mundy::multibody::multibody_t>;
 
-/// \brief Partial specialization for \c MetaKWayKernels, identified by an stk topology type.
+/// \brief Partial specialization for global \c MetaKWayKernels, identified by an stk topology type.
 template <std::size_t K, typename ReturnType>
-using GlobalMetaKWayTopologyKernelFactory =
-    MetaKWayKernelFactory<K, std::array<stk::topology::topology_t, K>, GlobalIdentifier>;
+using GlobalMetaTopologyKWayKernelFactory = GlobalMetaKWayKernelFactory<K, ReturnType, stk::topology::topology_t>;
 //@}
 
 /// \name Type specializations for generating \c MetaTwoWayKernels.
@@ -353,33 +349,27 @@ using GlobalMetaKWayTopologyKernelFactory =
 
 /// \brief Partial specialization for \c MetaTwoWayKernels.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
-using MetaTwoWayKernelFactory =
-    MetaFactory<MetaTwoWayKernelBase<ReturnType, RegistryIdentifier>, RegistryIdentifier, RegistrationType>;
+using MetaTwoWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
 
-/// \brief Partial specialization for \c MetaTwoWayKernels, identified by two mundy multibody types.
+/// \brief Partial specialization for \c MetaTwoWayKernels, identified by a mundy multibody type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaMultibodyTwoWayKernelFactory =
-    MetaTwoWayKernelFactory<std::array<mundy::multibody::multibody_t, 2>, RegistryIdentifier>;
+using MetaMultibodyTwoWayKernelFactory = MetaMultibodyKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
 
-/// \brief Partial specialization for \c MetaTwoWayKernels, identified by a two stk topology types.
+/// \brief Partial specialization for \c MetaTwoWayKernels, identified by an stk topology type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaTopologyTwoWayKernelFactory =
-    MetaTwoWayKernelFactory<std::array<mundy::multibody::multibody_t, 2>, RegistryIdentifier>;
+using MetaTopologyTwoWayKernelFactory = MetaTopologyKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
 
-/// \brief Partial specialization for \c MetaTwoWayKernels.
+/// \brief Partial specialization for global \c MetaTwoWayKernels.
 template <typename ReturnType, typename RegistrationType = std::string>
-using GlobalMetaTwoWayKernelFactory =
-    MetaFactory<MetaTwoWayKernelBase<ReturnType, GlobalIdentifier>, GlobalIdentifier, RegistrationType>;
+using GlobalMetaTwoWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
 
-/// \brief Partial specialization for \c MetaTwoWayKernels, identified by two mundy multibody types.
+/// \brief Partial specialization for global \c MetaTwoWayKernels, identified by a mundy multibody type.
 template <typename ReturnType>
-using GlobalMetaMultibodyTwoWayKernelFactory =
-    MetaTwoWayKernelFactory<std::array<mundy::multibody::multibody_t, 2>, GlobalIdentifier>;
+using GlobalMetaMultibodyTwoWayKernelFactory = GlobalMetaMultibodyKWayKernelFactory<2, ReturnType>;
 
-/// \brief Partial specialization for \c MetaTwoWayKernels, identified by a two stk topology types.
+/// \brief Partial specialization for global \c MetaTwoWayKernels, identified by an stk topology type.
 template <typename ReturnType>
-using GlobalMetaTopologyTwoWayKernelFactory =
-    MetaTwoWayKernelFactory<std::array<mundy::multibody::multibody_t, 2>, GlobalIdentifier>;
+using GlobalMetaTopologyTwoWayKernelFactory = GlobalMetaTopologyKWayKernelFactory<2, ReturnType>;
 //@}
 
 /// \name Type specializations for generating \c MetaThreeWayKernels.
@@ -387,33 +377,27 @@ using GlobalMetaTopologyTwoWayKernelFactory =
 
 /// \brief Partial specialization for \c MetaThreeWayKernels.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
-using MetaThreeWayKernelFactory =
-    MetaFactory<MetaThreeWayKernelBase<ReturnType, RegistryIdentifier>, RegistryIdentifier, RegistrationType>;
+using MetaThreeWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
 
-/// \brief Partial specialization for \c MetaThreeWayKernels, identified by three mundy multibody types.
+/// \brief Partial specialization for \c MetaThreeWayKernels, identified by a mundy multibody type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaMultibodyThreeWayKernelFactory =
-    MetaThreeWayKernelFactory<std::array<mundy::multibody::multibody_t, 3>, RegistryIdentifier>;
+using MetaMultibodyThreeWayKernelFactory = MetaMultibodyKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
 
-/// \brief Partial specialization for \c MetaThreeWayKernels, identified by a three stk topology types.
+/// \brief Partial specialization for \c MetaThreeWayKernels, identified by an stk topology type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaTopologyThreeWayKernelFactory =
-    MetaThreeWayKernelFactory<std::array<mundy::multibody::multibody_t, 3>, RegistryIdentifier>;
+using MetaTopologyThreeWayKernelFactory = MetaTopologyKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
 
-/// \brief Partial specialization for \c MetaThreeWayKernels.
+/// \brief Partial specialization for global \c MetaThreeWayKernels.
 template <typename ReturnType, typename RegistrationType = std::string>
-using GlobalMetaThreeWayKernelFactory =
-    MetaFactory<MetaThreeWayKernelBase<ReturnType, GlobalIdentifier>, GlobalIdentifier, RegistrationType>;
+using GlobalMetaThreeWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
 
-/// \brief Partial specialization for \c MetaThreeWayKernels, identified by three mundy multibody types.
+/// \brief Partial specialization for global \c MetaThreeWayKernels, identified by a mundy multibody type.
 template <typename ReturnType>
-using GlobalMetaMultibodyThreeWayKernelFactory =
-    MetaThreeWayKernelFactory<std::array<mundy::multibody::multibody_t, 3>, GlobalIdentifier>;
+using GlobalMetaMultibodyThreeWayKernelFactory = GlobalMetaMultibodyKWayKernelFactory<2, ReturnType>;
 
-/// \brief Partial specialization for \c MetaThreeWayKernels, identified by a three stk topology types.
+/// \brief Partial specialization for global \c MetaThreeWayKernels, identified by an stk topology type.
 template <typename ReturnType>
-using GlobalMetaTopologyThreeWayKernelFactory =
-    MetaThreeWayKernelFactory<std::array<mundy::multibody::multibody_t, 3>, GlobalIdentifier>;
+using GlobalMetaTopologyThreeWayKernelFactory = GlobalMetaTopologyKWayKernelFactory<2, ReturnType>;
 //@}
 }  // namespace meta
 

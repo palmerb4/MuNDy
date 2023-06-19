@@ -77,8 +77,8 @@ struct MetaRegistry {
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-template <typename BaseType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType, bool overwrite_existing>
+template <typename BaseType, class ClassToRegister, typename RegistryIdentifier, typename RegistrationType,
+          bool overwrite_existing>
 const bool MetaRegistry<BaseType, ClassToRegister, RegistryIdentifier, RegistrationType,
                         overwrite_existing>::is_registered =
     MetaRegistry<BaseType, ClassToRegister, RegistryIdentifier, RegistrationType, overwrite_existing>::register_type();
@@ -95,48 +95,48 @@ using GlobalMetaRegistry =
 /// \brief Partial specialization for MetaMethods.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
           typename RegistrationType = std::string, bool overwrite_existing = false>
-using MetaMethodRegistry =
-    MetaRegistry<MetaMethodBase<ReturnType>, ClassToRegister, RegistryIdentifier, RegistrationType, overwrite_existing>;
+using MetaMethodRegistry = MetaRegistry<MetaMethodBase<ReturnType, RegistrationType>, ClassToRegister,
+                                        RegistryIdentifier, RegistrationType, overwrite_existing>;
 
-/// \brief Partial specialization for MetaMethods.
+/// \brief Partial specialization for global MetaMethods.
 template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
           bool overwrite_existing = false>
-using GlobalMetaMethodRegistry =
-    GlobalMetaRegistry<MetaMethodBase<ReturnType>, ClassToRegister, RegistrationType, overwrite_existing>;
+using GlobalMetaMethodRegistry = GlobalMetaRegistry<MetaMethodBase<ReturnType, RegistrationType>, ClassToRegister,
+                                                    RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for MetaKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
           typename RegistrationType = std::string, bool overwrite_existing = false>
-using MetaKernelRegistry =
-    MetaRegistry<MetaKernelBase<ReturnType>, ClassToRegister, RegistryIdentifier, RegistrationType, overwrite_existing>;
+using MetaKernelRegistry = MetaRegistry<MetaKernelBase<ReturnType, RegistrationType>, ClassToRegister,
+                                        RegistryIdentifier, RegistrationType, overwrite_existing>;
 
-/// \brief Partial specialization for MetaKernels.
+/// \brief Partial specialization for global MetaKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
           bool overwrite_existing = false>
-using GlobalMetaKernelRegistry =
-    GlobalMetaRegistry<MetaKernelBase<ReturnType>, ClassToRegister, RegistrationType, overwrite_existing>;
+using GlobalMetaKernelRegistry = GlobalMetaRegistry<MetaKernelBase<ReturnType, RegistrationType>, ClassToRegister,
+                                                    RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for MetaTwoWayKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
           typename RegistrationType = std::string, bool overwrite_existing = false>
-using MetaTwoWayKernelRegistry = MetaRegistry<MetaTwoWayKernelBase<ReturnType>, ClassToRegister, RegistryIdentifier,
-                                              RegistrationType, overwrite_existing>;
+using MetaTwoWayKernelRegistry = MetaRegistry<MetaTwoWayKernelBase<ReturnType, RegistrationType>, ClassToRegister,
+                                              RegistryIdentifier, RegistrationType, overwrite_existing>;
 
-/// \brief Partial specialization for MetaTwoWayKernels.
+/// \brief Partial specialization for global MetaTwoWayKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
           bool overwrite_existing = false>
-using GlobalMetaTwoWayKernelRegistry =
-    GlobalMetaRegistry<MetaTwoWayKernelBase<ReturnType>, ClassToRegister, RegistrationType, overwrite_existing>;
+using GlobalMetaTwoWayKernelRegistry = GlobalMetaRegistry<MetaTwoWayKernelBase<ReturnType, RegistrationType>,
+                                                          ClassToRegister, RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
-using MetaMultibodyKernelRegistry = MetaKernelRegistry<ReturnType, mundy::multibody::multibody_t, ClassToRegister,
-                                                       RegistryIdentifier, overwrite_existing>;
+using MetaMultibodyKernelRegistry = MetaKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier,
+                                                       mundy::multibody::multibody_t, overwrite_existing>;
 
-/// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
+/// \brief Partial specialization for global MetaKernels, identified by a mundy multibody type.
 template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
 using GlobalMetaMultibodyKernelRegistry =
-    GlobalMetaKernelRegistry<ReturnType, mundy::multibody::multibody_t, ClassToRegister, overwrite_existing>;
+    GlobalMetaKernelRegistry<ReturnType, ClassToRegister, mundy::multibody::multibody_t, overwrite_existing>;
 
 /// \brief Partial specialization for MetaTwoWayKernels, identified by a mundy multibody type.
 /// To make a new key use:
@@ -144,27 +144,29 @@ using GlobalMetaMultibodyKernelRegistry =
 /// This key can then be used like any other key.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
 using MetaMultibodyTwoWayKernelRegistry =
-    MetaTwoWayKernelRegistry<ReturnType, std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
-                             ClassToRegister, RegistryIdentifier, overwrite_existing>;
+    MetaTwoWayKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier,
+                             std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
+                             overwrite_existing>;
 
-/// \brief Partial specialization for MetaTwoWayKernels, identified by a mundy multibody type.
+/// \brief Partial specialization for global MetaTwoWayKernels, identified by a mundy multibody type.
 /// To make a new key use:
 ///     auto key = std::make_pair(multibody_t1, multibody_t2)
 /// This key can then be used like any other key.
 template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
 using GlobalMetaMultibodyTwoWayKernelRegistry =
-    GlobalMetaTwoWayKernelRegistry<ReturnType, std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
-                                   ClassToRegister, overwrite_existing>;
+    GlobalMetaTwoWayKernelRegistry<ReturnType, ClassToRegister,
+                                   std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
+                                   overwrite_existing>;
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
 using MetaTopologyKernelRegistry =
-    MetaKernelRegistry<ReturnType, stk::topology::topology_t, ClassToRegister, RegistryIdentifier, overwrite_existing>;
+    MetaKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier, stk::topology::topology_t, overwrite_existing>;
 
-/// \brief Partial specialization for MetaKernels, identified by an stk topology type.
+/// \brief Partial specialization for global MetaKernels, identified by an stk topology type.
 template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
 using GlobalMetaTopologyKernelRegistry =
-    GlobalMetaKernelRegistry<ReturnType, stk::topology::topology_t, ClassToRegister, overwrite_existing>;
+    GlobalMetaKernelRegistry<ReturnType, ClassToRegister, stk::topology::topology_t, overwrite_existing>;
 
 /// \brief Partial specialization for MetaTwoWayKernels, identified by a pair of stk topology types.
 /// To make a new key use:
@@ -172,17 +174,17 @@ using GlobalMetaTopologyKernelRegistry =
 /// This key can then be used like any other key.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
 using MetaTopologyTwoWayKernelRegistry =
-    MetaTwoWayKernelRegistry<ReturnType, std::pair<stk::topology::topology_t, stk::topology::topology_t>,
-                             ClassToRegister, RegistryIdentifier, overwrite_existing>;
+    MetaTwoWayKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier,
+                             std::pair<stk::topology::topology_t, stk::topology::topology_t>, overwrite_existing>;
 
-/// \brief Partial specialization for MetaTwoWayKernels, identified by a pair of stk topology types.
+/// \brief Partial specialization for global MetaTwoWayKernels, identified by a pair of stk topology types.
 /// To make a new key use:
 ///     auto key = std::make_pair(topology_t1, topology_t2)
 /// This key can then be used like any other key.
 template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
 using GlobalMetaTopologyTwoWayKernelRegistry =
-    GlobalMetaTwoWayKernelRegistry<ReturnType, std::pair<stk::topology::topology_t, stk::topology::topology_t>,
-                                   ClassToRegister, overwrite_existing>;
+    GlobalMetaTwoWayKernelRegistry<ReturnType, ClassToRegister,
+                                   std::pair<stk::topology::topology_t, stk::topology::topology_t>, overwrite_existing>;
 //@}
 
 }  // namespace meta

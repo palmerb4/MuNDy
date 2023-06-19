@@ -41,7 +41,7 @@ namespace mundy {
 
 namespace meta {
 
-/// \class HasMeshRequirementsAndIsRegisterableInterface
+/// \class HasMeshRequirementsAndIsRegisterableBase
 /// \brief The polymorphic interface that encodes a class's assumptions about the structure and contents of an STK mesh.
 ///
 /// This design pattern allows for \c HasMeshRequirementsAndIsRegisterable to use CRTP to force derived classes to
@@ -51,7 +51,7 @@ namespace meta {
 /// \tparam DerivedInterface The polymorphic interface returned by create_new_instance.
 /// \tparam RegistrationType The type of this class's identifier.
 template <typename DerivedInterface, typename RegistrationType = std::string>
-class HasMeshRequirementsAndIsRegisterableInterface {
+class HasMeshRequirementsAndIsRegisterableBase {
  public:
   //! \name Getters
   //@{
@@ -82,7 +82,7 @@ class HasMeshRequirementsAndIsRegisterableInterface {
   //@{
 
   /// \brief Set the mutable parameters. If a valid parameter is not provided, we use the default value.
-  virtual Teuchos::ParameterList set_mutable_params(const Teuchos::ParameterList &mutable_params) const = 0;
+  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) const = 0;
   //@}
 
   //! \name Actions
@@ -95,7 +95,7 @@ class HasMeshRequirementsAndIsRegisterableInterface {
   virtual std::shared_ptr<DerivedInterface> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                 const Teuchos::ParameterList &fixed_params) const = 0;
   //@}
-};  // HasMeshRequirementsAndIsRegisterableInterface
+};  // HasMeshRequirementsAndIsRegisterableBase
 
 /// \class HasMeshRequirementsAndIsRegisterable
 /// \brief The static interface that encodes a class's assumptions about the structure and contents of an STK mesh.
@@ -118,7 +118,7 @@ class HasMeshRequirementsAndIsRegisterableInterface {
 /// \tparam RegistrationType The type of this class's identifier.
 template <class DerivedClass, class DerivedInterface, typename RegistrationType = std::string>
 class HasMeshRequirementsAndIsRegisterable
-    : virtual public HasMeshRequirementsAndIsRegisterableInterface<DerivedInterface, RegistrationType> {
+    : virtual public HasMeshRequirementsAndIsRegisterableBase<DerivedInterface, RegistrationType> {
  public:
   //! \name Getters
   //@{
