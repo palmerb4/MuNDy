@@ -21,7 +21,7 @@
 /// \brief Definition of the FieldRequirements class
 
 // C++ core libs
-#include <string>       // for std::string
+#include <string>  // for std::string
 
 // Trilinos libs
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
