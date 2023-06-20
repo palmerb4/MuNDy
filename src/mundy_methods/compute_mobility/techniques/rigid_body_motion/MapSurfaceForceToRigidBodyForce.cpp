@@ -36,11 +36,11 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp>  // for mundy::methods::...::MapSurfaceForceToRigidBodyForce
 
 namespace mundy {
@@ -63,52 +63,20 @@ MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(mundy::mesh::Bu
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "MapSurfaceForceToRigidBodyForce: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_part_pairs");
-  num_part_pairs_ = parts_params.get<unsigned>("count");
-  part_pair_ptr_vector_.resize(num_part_pairs_);
-  for (size_t i = 0; i < num_part_pairs_; i++) {
-    // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_pair_params =
-        parts_params.sublist("input_part_pair_" + std::to_string(i));
-    const Teuchos::Array<std::string> pair_names = part_pair_params.get<Teuchos::Array<std::string>>("name");
-    part_pair_ptr_vector_[i] =
-        std::make_pair(meta_data_ptr_->get_part(pair_names[0]), meta_data_ptr_->get_part(pair_names[1]));
-
-    // Fetch the parameters for this part's kernel
-    const Teuchos::ParameterList &part_kernel_params =
-        part_pair_params.sublist("kernels").sublist("map_surface_force_to_rigid_body_force");
-
-    // Create the kernel instance.
-    const std::string kernel_name = part_kernel_params.get<std::string>("name");
-    kernel_ptrs_.push_back(
-        mundy::meta::MetaTwoWayKernelFactory<void, MapSurfaceForceToRigidBodyForce>::create_new_instance(
-            kernel_name, bulk_data_ptr_, part_kernel_params));
-  }
-
-  // For this method, the parts cannot intersect, if they did the result could be non-deterministic.
-  for (size_t i = 0; i < num_part_pairs_; i++) {
-    for (size_t j = 0; j < num_part_pairs_; j++) {
-      if (i != j) {
-        const bool linker_parts_intersect =
-            stk::mesh::intersect(*part_pair_ptr_vector_[i].first, *part_ptr_vector_[j].first);
-        const bool element_parts_intersect =
-            stk::mesh::intersect(*part_pair_ptr_vector_[i].second, *part_ptr_vector_[j].second);
-        TEUCHOS_TEST_FOR_EXCEPTION(linker_parts_intersect, std::invalid_argument,
-                                   "MapSurfaceForceToRigidBodyForce: Part "
-                                       << part_pair_ptr_vector_[i].first->name() << " and "
-                                       << "Part " << part_ptr_vector_[j].first->name() << "intersect.");
-        TEUCHOS_TEST_FOR_EXCEPTION(element_parts_intersect, std::invalid_argument,
-                                   "MapSurfaceForceToRigidBodyForce: Part "
-                                       << part_ptr_vector_[i].second->name() << " and "
-                                       << "Part " << part_ptr_vector_[j].second->name() << "intersect.");
-      }
-    }
+  Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
+  const unsigned num_multibody_types_ = kernels_sublist.get<unsigned>("count");
+  multibody_part_ptr_vector_.reserve(num_multibody_types_);
+  multibody_kernel_ptrs_.reserve(num_multibody_types_);
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+    const std::string kernel_name = kernel_params.get<std::string>("name");
+    multibody_part_ptr_vector_.push_back(meta_data_ptr_->get_part(kernel_name));
+    multibody_kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
   }
 }
 //}
@@ -116,12 +84,21 @@ MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(mundy::mesh::Bu
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList MapSurfaceForceToRigidBodyForce::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+void MapSurfaceForceToRigidBodyForce::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Parse the parameters
+  Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
+  TEUCHOS_TEST_FOR_EXCEPTION(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+                             "MapSurfaceForceToRigidBodyForce: Internal error. Mismatch between the stored kernel "
+                             "count and the parameter list kernel count.\n"
+                                 << "Odd... Please contact the development team.");
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+    multibody_kernel_ptrs_[i]->set_mutable_params(kernel_params);
+  }
 }
 //}
 

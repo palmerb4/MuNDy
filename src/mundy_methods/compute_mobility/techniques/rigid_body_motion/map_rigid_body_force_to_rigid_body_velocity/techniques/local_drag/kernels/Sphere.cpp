@@ -53,10 +53,13 @@ namespace kernels {
 
 Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // The bulk data pointer must not be null.
+  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
+                             "Sphere: bulk_data_ptr cannot be a nullptr.");
+
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the internal parameter list.
   node_force_field_name_ = valid_fixed_params.get<std::string>("node_force_field_name");
@@ -78,10 +81,9 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 //{
 
 Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Fill the internal members using the internal parameter list.
   viscosity_ = valid_mutable_params.get<double>("viscosity");

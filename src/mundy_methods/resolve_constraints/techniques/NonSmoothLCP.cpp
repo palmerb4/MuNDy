@@ -36,11 +36,11 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_methods/compute_mobility/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
 namespace mundy {
@@ -60,46 +60,59 @@ NonSmoothLCP::NonSmoothLCP(mundy::mesh::BulkData *const bulk_data_ptr, const Teu
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "NonSmoothLCP: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fetch the parameters for this part's sub-methods.
-  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
-  const std::string technique_name = technique_params.get<std::string>("name");
-  Teuchos::ParameterList &part_map_rbf_to_rbv_params =
-      part_params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
-  Teuchos::ParameterList &part_map_rbv_to_sv_params =
-      part_params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
-  Teuchos::ParameterList &part_map_sf_to_rbf_params =
-      part_params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
+  Teuchos::ParameterList &compute_constraint_forcing_params =
+      valid_fixed_params.sublist("submethods").sublist("compute_constraint_forcing");
+  Teuchos::ParameterList &compute_constraint_projection_params =
+      valid_fixed_params.sublist("submethods").sublist("compute_constraint_projection");
+  Teuchos::ParameterList &compute_constraint_residual_params =
+      valid_fixed_params.sublist("submethods").sublist("compute_constraint_residual");
+  Teuchos::ParameterList &compute_constraint_violation_params =
+      valid_fixed_params.sublist("submethods").sublist("compute_constraint_violation");
 
   // Initialize and store the sub-methods.
-  const std::string rbf_to_rbv_class_id = part_map_rbf_to_rbv_params.get<std::string>("class_id");
-  const std::string rbv_to_sv_class_id = part_map_rbv_to_sv_params.get<std::string>("class_id");
-  const std::string sf_to_rbf_class_id = part_map_sf_to_rbf_params.get<std::string>("class_id");
-  map_rigid_body_force_to_rigid_body_velocity_method_ptr_ =
-      mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::create_new_instance(rbf_to_rbv_class_id, bulk_data_ptr_,
-                                                                              part_map_rbf_to_rbv_params);
-  map_rigid_body_velocity_to_surface_velocity_method_ptr_ =
-      mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::create_new_instance(rbv_to_sv_class_id, bulk_data_ptr_,
-                                                                              part_map_rbv_to_sv_params);
-  map_surface_force_to_rigid_body_force_method_ptr_ =
-      mundy::meta::MetaMethodFactory<void, NonSmoothLCP>::create_new_instance(sf_to_rbf_class_id, bulk_data_ptr_,
-                                                                              part_map_sf_to_rbf_params);
+  const std::string compute_constraint_forcing_name = compute_constraint_forcing_params.get<std::string>("name");
+  const std::string compute_constraint_projection_name = compute_constraint_projection_params.get<std::string>("name");
+  const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
+  const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
+  compute_constraint_forcing_method_ptr_ = OurMethodFactory::create_new_instance(
+      compute_constraint_forcing_name, bulk_data_ptr_, compute_constraint_forcing_params);
+  compute_constraint_projection_method_ptr_ = OurMethodFactory::create_new_instance(
+      compute_constraint_projection_name, bulk_data_ptr_, compute_constraint_projection_params);
+  compute_constraint_residual_method_ptr_ = OurMethodFactory::create_new_instance(
+      compute_constraint_residual_name, bulk_data_ptr_, compute_constraint_residual_params);
+  compute_constraint_violation_method_ptr_ = OurMethodFactory::create_new_instance(
+      compute_constraint_violation_name, bulk_data_ptr_, compute_constraint_violation_params);
 }
 //}
 
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList NonSmoothLCP::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+void NonSmoothLCP::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Fetch the parameters for this part's sub-methods.
+  Teuchos::ParameterList &compute_constraint_forcing_params =
+      valid_mutable_params.sublist("submethods").sublist("compute_constraint_forcing");
+  Teuchos::ParameterList &compute_constraint_projection_params =
+      valid_mutable_params.sublist("submethods").sublist("compute_constraint_projection");
+  Teuchos::ParameterList &compute_constraint_residual_params =
+      valid_mutable_params.sublist("submethods").sublist("compute_constraint_residual");
+  Teuchos::ParameterList &compute_constraint_violation_params =
+      valid_mutable_params.sublist("submethods").sublist("compute_constraint_violation");
+
+  // Set the mutable params for each of our sub-methods.
+  compute_constraint_forcing_method_ptr_->set_mutable_params(compute_constraint_forcing_params);
+  compute_constraint_projection_method_ptr_->set_mutable_params(compute_constraint_projection_params);
+  compute_constraint_residual_method_ptr_->set_mutable_params(compute_constraint_residual_params);
+  compute_constraint_violation_method_ptr_->set_mutable_params(compute_constraint_violation_params);
 }
 //}
 
@@ -112,7 +125,7 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   // Fill the Lagrange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
-    // Here, we use an internal stk function that doesn't use thread parallelism, lest we have a race condition.
+    // Here, we use an internal stk function that doesn't use thread parallelism, lest we race conditions.
     // TODO(palmerb4): Replace this function with for_each_entity_reduce (only possible after the ngp update).
     stk::mesh::impl::for_each_selected_entity_run_no_threads(
         *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
@@ -156,7 +169,7 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
     if (ite_count == 0) {
       // Initial guess for Barzilai-Borwein step size.
       alpha = 1.0 / residual;
-    } else if (ite_count % 2 ==) {
+    } else if (ite_count % 2) {
       // Barzilai-Borwein step size Choice 1.
       alpha = xkdiff_dot_xkdiff / xkdiff_dot_gkdiff;
     } else {

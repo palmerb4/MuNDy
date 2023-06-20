@@ -673,8 +673,19 @@ Add a Body and Constraint multibody type that the bodies inherit from and the co
 
 HOW CAN PART ATTRIBUTES BE INHERITED WITHOUT COPYING THEM?
 
+THROW A WARNING IF THE GIVEN SELECTOR HAS A DISJOINT SET, NOT ACTED ON THE CURRENT METHOD.
+
 Using a fast id instead of a string seems tempting for choosing our kernels but the user needs to specify the kernel name in the
 parameters, which means that the identifier needs to a string. We could overcome this with a map from string multibody type to fast id.
 
 Part/Field/Mesh requirements need a way to take in any number of requirements into their parameter_list constructor. This can't happen until I figure out Meulu's parser.
 
+
+
+Under heavy construction: 
+  - MapSurfaceForceToRigidBodyForce ()
+  - GenerateCollisionConstraints (execute function needs updated to actually generate the collision constraints)
+  - NodeEuler (execute function and constructor need updated once we add in a general constraint/body multibody type)
+  - ComputeConstraintResidual (same as NodeEuler)
+  - ComputeConstraintForcing (needs a way to reset the force)
+  - NonSmoothLCP (execute needs updated to reflect our latest changes to multibody type)

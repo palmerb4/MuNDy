@@ -36,11 +36,11 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintResidual.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintResidual
 
 namespace mundy {
@@ -61,12 +61,11 @@ ComputeConstraintResidual::ComputeConstraintResidual(mundy::mesh::BulkData *cons
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "ComputeConstraintResidual: bulk_data_ptr cannot be a nullptr.");
+                             "Sphere: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Parse the parameters
   Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
@@ -85,11 +84,7 @@ ComputeConstraintResidual::ComputeConstraintResidual(mundy::mesh::BulkData *cons
 //{
 
 Teuchos::ParameterList ComputeConstraintResidual::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+    [[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
 }
 //}
 

@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file ComputeMobility.cpp
-/// \brief Definition of the ComputeMobility class
+/// \file ResolveConstraints.cpp
+/// \brief Definition of the ResolveConstraints class
 
 // C++ core libs
 #include <memory>     // for std::shared_ptr, std::unique_ptr
@@ -35,13 +35,13 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
+#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
+#include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>             // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>             // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
+#include <mundy_methods/ResolveConstraints.hpp>  // for mundy::methods::ResolveConstraints
 
 namespace mundy {
 
@@ -50,44 +50,44 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeMobility::ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr,
-                                 const Teuchos::ParameterList &fixed_params)
+ResolveConstraints::ResolveConstraints(mundy::mesh::BulkData *const bulk_data_ptr,
+                                       const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "ComputeMobility: bulk_data_ptr cannot be a nullptr.");
+                             "ResolveConstraints: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fetch the technique sublist and return its parameters.
   Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
   const std::string technique_name = technique_params.get<std::string>("name");
-
-  technique_ptr_ = mundy::meta::MetaMethodFactory<void, ComputeMobility>::create_new_instance(
-      technique_name, bulk_data_ptr_, technique_params);
+  technique_ptr_ = OutMethodFactory::create_new_instance(technique_name, bulk_data_ptr_, technique_params);
 }
 //}
 
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList ComputeMobility::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+void ResolveConstraints::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Fetch the technique sublist and return its parameters.
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  technique_ptr_->set_mutable_params(technique_params);
 }
 //}
 
 // \name Actions
 //{
 
-void ComputeMobility::execute(const stk::mesh::Selector &input_selector) {
-  technique_ptr_->execute(input_selector);
+void ResolveConstraints::execute(const stk::mesh::Selector &input_selector) {
+  technique_ptr_->execute();
 }
 //}
 

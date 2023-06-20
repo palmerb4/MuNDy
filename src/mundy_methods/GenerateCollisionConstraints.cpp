@@ -35,12 +35,12 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>                      // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                       // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>                       // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>                     // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
-#include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
 #include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 
 namespace mundy {
@@ -57,43 +57,20 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "GenerateCollisionConstraints: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
-  num_parts_ = parts_params.get<unsigned>("count");
-  part_ptr_vector_.resize(num_parts_);
-  for (size_t i = 0; i < num_parts_; i++) {
-    // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_params = parts_params.sublist("input_part_" + std::to_string(i));
-    const std::string part_name = part_params.get<std::string>("name");
-    part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
-
-    // Fetch the parameters for this part's kernel
-    const Teuchos::ParameterList &part_kernel_params =
-        part_params.sublist("kernels").sublist("compute_aabb");
-
-    // Create the kernel instance.
-    const std::string kernel_name = part_kernel_params.get<std::string>("name");
-    compute_aabb_kernel_ptrs_.push_back(
-        mundy::meta::MetaKernelFactory<void, GenerateCollisionConstraints>::create_new_instance(
-            kernel_name, bulk_data_ptr_, part_kernel_params));
-  }
-
-  // For this method, the parts cannot intersect, if they did the result could be non-deterministic.
-  for (size_t i = 0; i < num_parts_; i++) {
-    for (size_t j = 0; j < num_parts_; j++) {
-      if (i != j) {
-        const bool parts_intersect = stk::mesh::intersect(*part_ptr_vector_[i], *part_ptr_vector_[j]);
-        TEUCHOS_TEST_FOR_EXCEPTION(parts_intersect, std::invalid_argument,
-                                   "GenerateCollisionConstraints: Part " << part_ptr_vector_[i]->name() << " and "
-                                                                         << "Part " << part_ptr_vector_[j]->name()
-                                                                         << "intersect.");
-      }
-    }
+  Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
+  const unsigned num_multibody_types_ = kernels_sublist.get<unsigned>("count");
+  multibody_part_ptr_vector_.reserve(num_multibody_types_);
+  multibody_kernel_ptrs_.reserve(num_multibody_types_);
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+    const std::string kernel_name = kernel_params.get<std::string>("name");
+    multibody_part_ptr_vector_.push_back(meta_data_ptr_->get_part(kernel_name));
+    multibody_kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
   }
 }
 //}
@@ -101,12 +78,21 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList GenerateCollisionConstraints::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Parse the parameters
+  Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
+  TEUCHOS_TEST_FOR_EXCEPTION(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+                             "GenerateCollisionConstraints: Internal error. Mismatch between the stored kernel count "
+                             "and the parameter list kernel count.\n"
+                                 << "Odd... Please contact the development team.");
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+    multibody_kernel_ptrs_[i]->set_mutable_params(kernel_params);
+  }
 }
 //}
 

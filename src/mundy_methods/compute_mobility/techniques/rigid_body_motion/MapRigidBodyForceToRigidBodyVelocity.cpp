@@ -36,11 +36,11 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyForceToRigidBodyVelocity.hpp>  // for mundy::methods::...::MapRigidBodyForceToRigidBodyVelocity
 
 namespace mundy {
@@ -56,42 +56,36 @@ namespace rigid_body_motion {
 // \name Constructors and destructor
 //{
 
-MapRigidBodyForceToRigidBodyVelocity::MapRigidBodyForceToRigidBodyVelocity(
-    mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+MapRigidBodyForceToRigidBodyVelocity::MapRigidBodyForceToRigidBodyVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                           const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "MapRigidBodyForceToRigidBodyVelocity: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fetch the technique sublist and return its parameters.
   Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
   const std::string technique_name = technique_params.get<std::string>("name");
-
-  technique_ptr_ = mundy::meta::MetaMethodFactory<void, MapRigidBodyForceToRigidBodyVelocity>::create_new_instance(
-      technique_name, bulk_data_ptr_, technique_params);
+  technique_ptr_ = OutMethodFactory::create_new_instance(technique_name, bulk_data_ptr_, technique_params);
 }
 //}
 
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList MapRigidBodyForceToRigidBodyVelocity::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+void MapRigidBodyForceToRigidBodyVelocity::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
-  // Fill the internal mutable parameters and set the mutable parameters of each registered kernel.
-  // In this case, all kernels have the same mutable parameter (viscosity), so we simply pass along our list.
-  for (int i = 0; i < kernel_ptrs_.size(); i++) {
-    kernel_ptrs_[i]->set_mutable_params(valid_mutable_params);
-  }
+  // Fetch the technique sublist and return its parameters.
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  technique_ptr_->set_mutable_params(technique_params);
 }
 //}
 

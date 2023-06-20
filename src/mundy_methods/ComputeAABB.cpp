@@ -78,7 +78,21 @@ ComputeAABB::ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuch
 // \name MetaMethod interface implementation
 //{
 
-void ComputeAABB::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
+void ComputeAABB::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Parse the parameters
+  Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
+  TEUCHOS_TEST_FOR_EXCEPTION(
+      num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+      "ComputeAABB: Internal error. Mismatch between the stored kernel count and the parameter list kernel count.\n"
+          << "Odd... Please contact the development team.");
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+    multibody_kernel_ptrs_[i]->set_mutable_params(kernel_params);
+  }
 }
 //}
 
@@ -91,12 +105,11 @@ void ComputeAABB::execute(const stk::mesh::Selector &input_selector) {
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_intersection_with_part_i =
-        stk::mesh::Selector(meta_data_ptr_->locally_owned_part());
-    locally_owned_intersection_with_part_i &= stk::mesh::Selector(*multibody_part_ptr_i);
-    locally_owned_intersection_with_part_i &= input_selector;
+        stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & stk::mesh::Selector(*multibody_part_ptr_i) &
+        input_selector;
 
-    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-                                   stk::topology::ELEM_RANK, locally_owned_intersection_with_part_i,
+    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEM_RANK,
+                                   locally_owned_intersection_with_part_i,
                                    [&multibody_kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                              const stk::mesh::Entity &element) {
                                      multibody_kernel_ptr_i->execute(element);

@@ -50,71 +50,35 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeTimeIntegration::ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr,
-                                               const Teuchos::ParameterList &fixed_params)
+ComputeTimeIntegration::ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "ComputeTimeIntegration: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Parse the parameters
-  Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_part_pairs");
-  num_part_pairs_ = parts_params.get<unsigned>("count");
-  part_pair_ptr_vector_.resize(num_part_pairs_);
-  for (size_t i = 0; i < num_part_pairs_; i++) {
-    // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_pair_params =
-        parts_params.sublist("input_part_pair_" + std::to_string(i));
-    const Teuchos::Array<std::string> pair_names = part_pair_params.get<Teuchos::Array<std::string>>("name");
-    part_pair_ptr_vector_[i] =
-        std::make_pair(meta_data_ptr_->get_part(pair_names[0]), meta_data_ptr_->get_part(pair_names[1]));
-
-    // Fetch the parameters for this part's kernel
-    const Teuchos::ParameterList &part_kernel_params =
-        part_pair_params.sublist("kernels").sublist("compute_time_integration");
-
-    // Create the kernel instance.
-    const std::string kernel_name = part_kernel_params.get<std::string>("name");
-    kernel_ptrs_.push_back(mundy::meta::MetaTwoWayKernelFactory<void, ComputeTimeIntegration>::create_new_instance(
-        kernel_name, bulk_data_ptr_, part_kernel_params));
-  }
-
-  // For this method, the parts cannot intersect, if they did the result could be non-deterministic.
-  for (size_t i = 0; i < num_part_pairs_; i++) {
-    for (size_t j = 0; j < num_part_pairs_; j++) {
-      if (i != j) {
-        const bool linker_parts_intersect =
-            stk::mesh::intersect(*part_pair_ptr_vector_[i].first, *part_ptr_vector_[j].first);
-        const bool element_parts_intersect =
-            stk::mesh::intersect(*part_pair_ptr_vector_[i].second, *part_ptr_vector_[j].second);
-        TEUCHOS_TEST_FOR_EXCEPTION(linker_parts_intersect, std::invalid_argument,
-                                   "ComputeTimeIntegration: Part " << part_pair_ptr_vector_[i].first->name() << " and "
-                                                                   << "Part " << part_ptr_vector_[j].first->name()
-                                                                   << "intersect.");
-        TEUCHOS_TEST_FOR_EXCEPTION(element_parts_intersect, std::invalid_argument,
-                                   "ComputeTimeIntegration: Part " << part_ptr_vector_[i].second->name() << " and "
-                                                                   << "Part " << part_ptr_vector_[j].second->name()
-                                                                   << "intersect.");
-      }
-    }
-  }
+  // Fetch the technique sublist and return its parameters.
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  technique_ptr_ = OutMethodFactory::create_new_instance(technique_name, bulk_data_ptr_, technique_params);
 }
 //}
 
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList ComputeTimeIntegration::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
+void ComputeTimeIntegration::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(this->get_valid_mutable_params());
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Fetch the technique sublist and return its parameters.
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  technique_ptr_->set_mutable_params(technique_params);
 }
 //}
 
@@ -122,20 +86,7 @@ Teuchos::ParameterList ComputeTimeIntegration::set_mutable_params(
 //{
 
 void ComputeTimeIntegration::execute(const stk::mesh::Selector &input_selector) {
-  // TODO(palmerb4): clear the rigid body force
-  // TODO(palmerb4): what about sharing?
-  for (size_t i = 0; i < num_part_pairs_; i++) {
-    std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
-
-    stk::mesh::Selector locally_owned_linker_part =
-        meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
-    stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_linker_part,
-        [&kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
-          stk::mesh::Entity linked_element = bulk_data_ptr_->begin_elements(linker)[0];
-          kernel_ptr->execute(linker, linked_element);
-        });
-  }
+  technique_ptr_->execute();
 }
 //}
 
