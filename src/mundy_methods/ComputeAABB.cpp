@@ -99,6 +99,9 @@ void ComputeAABB::set_mutable_params(const Teuchos::ParameterList &mutable_param
 // \name Actions
 //{
 
+void ComputeAABB::setup() {
+}
+
 void ComputeAABB::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
@@ -115,6 +118,9 @@ void ComputeAABB::execute(const stk::mesh::Selector &input_selector) {
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
+}
+
+void ComputeAABB::finalize() {
 }
 //}
 

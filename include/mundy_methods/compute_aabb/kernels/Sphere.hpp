@@ -171,9 +171,17 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
   //! \name Actions
   //@{
 
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the kernel's core calculation.
   /// \param element [in] The element acted on by the kernel.
   void execute(const stk::mesh::Entity &element) override;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:

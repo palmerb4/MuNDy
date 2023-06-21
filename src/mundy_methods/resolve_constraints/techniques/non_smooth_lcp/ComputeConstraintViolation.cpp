@@ -105,6 +105,9 @@ void ComputeConstraintViolation::set_mutable_params(const Teuchos::ParameterList
 // \name Actions
 //{
 
+void ComputeConstraintViolation::setup() {
+}
+
 void ComputeConstraintViolation::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
@@ -121,6 +124,9 @@ void ComputeConstraintViolation::execute(const stk::mesh::Selector &input_select
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
+}
+
+void ComputeConstraintViolation::finalize() {
 }
 //}
 

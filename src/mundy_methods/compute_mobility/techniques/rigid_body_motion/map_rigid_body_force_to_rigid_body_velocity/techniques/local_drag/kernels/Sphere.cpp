@@ -92,6 +92,8 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
 
 // \name Actions
 //{
+void Sphere::setup() {
+}
 
 void Sphere::execute(const stk::mesh::Entity &element) {
   // Fetch the sphere's fields.
@@ -116,6 +118,9 @@ void Sphere::execute(const stk::mesh::Entity &element) {
   node_omega[0] = drag_rot_inv * node_torque[0];
   node_omega[1] = drag_rot_inv * node_torque[1];
   node_omega[2] = drag_rot_inv * node_torque[2];
+}
+
+void Sphere::finalize() {
 }
 //}
 

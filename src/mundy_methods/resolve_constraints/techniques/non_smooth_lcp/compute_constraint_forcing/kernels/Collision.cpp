@@ -86,6 +86,9 @@ Teuchos::ParameterList Collision::set_mutable_params(
 // \name Actions
 //{
 
+void Collision::setup() {
+}
+
 void Collision::execute(const stk::mesh::Entity &collision_node) {
   const size_t num_collision_elements = bulkData.num_elements(collision_node);
   stk::mesh::Entity const *collision_elements = bulkData.begin_elements(collision_node);
@@ -103,6 +106,9 @@ void Collision::execute(const stk::mesh::Entity &collision_node) {
       node_force[2] += -linker_lag_mult * node_normal[2];
     }
   }
+}
+
+void Collision::finalize() {
 }
 //}
 

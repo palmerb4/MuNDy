@@ -172,12 +172,20 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
   //! \name Actions
   //@{
 
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the kernel's core calculation.
   /// \param collision [in] A collision element connected to the left and right spheres.
   /// \param left_sphere [in] The left sphere element attached to the collision element.
   /// \param right_sphere [in] The right sphere element attached to the collision element.
   void execute(const stk::mesh::Entity &collision, const stk::mesh::Entity &left_sphere,
                const stk::mesh::Entity &right_sphere) override;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:

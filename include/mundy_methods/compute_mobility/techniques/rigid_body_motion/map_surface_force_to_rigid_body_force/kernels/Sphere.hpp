@@ -101,6 +101,11 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_torque_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
 
+
+    DECLARE THE LINKER AND GIVE IT A SHERE MULTIBODY TYPE
+
+
+
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
     return multibody_part_params;
@@ -169,9 +174,17 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   //! \name Actions
   //@{
 
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the kernel's core calculation.
   /// \param linker [in] The linker acted on by the kernel.
   void execute(const stk::mesh::Entity &linker) override;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:

@@ -104,6 +104,9 @@ void ComputeAABB::set_mutable_params(const Teuchos::ParameterList &mutable_param
 // \name Actions
 //{
 
+void ComputeConstraintForcing::setup() {
+}
+
 void ComputeConstraintForcing::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field.
   // This requires the new paradigm of having methods take in fields shared by the kernels.
@@ -122,6 +125,9 @@ void ComputeConstraintForcing::execute(const stk::mesh::Selector &input_selector
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
+}
+
+void ComputeConstraintForcing::finalize() {
 }
 //}
 

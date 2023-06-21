@@ -119,6 +119,9 @@ void NonSmoothLCP::set_mutable_params(const Teuchos::ParameterList &mutable_para
 // \name Actions
 //{
 
+void NonSmoothLCP::setup() {
+}
+
 void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   // The following is the BBPGD solution to the linear complementarity problem
 
@@ -191,6 +194,9 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
     ThrowRequireMsg(false, "NonSmoothLCP: Failed to converge in "
                                << max_num_iterations_ << " iterations. \n Current residual is " << residual);
   }
+}
+
+void NonSmoothLCP::finalize() {
 }
 //}
 

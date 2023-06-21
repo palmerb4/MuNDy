@@ -99,6 +99,9 @@ void ComputeBoundingRadius::set_mutable_params([[maybe_unused]] const Teuchos::P
 // \name Actions
 //{
 
+void ComputeBoundingRadius::setup() {
+}
+
 void ComputeBoundingRadius::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
@@ -115,6 +118,9 @@ void ComputeBoundingRadius::execute(const stk::mesh::Selector &input_selector) {
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
+}
+
+void ComputeBoundingRadius::finalize() {
 }
 //}
 

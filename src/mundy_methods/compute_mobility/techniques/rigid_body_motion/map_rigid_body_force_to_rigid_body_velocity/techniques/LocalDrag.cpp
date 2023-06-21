@@ -101,6 +101,8 @@ void LocalDrag::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList
 
 // \name Actions
 //{
+void LocalDrag::setup() {
+}
 
 void LocalDrag::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
@@ -118,6 +120,9 @@ void LocalDrag::execute(const stk::mesh::Selector &input_selector) {
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
+}
+
+void LocalDrag::finalize() {
 }
 //}
 

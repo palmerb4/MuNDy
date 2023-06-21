@@ -86,8 +86,14 @@ void ComputeTimeIntegration::set_mutable_params(const Teuchos::ParameterList &mu
 // \name Actions
 //{
 
+void ComputeTimeIntegration::setup() {
+}
+
 void ComputeTimeIntegration::execute(const stk::mesh::Selector &input_selector) {
   technique_ptr_->execute(input_selector);
+}
+
+void ComputeTimeIntegration::finalize() {
 }
 //}
 

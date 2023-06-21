@@ -91,9 +91,14 @@ void MapRigidBodyForceToRigidBodyVelocity::set_mutable_params(const Teuchos::Par
 
 // \name Actions
 //{
+void MapRigidBodyForceToRigidBodyVelocity::setup() {
+}
 
 void MapRigidBodyForceToRigidBodyVelocity::execute(const stk::mesh::Selector &input_selector) {
   technique_ptr_->execute(input_selector);
+}
+
+void MapRigidBodyForceToRigidBodyVelocity::finalize() {
 }
 //}
 

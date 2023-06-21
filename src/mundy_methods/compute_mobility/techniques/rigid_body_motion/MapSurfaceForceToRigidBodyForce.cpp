@@ -104,25 +104,42 @@ void MapSurfaceForceToRigidBodyForce::set_mutable_params(const Teuchos::Paramete
 
 // \name Actions
 //{
+void MapSurfaceForceToRigidBodyForce::setup() {
+}
 
 void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_selector) {
-  // TODO(palmerb4): The following won't function correctly if the center body nodes are shared.
-  // Is there a way to assert that an entity is not shared?
+  // TODO(palmerb4): The following won't function properly if the center body nodes are connected to surface nodes. Nor
+  // will it work if the body nodes are shared between bodies. Currently, we map surface nodes to body nodes. What if we
+  // stored COM force on the actual elements themselves, mapped surface nodes to elements, then for each node fetch
+  // their connected elements and sum their forces/torques. In doing so, race conditions are impossible because each
+  // element only has one linker and nodes perform the reduction. This new design works for the case where body nodes
+  // are shared but not in the case where the linker connects to a body node, as this will double count forces at that
+  // point. If we set beta to zero, then the force won't be double counted.
 
   // Currently we sum into the body force. Shall we add alpha and beta (like Tpetra) to let users choose
   // if the summation will occur or not. This also makes clear that the summation occurs.
+
+  // For each multibody type, intersect the given input selector with the corresponding multibody linker and run the
+  // corresponding kernel. Now, this assumes that the input selector contains linkers. That's not how it's currently
+  // used. 
+  
   for (size_t i = 0; i < num_part_pairs_; i++) {
     std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_linker_part =
         meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEM_RANK, locally_owned_linker_part,
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK, locally_owned_linker_part,
         [&kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
-          stk::mesh::Entity linked_element = bulk_data_ptr_->begin_elements(linker)[0];
-          kernel_ptr->execute(linker, linked_element);
+          kernel_ptr->execute(linker);
         });
   }
+
+  // TODO: If the linkers are on a different process than the elements, then we need to sync the ghost elements and
+  // perform a reduction over the body nodes. In this case, the kernel could really use a pre and pos step
+}
+
+void MapSurfaceForceToRigidBodyForce::finalize() {
 }
 //}
 

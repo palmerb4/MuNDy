@@ -84,6 +84,9 @@ Teuchos::ParameterList CollisionSphereSphere::set_mutable_params(const Teuchos::
 // \name Actions
 //{
 
+void CollisionSphereSphere::setup() {
+}
+
 void CollisionSphereSphere::execute(const stk::mesh::Entity &collision, const stk::mesh::Entity &left_sphere,
                                     const stk::mesh::Entity &right_sphere) {
   // Fetch the connected nodes.
@@ -125,6 +128,9 @@ void CollisionSphereSphere::execute(const stk::mesh::Entity &collision, const st
   right_contact_node_normal[0] = -left_contact_normal[0];
   right_contact_node_normal[1] = -left_contact_normal[1];
   right_contact_node_normal[2] = -left_contact_normal[2];
+}
+
+void CollisionSphereSphere::finalize() {
 }
 //}
 

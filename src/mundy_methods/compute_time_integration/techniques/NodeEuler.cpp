@@ -99,6 +99,9 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
 // \name Actions
 //{
 
+void NodeEuler::setup() {
+}
+
 void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
@@ -116,6 +119,9 @@ void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
                                      node_coords[2] += time_step_size_ * node_velocity[2];
                                    });
   }
+}
+
+void NodeEuler::finalize() {
 }
 //}
 

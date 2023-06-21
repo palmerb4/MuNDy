@@ -66,8 +66,16 @@ class MetaKernelBase
   //! \name Actions
   //@{
 
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  virtual void setup() = 0;
+
   /// \brief Run the kernel's core calculation.
   virtual ReturnType execute(stk::mesh::Entity entity) = 0;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  virtual void finalize() = 0;
   //@}
 };  // MetaKernelBase
 

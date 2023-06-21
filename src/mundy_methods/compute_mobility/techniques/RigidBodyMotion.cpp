@@ -114,11 +114,16 @@ Teuchos::ParameterList RigidBodyMotion::set_mutable_params(const Teuchos::Parame
 
 // \name Actions
 //{
+void RigidBodyMotion::setup() {
+}
 
 void RigidBodyMotion::execute(const stk::mesh::Selector &input_selector) {
   map_surface_force_to_rigid_body_force_method_ptr_->execute(input_selector);
   map_rigid_body_force_to_rigid_body_velocity_method_ptr_->execute(input_selector);
   map_rigid_body_velocity_to_surface_velocity_method_ptr_->execute(input_selector);
+}
+
+void RigidBodyMotion::finalize() {
 }
 //}
 

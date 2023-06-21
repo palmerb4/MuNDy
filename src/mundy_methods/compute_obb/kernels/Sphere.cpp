@@ -83,6 +83,9 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
 // \name Actions
 //{
 
+void Sphere::setup() {
+}
+
 void Sphere::execute(const stk::mesh::Entity &element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
@@ -95,6 +98,9 @@ void Sphere::execute(const stk::mesh::Entity &element) {
   obb[3] = coords[0] + radius[0] + buffer_distance_;
   obb[4] = coords[1] + radius[0] + buffer_distance_;
   obb[5] = coords[2] + radius[0] + buffer_distance_;
+}
+
+void Sphere::finalize() {
 }
 //}
 

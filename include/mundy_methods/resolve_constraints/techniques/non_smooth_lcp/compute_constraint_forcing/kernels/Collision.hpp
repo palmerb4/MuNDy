@@ -172,9 +172,17 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   //! \name Actions
   //@{
 
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the kernel's core calculation.
   /// \param collision_node [in] A node connected to a collision element.
   void execute(const stk::mesh::Entity &collision_node) override;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:

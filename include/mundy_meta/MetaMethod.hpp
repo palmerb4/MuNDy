@@ -66,8 +66,16 @@ class MetaMethodBase
   //! \name Actions
   //@{
 
+  /// \brief Setup the method's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  virtual void setup() = 0;
+
   /// \brief Run the method's core calculation.
   virtual ReturnType execute(const stk::mesh::Selector &input_selector) = 0;
+
+  /// \brief Finalize the method's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  virtual void finalize() = 0;
   //@}
 };  // MetaMethodBase
 

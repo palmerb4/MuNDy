@@ -165,7 +165,55 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
                             "Name of the element field containing the sphere's radius.");
     }
   }
+
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    if (mutable_params_ptr->isParameter("time_step_size")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned double>("time_step_size");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
+                                     << "with a type other than unsigned double");
+    } else {
+      mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
+    }
+  }
+  
+  /// \brief Get the unique string identifier for this class.
+  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
+  static std::string details_static_get_class_identifier() {
+    return std::string(class_identifier_);
+  }
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
+  static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<Sphere>(bulk_data_ptr, fixed_params);
+  }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
+
+  //! \name Actions
+  //@{
+
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
+  /// \brief Run the kernel's core calculation.
+  /// \param element [in] The element acted on by the kernel.
+  void execute(const stk::mesh::Entity &element) override;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
+  //@}
+
 
  private:
   //! \name Default parameters

@@ -78,6 +78,8 @@ Teuchos::ParameterList Sphere::set_mutable_params([[maybe_unused]] const Teuchos
 
 // \name Actions
 //{
+void Sphere::setup() {
+}
 
 void Sphere::execute(const stk::mesh::Entity &linker) {
   stk::mesh::Entity const *surface_nodes = bulk_data_ptr_->begin_nodes(linker);
@@ -107,6 +109,9 @@ void Sphere::execute(const stk::mesh::Entity &linker) {
     body_node_torque[2] +=
         surface_node_torque[2] + relative_pos[0] * surface_node_force[1] - relative_pos[1] * surface_node_force[0];
   }
+}
+
+void Sphere::finalize() {
 }
 //}
 

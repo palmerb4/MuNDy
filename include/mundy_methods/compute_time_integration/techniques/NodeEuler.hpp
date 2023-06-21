@@ -142,10 +142,10 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    if (mutable_params_ptr->isParameter("buffer_distance")) {
+    if (mutable_params_ptr->isParameter("time_step_size")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned double>("time_step_size");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NodeEuler: Type error. Given a parameter with name 'buffer_distance' but "
+                                 "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
                                      << "with a type other than unsigned double");
     } else {
       mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
@@ -173,8 +173,16 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   //! \name Actions
   //@{
 
+  /// \brief Setup the method's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the method's core calculation.
   void execute(const stk::mesh::Selector &input_selector) override;
+
+  /// \brief Finalize the method's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:
