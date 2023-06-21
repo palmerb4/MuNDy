@@ -86,14 +86,8 @@ void ResolveConstraints::set_mutable_params(const Teuchos::ParameterList &mutabl
 // \name Actions
 //{
 
-void ResolveConstraints::setup() {
-}
-
 void ResolveConstraints::execute(const stk::mesh::Selector &input_selector) {
   technique_ptr_->execute(input_selector);
-}
-
-void ResolveConstraints::finalize() {
 }
 //}
 

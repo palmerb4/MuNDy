@@ -104,12 +104,13 @@ void ComputeAABB::set_mutable_params(const Teuchos::ParameterList &mutable_param
 // \name Actions
 //{
 
-void ComputeConstraintForcing::setup() {
-}
-
 void ComputeConstraintForcing::execute(const stk::mesh::Selector &input_selector) {
-  // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field.
-  // This requires the new paradigm of having methods take in fields shared by the kernels.
+  // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field. 
+  // We need to add in alpha and beta to let the user choose.
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->setup();
+  }
+
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
@@ -125,9 +126,10 @@ void ComputeConstraintForcing::execute(const stk::mesh::Selector &input_selector
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
-}
 
-void ComputeConstraintForcing::finalize() {
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->finalizes();
+  }
 }
 //}
 

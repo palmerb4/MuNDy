@@ -99,9 +99,6 @@ void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teu
 // \name Actions
 //{
 
-void GenerateCollisionConstraints::setup() {
-}
-
 void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_selector) {
   // Two words of word of warning:
   //   1. This method is programmed with care to avoid generating duplicative constraints. To do so, we only generate a
@@ -176,9 +173,6 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
           compute_aabb_kernel_ptr->execute(element);
         });
   }
-}
-
-void GenerateCollisionConstraints::finalize() {
 }
 //}
 

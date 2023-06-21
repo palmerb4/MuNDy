@@ -104,10 +104,13 @@ void MapRigidBodyVelocityToSurfaceVelocity::set_mutable_params(const Teuchos::Pa
 
 // \name Actions
 //{
-void MapRigidBodyVelocityToSurfaceVelocity::setup() {
-}
 
 void MapRigidBodyVelocityToSurfaceVelocity::execute(const stk::mesh::Selector &input_selector) {
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->setup();
+  }
+
+  // Run the kernels on the subset of the input_selector that corresponds to their respective multibody type.
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
@@ -123,9 +126,10 @@ void MapRigidBodyVelocityToSurfaceVelocity::execute(const stk::mesh::Selector &i
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
-}
 
-void MapRigidBodyVelocityToSurfaceVelocity::finalize() {
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->finalizes();
+  }
 }
 //}
 

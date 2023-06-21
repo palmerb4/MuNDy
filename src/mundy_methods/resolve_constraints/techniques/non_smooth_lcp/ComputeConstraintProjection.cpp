@@ -110,6 +110,10 @@ void ComputeConstraintProjection::setup() {
 
 void ComputeConstraintProjection::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->setup();
+  }
+
+  for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
 
@@ -123,6 +127,10 @@ void ComputeConstraintProjection::execute(const stk::mesh::Selector &input_selec
                                                              const stk::mesh::Entity &element) {
                                      multibody_kernel_ptr_i->execute(element);
                                    });
+  }
+
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->finalizes();
   }
 }
 

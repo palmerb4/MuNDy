@@ -98,10 +98,11 @@ void ComputeOBB::set_mutable_params([[maybe_unused]] const Teuchos::ParameterLis
 // \name Actions
 //{
 
-void ComputeOBB::setup() {
-}
-
 void ComputeOBB::execute(const stk::mesh::Selector &input_selector) {
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->setup();
+  }
+
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
@@ -117,11 +118,13 @@ void ComputeOBB::execute(const stk::mesh::Selector &input_selector) {
                                      multibody_kernel_ptr_i->execute(element);
                                    });
   }
-}
 
-void ComputeOBB::finalize() {
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->finalizes();
+  }
 }
 //}
+
 }  // namespace methods
 
 }  // namespace mundy

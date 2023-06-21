@@ -91,9 +91,6 @@ Teuchos::ParameterList ComputeConstraintResidual::set_mutable_params(
 // \name Actions
 //{
 
-void ComputeConstraintResidual::setup() {
-}
-
 double ComputeConstraintResidual::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): Break the following into techniques.
   // The following returns the constraint residual as the L1 norm of the constraint violation over the given parts.
@@ -118,9 +115,6 @@ double ComputeConstraintResidual::execute(const stk::mesh::Selector &input_selec
   stk::all_reduce_max(bulk_data_ptr_->parallel(), &local_residual, &global_residual, 1);
 
   return global_residual;
-}
-
-void ComputeConstraintResidual::finalize() {
 }
 //}
 

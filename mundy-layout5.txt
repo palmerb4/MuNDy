@@ -646,7 +646,8 @@ parameters, which means that the identifier needs to a string. We could overcome
 
 Part/Field/Mesh requirements need a way to take in any number of requirements into their parameter_list constructor. This can't happen until I figure out Meulu's parser.
 
-
+I added in a setup/execute/finalize paradigm, but I feel this is only appropriate for kernels and not methods. For a method, setup and finalize should be a part of the 
+execute function since multiple execute calls shouldn't be allowed between setup and finalize.
 
 
 

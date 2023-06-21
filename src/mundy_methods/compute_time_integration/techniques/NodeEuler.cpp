@@ -99,10 +99,8 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
 // \name Actions
 //{
 
-void NodeEuler::setup() {
-}
-
 void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
+  //TODO(palmerb4): NodeEuler should only act on the mulitbody Body type. Take the intersection.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
@@ -119,9 +117,6 @@ void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
                                      node_coords[2] += time_step_size_ * node_velocity[2];
                                    });
   }
-}
-
-void NodeEuler::finalize() {
 }
 //}
 

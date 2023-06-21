@@ -85,14 +85,8 @@ void ComputeMobility::set_mutable_params(const Teuchos::ParameterList &mutable_p
 // \name Actions
 //{
 
-void ComputeMobility::setup() {
-}
-
 void ComputeMobility::execute(const stk::mesh::Selector &input_selector) {
   technique_ptr_->execute(input_selector);
-}
-
-void ComputeMobility::finalize() {
 }
 //}
 

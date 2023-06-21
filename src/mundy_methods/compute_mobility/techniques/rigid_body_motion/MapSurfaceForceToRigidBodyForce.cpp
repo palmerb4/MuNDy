@@ -104,8 +104,6 @@ void MapSurfaceForceToRigidBodyForce::set_mutable_params(const Teuchos::Paramete
 
 // \name Actions
 //{
-void MapSurfaceForceToRigidBodyForce::setup() {
-}
 
 void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): The following won't function properly if the center body nodes are connected to surface nodes. Nor
@@ -122,6 +120,9 @@ void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_s
   // For each multibody type, intersect the given input selector with the corresponding multibody linker and run the
   // corresponding kernel. Now, this assumes that the input selector contains linkers. That's not how it's currently
   // used. 
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->setup();
+  }
   
   for (size_t i = 0; i < num_part_pairs_; i++) {
     std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
@@ -135,11 +136,11 @@ void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_s
         });
   }
 
-  // TODO: If the linkers are on a different process than the elements, then we need to sync the ghost elements and
-  // perform a reduction over the body nodes. In this case, the kernel could really use a pre and pos step
-}
-
-void MapSurfaceForceToRigidBodyForce::finalize() {
+  // TODO: Because the linkers may be on a different process than the elements, we need to sync the ghost elements and
+  // perform a reduction over the body nodes.
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->finalizes();
+  }
 }
 //}
 

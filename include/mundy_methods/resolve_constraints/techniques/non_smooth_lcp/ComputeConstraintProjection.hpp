@@ -183,16 +183,8 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   //! \name Actions
   //@{
 
-  /// \brief Setup the method's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the method's core calculation.
   void execute(const stk::mesh::Selector &input_selector) override;
-
-  /// \brief Finalize the method's core calculations.
-  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
-  void finalize() override;
   //@}
 
  private:

@@ -110,6 +110,11 @@ void ComputeConstraintViolation::setup() {
 
 void ComputeConstraintViolation::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->setup();
+  }
+
+  // Run the kernels on the subset of the input_selector that corresponds to their respective multibody type.
+  for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
 
@@ -123,6 +128,10 @@ void ComputeConstraintViolation::execute(const stk::mesh::Selector &input_select
                                                              const stk::mesh::Entity &element) {
                                      multibody_kernel_ptr_i->execute(element);
                                    });
+  }
+
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    multibody_kernel_ptrs_[i]->finalizes();
   }
 }
 

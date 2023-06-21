@@ -151,16 +151,8 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
   //! \name Actions
   //@{
 
-  /// \brief Setup the method's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the method's core calculation.
   double execute() override;
-
-  /// \brief Finalize the method's core calculations.
-  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
-  void finalize() override;
   //@}
 
  private:

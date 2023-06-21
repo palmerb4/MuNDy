@@ -87,6 +87,7 @@ Teuchos::ParameterList Collision::set_mutable_params(
 //{
 
 void Collision::setup() {
+  // TODO(palmerb4): I think we need to populate our ghost collision elements.
 }
 
 void Collision::execute(const stk::mesh::Entity &collision_node) {
@@ -109,6 +110,7 @@ void Collision::execute(const stk::mesh::Entity &collision_node) {
 }
 
 void Collision::finalize() {
+  // TODO(palmerb4): We need to reduce over the nodes.
 }
 //}
 
