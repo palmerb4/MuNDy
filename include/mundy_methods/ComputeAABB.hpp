@@ -84,7 +84,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+      const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
@@ -103,7 +103,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", true);
@@ -130,7 +130,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);

@@ -18,5 +18,5 @@
 # @HEADER
 
 target_sources(mundy PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/Sphere.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CollisionSphereSphere.cpp
 )

@@ -258,7 +258,7 @@ What functionality should PartRequirements offer?
 3. Consistant assert statements that the attempted modifications are valid. 
 
 
-How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_part_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldRequirements and PartRequirements. The merge operation does NOT require the two have the same name. 
+How to handle field and part names? For fields, there should exist default names. If the parameter file does not specify a name, then get_mesh_requirements/get_valid_params will use the default name. This ensures name consistancy. Parts are different. Methods can work on any part that has the right topology and the right fields; part names don't matter. So then why should part params require that I set a default name. It creates a weird duality. Merging fields requires that they have the same name and rank, but merging parts often doesn't. For both FieldRequirements and PartRequirements. The merge operation does NOT require the two have the same name. 
 
 Ahhhhhhh. The use of a map from field name to field params is wrong since the name may be nonunique if a force field is applied to nodes and elements. Just use a vector of maps, with one map per rank. 
 
@@ -334,7 +334,7 @@ stk::mesh::BulkData *bulk_data_ptr, const Teuchos::ParameterList &parameter_list
 
 Create the internal parameter list
 Each variant has a different set of valid parameters. We could, in theory, collect all of these requirements, and
-output it when get_part_requirements is called but doing so could lead to outputting more requirements than
+output it when get_mesh_requirements is called but doing so could lead to outputting more requirements than
 necessary. We need to better tie together how the methods are initialized and how the methods should be
 constructed. Currently, we access requirements based on multibody name but only want to initialize one
 ComputeAABB. As well, in the current parameter list paradigm, method requirements are hidden within each part.

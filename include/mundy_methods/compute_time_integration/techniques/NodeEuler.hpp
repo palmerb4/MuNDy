@@ -105,7 +105,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
@@ -141,7 +141,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("buffer_distance")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned double>("time_step_size");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,

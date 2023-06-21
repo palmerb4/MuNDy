@@ -126,13 +126,13 @@ class MetaMethod
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      Teuchos::ParameterList const *fixed_params_ptr) {
+      Teuchos::ParameterList *const fixed_params_ptr) {
     DerivedMetaMethod_t::details_static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      Teuchos::ParameterList const *mutable_params_ptr) {
+      Teuchos::ParameterList *const mutable_params_ptr) {
     DerivedMetaMethod_t::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
   }
 

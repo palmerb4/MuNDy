@@ -105,16 +105,16 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
     const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
     const std::string rbv_to_sv_name = map_rbv_to_sv_params.get<std::string>("name");
     const std::string sf_to_rbf_name = map_sf_to_rbf_params.get<std::string>("name");
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(rbf_to_rbv_name, map_rbf_to_rbv_params));
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(rbv_to_sv_name, map_rbv_to_sv_params));
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(sf_to_rbf_name, map_sf_to_rbf_params));
+    mesh_reqs->merge(OurMethodFactory::get_mesh_requirements(rbf_to_rbv_name, map_rbf_to_rbv_params));
+    mesh_reqs->merge(OurMethodFactory::get_mesh_requirements(rbv_to_sv_name, map_rbv_to_sv_params));
+    mesh_reqs->merge(OurMethodFactory::get_mesh_requirements(sf_to_rbf_name, map_sf_to_rbf_params));
 
     return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     Teuchos::ParameterList &map_rbf_to_rbv_params =
         fixed_params_ptr->sublist("submethods", false).sublist("map_rigid_body_force_to_rigid_body_velocity", false);
     Teuchos::ParameterList &map_rbv_to_sv_params =
@@ -165,7 +165,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     Teuchos::ParameterList &map_rbf_to_rbv_params =
         mutable_params_ptr->sublist("submethods", false).sublist("map_rigid_body_force_to_rigid_body_velocity", false);
     Teuchos::ParameterList &map_rbv_to_sv_params =

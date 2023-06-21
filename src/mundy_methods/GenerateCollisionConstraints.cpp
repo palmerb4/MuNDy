@@ -103,8 +103,8 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
   // Two words of word of warning:
   //   1. This method is programmed with care to avoid generating duplicative constraints. To do so, we only generate a
   //      collision constraint if the entity_key of the source particle is less than that of the target particle.
-  //   2. Parts of this method require mesh modification and are, therefore, incompatible with the GPU. We our best to
-  //      isolate these sections.
+  //   2. Parts of this method require mesh modification and are, therefore, incompatible with the GPU. We do our best
+  //   to isolate these sections.
 
   // If we make some basic assumptions then it's possible to break this process into a (CPU-based) constraint generation
   // routine and a (potentially GPU-based) constraint update routine.
@@ -115,13 +115,14 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
   //   0. Copy and clean up the neighbor list.
   //   1. Ghost neighbors and their downward connectivity.
   //   2. Call begin_modification()
-  //   3. (On the CPU) Generate a new collision entity and two new nodes for each element of the neighbor list.
+  //   3. (On the CPU) Generate a constraint pool containing a new collision entity and two new nodes for each element
+  //      of the neighbor list.
   //   4. (On the CPU) Generate a relation between the collision entity and its nodes as well as those nodes and the
   //   linker for the pair of particles. This step is independent of the multibody type associated with the elements.
   //   5. Call end_modification()
   //   6. (On the CPU or GPU) Loops over the generated collision constraints and call this kernel.
   // This kernel should
-  //   0. Take in a a collision constraint and its left and right spheres.
+  //   0. Take in a collision constraint and its left and right spheres.
   //   1. Fetch the linker's connected nodes and any of its fields necessary to compute the contact locations, contact
   //   normal, and signed separation distance.
 
@@ -132,7 +133,7 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
   //     This class can't be the one to generate the neighbors tho since other classes may wish to loop over the
   //     neighbors. Yeah, but will those methods want to loop over the neighbors with our specific buffer distance?
   //     That doesn't seem unreasonable.
-  //   Solution: the neighbor list can be passed in as a temporary parameter since Teuchos::ParameterList can legit
+  //   Solution: the neighbor list can be passed in as a mutable parameter since Teuchos::ParameterList can legit
   //     hold any variable type.
   // - Issue: Who gets linkers and will they only every store the surface connectivity? What if I wanted to connect a
   //     sphere to another sphere?
@@ -142,8 +143,7 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
   // - Issue: If linkers are generated on the fly, then GenerateCollisionConstraints is one of the classes that should
   //     generate linkers. I really don't want to generate a linker for every edge, face, and element.
   //   Solution: Polytopes are either represented as a super-element with its own linker or as a collection of linked
-  //     elements. Either way, we only consider element-to-element neighbor detection, and one linker per element. Maybe
-  //     add a flag to the multibody types to get if they have dynamic connectivity or not.
+  //     elements. Either way, we only consider element-to-element neighbor detection, and one linker per element.
   // - Issue: Setting up this kernel in such a way that the node positions and their fields can be updated in a way that
   //     satisfies sharing/ghosting is hard. If we loop over the collision constraints, then how do we choose the
   //     correct kernel. If we loop over the neighbors, how can we guarantee that the sphere, linker, and its nodes are
@@ -155,14 +155,20 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
   //   Solution: Once GenerateCollisionConstraints generates the collision constraints, it should store them with the
   //     neighbor list such that we can pass this kernel the constraint and the two spheres without needing to perform
   //     complicated lookups. This will require modifying mundy's data structors to better accommodate KWay kernels
-  //     without code repetition.
+  //     without code repetition (done).
+  // - Issue: We currently assume that every pair of nearby particles generates a collision constraint, this is fine
+  //     from a pool perspective but not fine when we consider that most nearby particles will already have collision
+  //     constraints. As a result, we can't just preconnect the collision constraints to the linkers; we need to check
+  //     if the two spheres share a collision constraint. The previous neighbor list will tell us this information! If
+  //     we store the old neighbor list and take their set difference, then we can easily see the elements whose current
+  //     collision constraints should be deleted and the elements which need collision constraints!!!!
 
   for (size_t i = 0; i < num_parts_; i++) {
     std::shared_ptr<mundy::meta::MetaKernelBase<void>> compute_aabb_kernel_ptr = compute_aabb_kernel_ptrs_[i];
 
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEM_RANK, locally_owned_part,
         [&compute_aabb_kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           compute_aabb_kernel_ptr->execute(element);
         });

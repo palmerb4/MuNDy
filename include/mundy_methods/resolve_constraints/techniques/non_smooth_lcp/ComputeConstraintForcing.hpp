@@ -111,7 +111,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", true);
@@ -138,7 +138,7 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);

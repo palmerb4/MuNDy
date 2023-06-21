@@ -117,7 +117,7 @@ void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_s
     stk::mesh::Selector locally_owned_linker_part =
         meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_linker_part,
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEM_RANK, locally_owned_linker_part,
         [&kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
           stk::mesh::Entity linked_element = bulk_data_ptr_->begin_elements(linker)[0];
           kernel_ptr->execute(linker, linked_element);

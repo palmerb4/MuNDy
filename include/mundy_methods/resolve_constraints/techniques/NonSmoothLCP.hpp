@@ -110,19 +110,19 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
     const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
     mesh_reqs->merge(
-        OurMethodFactory::get_part_requirements(compute_constraint_forcing_name, compute_constraint_forcing_params));
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_projection_name,
+        OurMethodFactory::get_mesh_requirements(compute_constraint_forcing_name, compute_constraint_forcing_params));
+    mesh_reqs->merge(OurMethodFactory::get_mesh_requirements(compute_constraint_projection_name,
                                                              compute_constraint_projection_params));
     mesh_reqs->merge(
-        OurMethodFactory::get_part_requirements(compute_constraint_residual_name, compute_constraint_residual_params));
-    mesh_reqs->merge(OurMethodFactory::get_part_requirements(compute_constraint_violation_name,
+        OurMethodFactory::get_mesh_requirements(compute_constraint_residual_name, compute_constraint_residual_params));
+    mesh_reqs->merge(OurMethodFactory::get_mesh_requirements(compute_constraint_violation_name,
                                                              compute_constraint_violation_params));
     return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     Teuchos::ParameterList &compute_constraint_forcing_params =
         part_params.sublist("submethods", false).sublist("compute_constraint_forcing", false);
     Teuchos::ParameterList &compute_constraint_projection_params =
@@ -188,7 +188,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     Teuchos::ParameterList &compute_constraint_forcing_params =
         part_params.sublist("submethods", false).sublist("compute_constraint_forcing", false);
     Teuchos::ParameterList &compute_constraint_projection_params =

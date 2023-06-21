@@ -70,7 +70,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, GenerateCollisionConstraints>;
 
   template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeOBB>;
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, GenerateCollisionConstraints>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -103,7 +103,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     Teuchos::ParameterList params = *fixed_params_ptr;
 
     if (params.isSublist("kernels")) {
@@ -132,7 +132,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);
@@ -196,14 +196,14 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   /// \brief The MetaData objects this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of parts that this method acts on.
-  size_t num_parts_ = 0;
+  /// \brief Number of active multibody types.
+  size_t num_multibody_types_ = 0;
 
-  /// \brief Vector of pointers to the parts that this class will act upon.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
+  /// \brief Vector of pointers to the active multibody parts this class acts upon.
+  std::vector<stk::mesh::Part *> multibody_part_ptr_vector_;
 
-  /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_aabb_kernel_ptrs_;
+  /// \brief Vector of kernels, one for each active multibody part.
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> multibody_kernel_ptrs_;
   //@}
 };  // GenerateCollisionConstraints
 

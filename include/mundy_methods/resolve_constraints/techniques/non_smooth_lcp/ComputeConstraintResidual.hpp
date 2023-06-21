@@ -110,7 +110,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("element_constraint_violation_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
@@ -127,7 +127,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.

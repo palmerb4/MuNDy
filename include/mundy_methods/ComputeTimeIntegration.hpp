@@ -68,10 +68,10 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   //! \name Typedefs
   //@{
 
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeMobility>;
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeTimeIntegration>;
 
   template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeMobility>;
+  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeTimeIntegration>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -94,12 +94,12 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
     Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
     const std::string technique_name = technique_params.get<std::string>("name");
 
-    return OurMethodFactory::get_part_requirements(technique_name, technique_params);
+    return OurMethodFactory::get_mesh_requirements(technique_name, technique_params);
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     // Fetch the technique sublist and return its parameters.
     Teuchos::ParameterList &technique_params = fixed_params_ptr->sublist("technique", false);
     if (technique_params.isParameter("name")) {
@@ -112,12 +112,12 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
     }
 
     const std::string technique_name = technique_params.get<std::string>("name");
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, technique_params);
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList const *mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     // Fetch the technique sublist and return its parameters.
     Teuchos::ParameterList &technique_params = mutable_params_ptr->sublist("technique", false);
     if (technique_params.isParameter("name")) {
@@ -130,7 +130,7 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
     }
 
     const std::string technique_name = technique_params.get<std::string>("name");
-    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, technique_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other
@@ -179,14 +179,8 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   /// \brief The MetaData objects this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of part pairs that this method acts on.
-  size_t num_part_pairs_ = 0;
-
-  /// \brief Vector of pointers to the part pairs that this class will act upon.
-  std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
-
-  /// \brief Kernels corresponding to each of the specified part pairs.
-  std::vector<std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>>> kernel_ptrs_;
+  /// \brief Method corresponding to the specified technique.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> technique_ptr_;
   //@}
 };  // ComputeTimeIntegration
 

@@ -65,13 +65,13 @@ class HasMeshRequirementsAndIsRegisterableBase {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   /// \note Fixed parameters are those that change the part requirements.
-  virtual std::shared_ptr<MeshRequirements> get_part_requirements(const Teuchos::ParameterList &fixed_params) const = 0;
+  virtual std::shared_ptr<MeshRequirements> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) const = 0;
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  virtual void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) const = 0;
+  virtual void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) const = 0;
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  virtual void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) const = 0;
+  virtual void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) const = 0;
 
   /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
   virtual RegistrationType get_class_identifier() const = 0;
@@ -130,7 +130,7 @@ class HasMeshRequirementsAndIsRegisterable
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::shared_ptr<MeshRequirements> get_part_requirements(const Teuchos::ParameterList &fixed_params) const final;
+  std::shared_ptr<MeshRequirements> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) const final;
 
   /// \brief Get the requirements that this \c HasMeshRequirementsAndIsRegisterable imposes upon each input part.
   ///
@@ -145,18 +145,18 @@ class HasMeshRequirementsAndIsRegisterable
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) const final;
+  void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) const final;
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) const final;
+  void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) const final;
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void static_validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) {
+  static void static_validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) {
     DerivedClass::details_static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void static_validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) {
+  static void static_validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) {
     DerivedClass::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
   }
 
@@ -197,20 +197,20 @@ class HasMeshRequirementsAndIsRegisterable
 //{
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
 std::shared_ptr<MeshRequirements>
-HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_part_requirements(
+HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_mesh_requirements(
     const Teuchos::ParameterList &fixed_params) const {
   return static_get_mesh_requirements(fixed_params);
 }
 
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
 void HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::
-    validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList const *fixed_params_ptr) const {
+    validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) const {
   static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
 }
 
 template <class DerivedClass, class DerivedInterface, typename RegistrationType>
 void HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::
-    validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList const *mutable_params_ptr) const {
+    validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) const {
   static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
 }
 

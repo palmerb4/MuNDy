@@ -140,24 +140,24 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   while (ite_count < max_num_iterations_) {
     if (ite_count > 0) {
       // Take a projected gradient step.
-      compute_gradient_step_method_ptr_->execute();
-      compute_constraint_projection_method_ptr_->execute();
+      compute_gradient_step_method_ptr_->execute(input_selector);
+      compute_constraint_projection_method_ptr_->execute(input_selector);
     }
 
     // Compute the new gradient using gk = D^T M D xk. This involves three steps.
     // Step 1: Compute the force induced by each constraint on its nodes.
-    compute_constraint_forcing_method_ptr_->execute();
+    compute_constraint_forcing_method_ptr_->execute(input_selector);
 
     // Step 2: Compute the the velocity of each particle's nodes.
-    compute_mobility_method_ptr_->execute();
+    compute_mobility_method_ptr_->execute(input_selector);
 
     // Step 3: Map the velocity of each constraint's nodes to that constraint's linearized rate of change of constraint
     // violation.
-    compute_linearized_rate_of_change_of_constraint_violation->execute();
+    compute_linearized_rate_of_change_of_constraint_violation->execute(input_selector);
 
     // Compute the global constraint residual.
-    compute_constraint_violation_method_ptr_->execute();
-    double residual = compute_constraint_residual_method_ptr_->execute();
+    compute_constraint_violation_method_ptr_->execute(input_selector);
+    double residual = compute_constraint_residual_method_ptr_->execute(input_selector);
 
     // Check for early termination.
     if (residual < tolerance) {
