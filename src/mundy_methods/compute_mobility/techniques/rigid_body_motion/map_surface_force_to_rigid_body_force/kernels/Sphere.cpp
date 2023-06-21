@@ -73,6 +73,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 //{
 
 Teuchos::ParameterList Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
+  alpha_ = mutable_params.get<double>("alpha");
+  beta_ = mutable_params.get<double>("beta");
 }
 //}
 
@@ -89,7 +91,14 @@ void Sphere::execute(const stk::mesh::Entity &linker) {
   double *body_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, body_node);
   double *body_node_force = stk::mesh::field_data(*node_force_field_ptr_, body_node);
   double *body_node_torque = stk::mesh::field_data(*node_torque_field_ptr_, body_node);
-  unsigned num_surface_nodes = bulk_data_ptr_->num_nodes();
+  body_node_force[0] *= beta_;
+  body_node_force[1] *= beta_;
+  body_node_force[2] *= beta_;
+  body_node_torque[0] *= beta_;
+  body_node_torque[1] *= beta_;
+  body_node_torque[2] *= beta_;
+
+  unsigned num_surface_nodes = bulk_data_ptr_->num_nodes(linker);
   for (int i = 0; i < num_surface_nodes; i++) {
     double *surface_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, surface_nodes[i]);
     double *surface_node_force = stk::mesh::field_data(*node_force_field_ptr_, surface_nodes[i]);
@@ -99,15 +108,15 @@ void Sphere::execute(const stk::mesh::Entity &linker) {
                               surface_node_coords[1] - body_node_coords[1],
                               surface_node_coords[2] - body_node_coords[2]};
 
-    body_node_force[0] += surface_node_force[0];
-    body_node_force[1] += surface_node_force[1];
-    body_node_force[2] += surface_node_force[2];
-    body_node_torque[0] +=
-        surface_node_torque[0] + relative_pos[1] * surface_node_force[2] - relative_pos[2] * surface_node_force[1];
-    body_node_torque[1] +=
-        surface_node_torque[1] + relative_pos[2] * surface_node_force[0] - relative_pos[0] * surface_node_force[2];
-    body_node_torque[2] +=
-        surface_node_torque[2] + relative_pos[0] * surface_node_force[1] - relative_pos[1] * surface_node_force[0];
+    body_node_force[0] += alpha_ * surface_node_force[0];
+    body_node_force[1] += alpha_ * surface_node_force[1];
+    body_node_force[2] += alpha_ * surface_node_force[2];
+    body_node_torque[0] += alpha_ * (surface_node_torque[0] + relative_pos[1] * surface_node_force[2] -
+                                     relative_pos[2] * surface_node_force[1]);
+    body_node_torque[1] += alpha_ * (surface_node_torque[1] + relative_pos[2] * surface_node_force[0] -
+                                     relative_pos[0] * surface_node_force[2]);
+    body_node_torque[2] += alpha_ * (surface_node_torque[2] + relative_pos[0] * surface_node_force[1] -
+                                     relative_pos[1] * surface_node_force[0]);
   }
 }
 

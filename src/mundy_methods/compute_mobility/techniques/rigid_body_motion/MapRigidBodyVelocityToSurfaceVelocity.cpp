@@ -106,6 +106,9 @@ void MapRigidBodyVelocityToSurfaceVelocity::set_mutable_params(const Teuchos::Pa
 //{
 
 void MapRigidBodyVelocityToSurfaceVelocity::execute(const stk::mesh::Selector &input_selector) {
+  // TODO(palmerb4): Enforce that our surface/body nodes are not connected to any other element.
+  // If one wanted something like a rigid chain made from a bunch of rigid fibers, then they would either need a blob
+  // concept or an explicit constraint between the bodies. Simply declaring a node relation, doesn't count.
   for (size_t i = 0; i < num_multibody_types_; i++) {
     multibody_kernel_ptrs_[i]->setup();
   }

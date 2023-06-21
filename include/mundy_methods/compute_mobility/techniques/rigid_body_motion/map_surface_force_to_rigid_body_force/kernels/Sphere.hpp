@@ -101,12 +101,9 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_torque_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
 
-
     DECLARE THE LINKER AND GIVE IT A SHERE MULTIBODY TYPE
 
-
-
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+        auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
     return multibody_part_params;
   }
@@ -150,6 +147,25 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    if (mutable_params_ptr->isParameter("alpha")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("alpha");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Sphere: Type error. Given a parameter with name 'alpha' but "
+                                 "with a type other than double");
+    } else {
+      mutable_params_ptr->set("alpha", default_alpha_,
+                              "Scale for the force and torque such that F = beta * F0 + alpha * Fnew.");
+    }
+
+    if (mutable_params_ptr->isParameter("beta")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("beta");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Sphere: Type error. Given a parameter with name 'beta' but "
+                                 "with a type other than double");
+    } else {
+      mutable_params_ptr->set("beta", default_beta_,
+                              "Scale for the force and torque such that F = beta * F0 + alpha * Fnew.");
+    }
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -191,6 +207,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   //! \name Default parameters
   //@{
 
+  static constexpr double default_alpha_ = 1.0;
+  static constexpr double default_beta_ = 0.0;
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
   static constexpr std::string_view default_node_torque_field_name_ = "NODE_TORQUE";
