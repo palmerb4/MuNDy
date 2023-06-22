@@ -70,11 +70,11 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 
   // Store the input params.
   element_signed_separation_dist_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_signed_separation_dist_field_name_);
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_signed_separation_dist_field_name_);
   element_lagrange_multiplier_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_lagrange_multiplier_field_name_);
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name_);
   element_constraint_violation_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_constraint_violation_field_name_);
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_constraint_violation_field_name_);
 }
 //}
 
@@ -92,11 +92,12 @@ Teuchos::ParameterList Collision::set_mutable_params(
 void Collision::setup() {
 }
 
-void Collision::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
-  const double *signed_separation_dist = stk::mesh::field_data(*element_signed_separation_dist_field_ptr_, element);
-  const double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, element);
-  double *constraint_violation = stk::mesh::field_data(*element_constraint_violation_field_ptr_, element);
+void Collision::execute(const stk::mesh::Entity &collision_element) {
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(collision_element);
+  const double *signed_separation_dist =
+      stk::mesh::field_data(*element_signed_separation_dist_field_ptr_, collision_element);
+  const double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, collision_element);
+  double *constraint_violation = stk::mesh::field_data(*element_constraint_violation_field_ptr_, collision_element);
 
   // Minimum map constraint violation.
   constraint_violation[0] = std::min(separation_dist[0], lagrange_mult[0]);

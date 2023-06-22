@@ -168,7 +168,7 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
 
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEM_RANK, locally_owned_part,
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK, locally_owned_part,
         [&compute_aabb_kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           compute_aabb_kernel_ptr->execute(element);
         });

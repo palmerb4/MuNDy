@@ -101,7 +101,7 @@ double ComputeConstraintResidual::execute(const stk::mesh::Selector &input_selec
     // Here, we use an internal stk function that doesn't use thread parallelism, lest we have a race condition.
     // TODO(palmerb4): Replace this function with for_each_entity_reduce (only possible after the ngp update).
     stk::mesh::impl::for_each_selected_entity_run_no_threads(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, locally_owned_part,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_part,
         [&local_residual]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           // This is the  norm of the constraint violation.
           const double constraint_violation =

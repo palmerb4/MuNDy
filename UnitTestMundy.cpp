@@ -456,7 +456,7 @@ void generate_neighbor_pairs(const stk::mesh::BulkData &bulkData,
 
   const int rank = bulkData.parallel_rank();
   const size_t num_local_elements =
-      stk::mesh::count_entities(bulkData, stk::topology::ELEM_RANK, metaData.locally_owned_part());
+      stk::mesh::count_entities(bulkData, stk::topology::ELEMENT_RANK, metaData.locally_owned_part());
   elementBoxes.reserve(num_local_elements);
 
   const stk::mesh::BucketVector &elementBuckets =

@@ -60,8 +60,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   bounding_radius_field_name_ = valid_fixed_params.get<std::string>("bounding_radius_field_name");
 
   // Store the input params.
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-  bounding_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, bounding_radius_field_name_);
+  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
+  bounding_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, bounding_radius_field_name_);
 }
 //}
 
@@ -83,9 +83,9 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
 void Sphere::setup() {
 }
 
-void Sphere::execute(const stk::mesh::Entity &element) {
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-  double *bounding_radius = stk::mesh::field_data(*bounding_radius_field_ptr_, element);
+void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+  double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
+  double *bounding_radius = stk::mesh::field_data(*bounding_radius_field_ptr_, sphere_element);
   bounding_radius[0] = radius[0] + buffer_distance_;
 }
 

@@ -175,8 +175,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
   void setup() override;
 
   /// \brief Run the kernel's core calculation.
-  /// \param element [in] The element acted on by the kernel.
-  void execute(const stk::mesh::Entity &element) override;
+  /// \param sphere_element [in] The sphere element acted on by the kernel.
+  void execute(const stk::mesh::Entity &sphere_element) override;
 
   /// \brief Finalize the method's core calculations.
   /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.

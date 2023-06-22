@@ -436,10 +436,20 @@ Order I will implement things
   - Perform the BBPGD non-smooth LCP solve, calling the correct sub-methods when necessary.
 15. (Done) ResolveConstraints
   - Given BulkData with up-to-date constraints, parse the input params and call the desired technique.
-16. All methods that add onto a certain field should take in an alpha and a beta. Instead of X += Y (which is equal to X = X0 + Y), we should use X = alpha Y + beta X0.
+16. (Done) All methods that add onto a certain field should take in an alpha and a beta. Instead of X += Y (which is equal to X = X0 + Y), we should use X = alpha Y + beta X0.
   - Methods that need updated:
     mundy_methods/compute_mobility/map_surface_force_to_rigid_body_force/kernels/Sphere.hpp
-17. All multibody types that relate to bodies should a parent Body type, similarly Constraint type.
+17. All multibody types that relate to bodies should have a parent Body type, similar for constraints and a Constraint type.
+    While we're at it, should we encode the linkers into the multibody type such that, when people pass around rods, they are actually passing around linkers? 
+    I ask because there are plenty of places where we expect the users to pass us linkers and not rods. That shouldnt be. The concept of what should be stored on the element vs 
+    on the linker gets even more convoluted if we start treating linkers and rods synonymously. Who am I supposed to link to again? Why can't I just place fields on the constraints? 
+    What's even the point of element rank entities if I can just create links to the constraints. Why do we use constraint rank for particles but element rank for linkers? 
+    You get the point... There are a lot of tough questions if we blur the lines between linker and element. The linkers "link" a particle with some dynamically attached nodes. 
+    Ideally, the particle would dynamically link to the nodes, but there is no way to do this in STK (that I know of). So then, how should users pass us linkers vs rods. For now, 
+    we'll just pass around linkers instead of rods.
+    
+
+
 18. Update NodeEuler using the Body type.
     Update ComputeConstraintResidual using the Constraint type.
     Update mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_forcing/kernels/Collision.hpp using the collision type.
@@ -457,7 +467,7 @@ Order I will implement things
   - One kernel per constraint type.
 22. Write detect neighbors. This is the first time that a method will use another method via the global registry.
 23. Add the necessary submethods to resolve constraints.
-24. Where to provide communicaton? Both shared communicaton and ghosted communication?
+24. Make sure that communication and ghosting is correct; both shared communicaton and ghosted communication.
 
 
 

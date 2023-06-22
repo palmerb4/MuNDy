@@ -195,8 +195,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   void setup() override;
 
   /// \brief Run the kernel's core calculation.
-  /// \param linker [in] The linker acted on by the kernel.
-  void execute(const stk::mesh::Entity &linker) override;
+  /// \param sphere_element [in] The sphere element acted on by the kernel.
+  void execute(const stk::mesh::Entity &sphere_element) override;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.

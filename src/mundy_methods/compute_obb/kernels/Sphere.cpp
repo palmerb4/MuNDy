@@ -61,8 +61,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coordinate_field_name");
 
   // Store the input params.
-  obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+  obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, obb_field_name_);
+  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
 }
 //}
@@ -86,11 +86,11 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
 void Sphere::setup() {
 }
 
-void Sphere::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
+void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-  double *obb = stk::mesh::field_data(*obb_field_ptr_, element);
+  double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
+  double *obb = stk::mesh::field_data(*obb_field_ptr_, sphere_element);
 
   obb[0] = coords[0] - radius[0] - buffer_distance_;
   obb[1] = coords[1] - radius[0] - buffer_distance_;

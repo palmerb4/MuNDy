@@ -111,7 +111,7 @@ void ComputeOBB::execute(const stk::mesh::Selector &input_selector) {
         stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & stk::mesh::Selector(*multibody_part_ptr_i) &
         input_selector;
 
-    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEM_RANK,
+    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
                                    locally_owned_intersection_with_part_i,
                                    [&multibody_kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                              const stk::mesh::Entity &element) {

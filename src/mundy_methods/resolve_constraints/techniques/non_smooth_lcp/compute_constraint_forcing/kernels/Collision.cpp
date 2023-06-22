@@ -71,7 +71,7 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   node_normal_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_normal_field_name_);
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
   element_lagrange_multiplier_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_lagrange_multiplier_field_name_);
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name_);
 }
 //}
 

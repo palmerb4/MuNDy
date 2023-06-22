@@ -90,20 +90,27 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
     std::string node_omega_field_name = valid_fixed_params.get<std::string>("node_omega_field_name");
 
-    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("SPHERE");
-    part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+    auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    sphere_part_reqs->set_part_name("SPHERE");
+    sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
+    sphere_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name,
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
 
+    auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    linker_part_reqs->set_part_name("LINKER");
+    linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT);
+    linker_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("CONSTRAINT"));
+
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(part_reqs);
-    return multibody_part_params;
+    mesh_reqs->add_part_req(sphere_part_reqs);
+    mesh_reqs->add_part_req(linker_part_reqs);
+
+    return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
@@ -174,8 +181,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   void setup() override;
 
   /// \brief Run the kernel's core calculation.
-  /// \param linker [in] The linker acted on by the kernel.
-  void execute(const stk::mesh::Entity &linker) override;
+  /// \param sphere_element [in] The sphere element acted on by the kernel.
+  void execute(const stk::mesh::Entity &sphere_element) override;
 
 
   /// \brief Finalize the kernel's core calculations.

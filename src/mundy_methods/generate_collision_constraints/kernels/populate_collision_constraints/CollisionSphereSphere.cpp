@@ -63,8 +63,8 @@ CollisionSphereSphere::CollisionSphereSphere(mundy::mesh::BulkData *const bulk_d
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-  aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
+  aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, aabb_field_name_);
 }
 //}
 
@@ -87,8 +87,9 @@ Teuchos::ParameterList CollisionSphereSphere::set_mutable_params(const Teuchos::
 void CollisionSphereSphere::setup() {
 }
 
-void CollisionSphereSphere::execute(const stk::mesh::Entity &collision, const stk::mesh::Entity &left_sphere,
-                                    const stk::mesh::Entity &right_sphere) {
+void CollisionSphereSphere::execute(const stk::mesh::Entity &collision_element,
+                                    const stk::mesh::Entity &left_sphere_element,
+                                    const stk::mesh::Entity &right_sphere_element) {
   // Fetch the connected nodes.
   stk::mesh::Entity left_node = bulk_data_ptr_->begin_nodes(collision)[0];
   stk::mesh::Entity right_node = bulk_data_ptr_->begin_nodes(collision)[1];
@@ -96,9 +97,10 @@ void CollisionSphereSphere::execute(const stk::mesh::Entity &collision, const st
   // Fetch the required fields.
   const double *const left_sphere_pos = stk::mesh::field_data(*node_coord_field_ptr_, left_node);
   const double *const right_sphere_pos = stk::mesh::field_data(*node_coord_field_ptr_, right_node);
-  const double *const left_sphere_radius = stk::mesh::field_data(element_radius_field_ptr_, left_sphere);
-  const double *const right_sphere_radius = stk::mesh::field_data(element_radius_field_ptr_, right_sphere);
-  double *element_signed_separation_dist = stk::mesh::field_data(element_signed_separation_dist_field_ptr_, collision);
+  const double *const left_sphere_radius = stk::mesh::field_data(element_radius_field_ptr_, left_sphere_element);
+  const double *const right_sphere_radius = stk::mesh::field_data(element_radius_field_ptr_, right_sphere_element);
+  double *element_signed_separation_dist =
+      stk::mesh::field_data(element_signed_separation_dist_field_ptr_, collision_element);
   double *left_contact_node_pos = stk::mesh::field_data(*node_coord_field_ptr_, left_node);
   double *right_contact_node_pos = stk::mesh::field_data(*node_coord_field_ptr_, right_node);
   double *left_contact_node_normal = stk::mesh::field_data(*node_normal_field_ptr_, left_node);

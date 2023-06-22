@@ -115,26 +115,20 @@ void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_s
   //
   // Honest question, why should I map my rigid body force to my nodes? Just use the rigid body force on the element to
   // compute mobility, then propogate rigid body velocity to the dynamic nodes and static nodes.
-
-  // Currently we sum into the body force. Shall we add alpha and beta (like Tpetra) to let users choose
-  // if the current value will be included or not.
-
-  // For each multibody type, intersect the given input selector with the corresponding multibody linker and run the
-  // corresponding kernel. Now, this assumes that the input selector contains linkers. That's not how it's currently
-  // used.
   for (size_t i = 0; i < num_multibody_types_; i++) {
     multibody_kernel_ptrs_[i]->setup();
   }
 
-  for (size_t i = 0; i < num_part_pairs_; i++) {
-    std::shared_ptr<mundy::meta::MetaTwoWayKernelBase<void>> kernel_ptr = kernel_ptrs_[i];
+  for (size_t i = 0; i < num_multibody_types_; i++) {
+    auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
+    auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_linker_part =
-        meta_data_ptr_->locally_owned_part() & *part_pair_ptr_vector_[i].first;
+    stk::mesh::intersection_with_part_i = stk::mesh::Selector(*multibody_part_ptr_i) & input_selector;
+
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK, locally_owned_linker_part,
-        [&kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity linker) {
-          kernel_ptr->execute(linker);
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK, intersection_with_part_i,
+        [&multibody_kernel_ptr_i]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+          multibody_kernel_ptr_i->execute(element);
         });
   }
 

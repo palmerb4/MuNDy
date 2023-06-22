@@ -62,8 +62,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
-  aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, aabb_field_name_);
+  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
+  aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, aabb_field_name_);
 }
 //}
 
@@ -86,11 +86,11 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
 void Sphere::setup() {
 }
 
-void Sphere::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
+void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-  double *aabb = stk::mesh::field_data(*aabb_field_ptr_, element);
+  double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
+  double *aabb = stk::mesh::field_data(*aabb_field_ptr_, sphere_element);
 
   aabb[0] = coords[0] - radius[0] - buffer_distance_;
   aabb[1] = coords[1] - radius[0] - buffer_distance_;
