@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
-#define MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
+#ifndef MUNDY_MULTIBODY_TYPE_CONSTRAINT_HPP_
+#define MUNDY_MULTIBODY_TYPE_CONSTRAINT_HPP_
 
-/// \file Sphere.hpp
-/// \brief Declaration of the Sphere class
+/// \file Constraint.hpp
+/// \brief Declaration of the Constraint class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
@@ -35,38 +35,39 @@ namespace multibody {
 
 namespace type {
 
-/// \class Sphere
-/// \brief The static interface for all of Mundy's multibody Sphere objects.
-class Sphere : Multibody<Sphere> {
+/// \class Constraint
+/// \brief The static interface for all of Mundy's multibody Constraint objects. 
+/// This is the parent/root class from which all constraints derive.
+class Constraint : Multibody<Constraint> {
   //! \name Getters
   //@{
 
-  /// \brief Get the Sphere's name.
+  /// \brief Get the Constraint's name.
   /// This name must be unique and not shared by any other multibody object.
   static constexpr inline std::string_view details_get_name() {
-    return "SPHERE";
+    return "CONSTRAINT";
   }
 
-  /// \brief Get the Sphere's topology.
+  /// \brief Get the Constraint's topology.
   static constexpr inline stk::topology details_get_topology() {
-    return stk::topology::PARTICLE;
+    return stk::topology::INVALID_TOPOLOGY;
   }
 
-  /// \brief Get the Sphere's rank.
+  /// \brief Get the Constraint's rank.
   static constexpr inline stk::topology details_get_rank() {
-    return stk::topology::ELEMENT_RANK;
+    return stk::topology::CONSTRAINT_RANK;
   }
 
-  /// \brief Get if the Sphere has a parent multibody type.
+  /// \brief Get if the Constraint has a parent multibody type.
   static constexpr inline bool details_has_parent() {
-    return true;
+    return false;
   }
 
-  /// \brief Get the parent multibody type of the Sphere.
+  /// \brief Get the parent multibody type of the Constraint.
   static constexpr inline bool details_get_parent_name() {
-    return "BODY";
+    return "INVALID";
   }
-};  // Sphere
+};  // Constraint
 
 }  // namespace type
 
@@ -74,4 +75,4 @@ class Sphere : Multibody<Sphere> {
 
 }  // namespace mundy
 
-#endif  // MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
+#endif  // MUNDY_MULTIBODY_TYPE_CONSTRAINT_HPP_

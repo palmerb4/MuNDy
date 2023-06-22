@@ -188,10 +188,10 @@ class ComputeAABB : public mundy::meta::MetaMethod<void, ComputeAABB>,
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "COMPUTE_AABB";
 
-  /// \brief The BulkData objects this class acts upon.
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
+  /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of active multibody types.

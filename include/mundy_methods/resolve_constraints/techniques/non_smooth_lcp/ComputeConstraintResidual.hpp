@@ -96,14 +96,20 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
     static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    // For now, we allow this method to assign these fields to the entire mesh.
-    // TODO (palmerb4): This should only apply to constraint-type multibody types.
+    // For now, we allow this method to assign these fields to all constraints.
+    // TODO(palmerb4): Should we allow these fields to differ from multibody type to multibody type?
     std::string element_constraint_violation_field_name =
         valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
 
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs->set_part_name("CONSTRAINT");
+    part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("CONSTRAINT"));
     mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_part_req(part_reqs);
 
     return mesh_reqs;
   }
@@ -169,10 +175,10 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_RESIDUAL";
 
-  /// \brief The BulkData objects this class acts upon.
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
+  /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Pointer to the part containing all multibody constraints.

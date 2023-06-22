@@ -201,10 +201,10 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
   static const std::string class_identifier_ = "SPHERE";
 
-  /// \brief The BulkData objects this class acts upon.
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
+  /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Buffer distance to be added to the axis-aligned boundary box.

@@ -286,10 +286,10 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "NON_SMOOTH_LCP";
 
-  /// \brief The BulkData objects this class acts upon.
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
+  /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Method for computing the force induced by the constraints on their nodes.

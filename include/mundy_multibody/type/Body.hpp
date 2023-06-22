@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
-#define MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
+#ifndef MUNDY_MULTIBODY_TYPE_BODY_HPP_
+#define MUNDY_MULTIBODY_TYPE_BODY_HPP_
 
-/// \file Sphere.hpp
-/// \brief Declaration of the Sphere class
+/// \file Body.hpp
+/// \brief Declaration of the Body class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
@@ -35,38 +35,39 @@ namespace multibody {
 
 namespace type {
 
-/// \class Sphere
-/// \brief The static interface for all of Mundy's multibody Sphere objects.
-class Sphere : Multibody<Sphere> {
+/// \class Body
+/// \brief The static interface for all of Mundy's multibody Body objects.
+/// This is the parent/root class from which all Bodys derive.
+class Body : Multibody<Body> {
   //! \name Getters
   //@{
 
-  /// \brief Get the Sphere's name.
+  /// \brief Get the Body's name.
   /// This name must be unique and not shared by any other multibody object.
   static constexpr inline std::string_view details_get_name() {
-    return "SPHERE";
+    return "BODY";
   }
 
-  /// \brief Get the Sphere's topology.
+  /// \brief Get the Body's topology.
   static constexpr inline stk::topology details_get_topology() {
-    return stk::topology::PARTICLE;
+    return stk::topology::INVALID_TOPOLOGY;
   }
 
-  /// \brief Get the Sphere's rank.
+  /// \brief Get the Body's rank.
   static constexpr inline stk::topology details_get_rank() {
     return stk::topology::ELEMENT_RANK;
   }
 
-  /// \brief Get if the Sphere has a parent multibody type.
+  /// \brief Get if the Body has a parent multibody type.
   static constexpr inline bool details_has_parent() {
-    return true;
+    return false;
   }
 
-  /// \brief Get the parent multibody type of the Sphere.
+  /// \brief Get the parent multibody type of the Body.
   static constexpr inline bool details_get_parent_name() {
-    return "BODY";
+    return "INVALID";
   }
-};  // Sphere
+};  // Body
 
 }  // namespace type
 
@@ -74,4 +75,4 @@ class Sphere : Multibody<Sphere> {
 
 }  // namespace mundy
 
-#endif  // MUNDY_MULTIBODY_TYPE_SPHERE_HPP_
+#endif  // MUNDY_MULTIBODY_TYPE_BODY_HPP_

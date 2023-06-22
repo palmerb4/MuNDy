@@ -85,20 +85,25 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    // For now, we allow this method to assign these fields to the entire mesh.
-    // TODO (palmerb4): Should we restrict ourselves to just the multibody types? If so, how and what are the
-    // reprocussions?
+    // For now, we allow this method to assign these fields to all bodies.
+    // TODO(palmerb4): We should allow these fields to differ from multibody type to multibody type.
     std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
     std::string node_omega_field_name_name = valid_fixed_params.get<std::string>("node_omega_field_name_name");
 
+    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs->set_part_name("BODY");
+    part_reqs->set_part_rank(stk::topology::ELEMENT_RANK);
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("BODY"));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+    mesh_reqs->add_part_req(part_reqs);
 
     return mesh_reqs;
   }
@@ -202,10 +207,10 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "NODE_EULER";
 
-  /// \brief The BulkData objects this class acts upon.
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
+  /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of parts that this method acts on.

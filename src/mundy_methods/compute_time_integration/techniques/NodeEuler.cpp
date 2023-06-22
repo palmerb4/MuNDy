@@ -56,7 +56,7 @@ NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "Sphere: bulk_data_ptr cannot be a nullptr.");
+                             "NodeEuler: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -73,7 +73,7 @@ NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
   }
 
-  // Fill the internal members using the internal parameter list.
+  // Fill the internal members using the given parameter list.
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
   node_velocity_field_name_ = valid_fixed_params.get<std::string>("node_velocity_field_name");
 
@@ -86,12 +86,12 @@ NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
+Teuchos::ParameterList NodeEuler::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
-  // Fill the internal members using the internal parameter list.
+  // Fill the internal members using the given parameter list.
   time_step_size_ = valid_mutable_params.get<double>("time_step_size");
 }
 //}

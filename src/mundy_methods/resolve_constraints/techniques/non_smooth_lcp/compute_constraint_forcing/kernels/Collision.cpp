@@ -61,7 +61,7 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Fill the internal members using the internal parameter list.
+  // Fill the internal members using the given parameter list.
   node_normal_field_name_ = valid_fixed_params.get<std::string>("node_normal_field_name");
   node_force_field_name_ = valid_fixed_params.get<std::string>("node_force_field_name");
   element_lagrange_multiplier_field_name_ =
@@ -72,6 +72,9 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
   element_lagrange_multiplier_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name_);
+
+  // Prefetch the collision part.
+  collision_part_ptr_ = meta_data_ptr_->get_part("COLLISION");
 }
 //}
 
@@ -87,20 +90,20 @@ Teuchos::ParameterList Collision::set_mutable_params(
 //{
 
 void Collision::setup() {
-  // TODO(palmerb4): I think we need to populate our ghost collision elements.
+  // TODO(palmerb4): Populate our ghost collision elements.
 }
 
 void Collision::execute(const stk::mesh::Entity &collision_node) {
-  const size_t num_collision_elements = bulkData.num_elements(collision_node);
-  stk::mesh::Entity const *collision_elements = bulkData.begin_elements(collision_node);
+  const size_t num_connected_elements = bulk_data_ptr->num_elements(collision_node);
+  stk::mesh::Entity const *connected_elements = bulk_data_ptr->begin_elements(collision_node);
   double *node_normal = stk::mesh::field_data(linkerLagMultField, collision_node);
   double *node_force = stk::mesh::field_data(linkerLagMultField, collision_node);
 
   // Fetch the attached collision constraint's information.
-  for (int i = 0; i < num_collision_elements; i++) {
-    // TODO(palmerb4): The following requires us to switch to multibody part attributes.
-    if (collision_part.constains(collision_elements[i])) {
-      const double linker_lag_mult = stk::mesh::field_data(linkerLagMultField, collision_elements[i])[0];
+  for (int i = 0; i < num_connected_elements; i++) {
+    bool is_collision_constraint = bulk_data_ptr->bucket(connected_elements[i]).member(collision_part_ptr_);
+    if (is_collision_constraint) {
+      const double linker_lag_mult = stk::mesh::field_data(linkerLagMultField, connected_elements[i])[0];
 
       node_force[0] += -linker_lag_mult * node_normal[0];
       node_force[1] += -linker_lag_mult * node_normal[1];
@@ -110,7 +113,7 @@ void Collision::execute(const stk::mesh::Entity &collision_node) {
 }
 
 void Collision::finalize() {
-  // TODO(palmerb4): We need to reduce over the nodes.
+  // TODO(palmerb4): We need to reduce over the shared nodes.
 }
 //}
 

@@ -75,7 +75,7 @@ Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
-  // Fill the internal members using the internal parameter list.
+  // Fill the internal members using the given parameter list.
   buffer_distance_ = valid_fixed_params.get<double>("buffer_distance");
 }
 //}

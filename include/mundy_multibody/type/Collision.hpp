@@ -59,12 +59,12 @@ class Collision : Multibody<Collision> {
 
   /// \brief Get if the Collision has a parent multibody type.
   static constexpr inline bool details_has_parent() {
-    return false;
+    return true;
   }
 
   /// \brief Get the parent multibody type of the Collision.
   static constexpr inline bool details_get_parent_name() {
-    return "INVALID";
+    return "CONSTRAINT";
   }
 };  // Collision
 

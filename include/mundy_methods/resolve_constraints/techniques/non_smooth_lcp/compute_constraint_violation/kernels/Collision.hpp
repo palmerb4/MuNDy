@@ -209,10 +209,10 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
   static const std::string class_identifier_ = "COLLISION";
 
-  /// \brief The BulkData objects this class acts upon.
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
+  /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Name of the element field containing the signed separation distance between collision pairs.

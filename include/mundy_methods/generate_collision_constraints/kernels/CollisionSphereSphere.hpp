@@ -206,10 +206,10 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
   static constexpr std::string_view class_identifier_ = "COLLISIONSPHERESPHERE";
 
-  /// \brief The BulkData objects this class acts upon.
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
+  /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Name of the node field containing the coordinate of each Sphere's center and the contact points.

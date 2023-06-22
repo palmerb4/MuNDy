@@ -57,12 +57,11 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Fill the internal members using the internal parameter list.
+  // Fill the internal members using the given parameter list.
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
   node_force_field_name_ = valid_fixed_params.get<std::string>("node_force_field_name");
   node_torque_field_name_ = valid_fixed_params.get<std::string>("node_torque_field_name");
-
-  // Store the input params.
+  
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
   node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_torque_field_name_);
