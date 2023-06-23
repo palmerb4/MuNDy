@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file UpdateCollisionConstraints.cpp
-/// \brief Definition of the UpdateCollisionConstraints class
+/// \file GenerateCollisionConstraints.cpp
+/// \brief Definition of the GenerateCollisionConstraints class
 
 // C++ core libs
 #include <algorithm>
@@ -36,13 +36,13 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                       // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>                    // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                     // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>                     // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>                   // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>               // for mundy::meta::PartRequirements
-#include <mundy_methods/UpdateCollisionConstraints.hpp>  // for mundy::methods::UpdateCollisionConstraints
+#include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
+#include <mundy_meta/MetaFactory.hpp>                      // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                       // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>                       // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>                     // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
+#include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 
 namespace mundy {
 
@@ -51,12 +51,12 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-UpdateCollisionConstraints::UpdateCollisionConstraints(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                       const Teuchos::ParameterList &fixed_params)
+GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                           const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "UpdateCollisionConstraints: bulk_data_ptr cannot be a nullptr.");
+                             "GenerateCollisionConstraints: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -79,7 +79,7 @@ UpdateCollisionConstraints::UpdateCollisionConstraints(mundy::mesh::BulkData *co
 // \name MetaMethod interface implementation
 //{
 
-void UpdateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
+void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
@@ -87,7 +87,7 @@ void UpdateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teuch
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
   TEUCHOS_TEST_FOR_EXCEPTION(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
-                             "UpdateCollisionConstraints: Internal error. Mismatch between the stored kernel count "
+                             "GenerateCollisionConstraints: Internal error. Mismatch between the stored kernel count "
                              "and the parameter list kernel count.\n"
                                  << "Odd... Please contact the development team.");
   for (size_t i = 0; i < num_multibody_types_; i++) {
@@ -100,7 +100,7 @@ void UpdateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teuch
 // \name Actions
 //{
 
-void UpdateCollisionConstraints::execute(const stk::mesh::Selector &input_selector) {
+void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_selector) {
   // Two words of word of warning:
   //   1. This method is programmed with care to avoid generating duplicative constraints. To do so, we only generate a
   //      collision constraint if the entity_key of the source particle is less than that of the target particle.
@@ -112,7 +112,7 @@ void UpdateCollisionConstraints::execute(const stk::mesh::Selector &input_select
   //
   // The core assumption is this: every pair of neighbors in the neighbor list will induce 1 collision constraint and 2
   // nodes. The nodes will connect to the dynamic connectivity (linkers) of the colliding pair. Under these assumptions
-  // UpdateCollisionConstraints should
+  // GenerateCollisionConstraints should
   //   0. Parse the parameter list and fetch our old and new neighbor list. We don't maintain the two lists, the user
   //   does. This makes clear that we only care about the difference between the two lists.
   //   1. Compare the neighbor list to our existing neighbor list to get the pairs_for_deletion and pairs_for_creation.
@@ -143,7 +143,7 @@ void UpdateCollisionConstraints::execute(const stk::mesh::Selector &input_select
   //   Solution: For now, only elements will receive linkers to encode their
   //     dynamic surface connectivity. Once we build up a higher level of abstraction, we can break dynamic
   //     connectivity into subsets.
-  // - Issue: If linkers are generated on the fly, then UpdateCollisionConstraints is one of the classes that should
+  // - Issue: If linkers are generated on the fly, then GenerateCollisionConstraints is one of the classes that should
   //     generate linkers. I really don't want to generate a linker for every edge, face, and element.
   //   Solution: Polytopes are either represented as a super-element with its own linker or as a collection of linked
   //     elements. Either way, we only consider element-to-element neighbor detection, and one linker per element.
@@ -155,7 +155,7 @@ void UpdateCollisionConstraints::execute(const stk::mesh::Selector &input_select
   //     linkers and spheres but not the node of the ghosted sphere. We need to ghost the downward connectivity
   //     of our neighbors.
   // - Issue: Given two spheres, how do we fetch the collision constraint that links them?
-  //   Solution: Once UpdateCollisionConstraints generates the collision constraints, it should store them with the
+  //   Solution: Once GenerateCollisionConstraints generates the collision constraints, it should store them with the
   //     neighbor list such that we can pass this kernel the constraint and the two spheres without needing to perform
   //     complicated lookups. This will require modifying mundy's data structors to better accommodate KWay kernels
   //     without code repetition (done).
@@ -172,24 +172,34 @@ void UpdateCollisionConstraints::execute(const stk::mesh::Selector &input_select
   // parameter. Users may leave the lists the same and simply wish to repopulate the  existing collision constraints
   // using the given neighbor list. Users may even keep the neighbor list fixed for a couple execute calls and then
   // update it later on.
-  for (size_t i = 0; i < num_parts_; i++) {
-    std::shared_ptr<mundy::meta::MetaKernelBase<void>> compute_aabb_kernel_ptr = compute_aabb_kernel_ptrs_[i];
 
-    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
-    stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK, locally_owned_part,
-        [&compute_aabb_kernel_ptr]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          compute_aabb_kernel_ptr->execute(element);
-        });
-  }
+  // Find the set of neighbors that need collision constraints and ghost them and their connectivity.
+  bulk_data_ptr_->modification_begin();
+  auto pairs_to_generate = find_our_gained_neighbor_pairs(old_neighbor_pairs_, new_neighbor_pairs_);
+  bool ghost_downward_connectivity = true;
+  bool ghost_upward_connectivity = true;
+  ghost_neighbors(bulk_data_ptr_, pairs_to_generate, ghost_downward_connectivity, ghost_upward_connectivity);
+  bulk_data_ptr_->modification_end();
+
+  // TODO(palmerb4): Perform some communication with the ghosts.
+
+  bulk_data_ptr_->modification_begin();
+  generate_empty_collision_constraints_between_pairs(bulk_data_ptr_, pairs_to_generate);
+  bulk_data_ptr_->modification_end();
+
+  // Populate the empty collision constraints.
+  // The population procedure differs based on the multibody types of the connected bodies.
+  // We should simply use UpdateConstraints to populate the constraints.
+  // TODO(palmerb4): Write UpdateConstraints.
 }
 //}
 
 // \name Internal helper functions
 //{
 
-std::pair<IdentProcPairVector, IdentProcPairVector> UpdateCollisionConstraints::find_our_lost_and_gained_neighbor_pairs(
-    const IdentProcPairVector &old_neighbor_pairs, const IdentProcPairVector &new_neighbor_pairs) {
+std::pair<IdentProcPairVector, IdentProcPairVector>
+GenerateCollisionConstraints::find_our_lost_and_gained_neighbor_pairs(const IdentProcPairVector &old_neighbor_pairs,
+                                                                      const IdentProcPairVector &new_neighbor_pairs) {
   // Lost neighbors are those that are in the old neighbor list but not in the new list.
   IdentProcPairVector lost_neighbor_pairs;
   std::set_difference(std::begin(old_neighbor_pairs), std::end(old_neighbor_pairs), std::begin(new_neighbor_pairs),
@@ -200,10 +210,12 @@ std::pair<IdentProcPairVector, IdentProcPairVector> UpdateCollisionConstraints::
   std::set_difference(std::begin(new_neighbor_pairs), std::end(new_neighbor_pairs), std::begin(old_neighbor_pairs),
                       std::end(old_neighbor_pairs), std::back_inserter(gained_neighbor_pairs));
 
+  // TODO(palmerb4): Correct for invalid entities.
+
   return std::make_pair(lost_neighbor_pairs, gained_neighbor_pairs);
 }
 
-std::vector<std::mesh::Entity> UpdateCollisionConstraints::get_connected_lower_rank_entities(
+std::vector<std::mesh::Entity> GenerateCollisionConstraints::get_connected_lower_rank_entities(
     mundy::mesh::BulkData *const bulk_data_ptr, const stk::mesh::Entity &entity,
     const stk::topology::rank_t &entity_rank) {
   // For all ranks less than the current rank, fetch the connected entities of that rank and add them to the output.
@@ -222,7 +234,7 @@ std::vector<std::mesh::Entity> UpdateCollisionConstraints::get_connected_lower_r
   return connected_lower_rank_entities;
 }
 
-std::vector<std::mesh::Entity> UpdateCollisionConstraints::get_connected_higer_rank_entities(
+std::vector<std::mesh::Entity> GenerateCollisionConstraints::get_connected_higer_rank_entities(
     mundy::mesh::BulkData *const bulk_data_ptr, const stk::mesh::Entity &entity,
     const stk::topology::rank_t &entity_rank) {
   // For all ranks higher than the current rank, fetch the connected entities of that rank and add them to the output.
@@ -241,12 +253,12 @@ std::vector<std::mesh::Entity> UpdateCollisionConstraints::get_connected_higer_r
   return connected_higher_rank_entities;
 }
 
-stk::mesh::Ghosting &UpdateCollisionConstraints::ghost_neighbors(
+stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(
     mundy::mesh::BulkData *const bulk_data_ptr, const IdentProcPairVector &pairs_to_ghost,
     const std::string &name_of_ghosting = "geometric_ghosts", bool ghost_downward_connectivity = false,
     bool ghost_upward_connectivity = false) {
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
-                             "UpdateCollisionConstraints: The provided bulk data is not in a modified state. \n"
+                             "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
                                  << "Be sure to run modificiation_begin() before running this routine.");
 
   const int parallel_rank = bulk_data_ptr->parallel_rank();
@@ -258,7 +270,7 @@ stk::mesh::Ghosting &UpdateCollisionConstraints::ghost_neighbors(
     int source_proc = pairs_to_ghost[i].first.proc();
     int target_proc = pairs_to_ghost[i].second.proc();
 
-    // Check if the entities are not deleted, and if so,
+    // If either of the pair is invalid (typically because it was deleted) ignore that pair.
     bool is_source_valid = bulk_data_ptr->is_valid(source_entity);
     bool is_target_valid = bulk_data_ptr->is_valid(target_entity);
     if (is_source_valid && is_target_valid) {
@@ -274,11 +286,11 @@ stk::mesh::Ghosting &UpdateCollisionConstraints::ghost_neighbors(
       bool is_target_proc_consistent =
           (bulk_data_ptr->parallel_owner_rank(target_entity) == target_proc) == is_target_owned;
       TEUCHOS_TEST_FOR_EXCEPTION(is_source_proc_consistant, std::invalid_argument,
-                                 "UpdateCollisionConstraints: The source proc for pair i = "
+                                 "GenerateCollisionConstraints: The source proc for pair i = "
                                      << i << " gives inconsistent ownership.\n"
                                      << "Make sure that the entity proc of your source is correct.");
       TEUCHOS_TEST_FOR_EXCEPTION(is_target_proc_consistent, std::invalid_argument,
-                                 "UpdateCollisionConstraints: The target proc for pair i = "
+                                 "GenerateCollisionConstraints: The target proc for pair i = "
                                      << i << " gives inconsistent ownership.\n"
                                      << "Make sure that the entity proc of your target is correct.");
 
@@ -331,19 +343,96 @@ stk::mesh::Ghosting &UpdateCollisionConstraints::ghost_neighbors(
       }
     }
   }
-  
+
   stk::mesh::Ghosting &ghosting = bulk_data_ptr->create_ghosting(name_of_ghosting);
   bulk_data_ptr->change_ghosting(ghosting, entities_to_ghost);
 }
 
-std::vector<stk::mesh::Entity> UpdateCollisionConstraints::generate_empty_collision_constraints_between_pairs(
-    mundy::mesh::BulkData *const bulk_data_ptr, const IdentProcPairVector &pairs_to_connect) {
-}
+std::vector<stk::mesh::Entity> GenerateCollisionConstraints::generate_empty_collision_constraints_between_pairs(
+    mundy::mesh::BulkData *const bulk_data_ptr, std::mesh::Part *const collision_part_ptr,
+    const IdentProcPairVector &pairs_to_connect) {
+  // A word of warning: This method is programmed with care to avoid generating duplicative constraints. To do so, we
+  // only generate a collision constraint if the entity_key of the source body is less than that of the target body.
 
-void UpdateCollisionConstraints::delete_collision_constraints_between_pairs(
-    mundy::mesh::BulkData *const bulk_data_ptr, const IdentProcPairVector &pairs_to_delete) {
-}
+  // This function can be broken into steps:
+  //   0. Count the number of collision constraints C that need generated.
+  //   1. For each pair, generate C elements and C*P nodes.
+  //   2. Change the topology of the c elements to be collision constraints.
+  //   3. For each collision constraint, attach two unique nodes.
+  //   4. For each pair, fetch their linkers and attach the respective nodes.
+  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
+                             "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
+                                 << "Be sure to run modificiation_begin() before running this routine.");
 
+  // All pairs must be valid.
+  size_t num_pairs = pairs_to_connect.size();
+  for (size_t i = 0; i < num_pairs; ++i) {
+    stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].first.id());
+    stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].second.id());
+    bool is_pair_valid = bulk_data_ptr->is_valid(source_entity) && bulk_data_ptr->is_valid(target_entity);
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        is_pair_valid, std::invalid_argument,
+        "GenerateCollisionConstraints: Constraint generation failed. Pair i = " << i << " is invalid.");
+  }
+
+  // Step 0. Count the number of collision constraints C that need generated.
+  const size_t num_collisions = std::count_if(pairs_to_connect.begin(), pairs_to_connect.end(),
+                                              [](const std::pair<SearchIdentProc, SearchIdentProc> &neighbor_pair) {
+                                                return neighbor_pair.first.id() < neighbor_pair.second.id();
+                                              });
+
+  // Step 1. Generate C elements and 2C nodes
+  // Note, generate_new_entities has a very particular input and output. To aid in understanding the following code,
+  // consider the following pseudo-example:
+  //    If requests = { 0, 4,  8}, then we are requesting 0 entites of rank 0, 4 entites of rank 1, and 8 entites of
+  //    rank 2. The resulting requested_entities is therefore requested_entities = {0 entites of rank 0, 4 entites of
+  //    rank 1, 8 entites of rank 2}.
+  std::vector<size_t> requests(bulk_data_ptr->mesh_meta_data(), 0);
+  requests[stk::topology::ELEMENT_RANK] = num_collisions;
+  requests[stk::topology::NODE_RANK] = 2 * num_collisions;
+  std::vector<stk::mesh::Entity> requested_entities;
+  bulkData.generate_new_entities(requests, requested_entities);
+
+  size_t count = 0;
+  for (size_t i = 0; i < num_pairs; i++) {
+    // Only generate collision constraints if the source body's id is less than the id of the target body. This prevents
+    // duplicate constraints.
+    if (pairs_to_ghost[i].first.id() < pairs_to_ghost[i].second.id()) {
+      // Step 2. Associate each element with the collision constraint part.
+      stk::mesh::Entity collision_element = requested_entities[2 * num_collisions + count];
+      bulkData.change_entity_parts(collision_element, stk::mesh::ConstPartVector{collision_part_ptr});
+
+      // Step 3. Set the downward relations from the elements to the nodes.
+      stk::mesh::Entity left_node = requested_entities[2 * count + 0];
+      stk::mesh::Entity right_node = requested_entities[2 * count + 1];
+      bulkData.declare_relation(collision_element, left_node, 0);
+      bulkData.declare_relation(collision_element, right_node, 1);
+
+      // Step 4. Attach the nodes to their respective linker.
+      // These linkers may have existing nodes, so we tack the new ones onto the end of their dynamic connectivity.
+      stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].first.id());
+      stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].second.id());
+      TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->num_connectivity(source_entity, stk::topology::CONSTRAINT_RANK) == 1,
+                                 std::invalid_argument,
+                                 "GenerateCollisionConstraints: The source entity within Pair i = "
+                                     << i << " doesn't have a linker (or has multiple linkers).");
+      TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->num_connectivity(target_entity, stk::topology::CONSTRAINT_RANK) == 1,
+                                 std::invalid_argument,
+                                 "GenerateCollisionConstraints: The target entity within Pair i = "
+                                     << i << " doesn't have a linker (or has multiple linkers).");
+      stk::mesh::Entity const source_linker =
+          bulk_data_ptr_->begin_entities(source_entity, stk::topology::CONSTRAINT_RANK)[0];
+      stk::mesh::Entity const target_linker =
+          bulk_data_ptr_->begin_entities(target_entity, stk::topology::CONSTRAINT_RANK)[0];
+      const size_t num_nodes_in_source_linker = bulk_data_ptr_->num_nodes(source_linker);
+      const size_t num_nodes_in_target_linker = bulk_data_ptr_->num_nodes(target_linker);
+      bulkData.declare_relation(source_linker, left_node, num_nodes_in_source_linker);
+      bulkData.declare_relation(target_linker, right_node, num_nodes_in_target_linker);
+
+      count++;
+    }
+  }
+}
 //}
 
 }  // namespace methods

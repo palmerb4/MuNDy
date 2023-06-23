@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_UPDATECOLLISIONCONSTRAINTS_HPP_
-#define MUNDY_METHODS_UPDATECOLLISIONCONSTRAINTS_HPP_
+#ifndef MUNDY_METHODS_DeleteCollisionConstraints_HPP_
+#define MUNDY_METHODS_DeleteCollisionConstraints_HPP_
 
-/// \file UpdateCollisionConstraints.hpp
-/// \brief Declaration of the UpdateCollisionConstraints class
+/// \file DeleteCollisionConstraints.hpp
+/// \brief Declaration of the DeleteCollisionConstraints class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -49,31 +49,28 @@ namespace mundy {
 
 namespace methods {
 
-// TODO(palmerb4): Who should be the one to decide on this type?
-using IdentProcPairVector = std::vector<std::pair<SearchIdentProc, SearchIdentProc>>;
-
-/// \class UpdateCollisionConstraints
-/// \brief Method for computing the axis aligned boundary box of different parts.
-class UpdateCollisionConstraints : public mundy::meta::MetaMethod<void, UpdateCollisionConstraints>,
-                                   public mundy::meta::GlobalMetaMethodRegistry<void, UpdateCollisionConstraints> {
+/// \class DeleteCollisionConstraints
+/// \brief Method for deleting unnecessary collision constrants.
+class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void, DeleteCollisionConstraints>,
+                                   public mundy::meta::GlobalMetaMethodRegistry<void, DeleteCollisionConstraints> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  UpdateCollisionConstraints() = delete;
+  DeleteCollisionConstraints() = delete;
 
   /// \brief Constructor
-  UpdateCollisionConstraints(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  DeleteCollisionConstraints(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name Typedefs
   //@{
 
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, UpdateCollisionConstraints>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, DeleteCollisionConstraints>;
 
   template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, UpdateCollisionConstraints>;
+  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, DeleteCollisionConstraints>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -171,7 +168,7 @@ class UpdateCollisionConstraints : public mundy::meta::MetaMethod<void, UpdateCo
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<UpdateCollisionConstraints>(bulk_data_ptr, fixed_params);
+    return std::make_shared<DeleteCollisionConstraints>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
@@ -186,78 +183,6 @@ class UpdateCollisionConstraints : public mundy::meta::MetaMethod<void, UpdateCo
   //@}
 
  private:
-  //! \name Internal helper functions
-  //@{
-
-  /// \brief Given an old and a new neighbor list, get the lost and gained neighbors.
-  ///
-  /// \param old_neighbor_pairs The previous neighbor list to compair against.
-  /// \param new_neighbor_pairs The new neighbor list.
-  /// \return The lost_neighbor_pairs and the gained_neighbor_pairs.
-  std::pair<IdentProcPairVector, IdentProcPairVector> find_our_lost_and_gained_neighbor_pairs(
-      const IdentProcPairVector &old_neighbor_pairs, const IdentProcPairVector &new_neighbor_pairs);
-
-  /// \brief Fetch all lower-ranked entities connected to the given entity.
-  ///
-  /// \param bulk_data_ptr The bulk data within which the entitiy resides.
-  /// \param entity The entitity to get the connections of.
-  /// \param entity_rank The rank of the given entity.
-  /// \return A vector containing all lower-ranked entities connected to the given entity.
-  std::vector<std::mesh::Entity> get_connected_lower_rank_entities(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                   const stk::mesh::Entity &entity,
-                                                                   const stk::topology::rank_t &entity_rank);
-
-  /// \brief Fetch all higher-ranked entities connected to the given entity.
-  ///
-  /// \param bulk_data_ptr The bulk data within which the entitiy resides.
-  /// \param entity The entitity to get the connections of.
-  /// \param entity_rank The rank of the given entity.
-  /// \return A vector containing all higher-ranked entities connected to the given entity.
-  std::vector<std::mesh::Entity> get_connected_higer_rank_entities(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                   const stk::mesh::Entity &entity,
-                                                                   const stk::topology::rank_t &entity_rank);
-
-  /// \brief Given a neighbor list, ghost any neighbor we don't already have access to.
-  ///
-  /// Optionally, ghost the downward connectivity and/or upward connectivity of the neighbor.
-  ///
-  /// \param bulk_data_ptr The BulkData object to add the ghosting to (must be in a modifiable state).
-  /// \param pairs_to_ghost The set of neighbors to consider for potential ghosting (allowed to have self-neighbors and
-  /// non-locally owned domain/range)
-  /// \param ghost_downward_connectivity Flag specifying if we should ghost the neighbor's
-  /// downward connectivity.
-  /// \param ghost_upward_connectivity Flag specifying if we should ghost the neighbor's upward
-  /// connectivity.
-  /// \return A reference to the generated ghosting, owned by the BulkData.
-  stk::mesh::Ghosting &ghost_neighbors(mundy::mesh::BulkData *const bulk_data_ptr,
-                                       const IdentProcPairVector &pairs_to_ghost,
-                                       bool ghost_downward_connectivity = false,
-                                       bool ghost_upward_connectivity = false);
-
-  /// \brief Given a neighbor list, generate empty collision constraints between neighbors.
-  ///
-  /// Note, by empty we mean that the constraints will have the proper connectivity structure, but will not have the
-  /// correct internal fields.
-  ///
-  /// \param bulk_data_ptr The BulkData object to add the collision constraints to (must be in a modifiable state).
-  /// \param pairs_to_connect The set of neighbors to connect with constraints.
-  /// \return A vector containing the newly-generated collision constraint elements, one per neighbor pair.
-  std::vector<stk::mesh::Entity> generate_empty_collision_constraints_between_pairs(
-      mundy::mesh::BulkData *const bulk_data_ptr, const IdentProcPairVector &pairs_to_connect);
-
-  /// \brief Given a neighbor list, delete or effectively delete the collision constraint between the provided neighbor
-  /// pairs.
-  ///
-  /// We state "effectively delete" because we do not guarentee that the element ids associated with the "deleted"
-  /// collision constraint will be freed by this function; instead, we may elect to store the deleted constraints in an
-  /// internal inactive part such that we can reuse these constraints when new constraints are generated.
-  ///
-  /// \param bulk_data_ptr The BulkData object to delete the collision constraints from (must be in a modifiable state).
-  /// \param pairs_to_delete The set of neighbors whose constraints we should delete.
-  void delete_collision_constraints_between_pairs(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                  const IdentProcPairVector &pairs_to_delete);
-  //@}
-
   //! \name Internal members
   //@{
 
@@ -286,10 +211,10 @@ class UpdateCollisionConstraints : public mundy::meta::MetaMethod<void, UpdateCo
   std::shared_ptr<IdentProcPairVector> current_neighbor_pairs_ptr_;
 
   //@}
-};  // UpdateCollisionConstraints
+};  // DeleteCollisionConstraints
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_UPDATECOLLISIONCONSTRAINTS_HPP_
+#endif  // MUNDY_METHODS_DeleteCollisionConstraints_HPP_
