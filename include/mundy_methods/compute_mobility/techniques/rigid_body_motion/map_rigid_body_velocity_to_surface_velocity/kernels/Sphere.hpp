@@ -75,6 +75,7 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
+<<<<<<< Updated upstream
   static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
@@ -102,6 +103,75 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
     default_fixed_parameter_list.set("node_omega_field_name", std::string(default_node_omega_field_name_),
                                      "Name of the node field containing the surface and body rotational velocity.");
     return default_fixed_parameter_list;
+=======
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+
+    // Fill the requirements using the given parameter list.
+    std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
+    std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
+    std::string node_omega_field_name = valid_fixed_params.get<std::string>("node_omega_field_name");
+
+    auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    sphere_part_reqs->set_part_name("SPHERE");
+    sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
+    sphere_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name,
+                                                                                      stk::topology::NODE_RANK, 3, 1));
+
+    auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    linker_part_reqs->set_part_name("LINKER");
+    linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT);
+    linker_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("CONSTRAINT"));
+
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_part_req(sphere_part_reqs);
+    mesh_reqs->add_part_req(linker_part_reqs);
+
+    return mesh_reqs;
+  }
+
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
+    if (fixed_params_ptr->isParameter("node_coord_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
+                                 "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
+                            "Name of the node field containing the coordinate of the sphere's center.");
+    }
+
+    if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
+                                 "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
+                            "Name of the node field containing the surface and body velocity.");
+    }
+
+    if (fixed_params_ptr->isParameter("node_omega_field_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
+                                 "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
+                            "Name of the node field containing the surface and body rotational velocity.");
+    }
+>>>>>>> Stashed changes
   }
 
   /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).

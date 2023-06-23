@@ -478,8 +478,19 @@ Order I will implement things
   - Given two sphere elements, generate the collision constraint between them. Make sure both elements are spheres! If they aren't just continue on. 
 17. GenerateCollisionConstraints
   - Given the BulkData with an up-to-date neighbor list mesh attribute, generate collision constraints between any two neighbors that don't already have a collision constraint.
+<<<<<<< Updated upstream
   - Choose the appropriate pairwise kernel based on part membership.
 18. UpdateConstraints
+=======
+  - Store two neighbor list, one from the previous timestep and the current timestep. At the end of execute, rotate the neighbor lists.
+  - Copy and preprocess the given neighbor list.
+  - Ghost neighbors, their downward connectivity, and their linkers.
+  - Use the set difference between the current and previous neighbor list to identify how many constraints need deleted and how many need created.
+  - (On the CPU) Mark the deleted constraints for deletion and generate the new collision constraints.
+  - (On the CPU) Link the newly created collision constraints to their corresponding linkers.
+  - (On the GPU) Populate each collision constraint using UpdateConstraints.
+21. UpdateConstraints
+>>>>>>> Stashed changes
   - Given the BulkData, update the constraints as though they had just been generated. 
 
 

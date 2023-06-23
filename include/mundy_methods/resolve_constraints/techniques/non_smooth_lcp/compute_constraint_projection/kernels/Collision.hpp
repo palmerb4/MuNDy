@@ -79,6 +79,7 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
+<<<<<<< Updated upstream
   static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
@@ -87,6 +88,27 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
+=======
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+
+    // Fill the requirements using the given parameter list.
+    std::string element_lagrange_multiplier_field_name =
+        valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+
+    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs->set_part_name("COLLISION");
+    part_reqs->set_part_topology(stk::topology::BEAM_2);
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("COLLISION"));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_part_req(part_reqs);
+    return mesh_reqs;
+>>>>>>> Stashed changes
   }
 
   /// \brief Get the default fixed parameters for this class (those that impact the part requirements).

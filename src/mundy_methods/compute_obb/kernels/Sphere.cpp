@@ -53,9 +53,15 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
   valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
 
   // Fill the internal members using the internal parameter list
+<<<<<<< Updated upstream
   obb_field_name_ = valid_fixed_parameter_list.get<std::string>("obb_field_name");
   radius_field_name_ = valid_fixed_parameter_list.get<std::string>("radius_field_name");
   node_coord_field_name_ = valid_fixed_parameter_list.get<std::string>("node_coordinate_field_name");
+=======
+  obb_field_name_ = valid_fixed_params.get<std::string>("obb_field_name");
+  radius_field_name_ = valid_fixed_params.get<std::string>("radius_field_name");
+  node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
+>>>>>>> Stashed changes
 
   // Store the input params.
   obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);

@@ -89,6 +89,7 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+<<<<<<< Updated upstream
         std::string(default_element_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return required_part_params;
   }
@@ -109,6 +110,56 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
                                      std::string(default_element_constraint_violation_field_name_),
                                      "Name of the element field containing the constraint's violation measure.");
     return default_fixed_parameter_list;
+=======
+        element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_part_req(part_reqs);
+    return mesh_reqs;
+  }
+
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
+    if (fixed_params_ptr->isParameter("node_coord_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_signed_separation_dist_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Collision: Type error. Given a parameter with name 'element_signed_separation_dist_field_name' but "
+              << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("element_signed_separation_dist_field_name",
+                            std::string(default_element_signed_separation_dist_field_name_),
+                            "Name of the element field containing the signed separation distance collision pairs.");
+    }
+
+    if (fixed_params_ptr->isParameter("element_lagrange_multiplier_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_lagrange_multiplier_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Collision: Type error. Given a parameter with name 'element_lagrange_multiplier_field_name' but "
+          "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("element_lagrange_multiplier_field_name",
+                            std::string(default_element_lagrange_multiplier_field_name_),
+                            "Name of the element field containing the constraint's Lagrange multiplier.");
+    }
+
+    if (fixed_params_ptr->isParameter("element_constraint_violation_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Collision: Type error. Given a parameter with name 'element_constraint_violation_field_name' but "
+              << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("element_constraint_violation_field_name",
+                            std::string(default_element_constraint_violation_field_name_),
+                            "Name of the element field containing the constraint's violation measure.");
+    }
+>>>>>>> Stashed changes
   }
 
   /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
