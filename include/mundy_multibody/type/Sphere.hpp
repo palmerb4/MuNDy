@@ -37,12 +37,12 @@ namespace type {
 
 /// \class Sphere
 /// \brief The static interface for all of Mundy's multibody Sphere objects.
-class Sphere {
+class Sphere : Multibody<Sphere> {
   //! \name Getters
   //@{
 
   /// \brief Get the Sphere's name.
-  /// This name must be unique and not shared by any other Sphere object.
+  /// This name must be unique and not shared by any other multibody object.
   static constexpr inline std::string_view details_get_name() {
     return "SPHERE";
   }
@@ -59,12 +59,12 @@ class Sphere {
 
   /// \brief Get if the Sphere has a parent multibody type.
   static constexpr inline bool details_has_parent() {
-    return false;
+    return true;
   }
 
   /// \brief Get the parent multibody type of the Sphere.
   static constexpr inline bool details_get_parent_name() {
-    return "INVALID";
+    return "BODY";
   }
 };  // Sphere
 

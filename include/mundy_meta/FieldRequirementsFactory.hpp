@@ -36,7 +36,6 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 
 // Mundy libs
@@ -53,7 +52,7 @@ namespace meta {
 /// between different methods. This factory is a bit different in that it always users to register different field types
 /// such that a \c FieldRequirements<FieldType> can then be generated based on the registered FieldType and its
 /// corresponding string. This allows us to generate field requirements with custom types. Most importantly, it enables
-/// users to add their own triviallyu copiable field types without modifying Mundy's source code.
+/// users to add their own trivially copyable field types without modifying Mundy's source code.
 ///
 /// The current set of registered field types and their string corresponding identifier is:
 ///  - SHORT              -> short
@@ -102,23 +101,6 @@ class FieldRequirementsFactory {
   static bool is_valid_field_type_string(const std::string& field_type_string) {
     return get_instance_generator_map().count(field_type_string) != 0;
   }
-
-  /// \brief Get the default parameter list for a registered \c MetaKernel.
-  ///
-  /// The registered \c FieldRequirements accessed by this function is fetched based on the provided field type string.
-  /// This field type string must be valid; that is, \c is_valid_field_type_string(field_type_string) must return true.
-  /// To register a \c FieldRequirements with this factory, use the provided \c register_new_field_type function.
-  ///
-  /// \note This function does not cache its return value, so each time you call this function, a new
-  /// \c Teuchos::ParameterList will be created. You can save the result yourself if you wish to reuse it.
-  ///
-  /// \param field_type_string [in] A field type string correspond to a registered field type.
-  static Teuchos::ParameterList get_valid_params(const std::string& field_type_string) {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        is_valid_field_type_string(field_type_string), std::invalid_argument,
-        "FieldRequirementsFactory: The provided field type string " << field_type_string << " is not valid.");
-    return get_valid_params_generator_map()[field_type_string]();
-  }
   //@}
 
   //! \name Actions
@@ -158,9 +140,6 @@ class FieldRequirementsFactory {
 
   /// \brief A map from a string to a function for generating a new \c FieldRequirements.
   using InstanceGeneratorMap = std::map<std::string, NewFieldRequirementsGenerator>;
-
-  /// \brief A map from a string to a function for generating a \c FieldRequirements's part default requirements.
-  using DefaultParamsGeneratorMap = std::map<std::string, NewDefaultParamsGenerator>;
   //@}
 
   //! \name Attributes
@@ -169,12 +148,6 @@ class FieldRequirementsFactory {
     // Static: One and the same instance for all function calls.
     static InstanceGeneratorMap instance_generator_map;
     return instance_generator_map;
-  }
-
-  static DefaultParamsGeneratorMap& get_valid_params_generator_map() {
-    // Static: One and the same instance for all function calls.
-    static DefaultParamsGeneratorMap default_params_generator_map;
-    return default_params_generator_map;
   }
   //@}
 

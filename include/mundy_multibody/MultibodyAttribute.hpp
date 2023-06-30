@@ -23,6 +23,9 @@
 /// \file MultibodyAttribute.hpp
 /// \brief Declaration of the MultibodyAttribute struct
 
+// Mundy libs
+#include <mundy_multibody/Multibody.hpp>  // for mundy::multibody::Multibody
+
 namespace mundy {
 
 namespace multibody {
@@ -31,13 +34,8 @@ namespace multibody {
 /// \brief A simple struct that uses value semantics to store a multibody's fast ID. This is compatible with STK's
 /// mesh/part/field attribute design.
 struct MultibodyAttribute {
-  Factory::FastIdType value;
+  multibody_t value;
 };  // MultibodyAttribute
-
-
-
-
-
 
 }  // namespace multibody
 

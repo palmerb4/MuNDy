@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_MESHBUILDER_HPP_
-#define MUNDY_META_MESHBUILDER_HPP_
+#ifndef MUNDY_MESH_MESHBUILDER_HPP_
+#define MUNDY_MESH_MESHBUILDER_HPP_
 
 /// \file MeshBuilder.cpp
 /// \brief Declaration of the MeshBuilder class
@@ -29,21 +29,21 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <stk_mesh/base/BulkData.hpp>          // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
-#include <stk_mesh/base/MeshBuilder.hpp>       // for stk::mesh::MeshBuilder
-#include <stk_mesh/base/MetaData.hpp>          // for stk::mesh::MetaData
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
+
+// Mundy libs
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
 
-namespace meta {
+namespace mesh {
 
 /// \class MeshBuilder
 /// \brief A helper class for building an STK BulkData entity.
 ///
-/// This class is merely a duplicate of STK's \c MeshBuilder. Although duplicative code is discouraged, we chose to wrap
-/// all of \c MeshBuilder's functionality to improve its readability and documentation.
+/// This class is a duplicate of STK's \c MeshBuilder with our extended BulkData and MetaMesh in place of STK's.
 class MeshBuilder {
  public:
   //! \name Constructors and destructor
@@ -54,7 +54,6 @@ class MeshBuilder {
 
   /// \brief Constructor with given given communicator.
   explicit MeshBuilder(stk::ParallelMachine comm);
-
   //@}
 
   //! @name Setters
@@ -73,8 +72,12 @@ class MeshBuilder {
   MeshBuilder &set_communicator(const stk::ParallelMachine &comm);
 
   /// \brief Set the chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  /// \param aura_option [in] The chosen Aura option.
-  MeshBuilder &set_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &aura_option);
+  /// \param auto_aura_option [in] The chosen Aura option.
+  MeshBuilder &set_auto_aura_option(const stk::mesh::BulkData::AutomaticAuraOption &auto_aura_option);
+
+  /// \brief Set the add framework data flag.
+  /// \param add_fmwk_data_flag [in] A Siera-specific flag, whose purpose is unbeknownst to me.
+  MeshBuilder &set_add_fmwk_data_flag(bool add_fmwk_data_flag);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
@@ -87,6 +90,20 @@ class MeshBuilder {
   /// \param bucket_capacity [in] The bucket capacity.
   MeshBuilder &set_bucket_capacity(const unsigned bucket_capacity);
 
+  /// \brief Set the initial upper bound on the number of mesh entities that may be associated with a single bucket.
+  ///
+  /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
+  ///
+  /// \param initial_bucket_capacity [in] The initial bucket capacity.
+  MeshBuilder &set_initial_bucket_capacity(const unsigned initial_bucket_capacity);
+
+  /// \brief Set the maximum upper bound on the number of mesh entities that may be associated with a single bucket.
+  ///
+  /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
+  ///
+  /// \param bucket_capacity [in] The maximum bucket capacity.
+  MeshBuilder &set_maximum_bucket_capacity(const unsigned maximum_bucket_capacity);
+
   /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
   MeshBuilder &set_upward_connectivity_flag(const bool enable_upward_connectivity);
@@ -95,14 +112,17 @@ class MeshBuilder {
   //! @name Actions
   //@{
 
+  /// \brief Create a new aura ghosting instance.
+  std::shared_ptr<stk::mesh::impl::AuraGhosting> create_aura_ghosting();
+
   /// \brief Create a new MetaData instance.
-  std::shared_ptr<stk::mesh::MetaData> create_meta_data();
+  std::shared_ptr<MetaData> create_meta_data();
 
   /// \brief Create a new BulkData instance.
-  std::unique_ptr<stk::mesh::BulkData> create_bulk_data();
+  std::unique_ptr<BulkData> create_bulk_data();
 
   /// \brief Create a new BulkData instance using an existing MetaData instance.
-  std::unique_ptr<stk::mesh::BulkData> create_bulk_data(std::shared_ptr<stk::mesh::MetaData> meta_data);
+  std::unique_ptr<BulkData> create_bulk_data(std::shared_ptr<MetaData> meta_data);
   //@}
 
  private:
@@ -120,13 +140,19 @@ class MeshBuilder {
   bool has_comm_;
 
   /// \brief Chosen Aura option. For example, stk::mesh::BulkData::AUTO_AURA.
-  stk::mesh::BulkData::AutomaticAuraOption aura_option_;
+  BulkData::AutomaticAuraOption auto_aura_option_;
+
+  /// \brief A Siera-specific flag, whose purpose is unbeknownst to me.
+  bool add_fmwk_data_flag_;
 
   /// \brief Pointer to an existing field data manager.
   stk::mesh::FieldDataManager *field_data_manager_ptr_;
 
-  /// \brief Upper bound on the number of mesh entities that may be associated with a single bucket.
-  unsigned bucket_capacity_;
+  /// \brief Initial upper bound on the number of mesh entities that may be associated with a single bucket.
+  unsigned initial_bucket_capacity_;
+
+  /// \brief Maximum upper bound on the number of mesh entities that may be associated with a single bucket.
+  unsigned maximum_bucket_capacity_;
 
   /// \brief Spatial dimension of the mash.
   unsigned spatial_dimension_;
@@ -139,8 +165,8 @@ class MeshBuilder {
   //@}
 };  // MeshBuilder
 
-}  // namespace meta
+}  // namespace mesh
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_MESHBUILDER_HPP_
+#endif  // MUNDY_MESH_MESHBUILDER_HPP_

@@ -29,21 +29,21 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
-#include <mundy_multibody/Factory.hpp>  // for mundy::meta::Factory
-#include <mundy_multibody/MultibodyType.hpp>     // for mundy::meta::MultibodyType
+#include <mundy_multibody/Factory.hpp>    // for mundy::meta::Factory
+#include <mundy_multibody/Multibody.hpp>  // for mundy::meta::Multibody
 
 namespace mundy {
 
 namespace multibody {
 
 /// \class Registry
-/// \brief A class for registering new \c MultibodyType types within \c Factory.
+/// \brief A class for registering new \c Multibody types within \c Factory.
 ///
-/// All classes derived from \c MultibodyType, which wish to be registered within the \c Factory should inherit
+/// All classes derived from \c Multibody, which wish to be registered within the \c Factory should inherit
 /// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
 /// Pattern).
 ///
-/// \tparam ClassToRegister A class derived from \c MultibodyType.
+/// \tparam ClassToRegister A class derived from \c Multibody.
 template <class ClassToRegister>
 struct Registry {
   //! \name Actions

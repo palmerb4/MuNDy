@@ -29,18 +29,18 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_time_integration/NodeEuler.hpp>  // for mundy::methods::compute_time_integration::NodeEuler
 
 namespace mundy {
@@ -52,31 +52,30 @@ namespace compute_time_integration {
 // \name Constructors and destructor
 //{
 
-NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
+NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "NodeEuler: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Parse the parameters
-  Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
-  num_parts_ = parts_parameter_list.get<unsigned>("count");
+  Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
+  num_parts_ = parts_params.get<unsigned>("count");
   part_ptr_vector_.resize(num_parts_);
   for (size_t i = 0; i < num_parts_; i++) {
     // Fetch the i'th part and its parameters
-    Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-    const std::string part_name = part_parameter_list.get<std::string>("name");
+    Teuchos::ParameterList &part_params = parts_params.sublist("input_part_" + std::to_string(i));
+    const std::string part_name = part_params.get<std::string>("name");
     part_ptr_vector_[i] = meta_data_ptr_->get_part(part_name);
   }
 
-  // Fill the internal members using the internal parameter list.
-  node_coord_field_name_ = valid_fixed_parameter_list.get<std::string>("node_coord_field_name");
-  node_velocity_field_name_ = valid_fixed_parameter_list.get<std::string>("node_velocity_field_name");
+  // Fill the internal members using the given parameter list.
+  node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
+  node_velocity_field_name_ = valid_fixed_params.get<std::string>("node_velocity_field_name");
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
@@ -87,25 +86,25 @@ NodeEuler::NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Pa
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Sphere::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+Teuchos::ParameterList NodeEuler::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
-  // Fill the internal members using the internal parameter list.
-  time_step_size_ = valid_transient_parameter_list.get<double>("time_step_size");
+  // Fill the internal members using the given parameter list.
+  time_step_size_ = valid_mutable_params.get<double>("time_step_size");
 }
 //}
 
 // \name Actions
 //{
 
-void NodeEuler::execute() {
+void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
+  //TODO(palmerb4): NodeEuler should only act on the mulitbody Body type. Take the intersection.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
-                                   [](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
+                                   [](const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed
                                      // This is the best way to indicate that things like the normal vector need
                                      // updated. Does STK have an observer that lets us check if fields need updated?

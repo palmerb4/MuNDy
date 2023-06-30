@@ -29,13 +29,14 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
@@ -53,56 +54,25 @@ namespace kernels {
 
 /// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
-               public mundy::meta::MetaMultibodyKernelRegistry<void, Sphere, ComputeOBB> {
+class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::OurKernelRegistry<Sphere> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  explicit Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaKernel interface implementation
   //@{
 
-  /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-<<<<<<< Updated upstream
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
-    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
-        std::make_shared<mundy::meta::PartRequirements>();
-    required_part_params->set_part_topology(stk::topology::PARTICLE);
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_obb_field_name_), stk::topology::ELEMENT_RANK, 4, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    return required_part_params;
-  }
-
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.set(
-        "obb_field_name", std::string(default_obb_field_name_),
-        "Element field within which the output object-aligned boundary boxes will be written.");
-    default_fixed_parameter_list.set("radius_field_name", std::string(default_radius_field_name_),
-                                     "Name of the element field containing the sphere radius.");
-    default_fixed_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
-                                     "Name of the node field containing the coordinate of the sphere's center.");
-    return default_fixed_parameter_list;
-=======
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -162,18 +132,20 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
     }
->>>>>>> Stashed changes
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    default_transient_parameter_list.set("buffer_distance", default_buffer_distance_,
-                                         "Buffer distance to be added to the object-aligned boundary box.");
-    return default_transient_parameter_list;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    if (mutable_params_ptr->isParameter("buffer_distance")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
+                                     << "with a type other than unsigned");
+    } else {
+      mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
+                              "Buffer distance to be added to the axis-aligned boundary box.");
+    }
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -184,20 +156,31 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<Sphere>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<Sphere>(bulk_data_ptr, fixed_params);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
   //@{
 
+  /// \brief Setup the method's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the kernel's core calculation.
-  /// \param element [in] The element acted on by the kernel.
-  void execute(const stk::mesh::Entity &element) override;
+  /// \param sphere_element [in] The sphere element acted on by the kernel.
+  void execute(const stk::mesh::Entity &sphere_element) override;
+
+  /// \brief Finalize the method's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:
@@ -215,14 +198,13 @@ class Sphere : public mundy::meta::MetaMultibodyKernel<void, Sphere>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static const mundy::multibody::Factory::FastIdType class_identifier_ =
-      mundy::multibody::Factory::get_fast_id("SPHERE");
+  static const std::string class_identifier_ = "SPHERE";
 
-  /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  /// \brief The BulkData object this class acts upon.
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  /// \brief The MetaData object this class acts upon.
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Buffer distance to be added to the object-aligned boundary box.
   ///

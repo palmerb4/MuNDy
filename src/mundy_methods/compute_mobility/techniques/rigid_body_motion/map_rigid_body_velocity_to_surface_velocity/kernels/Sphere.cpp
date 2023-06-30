@@ -26,12 +26,12 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 #include <mundy_methods/compute_mobility/map_rigid_body_velocity_to_surface_velocity/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
 
 namespace mundy {
@@ -47,17 +47,20 @@ namespace kernels {
 // \name Constructors and destructor
 //{
 
-Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
+Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  // The bulk data pointer must not be null.
+  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
+                             "Sphere: bulk_data_ptr cannot be a nullptr.");
 
-  // Fill the internal members using the internal parameter list.
-  node_coord_field_name_ = valid_fixed_parameter_list.get<std::string>("node_coord_field_name");
-  node_velocity_field_name_ = valid_fixed_parameter_list.get<std::string>("node_velocity_field_name");
-  node_omega_field_name_ = valid_fixed_parameter_list.get<std::string>("node_omega_field_name");
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+
+  // Fill the internal members using the given parameter list.
+  node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
+  node_velocity_field_name_ = valid_fixed_params.get<std::string>("node_velocity_field_name");
+  node_omega_field_name_ = valid_fixed_params.get<std::string>("node_omega_field_name");
 
   // Store the input params.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
@@ -69,26 +72,26 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Sphere::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+Teuchos::ParameterList Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
 }
 //}
 
 // \name Actions
 //{
 
-void Sphere::execute(const stk::mesh::Entity &linker) {
+void Sphere::setup() {
+  // TODO(palmerb4): Populate the ghosted spheres.
+}
+
+void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+  stk::mesh::Entity const linker = bulk_data_ptr_->begin_entities(sphere_element, stk::topology::CONSTRAINT_RANK)[0];
   stk::mesh::Entity const *surface_nodes = bulk_data_ptr_->begin_nodes(linker);
-  stk::mesh::Entity const sphere = bulk_data_ptr_->begin_elements(linker)[0];
-  stk::mesh::Entity const body_node = bulk_data_ptr_->begin_nodes(sphere)[0];
+  stk::mesh::Entity const body_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 
   double *body_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, body_node);
   double *body_node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, body_node);
   double *body_node_omega = stk::mesh::field_data(*node_omega_field_ptr_, body_node);
-  unsigned num_surface_nodes = bulk_data_ptr_->num_nodes();
+  unsigned num_surface_nodes = bulk_data_ptr_->num_nodes(linker);
   for (int i = 0; i < num_surface_nodes; i++) {
     double *surface_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, surface_nodes[i]);
     double *surface_node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, surface_nodes[i]);
@@ -108,6 +111,10 @@ void Sphere::execute(const stk::mesh::Entity &linker) {
     surface_node_omega[1] = body_node_omega[1];
     surface_node_omega[2] = body_node_omega[2];
   }
+}
+
+void Sphere::finalize() {
+  // TODO(palmerb4): Communicate the ghosted information. Overwrite the information in the non-ghosted nodes.
 }
 //}
 

@@ -25,21 +25,24 @@
 
 // C++ core libs
 #include <algorithm>    // for std::max
+#include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <stdexcept>    // for std::logic_error, std::invalid_argument
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <utility>      // for std::move
 #include <vector>       // for std::vector
+
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 #include <stk_util/util/CSet.hpp>        // for stk::CSet
 
 // Mundy libs
+#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
 namespace mundy {
@@ -66,15 +69,15 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string);
 /// \class FieldRequirements
 /// \brief A set of necessary parameters for declaring a new field.
 ///
-/// \tparam FieldType Type for elements in the field.
-template <typename FieldType>
+/// \tparam FieldType_t Type for elements in the field.
+template <typename FieldType_t>
 class FieldRequirements : public FieldRequirementsBase {
  public:
   //! \name Typedefs
   //@{
 
-  /// \tparam field_type Type for elements in the field. Set by the template parameter.
-  typedef FieldType field_type;
+  /// \tparam FieldType Type for elements in the field. Set by the template parameter.
+  using FieldType = FieldType_t;
   //@}
 
   //! \name Constructors and destructor
@@ -98,8 +101,8 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief Construct from a parameter list.
   ///
-  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid
-  /// parameters is accessible via \c get_valid_params.
+  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. These parameters must
+  /// be valid. That is, validate_parameters_and_set_defaults(&parameter_list) must run without error.
   explicit FieldRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
@@ -107,34 +110,24 @@ class FieldRequirements : public FieldRequirementsBase {
   //@{
 
   /// \brief Set the required field name.
-  /// \brief field_name [in] Required name of the field.
+  /// \param field_name [in] Required name of the field.
   void set_field_name(const std::string &field_name) final;
 
   /// \brief Set the required field rank.
-  /// \brief field_rank [in] Required rank of the field.
+  /// \param field_rank [in] Required rank of the field.
   void set_field_rank(const stk::topology::rank_t &field_rank) final;
 
   /// \brief Set the required field rank.
-  /// \brief field_rank [in] Required rank of the field.
+  /// \param field_rank [in] Required rank of the field.
   void set_field_rank(const std::string &field_rank_string) final;
 
   /// \brief Set the required field dimension.
-  /// \brief field_dimension [in] Required dimension of the field.
+  /// \param field_dimension [in] Required dimension of the field.
   void set_field_dimension(const unsigned field_dimension) final;
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
-  /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
+  /// \param field_min_number_of_states [in] Minimum required number of states of the field.
   void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) final;
-
-  /// \brief Require that the field have a specific field attribute with known type.
-  ///
-  /// \note Attributes are fetched from an stk::mesh::Field via the attribute<T> routine. As a result, the identifying
-  /// feature of an attribute is its type. If you attempt to add a new attribute requirement when an attribute of that
-  /// type already exists, then the contents of the two attributes must match.
-  template <class T>
-  void add_field_attribute_reqs(const std::shared_ptr<T> some_attribute_ptr) {
-    field_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
-  }
 
   /// \brief Get if the field name is constrained or not.
   bool constrains_field_name() const final;
@@ -164,29 +157,21 @@ class FieldRequirements : public FieldRequirementsBase {
   /// Will throw an error if the minimum number of field states.
   unsigned get_field_min_number_of_states() const final;
 
-  /// \brief Return the default transient parameters for this class (those that do not impact the part requirements).
-  Teuchos::ParameterList get_valid_params() const final;
+  /// \brief Return the typeinfo related to the field's type.
+  const std::type_info &get_field_type_info() const final;
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList static_get_valid_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("name", "INVALID", "Name of the field.");
-    default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the field.");
-    default_parameter_list.set("dimension", 0, "Dimension of the part.");
-    default_parameter_list.set("min_number_of_states", 1,
-                               "Minimum number of rotating states that this field will have.");
-    return default_parameter_list;
-  }
+  /// \brief Return the map from typeindex to field attribute.
+  std::map<std::type_index, std::any> get_field_attributes_map() final;
   //@}
 
   //! \name Actions
   //@{
 
   /// \brief Declare/create the field that this class defines and assign it to a part.
-  void declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
+  void declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
 
-  /// \brief Declare/create the field that this class defines and assign it to the mesh.
-  void declare_field_on_mesh(stk::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
+  /// \brief Declare/create the field that this class defines and assign it to the entire mesh.
+  void declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const final;
 
   /// \brief Delete the field name constraint (if it exists).
   void delete_field_name_constraint() final;
@@ -206,6 +191,30 @@ class FieldRequirements : public FieldRequirementsBase {
   /// case. We will however, leave this checker incase the class grows and the set of requirements is no longer
   /// automatically satisfied.
   void check_if_valid() const final;
+
+  /// \brief Store a copy of an attribute on this field.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on this field.
+  void add_field_attribute(const std::any &some_attribute) final;
+
+  /// \brief Store an attribute on this field.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on this field.
+  void add_field_attribute(std::any &&some_attribute) final;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///
@@ -240,6 +249,9 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief Name of the field.
   std::string field_name_;
 
+  /// \brief Typeinfo related to the field's type.
+  static const inline std::type_info &field_type_info_ = typeid(FieldType);
+
   /// \brief Rank that the field will be assigned to.
   stk::topology::rank_t field_rank_;
 
@@ -261,8 +273,8 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief If the minimum number of rotating states that this field will have is set or not.
   bool field_min_number_of_states_is_set_;
 
-  /// \brief Any attributes associated with this field.
-  stk::CSet field_attributes_;
+  /// \brief A map from attribute type to this field's attributes.
+  std::map<std::type_index, std::any> field_attributes_map_;
 };  // FieldRequirements
 
 //! \name template implementations
@@ -284,25 +296,14 @@ template <typename FieldType>
 FieldRequirements<FieldType>::FieldRequirements(const Teuchos::ParameterList &parameter_list) {
   // Validate the input params. Throws an error if a parameter is defined but not in the valid params.
   // This helps catch misspellings.
-  parameter_list.validateParameters(this->get_valid_params());
+  Teuchos::ParameterList valid_params = parameter_list;
+  validate_parameters_and_set_defaults(&valid_params);
 
   // Store the given parameters.
-  if (parameter_list.isParameter("name")) {
-    const std::string field_name = parameter_list.get<std::string>("name");
-    this->set_field_name(field_name);
-  }
-  if (parameter_list.isParameter("rank")) {
-    const std::string field_rank = parameter_list.get<std::string>("rank");
-    this->set_field_rank(field_rank);
-  }
-  if (parameter_list.isParameter("dimension")) {
-    const unsigned field_dimension = parameter_list.get<unsigned>("dimension");
-    this->set_field_dimension(field_dimension);
-  }
-  if (parameter_list.isParameter("min_number_of_states")) {
-    const unsigned field_min_number_of_states = parameter_list.get<unsigned>("min_number_of_states");
-    this->set_field_min_number_of_states_if_larger(field_min_number_of_states);
-  }
+  this->set_field_name(valid_params.get<std::string>("name"));
+  this->set_field_rank(valid_params.get<std::string>("rank"));
+  this->set_field_dimension(valid_params.get<unsigned>("dimension"));
+  this->set_field_min_number_of_states_if_larger(valid_params.get<unsigned>("min_number_of_states"));
 }
 //}
 
@@ -405,8 +406,13 @@ unsigned FieldRequirements<FieldType>::get_field_min_number_of_states() const {
 }
 
 template <typename FieldType>
-Teuchos::ParameterList FieldRequirements<FieldType>::get_valid_params() const {
-  return static_get_valid_params();
+const std::type_info &FieldRequirements<FieldType>::get_field_type_info() const {
+  return field_type_info_;
+}
+
+template <typename FieldType>
+std::map<std::type_index, std::any> FieldRequirements<FieldType>::get_field_attributes_map() {
+  return field_attributes_map_;
 }
 //}
 
@@ -414,7 +420,7 @@ Teuchos::ParameterList FieldRequirements<FieldType>::get_valid_params() const {
 //{
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::declare_field_on_part(stk::mesh::MetaData *const meta_data_ptr,
+void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
                                                          const stk::mesh::Part &part) const {
   TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
                              "FieldRequirements: MetaData pointer cannot be null).");
@@ -432,7 +438,28 @@ void FieldRequirements<FieldType>::declare_field_on_part(stk::mesh::MetaData *co
   // Declare the field and assign it to the given part
   stk::mesh::Field<FieldType> &field =
       meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name());
-  stk::mesh::put_field_on_mesh(field, part, nullptr);
+  stk::mesh::put_field_on_mesh(field, part, this->field_dimension(), nullptr);
+}
+
+template <typename FieldType>
+void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const {
+  TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
+                             "FieldRequirements: MetaData pointer cannot be null).");
+
+  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_name(), std::logic_error,
+                             "FieldRequirements: Field name must be set before calling declare_field.");
+  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_rank(), std::logic_error,
+                             "FieldRequirements: Field rank must be set before calling declare_field.");
+  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_dimension(), std::logic_error,
+                             "FieldRequirements: Field dimension must be set before calling declare_field.");
+  TEUCHOS_TEST_FOR_EXCEPTION(
+      this->constrains_field_min_number_of_states(), std::logic_error,
+      "FieldRequirements: Field minimum number of states must be set before calling declare_field.");
+
+  // Declare the field and assign it to the given part
+  stk::mesh::Field<FieldType> &field =
+      meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name());
+  stk::mesh::put_field_on_entire_mesh(field, this->field_dimension(), nullptr);
 }
 
 template <typename FieldType>
@@ -460,52 +487,76 @@ void FieldRequirements<FieldType>::check_if_valid() const {
 }
 
 template <typename FieldType>
+void FieldRequirements<FieldType>::add_field_attribute(const std::any &some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  field_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
+}
+
+template <typename FieldType>
+void FieldRequirements<FieldType>::add_field_attribute(std::any &&some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  field_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+}
+
+template <typename FieldType>
 void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) {
-  merge({field_req_ptr});
+  // TODO(palmerb4): Move this to a friend non-member function.
+  // TODO(palmerb4): Optimize this function for perfect forwarding.
+
+  // Check if the provided parameters are valid.
+  field_req_ptr->check_if_valid();
+
+  // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
+  TEUCHOS_TEST_FOR_EXCEPTION(
+      this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
+      "FieldRequirements: Field type mismatch between our field type and the given requirements.");
+
+  if (field_req_ptr->constrains_field_name()) {
+    if (this->constrains_field_name()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
+          "FieldRequirements: One of the inputs has incompatible name (" << field_req_ptr->get_field_name() << ").");
+    } else {
+      this->set_field_name(field_req_ptr->get_field_name());
+    }
+  }
+
+  if (field_req_ptr->constrains_field_rank()) {
+    if (this->constrains_field_rank()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
+          "FieldRequirements: One of the inputs has incompatible rank (" << field_req_ptr->get_field_rank() << ").");
+    } else {
+      this->set_field_rank(field_req_ptr->get_field_rank());
+    }
+  }
+
+  if (field_req_ptr->constrains_field_dimension()) {
+    if (this->constrains_field_dimension()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_dimension() == field_req_ptr->get_field_dimension(),
+                                 std::invalid_argument,
+                                 "FieldRequirements: One of the inputs has incompatible dimension ("
+                                     << field_req_ptr->get_field_dimension() << ").");
+    } else {
+      this->set_field_dimension(field_req_ptr->get_field_dimension());
+    }
+  }
+
+  if (field_req_ptr->constrains_field_min_number_of_states()) {
+    this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
+  }
+
+  // Loop over the attribute map.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : field_req_ptr->get_field_attributes_map()) {
+    this->add_field_attribute(attribute);
+  }
 }
 
 template <typename FieldType>
 void FieldRequirements<FieldType>::merge(
-    const std::vector<std::shared_ptr<FieldRequirementsBase>> vector_of_field_req_ptrs) {
+    const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) {
   for (const auto &field_req_ptr : vector_of_field_req_ptrs) {
-    // Check if the provided parameters are valid.
-    field_req_ptr->check_if_valid();
-
-    // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-    if (field_req_ptr->constrains_field_name()) {
-      if (this->constrains_field_name()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
-            "FieldRequirements: One of the inputs has incompatible name (" << field_req_ptr->get_field_name() << ").");
-      } else {
-        this->set_field_name(field_req_ptr->get_field_name());
-      }
-    }
-
-    if (field_req_ptr->constrains_field_rank()) {
-      if (this->constrains_field_rank()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
-            "FieldRequirements: One of the inputs has incompatible rank (" << field_req_ptr->get_field_rank() << ").");
-      } else {
-        this->set_field_rank(field_req_ptr->get_field_rank());
-      }
-    }
-
-    if (field_req_ptr->constrains_field_dimension()) {
-      if (this->constrains_field_dimension()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_dimension() == field_req_ptr->get_field_dimension(),
-                                   std::invalid_argument,
-                                   "FieldRequirements: One of the inputs has incompatible dimension ("
-                                       << field_req_ptr->get_field_dimension() << ").");
-      } else {
-        this->set_field_dimension(field_req_ptr->get_field_dimension());
-      }
-    }
-
-    if (field_req_ptr->constrains_field_min_number_of_states()) {
-      this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
-    }
+    merge(field_req_ptr);
   }
 }
 

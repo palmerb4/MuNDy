@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/PartRequirements.hpp>                      // for mundy::meta::PartRequirements
 
@@ -51,13 +52,30 @@ namespace meta {
 /// \tparam ReturnType The return type of the execute function.
 /// \tparam RegistrationType The type of this class's identifier.
 template <typename ReturnType, typename RegistrationType = std::string>
-class MetaKernelBase : virtual public HasMeshRequirementsAndIsRegisterableBase<RegistrationType> {
+class MetaKernelBase
+    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKernelBase<ReturnType, RegistrationType>,
+                                                              RegistrationType> {
  public:
+  //! \name Setters
+  //@{
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) = 0;
+  //@}
+
   //! \name Actions
   //@{
 
-  /// \brief Run the method's core calculation.
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  virtual void setup() = 0;
+
+  /// \brief Run the kernel's core calculation.
   virtual ReturnType execute(stk::mesh::Entity entity) = 0;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  virtual void finalize() = 0;
   //@}
 };  // MetaKernelBase
 
@@ -66,23 +84,38 @@ class MetaKernelBase : virtual public HasMeshRequirementsAndIsRegisterableBase<R
 ///
 /// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaKernel must
 /// implement the following static member functions
-/// - \c details_static_get_part_requirements implementation of the \c static_get_part_requirements interface.
-/// - \c details_static_get_valid_fixed_params implementation of the \c static_get_valid_fixed_params interface.
-/// - \c details_static_get_valid_transient_params implementation of the \c static_get_valid_transient_params interface.
+/// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
+/// - \c details_static_validate_fixed_parameters_and_set_defaults implementation of the
+///     \c static_validate_fixed_parameters_and_set_defaults interface.
+/// - \c details_static_validate_mutable_parameters_and_set_defaults implementation of the
+///     \c static_validate_mutable_parameters_and_set_defaults interface.
 /// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
 /// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
 /// \c MetaKernel<DerivedMetaKernel> be made a friend of \c DerivedMetaKernel.
 ///
-/// \tparam ReturnType The return type of the execute function.
-/// \tparam DerivedMetaKernel A class derived from \c MetaKernel that implements the desired interface.
-/// \tparam RegistrationType The type of this class's identifier.
-template <typename ReturnType, class DerivedMetaKernel, typename RegistrationType = std::string>
+/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template
+/// shaddowing by internal typedefs.
+///
+/// \tparam ReturnType_t The return type of the execute function.
+/// \tparam DerivedMetaKernel_t A class derived from \c MetaKernel that implements the desired interface.
+/// \tparam RegistrationType_t The type of this class's identifier.
+template <typename ReturnType_t, class DerivedMetaKernel_t, typename RegistrationType_t = std::string>
 class MetaKernel
-    : virtual public MetaKernelBase<ReturnType, RegistrationType>,
-      virtual public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType, DerivedMetaKernel>, RegistrationType> {
+    : virtual public MetaKernelBase<ReturnType_t, RegistrationType_t>,
+      public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType_t, DerivedMetaKernel_t, RegistrationType_t>,
+                                                  MetaKernelBase<ReturnType_t, RegistrationType_t>,
+                                                  RegistrationType_t> {
  public:
+  //! \name Typedefs
+  //@{
+
+  using ReturnType = ReturnType_t;
+  using RegistrationType = RegistrationType_t;
+  using PolymorphicBase = MetaKernelBase<ReturnType, RegistrationType>;
+  //@}
+
   //! \name Getters
   //@{
 
@@ -90,28 +123,29 @@ class MetaKernel
   ///
   /// The set part requirements returned by this function are meant to encode the assumptions made by this class
   /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_parameter_list but not the \c transient_parameter_list.
+  /// based on parameters in the \c fixed_params but not the \c mutable_params.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::vector<std::shared_ptr<PartRequirements>> details_static_get_part_requirements(
-      const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKernel::details_static_get_part_requirements(fixed_parameter_list);
+  static std::shared_ptr<MeshRequirements> details_static_get_mesh_requirements(
+      const Teuchos::ParameterList &fixed_params) {
+    return DerivedMetaKernel_t::details_static_get_mesh_requirements(fixed_params);
   }
 
-  /// \brief Get the valid fixed parameters and their default parameter list for this \c MetaKernel.
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    return DerivedMetaKernel::details_static_get_valid_fixed_params();
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void static_validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) {
+    DerivedMetaKernel_t::static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
   }
 
-  /// \brief Get the valid transient parameters and their default parameter list for this \c MetaKernel.
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    return DerivedMetaKernel::details_static_get_valid_transient_params();
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      Teuchos::ParameterList *const mutable_params_ptr) {
+    DerivedMetaKernel_t::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaKernel.
+  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
   static RegistrationType details_static_get_class_identifier() {
-    return DerivedMetaKernel::details_static_get_class_identifier();
+    return DerivedMetaKernel_t::details_static_get_class_identifier();
   }
   //@}
 
@@ -120,14 +154,17 @@ class MetaKernel
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MetaKernelBase<ReturnType, RegistrationType>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return DerivedMetaKernel::details_static_create_new_instance(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return DerivedMetaKernel_t::details_static_create_new_instance(bulk_data_ptr, fixed_params);
   }
   //@}
 };  // MetaKernel
+
+//! \name Partial Specializations
+//@{
 
 /// \brief Partial specialization for MetaKernelBases, identified by a mundy multibody type.
 template <typename ReturnType>
@@ -139,11 +176,12 @@ using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, mundy::mul
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
 template <typename ReturnType>
-using MetaMultibodyKernelBase = MetaKernelBase<ReturnType, stk::topology::topology_t>;
+using MetaTopologyKernelBase = MetaKernelBase<ReturnType, stk::topology::topology_t>;
 
 /// \brief Partial specialization for MetaKernels, identified by an stk topology type.
 template <typename ReturnType, class DerivedMetaKernel>
-using MetaMultibodyKernel = MetaKernel<ReturnType, DerivedMetaKernel, stk::topology::topology_t>;
+using MetaTopologyKernel = MetaKernel<ReturnType, DerivedMetaKernel, stk::topology::topology_t>;
+//@}
 
 }  // namespace meta
 

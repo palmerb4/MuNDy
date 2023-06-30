@@ -32,18 +32,20 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>         // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaPairwiseKernelFactory
-#include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
 
 namespace mundy {
 
@@ -51,11 +53,15 @@ namespace methods {
 
 namespace compute_mobility {
 
+namespace techniques {
+
+namespace rigid_body_motion {
+
 /// \class MapRigidBodyVelocityToSurfaceVelocity
 /// \brief Method for using rigid body motion about a known body point to compute the velocity at all surface points.
 class MapRigidBodyVelocityToSurfaceVelocity
     : public mundy::meta::MetaMethod<void, MapRigidBodyVelocityToSurfaceVelocity>,
-      public mundy::meta::MetaMethodRegistry<void, MapRigidBodyVelocityToSurfaceVelocity> {
+      public RigidBodyMotion::OurMethodRegistry<MapRigidBodyVelocityToSurfaceVelocity> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -64,8 +70,18 @@ class MapRigidBodyVelocityToSurfaceVelocity
   MapRigidBodyVelocityToSurfaceVelocity() = delete;
 
   /// \brief Constructor
-  MapRigidBodyVelocityToSurfaceVelocity(stk::mesh::BulkData *const bulk_data_ptr,
-                                        const Teuchos::ParameterList &fixed_parameter_list);
+  MapRigidBodyVelocityToSurfaceVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
+                                        const Teuchos::ParameterList &fixed_params);
+  //@}
+
+  //! \name Typedefs
+  //@{
+
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>;
+
+  template <typename ClassToRegister>
+  using OurKernelRegistry =
+      mundy::meta::MetaKernelRegistry<void, ClassToRegister, MapRigidBodyVelocityToSurfaceVelocity>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -73,74 +89,81 @@ class MapRigidBodyVelocityToSurfaceVelocity
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
+    const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
-    // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_part_pairs");
-    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_part_pairs; i++) {
-      // Create a new part requirement.
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
-
-      // Fetch the i'th part parameters.
-      Teuchos::ParameterList &part_pair_parameter_list =
-          parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-      const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
-
-      // Add method-specific requirements.
-      part_requirements[i - 1]->set_part_name(pair_names[0]);
-      part_requirements[i]->set_part_name(pair_names[1]);
-      part_requirements[i - 1]->set_part_rank(stk::topology::CONSTRAINT_RANK);
-      part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
-
-      // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("map_rigid_body_velocity_to_surface_velocity");
-
-      // Validate the kernel params and fill in defaults.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaPairwiseKernelFactory<void, MapRigidBodyVelocityToSurfaceVelocity>::get_valid_params(
-              kernel_name));
-
-      // Merge the kernel requirements.
-      std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements = mundy::meta::MetaPairwiseKernelFactory<
-              void, MapRigidBodyVelocityToSurfaceVelocity>::get_part_requirements(kernel_name,
-                                                                                  part_kernel_parameter_list);
-      part_requirements[i - 1]->merge(pair_requirements.first);
-      part_requirements[i]->merge(pair_requirements.second);
+    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
+    for (size_t i = 0; i < num_specified_kernels; i++) {
+      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+      const std::string kernel_name = kernel_params.get<std::string>("name");
+      mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
     }
 
-    return part_requirements;
+    return mesh_requirements_ptr;
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
-        "kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("map_rigid_body_velocity_to_surface_velocity", false,
-                          "Sublist that defines the map's kernel parameters.");
-    return default_fixed_parameter_list;
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
+    if (fixed_params_ptr->isSublist("kernels")) {
+      // Only validate and fill parameters for the given kernels.
+      Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", true);
+      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
+      for (size_t i = 0; i < num_specified_kernels; i++) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+        const std::string kernel_name = kernel_params.get<std::string>("name");
+        OurKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, &kernel_params);
+      }
+    } else {
+      // Validate and fill parameters for any kernel in our registry.
+      Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", false);
+      const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
+      kernels_sublist.set("count", num_specified_kernels);
+      int i = 0;
+      for (auto &key : OurKernelFactory::get_keys()) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
+        kernel_params.set("name", key);
+        OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
+        i++;
+      }
+    }
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    return default_transient_parameter_list;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    if (mutable_params_ptr->isSublist("kernels")) {
+      // Only validate and fill parameters for the given kernels.
+      Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);
+      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
+      for (size_t i = 0; i < num_specified_kernels; i++) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+        const std::string kernel_name = kernel_params.get<std::string>("name");
+        OurKernelFactory::validate_mutable_parameters_and_set_defaults(kernel_name, &kernel_params);
+      }
+    } else {
+      // Validate and fill parameters for any kernel in our registry.
+      Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", false);
+      const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
+      kernels_sublist.set("count", num_specified_kernels);
+      int i = 0;
+      for (auto &key : OurKernelFactory::get_keys()) {
+        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
+        kernel_params.set("name", key);
+        OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
+        i++;
+      }
+    }
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
@@ -151,19 +174,22 @@ class MapRigidBodyVelocityToSurfaceVelocity
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<MapRigidBodyVelocityToSurfaceVelocity>(bulk_data_ptr, parameter_list);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute(const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:
@@ -174,22 +200,26 @@ class MapRigidBodyVelocityToSurfaceVelocity
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY";
 
-  /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  /// \brief The BulkData object this class acts upon.
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  /// \brief The MetaData object this class acts upon.
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of part pairs that this method acts on.
-  size_t num_part_pairs_ = 0;
+  /// \brief Number of active multibody types.
+  size_t num_multibody_types_ = 0;
 
-  /// \brief Vector of pointers to the part pairs that this class will act upon.
-  std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
+  /// \brief Vector of pointers to the active multibody parts this class acts upon.
+  std::vector<stk::mesh::Part *> multibody_part_ptr_vector_;
 
-  /// \brief Kernels corresponding to each of the specified part pairs.
-  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> kernel_ptrs_;
+  /// \brief Vector of kernels, one for each active multibody part.
+  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> multibody_kernel_ptrs_;
   //@}
 };  // MapRigidBodyVelocityToSurfaceVelocity
+
+}  // namespace rigid_body_motion
+
+}  // namespace techniques
 
 }  // namespace compute_mobility
 

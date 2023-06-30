@@ -20,8 +20,8 @@
 #ifndef MUNDY_MULTIBODY_TYPE_INVALID_HPP_
 #define MUNDY_MULTIBODY_TYPE_INVALID_HPP_
 
-/// \file Sphere.hpp
-/// \brief Declaration of the Sphere class
+/// \file Invalid.hpp
+/// \brief Declaration of the Invalid class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
@@ -35,38 +35,38 @@ namespace multibody {
 
 namespace type {
 
-/// \class Sphere
-/// \brief The static interface for all of Mundy's multibody Sphere objects.
-class Sphere {
+/// \class Invalid
+/// \brief The static interface for all of Mundy's multibody Invalid objects.
+class Invalid : Multibody<Invalid> {
   //! \name Getters
   //@{
 
-  /// \brief Get the Sphere's name.
-  /// This name must be unique and not shared by any other Sphere object.
+  /// \brief Get the Invalid's name.
+  /// This name must be unique and not shared by any other multibody object.
   static constexpr inline std::string_view details_get_name() {
-    return "SPHERE";
+    return "INVALID";
   }
 
-  /// \brief Get the Sphere's topology.
+  /// \brief Get the Invalid's topology.
   static constexpr inline stk::topology details_get_topology() {
     return stk::topology::PARTICLE;
   }
 
-  /// \brief Get the Sphere's rank.
+  /// \brief Get the Invalid's rank.
   static constexpr inline stk::topology details_get_rank() {
     return stk::topology::ELEMENT_RANK;
   }
 
-  /// \brief Get if the Sphere has a parent multibody type.
+  /// \brief Get if the Invalid has a parent multibody type.
   static constexpr inline bool details_has_parent() {
     return false;
   }
 
-  /// \brief Get the parent multibody type of the Sphere.
+  /// \brief Get the parent multibody type of the Invalid.
   static constexpr inline bool details_get_parent_name() {
     return "INVALID";
   }
-};  // Sphere
+};  // Invalid
 
 }  // namespace type
 

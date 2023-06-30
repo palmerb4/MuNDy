@@ -26,12 +26,12 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>                       // for mundy::mesh::BulkData
 #include <mundy_methods/compute_obb/kernels/Sphere.hpp>  // for mundy::methods::compute_obb::kernels::Sphere
 
 namespace mundy {
@@ -45,27 +45,24 @@ namespace kernels {
 // \name Constructors and destructor
 //{
 
-Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
+Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  // The bulk data pointer must not be null.
+  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
+                             "Sphere: bulk_data_ptr cannot be a nullptr.");
+
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the internal parameter list
-<<<<<<< Updated upstream
-  obb_field_name_ = valid_fixed_parameter_list.get<std::string>("obb_field_name");
-  radius_field_name_ = valid_fixed_parameter_list.get<std::string>("radius_field_name");
-  node_coord_field_name_ = valid_fixed_parameter_list.get<std::string>("node_coordinate_field_name");
-=======
   obb_field_name_ = valid_fixed_params.get<std::string>("obb_field_name");
   radius_field_name_ = valid_fixed_params.get<std::string>("radius_field_name");
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
->>>>>>> Stashed changes
 
   // Store the input params.
-  obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, obb_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, radius_field_name_);
+  obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, obb_field_name_);
+  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
 }
 //}
@@ -73,25 +70,27 @@ Sphere::Sphere(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::Paramete
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Sphere::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
-  // Fill the internal members using the internal parameter list.
-  buffer_distance_ = valid_fixed_parameter_list.get<double>("buffer_distance");
+  // Fill the internal members using the given parameter list.
+  buffer_distance_ = valid_fixed_params.get<double>("buffer_distance");
 }
 //}
 
 // \name Actions
 //{
 
-void Sphere::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
+void Sphere::setup() {
+}
+
+void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, element);
-  double *obb = stk::mesh::field_data(*obb_field_ptr_, element);
+  double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
+  double *obb = stk::mesh::field_data(*obb_field_ptr_, sphere_element);
 
   obb[0] = coords[0] - radius[0] - buffer_distance_;
   obb[1] = coords[1] - radius[0] - buffer_distance_;
@@ -99,6 +98,9 @@ void Sphere::execute(const stk::mesh::Entity &element) {
   obb[3] = coords[0] + radius[0] + buffer_distance_;
   obb[4] = coords[1] + radius[0] + buffer_distance_;
   obb[5] = coords[2] + radius[0] + buffer_distance_;
+}
+
+void Sphere::finalize() {
 }
 //}
 

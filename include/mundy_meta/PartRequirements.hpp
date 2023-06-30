@@ -28,16 +28,18 @@
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <utility>      // for std::move
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
-#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
+#include <mundy_multibody/Multibody.hpp>     // for mundy::multibody::Multibody
 
 namespace mundy {
 
@@ -136,11 +138,11 @@ class PartRequirements {
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
   PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank);
-  
+
   /// \brief Construct from a parameter list.
   ///
-  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. The set of valid
-  /// parameters is accessible via \c get_valid_params.
+  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. These parameters must
+  /// be valid. That is, validate_parameters_and_set_defaults(&parameter_list) must run without error.
   explicit PartRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
@@ -148,24 +150,30 @@ class PartRequirements {
   //@{
 
   /// \brief Set the required part name.
-  /// \brief part_name [in] Required name of the part.
+  /// \param part_name [in] Required name of the part.
   void set_part_name(const std::string &part_name);
 
   /// \brief Set the required part topology.
-  /// \brief part_topology [in] Required topology of the part.
+  /// \param part_topology [in] Required topology of the part.
   void set_part_topology(const stk::topology::topology_t &part_topology);
 
   /// \brief Set the required part topology using a valid topology string name.
-  /// \brief part_topology_name [in] Required topology of the part.
+  /// \param part_topology_name [in] Required topology of the part.
   void set_part_topology(const std::string &part_topology_string);
 
   /// \brief Set the required part rank.
-  /// \brief part_rank [in] Required rank of the part.
+  /// \param part_rank [in] Required rank of the part.
   void set_part_rank(const stk::topology::rank_t &part_rank);
 
   /// \brief Set the required part rank using a valid rank string name.
-  /// \brief part_rank [in] Required rank of the part.
+  /// \param part_rank [in] Required rank of the part.
   void set_part_rank(const std::string &part_rank_string);
+
+  /// \brief Add the io part attribute to this part.
+  void put_io_part_attribute();
+
+  /// \brief Add the given multibody part attribute to this part.
+  void put_multibody_part_attribute(const mundy::multibody::multibody_t &body_type);
 
   /// \brief Get if the part name is constrained or not.
   bool constrains_part_name() const;
@@ -189,16 +197,51 @@ class PartRequirements {
   stk::topology::rank_t get_part_rank() const;
 
   /// \brief Return the part field map.
-  /// \brief field_rank [in] Rank associated with the retrieved fields.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_field_map();
+  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_ranked_field_map();
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList get_valid_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("name", "INVALID", "Name of the part.");
-    default_parameter_list.set("topology", stk::topology::INVALID_TOPOLOGY, "Topology of the part.");
-    default_parameter_list.set("rank", stk::topology::INVALID_RANK, "Rank of the part.");
-    return default_parameter_list;
+  /// \brief Return the part subpart map.
+  std::map<std::string, std::shared_ptr<PartRequirements>> get_part_subpart_map();
+
+  /// \brief Return the part attribute map.
+  std::map<std::type_index, std::any> get_part_attributes_map();
+
+  /// \brief Validate the given parameters and set the default values if not provided.
+  static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
+    // TODO(palmerb4): We should also take in and validate any sub-parts, fields, or known attributes.
+    // Note, topology and rank can either be in string form or in explicit type form.
+
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        parameter_list_ptr->isParameter("name"), std::invalid_argument,
+        "PartRequirements: Expected to find a parameter with name 'name' but no such parameter exists.");
+
+    const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        valid_type, std::invalid_argument,
+        "PartRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string");
+
+    bool valid_topology_rank_combo =
+        !(parameter_list_ptr->isParameter("topology") && parameter_list_ptr->isParameter("rank"));
+    TEUCHOS_TEST_FOR_EXCEPTION(valid_topology_rank_combo, std::invalid_argument,
+                               "PartRequirements: Topology and rank cannot both be set simultaneously; please set one "
+                                   << "or the other (or neither).");
+
+    if (parameter_list_ptr->isParameter("topology")) {
+      const bool valid_type =
+          ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("topology")) ||
+           (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::topology_t>("topology")));
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "PartRequirements: Type error. Given a parameter with name 'topology' but "
+                                     << "with a type other than std::string or stk::topology::topology_t");
+    } else {
+      if (parameter_list_ptr->isParameter("rank")) {
+        const bool valid_type =
+            ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
+             (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
+        TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                   "PartRequirements: Type error. Given a parameter with name 'rank' but with a "
+                                       << "type other than std::string or stk::topology::rank_t");
+      }
+    }
   }
   //@}
 
@@ -216,7 +259,7 @@ class PartRequirements {
   /// In each case, the part name must be set or an error will be thrown.
   ///
   /// \note Redeclaration of a previously declared part, will return the previous part.
-  stk::mesh::Part &declare_part(stk::mesh::MetaData *const meta_data_ptr) const;
+  stk::mesh::Part &declare_part_on_mesh(mundy::mesh::MetaData *const meta_data_ptr) const;
 
   /// \brief Delete the part name constraint (if it exists).
   void delete_part_name_constraint();
@@ -245,15 +288,29 @@ class PartRequirements {
   /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
   void add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
-  /// \brief Require that the part have a specific part attribute with known type.
+  /// \brief Store a copy of an attribute on this part.
   ///
-  /// \note Attributes are fetched from an stk::mesh::Part via the attribute<T> routine. As a result, the identifying
-  /// feature of an attribute is its type. If you attempt to add a new attribute requirement when an attribute of that
-  /// type already exists, then the contents of the two attributes must match.
-  template <class T>
-  void add_part_attribute_req(const std::shared_ptr<T> some_attribute_ptr) {
-    part_attributes_.template insert_with_no_delete<std::shared_ptr<T>>(some_attribute_ptr);
-  }
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on this part.
+  void add_part_attribute(const std::any &some_attribute);
+
+  /// \brief Store an attribute on this part.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on this part.
+  void add_part_attribute(std::any &&some_attribute);
 
   /// \brief Merge the current requirements with another \c PartRequirements.
   ///
@@ -286,6 +343,9 @@ class PartRequirements {
   /// \brief If the rank of the part is set or not.
   bool part_rank_is_set_ = false;
 
+  /// \brief If the part is an io-compatible part or not.
+  bool is_io_part_ = false;
+
   /// \brief A set of maps from field name to field params for each rank.
   std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_{
       stk::topology::NUM_RANKS};
@@ -293,8 +353,8 @@ class PartRequirements {
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
 
-  /// \brief Any attributes associated with this part.
-  stk::CSet part_attributes_;
+  /// \brief A map from attribute type to this part's attributes.
+  std::map<std::type_index, std::any> part_attributes_map_;
 };  // PartRequirements
 
 }  // namespace meta

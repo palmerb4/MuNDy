@@ -29,13 +29,13 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
@@ -50,44 +50,43 @@ namespace methods {
 // \name Constructors and destructor
 //{
 
-ComputeMobility::ComputeMobility(stk::mesh::BulkData *const bulk_data_ptr,
-                                 const Teuchos::ParameterList &fixed_parameter_list)
+ComputeMobility::ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "ComputeMobility: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fetch the technique sublist and return its parameters.
-  Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
-  const std::string technique_name = technique_parameter_list.get<std::string>("name");
-
-  technique_ptr_ = mundy::meta::MetaMethodFactory<void, ComputeMobility>::create_new_instance(
-      technique_name, bulk_data_ptr_, technique_parameter_list);
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  technique_ptr_ = OurMethodFactory::create_new_instance(technique_name, bulk_data_ptr_, technique_params);
 }
 //}
 
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList ComputeMobility::set_transient_params(
-    const Teuchos::ParameterList &transient_parameter_list) const {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+void ComputeMobility::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Fetch the technique sublist and return its parameters.
+  Teuchos::ParameterList &technique_params = valid_mutable_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  technique_ptr_->set_mutable_params(technique_params);
 }
 //}
 
 // \name Actions
 //{
 
-void ComputeMobility::execute() {
-  technique_ptr_->execute();
+void ComputeMobility::execute(const stk::mesh::Selector &input_selector) {
+  technique_ptr_->execute(input_selector);
 }
 //}
 

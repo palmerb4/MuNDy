@@ -32,11 +32,11 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
@@ -180,20 +180,23 @@ PartRequirements::PartRequirements(const std::string &part_name, const stk::topo
 PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list) {
   // Validate the input params. Throws an error if a parameter is defined but not in the valid params.
   // This helps catch misspellings.
-  parameter_list.validateParameters(this->get_valid_params());
+  Teuchos::ParameterList valid_params = parameter_list;
+  validate_parameters_and_set_defaults(&valid_params);
 
   // Store the given parameters.
-  if (parameter_list.isParameter("name")) {
-    const std::string part_name = parameter_list.get<std::string>("name");
-    this->set_part_name(part_name);
-  }
-  if (parameter_list.isParameter("topology")) {
-    const std::string part_topology_name = parameter_list.get<std::string>("topology");
-    this->set_part_topology(part_topology_name);
-  }
-  if (parameter_list.isParameter("rank")) {
-    const std::string part_rank_name = parameter_list.get<std::string>("rank");
-    this->set_part_topology(part_rank_name);
+  this->set_part_name(valid_params.get<std::string>("name"));
+  if (valid_params.isParameter("topology")) {
+    if (valid_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("topology")) {
+      this->set_part_topology(valid_params.get<std::string>("topology"));
+    } else {
+      this->set_part_topology(valid_params.get<stk::topology::topology_t>("topology"));
+    }
+  } else if (valid_params.isParameter("rank")) {
+    if (valid_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) {
+      this->set_part_rank(valid_params.get<std::string>("rank"));
+    } else {
+      this->set_part_rank(valid_params.get<stk::topology::rank_t>("rank"));
+    }
   }
 
   // Store the field params.
@@ -253,6 +256,15 @@ void PartRequirements::set_part_rank(const std::string &part_rank_string) {
   this->set_part_rank(part_rank);
 }
 
+void PartRequirements::put_io_part_attribute() {
+  is_io_part_ = true;
+}
+
+void PartRequirements::put_multibody_part_attribute(const mundy::multibody::multibody_t &body_type) {
+  std::any a = body_type;
+  this->add_part_attribute(std::move(a));
+}
+
 bool PartRequirements::constrains_part_name() const {
   return part_name_is_set_;
 }
@@ -289,15 +301,24 @@ stk::topology::rank_t PartRequirements::get_part_rank() const {
   return part_rank_;
 }
 
-std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> PartRequirements::get_part_field_map() {
+std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>>
+PartRequirements::get_part_ranked_field_map() {
   // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal fields.
   return part_ranked_field_maps_;
+}
+
+std::map<std::string, std::shared_ptr<PartRequirements>> PartRequirements::get_part_subpart_map() {
+  return part_subpart_map_;
+}
+
+std::map<std::type_index, std::any> PartRequirements::get_part_attributes_map() {
+  return part_attributes_map_;
 }
 //}
 
 // \name Actions
 //{
-stk::mesh::Part &PartRequirements::declare_part(stk::mesh::MetaData *const meta_data_ptr) const {
+stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *const meta_data_ptr) const {
   TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
                              "PartRequirements: MetaData pointer cannot be null).");
   TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_part_name(), std::logic_error,
@@ -325,7 +346,7 @@ stk::mesh::Part &PartRequirements::declare_part(stk::mesh::MetaData *const meta_
   // Declare the sub-parts and declare them as sub-parts.
   // Each sub-part will. in turn, declare their fields and subparts.
   for ([[maybe_unused]] auto const &[subpart_name, subpart_req_ptr] : part_subpart_map_) {
-    stk::mesh::Part &subpart = subpart_req_ptr->declare_part(meta_data_ptr);
+    stk::mesh::Part &subpart = subpart_req_ptr->declare_part_on_mesh(meta_data_ptr);
     meta_data_ptr->declare_part_subset(*part_ptr, subpart);
   }
 
@@ -345,7 +366,7 @@ void PartRequirements::delete_part_rank_constraint() {
 }
 
 void PartRequirements::check_if_valid() const {
-  ThrowRequireMsg(false, "not implemented yet");
+  // TODO(palmerb4): What are the requirements for validity?
 }
 
 void PartRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
@@ -376,54 +397,76 @@ void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_r
   part_subpart_map_[part_req_ptr->get_part_name()] = part_req_ptr;
 }
 
-void merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
-  merge({part_req_ptr});
+void PartRequirements::add_part_attribute(const std::any &some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  part_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
+}
+
+void PartRequirements::add_part_attribute(std::any &&some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  part_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+}
+
+void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
+  // TODO(palmerb4): Move this to a friend non-member function.
+  // TODO(palmerb4): Optimize this function for perfect forwarding.
+
+  // Check if the provided parameters are valid.
+  part_req_ptr->check_if_valid();
+
+  // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
+  if (part_req_ptr->constrains_part_name()) {
+    if (this->constrains_part_name()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
+          "PartRequirements: One of the inputs has incompatible name (" << part_req_ptr->get_part_name() << ").");
+    } else {
+      this->set_part_name(part_req_ptr->get_part_name());
+    }
+  }
+
+  if (part_req_ptr->constrains_part_rank()) {
+    if (this->constrains_part_rank()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
+          "PartRequirements: One of the inputs has incompatible rank (" << part_req_ptr->get_part_rank() << ").");
+    } else {
+      this->set_part_rank(part_req_ptr->get_part_rank());
+    }
+  }
+
+  if (part_req_ptr->constrains_part_topology()) {
+    if (this->constrains_part_topology()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(), std::invalid_argument,
+                                 "PartRequirements: One of the inputs has incompatible topology ("
+                                     << part_req_ptr->get_part_topology() << ").");
+    } else {
+      this->set_part_topology(part_req_ptr->get_part_topology());
+    }
+  }
+
+  // Loop over each rank's field map.
+  for (auto const &part_field_map : part_req_ptr->get_part_ranked_field_map()) {
+    // Loop over each field and attempt to merge it.
+    for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
+      this->add_field_req(field_req_ptr);
+    }
+  }
+
+  // Loop over the subpart map.
+  for ([[maybe_unused]] auto const &[part_name, part_req_ptr] : part_req_ptr->get_part_subpart_map()) {
+    this->add_subpart_reqs(part_req_ptr);
+  }
+
+  // Loop over the attribute map.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : part_req_ptr->get_part_attributes_map()) {
+    this->add_part_attribute(attribute);
+  }
 }
 
 void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs) {
   for (const auto &part_req_ptr : vector_of_part_req_ptrs) {
-    // Check if the provided parameters are valid.
-    part_req_ptr->check_if_valid();
-
-    // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-    if (part_req_ptr->constrains_part_name()) {
-      if (this->constrains_part_name()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
-            "PartRequirements: One of the inputs has incompatible name (" << part_req_ptr->get_part_name() << ").");
-      } else {
-        this->set_part_name(part_req_ptr->get_part_name());
-      }
-    }
-
-    if (part_req_ptr->constrains_part_rank()) {
-      if (this->constrains_part_rank()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(
-            this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
-            "PartRequirements: One of the inputs has incompatible rank (" << part_req_ptr->get_part_rank() << ").");
-      } else {
-        this->set_part_rank(part_req_ptr->get_part_rank());
-      }
-    }
-
-    if (part_req_ptr->constrains_part_topology()) {
-      if (this->constrains_part_topology()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(),
-                                   std::invalid_argument,
-                                   "PartRequirements: One of the inputs has incompatible topology ("
-                                       << part_req_ptr->get_part_topology() << ").");
-      } else {
-        this->set_part_topology(part_req_ptr->get_part_topology());
-      }
-    }
-
-    // Loop over each rank's field map.
-    for (auto const &part_field_map : part_req_ptr->get_part_field_map()) {
-      // Loop over each field and attempt to merge it.
-      for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
-        this->add_field_req(field_req_ptr);
-      }
-    }
+    merge(part_req_ptr);
   }
 }
 //}

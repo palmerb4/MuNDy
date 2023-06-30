@@ -29,18 +29,18 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
 
 namespace mundy {
@@ -54,63 +54,71 @@ namespace techniques {
 // \name Constructors and destructor
 //{
 
-RigidBodyMotion::RigidBodyMotion(stk::mesh::BulkData *const bulk_data_ptr,
-                                 const Teuchos::ParameterList &fixed_parameter_list)
+RigidBodyMotion::RigidBodyMotion(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
                              "RigidBodyMotion: bulk_data_ptr cannot be a nullptr.");
 
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Fetch the parameters for this part's sub-methods.
-  Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
-  const std::string technique_name = technique_parameter_list.get<std::string>("name");
-  Teuchos::ParameterList &part_map_rbf_to_rbv_parameter_list =
-      part_parameter_list.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
-  Teuchos::ParameterList &part_map_rbv_to_sv_parameter_list =
-      part_parameter_list.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
-  Teuchos::ParameterList &part_map_sf_to_rbf_parameter_list =
-      part_parameter_list.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
+  // Fetch the parameters for each sub-method.
+  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  Teuchos::ParameterList &map_rbf_to_rbv_params =
+      params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
+  Teuchos::ParameterList &map_rbv_to_sv_params =
+      params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
+  Teuchos::ParameterList &map_sf_to_rbf_params =
+      params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
 
   // Initialize and store the sub-methods.
-  const std::string rbf_to_rbv_class_id = part_map_rbf_to_rbv_parameter_list.get<std::string>("class_id");
-  const std::string rbv_to_sv_class_id = part_map_rbv_to_sv_parameter_list.get<std::string>("class_id");
-  const std::string sf_to_rbf_class_id = part_map_sf_to_rbf_parameter_list.get<std::string>("class_id");
+  const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
+  const std::string rbv_to_sv_name = map_rbv_to_sv_params.get<std::string>("name");
+  const std::string sf_to_rbf_name = map_sf_to_rbf_params.get<std::string>("name");
   map_rigid_body_force_to_rigid_body_velocity_method_ptr_ =
-      mundy::meta::MetaMethodFactory<void, RigidBodyMotion>::create_new_instance(rbf_to_rbv_class_id, bulk_data_ptr_,
-                                                                                 part_map_rbf_to_rbv_parameter_list);
+      OurMethodFactory::create_new_instance(rbf_to_rbv_name, bulk_data_ptr_, map_rbf_to_rbv_params);
   map_rigid_body_velocity_to_surface_velocity_method_ptr_ =
-      mundy::meta::MetaMethodFactory<void, RigidBodyMotion>::create_new_instance(rbv_to_sv_class_id, bulk_data_ptr_,
-                                                                                 part_map_rbv_to_sv_parameter_list);
+      OurMethodFactory::create_new_instance(rbv_to_sv_name, bulk_data_ptr_, map_rbv_to_sv_params);
   map_surface_force_to_rigid_body_force_method_ptr_ =
-      mundy::meta::MetaMethodFactory<void, RigidBodyMotion>::create_new_instance(sf_to_rbf_class_id, bulk_data_ptr_,
-                                                                                 part_map_sf_to_rbf_parameter_list);
+      OurMethodFactory::create_new_instance(sf_to_rbf_name, bulk_data_ptr_, map_sf_to_rbf_params);
 }
 //}
 
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList RigidBodyMotion::set_transient_params(
-    const Teuchos::ParameterList &transient_parameter_list) const {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+Teuchos::ParameterList RigidBodyMotion::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Fetch the parameters for each sub-method.
+  Teuchos::ParameterList &technique_params = valid_mutable_params.sublist("technique");
+  const std::string technique_name = technique_params.get<std::string>("name");
+  Teuchos::ParameterList &map_rbf_to_rbv_params =
+      params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
+  Teuchos::ParameterList &map_rbv_to_sv_params =
+      params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
+  Teuchos::ParameterList &map_sf_to_rbf_params =
+      params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
+
+  // Set the mutable params for each of our sub-methods.
+  map_rigid_body_force_to_rigid_body_velocity_method_ptr_->set_mutable_params(map_rbf_to_rbv_params);
+  map_rigid_body_velocity_to_surface_velocity_method_ptr_->set_mutable_params(map_rbv_to_sv_params);
+  map_surface_force_to_rigid_body_force_method_ptr_->set_mutable_params(map_sf_to_rbf_params);
 }
 //}
 
 // \name Actions
 //{
 
-void RigidBodyMotion::execute() {
-  map_surface_force_to_rigid_body_force_method_ptr_->execute();
-  map_rigid_body_force_to_rigid_body_velocity_method_ptr_->execute();
-  map_rigid_body_velocity_to_surface_velocity_method_ptr_->execute();
+void RigidBodyMotion::execute(const stk::mesh::Selector &input_selector) {
+  map_surface_force_to_rigid_body_force_method_ptr_->execute(input_selector);
+  map_rigid_body_force_to_rigid_body_velocity_method_ptr_->execute(input_selector);
+  map_rigid_body_velocity_to_surface_velocity_method_ptr_->execute(input_selector);
 }
 //}
 

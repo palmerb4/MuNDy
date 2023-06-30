@@ -26,12 +26,12 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
 namespace mundy {
@@ -51,53 +51,59 @@ namespace kernels {
 // \name Constructors and destructor
 //{
 
-Collision::Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list)
+Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-  valid_fixed_parameter_list.validateParametersAndSetDefaults(this->get_valid_fixed_params());
+  // The bulk data pointer must not be null.
+  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
+                             "Collision: bulk_data_ptr cannot be a nullptr.");
 
-  // Fill the internal members using the internal parameter list.
-  signed_sep_dist_field_name_ =
-      valid_fixed_parameter_list.get<std::string>("element_constraint_violation_on_dist_field_name");
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_fixed_params = fixed_params;
+  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+
+  // Fill the internal members using the given parameter list.
+  signed_sep_dist_field_name_ = valid_fixed_params.get<std::string>("element_constraint_violation_on_dist_field_name");
   element_lagrange_multiplier_field_name_ =
-      valid_fixed_parameter_list.get<std::string>("element_lagrange_multiplier_field_name");
+      valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
   element_constraint_violation_field_name_ =
-      valid_fixed_parameter_list.get<std::string>("element_constraint_violation_field_name");
+      valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
 
   // Store the input params.
   element_signed_separation_dist_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_signed_separation_dist_field_name_);
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_signed_separation_dist_field_name_);
   element_lagrange_multiplier_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_lagrange_multiplier_field_name_);
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name_);
   element_constraint_violation_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEM_RANK, element_constraint_violation_field_name_);
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_constraint_violation_field_name_);
 }
 //}
 
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Collision::set_transient_params(const Teuchos::ParameterList &transient_parameter_list) const {
-  // Store the input parameters, use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_transient_parameter_list = transient_parameter_list;
-  valid_transient_parameter_list.validateParametersAndSetDefaults(this->get_valid_transient_params());
+Teuchos::ParameterList Collision::set_mutable_params(
+    [[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
 }
 //}
 
 // \name Actions
 //{
 
-void Collision::execute(const stk::mesh::Entity &element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(element);
-  const double *signed_separation_dist = stk::mesh::field_data(*element_signed_separation_dist_field_ptr_, element);
-  const double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, element);
-  double *constraint_violation = stk::mesh::field_data(*element_constraint_violation_field_ptr_, element);
+void Collision::setup() {
+}
+
+void Collision::execute(const stk::mesh::Entity &collision_element) {
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(collision_element);
+  const double *signed_separation_dist =
+      stk::mesh::field_data(*element_signed_separation_dist_field_ptr_, collision_element);
+  const double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, collision_element);
+  double *constraint_violation = stk::mesh::field_data(*element_constraint_violation_field_ptr_, collision_element);
 
   // Minimum map constraint violation.
   constraint_violation[0] = std::min(separation_dist[0], lagrange_mult[0]);
+}
+
+void Collision::finalize() {
 }
 //}
 

@@ -29,19 +29,20 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/BulkData.hpp>  // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>     // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintViolation.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintViolation
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintViolation.hpp>  // for mundy::methods::...::ComputeConstraintViolation
 
 namespace mundy {
 
@@ -59,58 +60,48 @@ namespace kernels {
 
 /// \class Collision
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
-                  public mundy::meta::MetaMultibodyKernelRegistry<void, Collision, ComputeConstraintViolation> {
+class Collision : public mundy::meta::MetaKernel<void, Collision>,
+                  public ComputeConstraintViolation::OurKernelRegistry<Collision> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit Collision(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  explicit Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaKernel interface implementation
   //@{
 
-  /// \brief Get the requirements that this kernel imposes upon each particle and/or constraint.
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
-    std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
-        std::make_shared<mundy::meta::PartRequirements>();
-    required_part_params->set_part_topology(stk::topology::QUAD_4);
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_element_signed_separation_dist_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(default_element_lagrange_multiplier_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-<<<<<<< Updated upstream
-        std::string(default_element_constraint_violation_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    return required_part_params;
-  }
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.set(
-        "element_signed_separation_dist_field_name", std::string(default_element_signed_separation_dist_field_name_),
-        "Name of the element field containing the signed separation distance collision pairs.");
-    default_fixed_parameter_list.set("element_lagrange_multiplier_field_name",
-                                     std::string(default_element_lagrange_multiplier_field_name_),
-                                     "Name of the element field containing the constraint's Lagrange multiplier.");
-    default_fixed_parameter_list.set("element_constraint_violation_field_name",
-                                     std::string(default_element_constraint_violation_field_name_),
-                                     "Name of the element field containing the constraint's violation measure.");
-    return default_fixed_parameter_list;
-=======
+    // Fill the requirements using the given parameter list.
+    std::string element_signed_separation_dist_field_name =
+        valid_fixed_params.get<std::string>("element_signed_separation_dist_field_name");
+    std::string element_lagrange_multiplier_field_name =
+        valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+    std::string element_constraint_violation_field_name =
+        valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
+
+    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs->set_part_name("COLLISION");
+    part_reqs->set_part_topology(stk::topology::BEAM_2);
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("COLLISION"));
+    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_signed_separation_dist_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
@@ -159,16 +150,11 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
                             std::string(default_element_constraint_violation_field_name_),
                             "Name of the element field containing the constraint's violation measure.");
     }
->>>>>>> Stashed changes
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c ParameterList
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    return default_transient_parameter_list;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -179,20 +165,31 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<Collision>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<Collision>(bulk_data_ptr, fixed_params);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
   //@{
 
+  /// \brief Setup the kernel's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the kernel's core calculation.
-  /// \param element [in] The element acted on by the kernel.
-  void execute(const stk::mesh::Entity &element) override;
+  /// \param collision_element [in] The collision element acted on by the kernel.
+  void execute(const stk::mesh::Entity &collision_element) override;
+
+  /// \brief Finalize the kernel's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:
@@ -210,14 +207,13 @@ class Collision : public mundy::meta::MetaMultibodyKernel<void, Collision>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static const mundy::multibody::Factory::FastIdType class_identifier_ =
-      mundy::multibody::Factory::get_fast_id("COLLISION");
+  static const std::string class_identifier_ = "COLLISION";
 
-  /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  /// \brief The BulkData object this class acts upon.
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  /// \brief The MetaData object this class acts upon.
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Name of the element field containing the signed separation distance between collision pairs.
   std::string element_signed_separation_dist_field_name_;

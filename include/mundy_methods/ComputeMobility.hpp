@@ -31,18 +31,19 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 
 namespace mundy {
 
@@ -51,7 +52,7 @@ namespace methods {
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
-                        public mundy::meta::MetaMethodRegistry<void, ComputeMobility> {
+                        public mundy::meta::GlobalMetaMethodRegistry<void, ComputeMobility> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -60,7 +61,16 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   ComputeMobility() = delete;
 
   /// \brief Constructor
-  ComputeMobility(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  //@}
+
+  //! \name Typedefs
+  //@{
+
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeMobility>;
+
+  template <typename ClassToRegister>
+  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeMobility>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -68,38 +78,58 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fetch the technique sublist and return its parameters.
-    Teuchos::ParameterList &technique_parameter_list = valid_fixed_parameter_list.sublist("technique");
-    const std::string technique_name = technique_parameter_list.get<std::string>("name");
+    Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+    const std::string technique_name = technique_params.get<std::string>("name");
 
-    return mundy::meta::MetaMethodFactory<void, ComputeMobility>::get_part_requirements(technique_name,
-                                                                                        technique_parameter_list);
+    return OurMethodFactory::get_mesh_requirements(technique_name, technique_params);
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.sublist("technique", false,
-                                         "Sublist that defines the technique to use and its parameters.");
-    return default_fixed_parameter_list;
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = fixed_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+    }
+
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    return default_transient_parameter_list;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = mutable_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+    }
+
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c
@@ -110,22 +140,31 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<ComputeMobility>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<ComputeMobility>(bulk_data_ptr, fixed_params);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute(const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_technique_name_ = "RIGID_BODY_MOTION";
+  //@}
+
   //! \name Internal members
   //@{
 
@@ -133,11 +172,11 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "COMPUTE_MOBILITY";
 
-  /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  /// \brief The BulkData object this class acts upon.
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  /// \brief The MetaData object this class acts upon.
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Method corresponding to the specified technique.
   std::shared_ptr<mundy::meta::MetaMethodBase<void>> technique_ptr_;

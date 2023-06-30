@@ -242,7 +242,7 @@ GroupHierarchyParams:
     group_field_params:
       - field_name: "force"
         field_rank: stk::topology::ENTITY_RANK
-        field_type: 
+        FieldType: 
     
   std::vector<GroupHierarchyParams>;
 

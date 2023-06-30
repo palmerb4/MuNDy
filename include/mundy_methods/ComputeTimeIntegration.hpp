@@ -32,18 +32,19 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaPairwiseKernelFactory
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 
 namespace mundy {
 
@@ -52,7 +53,7 @@ namespace methods {
 /// \class ComputeTimeIntegration
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
 class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeIntegration>,
-                               public mundy::meta::MetaMethodRegistry<void, ComputeTimeIntegration> {
+                               public mundy::meta::GlobalMetaMethodRegistry<void, ComputeTimeIntegration> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -61,7 +62,16 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   ComputeTimeIntegration() = delete;
 
   /// \brief Constructor
-  ComputeTimeIntegration(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  //@}
+
+  //! \name Typedefs
+  //@{
+
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeTimeIntegration>;
+
+  template <typename ClassToRegister>
+  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeTimeIntegration>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -69,73 +79,58 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
+  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-    // Create and store the required part params.
-    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_part_pairs");
-    const unsigned num_part_pairs = parts_parameter_list.get<unsigned>("count");
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_part_pairs; i++) {
-      // Create a new part requirement.
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+    const std::string technique_name = technique_params.get<std::string>("name");
 
-      // Fetch the i'th part parameters.
-      Teuchos::ParameterList &part_pair_parameter_list =
-          parts_parameter_list.sublist("input_part_pair_" + std::to_string(i));
-      const Teuchos::Array<std::string> pair_names = part_pair_parameter_list.get<Teuchos::Array<std::string>>("name");
+    return OurMethodFactory::get_mesh_requirements(technique_name, technique_params);
+  }
 
-      // Add method-specific requirements.
-      part_requirements[i - 1]->set_part_name(pair_names[0]);
-      part_requirements[i]->set_part_name(pair_names[1]);
-      part_requirements[i - 1]->set_part_rank(stk::topology::CONSTRAINT_RANK);
-      part_requirements[i]->set_part_rank(stk::topology::ELEMENT_RANK);
-
-      // Fetch the parameters for this part's kernel.
-      Teuchos::ParameterList &part_kernel_parameter_list =
-          part_parameter_list.sublist("kernels").sublist("compute_time_integration");
-
-      // Validate the kernel params and fill in defaults.
-      const std::string kernel_name = part_kernel_parameter_list.get<std::string>("name");
-      part_kernel_parameter_list.validateParametersAndSetDefaults(
-          mundy::meta::MetaPairwiseKernelFactory<void, ComputeTimeIntegration>::get_valid_params(kernel_name));
-
-      // Merge the kernel requirements.
-      std::pair<std::shared_ptr<mundy::meta::PartRequirements>, std::shared_ptr<mundy::meta::PartRequirements>>
-          pair_requirements =
-              mundy::meta::MetaPairwiseKernelFactory<void, ComputeTimeIntegration>::get_part_requirements(
-                  kernel_name, part_kernel_parameter_list);
-      part_requirements[i - 1]->merge(pair_requirements.first);
-      part_requirements[i]->merge(pair_requirements.second);
+  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = fixed_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "ComputeTimeIntegration: Type error. Given a parameter with name 'name' but with a "
+                                 "type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
     }
 
-    return part_requirements;
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_fixed_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    Teuchos::ParameterList &kernel_params = default_fixed_parameter_list.sublist(
-        "kernels", false, "Sublist that defines the kernels and their parameters.");
-    kernel_params.sublist("map_surface_force_to_rigid_body_force", false,
-                          "Sublist that defines the map's kernel parameters.");
-    return default_fixed_parameter_list;
-  }
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    // Fetch the technique sublist and return its parameters.
+    Teuchos::ParameterList &technique_params = mutable_params_ptr->sublist("technique", false);
+    if (technique_params.isParameter("name")) {
+      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "ComputeTimeIntegration: Type error. Given a parameter with name 'name' but with a "
+                                 "type other than std::string");
+    } else {
+      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+    }
 
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_transient_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    return default_transient_parameter_list;
+    const std::string technique_name = technique_params.get<std::string>("name");
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other
@@ -146,22 +141,31 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<ComputeTimeIntegration>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<ComputeTimeIntegration>(bulk_data_ptr, fixed_params);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute(const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_technique_name_ = "NODE_EULER";
+  //@}
+
   //! \name Internal members
   //@{
 
@@ -169,20 +173,14 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "COMPUTE_TIME_INTEGRATION";
 
-  /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  /// \brief The BulkData object this class acts upon.
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  /// \brief The MetaData object this class acts upon.
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Number of part pairs that this method acts on.
-  size_t num_part_pairs_ = 0;
-
-  /// \brief Vector of pointers to the part pairs that this class will act upon.
-  std::vector<std::pair<stk::mesh::Part *>> part_pair_ptr_vector_;
-
-  /// \brief Kernels corresponding to each of the specified part pairs.
-  std::vector<std::shared_ptr<mundy::meta::MetaPairwiseKernelBase<void>>> kernel_ptrs_;
+  /// \brief Method corresponding to the specified technique.
+  std::shared_ptr<mundy::meta::MetaMethodBase<void>> technique_ptr_;
   //@}
 };  // ComputeTimeIntegration
 

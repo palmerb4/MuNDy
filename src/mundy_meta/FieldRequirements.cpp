@@ -17,29 +17,15 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_FIELDREQUIREMENTS_HPP_
-#define MUNDY_META_FIELDREQUIREMENTS_HPP_
-
 /// \file FieldRequirements.cpp
 /// \brief Definition of the FieldRequirements class
 
 // C++ core libs
-#include <algorithm>    // for std::max
-#include <memory>       // for std::shared_ptr, std::unique_ptr
-#include <stdexcept>    // for std::logic_error, std::invalid_argument
-#include <string>       // for std::string
-#include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <string>  // for std::string
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/MetaData.hpp>    // for stk::mesh::MetaData
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
-
-// Mundy libs
-#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
 namespace mundy {
 
@@ -62,9 +48,8 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string) {
   } else if (rank_string == "INVALID_RANK") {
     return stk::topology::INVALID_RANK;
   } else {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        true, std::invalid_argument,
-        "The provided rank string " << rank_string << " is not valid.");
+    TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument,
+                               "The provided rank string " << rank_string << " is not valid.");
   }
 }
 //}
@@ -72,5 +57,3 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string) {
 }  // namespace meta
 
 }  // namespace mundy
-
-#endif  // MUNDY_META_FIELDREQUIREMENTS_HPP_

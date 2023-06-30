@@ -31,13 +31,14 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/BulkData.hpp>    // for stk::mesh::BulkData
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
+#include <mundy_mesh/BulkData.hpp>                   // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                   // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>                // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
@@ -51,10 +52,12 @@ namespace methods {
 
 namespace compute_time_integration {
 
+namespace techniques {
+
 /// \class NodeEuler
 /// \brief Method for computing the axis aligned boundary box of different parts.
 class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
-                  public mundy::meta::MetaMethodRegistry<void, NodeEuler, ComputeTimeIntegration> {
+                  public ComputeTimeIntegration::OurMethodRegistry<NodeEuler> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -63,7 +66,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   NodeEuler() = delete;
 
   /// \brief Constructor
-  NodeEuler(stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list);
+  NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaMethod interface implementation
@@ -71,40 +74,11 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c PartRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-<<<<<<< Updated upstream
-  static std::vector<std::shared_ptr<mundy::meta::PartRequirements>> details_static_get_part_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_parameter_list) {
-    // Validate the input params. Use default parameters for any parameter not given.
-    // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-    Teuchos::ParameterList valid_fixed_parameter_list = fixed_parameter_list;
-    valid_fixed_parameter_list.validateParametersAndSetDefaults(static_get_valid_fixed_params());
-
-    // Create and store the required part params. One per input part.
-    Teuchos::ParameterList &parts_parameter_list = valid_fixed_parameter_list.sublist("input_parts");
-    const unsigned num_parts = parts_parameter_list.get<unsigned>("count");
-    std::vector<std::shared_ptr<mundy::meta::PartRequirements>> part_requirements;
-    for (size_t i = 0; i < num_parts; i++) {
-      // Create a new parameter
-      part_requirements.emplace_back(std::make_shared<mundy::meta::PartRequirements>());
-
-      // Fetch the i'th part parameters
-      Teuchos::ParameterList &part_parameter_list = parts_parameter_list.sublist("input_part_" + std::to_string(i));
-      const std::string part_name = part_parameter_list.get<std::string>("name");
-
-      // Add method-specific requirements.
-      part_requirements[i]->set_part_name(part_name);
-      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          std::string(default_node_velocity_field_name_), stk::topology::NODE_RANK, 3, 1));
-      part_requirements[i]->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          std::string(default_node_omega_field_name_name_), stk::topology::NODE_RANK, 3, 1));
-=======
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -146,31 +120,41 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the node's spatial coordinate.");
->>>>>>> Stashed changes
     }
 
-    return part_requirements;
+    if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NodeEuler: Type error. Given a parameter with name 'node_velocity_field_name' but "
+                                     << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
+                            "Name of the node field containing the node's translational velocity.");
+    }
+
+    if (fixed_params_ptr->isParameter("node_omega_field_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NodeEuler: Type error. Given a parameter with name 'node_omega_field_name' but "
+                                 "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
+                            "Name of the node field containing the node's rotational velocity.");
+    }
   }
 
-  /// \brief Get the default fixed parameters for this class (those that impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_fixed_parameter_list;
-    default_fixed_parameter_list.set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
-                                     "Name of the node field containing the coordinate of the sphere's center.");
-    default_fixed_parameter_list.set(
-        "node_velocity_field_name", std::string(default_node_velocity_field_name_),
-        "Name of the node field containing the translational velocity of the sphere's center.");
-    default_fixed_parameter_list.set(
-        "node_omega_field_name_name", std::string(default_node_omega_field_name_name_),
-        "Name of the node field containing the rotational velocity of the sphere's center.");
-    return default_fixed_parameter_list;
-  }
-
-  /// \brief Get the default transient parameters for this class (those that do not impact the part requirements).
-  static Teuchos::ParameterList details_static_get_valid_params() {
-    static Teuchos::ParameterList default_transient_parameter_list;
-    default_transient_parameter_list.set("time_step_size", default_time_step_size_, "The numerical timestep size.");
-    return default_transient_parameter_list;
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  static void details_static_validate_mutable_parameters_and_set_defaults(
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    if (mutable_params_ptr->isParameter("time_step_size")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned double>("time_step_size");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
+                                     << "with a type other than unsigned double");
+    } else {
+      mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
+    }
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
@@ -180,26 +164,37 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
 
   /// \brief Generate a new instance of this class.
   ///
-  /// \param fixed_parameter_list [in] Optional list of fixed parameters for setting up this class. A
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
-      stk::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_parameter_list) {
-    return std::make_shared<NodeEuler>(bulk_data_ptr, fixed_parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<NodeEuler>(bulk_data_ptr, fixed_params);
   }
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
   //@{
 
+  /// \brief Setup the method's core calculations.
+  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
+  void setup() override;
+
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute(const stk::mesh::Selector &input_selector) override;
+
+  /// \brief Finalize the method's core calculations.
+  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  void finalize() override;
   //@}
 
  private:
   //! \name Default parameters
   //@{
 
-  static constexpr double default_time_step_size_ = -1;
+  static constexpr unsigned double default_time_step_size_ = 1.0;
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   static constexpr std::string_view default_node_omega_field_name_name_ = "NODE_OMEGA";
@@ -212,11 +207,11 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view class_identifier_ = "NODE_EULER";
 
-  /// \brief The BulkData objects this class acts upon.
-  stk::mesh::BulkData *bulk_data_ptr_ = nullptr;
+  /// \brief The BulkData object this class acts upon.
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
-  /// \brief The MetaData objects this class acts upon.
-  stk::mesh::MetaData *meta_data_ptr_ = nullptr;
+  /// \brief The MetaData object this class acts upon.
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of parts that this method acts on.
   size_t num_parts_ = 0;
@@ -227,25 +222,27 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   /// \brief The numerical timestep size.
   double time_step_size_;
 
-  /// \brief Name of the node field containing the coordinate of the sphere's center.
+  /// \brief Name of the node field containing the node's spatial coordinate.
   std::string node_coord_field_name_;
 
-  /// \brief Name of the node field containing the translational velocity of the sphere's center.
+  /// \brief Name of the node field containing the node's translational velocity.
   std::string node_velocity_field_name_;
 
-  /// \brief Name of the node field containing the rotational velocity of the sphere's center.
+  /// \brief Name of the node field containing the node's rotational velocity.
   std::string node_omega_field_name_;
 
-  /// \brief Node field containing the coordinate of the sphere's center.
+  /// \brief Node field containing the node's spatial coordinate.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
 
-  /// \brief Node field containing the translational velocity of the sphere's center.
+  /// \brief Node field containing the node's translational velocity.
   stk::mesh::Field<double> *node_velocity_field_ptr_ = nullptr;
 
-  /// \brief Node field containing the rotational velocity of the sphere's center.
+  /// \brief Node field containing the node's rotational velocity.
   stk::mesh::Field<double> *node_omega_field_ptr_ = nullptr;
   //@}
 };  // NodeEuler
+
+}  // namespace techniques
 
 }  // namespace compute_time_integration
 

@@ -20,8 +20,8 @@
 #ifndef MUNDY_MULTIBODY_MULTIBODY_HPP_
 #define MUNDY_MULTIBODY_MULTIBODY_HPP_
 
-/// \file MultibodyType.hpp
-/// \brief Declaration of the MultibodyType class
+/// \file Multibody.hpp
+/// \brief Declaration of the Multibody class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
@@ -33,10 +33,12 @@ namespace mundy {
 
 namespace multibody {
 
-/// \class MultibodyType
+using multibody_t = unsigned;
+
+/// \class Multibody
 /// \brief The static interface for all of Mundy's multibody objects, be they rigid bodies and/or constraints.
 ///
-/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MultibodyType must
+/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c Multibody must
 /// implement the following static member functions
 /// - \c details_get_name             implementation of the \c get_name             interface.
 /// - \c details_get_topology         implementation of the \c get_topology         interface (both versions).
@@ -44,12 +46,12 @@ namespace multibody {
 /// - \c details_get_parent_multibody implementation of the \c get_parent_multibody interface (both versions).
 ///
 /// To keep these out of the public interface, we suggest that each details function be made private and
-/// \c MultibodyType<DerivedClass> be made a friend of \c DerivedClass.
+/// \c Multibody<DerivedClass> be made a friend of \c DerivedClass.
 ///
-/// \tparam DerivedClass A class derived from \c MultibodyType that implements the desired
+/// \tparam DerivedClass A class derived from \c Multibody that implements the desired
 /// interface.
 template <class DerivedClass>
-class MultibodyType {
+class Multibody {
   //! \name Getters
   //@{
 
@@ -78,7 +80,7 @@ class MultibodyType {
   static constexpr inline bool get_parent_name() {
     return DerivedClass::details_get_parent_multibody();
   }
-};  // MultibodyType
+};  // Multibody
 
 }  // namespace multibody
 
