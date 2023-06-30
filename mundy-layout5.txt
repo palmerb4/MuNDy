@@ -458,7 +458,7 @@ Order I will implement things
   - Use the set difference between the current and previous neighbor list to identify how many constraints need deleted and how many need created.
   - (On the CPU) Mark the deleted constraints for deletion and generate the new collision constraints.
   - (On the CPU) Link the newly created collision constraints to their corresponding linkers.
-  - (On the GPU) Populate each collision constraint using the appropriate 3Way kernel, chosen based on part membership.
+  - (On the GPU) Populate each collision constraint using UpdateConstraints.
 21. UpdateConstraints
   - Given the BulkData, update the constraints as though they had just been generated. 
   - One kernel per constraint type.

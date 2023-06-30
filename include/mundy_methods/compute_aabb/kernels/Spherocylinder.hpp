@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY_KERNELS_SPHERE_HPP_
-#define MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY_KERNELS_SPHERE_HPP_
+#ifndef MUNDY_METHODS_COMPUTE_AABB_KERNELS_SPHEROCYLINDER_HPP_
+#define MUNDY_METHODS_COMPUTE_AABB_KERNELS_SPHEROCYLINDER_HPP_
 
-/// \file Sphere.hpp
-/// \brief Declaration of the MapRigidBodyVelocityToSurfaceVelocity's Sphere kernel.
+/// \file Spherocylinder.hpp
+/// \brief Declaration of the ComputeAABB's Spherocylinder kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -42,32 +42,26 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::methods::...::MapRigidBodyVelocityToSurfaceVelocity
+#include <mundy_methods/ComputeAABB.hpp>     // for mundy::methods::ComputeAABB
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_mobility {
-
-namespace techniques {
-
-namespace rigid_body_motion {
-
-namespace map_rigid_body_velocity_to_surface_velocity {
+namespace compute_aabb {
 
 namespace kernels {
 
-/// \class Sphere
-/// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
-               public MapRigidBodyVelocityToSurfaceVelocity::OurKernelRegistry<Sphere> {
+/// \class Spherocylinder
+/// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of Spherocylinders.
+class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
+                       public ComputeAABB::OurKernelRegistry<Spherocylinder> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Constructor
-  explicit Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  explicit Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -87,29 +81,22 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
     // Fill the requirements using the given parameter list.
     std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
-    std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
-    std::string node_omega_field_name = valid_fixed_params.get<std::string>("node_omega_field_name");
+    std::string element_radius_field_name = valid_fixed_params.get<std::string>("element_radius_field_name");
+    std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
 
-    auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    sphere_part_reqs->set_part_name("SPHERE");
-    sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs->set_part_name("SPHEROCYLINDER");
+    part_reqs->set_part_topology(stk::topology::BEAM3);
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHEROCYLINDER"));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-
-    auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    linker_part_reqs->set_part_name("LINKER");
-    linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT);
-    linker_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("CONSTRAINT"));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(sphere_part_reqs);
-    mesh_reqs->add_part_req(linker_part_reqs);
-
+    mesh_reqs->add_part_req(part_reqs);
     return mesh_reqs;
   }
 
@@ -117,41 +104,53 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
-                                 "with a type other than std::string");
+                                 "Spherocylinder: Type error. Given a parameter with name 'node_coord_field_name' but "
+                                     << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
-                            "Name of the node field containing the coordinate of the sphere's center.");
+                            "Name of the node field containing the coordinate of the Spherocylinder's nodes.");
     }
 
-    if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
+    if (fixed_params_ptr->isParameter("element_radius_field_name")) {
       const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
-                                 "with a type other than std::string");
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Spherocylinder: Type error. Given a parameter with name 'element_length_field_name' but "
+          "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
-                            "Name of the node field containing the surface and body velocity.");
+      fixed_params_ptr->set("element_radius_field_name", std::string(default_element_radius_field_name_),
+                            "Name of the element field containing the Spherocylinder's radius.");
     }
 
-    if (fixed_params_ptr->isParameter("node_omega_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
-                                 "with a type other than std::string");
+    if (fixed_params_ptr->isParameter("element_aabb_field_name")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_aabb_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "Spherocylinder: Type error. Given a parameter with name 'element_aabb_field_name' but "
+              << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
-                            "Name of the node field containing the surface and body rotational velocity.");
+      fixed_params_ptr->set(
+          "element_aabb_field_name", std::string(default_element_aabb_field_name_),
+          "Name of the element field within which the output axis-aligned boundary boxes will be written.");
     }
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+    if (mutable_params_ptr->isParameter("buffer_distance")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "Spherocylinder: Type error. Given a parameter with name 'buffer_distance' but "
+                                     << "with a type other than unsigned");
+    } else {
+      mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
+                              "Buffer distance to be added to the axis-aligned boundary box.");
+    }
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -166,7 +165,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernelBase<void>> details_static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<Sphere>(bulk_data_ptr, fixed_params);
+    return std::make_shared<Spherocylinder>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
@@ -181,9 +180,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   void setup() override;
 
   /// \brief Run the kernel's core calculation.
-  /// \param sphere_element [in] The sphere element acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_element) override;
-
+  /// \param Spherocylinder_element [in] The Spherocylinder element acted on by the kernel.
+  void execute(const stk::mesh::Entity &Spherocylinder_element) override;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
@@ -194,9 +192,10 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   //! \name Default parameters
   //@{
 
+  static constexpr double default_buffer_distance_ = 0.0;
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
-  static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
-  static constexpr std::string_view default_node_omega_field_name_ = "NODE_OMEGA";
+  static constexpr std::string_view default_element_radius_field_name_ = "ELEMENT_RADIUS";
+  static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
   //@}
 
   //! \name Internal members
@@ -204,7 +203,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const std::string class_identifier_ = "SPHERE";
+  static const std::string class_identifier_ = "SPHEROCYLINDER";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -212,38 +211,38 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
-  /// \brief Name of the node field containing the coordinate of the sphere's center.
+  /// \brief Buffer distance to be added to the axis-aligned boundary box.
+  ///
+  /// For example, if the original axis-aligned boundary box has left corner at [0,0,0] and right corner at [1,1,1],
+  /// then a buffer distance of 2 will shift the left corner to [-2,-2,-2] and right corner to [3,3,3].
+  double buffer_distance_;
+
+  /// \brief Name of the node field containing the coordinate of the Spherocylinder's nodes.
   std::string node_coord_field_name_;
 
-  /// \brief Name of the node field containing the surface and body velocity.
-  std::string node_velocity_field_name_;
+  /// \brief Name of the element field containing the Spherocylinder's radius.
+  std::string element_radius_field_name_;
 
-  /// \brief Name of the node field containing the surface and body rotational velocity.
-  std::string node_omega_field_name_;
+  /// \brief Name of the element field within which the output axis-aligned boundary boxes will be written.
+  std::string element_aabb_field_name_;
 
-  /// \brief Node field containing the coordinate of the sphere's center.
+  /// \brief Node field containing the coordinate of the Spherocylinder's center.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
 
-  /// \brief Node field containing the surface and body velocity.
-  stk::mesh::Field<double> *node_velocity_field_ptr_ = nullptr;
+  /// \brief Element field containing the Spherocylinder's radius.
+  stk::mesh::Field<double> *element_radius_field_ptr_ = nullptr;
 
-  /// \brief Node field containing the surface and body rotational velocity.
-  stk::mesh::Field<double> *node_omega_field_ptr_ = nullptr;
+  /// \brief Element field within which the output axis-aligned boundary boxes will be written.
+  stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
   //@}
-};  // Sphere
+};  // Spherocylinder
 
 }  // namespace kernels
 
-}  // namespace map_rigid_body_velocity_to_surface_velocity
-
-}  // namespace rigid_body_motion
-
-}  // namespace techniques
-
-}  // namespace compute_mobility
+}  // namespace compute_aabb
 
 }  // namespace methods
 
 }  // namespace mundy
 
-#endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY_KERNELS_SPHERE_HPP_
+#endif  // MUNDY_METHODS_COMPUTE_AABB_KERNELS_SPHEROCYLINDER_HPP_

@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file Sphere.cpp
-/// \brief Definition of the ComputeOBB's Sphere kernel.
+/// \file Spherocylinder.cpp
+/// \brief Definition of the ComputeAABB's Spherocylinder kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -31,82 +31,84 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                       // for mundy::mesh::BulkData
-#include <mundy_methods/compute_obb/kernels/Sphere.hpp>  // for mundy::methods::compute_obb::kernels::Sphere
+#include <mundy_mesh/BulkData.hpp>                                // for mundy::mesh::BulkData
+#include <mundy_methods/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::methods::compute_aabb::kernels::Spherocylinder
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_obb {
+namespace compute_aabb {
 
 namespace kernels {
 
 // \name Constructors and destructor
 //{
 
-Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
-                             "Sphere: bulk_data_ptr cannot be a nullptr.");
+                             "Spherocylinder: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Fill the internal members using the internal parameter list
-  obb_field_name_ = valid_fixed_params.get<std::string>("obb_field_name");
-  radius_field_name_ = valid_fixed_params.get<std::string>("radius_field_name");
+  // Fill the internal members using the given parameter list.
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
+  element_radius_field_name_ = valid_fixed_params.get<std::string>("element_radius_field_name");
+  element_aabb_field_name_ = valid_fixed_params.get<std::string>("element_aabb_field_name");
 
   // Store the input params.
-  obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, obb_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+  element_radius_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
+  element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name_);
 }
 //}
 
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
+Teuchos::ParameterList Spherocylinder::set_mutable_params(const Teuchos::ParameterList &mutable_params) const {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Fill the internal members using the given parameter list.
-  buffer_distance_ = valid_fixed_params.get<double>("buffer_distance");
+  buffer_distance_ = valid_mutable_params.get<double>("buffer_distance");
 }
 //}
 
 // \name Actions
 //{
 
-void Sphere::setup() {
+void Spherocylinder::setup() {
 }
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
-  double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
-  double *obb = stk::mesh::field_data(*obb_field_ptr_, sphere_element);
+void Spherocylinder::execute(const stk::mesh::Entity &spherocylinder_element) {
+  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(spherocylinder_element);
+  double *left_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
+  double *right_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
+  double *radius = stk::mesh::field_data(*element_radius_field_ptr_, spherocylinder_element);
+  double *aabb = stk::mesh::field_data(*aabb_field_ptr_, spherocylinder_element);
 
-  obb[0] = coords[0] - radius[0] - buffer_distance_;
-  obb[1] = coords[1] - radius[0] - buffer_distance_;
-  obb[2] = coords[2] - radius[0] - buffer_distance_;
-  obb[3] = coords[0] + radius[0] + buffer_distance_;
-  obb[4] = coords[1] + radius[0] + buffer_distance_;
-  obb[5] = coords[2] + radius[0] + buffer_distance_;
+  aabb[0] = std::min(left_endpt_coords[0], right_endpt_coords[0]) - radius[0] - buffer_distance_;
+  aabb[1] = std::min(left_endpt_coords[1], right_endpt_coords[1]) - radius[0] - buffer_distance_;
+  aabb[2] = std::min(left_endpt_coords[2], right_endpt_coords[2]) - radius[0] - buffer_distance_;
+  aabb[3] = std::max(left_endpt_coords[0], right_endpt_coords[0]) + radius[0] + buffer_distance_;
+  aabb[4] = std::max(left_endpt_coords[1], right_endpt_coords[1]) + radius[0] + buffer_distance_;
+  aabb[5] = std::max(left_endpt_coords[2], right_endpt_coords[2]) + radius[0] + buffer_distance_;
 }
 
-void Sphere::finalize() {
+void Spherocylinder::finalize() {
 }
 //}
 
 }  // namespace kernels
 
-}  // namespace compute_obb
+}  // namespace compute_aabb
 
 }  // namespace methods
 

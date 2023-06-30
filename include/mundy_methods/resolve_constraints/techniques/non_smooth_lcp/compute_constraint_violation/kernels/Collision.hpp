@@ -106,13 +106,13 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
-    return multibody_part_params;
+    return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
+    if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_signed_separation_dist_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(

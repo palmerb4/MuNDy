@@ -98,7 +98,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
-    return multibody_part_params;
+    return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.

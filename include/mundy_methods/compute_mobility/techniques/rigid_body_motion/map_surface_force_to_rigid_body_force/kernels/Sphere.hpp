@@ -93,7 +93,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_force_field_name,
@@ -105,20 +105,20 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
         auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
-    return multibody_part_params;
+    return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
+    if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_coordinate_field_name' but "
+                                 "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                                  "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+      fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
     }
 

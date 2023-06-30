@@ -85,7 +85,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -93,7 +93,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
-    return multibody_part_params;
+    return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.

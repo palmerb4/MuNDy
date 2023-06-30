@@ -104,20 +104,20 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
-    return multibody_part_params;
+    return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
+    if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Collision: Type error. Given a parameter with name 'node_coordinate_field_name' but "
+                                 "Collision: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+      fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the node's spatial coordinate.");
     }
 

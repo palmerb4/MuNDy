@@ -86,17 +86,17 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPEHRE"));
+    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_req(
         std::make_shared<mundy::meta::FieldRequirements<double>>(radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
     part_reqs->add_field_req(
-        std::make_shared<mundy::meta::FieldRequirements<double>>(aabb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
+        std::make_shared<mundy::meta::FieldRequirements<double>>(aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(part_reqs);
-    return multibody_part_params;
+    return mesh_reqs;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
@@ -123,14 +123,14 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
                             "Name of the element field containing the sphere radius.");
     }
 
-    if (fixed_params_ptr->isParameter("node_coordinate_field_name")) {
+    if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coordinate_field_name");
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_coordinate_field_name' but "
+                                 "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("node_coordinate_field_name", std::string(default_node_coord_field_name_),
+      fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
     }
   }
