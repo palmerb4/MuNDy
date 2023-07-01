@@ -84,7 +84,7 @@ class FieldRequirements : public FieldRequirementsBase {
   //@{
 
   /// \brief Default construction is allowed
-  /// Default construction corresponds to having no requirements.
+  /// Default construction corresponds to having no requirements (expect for the field type).
   FieldRequirements() = default;
 
   /// \brief Constructor with full fill.
@@ -125,6 +125,10 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \param field_dimension [in] Required dimension of the field.
   void set_field_dimension(const unsigned field_dimension) final;
 
+  /// \brief Set the minimum required number of field states.
+  /// \param field_min_number_of_states [in] Minimum required number of states of the field.
+  void set_field_min_number_of_states(const unsigned field_min_number_of_states) final;
+
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \param field_min_number_of_states [in] Minimum required number of states of the field.
   void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) final;
@@ -140,6 +144,9 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief Get if the field minimum number of states is constrained or not.
   bool constrains_field_min_number_of_states() const final;
+
+  /// @brief Get if the field is fully specified.
+  bool is_fully_specified() const final;
 
   /// \brief Return the field name.
   /// Will throw an error if the field name is not constrained.
@@ -289,7 +296,7 @@ FieldRequirements<FieldType>::FieldRequirements(const std::string &field_name, c
   this->set_field_name(field_name);
   this->set_field_rank(field_rank);
   this->set_field_dimension(field_dimension);
-  this->set_field_min_number_of_states_if_larger(field_min_number_of_states);
+  this->set_field_min_number_of_states(field_min_number_of_states);
 }
 
 template <typename FieldType>
@@ -303,7 +310,7 @@ FieldRequirements<FieldType>::FieldRequirements(const Teuchos::ParameterList &pa
   this->set_field_name(valid_params.get<std::string>("name"));
   this->set_field_rank(valid_params.get<std::string>("rank"));
   this->set_field_dimension(valid_params.get<unsigned>("dimension"));
-  this->set_field_min_number_of_states_if_larger(valid_params.get<unsigned>("min_number_of_states"));
+  this->set_field_min_number_of_states(valid_params.get<unsigned>("min_number_of_states"));
 }
 //}
 
@@ -338,6 +345,13 @@ void FieldRequirements<FieldType>::set_field_dimension(const unsigned field_dime
 }
 
 template <typename FieldType>
+void FieldRequirements<FieldType>::set_field_min_number_of_states(const unsigned field_min_number_of_states) {
+  field_min_number_of_states_ = field_min_number_of_states;
+  field_min_number_of_states_is_set_ = true;
+  this->check_if_valid();
+}
+
+template <typename FieldType>
 void FieldRequirements<FieldType>::set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) {
   if (this->constrains_field_min_number_of_states()) {
     field_min_number_of_states_ = std::max(field_min_number_of_states, field_min_number_of_states_);
@@ -366,6 +380,12 @@ bool FieldRequirements<FieldType>::constrains_field_dimension() const {
 template <typename FieldType>
 bool FieldRequirements<FieldType>::constrains_field_min_number_of_states() const {
   return field_min_number_of_states_is_set_;
+}
+
+template <typename FieldType>
+bool FieldRequirements<FieldType>::is_fully_specified() const {
+  return this->constrains_field_name() && this->constrains_field_rank() && this->constrains_field_dimension() &&
+         this->constrains_field_min_number_of_states();
 }
 
 template <typename FieldType>

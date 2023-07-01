@@ -16,8 +16,3 @@
 #
 # **********************************************************************************************************************
 # @HEADER
-
-add_subdirectory(mundy_mesh)
-add_subdirectory(mundy_meta)
-add_subdirectory(mundy_methods)
-add_subdirectory(mundy_multibody)

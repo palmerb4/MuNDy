@@ -85,6 +85,9 @@ class FieldRequirementsBase {
   /// \brief Get if the field minimum number of states is constrained or not.
   virtual bool constrains_field_min_number_of_states() const = 0;
 
+  /// @brief Get if the field is fully specified.
+  virtual bool is_fully_specified() const = 0;
+
   /// \brief Return the field name.
   /// Will throw an error if the field name is not constrained.
   virtual std::string get_field_name() const = 0;

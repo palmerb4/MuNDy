@@ -225,7 +225,7 @@ PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list)
 }
 //}
 
-// \name Setters and Getters
+// \name Setters
 //{
 
 void PartRequirements::set_part_name(const std::string &part_name) {
@@ -256,6 +256,56 @@ void PartRequirements::set_part_rank(const std::string &part_rank_string) {
   this->set_part_rank(part_rank);
 }
 
+void PartRequirements::delete_part_name_constraint() {
+  part_name_is_set_ = false;
+}
+
+void PartRequirements::delete_part_topology_constraint() {
+  part_topology_is_set_ = false;
+}
+
+void PartRequirements::delete_part_rank_constraint() {
+  part_rank_is_set_ = false;
+}
+
+void PartRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
+  // Check if the provided parameters are valid.
+  field_req_ptr->check_if_valid();
+
+  // If a field with the same name and rank exists, attempt to merge them.
+  // Otherwise, create a new field entity.
+  const std::string field_name = field_req_ptr->get_field_name();
+  const unsigned field_rank = field_req_ptr->get_field_rank();
+
+  auto &part_field_map = part_ranked_field_maps_[field_rank];
+  const bool name_already_exists = (part_field_map.count(field_name) != 0);
+  if (name_already_exists) {
+    part_field_map[field_name]->merge({field_req_ptr});
+  } else {
+    part_field_map[field_name] = field_req_ptr;
+  }
+}
+
+void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
+  // Check if the provided parameters are valid.
+  part_req_ptr->check_if_valid();
+
+  // Check for conflicts?
+
+  // Store the params.
+  part_subpart_map_[part_req_ptr->get_part_name()] = part_req_ptr;
+}
+
+void PartRequirements::add_part_attribute(const std::any &some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  part_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
+}
+
+void PartRequirements::add_part_attribute(std::any &&some_attribute) {
+  std::type_index attribute_type_index = std::type_index(some_attribute.type());
+  part_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+}
+
 void PartRequirements::put_io_part_attribute() {
   is_io_part_ = true;
 }
@@ -264,6 +314,10 @@ void PartRequirements::put_multibody_part_attribute(const mundy::multibody::mult
   std::any a = body_type;
   this->add_part_attribute(std::move(a));
 }
+//@}
+
+// \name Getters
+//{
 
 bool PartRequirements::constrains_part_name() const {
   return part_name_is_set_;
@@ -275,6 +329,10 @@ bool PartRequirements::constrains_part_topology() const {
 
 bool PartRequirements::constrains_part_rank() const {
   return part_name_is_set_;
+}
+
+bool PartRequirements::is_fully_specified() const {
+  return this->constrains_part_name();
 }
 
 std::string PartRequirements::get_part_name() const {
@@ -353,58 +411,8 @@ stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *c
   return *part_ptr;
 }
 
-void PartRequirements::delete_part_name_constraint() {
-  part_name_is_set_ = false;
-}
-
-void PartRequirements::delete_part_topology_constraint() {
-  part_topology_is_set_ = false;
-}
-
-void PartRequirements::delete_part_rank_constraint() {
-  part_rank_is_set_ = false;
-}
-
 void PartRequirements::check_if_valid() const {
   // TODO(palmerb4): What are the requirements for validity?
-}
-
-void PartRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
-  // Check if the provided parameters are valid.
-  field_req_ptr->check_if_valid();
-
-  // If a field with the same name and rank exists, attempt to merge them.
-  // Otherwise, create a new field entity.
-  const std::string field_name = field_req_ptr->get_field_name();
-  const unsigned field_rank = field_req_ptr->get_field_rank();
-
-  auto &part_field_map = part_ranked_field_maps_[field_rank];
-  const bool name_already_exists = (part_field_map.count(field_name) != 0);
-  if (name_already_exists) {
-    part_field_map[field_name]->merge({field_req_ptr});
-  } else {
-    part_field_map[field_name] = field_req_ptr;
-  }
-}
-
-void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
-  // Check if the provided parameters are valid.
-  part_req_ptr->check_if_valid();
-
-  // Check for conflicts?
-
-  // Store the params.
-  part_subpart_map_[part_req_ptr->get_part_name()] = part_req_ptr;
-}
-
-void PartRequirements::add_part_attribute(const std::any &some_attribute) {
-  std::type_index attribute_type_index = std::type_index(some_attribute.type());
-  part_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
-}
-
-void PartRequirements::add_part_attribute(std::any &&some_attribute) {
-  std::type_index attribute_type_index = std::type_index(some_attribute.type());
-  part_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
 }
 
 void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
