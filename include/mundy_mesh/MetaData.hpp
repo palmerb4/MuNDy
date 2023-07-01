@@ -68,14 +68,29 @@ class MetaData : public stk::mesh::MetaData {
   /// field.
   void declare_attribute(const stk::mesh::FieldBase &field, const std::any &attribute);
 
+  /// @brief Declare an attribute on the given field.
+  /// @param field The field which should contain the given attribute.
+  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the given
+  /// field.
+  void declare_attribute(const stk::mesh::FieldBase &field, const std::any &&attribute);
+
   /// @brief Declare an attribute on the given part.
   /// @param part The part which should contain the given attribute.
   /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the given part.
   void declare_attribute(const stk::mesh::Part &part, const std::any &attribute);
 
+  /// @brief Declare an attribute on the given part.
+  /// @param part The part which should contain the given attribute.
+  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the given part.
+  void declare_attribute(const stk::mesh::Part &part, const std::any &&attribute);
+
   /// @brief Declare an attribute on the mesh itself.
   /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the mesh.
   void declare_attribute(const std::any &attribute);
+
+  /// @brief Declare an attribute on the mesh itself.
+  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the mesh.
+  void declare_attribute(const std::any &&attribute);
 
   /// @brief Attempt to remove an attribute from the provided field.
   /// @tparam AttributeTypeToRemove Type of the attribute to attempt to remove.
@@ -104,7 +119,7 @@ class MetaData : public stk::mesh::MetaData {
   /// @param field The given field whose attribute we are trying to fetch.
   /// @return A pointer to the internally maintained attribute.
   template <class AttributeTypeToFetch>
-  AttributeTypeToFetch &get_attribute(const stk::mesh::FieldBase &field);
+  AttributeTypeToFetch *get_attribute(const stk::mesh::FieldBase &field);
 
   /// @brief Attempt to fetch an attribute with the provided type. Will return nullptr if type doesn't exist on the
   /// given part.
@@ -113,14 +128,14 @@ class MetaData : public stk::mesh::MetaData {
   /// @param part The given part whose attribute we are trying to fetch.
   /// @return A pointer to the internally maintained attribute.
   template <class AttributeTypeToFetch>
-  AttributeTypeToFetch &get_attribute(const stk::mesh::Part &part);
+  AttributeTypeToFetch *get_attribute(const stk::mesh::Part &part);
 
   /// @brief Attempt to fetch an attribute with the provided type. Will return nullptr if type doesn't exist on the
   /// current mesh.
   /// @tparam AttributeTypeToFetch The attribute type to fetch.
   /// @return A pointer to the internally maintained attribute.
   template <class AttributeTypeToFetch>
-  AttributeTypeToFetch &get_attribute();
+  AttributeTypeToFetch *get_attribute();
   //@}
 
  private:
@@ -197,7 +212,7 @@ bool MetaData::remove_attribute() {
 }
 
 template <class AttributeTypeToFetch>
-AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::FieldBase &field) {
+AttributeTypeToFetch *MetaData::get_attribute(const stk::mesh::FieldBase &field) {
   std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
   const unsigned field_id = field.mesh_meta_data_ordinal();
 
@@ -206,7 +221,7 @@ AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::FieldBase &field)
     const bool attribute_exists = (field_to_field_attributes_map_[field_id].count(attribute_type_index) != 0);
     if (attribute_exists) {
       // Attempt to cast the attribute to the requested type.
-      return std::any_cast<AttributeTypeToFetch &>(field_to_field_attributes_map_[field_id][attribute_type_index]);
+      return std::any_cast<AttributeTypeToFetch>(&field_to_field_attributes_map_[field_id][attribute_type_index]);
     }
   }
 
@@ -215,7 +230,7 @@ AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::FieldBase &field)
 }
 
 template <class AttributeTypeToFetch>
-AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::Part &part) {
+AttributeTypeToFetch *MetaData::get_attribute(const stk::mesh::Part &part) {
   std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
   const unsigned part_id = part.id();
 
@@ -224,7 +239,7 @@ AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::Part &part) {
     const bool attribute_exists = (part_to_part_attributes_map_[part_id].count(attribute_type_index) != 0);
     if (attribute_exists) {
       // Attempt to cast the attribute to the requested type.
-      return std::any_cast<AttributeTypeToFetch &>(part_to_part_attributes_map_[part_id][attribute_type_index]);
+      return std::any_cast<AttributeTypeToFetch>(&part_to_part_attributes_map_[part_id][attribute_type_index]);
     }
   }
 
@@ -233,13 +248,13 @@ AttributeTypeToFetch &MetaData::get_attribute(const stk::mesh::Part &part) {
 }
 
 template <class AttributeTypeToFetch>
-AttributeTypeToFetch &MetaData::get_attribute() {
+AttributeTypeToFetch *MetaData::get_attribute() {
   std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
 
   const bool attribute_exists = (mesh_attributes_map_.count(attribute_type_index) != 0);
   if (attribute_exists) {
     // Attempt to cast the attribute to the requested type.
-    return std::any_cast<AttributeTypeToFetch &>(mesh_attributes_map_[attribute_type_index]);
+    return std::any_cast<AttributeTypeToFetch>(&mesh_attributes_map_[attribute_type_index]);
   }
 
   // Attribute doesn't exist. Returning nullptr.

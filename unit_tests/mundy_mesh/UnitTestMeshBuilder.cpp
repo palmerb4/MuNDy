@@ -39,7 +39,7 @@
 
 namespace mundy {
 
-namespace meta {
+namespace mesh {
 
 namespace {
 
@@ -54,16 +54,16 @@ void verify_comm(stk::ParallelMachine expected_comm, const stk::mesh::BulkData& 
   EXPECT_EQ(stk::parallel_machine_rank(expected_comm), bulk_data.parallel_rank());
 }
 
-TEST(MeshBuilder, CreateMetaNoComm) {
+TEST(MeshBuilderTest, CreateMetaNoComm) {
   std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = mundy::mesh::MeshBuilder().create_meta_data();
   EXPECT_TRUE(nullptr != meta_data_ptr);
 }
 
-TEST(MeshBuilder, CreateBulkdataNoCommThrows) {
+TEST(MeshBuilderTest, CreateBulkdataNoCommThrows) {
   EXPECT_ANY_THROW(mundy::mesh::MeshBuilder().create());
 }
 
-TEST(MeshBuilder, ConstructBuilderThenSetComm) {
+TEST(MeshBuilderTest, ConstructBuilderThenSetComm) {
   stk::ParallelMachine comm = MPI_COMM_WORLD;
   mundy::mesh::MeshBuilder builder;
   builder.set_communicator(comm);
@@ -73,7 +73,7 @@ TEST(MeshBuilder, ConstructBuilderThenSetComm) {
   verify_comm(comm, *bulk_data_ptr);
 }
 
-TEST(MeshBuilder, CreateSimplestCommWorld) {
+TEST(MeshBuilderTest, CreateSimplestCommWorld) {
   stk::ParallelMachine comm = MPI_COMM_WORLD;
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mundy::mesh::MeshBuilder(comm).create();
 
@@ -81,7 +81,7 @@ TEST(MeshBuilder, CreateSimplestCommWorld) {
   verify_comm(comm, *bulk_data_ptr);
 }
 
-TEST(MeshBuilder, CreateSimplestCommSelf) {
+TEST(MeshBuilderTest, CreateSimplestCommSelf) {
   stk::ParallelMachine comm = MPI_COMM_SELF;
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mundy::mesh::MeshBuilder(comm).create();
 
@@ -89,7 +89,7 @@ TEST(MeshBuilder, CreateSimplestCommSelf) {
   verify_comm(comm, *bulk_data_ptr);
 }
 
-TEST(MeshBuilder, BulkDataAndMetaDataOutliveBuilder) {
+TEST(MeshBuilderTest, BulkDataAndMetaDataOutliveBuilder) {
   stk::ParallelMachine comm = MPI_COMM_WORLD;
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mundy::mesh::MeshBuilder(comm).create();
 
@@ -101,13 +101,13 @@ TEST(MeshBuilder, BulkDataAndMetaDataOutliveBuilder) {
   EXPECT_EQ(&meta_bulk_data, bulk_data_ptr.get());
 }
 
-TEST(MeshBuilder, BulkDataAuraDefault) {
+TEST(MeshBuilderTest, BulkDataAuraDefault) {
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mundy::mesh::MeshBuilder(MPI_COMM_WORLD).create();
 
   EXPECT_TRUE(bulk_data_ptr->is_automatic_aura_on());
 }
 
-TEST(MeshBuilder, BulkDataAuraOn) {
+TEST(MeshBuilderTest, BulkDataAuraOn) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_aura_option(stk::mesh::BulkData::AUTO_AURA);
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create();
@@ -115,7 +115,7 @@ TEST(MeshBuilder, BulkDataAuraOn) {
   EXPECT_TRUE(bulk_data_ptr->is_automatic_aura_on());
 }
 
-TEST(MeshBuilder, BulkDataAuraOff) {
+TEST(MeshBuilderTest, BulkDataAuraOff) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_aura_option(stk::mesh::BulkData::NO_AUTO_AURA);
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create();
@@ -123,7 +123,7 @@ TEST(MeshBuilder, BulkDataAuraOff) {
   EXPECT_FALSE(bulk_data_ptr->is_automatic_aura_on());
 }
 
-TEST(MeshBuilder, SetSpatialDimension) {
+TEST(MeshBuilderTest, SetSpatialDimension) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned expected_spatial_dim = 2;
   builder.set_spatial_dimension(expected_spatial_dim);
@@ -132,7 +132,7 @@ TEST(MeshBuilder, SetSpatialDimension) {
   EXPECT_EQ(expected_spatial_dim, bulk_data_ptr->mesh_meta_data().spatial_dimension());
 }
 
-TEST(MeshBuilder, SpatialDimensionDefaultThenInitialize) {
+TEST(MeshBuilderTest, SpatialDimensionDefaultThenInitialize) {
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mundy::mesh::MeshBuilder(MPI_COMM_WORLD).create();
   EXPECT_EQ(0u, bulk_data_ptr->mesh_meta_data().spatial_dimension());
   const unsigned expected_spatial_dim = 2;
@@ -141,13 +141,13 @@ TEST(MeshBuilder, SpatialDimensionDefaultThenInitialize) {
   EXPECT_EQ(expected_spatial_dim, bulk_data_ptr->mesh_meta_data().spatial_dimension());
 }
 
-TEST(MeshBuilder, SetEntityRankNamesWithoutSpatialDimension) {
+TEST(MeshBuilderTest, SetEntityRankNamesWithoutSpatialDimension) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_entity_rank_names({"node", "edge", "face", "elem", "constraint"});
   EXPECT_ANY_THROW(builder.create());
 }
 
-TEST(MeshBuilder, SetSpatialDimensionZeroAndEmptyEntityRankNames) {
+TEST(MeshBuilderTest, SetSpatialDimensionZeroAndEmptyEntityRankNames) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned expected_spatial_dim = 0;
   builder.set_spatial_dimension(expected_spatial_dim);
@@ -159,7 +159,7 @@ TEST(MeshBuilder, SetSpatialDimensionZeroAndEmptyEntityRankNames) {
   EXPECT_EQ(expected_rank_names, bulk_data_ptr->mesh_meta_data().entity_rank_names());
 }
 
-TEST(MeshBuilder, SetSpatialDimensionAndEntityRankNames) {
+TEST(MeshBuilderTest, SetSpatialDimensionAndEntityRankNames) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned expected_spatial_dim = 3;
   builder.set_spatial_dimension(expected_spatial_dim);
@@ -171,13 +171,13 @@ TEST(MeshBuilder, SetSpatialDimensionAndEntityRankNames) {
   EXPECT_EQ(expected_rank_names, bulk_data_ptr->mesh_meta_data().entity_rank_names());
 }
 
-TEST(MeshBuilder, BulkDataAddFmwkDataDefault) {
+TEST(MeshBuilderTest, BulkDataAddFmwkDataDefault) {
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = mundy::mesh::MeshBuilder(MPI_COMM_WORLD).create();
 
   EXPECT_FALSE(bulk_data_ptr->add_fmwk_data());
 }
 
-TEST(MeshBuilder, BulkDataAddFmwkData) {
+TEST(MeshBuilderTest, BulkDataAddFmwkData) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_add_fmwk_data(true);
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create();
@@ -185,7 +185,7 @@ TEST(MeshBuilder, BulkDataAddFmwkData) {
   EXPECT_TRUE(bulk_data_ptr->add_fmwk_data());
 }
 
-TEST(MeshBuilder, BulkdataAddFmwkDataFalse) {
+TEST(MeshBuilderTest, BulkdataAddFmwkDataFalse) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_add_fmwk_data(false);
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create();
@@ -193,7 +193,7 @@ TEST(MeshBuilder, BulkdataAddFmwkDataFalse) {
   EXPECT_FALSE(bulk_data_ptr->add_fmwk_data());
 }
 
-TEST(MeshBuilder, DefaultBucketCapacity) {
+TEST(MeshBuilderTest, DefaultBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create();
 
@@ -201,13 +201,13 @@ TEST(MeshBuilder, DefaultBucketCapacity) {
   EXPECT_EQ(bulk_data_ptr->get_maximum_bucket_capacity(), stk::mesh::get_default_maximum_bucket_capacity());
 }
 
-TEST(MeshBuilder, SetInvalidBucketCapacity) {
+TEST(MeshBuilderTest, SetInvalidBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_bucket_capacity(0);
   EXPECT_ANY_THROW(builder.create());
 }
 
-TEST(MeshBuilder, SetBucketCapacity) {
+TEST(MeshBuilderTest, SetBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned set_bucket_capacity = 256;
   builder.set_bucket_capacity(set_bucket_capacity);
@@ -217,20 +217,20 @@ TEST(MeshBuilder, SetBucketCapacity) {
   EXPECT_EQ(bulk_data_ptr->get_maximum_bucket_capacity(), set_bucket_capacity);
 }
 
-TEST(MeshBuilder, SetInvalidInitialBucketCapacity) {
+TEST(MeshBuilderTest, SetInvalidInitialBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_initial_bucket_capacity(0);
   EXPECT_ANY_THROW(builder.create());
 }
 
-TEST(MeshBuilder, SetInitialBucketCapacityBiggerThanMaximum) {
+TEST(MeshBuilderTest, SetInitialBucketCapacityBiggerThanMaximum) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned initial_bucket_capacity = stk::mesh::get_default_maximum_bucket_capacity() * 2;
   builder.set_initial_bucket_capacity(initial_bucket_capacity);
   EXPECT_ANY_THROW(builder.create());
 }
 
-TEST(MeshBuilder, SetInitialBucketCapacitySmallerThanMaximum) {
+TEST(MeshBuilderTest, SetInitialBucketCapacitySmallerThanMaximum) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned initial_bucket_capacity = stk::mesh::get_default_maximum_bucket_capacity() / 2;
   builder.set_initial_bucket_capacity(initial_bucket_capacity);
@@ -240,13 +240,13 @@ TEST(MeshBuilder, SetInitialBucketCapacitySmallerThanMaximum) {
   EXPECT_EQ(bulk_data_ptr->get_maximum_bucket_capacity(), stk::mesh::get_default_maximum_bucket_capacity());
 }
 
-TEST(MeshBuilder, SetInvalidMaximumBucketCapacity) {
+TEST(MeshBuilderTest, SetInvalidMaximumBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_maximum_bucket_capacity(0);
   EXPECT_ANY_THROW(builder.create());
 }
 
-TEST(MeshBuilder, SetMaximumBucketCapacityBiggerThanInitial) {
+TEST(MeshBuilderTest, SetMaximumBucketCapacityBiggerThanInitial) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned maximum_bucket_capacity = stk::mesh::get_default_initial_bucket_capacity() * 2;
   builder.set_maximum_bucket_capacity(maximum_bucket_capacity);
@@ -256,14 +256,14 @@ TEST(MeshBuilder, SetMaximumBucketCapacityBiggerThanInitial) {
   EXPECT_EQ(bulk_data_ptr->get_maximum_bucket_capacity(), maximum_bucket_capacity);
 }
 
-TEST(MeshBuilder, SetMaximumBucketCapacitySmallerThanInitial) {
+TEST(MeshBuilderTest, SetMaximumBucketCapacitySmallerThanInitial) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned maximum_bucket_capacity = stk::mesh::get_default_initial_bucket_capacity() / 2;
   builder.set_maximum_bucket_capacity(maximum_bucket_capacity);
   EXPECT_ANY_THROW(builder.create());
 }
 
-TEST(MeshBuilder, SetIdenticalInitialAndMaximumBucketCapacity) {
+TEST(MeshBuilderTest, SetIdenticalInitialAndMaximumBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned initial_bucket_capacity = 256;
   const unsigned maximum_bucket_capacity = 256;
@@ -275,7 +275,7 @@ TEST(MeshBuilder, SetIdenticalInitialAndMaximumBucketCapacity) {
   EXPECT_EQ(bulk_data_ptr->get_maximum_bucket_capacity(), maximum_bucket_capacity);
 }
 
-TEST(MeshBuilder, SetDifferentInitialAndMaximumBucketCapacity) {
+TEST(MeshBuilderTest, SetDifferentInitialAndMaximumBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned initial_bucket_capacity = 32;
   const unsigned maximum_bucket_capacity = 256;
@@ -287,7 +287,7 @@ TEST(MeshBuilder, SetDifferentInitialAndMaximumBucketCapacity) {
   EXPECT_EQ(bulk_data_ptr->get_maximum_bucket_capacity(), maximum_bucket_capacity);
 }
 
-TEST(MeshBuilder, SetFaultyInitialAndMaximumBucketCapacity) {
+TEST(MeshBuilderTest, SetFaultyInitialAndMaximumBucketCapacity) {
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned initial_bucket_capacity = 64;
   const unsigned maximum_bucket_capacity = 32;
@@ -298,6 +298,6 @@ TEST(MeshBuilder, SetFaultyInitialAndMaximumBucketCapacity) {
 
 }  // namespace
 
-}  // namespace meta
+}  // namespace mesh
 
 }  // namespace mundy

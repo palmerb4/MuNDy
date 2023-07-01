@@ -74,6 +74,23 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
   field_to_field_attributes_map_[field_id].insert(std::make_pair(attribute_type_index, attribute));
 }
 
+void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::any &&attribute) {
+  std::type_index attribute_type_index = std::type_index(attribute.type());
+  const unsigned field_id = field.mesh_meta_data_ordinal();
+
+  const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
+  if (field_has_attributes) {
+    const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
+    TEUCHOS_TEST_FOR_EXCEPTION(attribute_is_unique, std::invalid_argument,
+                               "MetaData: An attribute with the same type as the provided attribute already "
+                               "exists on the given field.");
+  } else {
+    field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::type_index, std::any>()));
+  }
+
+  field_to_field_attributes_map_[field_id].insert(std::make_pair(attribute_type_index, std::move(attribute)));
+}
+
 void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &attribute) {
   std::type_index attribute_type_index = std::type_index(attribute.type());
   const unsigned part_id = part.id();
@@ -91,6 +108,23 @@ void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &at
   part_to_part_attributes_map_[part_id].insert(std::make_pair(attribute_type_index, attribute));
 }
 
+void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &&attribute) {
+  std::type_index attribute_type_index = std::type_index(attribute.type());
+  const unsigned part_id = part.id();
+
+  const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
+  if (part_has_attributes) {
+    const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_type_index) == 0);
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        attribute_is_unique, std::invalid_argument,
+        "MetaData: An attribute with the same type as the provided attribute already exists on the given part.");
+  } else {
+    part_to_part_attributes_map_.insert(std::make_pair(part_id, std::map<std::type_index, std::any>()));
+  }
+
+  part_to_part_attributes_map_[part_id].insert(std::make_pair(attribute_type_index, std::move(attribute)));
+}
+
 void MetaData::declare_attribute(const std::any &attribute) {
   std::type_index attribute_type_index = std::type_index(attribute.type());
 
@@ -100,6 +134,17 @@ void MetaData::declare_attribute(const std::any &attribute) {
       "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.");
 
   mesh_attributes_map_.insert(std::make_pair(attribute_type_index, attribute));
+}
+
+void MetaData::declare_attribute(const std::any &&attribute) {
+  std::type_index attribute_type_index = std::type_index(attribute.type());
+
+  const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_type_index) == 0);
+  TEUCHOS_TEST_FOR_EXCEPTION(
+      attribute_is_unique, std::invalid_argument,
+      "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.");
+
+  mesh_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(attribute)));
 }
 //}
 
