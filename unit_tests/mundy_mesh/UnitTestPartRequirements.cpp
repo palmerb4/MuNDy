@@ -140,11 +140,8 @@ TEST(PartRequirementsSettersTest, AddFieldReqs) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>();
-  field_reqs.set_field_name(field_name);
-  field_reqs.set_field_rank(field_rank);
-  field_reqs.set_field_dimension(field_dimension);
-  field_reqs.set_field_min_number_of_states(field_min_number_of_states);
+  auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>(field_name, field_rank, field_dimension,
+                                                                     field_min_number_of_states);
 
   // Create a PartRequirements object and add the field requirements.
   PartRequirements part_reqs;
@@ -166,23 +163,38 @@ TEST(PartRequirementsSettersTest, AddSubpartRequirements) {
   // TODO(palmerb4): Add a getter for the subpart requirements and check that they are set correctly.
 }
 
-struct UncopiableStruct {
-  UncopiableStruct(const UncopiableStruct &) = delete;
-  int value = 1;
-};  // UncopiableStruct
-
 TEST(PartRequirementsSettersTest, AddPartAttribute) {
   // Check that part attributes can be added.
 
   // Create a dummy part attribute.
-  const std::string attribute_name = "attribute_name";
-  const std::string attribute_value = "attribute_value";
-  auto part_attribute = mundy::meta::PartAttribute(attribute_name, attribute_value);
+  std::any part_attribute = 3.14;
 
   // Create a PartRequirements object and add the part attribute.
   PartRequirements part_reqs;
   part_reqs.set_part_name("part_name");
   ASSERT_NO_THROW(part_reqs.add_part_attribute(part_attribute));
+
+  // Check that the part attribute was added correctly.
+  // TODO(palmerb4): Add a getter for the part attributes and check that they are set correctly.
+}
+
+struct UncopiableStruct {
+  UncopiableStruct(const UncopiableStruct &) = delete;
+  int value = 1;
+};  // UncopiableStruct
+
+TEST(PartRequirementsSettersTest, AddPartAttributeWithoutCopy) {
+  // Check that part attributes can be added with perfect forwarding.
+
+  // Create a dummy part attribute that can't be coppied.
+  std::any part_attribute = UncopiableStruct();
+
+  // Create a PartRequirements object and add the part attribute.
+  PartRequirements part_reqs;
+  part_reqs.set_part_name("part_name");
+  ASSERT_NO_THROW(part_reqs.add_part_attribute(std::move(part_attribute)));
+
+  // Check that the part attribute was added correctly.
   // TODO(palmerb4): Add a getter for the part attributes and check that they are set correctly.
 }
 //@}
@@ -347,11 +359,13 @@ TEST(PartRequirementsMergeTest, AreFieldsMergable) {
   // Setup the part requirements according to the diagram above.
   PartRequirements part_reqs1("part1");
   PartRequirements part_reqs2("part2");
-  part_reqs1.add_field(field_reqs1);
-  part_reqs1.add_field(field_reqs2);
-  part_reqs1.add_field(field_reqs3);
-  part_reqs2.add_field(field_reqs4);
-  part_reqs2.add_field(field_reqs5);
+  part_reqs1.add_field_reqs(field_reqs1);
+  part_reqs1.add_field_reqs(field_reqs2);
+  part_reqs1.add_field_reqs(field_reqs3);
+  part_reqs2.add_field_reqs(field_reqs4);
+  part_reqs2.add_field_reqs(field_reqs5);
+
+  // Merge the part requirements and check that the fields were merged correctly.
   ASSERT_NO_THROW(part_reqs1.merge(part_reqs2));
   // TODO(palmerb4): Use the field getters to check that the fields were merged correctly.
 }
@@ -388,6 +402,8 @@ TEST(PartRequirementsMergeTest, ArePartAttributesMergable) {
   part_reqs1.add_part_attribute(attribute2);
   part_reqs2.add_part_attribute(attribute3);
   part_reqs2.add_part_attribute(attribute4);
+
+  // Merge the mesh requirements and check that the attributes were merged correctly.
   ASSERT_NO_THROW(part_reqs1.merge(part_reqs2));
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
@@ -420,12 +436,12 @@ TEST(PartRequirementsMergeTest, AreSubpartsAndTheirFieldsMergable) {
 
   // Setup the dummy fields.
   using ExampleFieldType = double;
-  auto field_reqs1 = mundy::meta::FieldRequirements<ExampleFieldType>("field1", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2 = mundy::meta::FieldRequirements<ExampleFieldType>("field2", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3 = mundy::meta::FieldRequirements<ExampleFieldType>("field3", stk::topology::ELEMENT_RANK, 3, 3);
-  auto field_reqs4 = mundy::meta::FieldRequirements<ExampleFieldType>("field4", stk::topology::NODE_RANK, 3, 4);
-  auto field_reqs5 = mundy::meta::FieldRequirements<ExampleFieldType>("field5", stk::topology::NODE_RANK, 3, 5);
-  auto field_reqs6 = mundy::meta::FieldRequirements<ExampleFieldType>("field6", stk::topology::ELEMENT_RANK, 3, 6);
+  auto field_reqs1 = mundy::meta::FieldRequirements<ExampleFieldType>("a", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2 = mundy::meta::FieldRequirements<ExampleFieldType>("b", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3 = mundy::meta::FieldRequirements<ExampleFieldType>("c", stk::topology::ELEMENT_RANK, 3, 3);
+  auto field_reqs4 = mundy::meta::FieldRequirements<ExampleFieldType>("b", stk::topology::NODE_RANK, 3, 4);
+  auto field_reqs5 = mundy::meta::FieldRequirements<ExampleFieldType>("c", stk::topology::NODE_RANK, 3, 5);
+  auto field_reqs6 = mundy::meta::FieldRequirements<ExampleFieldType>("d", stk::topology::ELEMENT_RANK, 3, 6);
 
   // Setup the subpart requirements according to the diagram above.
   PartRequirements subpart_reqs1("A");
@@ -446,6 +462,8 @@ TEST(PartRequirementsMergeTest, AreSubpartsAndTheirFieldsMergable) {
   part_reqs1.add_subpart_reqs(subpart_reqs2);
   part_reqs2.add_subpart_reqs(subpart_reqs3);
   part_reqs2.add_subpart_reqs(subpart_reqs4);
+
+  // Merge the mesh requirements and check that the subparts and their fields were merged correctly.
   ASSERT_NO_THROW(part_reqs1.merge(part_reqs2));
   // TODO(palmerb4): Use the subpart/field getters to check that the subparts and their fields were merged correctly.
 }
@@ -503,9 +521,43 @@ TEST(PartRequirementsMergeTest, AreSubpartsAndTheirAttributesMergable) {
   part_reqs1.add_subpart_reqs(subpart_reqs2);
   part_reqs2.add_subpart_reqs(subpart_reqs3);
   part_reqs2.add_subpart_reqs(subpart_reqs4);
+
+  // Merge the mesh requirements and check that the subparts and their attributes were merged correctly.
   ASSERT_NO_THROW(part_reqs1.merge(part_reqs2));
   // TODO(palmerb4): Use the subpart/attribute getters to check that the subparts and their attributes were merged
   // correctly.
+}
+
+TEST(PartRequirementsMergeTest, MergePropertlyHandlesNullptr) {
+  // Check that the merge function properly handles nullptrs. It should be a no-op.
+
+  // Setup the part requirements.
+  PartRequirements part_reqs("part_name");
+
+  // Perform the merge.
+  ASSERT_NO_THROW(part_reqs.merge(nullptr));
+}
+
+TEST(PartRequirementsMergeTest, MergeProperlyHandlesConflicts) {
+  // Check that the merge function throws a logic error if the part name, rank, or topology are different.
+  PartRequirements part_reqs;
+  auto other_part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
+
+  part_reqs.set_part_name("part_name");
+  other_part_reqs_ptr->set_field_name("other_part_name");
+  EXPECT_THROW(part_reqs.merge(other_part_reqs_ptr), std::logic_error);
+  part_reqs.delete_part_name();
+  other_part_reqs_ptr->delete_part_name();
+
+  part_reqs.set_part_rank(stk::topology::ELEMENT_RANK);
+  other_part_reqs_ptr->set_part_rank(stk::topology::EDGE_RANK);
+  EXPECT_THROW(part_reqs.merge(other_part_reqs_ptr), std::logic_error);
+  part_reqs.delete_part_rank();
+  other_part_reqs_ptr->delete_part_rank();
+
+  part_reqs.set_part_topology(stk::topology::LINE_2);
+  other_part_reqs_ptr->set_part_topology(stk::topology::PARTICLE);
+  EXPECT_THROW(part_reqs.merge(other_part_reqs_ptr), std::logic_error);
 }
 //@}
 
@@ -582,11 +634,8 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndFields) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>();
-  field_reqs.set_field_name(field_name);
-  field_reqs.set_field_rank(field_rank);
-  field_reqs.set_field_dimension(field_dimension);
-  field_reqs.set_field_min_number_of_states(field_min_number_of_states);
+  auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>(field_name, field_rank, field_dimension,
+                                                                     field_min_number_of_states);
   ASSERT_TRUE(field_reqs.is_fully_specified());
 
   // Declare a part on the mesh using the PartRequirements object.
@@ -598,8 +647,7 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndFields) {
   // Check that the part and field were declared on the mesh.
   stk::mesh::Part *part = meta_data.get_part("part_name");
   ASSERT_NE(part, nullptr);
-  stk::mesh::FieldBase *field = meta_data.get_field(field_rank, field_name);
-  ASSERT_NE(field, nullptr);
+  ASSERT_NO_THROW(meta_data.get_field<ExampleFieldType>(field_rank, field_name));
 }
 
 TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndSubparts) {
@@ -693,14 +741,15 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndFieldsAndSubpartsAndAttr
   ASSERT_NO_THROW(part_reqs.declare_part_on_mesh(*meta_data));
 
   // Check that the part, field, subpart, and attributes were declared on the mesh.
+  // TODO(palmerb4): Check that the subpart is a subpart of the part.
   stk::mesh::Part *part = meta_data.get_part("part_name");
   ASSERT_NE(part, nullptr);
   stk::mesh::Part *subpart = meta_data.get_part("subpart_name");
   ASSERT_NE(subpart, nullptr);
   stk::mesh::FieldBase *field = meta_data.get_field(field_rank, field_name);
   ASSERT_NE(field, nullptr);
-  ASSERT_TRUE(meta_data.get_attribute<std::string>(Field) == field_attribute);
-  ASSERT_TRUE(meta_data.get_attribute<std::string>(Part) == part_attribute);
+  ASSERT_TRUE(meta_data.get_attribute<std::string>(field) == field_attribute);
+  ASSERT_TRUE(meta_data.get_attribute<std::string>(subpart) == part_attribute);
 }
 
 }  // namespace

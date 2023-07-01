@@ -99,6 +99,7 @@ class MetaData : public stk::mesh::MetaData {
 
   /// @brief Attempt to fetch an attribute with the provided type. Will return nullptr if type doesn't exist on the
   /// given field.
+  /// TODO(palmerb4): This should be a const method and it should accept a field ptr.
   /// @tparam AttributeTypeToFetch The attribute type to fetch.
   /// @param field The given field whose attribute we are trying to fetch.
   /// @return A pointer to the internally maintained attribute.
@@ -107,6 +108,7 @@ class MetaData : public stk::mesh::MetaData {
 
   /// @brief Attempt to fetch an attribute with the provided type. Will return nullptr if type doesn't exist on the
   /// given part.
+  /// TODO(palmerb4): This should be a const method and it should accept a part ptr.
   /// @tparam AttributeTypeToFetch The attribute type to fetch.
   /// @param part The given part whose attribute we are trying to fetch.
   /// @return A pointer to the internally maintained attribute.

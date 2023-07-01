@@ -64,7 +64,7 @@ class MeshRequirements {
   explicit MeshRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
-  //! \name Setters and Getters
+  //! \name Setters
   //@{
 
   /// \brief Set the spatial dimension of the mash.
@@ -98,6 +98,67 @@ class MeshRequirements {
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
   void set_upward_connectivity_flag(const bool enable_upward_connectivity);
 
+  /// \brief Delete the spatial dimension constraint (if it exists).
+  void delete_spatial_dimension_constraint();
+
+  /// \brief Delete the entity rank names constraint (if it exists).
+  void delete_entity_rank_names_constraint();
+
+  /// \brief Delete the communicator constraint (if it exists).
+  void delete_communicator_constraint();
+
+  /// \brief Delete the aura option constraint (if it exists).
+  void delete_aura_option_constraint();
+
+  /// \brief Delete the field data manager constraint (if it exists).
+  void delete_field_data_manager_constraint();
+
+  /// \brief Delete the bucket capacity constraint (if it exists).
+  void delete_bucket_capacity_constraint();
+
+  /// \brief Delete the upward connectivity flag constraint (if it exists).
+  void delete_upward_connectivity_flag_constraint();
+
+  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
+  ///
+  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
+  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+
+  /// \brief Add the provided part to the mesh, given that it is valid.
+  ///
+  /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
+  ///
+  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
+  void add_part_req(std::shared_ptr<PartRequirements> part_req_ptr);
+
+  /// \brief Store a copy of an attribute on the mesh.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on the mesh.
+  void add_mesh_attribute(const std::any &some_attribute);
+
+  /// \brief Store an attribute on the mesh.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on the mesh.
+  void add_mesh_attribute(std::any &&some_attribute);
+  //@}
+
+  //! \name Getters
+  //@{
+
   /// \brief Get if the spatial dimension is constrained or not.
   bool constrains_spatial_dimension() const;
 
@@ -118,6 +179,9 @@ class MeshRequirements {
 
   /// \brief Get if the upward connectivity flag is constrained or not.
   bool constrains_upward_connectivity_flag() const;
+
+  /// @brief Get if the mesh is fully specified.
+  bool is_fully_specified() const;
 
   /// \brief Return the dimension of the space within which the parts and entities reside.
   unsigned get_spatial_dimension() const;
@@ -256,68 +320,11 @@ class MeshRequirements {
   /// default options which will be used if not set.
   std::shared_ptr<mundy::mesh::BulkData> declare_mesh() const;
 
-  /// \brief Delete the spatial dimension constraint (if it exists).
-  void delete_spatial_dimension_constraint();
-
-  /// \brief Delete the entity rank names constraint (if it exists).
-  void delete_entity_rank_names_constraint();
-
-  /// \brief Delete the communicator constraint (if it exists).
-  void delete_communicator_constraint();
-
-  /// \brief Delete the aura option constraint (if it exists).
-  void delete_aura_option_constraint();
-
-  /// \brief Delete the field data manager constraint (if it exists).
-  void delete_field_data_manager_constraint();
-
-  /// \brief Delete the bucket capacity constraint (if it exists).
-  void delete_bucket_capacity_constraint();
-
-  /// \brief Delete the upward connectivity flag constraint (if it exists).
-  void delete_upward_connectivity_flag_constraint();
-
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means:
   ///   - TODO(palmerb4): What are the mesh invariants set by STK?
   void check_if_valid() const;
-
-  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
-  ///
-  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
-
-  /// \brief Add the provided part to the mesh, given that it is valid.
-  ///
-  /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
-  ///
-  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
-  void add_part_req(std::shared_ptr<PartRequirements> part_req_ptr);
-
-  /// \brief Store a copy of an attribute on the mesh.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(const std::any &some_attribute);
-
-  /// \brief Store an attribute on the mesh.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(std::any &&some_attribute);
 
   /// \brief Merge the current requirements with another \c MeshRequirements.
   ///
