@@ -74,8 +74,8 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Collision::set_mutable_params(
-    [[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
+void Collision::set_mutable_params(
+    [[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
 }
 //}
 

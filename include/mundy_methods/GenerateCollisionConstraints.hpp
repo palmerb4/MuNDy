@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
+#include <stk_search/IdentProc.hpp>      // for stk::search::IdentProc
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
@@ -50,6 +51,7 @@ namespace mundy {
 namespace methods {
 
 // TODO(palmerb4): Who should be the one to decide on this type?
+using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
 using IdentProcPairVector = std::vector<std::pair<SearchIdentProc, SearchIdentProc>>;
 
 /// \class GenerateCollisionConstraints
@@ -193,7 +195,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   //! \name Internal helper functions
   //@{
 
-  /// \brief Given an old and a new neighbor list, get the lost and gained neighbors.
+  /// \brief Given an old and a new neighbor list, get the gained neighbors.
   ///
   /// Gained means all neighbors that are in the new list but not in the old list (minus those that are invalid).
   ///
@@ -209,7 +211,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   /// \param entity The entitity to get the connections of.
   /// \param entity_rank The rank of the given entity.
   /// \return A vector containing all lower-ranked entities connected to the given entity.
-  std::vector<std::mesh::Entity> get_connected_lower_rank_entities(mundy::mesh::BulkData *const bulk_data_ptr,
+  std::vector<stk::mesh::Entity> get_connected_lower_rank_entities(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                    const stk::mesh::Entity &entity,
                                                                    const stk::topology::rank_t &entity_rank);
 
@@ -219,9 +221,9 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   /// \param entity The entitity to get the connections of.
   /// \param entity_rank The rank of the given entity.
   /// \return A vector containing all higher-ranked entities connected to the given entity.
-  std::vector<std::mesh::Entity> get_connected_higer_rank_entities(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                   const stk::mesh::Entity &entity,
-                                                                   const stk::topology::rank_t &entity_rank);
+  std::vector<stk::mesh::Entity> get_connected_higher_rank_entities(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                    const stk::mesh::Entity &entity,
+                                                                    const stk::topology::rank_t &entity_rank);
 
   /// \brief Given a neighbor list, ghost any neighbor we don't already have access to.
   ///
@@ -237,6 +239,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   /// \return A reference to the generated ghosting, owned by the BulkData.
   stk::mesh::Ghosting &ghost_neighbors(mundy::mesh::BulkData *const bulk_data_ptr,
                                        const IdentProcPairVector &pairs_to_ghost,
+                                       const std::string &name_of_ghosting = "geometric_ghosts",
                                        bool ghost_downward_connectivity = false,
                                        bool ghost_upward_connectivity = false);
 
@@ -246,10 +249,11 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   /// correct internal fields.
   ///
   /// \param bulk_data_ptr The BulkData object to add the collision constraints to (must be in a modifiable state).
+  /// \param collision_part_ptr The part to assign to the collision constraints.
   /// \param pairs_to_connect The set of neighbors to connect with constraints.
-  /// \return A vector containing the newly-generated collision constraint elements, one per neighbor pair.
-  std::vector<stk::mesh::Entity> generate_empty_collision_constraints_between_pairs(
-      mundy::mesh::BulkData *const bulk_data_ptr, const IdentProcPairVector &pairs_to_connect);
+  void generate_empty_collision_constraints_between_pairs(
+      mundy::mesh::BulkData *const bulk_data_ptr, stk::mesh::Part *const collision_part_ptr,
+      const IdentProcPairVector &pairs_to_connect);
   //@}
 
   //! \name Internal members

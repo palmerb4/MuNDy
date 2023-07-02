@@ -47,7 +47,7 @@ namespace mundy {
 namespace meta {
 
 /// \class FieldRequirementsBase
-/// \brief A consistant interface for all \c FieldRequirementsBase.
+/// \brief A consistent interface for all \c FieldRequirementsBase.
 class FieldRequirementsBase {
  public:
   //! \name Setters and Getters
@@ -68,6 +68,10 @@ class FieldRequirementsBase {
   /// \brief Set the required field dimension.
   /// \brief field_dimension [in] Required dimension of the field.
   virtual void set_field_dimension(const unsigned field_dimension) = 0;
+
+  /// \brief Set the minimum required number of field states to the given value.
+  /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
+  virtual void set_field_min_number_of_states(const unsigned field_min_number_of_states) = 0;
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
@@ -222,7 +226,7 @@ class FieldRequirementsBase {
   /// match the current name of this field.
   ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
-  virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> vector_of_field_req_ptrs) = 0;
+  virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) = 0;
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
   virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(

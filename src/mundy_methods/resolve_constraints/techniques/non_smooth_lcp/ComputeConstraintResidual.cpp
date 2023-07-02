@@ -81,7 +81,7 @@ ComputeConstraintResidual::ComputeConstraintResidual(mundy::mesh::BulkData *cons
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList ComputeConstraintResidual::set_mutable_params(
+void ComputeConstraintResidual::set_mutable_params(
     [[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
 }
 //}

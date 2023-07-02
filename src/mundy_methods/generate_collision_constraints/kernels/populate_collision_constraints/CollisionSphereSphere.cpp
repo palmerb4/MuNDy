@@ -71,7 +71,7 @@ CollisionSphereSphere::CollisionSphereSphere(mundy::mesh::BulkData *const bulk_d
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList CollisionSphereSphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+void CollisionSphereSphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);

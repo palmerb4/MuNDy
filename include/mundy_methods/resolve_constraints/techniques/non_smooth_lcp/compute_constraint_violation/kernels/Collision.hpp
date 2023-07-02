@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintViolation.hpp>  // for mundy::methods::...::ComputeConstraintViolation
+#include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -96,7 +97,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("COLLISION");
     part_reqs->set_part_topology(stk::topology::BEAM_2);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("COLLISION"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("COLLISION"));
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_signed_separation_dist_field_name, stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -207,7 +208,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static const std::string class_identifier_ = "COLLISION";
+  static constexpr std::string_view class_identifier_ = "COLLISION";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

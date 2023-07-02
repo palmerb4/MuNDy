@@ -90,7 +90,7 @@ RigidBodyMotion::RigidBodyMotion(mundy::mesh::BulkData *const bulk_data_ptr, con
 // \name MetaMethod interface implementation
 //{
 
-Teuchos::ParameterList RigidBodyMotion::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+void RigidBodyMotion::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);

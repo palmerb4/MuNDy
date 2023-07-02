@@ -44,6 +44,7 @@
 #include <mundy_meta/MetaRegistry.hpp>                     // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
 #include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
+#include <mundy_multibody/Factory.hpp>                     // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -90,7 +91,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_req(

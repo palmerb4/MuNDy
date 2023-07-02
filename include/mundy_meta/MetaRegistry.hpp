@@ -49,7 +49,7 @@ namespace meta {
 /// \tparam RegistrationType The type of each class's identifier.
 /// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
 template <typename BaseType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
+          typename RegistrationType = std::string_view, bool overwrite_existing = false>
 struct MetaRegistry {
   //! \name Actions
   //@{
@@ -87,43 +87,43 @@ const bool MetaRegistry<BaseType, ClassToRegister, RegistryIdentifier, Registrat
 //@{
 
 /// \brief Partial specialization for global classes.
-template <typename BaseType, class ClassToRegister, typename RegistrationType = std::string,
+template <typename BaseType, class ClassToRegister, typename RegistrationType = std::string_view,
           bool overwrite_existing = false>
 using GlobalMetaRegistry =
     MetaRegistry<BaseType, ClassToRegister, GlobalIdentifier, RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for MetaMethods.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
+          typename RegistrationType = std::string_view, bool overwrite_existing = false>
 using MetaMethodRegistry = MetaRegistry<MetaMethodBase<ReturnType, RegistrationType>, ClassToRegister,
                                         RegistryIdentifier, RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for global MetaMethods.
-template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
+template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string_view,
           bool overwrite_existing = false>
 using GlobalMetaMethodRegistry = GlobalMetaRegistry<MetaMethodBase<ReturnType, RegistrationType>, ClassToRegister,
                                                     RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for MetaKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
+          typename RegistrationType = std::string_view, bool overwrite_existing = false>
 using MetaKernelRegistry = MetaRegistry<MetaKernelBase<ReturnType, RegistrationType>, ClassToRegister,
                                         RegistryIdentifier, RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for global MetaKernels.
-template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
+template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string_view,
           bool overwrite_existing = false>
 using GlobalMetaKernelRegistry = GlobalMetaRegistry<MetaKernelBase<ReturnType, RegistrationType>, ClassToRegister,
                                                     RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for MetaTwoWayKernels.
 template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
+          typename RegistrationType = std::string_view, bool overwrite_existing = false>
 using MetaTwoWayKernelRegistry = MetaRegistry<MetaTwoWayKernelBase<ReturnType, RegistrationType>, ClassToRegister,
                                               RegistryIdentifier, RegistrationType, overwrite_existing>;
 
 /// \brief Partial specialization for global MetaTwoWayKernels.
-template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
+template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string_view,
           bool overwrite_existing = false>
 using GlobalMetaTwoWayKernelRegistry = GlobalMetaRegistry<MetaTwoWayKernelBase<ReturnType, RegistrationType>,
                                                           ClassToRegister, RegistrationType, overwrite_existing>;

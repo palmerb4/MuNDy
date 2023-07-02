@@ -175,16 +175,18 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
 
   // Find the set of neighbors that need collision constraints and ghost them and their connectivity.
   bulk_data_ptr_->modification_begin();
-  auto pairs_to_generate = find_our_gained_neighbor_pairs(old_neighbor_pairs_, new_neighbor_pairs_);
+  auto pairs_to_generate = find_our_gained_neighbor_pairs(*old_neighbor_pairs_ptr_, *current_neighbor_pairs_ptr_);
   bool ghost_downward_connectivity = true;
   bool ghost_upward_connectivity = true;
-  ghost_neighbors(bulk_data_ptr_, pairs_to_generate, ghost_downward_connectivity, ghost_upward_connectivity);
+  std::string name_of_ghosting = "geometric_ghosts";
+  ghost_neighbors(bulk_data_ptr_, pairs_to_generate, name_of_ghosting, ghost_downward_connectivity,
+                  ghost_upward_connectivity);
   bulk_data_ptr_->modification_end();
 
   // TODO(palmerb4): Perform some communication with the ghosts.
 
   bulk_data_ptr_->modification_begin();
-  generate_empty_collision_constraints_between_pairs(bulk_data_ptr_, pairs_to_generate);
+  generate_empty_collision_constraints_between_pairs(bulk_data_ptr_, collision_part_ptr_, pairs_to_generate);
   bulk_data_ptr_->modification_end();
 
   // Populate the empty collision constraints.
@@ -197,14 +199,8 @@ void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_sele
 // \name Internal helper functions
 //{
 
-std::pair<IdentProcPairVector, IdentProcPairVector>
-GenerateCollisionConstraints::find_our_lost_and_gained_neighbor_pairs(const IdentProcPairVector &old_neighbor_pairs,
-                                                                      const IdentProcPairVector &new_neighbor_pairs) {
-  // Lost neighbors are those that are in the old neighbor list but not in the new list.
-  IdentProcPairVector lost_neighbor_pairs;
-  std::set_difference(std::begin(old_neighbor_pairs), std::end(old_neighbor_pairs), std::begin(new_neighbor_pairs),
-                      std::end(new_neighbor_pairs), std::back_inserter(lost_neighbor_pairs));
-
+IdentProcPairVector GenerateCollisionConstraints::find_our_gained_neighbor_pairs(
+    const IdentProcPairVector &old_neighbor_pairs, const IdentProcPairVector &new_neighbor_pairs) {
   // Gained neighbors are those that are in the new neighbor list but not in the old list.
   IdentProcPairVector gained_neighbor_pairs;
   std::set_difference(std::begin(new_neighbor_pairs), std::end(new_neighbor_pairs), std::begin(old_neighbor_pairs),
@@ -212,51 +208,52 @@ GenerateCollisionConstraints::find_our_lost_and_gained_neighbor_pairs(const Iden
 
   // TODO(palmerb4): Correct for invalid entities.
 
-  return std::make_pair(lost_neighbor_pairs, gained_neighbor_pairs);
+  return gained_neighbor_pairs;
 }
 
-std::vector<std::mesh::Entity> GenerateCollisionConstraints::get_connected_lower_rank_entities(
+std::vector<stk::mesh::Entity> GenerateCollisionConstraints::get_connected_lower_rank_entities(
     mundy::mesh::BulkData *const bulk_data_ptr, const stk::mesh::Entity &entity,
     const stk::topology::rank_t &entity_rank) {
   // For all ranks less than the current rank, fetch the connected entities of that rank and add them to the output.
-  std::vector<std::mesh::Entity> connected_lower_rank_entities;
+  std::vector<stk::mesh::Entity> connected_lower_rank_entities;
   for (stk::topology::rank_t rank :
        {stk::topology::NODE_RANK, stk::topology::EDGE_RANK, stk::topology::FACE_RANK, stk::topology::ELEMENT_RANK}) {
     bool is_lower_rank = rank < entity_rank;
     if (is_lower_rank) {
       const unsigned num_conn_for_rank = bulk_data_ptr->num_connectivity(entity, rank);
-      const Entity *conn = bulk_data_ptr->begin(entity, rank);
+      const stk::mesh::Entity *conn = bulk_data_ptr->begin(entity, rank);
       for (unsigned i = 0; i < num_conn_for_rank; ++i) {
-        connected_lower_rank_entities.append(conn[i]);
+        connected_lower_rank_entities.push_back(conn[i]);
       }
     }
   }
   return connected_lower_rank_entities;
 }
 
-std::vector<std::mesh::Entity> GenerateCollisionConstraints::get_connected_higer_rank_entities(
+std::vector<stk::mesh::Entity> GenerateCollisionConstraints::get_connected_higher_rank_entities(
     mundy::mesh::BulkData *const bulk_data_ptr, const stk::mesh::Entity &entity,
     const stk::topology::rank_t &entity_rank) {
   // For all ranks higher than the current rank, fetch the connected entities of that rank and add them to the output.
-  std::vector<std::mesh::Entity> connected_higher_rank_entities;
+  std::vector<stk::mesh::Entity> connected_higher_rank_entities;
   for (stk::topology::rank_t rank : {stk::topology::EDGE_RANK, stk::topology::FACE_RANK, stk::topology::ELEMENT_RANK,
                                      stk::topology::CONSTRAINT_RANK}) {
     bool is_higher_rank = rank > entity_rank;
     if (is_higher_rank) {
       const unsigned num_conn_for_rank = bulk_data_ptr->num_connectivity(entity, rank);
-      const Entity *conn = bulk_data_ptr->begin(entity, rank);
+      const stk::mesh::Entity *conn = bulk_data_ptr->begin(entity, rank);
       for (unsigned i = 0; i < num_conn_for_rank; ++i) {
-        connected_higher_rank_entities.append(conn[i]);
+        connected_higher_rank_entities.push_back(conn[i]);
       }
     }
   }
   return connected_higher_rank_entities;
 }
 
-stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(
-    mundy::mesh::BulkData *const bulk_data_ptr, const IdentProcPairVector &pairs_to_ghost,
-    const std::string &name_of_ghosting = "geometric_ghosts", bool ghost_downward_connectivity = false,
-    bool ghost_upward_connectivity = false) {
+stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                   const IdentProcPairVector &pairs_to_ghost,
+                                                                   const std::string &name_of_ghosting,
+                                                                   bool ghost_downward_connectivity,
+                                                                   bool ghost_upward_connectivity) {
   TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
                              "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
                                  << "Be sure to run modificiation_begin() before running this routine.");
@@ -274,8 +271,8 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(
     bool is_source_valid = bulk_data_ptr->is_valid(source_entity);
     bool is_target_valid = bulk_data_ptr->is_valid(target_entity);
     if (is_source_valid && is_target_valid) {
-      auto source_bucket = bulk_data_ptr->bucket(source_entity);
-      auto target_bucket = bulk_data_ptr->bucket(target_entity);
+      stk::mesh::Bucket &source_bucket = bulk_data_ptr->bucket(source_entity);
+      stk::mesh::Bucket &target_bucket = bulk_data_ptr->bucket(target_entity);
 
       bool is_source_owned = source_bucket.owned();
       bool is_target_owned = target_bucket.owned();
@@ -285,7 +282,7 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(
           (bulk_data_ptr->parallel_owner_rank(source_entity) == source_proc) == is_source_owned;
       bool is_target_proc_consistent =
           (bulk_data_ptr->parallel_owner_rank(target_entity) == target_proc) == is_target_owned;
-      TEUCHOS_TEST_FOR_EXCEPTION(is_source_proc_consistant, std::invalid_argument,
+      TEUCHOS_TEST_FOR_EXCEPTION(is_source_proc_consistent, std::invalid_argument,
                                  "GenerateCollisionConstraints: The source proc for pair i = "
                                      << i << " gives inconsistent ownership.\n"
                                      << "Make sure that the entity proc of your source is correct.");
@@ -306,18 +303,24 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(
           if (ghost_downward_connectivity) {
             auto downward_connected_entities =
                 get_connected_lower_rank_entities(bulk_data_ptr, source_entity, source_bucket.entity_rank());
-            entities_to_ghost.insert(entities_to_ghost.end(),
-                                     std::make_move_iterator(downward_connected_entities.begin()),
-                                     std::make_move_iterator(downward_connected_entities.end()));
+            entities_to_ghost.reserve(entities_to_ghost.size() + downward_connected_entities.size());
+            std::transform(std::make_move_iterator(downward_connected_entities.begin()),
+                           std::make_move_iterator(downward_connected_entities.end()),
+                           std::back_inserter(entities_to_ghost), [target_proc](stk::mesh::Entity entity) {
+                             return std::make_pair(entity, target_proc);
+                           });
           }
 
           // Optionaly, send the upward connectivity of the source entity to the target proc.
           if (ghost_upward_connectivity) {
             auto upward_connected_entities =
                 get_connected_higher_rank_entities(bulk_data_ptr, source_entity, source_bucket.entity_rank());
-            entities_to_ghost.insert(entities_to_ghost.end(),
-                                     std::make_move_iterator(upward_connected_entities.begin()),
-                                     std::make_move_iterator(upward_connected_entities.end()));
+            entities_to_ghost.reserve(entities_to_ghost.size() + upward_connected_entities.size());
+            std::transform(std::make_move_iterator(upward_connected_entities.begin()),
+                           std::make_move_iterator(upward_connected_entities.end()),
+                           std::back_inserter(entities_to_ghost), [target_proc](stk::mesh::Entity entity) {
+                             return std::make_pair(entity, target_proc);
+                           });
           }
         }
       } else if (is_target_owned) {
@@ -328,17 +331,24 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(
         if (ghost_downward_connectivity) {
           auto downward_connected_entities =
               get_connected_lower_rank_entities(bulk_data_ptr, target_entity, target_bucket.entity_rank());
-          entities_to_ghost.insert(entities_to_ghost.end(),
-                                   std::make_move_iterator(downward_connected_entities.begin()),
-                                   std::make_move_iterator(downward_connected_entities.end()));
+          entities_to_ghost.reserve(entities_to_ghost.size() + downward_connected_entities.size());
+          std::transform(std::make_move_iterator(downward_connected_entities.begin()),
+                         std::make_move_iterator(downward_connected_entities.end()),
+                         std::back_inserter(entities_to_ghost), [source_proc](stk::mesh::Entity entity) {
+                           return std::make_pair(entity, source_proc);
+                         });
         }
 
         // Optionaly, send the upward connectivity of the target entity to the source proc.
         if (ghost_upward_connectivity) {
           auto upward_connected_entities =
               get_connected_higher_rank_entities(bulk_data_ptr, target_entity, target_bucket.entity_rank());
-          entities_to_ghost.insert(entities_to_ghost.end(), std::make_move_iterator(upward_connected_entities.begin()),
-                                   std::make_move_iterator(upward_connected_entities.end()));
+          entities_to_ghost.reserve(entities_to_ghost.size() + upward_connected_entities.size());
+          std::transform(std::make_move_iterator(upward_connected_entities.begin()),
+                         std::make_move_iterator(upward_connected_entities.end()),
+                         std::back_inserter(entities_to_ghost), [source_proc](stk::mesh::Entity entity) {
+                           return std::make_pair(entity, source_proc);
+                         });
         }
       }
     }
@@ -346,10 +356,11 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(
 
   stk::mesh::Ghosting &ghosting = bulk_data_ptr->create_ghosting(name_of_ghosting);
   bulk_data_ptr->change_ghosting(ghosting, entities_to_ghost);
+  return ghosting;
 }
 
-std::vector<stk::mesh::Entity> GenerateCollisionConstraints::generate_empty_collision_constraints_between_pairs(
-    mundy::mesh::BulkData *const bulk_data_ptr, std::mesh::Part *const collision_part_ptr,
+void GenerateCollisionConstraints::generate_empty_collision_constraints_between_pairs(
+    mundy::mesh::BulkData *const bulk_data_ptr, stk::mesh::Part *const collision_part_ptr,
     const IdentProcPairVector &pairs_to_connect) {
   // A word of warning: This method is programmed with care to avoid generating duplicative constraints. To do so, we
   // only generate a collision constraint if the entity_key of the source body is less than that of the target body.
@@ -367,8 +378,8 @@ std::vector<stk::mesh::Entity> GenerateCollisionConstraints::generate_empty_coll
   // All pairs must be valid.
   size_t num_pairs = pairs_to_connect.size();
   for (size_t i = 0; i < num_pairs; ++i) {
-    stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].first.id());
-    stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].second.id());
+    stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].first.id());
+    stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].second.id());
     bool is_pair_valid = bulk_data_ptr->is_valid(source_entity) && bulk_data_ptr->is_valid(target_entity);
     TEUCHOS_TEST_FOR_EXCEPTION(
         is_pair_valid, std::invalid_argument,
@@ -387,31 +398,31 @@ std::vector<stk::mesh::Entity> GenerateCollisionConstraints::generate_empty_coll
   //    If requests = { 0, 4,  8}, then we are requesting 0 entites of rank 0, 4 entites of rank 1, and 8 entites of
   //    rank 2. The resulting requested_entities is therefore requested_entities = {0 entites of rank 0, 4 entites of
   //    rank 1, 8 entites of rank 2}.
-  std::vector<size_t> requests(bulk_data_ptr->mesh_meta_data(), 0);
+  std::vector<size_t> requests(bulk_data_ptr->mesh_meta_data().entity_rank_count(), 0);
   requests[stk::topology::ELEMENT_RANK] = num_collisions;
   requests[stk::topology::NODE_RANK] = 2 * num_collisions;
   std::vector<stk::mesh::Entity> requested_entities;
-  bulkData.generate_new_entities(requests, requested_entities);
+  bulk_data_ptr->generate_new_entities(requests, requested_entities);
 
   size_t count = 0;
   for (size_t i = 0; i < num_pairs; i++) {
     // Only generate collision constraints if the source body's id is less than the id of the target body. This prevents
     // duplicate constraints.
-    if (pairs_to_ghost[i].first.id() < pairs_to_ghost[i].second.id()) {
+    if (pairs_to_connect[i].first.id() < pairs_to_connect[i].second.id()) {
       // Step 2. Associate each element with the collision constraint part.
       stk::mesh::Entity collision_element = requested_entities[2 * num_collisions + count];
-      bulkData.change_entity_parts(collision_element, stk::mesh::ConstPartVector{collision_part_ptr});
+      bulk_data_ptr->change_entity_parts(collision_element, stk::mesh::ConstPartVector{collision_part_ptr});
 
       // Step 3. Set the downward relations from the elements to the nodes.
       stk::mesh::Entity left_node = requested_entities[2 * count + 0];
       stk::mesh::Entity right_node = requested_entities[2 * count + 1];
-      bulkData.declare_relation(collision_element, left_node, 0);
-      bulkData.declare_relation(collision_element, right_node, 1);
+      bulk_data_ptr->declare_relation(collision_element, left_node, 0);
+      bulk_data_ptr->declare_relation(collision_element, right_node, 1);
 
       // Step 4. Attach the nodes to their respective linker.
       // These linkers may have existing nodes, so we tack the new ones onto the end of their dynamic connectivity.
-      stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].first.id());
-      stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_ghost[i].second.id());
+      stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].first.id());
+      stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].second.id());
       TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->num_connectivity(source_entity, stk::topology::CONSTRAINT_RANK) == 1,
                                  std::invalid_argument,
                                  "GenerateCollisionConstraints: The source entity within Pair i = "
@@ -420,14 +431,12 @@ std::vector<stk::mesh::Entity> GenerateCollisionConstraints::generate_empty_coll
                                  std::invalid_argument,
                                  "GenerateCollisionConstraints: The target entity within Pair i = "
                                      << i << " doesn't have a linker (or has multiple linkers).");
-      stk::mesh::Entity const source_linker =
-          bulk_data_ptr_->begin_entities(source_entity, stk::topology::CONSTRAINT_RANK)[0];
-      stk::mesh::Entity const target_linker =
-          bulk_data_ptr_->begin_entities(target_entity, stk::topology::CONSTRAINT_RANK)[0];
+      stk::mesh::Entity const source_linker = bulk_data_ptr_->begin(source_entity, stk::topology::CONSTRAINT_RANK)[0];
+      stk::mesh::Entity const target_linker = bulk_data_ptr_->begin(target_entity, stk::topology::CONSTRAINT_RANK)[0];
       const size_t num_nodes_in_source_linker = bulk_data_ptr_->num_nodes(source_linker);
       const size_t num_nodes_in_target_linker = bulk_data_ptr_->num_nodes(target_linker);
-      bulkData.declare_relation(source_linker, left_node, num_nodes_in_source_linker);
-      bulkData.declare_relation(target_linker, right_node, num_nodes_in_target_linker);
+      bulk_data_ptr->declare_relation(source_linker, left_node, num_nodes_in_source_linker);
+      bulk_data_ptr->declare_relation(target_linker, right_node, num_nodes_in_target_linker);
 
       count++;
     }

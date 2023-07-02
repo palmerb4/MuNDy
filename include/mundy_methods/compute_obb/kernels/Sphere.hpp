@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeOBB.hpp>      // for mundy::methods::ComputeOBB
+#include <mundy_multibody/Factory.hpp>       // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -86,7 +87,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
     part_reqs->add_field_req(
         std::make_shared<mundy::meta::FieldRequirements<double>>(obb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
     part_reqs->add_field_req(
@@ -123,9 +124,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     }
 
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
                                  "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -198,7 +197,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static const std::string class_identifier_ = "SPHERE";
+  static constexpr std::string_view class_identifier_ = "SPHERE";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp>  // for mundy::methods::...::LocalDrag
+#include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -92,15 +93,15 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     sphere_part_reqs->set_part_name("SPHERE");
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_force_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_torque_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_force_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_torque_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_omega_field_name, stk::topology::NODE_RANK, 3, 1));
     sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
@@ -180,7 +181,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
       mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
     }
   }
-  
+
   /// \brief Get the unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
   static std::string details_static_get_class_identifier() {
@@ -216,7 +217,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
   void finalize() override;
   //@}
 
-
  private:
   //! \name Default parameters
   //@{
@@ -234,7 +234,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const std::string class_identifier_ = "SPHERE";
+  static constexpr std::string_view class_identifier_ = "SPHERE";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

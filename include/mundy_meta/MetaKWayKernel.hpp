@@ -46,13 +46,13 @@ namespace meta {
 /// \brief The polymorphic interface which all \c MetaKWayKernels will share.
 ///
 /// This design pattern allows for \c MetaKWayKernel to use CRTP to force derived classes to implement certain
-/// static functions while also having a consistant polymorphic interface that allows different \c MetaKWayKernels
+/// static functions while also having a consistent polymorphic interface that allows different \c MetaKWayKernels
 /// to be stored in a vector of pointers.
 ///
 /// \tparam K The number of entities passed to execute.
 /// \tparam ReturnType The return type of the execute function.
 /// \tparam RegistrationType The type of this class's identifier.
-template <std::size_t K, typename ReturnType, typename RegistrationType = std::string>
+template <std::size_t K, typename ReturnType, typename RegistrationType = std::string_view>
 class MetaKWayKernelBase
     : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKWayKernelBase<K, ReturnType, RegistrationType>,
                                                               RegistrationType> {
@@ -72,7 +72,7 @@ class MetaKWayKernelBase
   virtual void setup() = 0;
 
   /// \brief Run the kernel's core calculation.
-  virtual ReturnType execute(std::array<stk::mesh::Entity, K> entity_array) = 0;
+  virtual ReturnType execute(const std::array<stk::mesh::Entity, K> &entity_array) = 0;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
@@ -104,7 +104,7 @@ class MetaKWayKernelBase
 /// \tparam DerivedMetaKWayKernel_t A class derived from \c MetaKWayKernel that implements the desired interface.
 /// \tparam RegistrationType_t The type of this class's identifier.
 template <std::size_t K, typename ReturnType_t, class DerivedMetaKWayKernel_t,
-          typename RegistrationType_t = std::string>
+          typename RegistrationType_t = std::string_view>
 class MetaKWayKernel : virtual public MetaKWayKernelBase<K, ReturnType_t, RegistrationType_t>,
                        public HasMeshRequirementsAndIsRegisterable<
                            MetaKWayKernel<K, ReturnType_t, DerivedMetaKWayKernel_t, RegistrationType_t>,
@@ -192,11 +192,11 @@ using MetaTopologyKWayKernel =
 //@{
 
 /// \brief Partial specialization for MetaKWayKernelBases, with two input entities.
-template <typename ReturnType, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistrationType = std::string_view>
 using MetaTwoWayKernelBase = MetaKWayKernelBase<2, ReturnType, RegistrationType>;
 
 /// \brief Partial specialization for MetaKWayKernels, with two entities.
-template <typename ReturnType, class DerivedMetaKWayKernel, typename RegistrationType = std::string>
+template <typename ReturnType, class DerivedMetaKWayKernel, typename RegistrationType = std::string_view>
 using MetaTwoWayKernel = MetaKWayKernel<2, ReturnType, DerivedMetaKWayKernel, RegistrationType>;
 
 /// \brief Partial specialization for MetaTwoWayKernelBase, identified by a mundy multibody type.
@@ -220,11 +220,11 @@ using MetaTopologyTwoWayKernel = MetaTopologyKWayKernel<2, ReturnType, DerivedMe
 //@{
 
 /// \brief Partial specialization for MetaKWayKernelBases, with three input entities.
-template <typename ReturnType, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistrationType = std::string_view>
 using MetaThreeWayKernelBase = MetaKWayKernelBase<3, ReturnType, RegistrationType>;
 
 /// \brief Partial specialization for MetaKWayKernels, with three entities.
-template <typename ReturnType, class DerivedMetaKWayKernel, typename RegistrationType = std::string>
+template <typename ReturnType, class DerivedMetaKWayKernel, typename RegistrationType = std::string_view>
 using MetaThreeWayKernel = MetaKWayKernel<3, ReturnType, DerivedMetaKWayKernel, RegistrationType>;
 
 /// \brief Partial specialization for MetaThreeWayKernelBase, identified by a mundy multibody type.

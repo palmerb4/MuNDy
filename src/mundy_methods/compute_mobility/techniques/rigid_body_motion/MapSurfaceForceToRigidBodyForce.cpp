@@ -135,7 +135,7 @@ void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_s
   // TODO: Because the linkers may be on a different process than the elements, we need to sync the ghost elements and
   // perform a reduction over the body nodes. If we don't sum into
   for (size_t i = 0; i < num_multibody_types_; i++) {
-    multibody_kernel_ptrs_[i]->finalizes();
+    multibody_kernel_ptrs_[i]->finalize();
   }
 }
 //}

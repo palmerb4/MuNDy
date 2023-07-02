@@ -34,7 +34,7 @@
 #include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 
 // Mundy libs
-#include <mundy_multibody/Multibody.hpp>  // for mundy::multibody::Multibody
+#include <mundy_multibody/Multibody.hpp>  // for mundy::multibody::Multibody and mundy::multibody::multibody_t
 
 namespace mundy {
 
@@ -105,7 +105,7 @@ class Factory {
   /// \brief Get the topology corresponding to a registered class with the given fast id.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static std::topology get_topology(const std::string_view& name) {
+  static stk::topology get_topology(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     const multibody_t fast_id = get_fast_id(name);
@@ -115,7 +115,7 @@ class Factory {
   /// \brief Get the topology corresponding to a registered class with the given fast id.
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
-  static std::topology get_topology(const multibody_t fast_id) {
+  static stk::topology get_topology(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_topology_generator_map()[fast_id]();
@@ -163,7 +163,7 @@ class Factory {
   /// \brief Get the parent multibody type's name corresponding to a registered class with the given fast id.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static bool get_parent_name(const std::string_view& name) {
+  static std::string_view get_parent_name(const std::string_view& name) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     const multibody_t fast_id = get_fast_id(name);
@@ -173,7 +173,7 @@ class Factory {
   /// \brief Get the parent multibody type's name corresponding to a registered class with the given fast id.
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
-  static bool get_parent_name(const multibody_t fast_id) {
+  static std::string_view get_parent_name(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_parent_name_generator_map()[fast_id]();
@@ -191,7 +191,7 @@ class Factory {
                                "Factory: The provided class's name '" << name << "' already exists.");
     number_of_registered_types_++;
 
-    multibody_t fast_id = number_of_registered_types_ - 1;
+    const multibody_t fast_id = number_of_registered_types_ - 1;
     get_name_to_id_map().insert(std::make_pair(name, fast_id));
     get_name_generator_map().insert(std::make_pair(fast_id, name));
     get_topology_generator_map().insert(std::make_pair(fast_id, ClassToRegister::get_topology));
@@ -204,7 +204,9 @@ class Factory {
   //! \name Internal member
   //@{
 
-  static multibody_t number_of_registered_types_ = 0;
+  /// \brief The number of registered multibody types.
+  /// \note This is initialized to zero outside the class declaration.
+  static multibody_t number_of_registered_types_;
   //@}
 
   //! \name Typedefs
@@ -266,6 +268,9 @@ class Factory {
   friend class Registry;
   //@}
 };  // Factory
+
+// Initialize the number of states to zero. This is a non-const static member, so it cannot be initialized in-class.
+multibody_t Factory::number_of_registered_types_ = 0;
 
 }  // namespace multibody
 

@@ -16,3 +16,9 @@
 #
 # **********************************************************************************************************************
 # @HEADER
+
+target_sources(${utest_ex_name} PRIVATE
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestBulkData.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestMeshBuilder.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestMetaData.cpp
+)

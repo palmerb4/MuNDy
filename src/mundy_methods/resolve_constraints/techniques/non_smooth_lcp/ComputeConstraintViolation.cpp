@@ -131,7 +131,7 @@ void ComputeConstraintViolation::execute(const stk::mesh::Selector &input_select
   }
 
   for (size_t i = 0; i < num_multibody_types_; i++) {
-    multibody_kernel_ptrs_[i]->finalizes();
+    multibody_kernel_ptrs_[i]->finalize();
   }
 }
 

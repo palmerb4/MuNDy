@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::ComputeConstraintForcing
+#include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -94,7 +95,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("COLLISION");
     part_reqs->set_part_topology(stk::topology::BEAM_2);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("COLLISION"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("COLLISION"));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_force_field_name,
@@ -111,8 +112,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Collision: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");

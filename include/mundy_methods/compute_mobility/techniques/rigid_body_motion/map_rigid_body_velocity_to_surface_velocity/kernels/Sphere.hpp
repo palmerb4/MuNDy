@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::methods::...::MapRigidBodyVelocityToSurfaceVelocity
+#include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -93,18 +94,18 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     sphere_part_reqs->set_part_name("SPHERE");
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_omega_field_name, stk::topology::NODE_RANK, 3, 1));
 
     auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     linker_part_reqs->set_part_name("LINKER");
     linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT);
-    linker_part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("CONSTRAINT"));
+    linker_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("CONSTRAINT"));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(sphere_part_reqs);
@@ -117,8 +118,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                                  "with a type other than std::string");
@@ -184,7 +184,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \param sphere_element [in] The sphere element acted on by the kernel.
   void execute(const stk::mesh::Entity &sphere_element) override;
 
-
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
   void finalize() override;
@@ -204,7 +203,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const std::string class_identifier_ = "SPHERE";
+  static constexpr std::string_view class_identifier_ = "SPHERE";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

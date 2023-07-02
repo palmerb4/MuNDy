@@ -74,7 +74,7 @@ struct GlobalIdentifier {};  // GlobalIdentifier
 /// \tparam PolymorphicBaseType_t A polymorphic base type shared by each registered class.
 /// \tparam RegistrationType_t The type of each class's identifier.
 /// \tparam RegistryIdentifier_t A template type used to create different independent instances of \c MetaFactory.
-template <typename PolymorphicBaseType_t, typename RegistryIdentifier_t, typename RegistrationType_t = std::string>
+template <typename PolymorphicBaseType_t, typename RegistryIdentifier_t, typename RegistrationType_t = std::string_view>
 class MetaFactory {
  public:
   //! \name Typedefs
@@ -275,12 +275,12 @@ class MetaFactory {
 //@{
 
 /// \brief Partial specialization for \c MetaMethods.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
 using MetaMethodFactory =
     MetaFactory<MetaMethodBase<ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaMethods.
-template <typename ReturnType, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistrationType = std::string_view>
 using GlobalMetaMethodFactory = MetaMethodFactory<ReturnType, GlobalIdentifier, RegistrationType>;
 //@}
 
@@ -288,7 +288,7 @@ using GlobalMetaMethodFactory = MetaMethodFactory<ReturnType, GlobalIdentifier, 
 //@{
 
 /// \brief Partial specialization for \c MetaKernels.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
 using MetaKernelFactory =
     MetaFactory<MetaKernelBase<ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
 
@@ -301,7 +301,7 @@ template <typename ReturnType, typename RegistryIdentifier>
 using MetaTopologyKernelFactory = MetaKernelFactory<ReturnType, RegistryIdentifier, stk::topology::topology_t>;
 
 /// \brief Partial specialization for global \c MetaKernels.
-template <typename ReturnType, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistrationType = std::string_view>
 using GlobalMetaKernelFactory = MetaKernelFactory<ReturnType, GlobalIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaKernels, identified by a mundy multibody type.
@@ -317,7 +317,7 @@ using GlobalMetaTopologyKernelFactory = GlobalMetaKernelFactory<ReturnType, stk:
 //@{
 
 /// \brief Partial specialization for \c MetaKWayKernels.
-template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
+template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
 using MetaKWayKernelFactory =
     MetaFactory<MetaKWayKernelBase<K, ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
 
@@ -332,7 +332,7 @@ using MetaTopologyKWayKernelFactory =
     MetaKWayKernelFactory<K, ReturnType, RegistryIdentifier, stk::topology::topology_t>;
 
 /// \brief Partial specialization for global \c MetaKWayKernels.
-template <std::size_t K, typename ReturnType, typename RegistrationType = std::string>
+template <std::size_t K, typename ReturnType, typename RegistrationType = std::string_view>
 using GlobalMetaKWayKernelFactory = MetaKWayKernelFactory<K, ReturnType, GlobalIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaKWayKernels, identified by a mundy multibody type.
@@ -348,7 +348,7 @@ using GlobalMetaTopologyKWayKernelFactory = GlobalMetaKWayKernelFactory<K, Retur
 //@{
 
 /// \brief Partial specialization for \c MetaTwoWayKernels.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
 using MetaTwoWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for \c MetaTwoWayKernels, identified by a mundy multibody type.
@@ -360,7 +360,7 @@ template <typename ReturnType, typename RegistryIdentifier>
 using MetaTopologyTwoWayKernelFactory = MetaTopologyKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
 
 /// \brief Partial specialization for global \c MetaTwoWayKernels.
-template <typename ReturnType, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistrationType = std::string_view>
 using GlobalMetaTwoWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaTwoWayKernels, identified by a mundy multibody type.
@@ -376,7 +376,7 @@ using GlobalMetaTopologyTwoWayKernelFactory = GlobalMetaTopologyKWayKernelFactor
 //@{
 
 /// \brief Partial specialization for \c MetaThreeWayKernels.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
 using MetaThreeWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for \c MetaThreeWayKernels, identified by a mundy multibody type.
@@ -388,7 +388,7 @@ template <typename ReturnType, typename RegistryIdentifier>
 using MetaTopologyThreeWayKernelFactory = MetaTopologyKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
 
 /// \brief Partial specialization for global \c MetaThreeWayKernels.
-template <typename ReturnType, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistrationType = std::string_view>
 using GlobalMetaThreeWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaThreeWayKernels, identified by a mundy multibody type.

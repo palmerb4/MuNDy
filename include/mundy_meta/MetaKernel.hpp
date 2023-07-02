@@ -46,12 +46,12 @@ namespace meta {
 /// \brief The polymorphic interface which all \c MetaKernels will share.
 ///
 /// This design pattern allows for \c MetaKernel to use CRTP to force derived classes to implement certain static
-/// functions while also having a consistant polymorphic interface that allows different \c MetaKernels to be stored in
+/// functions while also having a consistent polymorphic interface that allows different \c MetaKernels to be stored in
 /// a vector of pointers.
 ///
 /// \tparam ReturnType The return type of the execute function.
 /// \tparam RegistrationType The type of this class's identifier.
-template <typename ReturnType, typename RegistrationType = std::string>
+template <typename ReturnType, typename RegistrationType = std::string_view>
 class MetaKernelBase
     : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKernelBase<ReturnType, RegistrationType>,
                                                               RegistrationType> {
@@ -71,7 +71,7 @@ class MetaKernelBase
   virtual void setup() = 0;
 
   /// \brief Run the kernel's core calculation.
-  virtual ReturnType execute(stk::mesh::Entity entity) = 0;
+  virtual ReturnType execute(const stk::mesh::Entity &entity) = 0;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
@@ -101,7 +101,7 @@ class MetaKernelBase
 /// \tparam ReturnType_t The return type of the execute function.
 /// \tparam DerivedMetaKernel_t A class derived from \c MetaKernel that implements the desired interface.
 /// \tparam RegistrationType_t The type of this class's identifier.
-template <typename ReturnType_t, class DerivedMetaKernel_t, typename RegistrationType_t = std::string>
+template <typename ReturnType_t, class DerivedMetaKernel_t, typename RegistrationType_t = std::string_view>
 class MetaKernel
     : virtual public MetaKernelBase<ReturnType_t, RegistrationType_t>,
       public HasMeshRequirementsAndIsRegisterable<MetaKernel<ReturnType_t, DerivedMetaKernel_t, RegistrationType_t>,

@@ -94,7 +94,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("BODY");
     part_reqs->set_part_rank(stk::topology::ELEMENT_RANK);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("BODY"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("BODY"));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,

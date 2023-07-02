@@ -43,8 +43,8 @@
 #include <mundy_meta/MetaRegistry.hpp>              // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeBoundingRadius.hpp>  // for mundy::methods::ComputeBoundingRadius
+#include <mundy_multibody/Factory.hpp>              // for mundy::multibody::Factory
 
-namespace mundy {
 
 namespace methods {
 
@@ -85,7 +85,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHERE"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
     required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -184,7 +184,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static const std::string class_identifier_ = "SPHERE";
+  static constexpr std::string_view class_identifier_ = "SPHERE";
 
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 

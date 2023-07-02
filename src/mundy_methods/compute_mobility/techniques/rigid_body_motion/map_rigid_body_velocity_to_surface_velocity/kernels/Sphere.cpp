@@ -72,7 +72,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 // \name MetaKernel interface implementation
 //{
 
-Teuchos::ParameterList Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
+void Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
 }
 //}
 

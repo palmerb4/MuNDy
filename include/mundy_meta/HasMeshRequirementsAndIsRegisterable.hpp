@@ -45,12 +45,12 @@ namespace meta {
 /// \brief The polymorphic interface that encodes a class's assumptions about the structure and contents of an STK mesh.
 ///
 /// This design pattern allows for \c HasMeshRequirementsAndIsRegisterable to use CRTP to force derived classes to
-/// implement certain static functions while also having a consistant polymorphic interface that allows different
+/// implement certain static functions while also having a consistent polymorphic interface that allows different
 /// \c HasMeshRequirementsAndIsRegisterables to be stored in a vector of pointers.
 ///
 /// \tparam DerivedInterface The polymorphic interface returned by create_new_instance.
 /// \tparam RegistrationType The type of this class's identifier.
-template <typename DerivedInterface, typename RegistrationType = std::string>
+template <typename DerivedInterface, typename RegistrationType = std::string_view>
 class HasMeshRequirementsAndIsRegisterableBase {
  public:
   //! \name Getters
@@ -115,7 +115,7 @@ class HasMeshRequirementsAndIsRegisterableBase {
 /// \tparam DerivedClass A class derived from \c HasMeshRequirementsAndIsRegisterable that implements the desired
 /// interface.
 /// \tparam RegistrationType The type of this class's identifier.
-template <class DerivedClass, class DerivedInterface, typename RegistrationType = std::string>
+template <class DerivedClass, class DerivedInterface, typename RegistrationType = std::string_view>
 class HasMeshRequirementsAndIsRegisterable
     : virtual public HasMeshRequirementsAndIsRegisterableBase<DerivedInterface, RegistrationType> {
  public:

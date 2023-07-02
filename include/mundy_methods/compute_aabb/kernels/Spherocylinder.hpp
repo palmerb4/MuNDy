@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeAABB.hpp>     // for mundy::methods::ComputeAABB
+#include <mundy_multibody/Factory.hpp>       // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -87,7 +88,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHEROCYLINDER");
     part_reqs->set_part_topology(stk::topology::BEAM3);
-    part_reqs->put_multibody_part_attribute(mundy::muntibody::Factory::get_fast_id("SPHEROCYLINDER"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHEROCYLINDER"));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -203,7 +204,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static const std::string class_identifier_ = "SPHEROCYLINDER";
+  static constexpr std::string_view class_identifier_ = "SPHEROCYLINDER";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
