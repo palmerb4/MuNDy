@@ -17,4 +17,8 @@
 # **********************************************************************************************************************
 # @HEADER
 
+target_sources(mundy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/NonSmoothLCP.cpp
+)
+
 add_subdirectory(non_smooth_lcp)

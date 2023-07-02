@@ -83,7 +83,7 @@ void MapRigidBodyForceToRigidBodyVelocity::set_mutable_params(const Teuchos::Par
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Fetch the technique sublist and return its parameters.
-  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
+  Teuchos::ParameterList &technique_params = valid_mutable_params.sublist("technique");
   const std::string technique_name = technique_params.get<std::string>("name");
   technique_ptr_->set_mutable_params(technique_params);
 }

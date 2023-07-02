@@ -68,11 +68,11 @@ RigidBodyMotion::RigidBodyMotion(mundy::mesh::BulkData *const bulk_data_ptr, con
   Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
   const std::string technique_name = technique_params.get<std::string>("name");
   Teuchos::ParameterList &map_rbf_to_rbv_params =
-      params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
+      valid_fixed_params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
   Teuchos::ParameterList &map_rbv_to_sv_params =
-      params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
+      valid_fixed_params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
   Teuchos::ParameterList &map_sf_to_rbf_params =
-      params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
+      valid_fixed_params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
 
   // Initialize and store the sub-methods.
   const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
@@ -99,11 +99,11 @@ void RigidBodyMotion::set_mutable_params(const Teuchos::ParameterList &mutable_p
   Teuchos::ParameterList &technique_params = valid_mutable_params.sublist("technique");
   const std::string technique_name = technique_params.get<std::string>("name");
   Teuchos::ParameterList &map_rbf_to_rbv_params =
-      params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
+      valid_mutable_params.sublist("methods").sublist("map_rigid_body_force_to_rigid_body_velocity");
   Teuchos::ParameterList &map_rbv_to_sv_params =
-      params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
+      valid_mutable_params.sublist("methods").sublist("map_rigid_body_velocity_to_surface_velocity");
   Teuchos::ParameterList &map_sf_to_rbf_params =
-      params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
+      valid_mutable_params.sublist("methods").sublist("map_surface_force_to_rigid_body_force");
 
   // Set the mutable params for each of our sub-methods.
   map_rigid_body_force_to_rigid_body_velocity_method_ptr_->set_mutable_params(map_rbf_to_rbv_params);

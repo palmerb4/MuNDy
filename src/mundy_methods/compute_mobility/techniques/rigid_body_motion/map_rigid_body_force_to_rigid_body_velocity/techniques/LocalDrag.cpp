@@ -41,13 +41,19 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/compute_mobility/techniques/LocalDrag.hpp>  // for mundy::methods::LocalDrag
+#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp>  // for mundy::methods::...::LocalDrag
 
 namespace mundy {
 
 namespace methods {
 
 namespace compute_mobility {
+
+namespace techniques {
+
+namespace rigid_body_motion {
+
+namespace map_rigid_body_force_to_rigid_body_velocity {
 
 namespace techniques {
 
@@ -129,6 +135,12 @@ void LocalDrag::execute(const stk::mesh::Selector &input_selector) {
   }
 }
 //}
+
+}  // namespace techniques
+
+}  // namespace map_rigid_body_force_to_rigid_body_velocity
+
+}  // namespace rigid_body_motion
 
 }  // namespace techniques
 

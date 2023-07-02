@@ -50,6 +50,8 @@ namespace mundy {
 
 namespace methods {
 
+namespace compute_mobility {
+
 namespace techniques {
 
 /// \class RigidBodyMotion
@@ -133,14 +135,14 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
                                 "Name of the method for mapping from rigid body force to rigid body velocity.");
     }
 
-    if (map_rbv_to_sv_params->isParameter("name")) {
+    if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
                                  "parameter with name 'name' but "
                                      << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+      map_rbv_to_sv_params.set("name", std::string(default_map_rbv_to_sv_name_),
                                "Name of the method for mapping from rigid body velocity to surface velocity.");
     }
 
@@ -151,7 +153,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
           "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+      map_sf_to_rbf_params.set("name", std::string(default_map_sf_to_rbf_name_),
                                "Name of the method for mapping from surface force to rigid body force.");
     }
 
@@ -174,7 +176,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
         mutable_params_ptr->sublist("submethods", false).sublist("map_surface_force_to_rigid_body_force", false);
 
     if (map_rbf_to_rbv_params.isParameter("name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      const bool valid_type = map_rbf_to_rbv_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity "
                                  "parameter with name 'name' but "
@@ -185,24 +187,24 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
     }
 
     if (map_rbv_to_sv_params.isParameter("name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      const bool valid_type = map_rbv_to_sv_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
                                  "parameter with name 'name' but "
                                      << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+      map_rbv_to_sv_params.set("name", std::string(default_map_rbv_to_sv_name_),
                                "Name of the method for mapping from rigid body velocity to surface velocity.");
     }
 
     if (map_sf_to_rbf_params.isParameter("name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      const bool valid_type = map_sf_to_rbf_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
+      map_sf_to_rbf_params.set("name", std::string(default_map_sf_to_rbf_name_),
                                "Name of the method for mapping from surface force to rigid body force.");
     }
 
@@ -241,6 +243,14 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_map_rbf_to_rbv_name_ = "MapRigidBodyForceToRigidBodyVelocity";
+  static constexpr std::string_view default_map_rbv_to_sv_name_ = "MapRigidBodyVelocityToSurfaceVelocity";
+  static constexpr std::string_view default_map_sf_to_rbf_name_ = "MapSurfaceForceToRigidBodyForce";
+  //@}
+
   //! \name Internal members
   //@{
 
@@ -266,6 +276,8 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 };  // RigidBodyMotion
 
 }  // namespace techniques
+
+}  // namespace compute_mobility
 
 }  // namespace methods
 

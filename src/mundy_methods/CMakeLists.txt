@@ -18,13 +18,13 @@
 # @HEADER
 
 target_sources(mundy PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeAABB.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeBoundingRadius.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeMobility.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeOBB.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeTimeIntegration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/GenerateCollisionConstraints.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ResolveConstraints.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/ComputeAABB.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/ComputeBoundingRadius.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/ComputeMobility.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/ComputeOBB.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/ComputeTimeIntegration.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/GenerateCollisionConstraints.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/ResolveConstraints.cpp
 )
 
 add_subdirectory(compute_aabb)
@@ -36,4 +36,3 @@ add_subdirectory(detect_neighbors)
 add_subdirectory(generate_collision_constraints)
 add_subdirectory(refine_neighbors)
 add_subdirectory(resolve_constraints)
-

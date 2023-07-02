@@ -53,6 +53,12 @@ namespace compute_mobility {
 
 namespace techniques {
 
+namespace rigid_body_motion {
+
+namespace map_rigid_body_force_to_rigid_body_velocity {
+
+namespace techniques {
+
 namespace local_drag {
 
 namespace kernels {
@@ -90,6 +96,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     std::string node_omega_field_name = valid_fixed_params.get<std::string>("node_omega_field_name");
     std::string element_radius_field_name = valid_fixed_params.get<std::string>("element_radius_field_name");
 
+    // Create the requirements.
     auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     sphere_part_reqs->set_part_name("SPHERE");
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
@@ -107,7 +114,6 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(sphere_part_reqs);
-    mesh_reqs->add_part_req(linker_part_reqs);
 
     return mesh_reqs;
   }
@@ -173,10 +179,14 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("time_step_size")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned double>("time_step_size");
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("time_step_size");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
                                      << "with a type other than unsigned double");
+      const bool is_timestep_positive = mutable_params_ptr->get<double>("time_step_size") > 0;
+      TEUCHOS_TEST_FOR_EXCEPTION(is_timestep_positive, std::invalid_argument,
+                                 "NodeEuler: Invalid parameter. Given a parameter with name 'time_step_size' but "
+                                     << "with a value less than or equal to zero.");
     } else {
       mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
     }
@@ -280,6 +290,12 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
 }  // namespace kernels
 
 }  // namespace local_drag
+
+}  // namespace techniques
+
+}  // namespace map_rigid_body_force_to_rigid_body_velocity
+
+}  // namespace rigid_body_motion
 
 }  // namespace techniques
 

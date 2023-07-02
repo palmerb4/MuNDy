@@ -167,7 +167,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  Teuchos::ParameterList set_mutable_params(const Teuchos::ParameterList &mutable_params) const override;
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) const override;
   //@}
 
   //! \name Actions

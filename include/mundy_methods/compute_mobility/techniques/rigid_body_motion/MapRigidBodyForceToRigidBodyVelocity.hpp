@@ -117,7 +117,7 @@ class MapRigidBodyForceToRigidBodyVelocity
           valid_type, std::invalid_argument,
           "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
     } else {
-      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+      technique_params.set("name", std::string(default_technique_name_), "The name of the technique to use.");
     }
 
     const std::string technique_name = technique_params.get<std::string>("name");
@@ -135,7 +135,7 @@ class MapRigidBodyForceToRigidBodyVelocity
           valid_type, std::invalid_argument,
           "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
     } else {
-      technique_params.set("name", default_technique_name_, "The name of the technique to use.");
+      technique_params.set("name", std::string(default_technique_name_), "The name of the technique to use.");
     }
 
     const std::string technique_name = technique_params.get<std::string>("name");
@@ -169,6 +169,13 @@ class MapRigidBodyForceToRigidBodyVelocity
   //@}
 
  private:
+  //! \name Default values
+  //@{
+
+  /// \brief The default technique name.
+  static constexpr std::string_view default_technique_name_ = "LOCAL_DRAG";
+  //@}
+
   //! \name Internal members
   //@{
 

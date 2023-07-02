@@ -133,8 +133,9 @@ class MetaKernel
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void static_validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) {
-    DerivedMetaKernel_t::static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
+  static void details_static_validate_fixed_parameters_and_set_defaults(
+      Teuchos::ParameterList *const fixed_params_ptr) {
+    DerivedMetaKernel_t::details_static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.

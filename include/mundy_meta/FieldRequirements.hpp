@@ -458,7 +458,7 @@ void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *
   // Declare the field and assign it to the given part
   stk::mesh::Field<FieldType> &field =
       meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name());
-  stk::mesh::put_field_on_mesh(field, part, this->field_dimension(), nullptr);
+  stk::mesh::put_field_on_mesh(field, part, this->get_field_dimension(), nullptr);
 }
 
 template <typename FieldType>
@@ -479,7 +479,7 @@ void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::Met
   // Declare the field and assign it to the given part
   stk::mesh::Field<FieldType> &field =
       meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name());
-  stk::mesh::put_field_on_entire_mesh(field, this->field_dimension(), nullptr);
+  stk::mesh::put_field_on_entire_mesh(field, this->get_field_dimension());
 }
 
 template <typename FieldType>

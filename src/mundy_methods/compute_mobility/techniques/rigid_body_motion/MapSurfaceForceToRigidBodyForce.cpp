@@ -123,11 +123,11 @@ void MapSurfaceForceToRigidBodyForce::execute(const stk::mesh::Selector &input_s
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
 
-    stk::mesh::intersection_with_part_i = stk::mesh::Selector(*multibody_part_ptr_i) & input_selector;
+    stk::mesh::Selector intersection_with_part_i = stk::mesh::Selector(*multibody_part_ptr_i) & input_selector;
 
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK, intersection_with_part_i,
-        [&multibody_kernel_ptr_i]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+        [&multibody_kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
           multibody_kernel_ptr_i->execute(element);
         });
   }

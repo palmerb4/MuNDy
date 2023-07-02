@@ -17,12 +17,12 @@
 # **********************************************************************************************************************
 # @HEADER
 
+target_sources(mundy PRIVATE
+${CMAKE_CURRENT_SOURCE_DIR}/MapRigidBodyForceToRigidBodyVelocity.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/MapRigidBodyVelocityToSurfaceVelocity.cpp
+${CMAKE_CURRENT_SOURCE_DIR}/MapSurfaceForceToRigidBodyForce.cpp
+)
+
 add_subdirectory(map_rigid_body_force_to_rigid_body_velocity)
 add_subdirectory(map_rigid_body_velocity_to_surface_velocity)
 add_subdirectory(map_surface_force_to_rigid_body_force)
-
-target_sources(mundy PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/MapRigidBodyForceToRigidBodyVelocity.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MapRigidBodyVelocityToSurfaceVelocity.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MapSurfaceForceToRigidBodyForce.cpp
-)

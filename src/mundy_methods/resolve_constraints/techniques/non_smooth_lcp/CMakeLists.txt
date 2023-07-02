@@ -17,13 +17,13 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(compute_constraint_forcing)
-add_subdirectory(compute_constraint_projection)
-add_subdirectory(compute_constraint_violation)
-
 target_sources(mundy PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintForcing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintProjection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintResidual.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintViolation.cpp
 )
+
+add_subdirectory(compute_constraint_forcing)
+add_subdirectory(compute_constraint_projection)
+add_subdirectory(compute_constraint_violation)

@@ -26,21 +26,26 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>               // for Teuchos::ParameterList
-#include <stk_expreval/stk_expreval/Constant.hpp>  // for stk::stk_expreval::pi()
-#include <stk_mesh/base/Entity.hpp>                // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>                 // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                                                  // for mundy::mesh::BulkData
-#include <mundy_methods/compute_mobility/techniques/local_drag/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
-#include <mundy_methods/utils/Quaternion.hpp>                                       // for mundy::utils::Quaternion
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/local_drag/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
+#include <mundy_methods/utils/Quaternion.hpp>  // for mundy::utils::Quaternion
 
 namespace mundy {
 
 namespace methods {
 
 namespace compute_mobility {
+
+namespace techniques {
+
+namespace rigid_body_motion {
+
+namespace map_rigid_body_force_to_rigid_body_velocity {
 
 namespace techniques {
 
@@ -73,7 +78,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, node_torque_field_name_);
   node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, node_velocity_field_name_);
   node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, node_omega_field_name_);
-  element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
+  element_radius_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
 }
 //}
 
@@ -106,8 +112,9 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   double *radius = stk::mesh::field_data(element_radius_field_ptr_, sphere_element);
 
   // Compute the mobility matrix for the sphere using local drag.
-  const double drag_trans = 6 * stk::stk_expreval::pi() * radius[0] * viscosity_;
-  const double drag_rot = 8 * stk::stk_expreval::pi() * radius[0] * radius[0] * radius[0] * viscosity_;
+  static constexpr const double pi = 3.14159265358979323846;
+  const double drag_trans = 6 * pi * radius[0] * viscosity_;
+  const double drag_rot = 8 * pi * radius[0] * radius[0] * radius[0] * viscosity_;
   const double drag_trans_inv = 1.0 / drag_trans;
   const double drag_rot_inv = 1.0 / drag_rot;
 
@@ -127,6 +134,12 @@ void Sphere::finalize() {
 }  // namespace kernels
 
 }  // namespace local_drag
+
+}  // namespace techniques
+
+}  // namespace map_rigid_body_force_to_rigid_body_velocity
+
+}  // namespace rigid_body_motion
 
 }  // namespace techniques
 

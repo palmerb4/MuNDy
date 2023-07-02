@@ -43,8 +43,9 @@
 #include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaMethodRegistry.hpp>  // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
 
 namespace mundy {
 
@@ -56,12 +57,14 @@ namespace techniques {
 
 namespace rigid_body_motion {
 
+namespace map_rigid_body_force_to_rigid_body_velocity {
+
 namespace techniques {
 
 /// \class LocalDrag
 /// \brief Method for computing the axis aligned boundary box of different parts.
 class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
-                  public mundy::meta::MetaMethodRegistry<void, LocalDrag> {
+                  public mundy::meta::MetaMethodRegistry<void, LocalDrag, ComputeMobility> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -76,10 +79,10 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   //! \name Typedefs
   //@{
 
-  using OurKernelFactory = mundy::meta::MetaTwoWayKernelFactory<void, LocalDrag>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, LocalDrag>;
 
   template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaTwoWayKernelFactory<void, ClassToRegister, LocalDrag>;
+  using OurKernelRegistry = mundy::meta::MetaKernelFactory<void, ClassToRegister, LocalDrag>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -215,6 +218,8 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 };  // LocalDrag
 
 }  // namespace techniques
+
+}  // namespacce map_rigid_body_force_to_rigid_body_velocity
 
 }  // namespace rigid_body_motion
 

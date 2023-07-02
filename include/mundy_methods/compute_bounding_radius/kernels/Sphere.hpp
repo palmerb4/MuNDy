@@ -45,6 +45,7 @@
 #include <mundy_methods/ComputeBoundingRadius.hpp>  // for mundy::methods::ComputeBoundingRadius
 #include <mundy_multibody/Factory.hpp>              // for mundy::multibody::Factory
 
+namespace mundy {
 
 namespace methods {
 
@@ -86,9 +87,9 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(bounding_radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
@@ -109,14 +110,14 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
                             "Name of the element field containing the sphere radius.");
     }
 
-    if (fixed_params_ptr->isParameter("bounding_sphere_field_name")) {
+    if (fixed_params_ptr->isParameter("bounding_radius_field_name")) {
       const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("bounding_sphere_field_name");
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("bounding_radius_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'bounding_sphere_field_name' but "
+                                 "Sphere: Type error. Given a parameter with name 'bounding_radius_field_name' but "
                                  "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("bounding_sphere_field_name", std::string(default_bounding_sphere_field_name_),
+      fixed_params_ptr->set("bounding_radius_field_name", std::string(default_bounding_radius_field_name_),
                             "Name of the element field within which the output bounding radius will be written.");
     }
   }
