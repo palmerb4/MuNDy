@@ -32,13 +32,17 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
-#include <mundy_methods/compute_mobility/map_rigid_body_velocity_to_surface_velocity/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
+#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_velocity_to_surface_velocity/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
 
 namespace mundy {
 
 namespace methods {
 
 namespace compute_mobility {
+
+namespace techniques {
+
+namespace rigid_body_motion {
 
 namespace map_rigid_body_velocity_to_surface_velocity {
 
@@ -72,7 +76,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 // \name MetaKernel interface implementation
 //{
 
-void Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) const {
+void Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
 }
 //}
 
@@ -84,7 +88,7 @@ void Sphere::setup() {
 }
 
 void Sphere::execute(const stk::mesh::Entity &sphere_element) {
-  stk::mesh::Entity const linker = bulk_data_ptr_->begin_entities(sphere_element, stk::topology::CONSTRAINT_RANK)[0];
+  stk::mesh::Entity const linker = bulk_data_ptr_->begin(sphere_element, stk::topology::CONSTRAINT_RANK)[0];
   stk::mesh::Entity const *surface_nodes = bulk_data_ptr_->begin_nodes(linker);
   stk::mesh::Entity const body_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 
@@ -121,6 +125,10 @@ void Sphere::finalize() {
 }  // namespace kernels
 
 }  // namespace map_rigid_body_velocity_to_surface_velocity
+
+}  // namespace rigid_body_motion
+
+}  // namespace techniques
 
 }  // namespace compute_mobility
 

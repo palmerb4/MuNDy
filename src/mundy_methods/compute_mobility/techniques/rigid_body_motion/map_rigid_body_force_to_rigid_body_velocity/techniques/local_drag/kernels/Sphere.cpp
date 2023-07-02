@@ -74,10 +74,10 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   element_radius_field_name_ = valid_fixed_params.get<std::string>("element_radius_field_name");
 
   // Store the input params.
-  node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, node_force_field_name_);
-  node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, node_torque_field_name_);
-  node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, node_velocity_field_name_);
-  node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, node_omega_field_name_);
+  node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
+  node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_torque_field_name_);
+  node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name_);
+  node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_omega_field_name_);
   element_radius_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
 }
@@ -103,13 +103,13 @@ void Sphere::setup() {
 
 void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   // Fetch the sphere's fields.
-  stk::mesh::Entity const center_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
+  const stk::mesh::Entity center_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 
-  double *node_force = stk::mesh::field_data(node_force_field_ptr_, center_node);
-  double *node_torque = stk::mesh::field_data(node_torque_field_ptr_, center_node);
-  double *node_velocity = stk::mesh::field_data(node_velocity_field_ptr_, center_node);
-  double *node_omega = stk::mesh::field_data(node_omega_field_ptr_, center_node);
-  double *radius = stk::mesh::field_data(element_radius_field_ptr_, sphere_element);
+  double *node_force = stk::mesh::field_data(*node_force_field_ptr_, center_node);
+  double *node_torque = stk::mesh::field_data(*node_torque_field_ptr_, center_node);
+  double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, center_node);
+  double *node_omega = stk::mesh::field_data(*node_omega_field_ptr_, center_node);
+  double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
 
   // Compute the mobility matrix for the sphere using local drag.
   static constexpr const double pi = 3.14159265358979323846;

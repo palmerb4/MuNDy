@@ -25,6 +25,11 @@
 
 // C++ core libs
 #include <limits>  // for std::numeric_limits
+#include <random>  // for std::rand
+
+// Trilinos libs
+#include <stk_math/StkMath.hpp>    // for stk::math::cos, stk::math::sqrt, etc.
+#include <stk_math/StkVector.hpp>  // for stk::math::Vec
 
 namespace mundy {
 
@@ -122,9 +127,9 @@ struct Quaternion {
   // set a unit random quaternion representing uniform distribution on sphere surface
   void from_unit_random() {
     // non threadsafe random unit quaternion
-    const double u1 = static_cast<double>(rand_r()) / RAND_MAX;
-    const double u2 = static_cast<double>(rand_r()) / RAND_MAX;
-    const double u3 = static_cast<double>(rand_r()) / RAND_MAX;
+    const double u1 = static_cast<double>(std::rand()) / RAND_MAX;
+    const double u2 = static_cast<double>(std::rand()) / RAND_MAX;
+    const double u3 = static_cast<double>(std::rand()) / RAND_MAX;
     from_unit_random(u1, u2, u3);
   }
 
@@ -223,5 +228,5 @@ struct Quaternion {
 }  // namespace methods
 
 }  // namespace mundy
+
 #endif  // MUNDY_METHODS_UTILS_QUATERNION_HPP_
-#endif  // MUNDY_METHODS_UTILS_QUATERNION_HPP__

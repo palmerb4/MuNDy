@@ -91,21 +91,25 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
     std::string node_torque_field_name = valid_fixed_params.get<std::string>("node_torque_field_name");
 
-    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("SPHERE");
-    part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_force_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_torque_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+    auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    sphere_part_reqs->set_part_name("SPHERE");
+    sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
+    sphere_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_force_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        node_torque_field_name, stk::topology::NODE_RANK, 3, 1));
 
-    DECLARE THE LINKER AND GIVE IT A SHERE MULTIBODY TYPE
+    auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    linker_part_reqs->set_part_name("LINKER");
+    linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
+    linker_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("CONSTRAINT"));
 
-        auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(part_reqs);
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs->add_part_req(sphere_part_reqs);
+    mesh_reqs->add_part_req(linker_part_reqs);
     return mesh_reqs;
   }
 
@@ -114,6 +118,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -219,6 +224,12 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
   static constexpr std::string_view class_identifier_ = "SPHERE";
+
+  /// \brief Scale for the force and torque such that F = beta * F0 + alpha * Fnew.
+  double alpha_;
+
+  /// \brief Scale for the force and torque such that F = beta * F0 + alpha * Fnew.
+  double beta_;
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

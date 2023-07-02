@@ -104,9 +104,9 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
     auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     linker_part_reqs->set_part_name("LINKER");
-    linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT);
+    linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
     linker_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("CONSTRAINT"));
-
+    
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_req(sphere_part_reqs);
     mesh_reqs->add_part_req(linker_part_reqs);

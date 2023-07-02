@@ -178,17 +178,17 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    if (mutable_params_ptr->isParameter("time_step_size")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("time_step_size");
+    if (mutable_params_ptr->isParameter("viscosity")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("viscosity");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
+                                 "NodeEuler: Type error. Given a parameter with name 'viscosity' but "
                                      << "with a type other than unsigned double");
-      const bool is_timestep_positive = mutable_params_ptr->get<double>("time_step_size") > 0;
-      TEUCHOS_TEST_FOR_EXCEPTION(is_timestep_positive, std::invalid_argument,
-                                 "NodeEuler: Invalid parameter. Given a parameter with name 'time_step_size' but "
+      const bool is_viscocity_positive = mutable_params_ptr->get<double>("viscosity") > 0;
+      TEUCHOS_TEST_FOR_EXCEPTION(is_viscocity_positive, std::invalid_argument,
+                                 "NodeEuler: Invalid parameter. Given a parameter with name 'viscosity' but "
                                      << "with a value less than or equal to zero.");
     } else {
-      mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
+      mutable_params_ptr->set("viscosity", default_viscosity_, "The viscocity of the suspending fluid.");
     }
   }
 
@@ -231,7 +231,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
   //! \name Default parameters
   //@{
 
-  static constexpr double default_time_step_size_ = -1;
+  static constexpr double default_viscosity_ = 1;
   static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
   static constexpr std::string_view default_node_torque_field_name_ = "NODE_TORQUE";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
@@ -253,7 +253,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief The numerical timestep size.
-  double time_step_size_;
+  double viscosity_;
 
   /// \brief Name of the node field containing the force on the sphere's center.
   std::string node_force_field_name_;
