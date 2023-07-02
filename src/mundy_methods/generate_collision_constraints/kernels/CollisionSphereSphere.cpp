@@ -38,7 +38,7 @@ namespace mundy {
 
 namespace methods {
 
-namespace compute_aabb {
+namespace generate_collision_constraints {
 
 namespace kernels {
 
@@ -138,7 +138,7 @@ void CollisionSphereSphere::finalize() {
 
 }  // namespace kernels
 
-}  // namespace compute_aabb
+}  // namespace generate_collision_constraints
 
 }  // namespace methods
 

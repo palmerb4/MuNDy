@@ -41,13 +41,15 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/compute_time_integration/NodeEuler.hpp>  // for mundy::methods::compute_time_integration::NodeEuler
+#include <mundy_methods/compute_time_integration/techniques/NodeEuler.hpp>  // for mundy::methods::...::NodeEuler
 
 namespace mundy {
 
 namespace methods {
 
 namespace compute_time_integration {
+
+namespace techniques {
 
 // \name Constructors and destructor
 //{
@@ -100,11 +102,12 @@ void NodeEuler::set_mutable_params(const Teuchos::ParameterList &mutable_params)
 //{
 
 void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
-  //TODO(palmerb4): NodeEuler should only act on the mulitbody Body type. Take the intersection.
+  // TODO(palmerb4): NodeEuler should only act on the mulitbody Body type. Take the intersection.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
-    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned_part,
-                                   [](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
+    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
+                                   locally_owned_part,
+                                   [&](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed
                                      // This is the best way to indicate that things like the normal vector need
                                      // updated. Does STK have an observer that lets us check if fields need updated?
@@ -119,6 +122,8 @@ void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
   }
 }
 //}
+
+}  // namespace techniques
 
 }  // namespace compute_time_integration
 

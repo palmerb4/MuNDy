@@ -45,6 +45,7 @@
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
+#include <mundy_multibody/Factory.hpp>               // for mundy::multibody::Factory
 
 namespace mundy {
 
@@ -112,8 +113,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
@@ -148,10 +148,14 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("time_step_size")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned double>("time_step_size");
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("time_step_size");
       TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
-                                     << "with a type other than unsigned double");
+                                     << "with a type other than double");
+      const bool is_time_step_size_positive = mutable_params_ptr->get<double>("time_step_size") > 0;
+      TEUCHOS_TEST_FOR_EXCEPTION(is_time_step_size_positive, std::invalid_argument,
+                                 "NodeEuler: Invalid parameter. Given a parameter with name 'time_step_size' but "
+                                     << "with a value less than or equal to zero.");
     } else {
       mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
     }
@@ -178,26 +182,18 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
   //! \name Actions
   //@{
 
-  /// \brief Setup the method's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the method's core calculation.
   void execute(const stk::mesh::Selector &input_selector) override;
-
-  /// \brief Finalize the method's core calculations.
-  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
-  void finalize() override;
   //@}
 
  private:
   //! \name Default parameters
   //@{
 
-  static constexpr unsigned double default_time_step_size_ = 1.0;
+  static constexpr double default_time_step_size_ = 1.0;
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
-  static constexpr std::string_view default_node_omega_field_name_name_ = "NODE_OMEGA";
+  static constexpr std::string_view default_node_omega_field_name_ = "NODE_OMEGA";
   //@}
 
   //! \name Internal members

@@ -50,12 +50,14 @@ namespace mundy {
 
 namespace methods {
 
+namespace resolve_constraints {
+
 namespace techniques {
 
 /// \class NonSmoothLCP
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
-                     public ResolveConstraints::OutMethodRegistry<NonSmoothLCP> {
+                     public ResolveConstraints::OurMethodRegistry<NonSmoothLCP> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -124,132 +126,200 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
   static void details_static_validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     Teuchos::ParameterList &compute_constraint_forcing_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_forcing", false);
+        fixed_params_ptr->sublist("submethods", false).sublist("compute_constraint_forcing", false);
     Teuchos::ParameterList &compute_constraint_projection_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_projection", false);
+        fixed_params_ptr->sublist("submethods", false).sublist("compute_constraint_projection", false);
     Teuchos::ParameterList &compute_constraint_residual_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_residual", false);
+        fixed_params_ptr->sublist("submethods", false).sublist("compute_constraint_residual", false);
     Teuchos::ParameterList &compute_constraint_violation_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_violation", false);
+        fixed_params_ptr->sublist("submethods", false).sublist("compute_constraint_violation", false);
 
-    if (compute_constraint_forcing_params->isParameter("name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_forcing_params.isParameter("name")) {
+      const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
       compute_constraint_forcing_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
+          "name", std::string(default_compute_constraint_forcing_name_),
           "Name of the method for computing the force induced by the constraints on their nodes.");
     }
 
-    if (map_rbv_to_sv_params.isParameter("name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_projection_params.isParameter("name")) {
+      const bool valid_type =
+          compute_constraint_projection_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
-                               "Name of the method for projecting the constraints onto the feasable solution space.");
+      compute_constraint_projection_params.set(
+          "name", std::string(default_compute_constraint_projection_name_),
+          "Name of the method for projecting the constraints onto the feasable solution space.");
     }
 
-    if (map_sf_to_rbf_params.isParameter("name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_residual_params.isParameter("name")) {
+      const bool valid_type = compute_constraint_residual_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
+      compute_constraint_residual_params.set(
+          "name", std::string(default_compute_constraint_residual_name_),
           "Name of the method for computing the global residual quantifying the constraint violation.");
     }
 
-    if (map_sf_to_rbf_params.isParameter("name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_violation_params.isParameter("name")) {
+      const bool valid_type =
+          compute_constraint_violation_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
-                               "Name of the method for computing the amount of violation of all constraints.");
+      compute_constraint_violation_params.set(
+          "name", std::string(default_compute_constraint_violation_name_),
+          "Name of the method for computing the amount of violation of all constraints.");
     }
 
-    const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
-    const std::string rbv_to_sv_name = map_rbv_to_sv_params.get<std::string>("name");
-    const std::string sf_to_rbf_name = map_sf_to_rbf_params.get<std::string>("name");
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(rbf_to_rbv_name, &map_rbf_to_rbv_params);
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(rbv_to_sv_name, &map_rbv_to_sv_params);
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(sf_to_rbf_name, &map_sf_to_rbf_params);
+    const std::string compute_constraint_forcing_name = compute_constraint_forcing_params.get<std::string>("name");
+    const std::string compute_constraint_projection_name =
+        compute_constraint_projection_params.get<std::string>("name");
+    const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
+    const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
+
+    // Validate the fixed parameters of the submethods.
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(compute_constraint_forcing_name,
+                                                                 &compute_constraint_forcing_params);
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(compute_constraint_projection_name,
+                                                                 &compute_constraint_projection_params);
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(compute_constraint_residual_name,
+                                                                 &compute_constraint_residual_params);
+    OurMethodFactory::validate_fixed_parameters_and_set_defaults(compute_constraint_violation_name,
+                                                                 &compute_constraint_violation_params);
+
+    // Validate the fixed parameters of this method itself.
+    if (fixed_params_ptr->isParameter("element_constraint_violation_field")) {
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a parameter with name 'element_constraint_violation_field' but "
+              << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set(
+          "element_constraint_violation_field", std::string(default_element_constraint_violation_field_name_),
+          "Name of the element field containing the constraint violation measure for each constraint.");
+    }
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     Teuchos::ParameterList &compute_constraint_forcing_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_forcing", false);
+        mutable_params_ptr->sublist("submethods", false).sublist("compute_constraint_forcing", false);
     Teuchos::ParameterList &compute_constraint_projection_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_projection", false);
+        mutable_params_ptr->sublist("submethods", false).sublist("compute_constraint_projection", false);
     Teuchos::ParameterList &compute_constraint_residual_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_residual", false);
+        mutable_params_ptr->sublist("submethods", false).sublist("compute_constraint_residual", false);
     Teuchos::ParameterList &compute_constraint_violation_params =
-        part_params.sublist("submethods", false).sublist("compute_constraint_violation", false);
+        mutable_params_ptr->sublist("submethods", false).sublist("compute_constraint_violation", false);
 
-    if (compute_constraint_forcing_params->isParameter("name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_forcing_params.isParameter("name")) {
+      const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
       compute_constraint_forcing_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
+          "name", std::string(default_compute_constraint_forcing_name_),
           "Name of the method for computing the force induced by the constraints on their nodes.");
     }
 
-    if (map_rbv_to_sv_params.isParameter("name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_projection_params.isParameter("name")) {
+      const bool valid_type =
+          compute_constraint_projection_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_rbv_to_sv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
-                               "Name of the method for projecting the constraints onto the feasable solution space.");
+      compute_constraint_projection_params.set(
+          "name", std::string(default_compute_constraint_projection_name_),
+          "Name of the method for projecting the constraints onto the feasable solution space.");
     }
 
-    if (map_sf_to_rbf_params.isParameter("name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_residual_params.isParameter("name")) {
+      const bool valid_type = compute_constraint_residual_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set(
-          "name", std::string(default_map_rbf_to_rbv_name_),
+      compute_constraint_residual_params.set(
+          "name", std::string(default_compute_constraint_residual_name_),
           "Name of the method for computing the global residual quantifying the constraint violation.");
     }
 
-    if (map_sf_to_rbf_params.isParameter("name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+    if (compute_constraint_violation_params.isParameter("name")) {
+      const bool valid_type =
+          compute_constraint_violation_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       TEUCHOS_TEST_FOR_EXCEPTION(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
               << "with a type other than std::string");
     } else {
-      map_sf_to_rbf_params.set("name", std::string(default_map_rbf_to_rbv_name_),
-                               "Name of the method for computing the amount of violation of all constraints.");
+      compute_constraint_violation_params.set(
+          "name", std::string(default_compute_constraint_violation_name_),
+          "Name of the method for computing the amount of violation of all constraints.");
     }
 
-    const std::string rbf_to_rbv_name = map_rbf_to_rbv_params.get<std::string>("name");
-    const std::string rbv_to_sv_name = map_rbv_to_sv_params.get<std::string>("name");
-    const std::string sf_to_rbf_name = map_sf_to_rbf_params.get<std::string>("name");
-    OurMethodFactory::validate_mutable_parameters_and_set_defaults(rbf_to_rbv_name, &map_rbf_to_rbv_params);
-    OurMethodFactory::validate_mutable_parameters_and_set_defaults(rbv_to_sv_name, &map_rbv_to_sv_params);
-    OurMethodFactory::validate_mutable_parameters_and_set_defaults(sf_to_rbf_name, &map_sf_to_rbf_params);
+    const std::string compute_constraint_forcing_name = compute_constraint_forcing_params.get<std::string>("name");
+    const std::string compute_constraint_projection_name =
+        compute_constraint_projection_params.get<std::string>("name");
+    const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
+    const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
+
+    // Validate the mutable parameters of the submethods.
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(compute_constraint_forcing_name,
+                                                                   &compute_constraint_forcing_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(compute_constraint_projection_name,
+                                                                   &compute_constraint_projection_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(compute_constraint_residual_name,
+                                                                   &compute_constraint_residual_params);
+    OurMethodFactory::validate_mutable_parameters_and_set_defaults(compute_constraint_violation_name,
+                                                                   &compute_constraint_violation_params);
+
+    // Validate the mutable parameters of this method itself.
+    if (mutable_params_ptr->isParameter("max_num_iterations")) {
+      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("max_num_iterations");
+      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+                                 "NonSmoothLCP: Type error. Given a parameter with name 'max_num_iterations' but "
+                                     << "with a type other than unsigned");
+    } else {
+      mutable_params_ptr->set("max_num_iterations", default_max_num_iterations_,
+                              "The maximum number of BBPGD iterations to take.");
+    }
+
+    if (mutable_params_ptr->isParameter("constraint_residual_tolerance")) {
+      const bool valid_type =
+          mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("constraint_residual_tolerance");
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          valid_type, std::invalid_argument,
+          "NonSmoothLCP: Type error. Given a parameter with name 'constraint_residual_tolerance' but "
+              << "with a type other than double");
+      const bool is_constraint_residual_tolerance_positive = mutable_params_ptr->get<double>("viscosity") > 0;
+      TEUCHOS_TEST_FOR_EXCEPTION(
+          is_constraint_residual_tolerance_positive, std::invalid_argument,
+          "NodeEuler: Invalid parameter. Given a parameter with name 'constraint_residual_tolerance' but "
+              << "with a value less than or equal to zero.");
+    } else {
+      mutable_params_ptr->set("constraint_residual_tolerance", default_constraint_residual_tolerance_,
+                              "The desired tolerance for the constraint violation residual..");
+    }
   }
 
   /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other
@@ -279,6 +349,18 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_compute_constraint_forcing_name_ = "COMPUTE_CONSTRAINT_FORCING";
+  static constexpr std::string_view default_compute_constraint_projection_name_ = "COMPUTE_CONSTRAINT_PROJECTION";
+  static constexpr std::string_view default_compute_constraint_residual_name_ = "COMPUTE_CONSTRAINT_RESIDUAL";
+  static constexpr std::string_view default_compute_constraint_violation_name_ = "COMPUTE_CONSTRAINT_VIOLATION";
+  static constexpr std::string_view default_element_constraint_violation_field_name_ = "ELEMENT_CONSTRAINT_VIOLATION";
+  static constexpr int default_max_num_iterations_ = 10000;
+  static constexpr double default_constraint_residual_tolerance_ = 1.0e-6;
+  //@}
+
   //! \name Internal members
   //@{
 
@@ -291,6 +373,18 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
   /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
+
+  /// \brief The maximum number of BBPGD iterations to take.
+  int max_num_iterations_;
+
+  /// \brief The desired tolerance for the constraint violation residual.
+  double constraint_residual_tolerance_;
+
+  /// \brief The name of the element field containing the constraint violation measure for each constraint.
+  std::string element_constraint_violation_field_name_;
+
+  /// \brief The element field containing the constraint violation measure for each constraint.
+  stk::mesh::Field<double> *element_constraint_violation_field_ptr_ = nullptr;
 
   /// \brief Method for computing the force induced by the constraints on their nodes.
   std::shared_ptr<mundy::meta::MetaMethodBase<void>> compute_constraint_forcing_method_ptr_;
@@ -307,6 +401,8 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 };  // NonSmoothLCP
 
 }  // namespace techniques
+
+}  // namespace resolve_constraints
 
 }  // namespace methods
 

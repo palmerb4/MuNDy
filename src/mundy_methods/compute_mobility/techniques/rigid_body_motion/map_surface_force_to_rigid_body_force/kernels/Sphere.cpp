@@ -76,8 +76,13 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 //{
 
 void Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
-  alpha_ = mutable_params.get<double>("alpha");
-  beta_ = mutable_params.get<double>("beta");
+  // Validate the input params. Use default values for any parameter not given.
+  Teuchos::ParameterList valid_mutable_params = mutable_params;
+  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+
+  // Fill the internal members using the validated parameter list.
+  alpha_ = valid_mutable_params.get<double>("alpha");
+  beta_ = valid_mutable_params.get<double>("beta");
 }
 //}
 

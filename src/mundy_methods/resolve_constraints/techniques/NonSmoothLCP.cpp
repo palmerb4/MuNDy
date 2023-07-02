@@ -41,13 +41,13 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/compute_mobility/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
+#include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
 namespace mundy {
 
 namespace methods {
 
-namespace compute_mobility {
+namespace resolve_constraints {
 
 namespace techniques {
 
@@ -87,6 +87,12 @@ NonSmoothLCP::NonSmoothLCP(mundy::mesh::BulkData *const bulk_data_ptr, const Teu
       compute_constraint_residual_name, bulk_data_ptr_, compute_constraint_residual_params);
   compute_constraint_violation_method_ptr_ = OurMethodFactory::create_new_instance(
       compute_constraint_violation_name, bulk_data_ptr_, compute_constraint_violation_params);
+
+  // Fill the internal members using the valid parameter list.
+  element_constraint_violation_field_name_ =
+      valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
+  element_constraint_violation_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_constraint_violation_field_name_);
 }
 //}
 
@@ -113,6 +119,10 @@ void NonSmoothLCP::set_mutable_params(const Teuchos::ParameterList &mutable_para
   compute_constraint_projection_method_ptr_->set_mutable_params(compute_constraint_projection_params);
   compute_constraint_residual_method_ptr_->set_mutable_params(compute_constraint_residual_params);
   compute_constraint_violation_method_ptr_->set_mutable_params(compute_constraint_violation_params);
+
+  // Fill the internal members using the valid parameter list.
+  constraint_residual_tolerance_ = valid_mutable_params.get<double>("constraint_residual_tolerance");
+  max_num_iterations_ = valid_mutable_params.get<unsigned>("max_num_iterations");
 }
 //}
 
@@ -123,16 +133,11 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   // The following is the BBPGD solution to the linear complementarity problem.
 
   // Fill the Lagrange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
-  for (size_t i = 0; i < num_parts_; i++) {
-    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part() & *part_ptr_vector_[i];
-    // Here, we use an internal stk function that doesn't use thread parallelism, lest we race conditions.
-    // TODO(palmerb4): Replace this function with for_each_entity_reduce (only possible after the ngp update).
-    stk::mesh::impl::for_each_selected_entity_run_no_threads(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_part,
-        []([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
-          stk::mesh::field_data(*element_constraint_violation_field_name_, element)[0] = 0.0;
-        });
-  }
+  stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+                                 input_selector,
+                                 [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
+                                   stk::mesh::field_data(*element_constraint_violation_field_ptr_, element)[0] = 0.0;
+                                 });
 
   // Iterate until the residual is below the threshold or until we surpass the maximum number of iterations.
   double alpha;
@@ -157,10 +162,10 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
 
     // Compute the global constraint residual.
     compute_constraint_violation_method_ptr_->execute(input_selector);
-    double residual = compute_constraint_residual_method_ptr_->execute(input_selector);
+    double constraint_residual = compute_constraint_residual_method_ptr_->execute(input_selector);
 
     // Check for early termination.
-    if (residual < tolerance) {
+    if (constraint_residual < constraint_residual_tolerance_) {
       // Success, the current set of Lagrange multipliers is correct.
       break;
     }
@@ -168,7 +173,7 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
     // Compute the new Barzilai-Borwein step size.
     if (ite_count == 0) {
       // Initial guess for Barzilai-Borwein step size.
-      alpha = 1.0 / residual;
+      alpha = 1.0 / constraint_residual;
     } else if (ite_count % 2) {
       // Barzilai-Borwein step size Choice 1.
       alpha = xkdiff_dot_xkdiff / xkdiff_dot_gkdiff;
@@ -188,15 +193,16 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
 
   // If the maximum number of iterations is surpassed, we optionally throw an error.
   if (ite_count >= con_ite_max && throw_on_failed_to_converge_) {
-    ThrowRequireMsg(false, "NonSmoothLCP: Failed to converge in "
-                               << max_num_iterations_ << " iterations. \n Current residual is " << residual);
+    ThrowRequireMsg(false, "NonSmoothLCP: Failed to converge in " << max_num_iterations_
+                                                                  << " iterations. \n Current constraint residual is "
+                                                                  << constraint_residual);
   }
 }
 //}
 
 }  // namespace techniques
 
-}  // namespace compute_mobility
+}  // namespace resolve_constraints
 
 }  // namespace methods
 

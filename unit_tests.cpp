@@ -25,9 +25,9 @@ int main(int argc, char** argv) {
 
   testing::InitGoogleTest(&argc, argv);
 
-  returnVal = RUN_ALL_TESTS();
+  int return_val = RUN_ALL_TESTS();
 
   MPI_Finalize();
 
-  return returnVal;
+  return return_val;
 }

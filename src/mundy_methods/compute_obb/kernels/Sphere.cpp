@@ -55,12 +55,10 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Fill the internal members using the internal parameter list
+  // Fill the internal members using the valid parameter list
   obb_field_name_ = valid_fixed_params.get<std::string>("obb_field_name");
   radius_field_name_ = valid_fixed_params.get<std::string>("radius_field_name");
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
-
-  // Store the input params.
   obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, obb_field_name_);
   radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
@@ -76,7 +74,7 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Fill the internal members using the given parameter list.
-  buffer_distance_ = valid_fixed_params.get<double>("buffer_distance");
+  buffer_distance_ = valid_mutable_params.get<double>("buffer_distance");
 }
 //}
 
