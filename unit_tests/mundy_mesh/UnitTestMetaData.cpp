@@ -17,6 +17,9 @@
 // **********************************************************************************************************************
 // @HEADER
 
+// External libs
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+
 // C++ core libs
 #include <algorithm>    // for std::max
 #include <map>          // for std::map
@@ -47,9 +50,9 @@ namespace {
 
 TEST(MetaDataAttributes, DeclareFetchAndRemoveFieldAttribute) {
   // Create a dummy mesh.
-  mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
-  std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
-  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  MeshBuilder builder(MPI_COMM_WORLD);
+  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
+  MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create a dummy field.
   const std::string field_name = "field";
@@ -65,7 +68,7 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveFieldAttribute) {
 
   // Fetch the attribute and check that it is correct.
   ASSERT_NE(meta_data.get_attribute<double>(field), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<double>(field), attribute);
+  EXPECT_EQ(*meta_data.get_attribute<double>(field), std::any_cast<double>(attribute));
 
   // Remove the attribute.
   bool attribute_successfully_removed = meta_data.remove_attribute<double>(field);
@@ -77,9 +80,9 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveFieldAttribute) {
 
 TEST(MetaDataAttributes, DeclareFetchAndRemovePartAttribute) {
   // Create a dummy mesh.
-  mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
-  std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
-  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  MeshBuilder builder(MPI_COMM_WORLD);
+  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
+  MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create a dummy part.
   const std::string part_name = "part";
@@ -93,7 +96,7 @@ TEST(MetaDataAttributes, DeclareFetchAndRemovePartAttribute) {
 
   // Fetch the attribute and check that it is correct.
   ASSERT_NE(meta_data.get_attribute<double>(part), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<double>(part), attribute);
+  EXPECT_EQ(*meta_data.get_attribute<double>(part), std::any_cast<double>(attribute));
 
   // Remove the attribute.
   bool attribute_successfully_removed = meta_data.remove_attribute<double>(part);
@@ -105,9 +108,9 @@ TEST(MetaDataAttributes, DeclareFetchAndRemovePartAttribute) {
 
 TEST(MetaDataAttributes, DeclareFetchAndRemoveMeshAttribute) {
   // Create a dummy mesh.
-  mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
-  std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
-  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  MeshBuilder builder(MPI_COMM_WORLD);
+  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
+  MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create an attribute.
   std::any attribute = 3.14;
@@ -117,7 +120,7 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveMeshAttribute) {
 
   // Fetch the attribute and check that it is correct.
   ASSERT_NE(meta_data.get_attribute<double>(), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<double>(), attribute);
+  EXPECT_EQ(*meta_data.get_attribute<double>(), std::any_cast<double>(attribute));
 
   // Remove the attribute.
   bool attribute_successfully_removed = meta_data.remove_attribute<double>();
@@ -127,16 +130,22 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveMeshAttribute) {
   EXPECT_EQ(meta_data.get_attribute<double>(), nullptr);
 }
 
-struct UncopiableStruct {
-  UncopiableStruct(const UncopiableStruct &) = delete;
+struct CountCopiesStruct {
+  CountCopiesStruct() = default;                                    // Default constructable
+  CountCopiesStruct(const CountCopiesStruct &) { ++num_copies; }    // Copy constructable
+  CountCopiesStruct &operator=(const CountCopiesStruct &) { ++num_copies; return *this; }  // Copy assignable
+
+  static int num_copies;
   int value = 1;
-};  // UncopiableStruct
+};  // CountCopiesStruct
+
+int CountCopiesStruct::num_copies = 0;
 
 TEST(MetaDataAttributes, DeclareFetchAndRemoveUncopiableFieldAttribute) {
   // Create a dummy mesh.
-  mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
-  std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
-  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  MeshBuilder builder(MPI_COMM_WORLD);
+  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
+  MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create a dummy field.
   const std::string field_name = "field";
@@ -145,86 +154,109 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveUncopiableFieldAttribute) {
   stk::mesh::Field<double> &field = meta_data.declare_field<double>(field_rank, field_name, field_dimension);
 
   // Create an uncopiable attribute.
-  std::any uncopiable_attribute = UncopiableStruct();
+  // Note, std::any requires that the element stored within it is copyable.
+  // So, we must wrap the uncopiable object in a std::shared_ptr.
+  CountCopiesStruct::num_copies = 0;
+  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Declare the attribute with move symantics.
   meta_data.declare_attribute(field, std::move(uncopiable_attribute));
 
   // Fetch the attribute and check that it is correct.
-  // Note, we can't use EXPECT_EQ because UncopiableStruct is not copyable.
+  // Note, we can't use EXPECT_EQ because we are trying to avoid copies.
   // Instead, we use EXPECT_TRUE to check that the attribute is not null and that it has the correct value.
-  ASSERT_NE(meta_data.get_attribute<UncopiableStruct>(field), nullptr);
-  EXPECT_EQ(meta_data.get_attribute<UncopiableStruct>(field)->value, 1);
+  // Note, meta_data.get_attribute returns a pointer to our attribute. So, we must dereference it to get the 
+  // underlying shared_ptr before fetching the value.
+  ASSERT_NE(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(field), nullptr);
+  std::shared_ptr<CountCopiesStruct> fetched_attribute = *meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(field);
+  EXPECT_EQ(fetched_attribute->value, 1);
 
   // Remove the attribute.
-  bool attribute_successfully_removed = meta_data.remove_attribute<UncopiableStruct>(field);
+  bool attribute_successfully_removed = meta_data.remove_attribute<std::shared_ptr<CountCopiesStruct>>(field);
   ASSERT_TRUE(attribute_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<UncopiableStruct>(field), nullptr);
+  EXPECT_EQ(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(field), nullptr);
+  
+  // Check that the attribute was never copied.
+  EXPECT_EQ(CountCopiesStruct::num_copies, 0);
 }
 
-TEST(MetaDataAttributes, DeclareFetchAndRemovePartAttribute) {
+TEST(MetaDataAttributes, DeclareFetchAndRemoveUncopiablePartAttribute) {
   // Create a dummy mesh.
-  mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
-  std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
-  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  MeshBuilder builder(MPI_COMM_WORLD);
+  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
+  MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create a dummy part.
   const std::string part_name = "part";
   stk::mesh::Part &part = meta_data.declare_part(part_name, stk::topology::NODE_RANK);
 
-  // Create an attribute.
-  std::any attribute = 3.14;
-
   // Create an uncopiable attribute.
-  std::any uncopiable_attribute = UncopiableStruct();
+  // Note, std::any requires that the element stored within it is copyable.
+  // So, we must wrap the uncopiable object in a std::shared_ptr.
+  CountCopiesStruct::num_copies = 0;
+  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Declare the attribute with move symantics.
   meta_data.declare_attribute(part, std::move(uncopiable_attribute));
 
   // Fetch the attribute and check that it is correct.
-  // Note, we can't use EXPECT_EQ because UncopiableStruct is not copyable.
+  // Note, we can't use EXPECT_EQ because we are trying to avoid copies.
   // Instead, we use EXPECT_TRUE to check that the attribute is not null and that it has the correct value.
-  ASSERT_NE(meta_data.get_attribute<UncopiableStruct>(part), nullptr);
-  EXPECT_EQ(meta_data.get_attribute<UncopiableStruct>(part)->value, 1);
+  // Note, meta_data.get_attribute returns a pointer to our attribute. So, we must dereference it to get the 
+  // underlying shared_ptr before fetching the value.
+  ASSERT_NE(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(part), nullptr);
+  std::shared_ptr<CountCopiesStruct> fetched_attribute = *meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(part);
+  EXPECT_EQ(fetched_attribute->value, 1);
 
   // Remove the attribute.
-  bool attribute_successfully_removed = meta_data.remove_attribute<UncopiableStruct>(part);
+  bool attribute_successfully_removed = meta_data.remove_attribute<std::shared_ptr<CountCopiesStruct>>(part);
   ASSERT_TRUE(attribute_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<UncopiableStruct>(part), nullptr);
+  EXPECT_EQ(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(part), nullptr);
+  
+  // Check that the attribute was never copied.
+  EXPECT_EQ(CountCopiesStruct::num_copies, 0);
 }
 
-TEST(MetaDataAttributes, DeclareFetchAndRemoveMeshAttribute) {
-  // Create a dummy mesh.
-  mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
-  std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
-  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
-  // Create an attribute.
-  std::any attribute = 3.14;
+TEST(MetaDataAttributes, DeclareFetchAndRemoveUncopiableMeshAttribute) {
+  // Create a dummy mesh.
+  MeshBuilder builder(MPI_COMM_WORLD);
+  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
+  MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create an uncopiable attribute.
-  std::any uncopiable_attribute = UncopiableStruct();
+  // Note, std::any requires that the element stored within it is copyable.
+  // So, we must wrap the uncopiable object in a std::shared_ptr.
+  CountCopiesStruct::num_copies = 0;
+  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Declare the attribute with move symantics.
   meta_data.declare_attribute(std::move(uncopiable_attribute));
 
   // Fetch the attribute and check that it is correct.
-  // Note, we can't use EXPECT_EQ because UncopiableStruct is not copyable.
+  // Note, we can't use EXPECT_EQ because we are trying to avoid copies.
   // Instead, we use EXPECT_TRUE to check that the attribute is not null and that it has the correct value.
-  ASSERT_NE(meta_data.get_attribute<UncopiableStruct>(), nullptr);
-  EXPECT_EQ(meta_data.get_attribute<UncopiableStruct>()->value, 1);
+  // Note, meta_data.get_attribute returns a pointer to our attribute. So, we must dereference it to get the 
+  // underlying shared_ptr before fetching the value.
+  ASSERT_NE(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(), nullptr);
+  std::shared_ptr<CountCopiesStruct> fetched_attribute = *meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>();
+  EXPECT_EQ(fetched_attribute->value, 1);
 
   // Remove the attribute.
-  bool attribute_successfully_removed = meta_data.remove_attribute<UncopiableStruct>();
+  bool attribute_successfully_removed = meta_data.remove_attribute<std::shared_ptr<CountCopiesStruct>>();
   ASSERT_TRUE(attribute_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<UncopiableStruct>(), nullptr);
+  EXPECT_EQ(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(), nullptr);
+  
+  // Check that the attribute was never copied.
+  EXPECT_EQ(CountCopiesStruct::num_copies, 0);
 }
+
 
 }  // namespace
 

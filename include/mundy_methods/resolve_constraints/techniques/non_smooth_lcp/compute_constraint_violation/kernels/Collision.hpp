@@ -98,15 +98,15 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     part_reqs->set_part_name("COLLISION");
     part_reqs->set_part_topology(stk::topology::BEAM_2);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("COLLISION"));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_signed_separation_dist_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(part_reqs);
+    mesh_reqs->add_part_reqs(part_reqs);
     return mesh_reqs;
   }
 

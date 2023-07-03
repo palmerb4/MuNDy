@@ -92,15 +92,15 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_req(
+    part_reqs->add_field_reqs(
         std::make_shared<mundy::meta::FieldRequirements<double>>(radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs->add_field_req(
+    part_reqs->add_field_reqs(
         std::make_shared<mundy::meta::FieldRequirements<double>>(aabb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(part_reqs);
+    mesh_reqs->add_part_reqs(part_reqs);
     return mesh_reqs;
   }
 
@@ -115,11 +115,11 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
     std::shared_ptr<mundy::meta::PartRequirements> required_part_params =
         std::make_shared<mundy::meta::PartRequirements>();
     required_part_params->set_part_topology(stk::topology::PARTICLE);
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    required_part_params->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    required_part_params->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(default_aabb_field_name_), stk::topology::ELEMENT_RANK, 4, 1));
     return required_part_params;
   }

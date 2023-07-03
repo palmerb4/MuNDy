@@ -88,15 +88,15 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeAABB:
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
-    part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
+    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_req(
+    part_reqs->add_field_reqs(
         std::make_shared<mundy::meta::FieldRequirements<double>>(radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs->add_field_req(
+    part_reqs->add_field_reqs(
         std::make_shared<mundy::meta::FieldRequirements<double>>(aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(part_reqs);
+    mesh_reqs->add_part_reqs(part_reqs);
     return mesh_reqs;
   }
 

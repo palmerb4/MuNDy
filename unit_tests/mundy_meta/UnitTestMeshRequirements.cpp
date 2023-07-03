@@ -17,6 +17,9 @@
 // **********************************************************************************************************************
 // @HEADER
 
+// External libs
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+
 // C++ core libs
 #include <algorithm>    // for std::max
 #include <map>          // for std::map
@@ -85,7 +88,7 @@ TEST(MeshRequirementsConstructionTest, IsConstructibleWithComm) {
 
 TEST(MeshRequirementsSettersTest, IsSettable) {
   // Check that the setters work.
-  MeshRequirements mesh_reqs();
+  MeshRequirements mesh_reqs;
   EXPECT_FALSE(mesh_reqs.constrains_spatial_dimension());
   EXPECT_FALSE(mesh_reqs.constrains_entity_rank_names());
   EXPECT_FALSE(mesh_reqs.constrains_communicator());
@@ -123,7 +126,7 @@ TEST(MeshRequiremesntsSettersTest, AddFieldReqs) {
 
   // Create a mesh requirements object and add the field requirements to it.
   MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  ASSERT_NO_THROW(mesh_reqs.add_field_requirements(field_reqs_ptr));
+  ASSERT_NO_THROW(mesh_reqs.add_field_reqs(field_reqs_ptr));
 
   // Check that the field requirements were added correctly.
   // TODO(palmerb4): Add a field requirements getter method so we can perform this check.
@@ -158,20 +161,34 @@ TEST(MeshRequirementsSettersTest, AddMeshAttributes) {
   // TODO(palmerb4): Add a mesh attribute getter method so we can perform this check.
 }
 
-struct UncopiableStruct {
-  UncopiableStruct(const UncopiableStruct &) = delete;
+struct CountCopiesStruct {
+  CountCopiesStruct() = default;  // Default constructable
+  CountCopiesStruct(const CountCopiesStruct &) {
+    ++num_copies;
+  }  // Copy constructable
+  CountCopiesStruct &operator=(const CountCopiesStruct &) {
+    ++num_copies;
+    return *this;
+  }  // Copy assignable
+
+  static int num_copies;
   int value = 1;
-};  // UncopiableStruct
+};  // CountCopiesStruct
+
+int CountCopiesStruct::num_copies = 0;
 
 TEST(MeshRequirementsSettersTest, AddMeshAttributeWithoutCopy) {
   // Check that the add_mesh_attribute method works with perfect forwarding.
 
-  // Create a dummy mesh attribute that can't be coppied.
-  std::any mesh_attribute = UncopiableStruct();
+  // Create an uncopiable attribute.
+  // Note, std::any requires that the element stored within it is copyable.
+  // So, we must wrap the uncopiable object in a std::shared_ptr.
+  CountCopiesStruct::num_copies = 0;
+  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Create a mesh requirements object and add the mesh attribute to it.
   MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  ASSERT_NO_THROW(mesh_reqs.add_mesh_attribute(std::move(mesh_attribute)));
+  ASSERT_NO_THROW(mesh_reqs.add_mesh_attribute(std::move(uncopiable_attribute)));
 
   // Check that the mesh attribute was added correctly.
   // TODO(palmerb4): Add a mesh attribute getter method so we can perform this check.
@@ -183,7 +200,7 @@ TEST(MeshRequirementsSettersTest, AddMeshAttributeWithoutCopy) {
 
 TEST(MeshRequirementsGettersTest, IsGettable) {
   // Check that the getters work.
-  MeshRequirements mesh_reqs();
+  MeshRequirements mesh_reqs;
   EXPECT_THROW(mesh_reqs.get_spatial_dimension(), std::logic_error);
   EXPECT_THROW(mesh_reqs.get_entity_rank_names(), std::logic_error);
   EXPECT_THROW(mesh_reqs.get_communicator(), std::logic_error);
@@ -213,7 +230,7 @@ TEST(MeshRequirementsGettersTest, IsGettable) {
 
 TEST(MeshRequirementsDeletersTest, IsDeletable) {
   // Check that the deleters work.
-  MeshRequirements mesh_reqs();
+  MeshRequirements mesh_reqs;
   EXPECT_FALSE(mesh_reqs.constrains_spatial_dimension());
   EXPECT_FALSE(mesh_reqs.constrains_entity_rank_names());
   EXPECT_FALSE(mesh_reqs.constrains_communicator());
@@ -257,23 +274,23 @@ TEST(MeshRequirementsDeletersTest, IsDeletable) {
 
 TEST(MeshRequirementsMergeTest, IsMergeable) {
   // Check that the merge method works.
-  MeshRequirements mesh_reqs1(MPI_COMM_WORLD);
-  MeshRequirements mesh_reqs2(MPI_COMM_WORLD);
-  mesh_reqs1.set_spatial_dimension(3);
-  mesh_reqs1.set_entity_rank_names(std::vector<std::string>());
-  mesh_reqs1.set_communicator(MPI_COMM_WORLD);
-  mesh_reqs1.set_aura_option(stk::mesh::BulkData::AUTO_AURA);
-  mesh_reqs2.set_field_data_manager(nullptr);
-  mesh_reqs2.set_bucket_capacity(1024);
-  mesh_reqs2.set_upward_connectivity_flag(true);
-  mesh_reqs1.merge(mesh_reqs2);
-  EXPECT_EQ(mesh_reqs1.get_spatial_dimension(), 3);
-  EXPECT_EQ(mesh_reqs1.get_entity_rank_names(), std::vector<std::string>());
-  EXPECT_EQ(mesh_reqs1.get_communicator(), MPI_COMM_WORLD);
-  EXPECT_EQ(mesh_reqs1.get_aura_option(), stk::mesh::BulkData::AUTO_AURA);
-  EXPECT_EQ(mesh_reqs1.get_field_data_manager(), nullptr);
-  EXPECT_EQ(mesh_reqs1.get_bucket_capacity(), 1024);
-  EXPECT_EQ(mesh_reqs1.get_upward_connectivity_flag(), true);
+  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>();
+  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>();
+  mesh_reqs1_ptr->set_spatial_dimension(3);
+  mesh_reqs1_ptr->set_entity_rank_names(std::vector<std::string>());
+  mesh_reqs1_ptr->set_communicator(MPI_COMM_WORLD);
+  mesh_reqs1_ptr->set_aura_option(stk::mesh::BulkData::AUTO_AURA);
+  mesh_reqs2_ptr->set_field_data_manager(nullptr);
+  mesh_reqs2_ptr->set_bucket_capacity(1024);
+  mesh_reqs2_ptr->set_upward_connectivity_flag(true);
+  mesh_reqs1_ptr->merge(mesh_reqs2_ptr);
+  EXPECT_EQ(mesh_reqs1_ptr->get_spatial_dimension(), 3);
+  EXPECT_EQ(mesh_reqs1_ptr->get_entity_rank_names(), std::vector<std::string>());
+  EXPECT_EQ(mesh_reqs1_ptr->get_communicator(), MPI_COMM_WORLD);
+  EXPECT_EQ(mesh_reqs1_ptr->get_aura_option(), stk::mesh::BulkData::AUTO_AURA);
+  EXPECT_EQ(mesh_reqs1_ptr->get_field_data_manager(), nullptr);
+  EXPECT_EQ(mesh_reqs1_ptr->get_bucket_capacity(), 1024);
+  EXPECT_EQ(mesh_reqs1_ptr->get_upward_connectivity_flag(), true);
 }
 
 TEST(MeshRequirementsMergeTest, AreFieldsMergable) {
@@ -299,23 +316,28 @@ TEST(MeshRequirementsMergeTest, AreFieldsMergable) {
 
   // Setup the dummy fields.
   using ExampleFieldType = double;
-  auto field_reqs1 = mundy::meta::FieldRequirements<ExampleFieldType>("field1", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2 = mundy::meta::FieldRequirements<ExampleFieldType>("field2", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3 = mundy::meta::FieldRequirements<ExampleFieldType>("field3", stk::topology::ELEMENT_RANK, 3, 3);
-  auto field_reqs4 = mundy::meta::FieldRequirements<ExampleFieldType>("field4", stk::topology::NODE_RANK, 3, 4);
-  auto field_reqs5 = mundy::meta::FieldRequirements<ExampleFieldType>("field5", stk::topology::NODE_RANK, 3, 5);
+  auto field_reqs1_ptr =
+      std::make_shared<FieldRequirements<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr =
+      std::make_shared<FieldRequirements<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr =
+      std::make_shared<FieldRequirements<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
+  auto field_reqs4_ptr =
+      std::make_shared<FieldRequirements<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
+  auto field_reqs5_ptr =
+      std::make_shared<FieldRequirements<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the mesh requirements according to the diagram above.
-  MeshRequirements mesh_reqs1(MPI_COMM_WORLD);
-  MeshRequirements mesh_reqs2(MPI_COMM_WORLD);
-  mesh_reqs1.add_field_reqs(field_reqs1);
-  mesh_reqs1.add_field_reqs(field_reqs2);
-  mesh_reqs1.add_field_reqs(field_reqs3);
-  mesh_reqs2.add_field_reqs(field_reqs4);
-  mesh_reqs2.add_field_reqs(field_reqs5);
+  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
+  mesh_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
+  mesh_reqs1_ptr->add_field_reqs(field_reqs3_ptr);
+  mesh_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
+  mesh_reqs2_ptr->add_field_reqs(field_reqs5_ptr);
 
   // Merge the mesh requirements and check that the fields were merged correctly.
-  ASSERT_NO_THROW(mesh_reqs1.merge(mesh_reqs2));
+  ASSERT_NO_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr));
   // TODO(palmerb4): Use the field getters to check that the fields were merged correctly.
 }
 
@@ -345,15 +367,15 @@ TEST(MeshRequirementsMergeTest, AreMeshAttributesMergable) {
   std::any attribute4 = "something";
 
   // Setup the mesh requirements according to the diagram above.
-  MeshRequirements mesh_reqs1(MPI_COMM_WORLD);
-  MeshRequirements mesh_reqs2(MPI_COMM_WORLD);
-  mesh_reqs1.add_mesh_attribute(attribute1);
-  mesh_reqs1.add_mesh_attribute(attribute2);
-  mesh_reqs2.add_mesh_attribute(attribute3);
-  mesh_reqs2.add_mesh_attribute(attribute4);
+  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs1_ptr->add_mesh_attribute(attribute1);
+  mesh_reqs1_ptr->add_mesh_attribute(attribute2);
+  mesh_reqs2_ptr->add_mesh_attribute(attribute3);
+  mesh_reqs2_ptr->add_mesh_attribute(attribute4);
 
   // Merge the mesh requirements and check that the attributes were merged correctly.
-  ASSERT_NO_THROW(part_reqs1.merge(part_reqs2));
+  ASSERT_NO_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr));
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
 
@@ -364,18 +386,18 @@ TEST(MeshRequirementsMergeTest, AreMeshPartsAndTheirFieldsMergable) {
     part1 (name=A)
       field1 (name=a, rank=NODE, dimension=3, min_number_of_states=1)
       field2 (name=b, rank=NODE, dimension=3, min_number_of_states=2)
-      subpart1 (name=D)
+      subpart1 (name=C)
       attribute1 (type=int)
   mesh2:
-    part3 (name=A)
+    part2 (name=A)
       field3 (name=a, rank=NODE, dimension=3, min_number_of_states=3)
       field4 (name=b, rank=ELEMENT, dimension=3, min_number_of_states=4)
       field5 (name=c, rank=NODE, dimension=3, min_number_of_states=5)
       attribute2 (type=int)
       attribute3 (type=double)
-    part4 (name=B)
+    part3 (name=B)
   merged12:
-    part1 (name=A)
+    part1 merged w/ part2 (name=A)
       field1 merged w/ field3 (name=a, rank=NODE, dimension=3, min_number_of_states=3)
       field2 (name=b, rank=NODE, dimension=3, min_number_of_states=2)
       field4 (name=b, rank=ELEMENT, dimension=3, min_number_of_states=4)
@@ -385,11 +407,11 @@ TEST(MeshRequirementsMergeTest, AreMeshPartsAndTheirFieldsMergable) {
 
   // Setup the dummy fields.
   using ExampleFieldType = double;
-  auto field_reqs1 = mundy::meta::FieldRequirements<ExampleFieldType>("a", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2 = mundy::meta::FieldRequirements<ExampleFieldType>("b", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3 = mundy::meta::FieldRequirements<ExampleFieldType>("a", stk::topology::NODE_RANK, 3, 3);
-  auto field_reqs4 = mundy::meta::FieldRequirements<ExampleFieldType>("b", stk::topology::ELEMENT_RANK, 3, 4);
-  auto field_reqs5 = mundy::meta::FieldRequirements<ExampleFieldType>("c", stk::topology::NODE_RANK, 3, 5);
+  auto field_reqs1_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 3);
+  auto field_reqs4_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::ELEMENT_RANK, 3, 4);
+  auto field_reqs5_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the dummy attributes.
   std::any attribute1 = 8675309;
@@ -397,22 +419,27 @@ TEST(MeshRequirementsMergeTest, AreMeshPartsAndTheirFieldsMergable) {
   std::any attribute3 = 3.14;
 
   // Setup the dummy parts.
-  PartRequirements part_reqs1("A");
-  PartRequirements part_reqs2("B");
-  PartRequirements subpart_reqs1("D");
-  part_reqs1.add_subpart_reqs(subpart_reqs1);
-  part_reqs1.add_part_attribute(attribute1);
-  part_reqs2.add_part_attribute(attribute2);
-  part_reqs2.add_part_attribute(attribute3);
+  auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");
+  auto part_reqs2_ptr = std::make_shared<PartRequirements>("B");
+  auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("C");
+  part_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
+  part_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
+  part_reqs2_ptr->add_field_reqs(field_reqs3_ptr);
+  part_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
+  part_reqs2_ptr->add_field_reqs(field_reqs5_ptr);
+  part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
+  part_reqs1_ptr->add_part_attribute(attribute1);
+  part_reqs2_ptr->add_part_attribute(attribute2);
+  part_reqs2_ptr->add_part_attribute(attribute3);
 
   // Setup the mesh requirements according to the diagram above.
-  MeshRequirements mesh_reqs1(MPI_COMM_WORLD);
-  MeshRequirements mesh_reqs2(MPI_COMM_WORLD);
-  mesh_reqs1.add_part_reqs(part_reqs1);
-  mesh_reqs2.add_part_reqs(part_reqs2);
+  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs1_ptr->add_part_reqs(part_reqs1_ptr);
+  mesh_reqs2_ptr->add_part_reqs(part_reqs2_ptr);
 
   // Merge the mesh requirements and check that the parts were merged correctly.
-  ASSERT_NO_THROW(mesh_reqs1.merge(mesh_reqs2));
+  ASSERT_NO_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr));
   // TODO(palmerb4): Add attribute/field/part getters so we can perform this check.
 }
 
@@ -428,51 +455,51 @@ TEST(MeshRequirementsMergeTest, MergePropertlyHandlesNullptr) {
 
 TEST(MeshRequirementsMergeTest, MergePropertlyHandlesConflicts) {
   // Check that the merge function throws a logic error if any of the constrained quantities differ.
-  MeshRequirements mesh_reqs;
-  auto other_Mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>();
+  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>();
 
-  mesh_reqs.set_spatial_dimension(3);
-  other_mesh_reqs_ptr->set_spatial_dimension(2);
-  EXPECT_THROW(mesh_reqs.merge(other_mesh_reqs_ptr), std::logic_error);
-  mesh_reqs.delete_spatial_dimension();
-  other_mesh_reqs_ptr->delete_spatial_dimension();
+  mesh_reqs1_ptr->set_spatial_dimension(3);
+  mesh_reqs2_ptr->set_spatial_dimension(2);
+  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  mesh_reqs1_ptr->delete_spatial_dimension();
+  mesh_reqs2_ptr->delete_spatial_dimension();
 
-  mesh_reqs.set_entity_rank_names(3);
-  other_mesh_reqs_ptr->set_entity_rank_names(2);
-  EXPECT_THROW(mesh_reqs.merge(other_mesh_reqs_ptr), std::logic_error);
-  mesh_reqs.delete_entity_rank_names();
-  other_mesh_reqs_ptr->delete_entity_rank_names();
+  mesh_reqs1_ptr->set_entity_rank_names(std::vector<std::string>());
+  mesh_reqs2_ptr->set_entity_rank_names({"NODE", "ELEMENT"});
+  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  mesh_reqs1_ptr->delete_entity_rank_names();
+  mesh_reqs2_ptr->delete_entity_rank_names();
 
-  mesh_reqs.set_communicator(MPI_COMM_WORLD);
-  other_mesh_reqs_ptr->set_communicator(MPI_COMM_NULL);
-  EXPECT_THROW(mesh_reqs.merge(other_mesh_reqs_ptr), std::logic_error);
-  mesh_reqs.delete_communicator();
-  other_mesh_reqs_ptr->delete_communicator();
+  mesh_reqs1_ptr->set_communicator(MPI_COMM_WORLD);
+  mesh_reqs2_ptr->set_communicator(MPI_COMM_NULL);
+  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  mesh_reqs1_ptr->delete_communicator();
+  mesh_reqs2_ptr->delete_communicator();
 
-  mesh_reqs.set_aura_option(stk::mesh::BulkData::AUTO_AURA);
-  other_mesh_reqs_ptr->set_aura_option(stk::mesh::BulkData::NO_AUTO_AURA);
-  EXPECT_THROW(mesh_reqs.merge(other_mesh_reqs_ptr), std::logic_error);
-  mesh_reqs.delete_aura_option();
-  other_mesh_reqs_ptr->delete_aura_option();
+  mesh_reqs1_ptr->set_aura_option(stk::mesh::BulkData::AUTO_AURA);
+  mesh_reqs2_ptr->set_aura_option(stk::mesh::BulkData::NO_AUTO_AURA);
+  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  mesh_reqs1_ptr->delete_aura_option();
+  mesh_reqs2_ptr->delete_aura_option();
 
-  field_data_manager = stk::mesh::ContiguousFieldDataManager;
-  mesh_reqs.set_field_data_manager(nullptr);
-  other_mesh_reqs_ptr->set_field_data_manager(&field_data_manager);
-  EXPECT_THROW(mesh_reqs.merge(other_mesh_reqs_ptr), std::logic_error);
-  mesh_reqs.delete_field_data_manager();
-  other_mesh_reqs_ptr->delete_field_data_manager();
+  auto field_data_manager_ptr = std::make_unique<stk::mesh::DefaultFieldDataManager>(1, 4);
+  mesh_reqs1_ptr->set_field_data_manager(nullptr);
+  mesh_reqs2_ptr->set_field_data_manager(field_data_manager_ptr.get());
+  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  mesh_reqs1_ptr->delete_field_data_manager();
+  mesh_reqs2_ptr->delete_field_data_manager();
 
-  mesh_reqs.set_bucket_capacity(1024);
-  other_mesh_reqs_ptr->set_bucket_capacity(512);
-  EXPECT_THROW(mesh_reqs.merge(other_mesh_reqs_ptr), std::logic_error);
-  mesh_reqs.delete_bucket_capacity();
-  other_mesh_reqs_ptr->delete_bucket_capacity();
+  mesh_reqs1_ptr->set_bucket_capacity(1024);
+  mesh_reqs2_ptr->set_bucket_capacity(512);
+  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  mesh_reqs1_ptr->delete_bucket_capacity();
+  mesh_reqs2_ptr->delete_bucket_capacity();
 
-  mesh_reqs.set_upward_connectivity_flag(true);
-  other_mesh_reqs_ptr->set_upward_connectivity_flag(false);
-  EXPECT_THROW(mesh_reqs.merge(other_mesh_reqs_ptr), std::logic_error);
-  mesh_reqs.delete_upward_connectivity_flag();
-  other_mesh_reqs_ptr->delete_upward_connectivity_flag();
+  mesh_reqs1_ptr->set_upward_connectivity_flag(true);
+  mesh_reqs2_ptr->set_upward_connectivity_flag(false);
+  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  mesh_reqs1_ptr->delete_upward_connectivity_flag();
+  mesh_reqs2_ptr->delete_upward_connectivity_flag();
 }
 //@}
 
@@ -483,12 +510,12 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithComm) {
   // Check that the declare function properly declares the mesh requirements.
 
   // Setup the Mesh requirements.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  ASSERT_TRUE(mesh_reqs.is_fully_specified());
+  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
-  ASSERT_NO_THROW(mesh_reqs.declare());
-  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs.declare();
+  ASSERT_NO_THROW(mesh_reqs_ptr->declare_mesh());
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   EXPECT_NE(bulk_data_ptr, nullptr);
 }
 
@@ -496,11 +523,11 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithoutComm) {
   // Check that the mesh requirements throw an error if the communicator is not set.
 
   // Setup the Mesh requirements.
-  MeshRequirements mesh_reqs;
-  ASSERT_FALSE(mesh_reqs.is_fully_specified());
+  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>();
+  ASSERT_FALSE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
-  ASSERT_THROW(mesh_reqs.declare(), std::logic_error);
+  ASSERT_THROW(mesh_reqs_ptr->declare_mesh(), std::logic_error);
 }
 
 TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndFields) {
@@ -512,17 +539,17 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndFields) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>(field_name, field_rank, field_dimension,
-                                                                     field_min_number_of_states);
-  ASSERT_TRUE(field_reqs.is_fully_specified());
+  auto field_reqs_ptr =
+      std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension, field_min_number_of_states);
+  ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
   // Setup the Mesh requirements.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  mesh_reqs.add_field_reqs(field_reqs);
-  ASSERT_TRUE(mesh_reqs.is_fully_specified());
+  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->add_field_reqs(field_reqs_ptr);
+  ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
-  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs.declare();
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   ASSERT_NE(bulk_data_ptr, nullptr);
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
   ASSERT_NO_THROW(meta_data.get_field<ExampleFieldType>(field_rank, field_name));
@@ -534,16 +561,16 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndParts) {
   // Create a dummy part requirements object.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
-  auto part_reqs = mundy::meta::PartRequirements(part_name, part_rank);
-  ASSERT_TRUE(part_reqs.is_fully_specified());
+  auto part_reqs_ptr = std::make_shared<PartRequirements>(part_name, part_rank);
+  ASSERT_TRUE(part_reqs_ptr->is_fully_specified());
 
   // Setup the Mesh requirements.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  mesh_reqs.add_part_reqs(part_reqs);
-  ASSERT_TRUE(mesh_reqs.is_fully_specified());
+  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->add_part_reqs(part_reqs_ptr);
+  ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
-  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs.declare();
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   ASSERT_NE(bulk_data_ptr, nullptr);
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
   auto part_ptr = meta_data.get_part(part_name);
@@ -557,15 +584,15 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndAttributes) {
   std::any attribute = 3.14;
 
   // Setup the Mesh requirements.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  mesh_reqs.add_mesh_attribute(attribute);
-  ASSERT_TRUE(mesh_reqs.is_fully_specified());
+  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->add_mesh_attribute(attribute);
+  ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
-  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs.declare();
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   ASSERT_NE(bulk_data_ptr, nullptr);
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
-  EXPECT_EQ(meta_data.get_attribute<double>(), attribute);
+  EXPECT_EQ(*meta_data.get_attribute<double>(), std::any_cast<double>(attribute));
 }
 
 }  // namespace

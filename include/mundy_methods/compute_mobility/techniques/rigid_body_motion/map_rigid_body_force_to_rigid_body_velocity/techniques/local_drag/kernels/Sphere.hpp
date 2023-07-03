@@ -101,19 +101,19 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     sphere_part_reqs->set_part_name("SPHERE");
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
     sphere_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         node_force_field_name, stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         node_torque_field_name, stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         node_omega_field_name, stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(sphere_part_reqs);
+    mesh_reqs->add_part_reqs(sphere_part_reqs);
 
     return mesh_reqs;
   }

@@ -167,6 +167,10 @@ stk::topology map_string_to_topology(const std::string &topology_string) {
 // \name Constructors and destructor
 //{
 
+PartRequirements::PartRequirements(const std::string &part_name) {
+  this->set_part_name(part_name);
+}
+
 PartRequirements::PartRequirements(const std::string &part_name, const stk::topology::topology_t &part_topology) {
   this->set_part_name(part_name);
   this->set_part_topology(part_topology);
@@ -208,7 +212,7 @@ PartRequirements::PartRequirements(const Teuchos::ParameterList &parameter_list)
       const std::string field_type_string = field_i_sublist.get<std::string>("type");
       std::shared_ptr<FieldRequirementsBase> field_i =
           FieldRequirementsFactory::create_new_instance(field_type_string, field_i_sublist);
-      this->add_field_req(field_i);
+      this->add_field_reqs(field_i);
     }
   }
 
@@ -256,19 +260,19 @@ void PartRequirements::set_part_rank(const std::string &part_rank_string) {
   this->set_part_rank(part_rank);
 }
 
-void PartRequirements::delete_part_name_constraint() {
+void PartRequirements::delete_part_name() {
   part_name_is_set_ = false;
 }
 
-void PartRequirements::delete_part_topology_constraint() {
+void PartRequirements::delete_part_topology() {
   part_topology_is_set_ = false;
 }
 
-void PartRequirements::delete_part_rank_constraint() {
+void PartRequirements::delete_part_rank() {
   part_rank_is_set_ = false;
 }
 
-void PartRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
+void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
 
@@ -457,7 +461,7 @@ void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_p
   for (auto const &part_field_map : part_req_ptr->get_part_ranked_field_map()) {
     // Loop over each field and attempt to merge it.
     for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
-      this->add_field_req(field_req_ptr);
+      this->add_field_reqs(field_req_ptr);
     }
   }
 

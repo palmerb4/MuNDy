@@ -166,16 +166,16 @@ class FieldRequirementsBase {
   virtual void declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const = 0;
 
   /// \brief Delete the field name constraint (if it exists).
-  virtual void delete_field_name_constraint() = 0;
+  virtual void delete_field_name() = 0;
 
   /// \brief Delete the field rank constraint (if it exists).
-  virtual void delete_field_rank_constraint() = 0;
+  virtual void delete_field_rank() = 0;
 
   /// \brief Delete the field dimension constraint (if it exists).
-  virtual void delete_field_dimension_constraint() = 0;
+  virtual void delete_field_dimension() = 0;
 
   /// \brief Delete the field minimum number of states constraint (if it exists).
-  virtual void delete_field_min_number_of_states_constraint() = 0;
+  virtual void delete_field_min_number_of_states() = 0;
 
   /// \brief Ensure that the current set of parameters is valid.
   ///

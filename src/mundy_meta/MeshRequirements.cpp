@@ -94,7 +94,7 @@ MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list)
       const std::string field_type_string = field_i_sublist.get<std::string>("type");
       std::shared_ptr<FieldRequirementsBase> field_i =
           FieldRequirementsFactory::create_new_instance(field_type_string, field_i_sublist);
-      this->add_field_req(field_i);
+      this->add_field_reqs(field_i);
     }
   }
 
@@ -105,7 +105,7 @@ MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list)
     for (unsigned i = 0; i < num_subparts; i++) {
       const Teuchos::ParameterList &part_i_sublist = parameter_list.sublist("part_" + std::to_string(i));
       auto part_i = std::make_shared<PartRequirements>(part_i_sublist);
-      this->add_part_req(part_i);
+      this->add_part_reqs(part_i);
     }
   }
 }
@@ -296,31 +296,31 @@ std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
   return bulk_data_ptr;
 }
 
-void MeshRequirements::delete_spatial_dimension_constraint() {
+void MeshRequirements::delete_spatial_dimension() {
   spatial_dimension_is_set_ = false;
 }
 
-void MeshRequirements::delete_entity_rank_names_constraint() {
+void MeshRequirements::delete_entity_rank_names() {
   entity_rank_names_is_set_ = false;
 }
 
-void MeshRequirements::delete_communicator_constraint() {
+void MeshRequirements::delete_communicator() {
   communicator_is_set_ = false;
 }
 
-void MeshRequirements::delete_aura_option_constraint() {
+void MeshRequirements::delete_aura_option() {
   aura_option_is_set_ = false;
 }
 
-void MeshRequirements::delete_field_data_manager_constraint() {
+void MeshRequirements::delete_field_data_manager() {
   field_data_manager_ptr_is_set_ = false;
 }
 
-void MeshRequirements::delete_bucket_capacity_constraint() {
+void MeshRequirements::delete_bucket_capacity() {
   bucket_capacity_is_set_ = false;
 }
 
-void MeshRequirements::delete_upward_connectivity_flag_constraint() {
+void MeshRequirements::delete_upward_connectivity_flag() {
   upward_connectivity_flag_is_set_ = false;
 }
 
@@ -328,7 +328,7 @@ void MeshRequirements::check_if_valid() const {
   ThrowRequireMsg(false, "not implemented yet");
 }
 
-void MeshRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
+void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
 
@@ -346,7 +346,7 @@ void MeshRequirements::add_field_req(std::shared_ptr<FieldRequirementsBase> fiel
   }
 }
 
-void MeshRequirements::add_part_req(std::shared_ptr<PartRequirements> part_req_ptr) {
+void MeshRequirements::add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
   // Check if the provided parameters are valid.
   part_req_ptr->check_if_valid();
 
@@ -440,13 +440,13 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   for (auto &mesh_field_map : mesh_req_ptr->get_mesh_ranked_field_map()) {
     // Loop over each field and attempt to merge it.
     for ([[maybe_unused]] auto &[field_name, field_req_ptr] : mesh_field_map) {
-      this->add_field_req(field_req_ptr);
+      this->add_field_reqs(field_req_ptr);
     }
   }
 
   // Loop over the part map.
   for ([[maybe_unused]] auto &[part_name, part_req_ptr] : mesh_req_ptr->get_mesh_part_map()) {
-    this->add_part_req(part_req_ptr);
+    this->add_part_reqs(part_req_ptr);
   }
 
   // Loop over the attribute map.

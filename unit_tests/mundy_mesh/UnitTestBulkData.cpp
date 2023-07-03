@@ -17,6 +17,9 @@
 // **********************************************************************************************************************
 // @HEADER
 
+// External libs
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+
 // C++ core libs
 #include <algorithm>    // for std::max
 #include <map>          // for std::map
@@ -42,10 +45,11 @@ namespace {
 // Our only extension is the ability to return our MetaData wrapper, so that's all we need to test.
 
 TEST(BulkDataWrapperTest, FetchMetaData) {
-  mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
-  ASSERT_NO_THROW(std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data());
-  ASSERT_NO_THROW(mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data());
-  ASSERT_NO_THROW(std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr());
+  MeshBuilder builder(MPI_COMM_WORLD);
+  ASSERT_NO_THROW(std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data());
+  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
+  ASSERT_NO_THROW(MetaData &meta_data = bulk_data_ptr->mesh_meta_data());
+  ASSERT_NO_THROW(std::shared_ptr<MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr());
 }
 
 }  // namespace

@@ -121,14 +121,19 @@ class PartRequirements {
   /// Default construction corresponds to having no requirements.
   PartRequirements() = default;
 
-  /// \brief Constructor with partial requirements. Version 1.
+  /// \brief Fully  Constructor with partial requirements. Version 1.
+  ///
+  /// \param part_name [in] Name of the part.
+  PartRequirements(const std::string &part_name);
+
+  /// \brief Constructor with partial requirements. Version 2.
   ///
   /// \param part_name [in] Name of the part.
   ///
   /// \param part_topology [in] Topology of entities within the part.
   PartRequirements(const std::string &part_name, const stk::topology::topology_t &part_topology);
 
-  /// \brief Constructor with partial requirements. Version 2.
+  /// \brief Constructor with partial requirements. Version 3.
   ///
   /// \param part_name [in] Name of the part. If the name already exists for the given topology, the two parameter
   /// sets must be valid.
@@ -170,18 +175,18 @@ class PartRequirements {
   void set_part_rank(const std::string &part_rank_string);
 
   /// \brief Delete the part name constraint (if it exists).
-  void delete_part_name_constraint();
+  void delete_part_name();
 
   /// \brief Delete the part topology constraint (if it exists).
-  void delete_part_topology_constraint();
+  void delete_part_topology();
 
   /// \brief Delete the part rank constraint (if it exists).
-  void delete_part_rank_constraint();
+  void delete_part_rank();
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
   /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///

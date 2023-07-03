@@ -105,11 +105,11 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
     part_reqs->set_part_name("CONSTRAINT");
     part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("CONSTRAINT"));
-    mesh_reqs->add_field_req(std::make_shared<mundy::meta::FieldRequirements<double>>(
+    mesh_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_req(part_reqs);
+    mesh_reqs->add_part_reqs(part_reqs);
 
     return mesh_reqs;
   }

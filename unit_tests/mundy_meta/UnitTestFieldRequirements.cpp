@@ -17,6 +17,9 @@
 // **********************************************************************************************************************
 // @HEADER
 
+// External libs
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+
 // C++ core libs
 #include <algorithm>    // for std::max
 #include <map>          // for std::map
@@ -108,17 +111,30 @@ TEST(FieldRequirementsSettersTest, IsSettable) {
   EXPECT_TRUE(field_reqs.is_fully_specified());
 }
 
-struct UncopiableStruct {
-  UncopiableStruct(const UncopiableStruct &) = delete;
+struct CountCopiesStruct {
+  CountCopiesStruct() = default;                                    // Default constructable
+  CountCopiesStruct(const CountCopiesStruct &) { ++num_copies; }    // Copy constructable
+  CountCopiesStruct &operator=(const CountCopiesStruct &) { ++num_copies; return *this; }  // Copy assignable
+
+  static int num_copies;
   int value = 1;
-};  // UncopiableStruct
+};  // CountCopiesStruct
+
+int CountCopiesStruct::num_copies = 0;
 
 TEST(FieldRequirementsAttributesTest, AddAttributesWithoutCopy) {
   // Check that the attribute adders work.
+
+  // Create an uncopiable attribute.
+  // Note, std::any requires that the element stored within it is copyable.
+  // So, we must wrap the uncopiable object in a std::shared_ptr.
+  CountCopiesStruct::num_copies = 0;
+  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
+
+  // Add the attribute to the FieldRequirements object.
   using ExampleFieldType = double;
-  std::any attribute = UncopiableStruct();
   auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>();
-  ASSERT_NO_THROW(field_reqs.add_field_attribute(std::move(attribute)));
+  ASSERT_NO_THROW(field_reqs.add_field_attribute(std::move(uncopiable_attribute)));
   // TODO(palmerb4): Add an attribute getter to FieldRequirements and check that the attribute was added correctly.
 }
 //@}
@@ -165,10 +181,10 @@ TEST(FieldRequirementsDeletersTest, DeletersWorkProperly) {
   field_reqs.set_field_rank(field_rank);
   field_reqs.set_field_dimension(field_dimension);
   field_reqs.set_field_min_number_of_states(field_min_number_of_states);
-  field_reqs.delete_field_name_constraint();
-  field_reqs.delete_field_rank_constraint();
-  field_reqs.delete_field_dimension_constraint();
-  field_reqs.delete_field_min_number_of_states_constraint();
+  field_reqs.delete_field_name();
+  field_reqs.delete_field_rank();
+  field_reqs.delete_field_dimension();
+  field_reqs.delete_field_min_number_of_states();
   EXPECT_FALSE(field_reqs.constrains_field_name());
   EXPECT_FALSE(field_reqs.constrains_field_rank());
   EXPECT_FALSE(field_reqs.constrains_field_dimension());
@@ -247,10 +263,10 @@ TEST(FieldRequirementsMergeTest, MergeProperlyHandlesConflicts) {
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
   auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>();
-  field_reqs->set_field_name(field_name);
-  field_reqs->set_field_rank(field_rank);
-  field_reqs->set_field_dimension(field_dimension);
-  field_reqs->set_field_min_number_of_states(field_min_number_of_states);
+  field_reqs.set_field_name(field_name);
+  field_reqs.set_field_rank(field_rank);
+  field_reqs.set_field_dimension(field_dimension);
+  field_reqs.set_field_min_number_of_states(field_min_number_of_states);
 
   // Check that the merge function throws a logic error if the field name, rank, or dimension are different.
   auto other_field_reqs_ptr = std::make_shared<mundy::meta::FieldRequirements<ExampleFieldType>>();
@@ -281,10 +297,10 @@ TEST(FieldRequirementsMergeTest, MergeProperlyHandlesDifferentTypes) {
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
   auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType1>();
-  field_reqs->set_field_name(field_name);
-  field_reqs->set_field_rank(field_rank);
-  field_reqs->set_field_dimension(field_dimension);
-  field_reqs->set_field_min_number_of_states(field_min_number_of_states);
+  field_reqs.set_field_name(field_name);
+  field_reqs.set_field_rank(field_rank);
+  field_reqs.set_field_dimension(field_dimension);
+  field_reqs.set_field_min_number_of_states(field_min_number_of_states);
 
   // Notice that the field type is different. This should result in a logic error during the merge.
   auto other_field_reqs_ptr = std::make_shared<mundy::meta::FieldRequirements<ExampleFieldType2>>();
@@ -303,10 +319,10 @@ TEST(FieldRequirementsMergeTest, MergeProperlyHandlesMinNumStates) {
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
   auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>();
-  field_reqs->set_field_name(field_name);
-  field_reqs->set_field_rank(field_rank);
-  field_reqs->set_field_dimension(field_dimension);
-  field_reqs->set_field_min_number_of_states(field_min_number_of_states);
+  field_reqs.set_field_name(field_name);
+  field_reqs.set_field_rank(field_rank);
+  field_reqs.set_field_dimension(field_dimension);
+  field_reqs.set_field_min_number_of_states(field_min_number_of_states);
 
   // Create a new field requirements with a larger min number of states.
   auto other_field_reqs_ptr = std::make_shared<mundy::meta::FieldRequirements<ExampleFieldType>>();
@@ -349,12 +365,12 @@ TEST(FieldRequirementsDeclareTest, DeclareOnPart) {
   stk::mesh::Part &example_part = meta_data.declare_part("example_part", field_rank);
 
   // Declare the field on the example part and validate that the resulting field matches the requirements.
-  field_reqs.declare_field_on_part(bulk_data_ptr->mesh_meta_data(), example_part);
-  stk::mesh::Field *my_field_ptr = meta_data.get_field<ExampleFieldType>(field_rank, field_name);
+  field_reqs.declare_field_on_part(&bulk_data_ptr->mesh_meta_data(), example_part);
+  stk::mesh::Field<ExampleFieldType> *my_field_ptr = meta_data.get_field<ExampleFieldType>(field_rank, field_name);
   ASSERT_NE(my_field_ptr, nullptr);
   EXPECT_EQ(my_field_ptr->name(), field_name);
   EXPECT_EQ(my_field_ptr->entity_rank(), field_rank);
-  EXPECT_EQ(my_field_ptr->max_size(stk::topology::NODE_RANK), field_dimension);
+  EXPECT_EQ(my_field_ptr->max_size(), field_dimension);
   EXPECT_EQ(my_field_ptr->number_of_states(), field_min_number_of_states);
 }
 
@@ -378,12 +394,12 @@ TEST(FieldRequirementsDeclareTest, DeclareOnEntireMesh) {
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Declare the field on the example part and validate that the resulting field matches the requirements.
-  field_reqs.declare_field_on_entire_mesh(bulk_data_ptr->mesh_meta_data());
-  stk::mesh::Field *my_field_ptr = meta_data.get_field<ExampleFieldType>(field_rank, field_name);
+  field_reqs.declare_field_on_entire_mesh(&bulk_data_ptr->mesh_meta_data());
+  stk::mesh::Field<ExampleFieldType> *my_field_ptr = meta_data.get_field<ExampleFieldType>(field_rank, field_name);
   ASSERT_NE(my_field_ptr, nullptr);
   EXPECT_EQ(my_field_ptr->name(), field_name);
   EXPECT_EQ(my_field_ptr->entity_rank(), field_rank);
-  EXPECT_EQ(my_field_ptr->max_size(stk::topology::NODE_RANK), field_dimension);
+  EXPECT_EQ(my_field_ptr->max_size(), field_dimension);
   EXPECT_EQ(my_field_ptr->number_of_states(), field_min_number_of_states);
 }
 //@}

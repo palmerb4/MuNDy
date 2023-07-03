@@ -17,6 +17,9 @@
 // **********************************************************************************************************************
 // @HEADER
 
+// External libs
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+
 // C++ core libs
 #include <algorithm>    // for std::max
 #include <map>          // for std::map
@@ -97,7 +100,7 @@ TEST(PartRequirementsSettersTest, IsNameAndRankSettable) {
   // the part topology when the rank is already set.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
-  const stk::topology::rank_t part_topology = stk::topology::NODE;
+  const stk::topology::topology_t part_topology = stk::topology::NODE;
   PartRequirements part_reqs;
   EXPECT_FALSE(part_reqs.constrains_part_name());
   EXPECT_FALSE(part_reqs.constrains_part_topology());
@@ -117,7 +120,7 @@ TEST(PartRequirementsSettersTest, IsNameAndTopologySettable) {
   // the part rank when the topology is already set.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
-  const stk::topology part_topology = stk::topology::NODE;
+  const stk::topology::topology_t part_topology = stk::topology::NODE;
   PartRequirements part_reqs;
   EXPECT_FALSE(part_reqs.constrains_part_name());
   EXPECT_FALSE(part_reqs.constrains_part_topology());
@@ -146,7 +149,7 @@ TEST(PartRequirementsSettersTest, AddFieldReqs) {
   // Create a PartRequirements object and add the field requirements.
   PartRequirements part_reqs;
   part_reqs.set_part_name("part_name");
-  ASSERT_NO_THROW(part_reqs.add_field_req(field_reqs));
+  ASSERT_NO_THROW(part_reqs.add_field_reqs(field_reqs));
   // TODO(palmerb4): Add a getter for the field requirements and check that they are set correctly.
 }
 
@@ -178,21 +181,30 @@ TEST(PartRequirementsSettersTest, AddPartAttribute) {
   // TODO(palmerb4): Add a getter for the part attributes and check that they are set correctly.
 }
 
-struct UncopiableStruct {
-  UncopiableStruct(const UncopiableStruct &) = delete;
+struct CountCopiesStruct {
+  CountCopiesStruct() = default;                                    // Default constructable
+  CountCopiesStruct(const CountCopiesStruct &) { ++num_copies; }    // Copy constructable
+  CountCopiesStruct &operator=(const CountCopiesStruct &) { ++num_copies; return *this; }  // Copy assignable
+
+  static int num_copies;
   int value = 1;
-};  // UncopiableStruct
+};  // CountCopiesStruct
+
+int CountCopiesStruct::num_copies = 0;
 
 TEST(PartRequirementsSettersTest, AddPartAttributeWithoutCopy) {
   // Check that part attributes can be added with perfect forwarding.
 
-  // Create a dummy part attribute that can't be coppied.
-  std::any part_attribute = UncopiableStruct();
+  // Create an uncopiable attribute.
+  // Note, std::any requires that the element stored within it is copyable.
+  // So, we must wrap the uncopiable object in a std::shared_ptr.
+  CountCopiesStruct::num_copies = 0;
+  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Create a PartRequirements object and add the part attribute.
   PartRequirements part_reqs;
   part_reqs.set_part_name("part_name");
-  ASSERT_NO_THROW(part_reqs.add_part_attribute(std::move(part_attribute)));
+  ASSERT_NO_THROW(part_reqs.add_part_attribute(std::move(uncopiable_attribute)));
 
   // Check that the part attribute was added correctly.
   // TODO(palmerb4): Add a getter for the part attributes and check that they are set correctly.
@@ -448,12 +460,12 @@ TEST(PartRequirementsMergeTest, AreSubpartsAndTheirFieldsMergable) {
   PartRequirements subpart_reqs2("B");
   PartRequirements subpart_reqs3("B");
   PartRequirements subpart_reqs4("C");
-  subpart_reqs1.add_field_req(field_reqs1);
-  subpart_reqs2.add_field_req(field_reqs2);
-  subpart_reqs2.add_field_req(field_reqs3);
-  subpart_reqs3.add_field_req(field_reqs4);
-  subpart_reqs3.add_field_req(field_reqs5);
-  subpart_reqs4.add_field_req(field_reqs6);
+  subpart_reqs1.add_field_reqs(field_reqs1);
+  subpart_reqs2.add_field_reqs(field_reqs2);
+  subpart_reqs2.add_field_reqs(field_reqs3);
+  subpart_reqs3.add_field_reqs(field_reqs4);
+  subpart_reqs3.add_field_reqs(field_reqs5);
+  subpart_reqs4.add_field_reqs(field_reqs6);
 
   // Setup the part requirements according to the diagram above.
   PartRequirements part_reqs1("part1");

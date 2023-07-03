@@ -57,6 +57,11 @@ class MeshRequirements {
   /// Default construction corresponds to having no requirements.
   MeshRequirements() = default;
 
+  /// \brief Construct a fully specified set of mesh requirements.
+  ///
+  /// \param comm [in] The MPI communicator.
+  explicit MeshRequirements(const stk::ParallelMachine &comm);
+  
   /// \brief Construct from a parameter list.
   ///
   /// \param parameter_list [in] Optional list of parameters for specifying the mesh requirements. The set of valid
@@ -99,37 +104,37 @@ class MeshRequirements {
   void set_upward_connectivity_flag(const bool enable_upward_connectivity);
 
   /// \brief Delete the spatial dimension constraint (if it exists).
-  void delete_spatial_dimension_constraint();
+  void delete_spatial_dimension();
 
   /// \brief Delete the entity rank names constraint (if it exists).
-  void delete_entity_rank_names_constraint();
+  void delete_entity_rank_names();
 
   /// \brief Delete the communicator constraint (if it exists).
-  void delete_communicator_constraint();
+  void delete_communicator();
 
   /// \brief Delete the aura option constraint (if it exists).
-  void delete_aura_option_constraint();
+  void delete_aura_option();
 
   /// \brief Delete the field data manager constraint (if it exists).
-  void delete_field_data_manager_constraint();
+  void delete_field_data_manager();
 
   /// \brief Delete the bucket capacity constraint (if it exists).
-  void delete_bucket_capacity_constraint();
+  void delete_bucket_capacity();
 
   /// \brief Delete the upward connectivity flag constraint (if it exists).
-  void delete_upward_connectivity_flag_constraint();
+  void delete_upward_connectivity_flag();
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
   /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
   ///
   /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
-  void add_part_req(std::shared_ptr<PartRequirements> part_req_ptr);
+  void add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
   /// \brief Store a copy of an attribute on the mesh.
   ///
