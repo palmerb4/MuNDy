@@ -30,11 +30,9 @@
 #include <string>      // for std::string
 #include <utility>     // for std::make_pair
 
-// Trilinos libs
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-
 // Mundy libs
 #include <mundy_multibody/Multibody.hpp>  // for mundy::multibody::Multibody and mundy::multibody::multibody_t
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -88,7 +86,7 @@ class Factory {
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static multibody_t get_fast_id(const std::string_view& name) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     return get_name_to_id_map()[name];
   }
@@ -97,7 +95,7 @@ class Factory {
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static std::string_view get_name(const multibody_t fast_id) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_name_map()[fast_id];
   }
@@ -106,7 +104,7 @@ class Factory {
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static stk::topology get_topology(const std::string_view& name) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     const multibody_t fast_id = get_fast_id(name);
     return get_topology(fast_id);
@@ -116,7 +114,7 @@ class Factory {
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static stk::topology get_topology(const multibody_t fast_id) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_topology_generator_map()[fast_id]();
   }
@@ -125,7 +123,7 @@ class Factory {
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static bool has_parent(const std::string_view& name) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     const multibody_t fast_id = get_fast_id(name);
     return has_parent(fast_id);
@@ -135,7 +133,7 @@ class Factory {
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static bool has_parent(const multibody_t fast_id) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_has_parent_generator_map()[fast_id]();
   }
@@ -144,7 +142,7 @@ class Factory {
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static bool get_parent_fast_id(const std::string_view& name) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     const multibody_t fast_id = get_fast_id(name);
     return get_parent_fast_id(fast_id);
@@ -154,7 +152,7 @@ class Factory {
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false.
   static bool get_parent_fast_id(const multibody_t fast_id) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     std::string_view parent_name = get_parent_name(fast_id);
     return get_fast_id(parent_name);
@@ -164,7 +162,7 @@ class Factory {
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static std::string_view get_parent_name(const std::string_view& name) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' is not valid.");
     const multibody_t fast_id = get_fast_id(name);
     return get_parent_name(fast_id);
@@ -174,7 +172,7 @@ class Factory {
   /// \param fast_id [in] A fast id that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(fast_id) returns false
   static std::string_view get_parent_name(const multibody_t fast_id) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
     return get_parent_name_generator_map()[fast_id]();
   }
@@ -187,7 +185,7 @@ class Factory {
   template <typename ClassToRegister>
   static void register_new_class() {
     const std::string_view name = ClassToRegister::get_name();
-    TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(name), std::invalid_argument,
+    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
                                "Factory: The provided class's name '" << name << "' already exists.");
     number_of_registered_types_++;
 

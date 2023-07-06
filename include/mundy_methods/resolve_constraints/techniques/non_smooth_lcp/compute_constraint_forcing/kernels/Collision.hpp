@@ -113,7 +113,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Collision: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -123,7 +123,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
 
     if (fixed_params_ptr->isParameter("node_force_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Collision: Type error. Given a parameter with name 'node_force_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -134,7 +134,7 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     if (fixed_params_ptr->isParameter("element_lagrange_multiplier_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_lagrange_multiplier_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "Collision: Type error. Given a parameter with name 'element_lagrange_multiplier_field_name' but "
           "with a type other than std::string");

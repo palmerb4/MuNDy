@@ -106,7 +106,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Spherocylinder: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -117,7 +117,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     if (fixed_params_ptr->isParameter("element_radius_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "Spherocylinder: Type error. Given a parameter with name 'element_length_field_name' but "
           "with a type other than std::string");
@@ -129,7 +129,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     if (fixed_params_ptr->isParameter("element_aabb_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_aabb_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "Spherocylinder: Type error. Given a parameter with name 'element_aabb_field_name' but "
               << "with a type other than std::string");
@@ -145,7 +145,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("buffer_distance")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Spherocylinder: Type error. Given a parameter with name 'buffer_distance' but "
                                      << "with a type other than unsigned");
     } else {

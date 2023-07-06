@@ -33,7 +33,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>    // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
 #include <stk_topology/topology.hpp>       // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
@@ -45,6 +44,7 @@
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 #include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 // This fixes compilation errors with OpenMPI 4.
 // The cause of the error is that OpenMPI defines MPI_Comm (and therefore stk::ParallelMachine) as a pointer to an
@@ -192,50 +192,50 @@ bool MeshRequirements::is_fully_specified() const {
 }
 
 unsigned MeshRequirements::get_spatial_dimension() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_spatial_dimension(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_spatial_dimension(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
   return spatial_dimension_;
 }
 
 std::vector<std::string> MeshRequirements::get_entity_rank_names() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_entity_rank_names(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_entity_rank_names(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
   return entity_rank_names_;
 }
 
 stk::ParallelMachine MeshRequirements::get_communicator() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_communicator(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_communicator(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
   return communicator_;
 }
 
 mundy::mesh::BulkData::AutomaticAuraOption MeshRequirements::get_aura_option() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_aura_option(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_aura_option(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
   return aura_option_;
 }
 
 stk::mesh::FieldDataManager *MeshRequirements::get_field_data_manager() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_field_data_manager(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_field_data_manager(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
   return field_data_manager_ptr_;
 }
 
 unsigned MeshRequirements::get_bucket_capacity() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_bucket_capacity(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_bucket_capacity(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
   return bucket_capacity_;
 }
 
 bool MeshRequirements::get_upward_connectivity_flag() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_upward_connectivity_flag(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_upward_connectivity_flag(), std::logic_error,
       "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
   return upward_connectivity_flag_;
 }
@@ -263,7 +263,7 @@ std::map<std::type_index, std::any> MeshRequirements::get_mesh_attributes_map() 
 // \name Actions
 //{
 std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_communicator(), std::logic_error,
+  MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
                              "MeshRequirements: The MPI communicator must be ste before calling declare_mesh.");
 
   // The mesh itself is generated using stk's MeshBuilder which we provide a wrapper for.
@@ -306,6 +306,11 @@ std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
     part_req_ptr->declare_part_on_mesh(&meta_data);
   }
 
+  // Declare the mesh's attributes.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : mesh_attributes_map_) {
+    meta_data.declare_attribute(attribute);
+  }
+
   return bulk_data_ptr;
 }
 
@@ -338,7 +343,6 @@ void MeshRequirements::delete_upward_connectivity_flag() {
 }
 
 void MeshRequirements::check_if_valid() const {
-  ThrowRequireMsg(false, "not implemented yet");
 }
 
 void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
@@ -383,13 +387,19 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
+  // Check if the provided pointer is valid.
+  // If it is not, then there is nothing to merge.
+  if (mesh_req_ptr == nullptr) {
+    return;
+  }
+
   // Check if the provided parameters are valid.
   mesh_req_ptr->check_if_valid();
 
   // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
   if (mesh_req_ptr->constrains_spatial_dimension()) {
     if (this->constrains_spatial_dimension()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_spatial_dimension() == mesh_req_ptr->get_spatial_dimension(),
+      MUNDY_THROW_ASSERT(this->get_spatial_dimension() == mesh_req_ptr->get_spatial_dimension(),
                                  std::invalid_argument,
                                  "MeshRequirements: One of the inputs has incompatible spatial dimension ("
                                      << mesh_req_ptr->get_spatial_dimension() << ").");
@@ -400,7 +410,7 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
 
   if (mesh_req_ptr->constrains_entity_rank_names()) {
     if (this->constrains_entity_rank_names()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_entity_rank_names() == mesh_req_ptr->get_entity_rank_names(),
+      MUNDY_THROW_ASSERT(this->get_entity_rank_names() == mesh_req_ptr->get_entity_rank_names(),
                                  std::invalid_argument,
                                  "MeshRequirements: One of the inputs has incompatible entity rank names.");
     } else {
@@ -410,16 +420,25 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
 
   if (mesh_req_ptr->constrains_communicator()) {
     if (this->constrains_communicator()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_communicator() == mesh_req_ptr->get_communicator(), std::invalid_argument,
+      MUNDY_THROW_ASSERT(this->get_communicator() == mesh_req_ptr->get_communicator(), std::invalid_argument,
                                  "MeshRequirements: One of the inputs has incompatible MPI communicator.");
     } else {
       this->set_communicator(mesh_req_ptr->get_communicator());
     }
   }
 
+  if (mesh_req_ptr->constrains_aura_option()) {
+    if (this->constrains_aura_option()) {
+      MUNDY_THROW_ASSERT(this->get_aura_option() == mesh_req_ptr->get_aura_option(), std::invalid_argument,
+                                 "MeshRequirements: One of the inputs has incompatible aura option.");
+    } else {
+      this->set_aura_option(mesh_req_ptr->get_aura_option());
+    }
+  }
+
   if (mesh_req_ptr->constrains_field_data_manager()) {
     if (this->constrains_field_data_manager()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_data_manager() == mesh_req_ptr->get_field_data_manager(),
+      MUNDY_THROW_ASSERT(this->get_field_data_manager() == mesh_req_ptr->get_field_data_manager(),
                                  std::invalid_argument,
                                  "MeshRequirements: One of the inputs has incompatible field data manager.");
     } else {
@@ -429,7 +448,7 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
 
   if (mesh_req_ptr->constrains_bucket_capacity()) {
     if (this->constrains_bucket_capacity()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_bucket_capacity() == mesh_req_ptr->get_bucket_capacity(),
+      MUNDY_THROW_ASSERT(this->get_bucket_capacity() == mesh_req_ptr->get_bucket_capacity(),
                                  std::invalid_argument,
                                  "MeshRequirements: One of the inputs has incompatible bucket capacity ("
                                      << mesh_req_ptr->get_bucket_capacity() << ").");
@@ -440,7 +459,7 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
 
   if (mesh_req_ptr->constrains_upward_connectivity_flag()) {
     if (this->constrains_upward_connectivity_flag()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_upward_connectivity_flag() == mesh_req_ptr->get_upward_connectivity_flag(),
+      MUNDY_THROW_ASSERT(this->get_upward_connectivity_flag() == mesh_req_ptr->get_upward_connectivity_flag(),
                                  std::invalid_argument,
                                  "MeshRequirements: One of the inputs has incompatible connectivity flag ("
                                      << mesh_req_ptr->get_upward_connectivity_flag() << ").");

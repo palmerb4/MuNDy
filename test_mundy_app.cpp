@@ -9,7 +9,6 @@
 // Trilinos libs
 
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Comm.hpp>           // for comm_mesh_counts
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity

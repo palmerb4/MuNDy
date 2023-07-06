@@ -7,9 +7,7 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
-
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Comm.hpp>           // for comm_mesh_counts
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
@@ -18,6 +16,10 @@
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
+
+
+// Mundy libs 
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 void verify_global_entity_count(size_t expected_total_num_nodes, size_t expected_total_num_edges,
                                 size_t expected_total_num_elements, const stk::mesh::BulkData &bulk_data) {

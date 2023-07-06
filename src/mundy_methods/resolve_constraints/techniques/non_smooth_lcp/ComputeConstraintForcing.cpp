@@ -28,7 +28,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -42,6 +41,7 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintForcing
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -59,7 +59,7 @@ namespace non_smooth_lcp {
 ComputeAABB::ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
                              "ComputeAABB: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -90,7 +90,7 @@ void ComputeAABB::set_mutable_params(const Teuchos::ParameterList &mutable_param
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  TEUCHOS_TEST_FOR_EXCEPTION(
+  MUNDY_THROW_ASSERT(
       num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
       "ComputeAABB: Internal error. Mismatch between the stored kernel count and the parameter list kernel count.\n"
           << "Odd... Please contact the development team.");

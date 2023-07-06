@@ -30,7 +30,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -45,6 +44,7 @@
 #include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
 #include <mundy_methods/ResolveConstraints.hpp>  // for mundy::methods::ResolveConstraints
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -136,7 +136,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_forcing_params.isParameter("name")) {
       const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
               << "with a type other than std::string");
@@ -149,7 +149,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (compute_constraint_projection_params.isParameter("name")) {
       const bool valid_type =
           compute_constraint_projection_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
               << "with a type other than std::string");
@@ -161,7 +161,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_residual_params.isParameter("name")) {
       const bool valid_type = compute_constraint_residual_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
               << "with a type other than std::string");
@@ -174,7 +174,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (compute_constraint_violation_params.isParameter("name")) {
       const bool valid_type =
           compute_constraint_violation_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
               << "with a type other than std::string");
@@ -204,7 +204,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (fixed_params_ptr->isParameter("element_constraint_violation_field")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a parameter with name 'element_constraint_violation_field' but "
               << "with a type other than std::string");
@@ -229,7 +229,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_forcing_params.isParameter("name")) {
       const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
               << "with a type other than std::string");
@@ -242,7 +242,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (compute_constraint_projection_params.isParameter("name")) {
       const bool valid_type =
           compute_constraint_projection_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_projection parameter with name 'name' but "
               << "with a type other than std::string");
@@ -254,7 +254,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_residual_params.isParameter("name")) {
       const bool valid_type = compute_constraint_residual_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
               << "with a type other than std::string");
@@ -267,7 +267,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (compute_constraint_violation_params.isParameter("name")) {
       const bool valid_type =
           compute_constraint_violation_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a compute_constraint_violation parameter with name 'name' but "
               << "with a type other than std::string");
@@ -296,7 +296,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     // Validate the mutable parameters of this method itself.
     if (mutable_params_ptr->isParameter("max_num_iterations")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("max_num_iterations");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "NonSmoothLCP: Type error. Given a parameter with name 'max_num_iterations' but "
                                      << "with a type other than unsigned");
     } else {
@@ -307,12 +307,12 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (mutable_params_ptr->isParameter("constraint_residual_tolerance")) {
       const bool valid_type =
           mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("constraint_residual_tolerance");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "NonSmoothLCP: Type error. Given a parameter with name 'constraint_residual_tolerance' but "
               << "with a type other than double");
       const bool is_constraint_residual_tolerance_positive = mutable_params_ptr->get<double>("viscosity") > 0;
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           is_constraint_residual_tolerance_positive, std::invalid_argument,
           "NodeEuler: Invalid parameter. Given a parameter with name 'constraint_residual_tolerance' but "
               << "with a value less than or equal to zero.");

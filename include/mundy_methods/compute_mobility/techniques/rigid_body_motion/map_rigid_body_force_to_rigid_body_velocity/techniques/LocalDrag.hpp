@@ -31,7 +31,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -46,6 +45,7 @@
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 

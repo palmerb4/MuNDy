@@ -30,12 +30,12 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
@@ -157,9 +157,8 @@ stk::topology map_string_to_topology(const std::string &topology_string) {
     const int num_nodes = std::stoi(base_match[1].str());
     return stk::create_superelement_topology(num_nodes);
   } else {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        true, std::invalid_argument,
-        "PartRequirements: The provided topology string " << topology_string << " is not valid.");
+    MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                       "PartRequirements: The provided topology string " << topology_string << " is not valid.");
   }
 }
 //}
@@ -239,6 +238,11 @@ void PartRequirements::set_part_name(const std::string &part_name) {
 }
 
 void PartRequirements::set_part_topology(const stk::topology::topology_t &part_topology) {
+  bool part_rank_already_set = this->constrains_part_rank();
+  MUNDY_THROW_ASSERT(
+      !part_rank_already_set, std::logic_error,
+      "PartRequirements: Parts are designed to fall into three catagories: name set, name and topology set, "
+          << "name and rank set. \n This part already sets the rank, so it's invalid to also set the topology.");
   part_topology_ = part_topology;
   part_topology_is_set_ = true;
   this->check_if_valid();
@@ -250,6 +254,11 @@ void PartRequirements::set_part_topology(const std::string &part_topology_string
 }
 
 void PartRequirements::set_part_rank(const stk::topology::rank_t &part_rank) {
+  bool part_topology_already_set = this->constrains_part_topology();
+  MUNDY_THROW_ASSERT(
+      !part_topology_already_set, std::logic_error,
+      "PartRequirements: Parts are designed to fall into three catagories: name set, name and topology set, "
+          << "name and rank set. \n This part already sets the topology, so it's invalid to also set the rank.");
   part_rank_ = part_rank;
   part_rank_is_set_ = true;
   this->check_if_valid();
@@ -328,11 +337,11 @@ bool PartRequirements::constrains_part_name() const {
 }
 
 bool PartRequirements::constrains_part_topology() const {
-  return part_name_is_set_;
+  return part_topology_is_set_;
 }
 
 bool PartRequirements::constrains_part_rank() const {
-  return part_name_is_set_;
+  return part_rank_is_set_;
 }
 
 bool PartRequirements::is_fully_specified() const {
@@ -340,24 +349,24 @@ bool PartRequirements::is_fully_specified() const {
 }
 
 std::string PartRequirements::get_part_name() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_part_name(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_part_name(), std::logic_error,
       "PartRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
 
   return part_name_;
 }
 
 stk::topology::topology_t PartRequirements::get_part_topology() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(!this->constrains_part_topology(), std::logic_error,
-                             "PartRequirements: Attempting to access the part topology requirement even though part "
-                             "topology is unconstrained.");
+  MUNDY_THROW_ASSERT(this->constrains_part_topology(), std::logic_error,
+                     "PartRequirements: Attempting to access the part topology requirement even though part "
+                     "topology is unconstrained.");
 
   return part_topology_;
 }
 
 stk::topology::rank_t PartRequirements::get_part_rank() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_part_rank(), std::logic_error,
+  MUNDY_THROW_ASSERT(
+      this->constrains_part_rank(), std::logic_error,
       "PartRequirements: Attempting to access the part rank requirement even though part rank is unconstrained.");
 
   return part_rank_;
@@ -381,10 +390,10 @@ std::map<std::type_index, std::any> PartRequirements::get_part_attributes_map() 
 // \name Actions
 //{
 stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *const meta_data_ptr) const {
-  TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
-                             "PartRequirements: MetaData pointer cannot be null).");
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_part_name(), std::logic_error,
-                             "PartRequirements: Part name must be set before calling declare_part.");
+  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
+                     "PartRequirements: MetaData pointer cannot be null).");
+  MUNDY_THROW_ASSERT(this->constrains_part_name(), std::logic_error,
+                     "PartRequirements: Part name must be set before calling declare_part.");
 
   // Declare the Part.
   stk::mesh::Part *part_ptr;
@@ -412,6 +421,11 @@ stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *c
     meta_data_ptr->declare_part_subset(*part_ptr, subpart);
   }
 
+  // Declare the Part's attributes.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : part_attributes_map_) {
+    meta_data_ptr->declare_attribute(*part_ptr, attribute);
+  }
+
   return *part_ptr;
 }
 
@@ -423,13 +437,19 @@ void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_p
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
+  // Check if the provided pointer is valid.
+  // If it is not, then there is nothing to merge.
+  if (part_req_ptr == nullptr) {
+    return;
+  }
+
   // Check if the provided parameters are valid.
   part_req_ptr->check_if_valid();
 
   // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
   if (part_req_ptr->constrains_part_name()) {
     if (this->constrains_part_name()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
           "PartRequirements: One of the inputs has incompatible name (" << part_req_ptr->get_part_name() << ").");
     } else {
@@ -439,7 +459,7 @@ void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_p
 
   if (part_req_ptr->constrains_part_rank()) {
     if (this->constrains_part_rank()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
           "PartRequirements: One of the inputs has incompatible rank (" << part_req_ptr->get_part_rank() << ").");
     } else {
@@ -449,9 +469,9 @@ void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_p
 
   if (part_req_ptr->constrains_part_topology()) {
     if (this->constrains_part_topology()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_part_topology() == part_req_ptr->get_part_topology(), std::invalid_argument,
-                                 "PartRequirements: One of the inputs has incompatible topology ("
-                                     << part_req_ptr->get_part_topology() << ").");
+      MUNDY_THROW_ASSERT(this->get_part_topology() == part_req_ptr->get_part_topology(), std::invalid_argument,
+                         "PartRequirements: One of the inputs has incompatible topology ("
+                             << part_req_ptr->get_part_topology() << ").");
     } else {
       this->set_part_topology(part_req_ptr->get_part_topology());
     }

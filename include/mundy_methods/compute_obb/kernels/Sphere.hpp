@@ -105,7 +105,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("obb_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("obb_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'obb_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -115,7 +115,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
 
     if (fixed_params_ptr->isParameter("radius_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("radius_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -125,7 +125,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
 
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -139,11 +139,11 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("buffer_distance")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("buffer_distance");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
                                      << "with a type other than double");
       const bool is_buffer_distance_positive = mutable_params_ptr->get<double>("buffer_distance") > 0;
-      TEUCHOS_TEST_FOR_EXCEPTION(is_buffer_distance_positive, std::invalid_argument,
+      MUNDY_THROW_ASSERT(is_buffer_distance_positive, std::invalid_argument,
                                  "Sphere: Invalid parameter. Given a parameter with name 'buffer_distance' but "
                                      << "with a value less than or equal to zero.");
     } else {

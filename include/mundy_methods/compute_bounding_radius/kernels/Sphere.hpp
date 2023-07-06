@@ -102,7 +102,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("radius_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("radius_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -113,7 +113,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
     if (fixed_params_ptr->isParameter("bounding_radius_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("bounding_radius_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'bounding_radius_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -127,7 +127,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("buffer_distance")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
                                  "with a type other than unsigned");
     } else {

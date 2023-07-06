@@ -31,7 +31,6 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_TestForException.hpp>        // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Bucket.hpp>            // stk::mesh::get_default_maximum_bucket_capacity
 #include <stk_mesh/base/BulkData.hpp>          // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
@@ -39,6 +38,7 @@
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {

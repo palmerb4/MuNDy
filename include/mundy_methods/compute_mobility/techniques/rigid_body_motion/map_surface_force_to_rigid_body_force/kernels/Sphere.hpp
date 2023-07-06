@@ -118,7 +118,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -128,7 +128,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
     if (fixed_params_ptr->isParameter("node_force_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_force_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -139,7 +139,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     if (fixed_params_ptr->isParameter("node_torque_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_torque_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'node_torque_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -153,7 +153,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("alpha")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("alpha");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'alpha' but "
                                  "with a type other than double");
     } else {
@@ -163,7 +163,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
 
     if (mutable_params_ptr->isParameter("beta")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("beta");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "Sphere: Type error. Given a parameter with name 'beta' but "
                                  "with a type other than double");
     } else {

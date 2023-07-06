@@ -28,7 +28,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -42,6 +41,7 @@
 #include <mundy_meta/MetaRegistry.hpp>              // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeBoundingRadius.hpp>  // for mundy::methods::ComputeBoundingRadius
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -54,7 +54,7 @@ ComputeBoundingRadius::ComputeBoundingRadius(mundy::mesh::BulkData *const bulk_d
                                              const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
                              "ComputeBoundingRadius: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -85,7 +85,7 @@ void ComputeBoundingRadius::set_mutable_params([[maybe_unused]] const Teuchos::P
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  TEUCHOS_TEST_FOR_EXCEPTION(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+  MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
                              "ComputeBoundingRadius: Internal error. Mismatch between the stored kernel count and the "
                                  << "parameter list kernel count.\n"
                                  << "Odd... Please contact the development team.");

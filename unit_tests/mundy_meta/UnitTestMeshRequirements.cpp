@@ -556,7 +556,7 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndFields) {
   ASSERT_NO_THROW(meta_data.get_field<ExampleFieldType>(field_rank, field_name));
 }
 
-TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndParts) {
+TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndDimAndParts) {
   // Check that the declare function properly declares a mesh with parts.
 
   // Create a dummy part requirements object.
@@ -566,8 +566,10 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndParts) {
   ASSERT_TRUE(part_reqs_ptr->is_fully_specified());
 
   // Setup the Mesh requirements.
+  // Note, you cannot declare a ranked part unless the spatial dimension has been set.
   auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
   mesh_reqs_ptr->add_part_reqs(part_reqs_ptr);
+  mesh_reqs_ptr->set_spatial_dimension(3);
   ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
@@ -593,6 +595,7 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndAttributes) {
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   ASSERT_NE(bulk_data_ptr, nullptr);
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  ASSERT_NE(meta_data.get_attribute<double>(), nullptr);
   EXPECT_EQ(*meta_data.get_attribute<double>(), std::any_cast<double>(attribute));
 }
 

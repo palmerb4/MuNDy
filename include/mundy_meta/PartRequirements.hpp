@@ -301,18 +301,18 @@ class PartRequirements {
     // TODO(palmerb4): We should also take in and validate any sub-parts, fields, or known attributes.
     // Note, topology and rank can either be in string form or in explicit type form.
 
-    TEUCHOS_TEST_FOR_EXCEPTION(
+    MUNDY_THROW_ASSERT(
         parameter_list_ptr->isParameter("name"), std::invalid_argument,
         "PartRequirements: Expected to find a parameter with name 'name' but no such parameter exists.");
 
     const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-    TEUCHOS_TEST_FOR_EXCEPTION(
+    MUNDY_THROW_ASSERT(
         valid_type, std::invalid_argument,
         "PartRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string");
 
     bool valid_topology_rank_combo =
         !(parameter_list_ptr->isParameter("topology") && parameter_list_ptr->isParameter("rank"));
-    TEUCHOS_TEST_FOR_EXCEPTION(valid_topology_rank_combo, std::invalid_argument,
+    MUNDY_THROW_ASSERT(valid_topology_rank_combo, std::invalid_argument,
                                "PartRequirements: Topology and rank cannot both be set simultaneously; please set one "
                                    << "or the other (or neither).");
 
@@ -320,7 +320,7 @@ class PartRequirements {
       const bool valid_type =
           ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("topology")) ||
            (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::topology_t>("topology")));
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "PartRequirements: Type error. Given a parameter with name 'topology' but "
                                      << "with a type other than std::string or stk::topology::topology_t");
     } else {
@@ -328,7 +328,7 @@ class PartRequirements {
         const bool valid_type =
             ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
              (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
-        TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+        MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                    "PartRequirements: Type error. Given a parameter with name 'rank' but with a "
                                        << "type other than std::string or stk::topology::rank_t");
       }

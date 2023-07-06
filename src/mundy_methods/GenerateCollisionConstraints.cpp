@@ -29,7 +29,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>     // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -43,6 +42,7 @@
 #include <mundy_meta/MetaRegistry.hpp>                     // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
 #include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -55,7 +55,7 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
                                                            const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr_ == nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
                              "GenerateCollisionConstraints: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -86,7 +86,7 @@ void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teu
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  TEUCHOS_TEST_FOR_EXCEPTION(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+  MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
                              "GenerateCollisionConstraints: Internal error. Mismatch between the stored kernel count "
                              "and the parameter list kernel count.\n"
                                  << "Odd... Please contact the development team.");
@@ -254,7 +254,7 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(mundy::mesh::
                                                                    const std::string &name_of_ghosting,
                                                                    bool ghost_downward_connectivity,
                                                                    bool ghost_upward_connectivity) {
-  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
+  MUNDY_THROW_ASSERT(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
                              "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
                                  << "Be sure to run modificiation_begin() before running this routine.");
 
@@ -281,11 +281,11 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(mundy::mesh::
           (bulk_data_ptr->parallel_owner_rank(source_entity) == source_proc) == is_source_owned;
       bool is_target_proc_consistent =
           (bulk_data_ptr->parallel_owner_rank(target_entity) == target_proc) == is_target_owned;
-      TEUCHOS_TEST_FOR_EXCEPTION(is_source_proc_consistent, std::invalid_argument,
+      MUNDY_THROW_ASSERT(is_source_proc_consistent, std::invalid_argument,
                                  "GenerateCollisionConstraints: The source proc for pair i = "
                                      << i << " gives inconsistent ownership.\n"
                                      << "Make sure that the entity proc of your source is correct.");
-      TEUCHOS_TEST_FOR_EXCEPTION(is_target_proc_consistent, std::invalid_argument,
+      MUNDY_THROW_ASSERT(is_target_proc_consistent, std::invalid_argument,
                                  "GenerateCollisionConstraints: The target proc for pair i = "
                                      << i << " gives inconsistent ownership.\n"
                                      << "Make sure that the entity proc of your target is correct.");
@@ -370,7 +370,7 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
   //   2. Change the topology of the c elements to be collision constraints.
   //   3. For each collision constraint, attach two unique nodes.
   //   4. For each pair, fetch their linkers and attach the respective nodes.
-  TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
+  MUNDY_THROW_ASSERT(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
                              "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
                                  << "Be sure to run modificiation_begin() before running this routine.");
 
@@ -380,7 +380,7 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
     stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].first.id());
     stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].second.id());
     bool is_pair_valid = bulk_data_ptr->is_valid(source_entity) && bulk_data_ptr->is_valid(target_entity);
-    TEUCHOS_TEST_FOR_EXCEPTION(
+    MUNDY_THROW_ASSERT(
         is_pair_valid, std::invalid_argument,
         "GenerateCollisionConstraints: Constraint generation failed. Pair i = " << i << " is invalid.");
   }
@@ -422,11 +422,11 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
       // These linkers may have existing nodes, so we tack the new ones onto the end of their dynamic connectivity.
       stk::mesh::Entity source_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].first.id());
       stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].second.id());
-      TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->num_connectivity(source_entity, stk::topology::CONSTRAINT_RANK) == 1,
+      MUNDY_THROW_ASSERT(bulk_data_ptr->num_connectivity(source_entity, stk::topology::CONSTRAINT_RANK) == 1,
                                  std::invalid_argument,
                                  "GenerateCollisionConstraints: The source entity within Pair i = "
                                      << i << " doesn't have a linker (or has multiple linkers).");
-      TEUCHOS_TEST_FOR_EXCEPTION(bulk_data_ptr->num_connectivity(target_entity, stk::topology::CONSTRAINT_RANK) == 1,
+      MUNDY_THROW_ASSERT(bulk_data_ptr->num_connectivity(target_entity, stk::topology::CONSTRAINT_RANK) == 1,
                                  std::invalid_argument,
                                  "GenerateCollisionConstraints: The target entity within Pair i = "
                                      << i << " doesn't have a linker (or has multiple linkers).");

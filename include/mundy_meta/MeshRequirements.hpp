@@ -223,7 +223,7 @@ class MeshRequirements {
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
     if (parameter_list_ptr->isParameter("spatial_dimension")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("spatial_dimension");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
                                  "with a type other than unsigned");
     } else {
@@ -234,7 +234,7 @@ class MeshRequirements {
     if (parameter_list_ptr->isParameter("entity_rank_names")) {
       const bool valid_type =
           parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<Teuchos::Array<std::string>>("entity_rank_names");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
                                  "with a type other than Teuchos::Array<std::string>");
     } else {
@@ -245,7 +245,7 @@ class MeshRequirements {
     // if (parameter_list_ptr->isParameter("communicator")) {
     //   const bool valid_type =
     //       parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::ParallelMachine>("communicator");
-    //   TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+    //   MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
     //                              "MeshRequirements: Type error. Given a parameter with name 'communicator' but with a
     //                              " "type other than stk::ParallelMachine");
     // } else {
@@ -256,7 +256,7 @@ class MeshRequirements {
       const bool valid_type =
           parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<mundy::mesh::BulkData::AutomaticAuraOption>(
               "aura_option");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
                                  "type other than mundy::mesh::BulkData::AutomaticAuraOption");
     } else {
@@ -266,7 +266,7 @@ class MeshRequirements {
     if (parameter_list_ptr->isParameter("field_data_manager_ptr")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::mesh::FieldDataManager *>(
           "field_data_manager_ptr");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
                                  "but with a type other than stk::mesh::FieldDataManager *");
     } else {
@@ -276,7 +276,7 @@ class MeshRequirements {
 
     if (parameter_list_ptr->isParameter("bucket_capacity")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("bucket_capacity");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
                                  "a type other than unsigned");
     } else {
@@ -287,7 +287,7 @@ class MeshRequirements {
 
     if (parameter_list_ptr->isParameter("upward_connectivity_flag")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<bool>("upward_connectivity_flag");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
                                  "but with a type other than bool");
     } else {

@@ -30,7 +30,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -46,6 +45,7 @@
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 #include <mundy_multibody/Factory.hpp>               // for mundy::multibody::Factory
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -114,7 +114,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'node_coord_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -125,7 +125,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'node_velocity_field_name' but "
                                      << "with a type other than std::string");
     } else {
@@ -135,7 +135,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
 
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'node_omega_field_name' but "
                                  "with a type other than std::string");
     } else {
@@ -149,11 +149,11 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("time_step_size")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("time_step_size");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
                                      << "with a type other than double");
       const bool is_time_step_size_positive = mutable_params_ptr->get<double>("time_step_size") > 0;
-      TEUCHOS_TEST_FOR_EXCEPTION(is_time_step_size_positive, std::invalid_argument,
+      MUNDY_THROW_ASSERT(is_time_step_size_positive, std::invalid_argument,
                                  "NodeEuler: Invalid parameter. Given a parameter with name 'time_step_size' but "
                                      << "with a value less than or equal to zero.");
     } else {

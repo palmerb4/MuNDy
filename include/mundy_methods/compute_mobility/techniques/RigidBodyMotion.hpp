@@ -30,7 +30,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -45,6 +44,7 @@
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -126,7 +126,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
     if (map_rbf_to_rbv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity "
                                  "parameter with name 'name' but "
                                      << "with a type other than std::string");
@@ -137,7 +137,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
     if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
                                  "parameter with name 'name' but "
                                      << "with a type other than std::string");
@@ -148,7 +148,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
               << "with a type other than std::string");
@@ -177,7 +177,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
     if (map_rbf_to_rbv_params.isParameter("name")) {
       const bool valid_type = map_rbf_to_rbv_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity "
                                  "parameter with name 'name' but "
                                      << "with a type other than std::string");
@@ -188,7 +188,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
     if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = map_rbv_to_sv_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                                  "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
                                  "parameter with name 'name' but "
                                      << "with a type other than std::string");
@@ -199,7 +199,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = map_sf_to_rbf_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
               << "with a type other than std::string");

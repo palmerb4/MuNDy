@@ -30,7 +30,6 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
@@ -45,6 +44,7 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -113,7 +113,7 @@ class MapRigidBodyForceToRigidBodyVelocity
     Teuchos::ParameterList &technique_params = fixed_params_ptr->sublist("technique", false);
     if (technique_params.isParameter("name")) {
       const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
     } else {
@@ -131,7 +131,7 @@ class MapRigidBodyForceToRigidBodyVelocity
     Teuchos::ParameterList &technique_params = mutable_params_ptr->sublist("technique", false);
     if (technique_params.isParameter("name")) {
       const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
     } else {

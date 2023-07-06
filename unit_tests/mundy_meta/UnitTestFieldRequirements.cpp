@@ -359,7 +359,9 @@ TEST(FieldRequirementsDeclare, DeclareOnPart) {
   ASSERT_TRUE(field_reqs.is_fully_specified());
 
   // Create a dummy mesh with an example part.
+  // Note, you cannot declare a ranked part unless the spatial dimension has been set.
   mundy::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
   std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
   stk::mesh::Part &example_part = meta_data.declare_part("example_part", field_rank);

@@ -35,11 +35,11 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 
 // Mundy libs
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -111,8 +111,8 @@ class FieldRequirementsFactory {
   template <typename FieldTypeToRegister,
             std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> = true>
   void register_new_field_type(const std::string& field_type_string) {
-    TEUCHOS_TEST_FOR_EXCEPTION(
-        !is_valid_field_type_string(field_type_string), std::invalid_argument,
+    MUNDY_THROW_ASSERT(
+        is_valid_field_type_string(field_type_string), std::invalid_argument,
         "FieldRequirementsFactory: The provided field type string " << field_type_string << " already exists.");
     get_instance_generator_map().insert(
         std::make_pair(field_type_string, FieldRequirements<FieldTypeToRegister>::create_new_instance));

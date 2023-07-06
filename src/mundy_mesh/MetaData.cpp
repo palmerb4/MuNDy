@@ -31,13 +31,13 @@
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
 #include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
 #include <stk_topology/topology.hpp>     // for stk::topology
 
 // Mundy libs
 #include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -68,7 +68,7 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
   const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
   if (field_has_attributes) {
     const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
-    TEUCHOS_TEST_FOR_EXCEPTION(attribute_is_unique, std::invalid_argument,
+    MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
                                "MetaData: An attribute with the same type as the provided attribute already "
                                "exists on the given field.");
   } else {
@@ -85,7 +85,7 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
   const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
   if (field_has_attributes) {
     const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
-    TEUCHOS_TEST_FOR_EXCEPTION(attribute_is_unique, std::invalid_argument,
+    MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
                                "MetaData: An attribute with the same type as the provided attribute already "
                                "exists on the given field.");
   } else {
@@ -102,7 +102,7 @@ void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &at
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {
     const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_type_index) == 0);
-    TEUCHOS_TEST_FOR_EXCEPTION(
+    MUNDY_THROW_ASSERT(
         attribute_is_unique, std::invalid_argument,
         "MetaData: An attribute with the same type as the provided attribute already exists on the given part.");
   } else {
@@ -119,7 +119,7 @@ void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &&a
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {
     const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_type_index) == 0);
-    TEUCHOS_TEST_FOR_EXCEPTION(
+    MUNDY_THROW_ASSERT(
         attribute_is_unique, std::invalid_argument,
         "MetaData: An attribute with the same type as the provided attribute already exists on the given part.");
   } else {
@@ -133,7 +133,7 @@ void MetaData::declare_attribute(const std::any &attribute) {
   std::type_index attribute_type_index = std::type_index(attribute.type());
 
   const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_type_index) == 0);
-  TEUCHOS_TEST_FOR_EXCEPTION(
+  MUNDY_THROW_ASSERT(
       attribute_is_unique, std::invalid_argument,
       "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.");
 
@@ -144,7 +144,7 @@ void MetaData::declare_attribute(const std::any &&attribute) {
   std::type_index attribute_type_index = std::type_index(attribute.type());
 
   const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_type_index) == 0);
-  TEUCHOS_TEST_FOR_EXCEPTION(
+  MUNDY_THROW_ASSERT(
       attribute_is_unique, std::invalid_argument,
       "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.");
 

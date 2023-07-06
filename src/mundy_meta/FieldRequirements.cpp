@@ -24,8 +24,10 @@
 #include <string>  // for std::string
 
 // Trilinos libs
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_topology/topology.hpp>     // for stk::topology
+
+// Mundy libs
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -48,7 +50,7 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string) {
   } else if (rank_string == "INVALID_RANK") {
     return stk::topology::INVALID_RANK;
   } else {
-    TEUCHOS_TEST_FOR_EXCEPTION(true, std::invalid_argument,
+    MUNDY_THROW_ASSERT(false, std::invalid_argument,
                                "The provided rank string " << rank_string << " is not valid.");
   }
 }

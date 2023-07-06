@@ -33,13 +33,13 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
@@ -122,7 +122,7 @@ class FieldRequirementsBase {
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
     if (parameter_list_ptr->isParameter("name")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "FieldRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string");
     } else {
@@ -132,16 +132,16 @@ class FieldRequirementsBase {
     if (parameter_list_ptr->isParameter("rank")) {
       const bool valid_type = ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
                                (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "FieldRequirements: Type error. Given a parameter with name 'rank' but with a "
-                                     << "type other than std::string or stk::topology::rank_t");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "FieldRequirements: Type error. Given a parameter with name 'rank' but with a "
+                             << "type other than std::string or stk::topology::rank_t");
     } else {
       parameter_list_ptr->set("rank", stk::topology::INVALID_RANK, "Rank of the field, in string form.");
     }
 
     if (parameter_list_ptr->isParameter("dimension")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("dimension");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "FieldRequirements: Type error. Given a parameter with name 'dimension' but with a type other than unsigned");
     } else {
@@ -150,9 +150,9 @@ class FieldRequirementsBase {
 
     if (parameter_list_ptr->isParameter("min_number_of_states")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("min_number_of_states");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "FieldRequirements: Type error. Given a parameter with name 'min_number_of_states' "
-                                 "but with a type other than unsigned");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "FieldRequirements: Type error. Given a parameter with name 'min_number_of_states' "
+                         "but with a type other than unsigned");
     } else {
       parameter_list_ptr->set("min_number_of_states", 1,
                               "Minimum number of rotating states that this field will have.");
