@@ -53,7 +53,7 @@ namespace techniques {
 
 // \name Constructors and destructor
 //{
-
+// TODO(palmerb4): This class is outdated and needs to be updated to the input_selector paradigm.
 NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
@@ -104,10 +104,10 @@ void NodeEuler::set_mutable_params(const Teuchos::ParameterList &mutable_params)
 void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): NodeEuler should only act on the mulitbody Body type. Take the intersection.
   for (size_t i = 0; i < num_parts_; i++) {
-    stk::mesh::Selector locally_owned_part = meta_data_ptr_->locally_owned_part();
+    stk::mesh::Selector locally_owned_part = input_selector & stk::mesh::Selector(meta_data_ptr_->locally_owned_part());
     stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
                                    locally_owned_part,
-                                   [&](const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
+                                   [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed
                                      // This is the best way to indicate that things like the normal vector need
                                      // updated. Does STK have an observer that lets us check if fields need updated?

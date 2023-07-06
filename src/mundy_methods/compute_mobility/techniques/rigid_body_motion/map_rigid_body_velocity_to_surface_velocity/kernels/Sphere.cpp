@@ -96,7 +96,7 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   double *body_node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, body_node);
   double *body_node_omega = stk::mesh::field_data(*node_omega_field_ptr_, body_node);
   unsigned num_surface_nodes = bulk_data_ptr_->num_nodes(linker);
-  for (int i = 0; i < num_surface_nodes; i++) {
+  for (unsigned i = 0; i < num_surface_nodes; i++) {
     double *surface_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, surface_nodes[i]);
     double *surface_node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, surface_nodes[i]);
     double *surface_node_omega = stk::mesh::field_data(*node_omega_field_ptr_, surface_nodes[i]);

@@ -100,7 +100,7 @@ void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teu
 // \name Actions
 //{
 
-void GenerateCollisionConstraints::execute(const stk::mesh::Selector &input_selector) {
+void GenerateCollisionConstraints::execute([[maybe_unused]] const stk::mesh::Selector &input_selector) {
   // Two words of word of warning:
   //   1. This method is programmed with care to avoid generating duplicative constraints. To do so, we only generate a
   //      collision constraint if the entity_key of the source particle is less than that of the target particle.
@@ -258,7 +258,6 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(mundy::mesh::
                              "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
                                  << "Be sure to run modificiation_begin() before running this routine.");
 
-  const int parallel_rank = bulk_data_ptr->parallel_rank();
   std::vector<stk::mesh::EntityProc> entities_to_ghost;
   for (size_t i = 0; i < pairs_to_ghost.size(); ++i) {
     // Get the state information about the neighbor pair.

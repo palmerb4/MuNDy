@@ -70,22 +70,22 @@ sections based on the functionality being tested. The sections are as follows:
 //! \name PartRequirements object construction
 //@{
 
-TEST(PartRequirementsConstructionTest, IsDefaultConstructible) {
+TEST(PartRequirementsConstruction, IsDefaultConstructible) {
   // Check that PartRequirements is default constructible
   ASSERT_NO_THROW(PartRequirements part_reqs);
 }
 
-TEST(PartRequirementsConstructionTest, IsConstructibleWithPartName) {
+TEST(PartRequirementsConstruction, IsConstructibleWithPartName) {
   // Check that PartRequirements is constructible with a part name
   ASSERT_NO_THROW(PartRequirements part_reqs("part_name"));
 }
 
-TEST(PartRequirementsConstructionTest, IsConstructibleWithPartNameAndRank) {
+TEST(PartRequirementsConstruction, IsConstructibleWithPartNameAndRank) {
   // Check that PartRequirements is constructible with a part name and rank
   ASSERT_NO_THROW(PartRequirements part_reqs("part_name", stk::topology::NODE_RANK));
 }
 
-TEST(PartRequirementsConstructionTest, IsConstructibleWithPartNameAndTopology) {
+TEST(PartRequirementsConstruction, IsConstructibleWithPartNameAndTopology) {
   // Check that PartRequirements is constructible with a part name and topology
   ASSERT_NO_THROW(PartRequirements part_reqs("part_name", stk::topology::NODE));
 }
@@ -94,7 +94,7 @@ TEST(PartRequirementsConstructionTest, IsConstructibleWithPartNameAndTopology) {
 //! \name PartRequirements object setting tests
 //@{
 
-TEST(PartRequirementsSettersTest, IsNameAndRankSettable) {
+TEST(PartRequirementsSetters, IsNameAndRankSettable) {
   // Check that the setters work.
   // Note: PartRequirements is fully specified if the part name is set, and will throw an exception you attempt to set
   // the part topology when the rank is already set.
@@ -114,7 +114,7 @@ TEST(PartRequirementsSettersTest, IsNameAndRankSettable) {
   EXPECT_THROW(part_reqs.set_part_topology(part_topology), std::logic_error);
 }
 
-TEST(PartRequirementsSettersTest, IsNameAndTopologySettable) {
+TEST(PartRequirementsSetters, IsNameAndTopologySettable) {
   // Check that the setters work.
   // Note: PartRequirements is fully specified if the part name is set, and will throw an exception you attempt to set
   // the part rank when the topology is already set.
@@ -134,7 +134,7 @@ TEST(PartRequirementsSettersTest, IsNameAndTopologySettable) {
   EXPECT_THROW(part_reqs.set_part_rank(part_rank), std::logic_error);
 }
 
-TEST(PartRequirementsSettersTest, AddFieldReqs) {
+TEST(PartRequirementsSetters, AddFieldReqs) {
   // Check that field requirements can be added.
 
   // Create a dummy field requirements object.
@@ -153,7 +153,7 @@ TEST(PartRequirementsSettersTest, AddFieldReqs) {
   // TODO(palmerb4): Add a getter for the field requirements and check that they are set correctly.
 }
 
-TEST(PartRequirementsSettersTest, AddSubpartRequirements) {
+TEST(PartRequirementsSetters, AddSubpartRequirements) {
   // Check that subparts can be added.
 
   // Create a dummy subpart requirements.
@@ -165,7 +165,7 @@ TEST(PartRequirementsSettersTest, AddSubpartRequirements) {
   // TODO(palmerb4): Add a getter for the subpart requirements and check that they are set correctly.
 }
 
-TEST(PartRequirementsSettersTest, AddPartAttribute) {
+TEST(PartRequirementsSetters, AddPartAttribute) {
   // Check that part attributes can be added.
 
   // Create a dummy part attribute.
@@ -196,7 +196,7 @@ struct CountCopiesStruct {
 
 int CountCopiesStruct::num_copies = 0;
 
-TEST(PartRequirementsSettersTest, AddPartAttributeWithoutCopy) {
+TEST(PartRequirementsSetters, AddPartAttributeWithoutCopy) {
   // Check that part attributes can be added with perfect forwarding.
 
   // Create an uncopiable attribute.
@@ -218,7 +218,7 @@ TEST(PartRequirementsSettersTest, AddPartAttributeWithoutCopy) {
 //! \name PartRequirements object getting tests
 //@{
 
-TEST(PartRequirementsGettersTest, IsNameAndRankGettable) {
+TEST(PartRequirementsGetters, IsNameAndRankGettable) {
   // Check that the getters work.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
@@ -227,7 +227,7 @@ TEST(PartRequirementsGettersTest, IsNameAndRankGettable) {
   EXPECT_EQ(part_rank, part_reqs.get_part_rank());
 }
 
-TEST(PartRequirementsGettersTest, IsNameAndTopologyGettable) {
+TEST(PartRequirementsGetters, IsNameAndTopologyGettable) {
   // Check that the getters work.
   const std::string part_name = "part_name";
   const stk::topology part_topology = stk::topology::NODE;
@@ -240,7 +240,7 @@ TEST(PartRequirementsGettersTest, IsNameAndTopologyGettable) {
 //! \name PartRequirements object deleting tests
 //@{
 
-TEST(PartRequirementsDeletersTest, DeletersWorkProperly) {
+TEST(PartRequirementsDeleters, DeletersWorkProperly) {
   // Check that the deleters work.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
@@ -265,7 +265,7 @@ TEST(PartRequirementsDeletersTest, DeletersWorkProperly) {
 //! \name PartRequirements object merging tests
 //@{
 
-TEST(PartRequirementsMergeTest, IsNameMergable) {
+TEST(PartRequirementsMerge, IsNameMergable) {
   // Check that the merge function works when both parts have the same name.
   const std::string part_name = "part_name";
   auto part_reqs1_ptr = std::make_shared<PartRequirements>(part_name);
@@ -274,7 +274,7 @@ TEST(PartRequirementsMergeTest, IsNameMergable) {
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_name());
 }
 
-TEST(PartRequirementsMergeTest, IsRankMergable) {
+TEST(PartRequirementsMerge, IsRankMergable) {
   // Check that the merge function works when both parts have the same rank.
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
   auto part_reqs1_ptr = std::make_shared<PartRequirements>();
@@ -285,7 +285,7 @@ TEST(PartRequirementsMergeTest, IsRankMergable) {
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_rank());
 }
 
-TEST(PartRequirementsMergeTest, IsTopologyMergable) {
+TEST(PartRequirementsMerge, IsTopologyMergable) {
   // Check that the merge function works when both parts have the same topology.
   const stk::topology part_topology = stk::topology::NODE;
   auto part_reqs1_ptr = std::make_shared<PartRequirements>();
@@ -296,7 +296,7 @@ TEST(PartRequirementsMergeTest, IsTopologyMergable) {
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_topology());
 }
 
-TEST(PartRequirementsMergeTest, IsNameAndRankMergable) {
+TEST(PartRequirementsMerge, IsNameAndRankMergable) {
   // Check that the merge function works when both parts have the same name and rank.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
@@ -307,7 +307,7 @@ TEST(PartRequirementsMergeTest, IsNameAndRankMergable) {
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_rank());
 }
 
-TEST(PartRequirementsMergeTest, IsNameAndTopologyMergable) {
+TEST(PartRequirementsMerge, IsNameAndTopologyMergable) {
   // Check that the merge function works when both parts have the same name and topology.
   const std::string part_name = "part_name";
   const stk::topology part_topology = stk::topology::NODE;
@@ -318,7 +318,7 @@ TEST(PartRequirementsMergeTest, IsNameAndTopologyMergable) {
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_topology());
 }
 
-TEST(PartRequirementsMergeTest, AreSubpartsMergable) {
+TEST(PartRequirementsMerge, AreSubpartsMergable) {
   /* Check that the merge function properly merges subparts.
   The setup for this test is as follows:
   part1
@@ -346,7 +346,7 @@ TEST(PartRequirementsMergeTest, AreSubpartsMergable) {
   // TODO(palmerb4): Use the subpart getters to check that the subparts were merged correctly.
 }
 
-TEST(PartRequirementsMergeTest, AreFieldsMergable) {
+TEST(PartRequirementsMerge, AreFieldsMergable) {
   /* Check that the merge function properly merges fields.
   The setup for this test is as follows:
   part1
@@ -395,7 +395,7 @@ TEST(PartRequirementsMergeTest, AreFieldsMergable) {
   // TODO(palmerb4): Use the field getters to check that the fields were merged correctly.
 }
 
-TEST(PartRequirementsMergeTest, ArePartAttributesMergable) {
+TEST(PartRequirementsMerge, ArePartAttributesMergable) {
   /* Check that the merge function properly merges part attributes.
   The setup for this test is as follows:
   part1
@@ -434,7 +434,7 @@ TEST(PartRequirementsMergeTest, ArePartAttributesMergable) {
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
 
-TEST(PartRequirementsMergeTest, AreSubpartsAndTheirFieldsMergable) {
+TEST(PartRequirementsMerge, AreSubpartsAndTheirFieldsMergable) {
   /* Check that the merge function properly merges subparts and their fields.
   The setup for this test is as follows:
   part1
@@ -494,7 +494,7 @@ TEST(PartRequirementsMergeTest, AreSubpartsAndTheirFieldsMergable) {
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
 
-TEST(PartRequirementsMergeTest, AreSubpartsAndTheirAttributesMergable) {
+TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   /* Check that the merge function properly merges subparts and their attributes.
   The setup for this test is as follows:
   part1
@@ -553,7 +553,7 @@ TEST(PartRequirementsMergeTest, AreSubpartsAndTheirAttributesMergable) {
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
 
-TEST(PartRequirementsMergeTest, MergePropertlyHandlesNullptr) {
+TEST(PartRequirementsMerge, MergePropertlyHandlesNullptr) {
   // Check that the merge function properly handles nullptrs. It should be a no-op.
 
   // Setup the part requirements.
@@ -563,7 +563,7 @@ TEST(PartRequirementsMergeTest, MergePropertlyHandlesNullptr) {
   ASSERT_NO_THROW(part_reqs.merge(nullptr));
 }
 
-TEST(PartRequirementsMergeTest, MergeProperlyHandlesConflicts) {
+TEST(PartRequirementsMerge, MergeProperlyHandlesConflicts) {
   // Check that the merge function throws a logic error if the part name, rank, or topology are different.
   auto part_reqs1_ptr = std::make_shared<PartRequirements>();
   auto part_reqs2_ptr = std::make_shared<PartRequirements>();
@@ -594,7 +594,7 @@ TEST(PartRequirementsMergeTest, MergeProperlyHandlesConflicts) {
 //! \name PartRequirements object declaring tests
 //@{
 
-TEST(PartRequirementsDeclareTest, DeclarePartWithName) {
+TEST(PartRequirementsDeclare, DeclarePartWithName) {
   // Check that the declare_part_on_mesh function properly declares a part on a mesh.
 
   // Create a dummy mesh.
@@ -612,7 +612,7 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithName) {
   ASSERT_NE(part, nullptr);
 }
 
-TEST(PartRequirementsDeclareTest, DeclarePartWithRank) {
+TEST(PartRequirementsDeclare, DeclarePartWithRank) {
   // Check that the declare_part_on_mesh function properly declares a part with a rank on a mesh.
 
   // Create a dummy mesh.
@@ -631,7 +631,7 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithRank) {
   ASSERT_EQ(part->primary_entity_rank(), stk::topology::NODE_RANK);
 }
 
-TEST(PartRequirementsDeclareTest, DeclarePartWithTopology) {
+TEST(PartRequirementsDeclare, DeclarePartWithTopology) {
   // Check that the declare_part_on_mesh function properly declares a part with a topology on a mesh.
 
   // Create a dummy mesh.
@@ -650,7 +650,7 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithTopology) {
   ASSERT_EQ(part->topology(), stk::topology::NODE);
 }
 
-TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndFields) {
+TEST(PartRequirementsDeclare, DeclarePartWithNameAndFields) {
   // Check that the declare_part_on_part function properly declares a part with fields on a mesh.
 
   // Create a dummy mesh.
@@ -680,7 +680,7 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndFields) {
   ASSERT_NO_THROW(meta_data.get_field<ExampleFieldType>(field_rank, field_name));
 }
 
-TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndSubparts) {
+TEST(PartRequirementsDeclare, DeclarePartWithNameAndSubparts) {
   // Check that the declare_part_on_part function properly declares a part with fields on a mesh.
 
   // Create a dummy mesh.
@@ -705,7 +705,7 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndSubparts) {
   ASSERT_NE(subpart, nullptr);
 }
 
-TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndAttributes) {
+TEST(PartRequirementsDeclare, DeclarePartWithNameAndAttributes) {
   // Check that the declare_part_on_part function properly declares a part with fields on a mesh.
 
   // Create a dummy mesh.
@@ -724,11 +724,11 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndAttributes) {
 
   // Check that the part and attribute were declared on the mesh.
   stk::mesh::Part *part_ptr = meta_data.get_part("part_name");
-  ASSERT_NE(part, nullptr);
-  ASSERT_TRUE(*meta_data.get_attribute<std::string>(&part_ptr) == std::any_cast<std::string>(attribute));
+  ASSERT_NE(part_ptr, nullptr);
+  ASSERT_TRUE(*meta_data.get_attribute<std::string>(*part_ptr) == std::any_cast<std::string>(attribute));
 }
 
-TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndFieldsAndSubpartsAndAttributes) {
+TEST(PartRequirementsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttributes) {
   /* Check that the declare_part_on_part function properly declares a realistic part on a mesh.
   The setup for this test is as follows:
   part:
@@ -778,8 +778,8 @@ TEST(PartRequirementsDeclareTest, DeclarePartWithNameAndFieldsAndSubpartsAndAttr
   ASSERT_NE(subpart_ptr, nullptr);
   stk::mesh::FieldBase *field_ptr = meta_data.get_field(field_rank, field_name);
   ASSERT_NE(field_ptr, nullptr);
-  ASSERT_TRUE(*meta_data.get_attribute<std::string>(field_ptr) == std::any_cast<std::string>(field_attribute));
-  ASSERT_TRUE(*meta_data.get_attribute<std::string>(subpart_ptr) == std::any_cast<std::string>(subpart_attribute));
+  ASSERT_TRUE(*meta_data.get_attribute<std::string>(*field_ptr) == std::any_cast<std::string>(field_attribute));
+  ASSERT_TRUE(*meta_data.get_attribute<std::string>(*subpart_ptr) == std::any_cast<std::string>(subpart_attribute));
 }
 
 }  // namespace

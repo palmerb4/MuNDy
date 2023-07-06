@@ -72,21 +72,22 @@ sections based on the functionality being tested. The sections are as follows:
 //! \name MeshRequirements object construction tests
 //@{
 
-TEST(MeshRequirementsConstructionTest, IsDefaultConstructible) {
+TEST(MeshRequirementsConstruction, IsDefaultConstructible) {
   // Check that MeshRequirements is default constructible
   ASSERT_NO_THROW(MeshRequirements mesh_reqs);
 }
 
-TEST(MeshRequirementsConstructionTest, IsConstructibleWithComm) {
+TEST(MeshRequirementsConstruction, IsConstructibleWithComm) {
   // Check that MeshRequirements is constructible with a communicator
-  ASSERT_NO_THROW(MeshRequirements mesh_reqs(MPI_COMM_WORLD));
+  stk::ParallelMachine comm = MPI_COMM_WORLD;
+  ASSERT_NO_THROW(MeshRequirements mesh_reqs(comm));
 }
 //@}
 
 //! \name MeshRequirements object setting tests
 //@{
 
-TEST(MeshRequirementsSettersTest, IsSettable) {
+TEST(MeshRequirementsSetters, IsSettable) {
   // Check that the setters work.
   MeshRequirements mesh_reqs;
   EXPECT_FALSE(mesh_reqs.constrains_spatial_dimension());
@@ -112,7 +113,7 @@ TEST(MeshRequirementsSettersTest, IsSettable) {
   EXPECT_TRUE(mesh_reqs.constrains_upward_connectivity_flag());
 }
 
-TEST(MeshRequiremesntsSettersTest, AddFieldReqs) {
+TEST(MeshRequiremesntsSetters, AddFieldReqs) {
   // Check that the add_field_reqs method works.
 
   // Create a dummy field requirements object.
@@ -132,7 +133,7 @@ TEST(MeshRequiremesntsSettersTest, AddFieldReqs) {
   // TODO(palmerb4): Add a field requirements getter method so we can perform this check.
 }
 
-TEST(MeshRequirementsSettersTest, AddPartReqs) {
+TEST(MeshRequirementsSetters, AddPartReqs) {
   // Check that the add_part_reqs method works.
 
   // Create a dummy part requirements object.
@@ -147,7 +148,7 @@ TEST(MeshRequirementsSettersTest, AddPartReqs) {
   // TODO(palmerb4): Add a part requirements getter method so we can perform this check.
 }
 
-TEST(MeshRequirementsSettersTest, AddMeshAttributes) {
+TEST(MeshRequirementsSetters, AddMeshAttributes) {
   // Check that the add_mesh_attribute method works.
 
   // Create a dummy mesh attribute object.
@@ -177,7 +178,7 @@ struct CountCopiesStruct {
 
 int CountCopiesStruct::num_copies = 0;
 
-TEST(MeshRequirementsSettersTest, AddMeshAttributeWithoutCopy) {
+TEST(MeshRequirementsSetters, AddMeshAttributeWithoutCopy) {
   // Check that the add_mesh_attribute method works with perfect forwarding.
 
   // Create an uncopiable attribute.
@@ -198,7 +199,7 @@ TEST(MeshRequirementsSettersTest, AddMeshAttributeWithoutCopy) {
 //! \name MeshRequirements object getting tests
 //@{
 
-TEST(MeshRequirementsGettersTest, IsGettable) {
+TEST(MeshRequirementsGetters, IsGettable) {
   // Check that the getters work.
   MeshRequirements mesh_reqs;
   EXPECT_THROW(mesh_reqs.get_spatial_dimension(), std::logic_error);
@@ -228,7 +229,7 @@ TEST(MeshRequirementsGettersTest, IsGettable) {
 //! \name MeshRequirements object deleting tests
 //@{
 
-TEST(MeshRequirementsDeletersTest, IsDeletable) {
+TEST(MeshRequirementsDeleters, IsDeletable) {
   // Check that the deleters work.
   MeshRequirements mesh_reqs;
   EXPECT_FALSE(mesh_reqs.constrains_spatial_dimension());
@@ -272,7 +273,7 @@ TEST(MeshRequirementsDeletersTest, IsDeletable) {
 //! \name MeshRequirements object merging tests
 //@{
 
-TEST(MeshRequirementsMergeTest, IsMergeable) {
+TEST(MeshRequirementsMerge, IsMergeable) {
   // Check that the merge method works.
   auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>();
   auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>();
@@ -293,7 +294,7 @@ TEST(MeshRequirementsMergeTest, IsMergeable) {
   EXPECT_EQ(mesh_reqs1_ptr->get_upward_connectivity_flag(), true);
 }
 
-TEST(MeshRequirementsMergeTest, AreFieldsMergable) {
+TEST(MeshRequirementsMerge, AreFieldsMergable) {
   /* Check that the merge properly merges fields.
   The setup for this test is as follows:
   mesh1
@@ -341,7 +342,7 @@ TEST(MeshRequirementsMergeTest, AreFieldsMergable) {
   // TODO(palmerb4): Use the field getters to check that the fields were merged correctly.
 }
 
-TEST(MeshRequirementsMergeTest, AreMeshAttributesMergable) {
+TEST(MeshRequirementsMerge, AreMeshAttributesMergable) {
   /* Check that the merge function properly merges mesh attributes.
   The setup for this test is as follows:
   mesh1
@@ -379,7 +380,7 @@ TEST(MeshRequirementsMergeTest, AreMeshAttributesMergable) {
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
 
-TEST(MeshRequirementsMergeTest, AreMeshPartsAndTheirFieldsMergable) {
+TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
   /* Check that the merge function properly merges mesh parts and their fields/subparts/attributes.
   The setup for this test is as follows:
   mesh1
@@ -443,7 +444,7 @@ TEST(MeshRequirementsMergeTest, AreMeshPartsAndTheirFieldsMergable) {
   // TODO(palmerb4): Add attribute/field/part getters so we can perform this check.
 }
 
-TEST(MeshRequirementsMergeTest, MergePropertlyHandlesNullptr) {
+TEST(MeshRequirementsMerge, MergePropertlyHandlesNullptr) {
   // Check that the merge function properly handles nullptrs. It should be a no-op.
 
   // Setup the Mesh requirements.
@@ -453,7 +454,7 @@ TEST(MeshRequirementsMergeTest, MergePropertlyHandlesNullptr) {
   ASSERT_NO_THROW(mesh_reqs.merge(nullptr));
 }
 
-TEST(MeshRequirementsMergeTest, MergePropertlyHandlesConflicts) {
+TEST(MeshRequirementsMerge, MergePropertlyHandlesConflicts) {
   // Check that the merge function throws a logic error if any of the constrained quantities differ.
   auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>();
   auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>();
@@ -506,7 +507,7 @@ TEST(MeshRequirementsMergeTest, MergePropertlyHandlesConflicts) {
 //! \name MeshRequirements object declaring tests
 //@{
 
-TEST(MeshRequirementsDeclareTest, DeclareMeshWithComm) {
+TEST(MeshRequirementsDeclare, DeclareMeshWithComm) {
   // Check that the declare function properly declares the mesh requirements.
 
   // Setup the Mesh requirements.
@@ -519,7 +520,7 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithComm) {
   EXPECT_NE(bulk_data_ptr, nullptr);
 }
 
-TEST(MeshRequirementsDeclareTest, DeclareMeshWithoutComm) {
+TEST(MeshRequirementsDeclare, DeclareMeshWithoutComm) {
   // Check that the mesh requirements throw an error if the communicator is not set.
 
   // Setup the Mesh requirements.
@@ -530,7 +531,7 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithoutComm) {
   ASSERT_THROW(mesh_reqs_ptr->declare_mesh(), std::logic_error);
 }
 
-TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndFields) {
+TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndFields) {
   // Check that the declare function properly declares a mesh with fields.
 
   // Create a dummy field requirements object.
@@ -539,8 +540,8 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndFields) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension, field_min_number_of_states);
+  auto field_reqs_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension,
+                                                                              field_min_number_of_states);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
   // Setup the Mesh requirements.
@@ -555,7 +556,7 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndFields) {
   ASSERT_NO_THROW(meta_data.get_field<ExampleFieldType>(field_rank, field_name));
 }
 
-TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndParts) {
+TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndParts) {
   // Check that the declare function properly declares a mesh with parts.
 
   // Create a dummy part requirements object.
@@ -577,7 +578,7 @@ TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndParts) {
   ASSERT_NE(part_ptr, nullptr);
 }
 
-TEST(MeshRequirementsDeclareTest, DeclareMeshWithCommAndAttributes) {
+TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndAttributes) {
   // Check that the declare function properly declares a mesh with attributes.
 
   // Create a dummy attributes.

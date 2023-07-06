@@ -68,7 +68,7 @@ sections based on the functionality being tested. The sections are as follows:
 //! \name FieldRequirements object construction tests
 //@{
 
-TEST(FieldRequirementsConstructionTest, IsDefaultConstructable) {
+TEST(FieldRequirementsConstruction, IsDefaultConstructable) {
   // Check that the default constructor works.
   using ExampleFieldType = double;
   ASSERT_NO_THROW(mundy::meta::FieldRequirements<ExampleFieldType>());
@@ -84,7 +84,7 @@ TEST(FieldRequirementsConstructionTest, IsDefaultConstructable) {
 //! \name FieldRequirements object setting tests
 //@{
 
-TEST(FieldRequirementsSettersTest, IsSettable) {
+TEST(FieldRequirementsSetters, IsSettable) {
   // Check that the setters work.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -122,7 +122,7 @@ struct CountCopiesStruct {
 
 int CountCopiesStruct::num_copies = 0;
 
-TEST(FieldRequirementsAttributesTest, AddAttributesWithoutCopy) {
+TEST(FieldRequirementsAttributes, AddAttributesWithoutCopy) {
   // Check that the attribute adders work.
 
   // Create an uncopiable attribute.
@@ -142,7 +142,7 @@ TEST(FieldRequirementsAttributesTest, AddAttributesWithoutCopy) {
 //! \name FieldRequirements object getting tests
 //@{
 
-TEST(FieldRequirementsGettersTest, IsGettable) {
+TEST(FieldRequirementsGetters, IsGettable) {
   // Check that the getters work.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -169,7 +169,7 @@ TEST(FieldRequirementsGettersTest, IsGettable) {
 //! \name FieldRequirements object deleting tests
 //@{
 
-TEST(FieldRequirementsDeletersTest, DeletersWorkProperly) {
+TEST(FieldRequirementsDeleters, DeletersWorkProperly) {
   // Check that the getters work.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -196,7 +196,7 @@ TEST(FieldRequirementsDeletersTest, DeletersWorkProperly) {
 //! \name FieldRequirements object merging tests
 //@{
 
-TEST(FieldRequirementsMergeTest, IsMergeable) {
+TEST(FieldRequirementsMerge, IsMergeable) {
   // Check that the merge function works.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -218,7 +218,7 @@ TEST(FieldRequirementsMergeTest, IsMergeable) {
   EXPECT_EQ(main_field_reqs.get_field_type_info(), typeid(ExampleFieldType));
 }
 
-TEST(FieldRequirementsMergeTest, IsMergeableWithVectorOfOtherRequirements) {
+TEST(FieldRequirementsMerge, IsMergeableWithVectorOfOtherRequirements) {
   // Check that the merge function works with a vector of other requirements.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -243,7 +243,7 @@ TEST(FieldRequirementsMergeTest, IsMergeableWithVectorOfOtherRequirements) {
   EXPECT_EQ(main_field_reqs.get_field_type_info(), typeid(ExampleFieldType));
 }
 
-TEST(FieldRequirementsMergeTest, MergePropertlyHandlesNullptr) {
+TEST(FieldRequirementsMerge, MergePropertlyHandlesNullptr) {
   // Check that the merge function works with a nullptr. It should do nothing.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -255,7 +255,7 @@ TEST(FieldRequirementsMergeTest, MergePropertlyHandlesNullptr) {
   EXPECT_NO_THROW(main_field_reqs.merge(other_field_reqs_ptr));
 }
 
-TEST(FieldRequirementsMergeTest, MergeProperlyHandlesConflicts) {
+TEST(FieldRequirementsMerge, MergeProperlyHandlesConflicts) {
   // Check that the merge function works with a conflict. It should throw a logic error.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -288,7 +288,7 @@ TEST(FieldRequirementsMergeTest, MergeProperlyHandlesConflicts) {
   other_field_reqs_ptr->delete_field_min_number_of_states();
 }
 
-TEST(FieldRequirementsMergeTest, MergeProperlyHandlesDifferentTypes) {
+TEST(FieldRequirementsMerge, MergeProperlyHandlesDifferentTypes) {
   // Check that the merge function works with a conflict. It should throw a logic error.
   using ExampleFieldType1 = double;
   using ExampleFieldType2 = int;
@@ -311,7 +311,7 @@ TEST(FieldRequirementsMergeTest, MergeProperlyHandlesDifferentTypes) {
   EXPECT_THROW(field_reqs.merge(other_field_reqs_ptr), std::logic_error);
 }
 
-TEST(FieldRequirementsMergeTest, MergeProperlyHandlesMinNumStates) {
+TEST(FieldRequirementsMerge, MergeProperlyHandlesMinNumStates) {
   // Check that the merge function works with a conflict. It should throw a logic error.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -344,7 +344,7 @@ TEST(FieldRequirementsMergeTest, MergeProperlyHandlesMinNumStates) {
 //! \name FieldRequirements object declaring tests
 //@{
 
-TEST(FieldRequirementsDeclareTest, DeclareOnPart) {
+TEST(FieldRequirementsDeclare, DeclareOnPart) {
   // Check that the field requirements match the declared field.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -374,7 +374,7 @@ TEST(FieldRequirementsDeclareTest, DeclareOnPart) {
   EXPECT_EQ(my_field_ptr->number_of_states(), field_min_number_of_states);
 }
 
-TEST(FieldRequirementsDeclareTest, DeclareOnEntireMesh) {
+TEST(FieldRequirementsDeclare, DeclareOnEntireMesh) {
   // Check that the field requirements match the declared field.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";

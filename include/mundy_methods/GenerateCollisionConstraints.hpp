@@ -188,7 +188,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute(const stk::mesh::Selector &input_selector) override;
+  void execute([[maybe_unused]] const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:

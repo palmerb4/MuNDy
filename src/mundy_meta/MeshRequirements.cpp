@@ -64,6 +64,9 @@ const unsigned MeshRequirements::default_bucket_capacity_ = stk::mesh::get_defau
 
 // \name Constructors and destructor
 //{
+MeshRequirements::MeshRequirements(const stk::ParallelMachine &comm) {
+  this->set_communicator(comm);
+}
 
 MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list) {
   // Validate the input params. Use default parameters for any parameter not given.
@@ -184,6 +187,10 @@ bool MeshRequirements::constrains_upward_connectivity_flag() const {
   return upward_connectivity_flag_is_set_;
 }
 
+bool MeshRequirements::is_fully_specified() const {
+  return this->constrains_communicator();
+}
+
 unsigned MeshRequirements::get_spatial_dimension() const {
   TEUCHOS_TEST_FOR_EXCEPTION(
       !this->constrains_spatial_dimension(), std::logic_error,
@@ -244,6 +251,12 @@ std::map<std::string, std::shared_ptr<PartRequirements>> MeshRequirements::get_m
   // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal parts.
   // This should be private and all other MeshRequirements made friends.
   return mesh_part_map_;
+}
+
+std::map<std::type_index, std::any> MeshRequirements::get_mesh_attributes_map() {
+  // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal attributes.
+  // This should be private and all other MeshRequirements made friends.
+  return mesh_attributes_map_;
 }
 //}
 

@@ -81,7 +81,7 @@ class Factory {
   /// \brief Get if the provided fast id is valid or not
   /// \param fast_id [in] A fast id that may or may not correspond to a registered class.
   static bool is_valid(const multibody_t fast_id) {
-    return get_name_generator_map().count(fast_id) != 0;
+    return get_name_map().count(fast_id) != 0;
   }
 
   /// \brief Get the fast id corresponding to a registered class with the given name.
@@ -99,7 +99,7 @@ class Factory {
   static std::string_view get_name(const multibody_t fast_id) {
     TEUCHOS_TEST_FOR_EXCEPTION(!is_valid(fast_id), std::invalid_argument,
                                "Factory: The provided class's id '" << fast_id << "' is not valid.");
-    return get_name_generator_map()[fast_id]();
+    return get_name_map()[fast_id];
   }
 
   /// \brief Get the topology corresponding to a registered class with the given fast id.
@@ -193,7 +193,7 @@ class Factory {
 
     const multibody_t fast_id = number_of_registered_types_ - 1;
     get_name_to_id_map().insert(std::make_pair(name, fast_id));
-    get_name_generator_map().insert(std::make_pair(fast_id, name));
+    get_name_map().insert(std::make_pair(fast_id, name));
     get_topology_generator_map().insert(std::make_pair(fast_id, ClassToRegister::get_topology));
     get_has_parent_generator_map().insert(std::make_pair(fast_id, ClassToRegister::has_parent));
     get_parent_name_generator_map().insert(std::make_pair(fast_id, ClassToRegister::get_parent_name));
@@ -215,6 +215,9 @@ class Factory {
   /// \brief A map from a string_view to fast id.
   using NameToFastIdMap = std::map<std::string_view, multibody_t>;
 
+  /// \brief A map from a string_view to fast id.
+  using FastIdToNameMap = std::map<multibody_t, std::string_view>;
+
   /// \brief A map from fast id to a function that returns a string view.
   using FastIdToStringViewGeneratorMap = std::map<multibody_t, StringViewGenerator>;
 
@@ -234,10 +237,10 @@ class Factory {
     return name_to_id_map;
   }
 
-  static FastIdToStringViewGeneratorMap& get_name_generator_map() {
+  static FastIdToNameMap& get_name_map() {
     // Static: One and the same instance for all function calls.
-    static FastIdToStringViewGeneratorMap name_generator_map;
-    return name_generator_map;
+    static FastIdToNameMap name_map;
+    return name_map;
   }
 
   static FastIdToTopologyGeneratorMap& get_topology_generator_map() {

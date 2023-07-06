@@ -43,7 +43,7 @@ namespace mundy {
 
 namespace mesh {
 
-// \name Constructor
+// \name Constructors and destructor
 //{
 
 MetaData::MetaData() : stk::mesh::MetaData() {
@@ -52,6 +52,10 @@ MetaData::MetaData() : stk::mesh::MetaData() {
 MetaData::MetaData(size_t spatial_dimension, const std::vector<std::string> &rank_names)
     : stk::mesh::MetaData(spatial_dimension, rank_names) {
 }
+
+MetaData::~MetaData() {
+}
+
 //}
 
 // \name Actions

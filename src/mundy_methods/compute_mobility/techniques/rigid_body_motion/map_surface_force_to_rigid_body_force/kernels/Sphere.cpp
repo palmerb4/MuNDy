@@ -108,7 +108,7 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   body_node_torque[2] *= beta_;
 
   unsigned num_surface_nodes = bulk_data_ptr_->num_nodes(linker);
-  for (int i = 0; i < num_surface_nodes; i++) {
+  for (unsigned i = 0; i < num_surface_nodes; i++) {
     double *surface_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, surface_nodes[i]);
     double *surface_node_force = stk::mesh::field_data(*node_force_field_ptr_, surface_nodes[i]);
     double *surface_node_torque = stk::mesh::field_data(*node_torque_field_ptr_, surface_nodes[i]);
