@@ -35,18 +35,18 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaKWayKernel.hpp>    // for mundy::meta::MetaKWayKernel
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
-#include <stk_util/util/ReportHandler.hpp>     // for STK_ThrowAssertMsg
+#include <stk_util/util/ReportHandler.hpp>  // for STK_ThrowAssertMsg
 
 namespace mundy {
 
@@ -145,7 +145,7 @@ class MetaFactory {
   static void validate_fixed_parameters_and_set_defaults(const RegistrationType& key,
                                                          Teuchos::ParameterList const* fixed_params_ptr) {
     MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
-                               "MetaFactory: The provided key " << key << " is not valid.");
+                       "MetaFactory: The provided key " << key << " is not valid.");
     get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
   }
 
@@ -160,7 +160,7 @@ class MetaFactory {
   static void validate_mutable_parameters_and_set_defaults(const RegistrationType& key,
                                                            Teuchos::ParameterList const* mutable_params_ptr) {
     MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
-                               "MetaFactory: The provided key " << key << " is not valid.");
+                       "MetaFactory: The provided key " << key << " is not valid.");
     get_validate_mutable_params_generator_map()[key](mutable_params_ptr);
   }
   //@}
@@ -181,7 +181,7 @@ class MetaFactory {
     }
 
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
-                               "MetaFactory: The provided key " << key << " already exists.");
+                       "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().insert(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::static_create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_mesh_requirements));

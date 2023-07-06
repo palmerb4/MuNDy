@@ -30,13 +30,14 @@
 #include <vector>   // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>             // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>            // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
@@ -45,7 +46,6 @@
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -219,7 +219,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
 
 }  // namespace techniques
 
-}  // namespacce map_rigid_body_force_to_rigid_body_velocity
+}  // namespace map_rigid_body_force_to_rigid_body_velocity
 
 }  // namespace rigid_body_motion
 

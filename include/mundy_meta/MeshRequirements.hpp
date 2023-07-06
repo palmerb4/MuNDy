@@ -61,7 +61,7 @@ class MeshRequirements {
   ///
   /// \param comm [in] The MPI communicator.
   explicit MeshRequirements(const stk::ParallelMachine &comm);
-  
+
   /// \brief Construct from a parameter list.
   ///
   /// \param parameter_list [in] Optional list of parameters for specifying the mesh requirements. The set of valid
@@ -224,8 +224,8 @@ class MeshRequirements {
     if (parameter_list_ptr->isParameter("spatial_dimension")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("spatial_dimension");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
-                                 "with a type other than unsigned");
+                         "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
+                         "with a type other than unsigned");
     } else {
       parameter_list_ptr->set("spatial_dimension", default_spatial_dimension_,
                               "Dimension of the space within which the parts and entities reside.");
@@ -235,8 +235,8 @@ class MeshRequirements {
       const bool valid_type =
           parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<Teuchos::Array<std::string>>("entity_rank_names");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
-                                 "with a type other than Teuchos::Array<std::string>");
+                         "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
+                         "with a type other than Teuchos::Array<std::string>");
     } else {
       parameter_list_ptr->set("entity_rank_names", default_entity_rank_names_,
                               "Vector of names assigned to each rank.");
@@ -257,8 +257,8 @@ class MeshRequirements {
           parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<mundy::mesh::BulkData::AutomaticAuraOption>(
               "aura_option");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
-                                 "type other than mundy::mesh::BulkData::AutomaticAuraOption");
+                         "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
+                         "type other than mundy::mesh::BulkData::AutomaticAuraOption");
     } else {
       parameter_list_ptr->set("aura_option", default_aura_option_, "The chosen Aura option.");
     }
@@ -267,8 +267,8 @@ class MeshRequirements {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::mesh::FieldDataManager *>(
           "field_data_manager_ptr");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
-                                 "but with a type other than stk::mesh::FieldDataManager *");
+                         "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
+                         "but with a type other than stk::mesh::FieldDataManager *");
     } else {
       parameter_list_ptr->set("field_data_manager_ptr", default_field_data_manager_ptr_,
                               "A pointer to a preexisting field data manager.");
@@ -277,8 +277,8 @@ class MeshRequirements {
     if (parameter_list_ptr->isParameter("bucket_capacity")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("bucket_capacity");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
-                                 "a type other than unsigned");
+                         "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
+                         "a type other than unsigned");
     } else {
       parameter_list_ptr->set(
           "bucket_capacity", default_bucket_capacity_,
@@ -288,8 +288,8 @@ class MeshRequirements {
     if (parameter_list_ptr->isParameter("upward_connectivity_flag")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<bool>("upward_connectivity_flag");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
-                                 "but with a type other than bool");
+                         "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
+                         "but with a type other than bool");
     } else {
       parameter_list_ptr->set("upward_connectivity_flag", default_upward_connectivity_flag_,
                               "Flag specifying if upward connectivity will be enabled or not.");

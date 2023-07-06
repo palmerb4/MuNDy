@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>             // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
@@ -41,7 +42,6 @@
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -54,7 +54,7 @@ ComputeMobility::ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, con
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                             "ComputeMobility: bulk_data_ptr cannot be a nullptr.");
+                     "ComputeMobility: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;

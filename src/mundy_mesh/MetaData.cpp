@@ -30,14 +30,14 @@
 #include <utility>      // for std::make_pair
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 #include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -69,8 +69,8 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
   if (field_has_attributes) {
     const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
     MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
-                               "MetaData: An attribute with the same type as the provided attribute already "
-                               "exists on the given field.");
+                       "MetaData: An attribute with the same type as the provided attribute already "
+                       "exists on the given field.");
   } else {
     field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::type_index, std::any>()));
   }
@@ -86,8 +86,8 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
   if (field_has_attributes) {
     const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
     MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
-                               "MetaData: An attribute with the same type as the provided attribute already "
-                               "exists on the given field.");
+                       "MetaData: An attribute with the same type as the provided attribute already "
+                       "exists on the given field.");
   } else {
     field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::type_index, std::any>()));
   }

@@ -54,5 +54,5 @@
       throw exception_to_throw(omsgstr);                                                             \
     }                                                                                                \
   } while (0)
-  
+
 #endif  // MUNDY_ASSERT_HPP_

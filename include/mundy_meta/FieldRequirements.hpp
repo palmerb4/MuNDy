@@ -34,11 +34,11 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
-#include <stk_util/util/CSet.hpp>        // for stk::CSet
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
+#include <stk_util/util/CSet.hpp>     // for stk::CSet
 
 // Mundy libs
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
@@ -408,8 +408,8 @@ stk::topology::rank_t FieldRequirements<FieldType>::get_field_rank() const {
 template <typename FieldType>
 unsigned FieldRequirements<FieldType>::get_field_dimension() const {
   MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
-                             "FieldRequirements: Attempting to access the field dimension requirement even though "
-                             "field dimension is unconstrained.");
+                     "FieldRequirements: Attempting to access the field dimension requirement even though "
+                     "field dimension is unconstrained.");
 
   return field_dimension_;
 }
@@ -442,21 +442,20 @@ template <typename FieldType>
 void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
                                                          const stk::mesh::Part &part) const {
   MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
-                             "FieldRequirements: MetaData pointer cannot be null).");
+                     "FieldRequirements: MetaData pointer cannot be null).");
 
   MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
-                             "FieldRequirements: Field name must be set before calling declare_field.");
+                     "FieldRequirements: Field name must be set before calling declare_field.");
   MUNDY_THROW_ASSERT(this->constrains_field_rank(), std::logic_error,
-                             "FieldRequirements: Field rank must be set before calling declare_field.");
+                     "FieldRequirements: Field rank must be set before calling declare_field.");
   MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
-                             "FieldRequirements: Field dimension must be set before calling declare_field.");
-  MUNDY_THROW_ASSERT(
-      this->constrains_field_min_number_of_states(), std::logic_error,
-      "FieldRequirements: Field minimum number of states must be set before calling declare_field.");
+                     "FieldRequirements: Field dimension must be set before calling declare_field.");
+  MUNDY_THROW_ASSERT(this->constrains_field_min_number_of_states(), std::logic_error,
+                     "FieldRequirements: Field minimum number of states must be set before calling declare_field.");
 
   // Declare the field and assign it to the given part.
-  stk::mesh::Field<FieldType> &field =
-      meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name(), this->get_field_min_number_of_states());
+  stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
+      this->get_field_rank(), this->get_field_name(), this->get_field_min_number_of_states());
   stk::mesh::put_field_on_mesh(field, part, this->get_field_dimension(), nullptr);
 
   // Set the field attributes.
@@ -468,21 +467,20 @@ void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *
 template <typename FieldType>
 void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const {
   MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
-                             "FieldRequirements: MetaData pointer cannot be null).");
+                     "FieldRequirements: MetaData pointer cannot be null).");
 
   MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
-                             "FieldRequirements: Field name must be set before calling declare_field.");
+                     "FieldRequirements: Field name must be set before calling declare_field.");
   MUNDY_THROW_ASSERT(this->constrains_field_rank(), std::logic_error,
-                             "FieldRequirements: Field rank must be set before calling declare_field.");
+                     "FieldRequirements: Field rank must be set before calling declare_field.");
   MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
-                             "FieldRequirements: Field dimension must be set before calling declare_field.");
-  MUNDY_THROW_ASSERT(
-      this->constrains_field_min_number_of_states(), std::logic_error,
-      "FieldRequirements: Field minimum number of states must be set before calling declare_field.");
+                     "FieldRequirements: Field dimension must be set before calling declare_field.");
+  MUNDY_THROW_ASSERT(this->constrains_field_min_number_of_states(), std::logic_error,
+                     "FieldRequirements: Field minimum number of states must be set before calling declare_field.");
 
   // Declare the field and assign it to the given part.
-  stk::mesh::Field<FieldType> &field =
-      meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name(), this->get_field_min_number_of_states());
+  stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
+      this->get_field_rank(), this->get_field_name(), this->get_field_min_number_of_states());
   stk::mesh::put_field_on_entire_mesh(field, this->get_field_dimension());
 
   // Set the field attributes.
@@ -542,9 +540,8 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
   field_req_ptr->check_if_valid();
 
   // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-  MUNDY_THROW_ASSERT(
-      this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
-      "FieldRequirements: Field type mismatch between our field type and the given requirements.");
+  MUNDY_THROW_ASSERT(this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
+                     "FieldRequirements: Field type mismatch between our field type and the given requirements.");
 
   if (field_req_ptr->constrains_field_name()) {
     if (this->constrains_field_name()) {
@@ -568,10 +565,9 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
 
   if (field_req_ptr->constrains_field_dimension()) {
     if (this->constrains_field_dimension()) {
-      MUNDY_THROW_ASSERT(this->get_field_dimension() == field_req_ptr->get_field_dimension(),
-                                 std::invalid_argument,
-                                 "FieldRequirements: One of the inputs has incompatible dimension ("
-                                     << field_req_ptr->get_field_dimension() << ").");
+      MUNDY_THROW_ASSERT(this->get_field_dimension() == field_req_ptr->get_field_dimension(), std::invalid_argument,
+                         "FieldRequirements: One of the inputs has incompatible dimension ("
+                             << field_req_ptr->get_field_dimension() << ").");
     } else {
       this->set_field_dimension(field_req_ptr->get_field_dimension());
     }

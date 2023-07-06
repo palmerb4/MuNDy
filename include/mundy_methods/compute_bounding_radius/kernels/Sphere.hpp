@@ -103,8 +103,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
     if (fixed_params_ptr->isParameter("radius_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("radius_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("radius_field_name", std::string(default_radius_field_name_),
                             "Name of the element field containing the sphere radius.");
@@ -114,8 +114,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("bounding_radius_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'bounding_radius_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'bounding_radius_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("bounding_radius_field_name", std::string(default_bounding_radius_field_name_),
                             "Name of the element field within which the output bounding radius will be written.");
@@ -128,8 +128,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeBound
     if (mutable_params_ptr->isParameter("buffer_distance")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
-                                 "with a type other than unsigned");
+                         "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
+                         "with a type other than unsigned");
     } else {
       mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
                               "Buffer distance to be added to the bounding radius.");

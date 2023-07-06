@@ -93,7 +93,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     part_reqs->add_field_reqs(
         std::make_shared<mundy::meta::FieldRequirements<double>>(radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+                                                                                       stk::topology::NODE_RANK, 3, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(part_reqs);
@@ -106,8 +106,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     if (fixed_params_ptr->isParameter("obb_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("obb_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'obb_field_name' but "
-                                     << "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'obb_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("obb_field_name", std::string(default_obb_field_name_),
                             "Element field within which the output object-aligned boundary boxes will be written.");
@@ -116,8 +116,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     if (fixed_params_ptr->isParameter("radius_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("radius_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("radius_field_name", std::string(default_radius_field_name_),
                             "Name of the element field containing the sphere radius.");
@@ -126,8 +126,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
-                                     << "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
@@ -140,12 +140,12 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public ComputeOBB::
     if (mutable_params_ptr->isParameter("buffer_distance")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("buffer_distance");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
-                                     << "with a type other than double");
+                         "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
+                             << "with a type other than double");
       const bool is_buffer_distance_positive = mutable_params_ptr->get<double>("buffer_distance") > 0;
       MUNDY_THROW_ASSERT(is_buffer_distance_positive, std::invalid_argument,
-                                 "Sphere: Invalid parameter. Given a parameter with name 'buffer_distance' but "
-                                     << "with a value less than or equal to zero.");
+                         "Sphere: Invalid parameter. Given a parameter with name 'buffer_distance' but "
+                             << "with a value less than or equal to zero.");
     } else {
       mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
                               "Buffer distance to be added to the axis-aligned boundary box.");

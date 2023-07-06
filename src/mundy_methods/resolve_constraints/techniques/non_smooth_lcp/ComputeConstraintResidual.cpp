@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
@@ -41,7 +42,6 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintResidual.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintResidual
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -60,8 +60,7 @@ ComputeConstraintResidual::ComputeConstraintResidual(mundy::mesh::BulkData *cons
                                                      const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                             "Sphere: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument, "Sphere: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -81,8 +80,7 @@ ComputeConstraintResidual::ComputeConstraintResidual(mundy::mesh::BulkData *cons
 // \name MetaMethod interface implementation
 //{
 
-void ComputeConstraintResidual::set_mutable_params(
-    [[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
+void ComputeConstraintResidual::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
 }
 //}
 
@@ -105,8 +103,7 @@ double ComputeConstraintResidual::execute(const stk::mesh::Selector &input_selec
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_intersection_with_constraints,
       [&local_residual]([[maybe_unused]] const mundy::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
         // This is the  norm of the constraint violation.
-        const double constraint_violation =
-            stk::mesh::field_data(*element_constraint_violation_field_ptr_, element)[0];
+        const double constraint_violation = stk::mesh::field_data(*element_constraint_violation_field_ptr_, element)[0];
         local_residual = std::max(local_residual, constraint_violation);
       });
 

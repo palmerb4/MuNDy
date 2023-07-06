@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
@@ -41,7 +42,6 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp>  // for mundy::methods::...::MapSurfaceForceToRigidBodyForce
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -61,7 +61,7 @@ MapSurfaceForceToRigidBodyForce::MapSurfaceForceToRigidBodyForce(mundy::mesh::Bu
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                             "MapSurfaceForceToRigidBodyForce: bulk_data_ptr cannot be a nullptr.");
+                     "MapSurfaceForceToRigidBodyForce: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -92,9 +92,9 @@ void MapSurfaceForceToRigidBodyForce::set_mutable_params(const Teuchos::Paramete
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
   MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
-                             "MapSurfaceForceToRigidBodyForce: Internal error. Mismatch between the stored kernel "
-                             "count and the parameter list kernel count.\n"
-                                 << "Odd... Please contact the development team.");
+                     "MapSurfaceForceToRigidBodyForce: Internal error. Mismatch between the stored kernel "
+                     "count and the parameter list kernel count.\n"
+                         << "Odd... Please contact the development team.");
   for (size_t i = 0; i < num_multibody_types_; i++) {
     Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
     multibody_kernel_ptrs_[i]->set_mutable_params(kernel_params);

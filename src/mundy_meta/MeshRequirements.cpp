@@ -38,13 +38,13 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>        // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 #include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 // This fixes compilation errors with OpenMPI 4.
 // The cause of the error is that OpenMPI defines MPI_Comm (and therefore stk::ParallelMachine) as a pointer to an
@@ -264,7 +264,7 @@ std::map<std::type_index, std::any> MeshRequirements::get_mesh_attributes_map() 
 //{
 std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
   MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
-                             "MeshRequirements: The MPI communicator must be ste before calling declare_mesh.");
+                     "MeshRequirements: The MPI communicator must be ste before calling declare_mesh.");
 
   // The mesh itself is generated using stk's MeshBuilder which we provide a wrapper for.
   // If any of our parameters are not constrained, we use the default value.
@@ -399,10 +399,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
   if (mesh_req_ptr->constrains_spatial_dimension()) {
     if (this->constrains_spatial_dimension()) {
-      MUNDY_THROW_ASSERT(this->get_spatial_dimension() == mesh_req_ptr->get_spatial_dimension(),
-                                 std::invalid_argument,
-                                 "MeshRequirements: One of the inputs has incompatible spatial dimension ("
-                                     << mesh_req_ptr->get_spatial_dimension() << ").");
+      MUNDY_THROW_ASSERT(this->get_spatial_dimension() == mesh_req_ptr->get_spatial_dimension(), std::invalid_argument,
+                         "MeshRequirements: One of the inputs has incompatible spatial dimension ("
+                             << mesh_req_ptr->get_spatial_dimension() << ").");
     } else {
       this->set_spatial_dimension(mesh_req_ptr->get_spatial_dimension());
     }
@@ -410,9 +409,8 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
 
   if (mesh_req_ptr->constrains_entity_rank_names()) {
     if (this->constrains_entity_rank_names()) {
-      MUNDY_THROW_ASSERT(this->get_entity_rank_names() == mesh_req_ptr->get_entity_rank_names(),
-                                 std::invalid_argument,
-                                 "MeshRequirements: One of the inputs has incompatible entity rank names.");
+      MUNDY_THROW_ASSERT(this->get_entity_rank_names() == mesh_req_ptr->get_entity_rank_names(), std::invalid_argument,
+                         "MeshRequirements: One of the inputs has incompatible entity rank names.");
     } else {
       this->set_entity_rank_names(mesh_req_ptr->get_entity_rank_names());
     }
@@ -421,7 +419,7 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   if (mesh_req_ptr->constrains_communicator()) {
     if (this->constrains_communicator()) {
       MUNDY_THROW_ASSERT(this->get_communicator() == mesh_req_ptr->get_communicator(), std::invalid_argument,
-                                 "MeshRequirements: One of the inputs has incompatible MPI communicator.");
+                         "MeshRequirements: One of the inputs has incompatible MPI communicator.");
     } else {
       this->set_communicator(mesh_req_ptr->get_communicator());
     }
@@ -430,7 +428,7 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   if (mesh_req_ptr->constrains_aura_option()) {
     if (this->constrains_aura_option()) {
       MUNDY_THROW_ASSERT(this->get_aura_option() == mesh_req_ptr->get_aura_option(), std::invalid_argument,
-                                 "MeshRequirements: One of the inputs has incompatible aura option.");
+                         "MeshRequirements: One of the inputs has incompatible aura option.");
     } else {
       this->set_aura_option(mesh_req_ptr->get_aura_option());
     }
@@ -439,8 +437,8 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   if (mesh_req_ptr->constrains_field_data_manager()) {
     if (this->constrains_field_data_manager()) {
       MUNDY_THROW_ASSERT(this->get_field_data_manager() == mesh_req_ptr->get_field_data_manager(),
-                                 std::invalid_argument,
-                                 "MeshRequirements: One of the inputs has incompatible field data manager.");
+                         std::invalid_argument,
+                         "MeshRequirements: One of the inputs has incompatible field data manager.");
     } else {
       this->set_field_data_manager(mesh_req_ptr->get_field_data_manager());
     }
@@ -448,10 +446,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
 
   if (mesh_req_ptr->constrains_bucket_capacity()) {
     if (this->constrains_bucket_capacity()) {
-      MUNDY_THROW_ASSERT(this->get_bucket_capacity() == mesh_req_ptr->get_bucket_capacity(),
-                                 std::invalid_argument,
-                                 "MeshRequirements: One of the inputs has incompatible bucket capacity ("
-                                     << mesh_req_ptr->get_bucket_capacity() << ").");
+      MUNDY_THROW_ASSERT(this->get_bucket_capacity() == mesh_req_ptr->get_bucket_capacity(), std::invalid_argument,
+                         "MeshRequirements: One of the inputs has incompatible bucket capacity ("
+                             << mesh_req_ptr->get_bucket_capacity() << ").");
     } else {
       this->set_bucket_capacity(mesh_req_ptr->get_bucket_capacity());
     }
@@ -460,9 +457,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   if (mesh_req_ptr->constrains_upward_connectivity_flag()) {
     if (this->constrains_upward_connectivity_flag()) {
       MUNDY_THROW_ASSERT(this->get_upward_connectivity_flag() == mesh_req_ptr->get_upward_connectivity_flag(),
-                                 std::invalid_argument,
-                                 "MeshRequirements: One of the inputs has incompatible connectivity flag ("
-                                     << mesh_req_ptr->get_upward_connectivity_flag() << ").");
+                         std::invalid_argument,
+                         "MeshRequirements: One of the inputs has incompatible connectivity flag ("
+                             << mesh_req_ptr->get_upward_connectivity_flag() << ").");
     } else {
       this->set_upward_connectivity_flag(mesh_req_ptr->get_upward_connectivity_flag());
     }

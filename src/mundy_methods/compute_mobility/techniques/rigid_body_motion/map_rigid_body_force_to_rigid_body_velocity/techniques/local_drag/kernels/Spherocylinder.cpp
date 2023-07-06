@@ -50,7 +50,7 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                             "Spherocylinder: bulk_data_ptr cannot be a nullptr.");
+                     "Spherocylinder: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -101,9 +101,6 @@ void Spherocylinder::execute(const stk::mesh::Entity &spherocylinder_element) {
   double *radius = stk::mesh::field_data(*element_radius_field_ptr_, spherocylinder_element);
   double *length = stk::mesh::field_data(*element_length_field_ptr_, spherocylinder_element);
   double *aabb = stk::mesh::field_data(*aabb_field_ptr_, spherocylinder_element);
-
-    
-
 
   aabb[0] = coords[0] - radius[0] - buffer_distance_;
   aabb[1] = coords[1] - radius[0] - buffer_distance_;

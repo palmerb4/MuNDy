@@ -46,7 +46,8 @@ namespace mesh {
 
 namespace {
 
-// Note, STK's MetaData is thoughly tested, so we don't need to test it here. We just need to test our extensions to it.
+// Note, STK's MetaData is thoroughly tested, so we don't need to test it here. We just need to test our extensions to
+// it.
 
 TEST(MetaDataAttributes, DeclareFetchAndRemoveFieldAttribute) {
   // Create a dummy mesh.

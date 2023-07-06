@@ -29,13 +29,14 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
@@ -44,7 +45,6 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -121,9 +121,9 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "ComputeConstraintResidual: Type error. Given a parameter with name "
-                                 "'element_constraint_violation_field_name' but "
-                                     << "with a type other than std::string");
+                         "ComputeConstraintResidual: Type error. Given a parameter with name "
+                         "'element_constraint_violation_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("element_constraint_violation_field_name",
                             std::string(default_element_constraint_violation_field_name_),

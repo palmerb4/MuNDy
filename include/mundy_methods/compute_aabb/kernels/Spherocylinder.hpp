@@ -90,7 +90,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     part_reqs->set_part_topology(stk::topology::BEAM3);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHEROCYLINDER"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -107,8 +107,8 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Spherocylinder: Type error. Given a parameter with name 'node_coord_field_name' but "
-                                     << "with a type other than std::string");
+                         "Spherocylinder: Type error. Given a parameter with name 'node_coord_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the Spherocylinder's nodes.");
@@ -117,10 +117,9 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     if (fixed_params_ptr->isParameter("element_radius_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "Spherocylinder: Type error. Given a parameter with name 'element_length_field_name' but "
-          "with a type other than std::string");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "Spherocylinder: Type error. Given a parameter with name 'element_length_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("element_radius_field_name", std::string(default_element_radius_field_name_),
                             "Name of the element field containing the Spherocylinder's radius.");
@@ -129,10 +128,9 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     if (fixed_params_ptr->isParameter("element_aabb_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_aabb_field_name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "Spherocylinder: Type error. Given a parameter with name 'element_aabb_field_name' but "
-              << "with a type other than std::string");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "Spherocylinder: Type error. Given a parameter with name 'element_aabb_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set(
           "element_aabb_field_name", std::string(default_element_aabb_field_name_),
@@ -146,8 +144,8 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
     if (mutable_params_ptr->isParameter("buffer_distance")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Spherocylinder: Type error. Given a parameter with name 'buffer_distance' but "
-                                     << "with a type other than unsigned");
+                         "Spherocylinder: Type error. Given a parameter with name 'buffer_distance' but "
+                             << "with a type other than unsigned");
     } else {
       mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
                               "Buffer distance to be added to the axis-aligned boundary box.");

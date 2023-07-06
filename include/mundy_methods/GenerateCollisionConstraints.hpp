@@ -29,14 +29,15 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
-#include <stk_search/IdentProc.hpp>      // for stk::search::IdentProc
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_search/IdentProc.hpp>    // for stk::search::IdentProc
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
@@ -44,7 +45,6 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -251,9 +251,9 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   /// \param bulk_data_ptr The BulkData object to add the collision constraints to (must be in a modifiable state).
   /// \param collision_part_ptr The part to assign to the collision constraints.
   /// \param pairs_to_connect The set of neighbors to connect with constraints.
-  void generate_empty_collision_constraints_between_pairs(
-      mundy::mesh::BulkData *const bulk_data_ptr, stk::mesh::Part *const collision_part_ptr,
-      const IdentProcPairVector &pairs_to_connect);
+  void generate_empty_collision_constraints_between_pairs(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                          stk::mesh::Part *const collision_part_ptr,
+                                                          const IdentProcPairVector &pairs_to_connect);
   //@}
 
   //! \name Internal members

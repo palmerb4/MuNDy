@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
@@ -41,7 +42,6 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintForcing
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -60,7 +60,7 @@ ComputeAABB::ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuch
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                             "ComputeAABB: bulk_data_ptr cannot be a nullptr.");
+                     "ComputeAABB: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -105,7 +105,7 @@ void ComputeAABB::set_mutable_params(const Teuchos::ParameterList &mutable_param
 //{
 
 void ComputeConstraintForcing::execute(const stk::mesh::Selector &input_selector) {
-  // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field. 
+  // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field.
   // We need to add in alpha and beta to let the user choose.
   for (size_t i = 0; i < num_multibody_types_; i++) {
     multibody_kernel_ptrs_[i]->setup();

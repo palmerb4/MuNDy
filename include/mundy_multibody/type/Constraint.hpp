@@ -36,7 +36,7 @@ namespace multibody {
 namespace type {
 
 /// \class Constraint
-/// \brief The static interface for all of Mundy's multibody Constraint objects. 
+/// \brief The static interface for all of Mundy's multibody Constraint objects.
 /// This is the parent/root class from which all constraints derive.
 class Constraint : Multibody<Constraint> {
   //! \name Getters

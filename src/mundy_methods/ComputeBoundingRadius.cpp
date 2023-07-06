@@ -34,6 +34,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>                   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>               // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
@@ -41,7 +42,6 @@
 #include <mundy_meta/MetaRegistry.hpp>              // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeBoundingRadius.hpp>  // for mundy::methods::ComputeBoundingRadius
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -55,7 +55,7 @@ ComputeBoundingRadius::ComputeBoundingRadius(mundy::mesh::BulkData *const bulk_d
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                             "ComputeBoundingRadius: bulk_data_ptr cannot be a nullptr.");
+                     "ComputeBoundingRadius: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -86,9 +86,9 @@ void ComputeBoundingRadius::set_mutable_params([[maybe_unused]] const Teuchos::P
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
   MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
-                             "ComputeBoundingRadius: Internal error. Mismatch between the stored kernel count and the "
-                                 << "parameter list kernel count.\n"
-                                 << "Odd... Please contact the development team.");
+                     "ComputeBoundingRadius: Internal error. Mismatch between the stored kernel count and the "
+                         << "parameter list kernel count.\n"
+                         << "Odd... Please contact the development team.");
   for (size_t i = 0; i < num_multibody_types_; i++) {
     Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
     multibody_kernel_ptrs_[i]->set_mutable_params(kernel_params);
@@ -103,7 +103,7 @@ void ComputeBoundingRadius::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_multibody_types_; i++) {
     multibody_kernel_ptrs_[i]->setup();
   }
-  
+
   for (size_t i = 0; i < num_multibody_types_; i++) {
     auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
     auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];

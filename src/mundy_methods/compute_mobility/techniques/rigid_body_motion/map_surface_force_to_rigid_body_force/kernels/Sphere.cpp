@@ -54,8 +54,7 @@ namespace kernels {
 Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                             "Sphere: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument, "Sphere: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -65,7 +64,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
   node_force_field_name_ = valid_fixed_params.get<std::string>("node_force_field_name");
   node_torque_field_name_ = valid_fixed_params.get<std::string>("node_torque_field_name");
-  
+
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
   node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_torque_field_name_);
@@ -89,7 +88,7 @@ void Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &m
 // \name Actions
 //{
 void Sphere::setup() {
-    // TODO(palmerb4): Populate the ghosted nodes and spheres information. 
+  // TODO(palmerb4): Populate the ghosted nodes and spheres information.
 }
 
 void Sphere::execute(const stk::mesh::Entity &sphere_element) {

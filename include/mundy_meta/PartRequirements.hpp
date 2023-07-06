@@ -301,9 +301,8 @@ class PartRequirements {
     // TODO(palmerb4): We should also take in and validate any sub-parts, fields, or known attributes.
     // Note, topology and rank can either be in string form or in explicit type form.
 
-    MUNDY_THROW_ASSERT(
-        parameter_list_ptr->isParameter("name"), std::invalid_argument,
-        "PartRequirements: Expected to find a parameter with name 'name' but no such parameter exists.");
+    MUNDY_THROW_ASSERT(parameter_list_ptr->isParameter("name"), std::invalid_argument,
+                       "PartRequirements: Expected to find a parameter with name 'name' but no such parameter exists.");
 
     const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
     MUNDY_THROW_ASSERT(
@@ -313,24 +312,24 @@ class PartRequirements {
     bool valid_topology_rank_combo =
         !(parameter_list_ptr->isParameter("topology") && parameter_list_ptr->isParameter("rank"));
     MUNDY_THROW_ASSERT(valid_topology_rank_combo, std::invalid_argument,
-                               "PartRequirements: Topology and rank cannot both be set simultaneously; please set one "
-                                   << "or the other (or neither).");
+                       "PartRequirements: Topology and rank cannot both be set simultaneously; please set one "
+                           << "or the other (or neither).");
 
     if (parameter_list_ptr->isParameter("topology")) {
       const bool valid_type =
           ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("topology")) ||
            (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::topology_t>("topology")));
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "PartRequirements: Type error. Given a parameter with name 'topology' but "
-                                     << "with a type other than std::string or stk::topology::topology_t");
+                         "PartRequirements: Type error. Given a parameter with name 'topology' but "
+                             << "with a type other than std::string or stk::topology::topology_t");
     } else {
       if (parameter_list_ptr->isParameter("rank")) {
         const bool valid_type =
             ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
              (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
         MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                   "PartRequirements: Type error. Given a parameter with name 'rank' but with a "
-                                       << "type other than std::string or stk::topology::rank_t");
+                           "PartRequirements: Type error. Given a parameter with name 'rank' but with a "
+                               << "type other than std::string or stk::topology::rank_t");
       }
     }
   }

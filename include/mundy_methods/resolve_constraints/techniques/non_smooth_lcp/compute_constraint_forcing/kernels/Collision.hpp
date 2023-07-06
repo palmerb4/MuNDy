@@ -97,9 +97,9 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     part_reqs->set_part_topology(stk::topology::BEAM_2);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("COLLISION"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_force_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
@@ -114,8 +114,8 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Collision: Type error. Given a parameter with name 'node_coord_field_name' but "
-                                     << "with a type other than std::string");
+                         "Collision: Type error. Given a parameter with name 'node_coord_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the node's spatial coordinate.");
@@ -124,8 +124,8 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
     if (fixed_params_ptr->isParameter("node_force_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Collision: Type error. Given a parameter with name 'node_force_field_name' but "
-                                     << "with a type other than std::string");
+                         "Collision: Type error. Given a parameter with name 'node_force_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_force_field_name", std::string(default_node_force_field_name_),
                             "Name of the node field containing force on the constraint's entpoints.");

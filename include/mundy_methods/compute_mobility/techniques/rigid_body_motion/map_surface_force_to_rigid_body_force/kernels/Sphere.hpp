@@ -119,8 +119,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
@@ -129,8 +129,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     if (fixed_params_ptr->isParameter("node_force_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_force_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_force_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_force_field_name", std::string(default_node_force_field_name_),
                             "Name of the node field containing the surface and body force.");
@@ -140,8 +140,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_torque_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_torque_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_torque_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_torque_field_name", std::string(default_node_torque_field_name_),
                             "Name of the node field containing the surface and body torque.");
@@ -154,8 +154,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     if (mutable_params_ptr->isParameter("alpha")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("alpha");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'alpha' but "
-                                 "with a type other than double");
+                         "Sphere: Type error. Given a parameter with name 'alpha' but "
+                         "with a type other than double");
     } else {
       mutable_params_ptr->set("alpha", default_alpha_,
                               "Scale for the force and torque such that F = beta * F0 + alpha * Fnew.");
@@ -164,8 +164,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     if (mutable_params_ptr->isParameter("beta")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("beta");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'beta' but "
-                                 "with a type other than double");
+                         "Sphere: Type error. Given a parameter with name 'beta' but "
+                         "with a type other than double");
     } else {
       mutable_params_ptr->set("beta", default_beta_,
                               "Scale for the force and torque such that F = beta * F0 + alpha * Fnew.");

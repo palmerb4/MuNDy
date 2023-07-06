@@ -29,13 +29,14 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>                // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaKernelFactory
@@ -44,7 +45,6 @@
 #include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
 #include <mundy_methods/ResolveConstraints.hpp>  // for mundy::methods::ResolveConstraints
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -136,10 +136,9 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_forcing_params.isParameter("name")) {
       const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
-              << "with a type other than std::string");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
+                             << "with a type other than std::string");
     } else {
       compute_constraint_forcing_params.set(
           "name", std::string(default_compute_constraint_forcing_name_),
@@ -161,10 +160,9 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_residual_params.isParameter("name")) {
       const bool valid_type = compute_constraint_residual_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
-              << "with a type other than std::string");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
+                             << "with a type other than std::string");
     } else {
       compute_constraint_residual_params.set(
           "name", std::string(default_compute_constraint_residual_name_),
@@ -229,10 +227,9 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_forcing_params.isParameter("name")) {
       const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
-              << "with a type other than std::string");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "NonSmoothLCP: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
+                             << "with a type other than std::string");
     } else {
       compute_constraint_forcing_params.set(
           "name", std::string(default_compute_constraint_forcing_name_),
@@ -254,10 +251,9 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
 
     if (compute_constraint_residual_params.isParameter("name")) {
       const bool valid_type = compute_constraint_residual_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
-              << "with a type other than std::string");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "NonSmoothLCP: Type error. Given a compute_constraint_residual parameter with name 'name' but "
+                             << "with a type other than std::string");
     } else {
       compute_constraint_residual_params.set(
           "name", std::string(default_compute_constraint_residual_name_),
@@ -297,8 +293,8 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (mutable_params_ptr->isParameter("max_num_iterations")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("max_num_iterations");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "NonSmoothLCP: Type error. Given a parameter with name 'max_num_iterations' but "
-                                     << "with a type other than unsigned");
+                         "NonSmoothLCP: Type error. Given a parameter with name 'max_num_iterations' but "
+                             << "with a type other than unsigned");
     } else {
       mutable_params_ptr->set("max_num_iterations", default_max_num_iterations_,
                               "The maximum number of BBPGD iterations to take.");
@@ -307,10 +303,9 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
     if (mutable_params_ptr->isParameter("constraint_residual_tolerance")) {
       const bool valid_type =
           mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("constraint_residual_tolerance");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "NonSmoothLCP: Type error. Given a parameter with name 'constraint_residual_tolerance' but "
-              << "with a type other than double");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "NonSmoothLCP: Type error. Given a parameter with name 'constraint_residual_tolerance' but "
+                             << "with a type other than double");
       const bool is_constraint_residual_tolerance_positive = mutable_params_ptr->get<double>("viscosity") > 0;
       MUNDY_THROW_ASSERT(
           is_constraint_residual_tolerance_positive, std::invalid_argument,

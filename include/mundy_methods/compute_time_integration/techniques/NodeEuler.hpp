@@ -29,13 +29,14 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>                    // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                   // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                   // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>                // for mundy::meta::MetaKernelFactory
@@ -45,7 +46,6 @@
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 #include <mundy_multibody/Factory.hpp>               // for mundy::multibody::Factory
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -97,11 +97,11 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     part_reqs->set_part_rank(stk::topology::ELEMENT_RANK);
     part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("BODY"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+                                                                                       stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name_name,
-                                                                                      stk::topology::NODE_RANK, 3, 1));
+                                                                                       stk::topology::NODE_RANK, 3, 1));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(part_reqs);
@@ -115,8 +115,8 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "NodeEuler: Type error. Given a parameter with name 'node_coord_field_name' but "
-                                     << "with a type other than std::string");
+                         "NodeEuler: Type error. Given a parameter with name 'node_coord_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the node's spatial coordinate.");
@@ -126,8 +126,8 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "NodeEuler: Type error. Given a parameter with name 'node_velocity_field_name' but "
-                                     << "with a type other than std::string");
+                         "NodeEuler: Type error. Given a parameter with name 'node_velocity_field_name' but "
+                             << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
                             "Name of the node field containing the node's translational velocity.");
@@ -136,8 +136,8 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "NodeEuler: Type error. Given a parameter with name 'node_omega_field_name' but "
-                                 "with a type other than std::string");
+                         "NodeEuler: Type error. Given a parameter with name 'node_omega_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
                             "Name of the node field containing the node's rotational velocity.");
@@ -150,12 +150,12 @@ class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
     if (mutable_params_ptr->isParameter("time_step_size")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("time_step_size");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
-                                     << "with a type other than double");
+                         "NodeEuler: Type error. Given a parameter with name 'time_step_size' but "
+                             << "with a type other than double");
       const bool is_time_step_size_positive = mutable_params_ptr->get<double>("time_step_size") > 0;
       MUNDY_THROW_ASSERT(is_time_step_size_positive, std::invalid_argument,
-                                 "NodeEuler: Invalid parameter. Given a parameter with name 'time_step_size' but "
-                                     << "with a value less than or equal to zero.");
+                         "NodeEuler: Invalid parameter. Given a parameter with name 'time_step_size' but "
+                             << "with a value less than or equal to zero.");
     } else {
       mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
     }

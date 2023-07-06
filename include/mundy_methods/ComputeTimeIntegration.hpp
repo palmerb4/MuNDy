@@ -30,13 +30,14 @@
 #include <vector>   // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>      // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>    // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
@@ -44,7 +45,6 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -105,8 +105,8 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
     if (technique_params.isParameter("name")) {
       const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "ComputeTimeIntegration: Type error. Given a parameter with name 'name' but with a "
-                                 "type other than std::string");
+                         "ComputeTimeIntegration: Type error. Given a parameter with name 'name' but with a "
+                         "type other than std::string");
     } else {
       technique_params.set("name", default_technique_name_, "The name of the technique to use.");
     }
@@ -123,8 +123,8 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
     if (technique_params.isParameter("name")) {
       const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "ComputeTimeIntegration: Type error. Given a parameter with name 'name' but with a "
-                                 "type other than std::string");
+                         "ComputeTimeIntegration: Type error. Given a parameter with name 'name' but with a "
+                         "type other than std::string");
     } else {
       technique_params.set("name", default_technique_name_, "The name of the technique to use.");
     }

@@ -112,9 +112,14 @@ TEST(FieldRequirementsSetters, IsSettable) {
 }
 
 struct CountCopiesStruct {
-  CountCopiesStruct() = default;                                    // Default constructable
-  CountCopiesStruct(const CountCopiesStruct &) { ++num_copies; }    // Copy constructable
-  CountCopiesStruct &operator=(const CountCopiesStruct &) { ++num_copies; return *this; }  // Copy assignable
+  CountCopiesStruct() = default;  // Default constructable
+  CountCopiesStruct(const CountCopiesStruct &) {
+    ++num_copies;
+  }  // Copy constructable
+  CountCopiesStruct &operator=(const CountCopiesStruct &) {
+    ++num_copies;
+    return *this;
+  }  // Copy assignable
 
   static int num_copies;
   int value = 1;

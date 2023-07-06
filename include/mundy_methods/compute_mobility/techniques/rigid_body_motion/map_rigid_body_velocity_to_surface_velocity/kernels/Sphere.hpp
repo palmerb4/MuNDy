@@ -106,7 +106,7 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     linker_part_reqs->set_part_name("LINKER");
     linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
     linker_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("CONSTRAINT"));
-    
+
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(sphere_part_reqs);
     mesh_reqs->add_part_reqs(linker_part_reqs);
@@ -120,8 +120,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
@@ -131,8 +131,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
                             "Name of the node field containing the surface and body velocity.");
@@ -141,8 +141,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>,
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
                             "Name of the node field containing the surface and body rotational velocity.");

@@ -124,8 +124,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     if (fixed_params_ptr->isParameter("node_force_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'aabb_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'aabb_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_force_field_name", std::string(default_node_force_field_name_),
                             "Name of the node field containing the force on the sphere's center.");
@@ -135,8 +135,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_torque_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_torque_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_torque_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_torque_field_name", std::string(default_node_torque_field_name_),
                             "Name of the node field containing the torque on the sphere's center.");
@@ -146,8 +146,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
                             "Name of the node field containing the translational velocity of the sphere's center.");
@@ -156,8 +156,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
                             "Name of the node field containing the coordinate of the sphere's center.");
@@ -167,8 +167,8 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "Sphere: Type error. Given a parameter with name 'element_radius_field_name' but "
-                                 "with a type other than std::string");
+                         "Sphere: Type error. Given a parameter with name 'element_radius_field_name' but "
+                         "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_coord_field_name", std::string(default_element_radius_field_name_),
                             "Name of the element field containing the sphere's radius.");
@@ -181,12 +181,12 @@ class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::O
     if (mutable_params_ptr->isParameter("viscosity")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("viscosity");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                                 "NodeEuler: Type error. Given a parameter with name 'viscosity' but "
-                                     << "with a type other than unsigned double");
+                         "NodeEuler: Type error. Given a parameter with name 'viscosity' but "
+                             << "with a type other than unsigned double");
       const bool is_viscocity_positive = mutable_params_ptr->get<double>("viscosity") > 0;
       MUNDY_THROW_ASSERT(is_viscocity_positive, std::invalid_argument,
-                                 "NodeEuler: Invalid parameter. Given a parameter with name 'viscosity' but "
-                                     << "with a value less than or equal to zero.");
+                         "NodeEuler: Invalid parameter. Given a parameter with name 'viscosity' but "
+                             << "with a value less than or equal to zero.");
     } else {
       mutable_params_ptr->set("viscosity", default_viscosity_, "The viscocity of the suspending fluid.");
     }
