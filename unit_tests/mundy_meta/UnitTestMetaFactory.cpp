@@ -1,0 +1,194 @@
+// @HEADER
+// **********************************************************************************************************************
+//
+//                                          Mundy: Multi-body Nonlocal Dynamics
+//                                           Copyright 2023 Flatiron Institute
+//                                                 Author: Bryce Palmer
+//
+// Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Mundy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Mundy. If not, see
+// <https://www.gnu.org/licenses/>.
+//
+// **********************************************************************************************************************
+// @HEADER
+
+// External libs
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
+
+// C++ core libs
+#include <algorithm>    // for std::max
+#include <map>          // for std::map
+#include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <stdexcept>    // for std::logic_error, std::invalid_argument
+#include <string>       // for std::string
+#include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
+#include <utility>      // for std::move
+#include <vector>       // for std::vector
+
+// Trilinos libs
+#include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
+#include <stk_topology/topology.hpp>       // for stk::topology
+#include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
+
+// Mundy libs
+#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+#include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaFactory
+
+// Mundy test libs
+#include <mundy_meta/utils/ExampleMetaMethod.hpp>  // for mundy::meta::ExampleMetaMethod
+
+namespace mundy {
+
+namespace meta {
+
+namespace {
+
+//! \name MetaFactory object registration tests
+//@{
+
+/// \brief An empty struct used to define a fake registration identifier for testing \c MetaFactory registration.
+struct ExampleRegistrationIdentifier {};  // ExampleRegistrationIdentifier
+
+TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
+  // Registration of a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory should store the
+  // class's identifier, instance generator, requirements generator, fixed parameters validator, and mutable parameters
+  // validator.
+
+  // Create our example meta factory.
+  // To avoid contaminating other tests and mundy itself, we'll use a unique identifier for all tests and reset the
+  // factory before and after each test.
+  using ExampleReturnType = void;
+  using RegistrationType = int;
+  using ExampleMetaFactory = MetaMethodFactory<ExampleReturnType, ExampleRegistrationIdentifier, RegistrationType>;
+  ExampleMetaFactory::reset();
+
+  // Create out example class to register.
+  // This class must be derived from \c HasMeshRequirementsAndIsRegisterable.
+  // TODO(palmerb4): Is there a succinct way to check this at compile time?
+  constexpr int class_identifier = 1;
+  using ClassToRegister = ExampleMetaMethod<class_identifier>;
+  ASSERT_TRUE(ClassToRegister::static_get_class_identifier() == class_identifier);
+
+  // Reset the test counter within our classes to register.
+  // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
+  ClassToRegister::reset_counters();
+
+  // Attempt to register a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory.
+  EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 0);
+  EXPECT_FALSE(ExampleMetaFactory::is_valid_key(ClassToRegister::static_get_class_identifier()));
+  ExampleMetaFactory::register_new_class<ClassToRegister>();
+  EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
+  EXPECT_TRUE(ExampleMetaFactory::is_valid_key(ClassToRegister::static_get_class_identifier()));
+
+  // Try to use the factory to access the internal member functions of our registered class.
+  // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
+  auto key = ClassToRegister::static_get_class_identifier();
+  mundy::mesh::BulkData* bulk_data_ptr = nullptr;
+  Teuchos::ParameterList fixed_params;
+  Teuchos::ParameterList mutable_params;
+
+  EXPECT_EQ(ClassToRegister::num_get_mesh_requirements_calls(), 0);
+  ExampleMetaFactory::get_mesh_requirements(key, fixed_params);
+  EXPECT_EQ(ClassToRegister::num_get_mesh_requirements_calls(), 1);
+
+  EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
+  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(key, &fixed_params);
+  EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 1);
+
+  EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
+  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(key, &mutable_params);
+  EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 1);
+
+  EXPECT_EQ(ClassToRegister::num_create_new_instance_calls(), 0);
+  ExampleMetaFactory::create_new_instance(key, bulk_data_ptr, fixed_params);
+  EXPECT_EQ(ClassToRegister::num_create_new_instance_calls(), 1);
+
+  ExampleMetaFactory::reset();
+}
+
+TEST(MetaFactoryRegistration, Reregistration) {
+  // Ensure that attempting to register a class with a key that already exists throws an exception unless
+  // overwrite_existing is true.
+
+  // Create our example meta factory.
+  // To avoid contaminating other tests and mundy itself, we'll use a unique identifier for all tests and reset the
+  // factory before and after each test.
+  using ExampleReturnType = void;
+  using RegistrationType = int;
+  using ExampleMetaFactory = MetaMethodFactory<ExampleReturnType, ExampleRegistrationIdentifier, RegistrationType>;
+  ExampleMetaFactory::reset();
+
+  // Create out example class to register.
+  // This class must be derived from \c HasMeshRequirementsAndIsRegisterable.
+  constexpr int class_identifier = 1;
+  using ClassToRegister1 = ExampleMetaMethod<class_identifier>;
+  using ClassToRegister2 = ExampleMetaMethod<class_identifier>;
+  ASSERT_TRUE(ClassToRegister1::static_get_class_identifier() == class_identifier);
+  ASSERT_TRUE(ClassToRegister2::static_get_class_identifier() == class_identifier);
+
+  // Reset the test counter within our classes to register.
+  // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
+  ClassToRegister1::reset_counters();
+  ClassToRegister2::reset_counters();
+
+  // Attempt to register a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory.
+  EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 0);
+  ExampleMetaFactory::register_new_class<ClassToRegister1>();
+  ASSERT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
+
+  // Attempting to register a class with a key that already exists should throw an exception, unless overwrite_existing
+  // is true.
+  EXPECT_THROW(ExampleMetaFactory::register_new_class<ClassToRegister1>(), std::logic_error);
+  EXPECT_NO_THROW(ExampleMetaFactory::register_new_class<ClassToRegister2>(true));
+
+  // Overwriting the existing class should not change the number of registered classes.
+  EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
+
+  // Overwriting the existing class overwrite the previous class's member functions.
+  auto key = ClassToRegister2::static_get_class_identifier();
+  mundy::mesh::BulkData* bulk_data_ptr = nullptr;
+  Teuchos::ParameterList fixed_params;
+  Teuchos::ParameterList mutable_params;
+
+  EXPECT_EQ(ClassToRegister1::num_get_mesh_requirements_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_get_mesh_requirements_calls(), 0);
+  ExampleMetaFactory::get_mesh_requirements(key, fixed_params);
+  EXPECT_EQ(ClassToRegister1::num_get_mesh_requirements_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_get_mesh_requirements_calls(), 1);
+
+  EXPECT_EQ(ClassToRegister1::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
+  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(key, &fixed_params);
+  EXPECT_EQ(ClassToRegister1::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_validate_fixed_parameters_and_set_defaults_calls(), 1);
+
+  EXPECT_EQ(ClassToRegister1::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
+  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(key, &mutable_params);
+  EXPECT_EQ(ClassToRegister1::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_validate_mutable_parameters_and_set_defaults_calls(), 1);
+
+  EXPECT_EQ(ClassToRegister1::num_create_new_instance_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_create_new_instance_calls(), 0);
+  ExampleMetaFactory::create_new_instance(key, bulk_data_ptr, fixed_params);
+  EXPECT_EQ(ClassToRegister1::num_create_new_instance_calls(), 0);
+  EXPECT_EQ(ClassToRegister2::num_create_new_instance_calls(), 1);
+
+  ExampleMetaFactory::reset();
+}
+//@}
+
+}  // namespace
+
+}  // namespace meta
+
+}  // namespace mundy

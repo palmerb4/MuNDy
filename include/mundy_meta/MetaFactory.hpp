@@ -95,7 +95,7 @@ class MetaFactory {
   using NewRequirementsGenerator = std::function<std::shared_ptr<MeshRequirements>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that accepts a Teuchos::ParameterList pointer.
-  using NewParamsValidatorGenerator = std::function<void(Teuchos::ParameterList const*)>;
+  using NewParamsValidatorGenerator = std::function<void(Teuchos::ParameterList* const)>;
   //@}
 
   //! \name Getters
@@ -143,7 +143,7 @@ class MetaFactory {
   ///
   /// \param key [in] A key corresponding to a registered class.
   static void validate_fixed_parameters_and_set_defaults(const RegistrationType& key,
-                                                         Teuchos::ParameterList const* fixed_params_ptr) {
+                                                         Teuchos::ParameterList* const fixed_params_ptr) {
     MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " is not valid.");
     get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
@@ -158,7 +158,7 @@ class MetaFactory {
   ///
   /// \param key [in] A key corresponding to a registered class.
   static void validate_mutable_parameters_and_set_defaults(const RegistrationType& key,
-                                                           Teuchos::ParameterList const* mutable_params_ptr) {
+                                                           Teuchos::ParameterList* const mutable_params_ptr) {
     MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " is not valid.");
     get_validate_mutable_params_generator_map()[key](mutable_params_ptr);
@@ -167,6 +167,17 @@ class MetaFactory {
 
   //! \name Actions
   //@{
+
+  /// \brief Reset the factory to its initial state.
+  ///
+  /// This function removes all registered classes and clears all internal data structures.
+  static void reset() {
+    get_internal_keys().clear();
+    get_instance_generator_map().clear();
+    get_requirement_generator_map().clear();
+    get_validate_fixed_params_generator_map().clear();
+    get_validate_mutable_params_generator_map().clear();
+  }
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
   template <typename ClassToRegister>

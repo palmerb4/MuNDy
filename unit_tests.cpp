@@ -17,12 +17,15 @@
 // **********************************************************************************************************************
 // @HEADER
 
+// External libs
+#include "gmock/gmock.h"  // for InitGoogleMock, etc
 #include "gtest/gtest.h"  // for InitGoogleTest, etc
 #include "mpi.h"          // for MPI_Init, MPI_Finalize, etc
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
+  testing::InitGoogleMock(&argc, argv);
   testing::InitGoogleTest(&argc, argv);
 
   int return_val = RUN_ALL_TESTS();
