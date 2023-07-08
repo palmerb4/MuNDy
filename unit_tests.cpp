@@ -26,7 +26,6 @@ int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
   testing::InitGoogleMock(&argc, argv);
-  testing::InitGoogleTest(&argc, argv);
 
   int return_val = RUN_ALL_TESTS();
 

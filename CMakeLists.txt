@@ -117,24 +117,29 @@ target_include_directories(mundy PUBLIC
 # Most linking, etc, is set to PUBLIC for libmundy, so we merely link to libmundy for the exes
 target_link_libraries(${mundy_exe_name} PRIVATE mundy)
 if(ENABLE_UNIT_TESTS)
-#   # Unit tests are a separate executable and depend on libmundy and GoogleTest/GoogleMock
-#   include(FetchContent)
-#   FetchContent_Declare(
-#     googletest
-#     GIT_REPOSITORY https://github.com/google/googletest.git
-#     GIT_TAG        release-1.12.1
-#   )
+  # Unit tests are a separate executable and depend on libmundy and GoogleTest/GoogleMock
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        release-1.12.1
+  )
 
-#   # If Trilinos is compiled with GTest, then we cannot define our own gtest target
-#   if(NOT TARGET gtest)
-#     # For Windows: Prevent overriding the parent project's compiler/linker settings
-#     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-#     FetchContent_MakeAvailable(googletest)
-#   endif()
+  # For Windows: Prevent overriding the parent project's compiler/linker settings
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
 
   # Link against gtest_main and mundy
-  target_link_libraries(${utest_ex_name} PRIVATE mundy)
-  target_include_directories(${utest_ex_name} PRIVATE "${CMAKE_SOURCE_DIR}/unit_tests")
+  target_link_libraries(${utest_ex_name} PRIVATE 
+    mundy 
+    GTest::gtest 
+    GTest::gtest_main 
+    GTest::gmock 
+    GTest::gmock_main)
+  target_include_directories(${utest_ex_name} PRIVATE 
+    "${CMAKE_SOURCE_DIR}/unit_tests"
+    "${googletest_SOURCE_DIR}/googlemock/include"
+    "${googletest_SOURCE_DIR}/googletest/include")
 endif()
 
 add_subdirectory(src)
