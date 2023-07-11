@@ -54,10 +54,6 @@ namespace {
 
 //! \name MetaFactory object registration tests
 //@{
-
-/// \brief An empty struct used to define a fake registration identifier for testing \c MetaFactory registration.
-struct ExampleRegistrationIdentifier {};  // ExampleRegistrationIdentifier
-
 TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   // Registration of a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory should store the
   // class's identifier, instance generator, requirements generator, fixed parameters validator, and mutable parameters
@@ -66,9 +62,10 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   // Create our example meta factory.
   // To avoid contaminating other tests and mundy itself, we'll use a unique identifier for all tests and reset the
   // factory before and after each test.
-  using ExampleReturnType = void;
+  using ReturnType = void;
   using RegistrationType = int;
-  using ExampleMetaFactory = MetaMethodFactory<ExampleReturnType, ExampleRegistrationIdentifier, RegistrationType>;
+  using RegistrationIdentifier = int;
+  using ExampleMetaFactory = MetaMethodFactory<ReturnType, RegistrationIdentifier, RegistrationType>;
   ExampleMetaFactory::reset();
 
   // Create out example class to register.
@@ -84,32 +81,31 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
 
   // Attempt to register a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory.
   EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 0);
-  EXPECT_FALSE(ExampleMetaFactory::is_valid_key(ClassToRegister::static_get_class_identifier()));
+  EXPECT_FALSE(ExampleMetaFactory::is_valid_key(class_identifier));
   ExampleMetaFactory::register_new_class<ClassToRegister>();
   EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
-  EXPECT_TRUE(ExampleMetaFactory::is_valid_key(ClassToRegister::static_get_class_identifier()));
+  EXPECT_TRUE(ExampleMetaFactory::is_valid_key(class_identifier));
 
   // Try to use the factory to access the internal member functions of our registered class.
   // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
-  auto key = ClassToRegister::static_get_class_identifier();
   mundy::mesh::BulkData* bulk_data_ptr = nullptr;
   Teuchos::ParameterList fixed_params;
   Teuchos::ParameterList mutable_params;
 
   EXPECT_EQ(ClassToRegister::num_get_mesh_requirements_calls(), 0);
-  ExampleMetaFactory::get_mesh_requirements(key, fixed_params);
+  ExampleMetaFactory::get_mesh_requirements(class_identifier, fixed_params);
   EXPECT_EQ(ClassToRegister::num_get_mesh_requirements_calls(), 1);
 
   EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(key, &fixed_params);
+  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(class_identifier, &fixed_params);
   EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 1);
 
   EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(key, &mutable_params);
+  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(class_identifier, &mutable_params);
   EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 1);
 
   EXPECT_EQ(ClassToRegister::num_create_new_instance_calls(), 0);
-  ExampleMetaFactory::create_new_instance(key, bulk_data_ptr, fixed_params);
+  ExampleMetaFactory::create_new_instance(class_identifier, bulk_data_ptr, fixed_params);
   EXPECT_EQ(ClassToRegister::num_create_new_instance_calls(), 1);
 
   ExampleMetaFactory::reset();
@@ -122,13 +118,14 @@ TEST(MetaFactoryRegistration, Reregistration) {
   // Create our example meta factory.
   // To avoid contaminating other tests and mundy itself, we'll use a unique identifier for all tests and reset the
   // factory before and after each test.
-  using ExampleReturnType = void;
+  using ReturnType = void;
   using RegistrationType = int;
-  using ExampleMetaFactory = MetaMethodFactory<ExampleReturnType, ExampleRegistrationIdentifier, RegistrationType>;
+  using RegistrationIdentifier = int;
+  using ExampleMetaFactory = MetaMethodFactory<ReturnType, RegistrationIdentifier, RegistrationType>;
   ExampleMetaFactory::reset();
 
-  // Create out example class to register.
-  // This class must be derived from \c HasMeshRequirementsAndIsRegisterable.
+  // Create out example classes to register.
+  // These classes must be derived from \c HasMeshRequirementsAndIsRegisterable.
   constexpr int class_identifier = 1;
   using ClassToRegister1 = ExampleMetaMethod<class_identifier, 1>;
   using ClassToRegister2 = ExampleMetaMethod<class_identifier, 2>;
@@ -156,36 +153,77 @@ TEST(MetaFactoryRegistration, Reregistration) {
   EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
 
   // Overwriting the existing class overwrite the previous class's member functions.
-  auto key = ClassToRegister2::static_get_class_identifier();
   mundy::mesh::BulkData* bulk_data_ptr = nullptr;
   Teuchos::ParameterList fixed_params;
   Teuchos::ParameterList mutable_params;
 
   EXPECT_EQ(ClassToRegister1::num_get_mesh_requirements_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_get_mesh_requirements_calls(), 0);
-  ExampleMetaFactory::get_mesh_requirements(key, fixed_params);
+  ExampleMetaFactory::get_mesh_requirements(class_identifier, fixed_params);
   EXPECT_EQ(ClassToRegister1::num_get_mesh_requirements_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_get_mesh_requirements_calls(), 1);
 
   EXPECT_EQ(ClassToRegister1::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(key, &fixed_params);
+  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(class_identifier, &fixed_params);
   EXPECT_EQ(ClassToRegister1::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_validate_fixed_parameters_and_set_defaults_calls(), 1);
 
   EXPECT_EQ(ClassToRegister1::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(key, &mutable_params);
+  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(class_identifier, &mutable_params);
   EXPECT_EQ(ClassToRegister1::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_validate_mutable_parameters_and_set_defaults_calls(), 1);
 
   EXPECT_EQ(ClassToRegister1::num_create_new_instance_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_create_new_instance_calls(), 0);
-  ExampleMetaFactory::create_new_instance(key, bulk_data_ptr, fixed_params);
+  ExampleMetaFactory::create_new_instance(class_identifier, bulk_data_ptr, fixed_params);
   EXPECT_EQ(ClassToRegister1::num_create_new_instance_calls(), 0);
   EXPECT_EQ(ClassToRegister2::num_create_new_instance_calls(), 1);
 
   ExampleMetaFactory::reset();
+}
+
+TEST(MetaFactoryRegistration, RegistrationWithDifferentRegistrationIdentifier) {
+  /* Ensure that MetaFactories with different registration identifiers do not share registered classes.
+  The setup for this test is as follows:
+    Register ClassToRegister with MetaFactory1 with registration identifier RegistrationIdentifier1.
+    Register ClassToRegister with MetaFactory2 with registration identifier RegistrationIdentifier2.
+  */
+
+  // Create our example meta factories.
+  // To avoid contaminating other tests and mundy itself, we'll use a unique identifier for all tests and reset the
+  // factories before and after each test.
+  using ReturnType = void;
+  using RegistrationType = int;
+  using RegistrationIdentifier1 = int;
+  using RegistrationIdentifier2 = double;
+  using ExampleMetaFactory1 = MetaMethodFactory<ReturnType, RegistrationIdentifier1, RegistrationType>;
+  using ExampleMetaFactory2 = MetaMethodFactory<ReturnType, RegistrationIdentifier2, RegistrationType>;
+  ExampleMetaFactory1::reset();
+  ExampleMetaFactory2::reset();
+
+  // Create out example class to register.
+  constexpr int class_identifier = 1;
+  using ClassToRegister = ExampleMetaMethod<class_identifier>;
+  ASSERT_TRUE(ClassToRegister::static_get_class_identifier() == class_identifier);
+
+  // Register with the first factory.
+  EXPECT_EQ(ExampleMetaFactory1::num_registered_classes(), 0);
+  EXPECT_EQ(ExampleMetaFactory2::num_registered_classes(), 0);
+  EXPECT_FALSE(ExampleMetaFactory1::is_valid_key(class_identifier));
+  ExampleMetaFactory1::register_new_class<ClassToRegister>();
+  EXPECT_EQ(ExampleMetaFactory1::num_registered_classes(), 1);
+  EXPECT_EQ(ExampleMetaFactory2::num_registered_classes(), 0);
+
+  // Register with the second factory.
+  EXPECT_FALSE(ExampleMetaFactory2::is_valid_key(class_identifier));
+  ExampleMetaFactory2::register_new_class<ClassToRegister>();
+  EXPECT_EQ(ExampleMetaFactory1::num_registered_classes(), 1);
+  EXPECT_EQ(ExampleMetaFactory2::num_registered_classes(), 1);
+
+  ExampleMetaFactory1::reset();
+  ExampleMetaFactory2::reset();
 }
 //@}
 
