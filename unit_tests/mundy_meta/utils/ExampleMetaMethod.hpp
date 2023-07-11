@@ -51,10 +51,12 @@ namespace meta {
 /// \class ExampleMetaMethod
 /// \brief Method for computing the axis aligned boundary box of different parts.
 ///
-/// \tparam class_identifier [in] A unique identifier for this class.
-/// This is used to register this class with \c MetaRegistry.
-template <int class_identifier>
-class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod<class_identifier>, int> {
+/// \tparam class_identifier [in] A unique identifier for this class. This is used to register this class with
+/// \c MetaRegistry.
+/// \tparam some_integer [in] An integer to differentiate this class from a different example meta method class with the
+/// same id.
+template <int class_identifier, int some_integer = 0>
+class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod<class_identifier, some_integer>, int> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -63,23 +65,28 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   ExampleMetaMethod() = delete;
 
   /// \brief Constructor
-  ExampleMetaMethod(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
+  ExampleMetaMethod([[maybe_unused]] mundy::mesh::BulkData *const bulk_data_ptr,
+                    [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+    // Typically, we would use the following line to check that the bulk data pointer is not a nullptr.
+    // However, in this case, we want to be able to allow a nullptr bulk data to simplify testing.
+    // MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, "ExampleMetaMethod: bulk_data_ptr must not be a nullptr.");
   }
   //@}
 
   //! \name Typedefs
   //@{
 
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ExampleMetaMethod<class_identifier>>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ExampleMetaMethod<class_identifier, some_integer>>;
 
   template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ExampleMetaMethod<class_identifier>>;
+  using OurKernelRegistry =
+      mundy::meta::MetaKernelRegistry<void, ClassToRegister, ExampleMetaMethod<class_identifier, some_integer>>;
 
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ExampleMetaMethod<class_identifier>>;
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ExampleMetaMethod<class_identifier, some_integer>>;
 
   template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ExampleMetaMethod<class_identifier>>;
+  using OurMethodRegistry =
+      mundy::meta::MetaMethodRegistry<void, ClassToRegister, ExampleMetaMethod<class_identifier, some_integer>>;
   //@}
 
   //! \name Testing counters
@@ -144,7 +151,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_params) {
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     get_mesh_requirements_counter_++;
     std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
     return mesh_requirements_ptr;
@@ -152,13 +159,13 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void details_static_validate_fixed_parameters_and_set_defaults(
-      Teuchos::ParameterList *const fixed_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     validate_fixed_parameters_and_set_defaults_counter_++;
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void details_static_validate_mutable_parameters_and_set_defaults(
-      Teuchos::ParameterList *const mutable_params_ptr) {
+      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     validate_mutable_parameters_and_set_defaults_counter_++;
   }
 
@@ -175,11 +182,11 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   static std::shared_ptr<mundy::meta::MetaMethodBase<void, int>> details_static_create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     create_new_instance_counter_++;
-    return std::make_shared<ExampleMetaMethod<class_identifier>>(bulk_data_ptr, fixed_params);
+    return std::make_shared<ExampleMetaMethod<class_identifier, some_integer>>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
+  void set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) override {
     set_mutable_params_counter_++;
   }
   //@}
@@ -188,7 +195,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute(const stk::mesh::Selector &input_selector) override {
+  void execute([[maybe_unused]] const stk::mesh::Selector &input_selector) override {
     execute_counter_++;
   }
   //@}
@@ -221,12 +228,6 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr int class_identifier_ = class_identifier;
-
-  /// \brief The BulkData object this class acts upon.
-  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
-
-  /// \brief The MetaData object this class acts upon.
-  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
   //@}
 };  // ExampleMetaMethod
 

@@ -130,8 +130,10 @@ TEST(MetaFactoryRegistration, Reregistration) {
   // Create out example class to register.
   // This class must be derived from \c HasMeshRequirementsAndIsRegisterable.
   constexpr int class_identifier = 1;
-  using ClassToRegister1 = ExampleMetaMethod<class_identifier>;
-  using ClassToRegister2 = ExampleMetaMethod<class_identifier>;
+  using ClassToRegister1 = ExampleMetaMethod<class_identifier, 1>;
+  using ClassToRegister2 = ExampleMetaMethod<class_identifier, 2>;
+  bool classes_are_different = !std::is_same_v<ClassToRegister1, ClassToRegister2>;
+  ASSERT_TRUE(classes_are_different);
   ASSERT_TRUE(ClassToRegister1::static_get_class_identifier() == class_identifier);
   ASSERT_TRUE(ClassToRegister2::static_get_class_identifier() == class_identifier);
 
@@ -148,7 +150,7 @@ TEST(MetaFactoryRegistration, Reregistration) {
   // Attempting to register a class with a key that already exists should throw an exception, unless overwrite_existing
   // is true.
   EXPECT_THROW(ExampleMetaFactory::register_new_class<ClassToRegister1>(), std::logic_error);
-  EXPECT_NO_THROW(ExampleMetaFactory::register_new_class<ClassToRegister2>(true));
+  ASSERT_NO_THROW(ExampleMetaFactory::register_new_class<ClassToRegister2>(true));
 
   // Overwriting the existing class should not change the number of registered classes.
   EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
