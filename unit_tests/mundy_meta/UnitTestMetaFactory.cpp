@@ -54,6 +54,7 @@ namespace {
 
 //! \name MetaFactory object registration tests
 //@{
+
 TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   // Registration of a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory should store the
   // class's identifier, instance generator, requirements generator, fixed parameters validator, and mutable parameters
