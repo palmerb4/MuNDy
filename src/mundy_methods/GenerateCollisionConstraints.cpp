@@ -44,6 +44,13 @@
 #include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
 #include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 
+// \name Registration
+//{
+
+/// @brief Register GenerateCollisionConstraints with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::GenerateCollisionConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
+//@}
+
 namespace mundy {
 
 namespace methods {

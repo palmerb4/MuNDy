@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
 
 namespace mundy {
 
@@ -56,8 +55,7 @@ namespace techniques {
 
 /// \class RigidBodyMotion
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
-                        public ComputeMobility::OurMethodRegistry<RigidBodyMotion> {
+class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -73,9 +71,6 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void, RigidBodyMotion>,
   //@{
 
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, RigidBodyMotion>;
-
-  template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, RigidBodyMotion>;
   //@}
 
   //! \name MetaMethod interface implementation

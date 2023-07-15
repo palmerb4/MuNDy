@@ -42,7 +42,6 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp>  // for mundy::methods::...::LocalDrag
 #include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
 
 namespace mundy {
@@ -65,7 +64,7 @@ namespace kernels {
 
 /// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaKernel<void, Sphere>, public LocalDrag::OurKernelRegistry<Sphere> {
+class Sphere : public mundy::meta::MetaKernel<void, Sphere> {
  public:
   //! \name Constructors and destructor
   //@{

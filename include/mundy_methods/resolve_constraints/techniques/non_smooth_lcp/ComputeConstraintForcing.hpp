@@ -45,7 +45,6 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
 namespace mundy {
 
@@ -59,8 +58,7 @@ namespace non_smooth_lcp {
 
 /// \class ComputeConstraintForcing
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeConstraintForcing>,
-                                 public NonSmoothLCP::OurMethodRegistry<ComputeConstraintForcing> {
+class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeConstraintForcing> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -76,9 +74,6 @@ class ComputeConstraintForcing : public mundy::meta::MetaMethod<void, ComputeCon
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintForcing>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeConstraintForcing>;
   //@}
 
   //! \name MetaMethod interface implementation

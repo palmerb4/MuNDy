@@ -48,6 +48,8 @@ namespace mundy {
 
 namespace meta {
 
+namespace utils {
+
 /// \class ExampleMetaMethod
 /// \brief Method for computing the axis aligned boundary box of different parts.
 ///
@@ -77,16 +79,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ExampleMetaMethod<class_identifier, some_integer>>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry =
-      mundy::meta::MetaKernelRegistry<void, ClassToRegister, ExampleMetaMethod<class_identifier, some_integer>>;
-
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ExampleMetaMethod<class_identifier, some_integer>>;
-
-  template <typename ClassToRegister>
-  using OurMethodRegistry =
-      mundy::meta::MetaMethodRegistry<void, ClassToRegister, ExampleMetaMethod<class_identifier, some_integer>>;
   //@}
 
   //! \name Testing counters
@@ -230,6 +223,8 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   static constexpr int class_identifier_ = class_identifier;
   //@}
 };  // ExampleMetaMethod
+
+}  // namespace utils
 
 }  // namespace meta
 

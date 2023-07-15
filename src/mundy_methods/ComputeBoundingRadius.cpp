@@ -43,9 +43,17 @@
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeBoundingRadius.hpp>  // for mundy::methods::ComputeBoundingRadius
 
+// \name Registration
+//{
+
+/// @brief Register ComputeBoundingRadius with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::ComputeBoundingRadius, mundy::meta::GlobalMetaMethodFactory<void>)
+//@}
+
 namespace mundy {
 
 namespace methods {
+
 
 // \name Constructors and destructor
 //{

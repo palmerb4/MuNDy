@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaMethod.hpp>             // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
-#include <mundy_methods/ResolveConstraints.hpp>  // for mundy::methods::ResolveConstraints
 
 namespace mundy {
 
@@ -56,8 +55,7 @@ namespace techniques {
 
 /// \class NonSmoothLCP
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
-                     public ResolveConstraints::OurMethodRegistry<NonSmoothLCP> {
+class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -73,9 +71,6 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void, NonSmoothLCP>,
   //@{
 
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, NonSmoothLCP>;
-
-  template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, NonSmoothLCP>;
   //@}
 
   //! \name MetaMethod interface implementation

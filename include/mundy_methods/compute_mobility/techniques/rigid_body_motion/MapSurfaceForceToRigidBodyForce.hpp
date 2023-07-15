@@ -59,8 +59,7 @@ namespace rigid_body_motion {
 
 /// \class MapSurfaceForceToRigidBodyForce
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
-class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, MapSurfaceForceToRigidBodyForce>,
-                                        public RigidBodyMotion::OurMethodRegistry<MapSurfaceForceToRigidBodyForce> {
+class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, MapSurfaceForceToRigidBodyForce> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -77,9 +76,6 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaMethod<void, Map
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, MapSurfaceForceToRigidBodyForce>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, MapSurfaceForceToRigidBodyForce>;
   //@}
 
   //! \name MetaMethod interface implementation

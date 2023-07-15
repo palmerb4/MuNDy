@@ -31,8 +31,17 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                                                         // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
+#include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 #include <mundy_methods/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::methods::...::CollisionSphereSphere
+
+// \name Registration
+//{
+
+/// @brief Register CollisionSphereSphere with GenerateCollisionConstraints's kernel factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::generate_collision_constraints::kernels::CollisionSphereSphere,
+                         mundy::methods::GenerateCollisionConstraints::OurKernelFactory)
+//}
 
 namespace mundy {
 

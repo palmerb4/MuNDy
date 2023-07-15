@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 #include <mundy_multibody/Factory.hpp>               // for mundy::multibody::Factory
 
 namespace mundy {
@@ -57,8 +56,7 @@ namespace techniques {
 
 /// \class NodeEuler
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler>,
-                  public ComputeTimeIntegration::OurMethodRegistry<NodeEuler> {
+class NodeEuler : public mundy::meta::MetaMethod<void, NodeEuler> {
  public:
   //! \name Constructors and destructor
   //@{

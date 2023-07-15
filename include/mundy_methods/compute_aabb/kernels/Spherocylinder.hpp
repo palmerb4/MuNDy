@@ -42,7 +42,6 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeAABB.hpp>     // for mundy::methods::ComputeAABB
 #include <mundy_multibody/Factory.hpp>       // for mundy::multibody::Factory
 
 namespace mundy {
@@ -55,8 +54,7 @@ namespace kernels {
 
 /// \class Spherocylinder
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of Spherocylinders.
-class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder>,
-                       public ComputeAABB::OurKernelRegistry<Spherocylinder> {
+class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder> {
  public:
   //! \name Constructors and destructor
   //@{

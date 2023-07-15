@@ -42,7 +42,6 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::ComputeConstraintForcing
 #include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
 
 namespace mundy {
@@ -61,8 +60,7 @@ namespace kernels {
 
 /// \class Collision
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Collision : public mundy::meta::MetaKernel<void, Collision>,
-                  public ComputeConstraintForcing::OurKernelRegistry<Collision> {
+class Collision : public mundy::meta::MetaKernel<void, Collision> {
  public:
   //! \name Constructors and destructor
   //@{

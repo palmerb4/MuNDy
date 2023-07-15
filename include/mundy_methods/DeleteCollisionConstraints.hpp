@@ -51,8 +51,7 @@ namespace methods {
 
 /// \class DeleteCollisionConstraints
 /// \brief Method for deleting unnecessary collision constrants.
-class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void, DeleteCollisionConstraints>,
-                                   public mundy::meta::GlobalMetaMethodRegistry<void, DeleteCollisionConstraints> {
+class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void, DeleteCollisionConstraints> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -68,9 +67,6 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void, DeleteCo
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, DeleteCollisionConstraints>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, DeleteCollisionConstraints>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -212,6 +208,9 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void, DeleteCo
 
   //@}
 };  // DeleteCollisionConstraints
+
+/// @brief Register DeleteCollisionConstraints with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(DeleteCollisionConstraints, mundy::meta::GlobalMetaMethodFactory<void>);
 
 }  // namespace methods
 

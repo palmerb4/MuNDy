@@ -52,8 +52,7 @@ namespace methods {
 
 /// \class ComputeTimeIntegration
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
-class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeIntegration>,
-                               public mundy::meta::GlobalMetaMethodRegistry<void, ComputeTimeIntegration> {
+class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeIntegration> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -69,9 +68,6 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void, ComputeTimeI
   //@{
 
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeTimeIntegration>;
-
-  template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeTimeIntegration>;
   //@}
 
   //! \name MetaMethod interface implementation

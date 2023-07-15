@@ -32,7 +32,16 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
+#include <mundy_methods/ComputeBoundingRadius.hpp>                   // for mundy::methods::ComputeBoundingRadius
 #include <mundy_methods/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::methods::compute_bounding_radius::kernels::Sphere
+
+// \name Registration
+//{
+
+/// @brief Register ComputeAABB with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_bounding_radius::kernels::Sphere,
+                         mundy::methods::ComputeBoundingRadius::OurKernelFactory)
+//}
 
 namespace mundy {
 

@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
 namespace mundy {
 
@@ -58,8 +57,7 @@ namespace non_smooth_lcp {
 
 /// \class ComputeConstraintViolation
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeConstraintViolation>,
-                                   public NonSmoothLCP::OurMethodRegistry<ComputeConstraintViolation> {
+class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeConstraintViolation> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -75,9 +73,6 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintViolation>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeConstraintViolation>;
   //@}
 
   //! \name MetaMethod interface implementation
@@ -211,6 +206,9 @@ class ComputeConstraintViolation : public mundy::meta::MetaMethod<void, ComputeC
   std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> multibody_kernel_ptrs_;
   //@}
 };  // ComputeConstraintViolation
+
+/// @brief Register ComputeConstraintViolation with NonSmoothLCP's method factory.
+MUNDY_REGISTER_METACLASS(ComputeConstraintViolation, NonSmoothLCP::OurMethodFactory);
 
 }  // namespace non_smooth_lcp
 

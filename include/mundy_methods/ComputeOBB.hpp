@@ -51,8 +51,7 @@ namespace methods {
 
 /// \class ComputeOBB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
-                   public mundy::meta::GlobalMetaMethodRegistry<void, ComputeOBB> {
+class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -68,9 +67,6 @@ class ComputeOBB : public mundy::meta::MetaMethod<void, ComputeOBB>,
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeOBB>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeOBB>;
   //@}
 
   //! \name MetaMethod interface implementation

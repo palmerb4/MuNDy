@@ -149,8 +149,7 @@ class MetaFactory {
     get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
   }
 
-  /// \brief Vvalidate_fixed_parameters_and_set_defaultsalidate the mutable parameters and use defaults for unset
-  /// parameters.
+  /// \brief Validate the mutable parameters and use defaults for unset parameters.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
@@ -181,15 +180,8 @@ class MetaFactory {
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
   template <typename ClassToRegister>
-  static void register_new_class(const bool overwrite_existing = false) {
+  static void register_new_class() {
     const RegistrationType key = ClassToRegister::static_get_class_identifier();
-    if (overwrite_existing) {
-      get_internal_keys().erase(key);
-      get_instance_generator_map().erase(key);
-      get_requirement_generator_map().erase(key);
-      get_validate_fixed_params_generator_map().erase(key);
-      get_validate_mutable_params_generator_map().erase(key);
-    }
 
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " already exists.");
@@ -278,7 +270,7 @@ class MetaFactory {
   /// \note For devs: Unfortunately, "Friend declarations cannot refer to partial specializations," so there is no way
   /// to only have MetaRegistry with the same identifier be friends with this factory. Instead, ALL
   /// MetaRegistry are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
-  template <typename, class, typename, typename, bool>
+  template <class, class>
   friend class MetaRegistry;
   //@}
 };  // MetaFactory

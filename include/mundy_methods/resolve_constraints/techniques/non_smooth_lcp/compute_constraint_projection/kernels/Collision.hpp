@@ -61,8 +61,7 @@ namespace kernels {
 
 /// \class Collision
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Collision : public mundy::meta::MetaKernel<void, Collision>,
-                  public ComputeConstraintProjection::OurKernelRegistry<Collision> {
+class Collision : public mundy::meta::MetaKernel<void, Collision> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -186,6 +185,9 @@ class Collision : public mundy::meta::MetaKernel<void, Collision>,
   stk::mesh::Field<double> *element_lagrange_multiplier_field_ptr_;
   //@}
 };  // Collision
+
+/// @brief Register Collision with ComputeConstraintProjection's kernel factory.
+MUNDY_REGISTER_METACLASS(Collision, ComputeConstraintProjection::OurKernelFactory);
 
 }  // namespace kernels
 

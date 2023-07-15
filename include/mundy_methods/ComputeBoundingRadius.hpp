@@ -51,8 +51,7 @@ namespace methods {
 
 /// \class ComputeBoundingRadius
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundingRadius>,
-                              public mundy::meta::GlobalMetaMethodRegistry<void, ComputeBoundingRadius> {
+class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundingRadius> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -68,9 +67,6 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void, ComputeBoundi
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeBoundingRadius>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, ComputeBoundingRadius>;
   //@}
 
   //! \name MetaMethod interface implementation

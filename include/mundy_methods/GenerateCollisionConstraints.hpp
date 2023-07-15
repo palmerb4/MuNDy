@@ -55,13 +55,12 @@ using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
 using IdentProcPairVector = std::vector<std::pair<SearchIdentProc, SearchIdentProc>>;
 
 /// \class GenerateCollisionConstraints
-/// \brief Method for generating collision constrants between nearby bodies.
+/// \brief Method for generating collision constraints between nearby bodies.
 ///
 /// Possible types of generation routines include, minimum separation distance, surface tesselation, multiblob, and
-/// recursibe generation to name a few. For now, we only implement minimum separation distance.
+/// recursive generation to name a few. For now, we only implement minimum separation distance.
 /// TODO(palmerb4): Break this class into techniques and make sure it generalizes.
-class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, GenerateCollisionConstraints>,
-                                     public mundy::meta::GlobalMetaMethodRegistry<void, GenerateCollisionConstraints> {
+class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, GenerateCollisionConstraints> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -77,9 +76,6 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void, Genera
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, GenerateCollisionConstraints>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelRegistry<void, ClassToRegister, GenerateCollisionConstraints>;
   //@}
 
   //! \name MetaMethod interface implementation

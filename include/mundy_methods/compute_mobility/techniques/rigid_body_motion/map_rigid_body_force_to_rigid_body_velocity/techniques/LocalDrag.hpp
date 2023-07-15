@@ -45,7 +45,6 @@
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
-#include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
 
 namespace mundy {
 
@@ -63,8 +62,7 @@ namespace techniques {
 
 /// \class LocalDrag
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
-                  public mundy::meta::MetaMethodRegistry<void, LocalDrag, ComputeMobility> {
+class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -80,9 +78,6 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag>,
   //@{
 
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, LocalDrag>;
-
-  template <typename ClassToRegister>
-  using OurKernelRegistry = mundy::meta::MetaKernelFactory<void, ClassToRegister, LocalDrag>;
   //@}
 
   //! \name MetaMethod interface implementation

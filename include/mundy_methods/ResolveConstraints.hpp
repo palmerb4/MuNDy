@@ -51,8 +51,7 @@ namespace methods {
 
 /// \class ResolveConstraints
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class ResolveConstraints : public mundy::meta::MetaMethod<void, ResolveConstraints>,
-                           public mundy::meta::GlobalMetaMethodRegistry<void, ResolveConstraints> {
+class ResolveConstraints : public mundy::meta::MetaMethod<void, ResolveConstraints> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -68,9 +67,6 @@ class ResolveConstraints : public mundy::meta::MetaMethod<void, ResolveConstrain
   //@{
 
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ResolveConstraints>;
-
-  template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ResolveConstraints>;
   //@}
 
   //! \name MetaMethod interface implementation

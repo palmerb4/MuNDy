@@ -51,8 +51,7 @@ namespace methods {
 
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
-                        public mundy::meta::GlobalMetaMethodRegistry<void, ComputeMobility> {
+class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -68,9 +67,6 @@ class ComputeMobility : public mundy::meta::MetaMethod<void, ComputeMobility>,
   //@{
 
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeMobility>;
-
-  template <typename ClassToRegister>
-  using OurMethodRegistry = mundy::meta::MetaMethodRegistry<void, ClassToRegister, ComputeMobility>;
   //@}
 
   //! \name MetaMethod interface implementation

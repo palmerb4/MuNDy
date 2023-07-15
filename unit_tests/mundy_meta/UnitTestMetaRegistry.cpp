@@ -62,64 +62,25 @@ namespace {
 //! \name MetaRegistry automatic registration tests
 //@{
 
-using RegistrationIdentifier1 = int;
-using RegistrationIdentifier2 = double;
+struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
 
-/// @brief Register with GlobalMetaMethodFactory
-class ExampleMetaMethodRegisteredWithGlobal
-    : public ExampleMetaMethod<0>,
-      public GlobalMetaMethodRegistry<void, ExampleMetaMethodRegisteredWithGlobal, int> {
-};  // class ExampleMetaMethodRegisteredWithGlobal
+// Register a class with the MetaMethodFactory with a given RegistrationIdentifier.
+MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<1>,
+                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);
 
-/// @brief Register with a MetaMethodFactory with a given RegistrationIdentifier
-class ExampleMetaMethodRegisteredWithFactory1
-    : public ExampleMetaMethod<1>,
-      public MetaMethodRegistry<void, ExampleMetaMethodRegisteredWithFactory1, RegistrationIdentifier1, int> {
-};  // class ExampleMetaMethodRegisteredWithSomeFactory
-
-/// @brief Register with a MetaMethodFactory with a given RegistrationIdentifier
-class ExampleMetaMethodRegisteredWithFactory2
-    : public ExampleMetaMethod<2>,
-      public MetaMethodRegistry<void, ExampleMetaMethodRegisteredWithFactory2, RegistrationIdentifier2, int> {
-};  // class ExampleMetaMethodRegisteredWithFactory2
-
-/// @brief ReRegister with a MetaMethodFactory with a given RegistrationIdentifier, overwriting any previous
-/// registrations
-class ExampleMetaMethodReRegisteredWithFactory2
-    : public ExampleMetaMethod<2>,
-      public MetaMethodRegistry<void, ExampleMetaMethodReRegisteredWithFactory2, RegistrationIdentifier2, int, true> {
-};  // class ExampleMetaMethodReRegisteredWithFactory2
+// Register a different class with the same MetaMethodFactory with a given RegistrationIdentifier.
+MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<2>,
+                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);
 
 TEST(MetaRegistry, AutoRegistration) {
-  // Test that the MetaRegistry performed the registration with the GlobalMetaMethodFactory
-  using OurGlobalMetaMethodFactory = GlobalMetaMethodFactory<void, int>;
-  EXPECT_EQ(OurGlobalMetaMethodFactory::num_registered_classes(), 1);
-  EXPECT_TRUE(
-      OurGlobalMetaMethodFactory::is_valid_key(ExampleMetaMethodRegisteredWithGlobal::static_get_class_identifier()));
-
-  // Test that the MetaRegistry performed the registration with the MetaMethodFactory with a given
+  // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the MetaMethodFactory with a given
   // RegistrationIdentifier
-  using OurMetaMethodFactory1 = MetaMethodFactory<void, RegistrationIdentifier1, int>;
-  EXPECT_EQ(OurMetaMethodFactory1::num_registered_classes(), 1);
+  using OurMetaMethodFactory = MetaMethodFactory<void, DummyRegistrationIdentifier, int>;
+  EXPECT_EQ(OurMetaMethodFactory::num_registered_classes(), 2);
   EXPECT_TRUE(
-      OurMetaMethodFactory1::is_valid_key(ExampleMetaMethodRegisteredWithFactory1::static_get_class_identifier()));
-
-  // Test that the MetaRegistry performed the reregistration with the MetaMethodFactory with a given
-  // RegistrationIdentifier.
-  using OurMetaMethodFactory2 = MetaMethodFactory<void, RegistrationIdentifier2, int>;
-  auto key = ExampleMetaMethodRegisteredWithFactory2::static_get_class_identifier();
-  EXPECT_EQ(OurMetaMethodFactory2::num_registered_classes(), 1);
-  ASSERT_TRUE(OurMetaMethodFactory2::is_valid_key(key));
-
-  // To test that the old registration was overwritten, we need to check that the correct internal methods are called.
-  ExampleMetaMethodRegisteredWithFactory2::reset_counters();
-  ExampleMetaMethodReRegisteredWithFactory2::reset_counters();
-  ASSERT_EQ(ExampleMetaMethodRegisteredWithFactory2::num_get_mesh_requirements_calls(), 0);
-  ASSERT_EQ(ExampleMetaMethodReRegisteredWithFactory2::num_get_mesh_requirements_calls(), 0);
-  Teuchos::ParameterList fixed_params;
-  OurMetaMethodFactory2::get_mesh_requirements(key, fixed_params);
-  EXPECT_EQ(ExampleMetaMethodRegisteredWithFactory2::num_get_mesh_requirements_calls(), 0);
-  EXPECT_EQ(ExampleMetaMethodReRegisteredWithFactory2::num_get_mesh_requirements_calls(), 1);
+      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<1>::static_get_class_identifier()));
+  EXPECT_TRUE(
+      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<2>::static_get_class_identifier()));
 }
 //@}
 

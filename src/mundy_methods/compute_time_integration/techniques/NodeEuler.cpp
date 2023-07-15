@@ -34,14 +34,23 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaTwoWayKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy/throw_assert.hpp>                    // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                   // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>           // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>                // for mundy::meta::MetaTwoWayKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
+#include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 #include <mundy_methods/compute_time_integration/techniques/NodeEuler.hpp>  // for mundy::methods::...::NodeEuler
+
+// \name Registration
+//{
+
+/// @brief Register NodeEuler with ComputeTimeIntegration's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_time_integration::techniques::NodeEuler,
+                         mundy::methods::ComputeTimeIntegration::OurMethodFactory)
+//}
 
 namespace mundy {
 
