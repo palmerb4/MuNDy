@@ -136,7 +136,7 @@ class MapRigidBodyForceToRigidBodyVelocity
     OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other
   /// \c MetaMethod.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);

@@ -56,24 +56,50 @@ namespace meta {
 struct GlobalIdentifier {};  // GlobalIdentifier
 
 /// \class MetaFactory
-/// \brief A factory containing generation routines for classes derived from \c HasMeshRequirementsAndIsRegisterable.
+/// \brief A factory containing generation routines for classes that have mesh requirements and are registerable.
 ///
 /// The goal of \c MetaFactory, as with most factories, is to provide an abstraction for case switches between
-/// different methods. This factory is a bit different in that it always users to register new classes derived from
-/// \c HasMeshRequirementsAndIsRegisterable and associate them with corresponding keys. These classes can then be
-/// fetched based using their class identifier. Most importantly, it enables users to register their own derived classes
-/// without modifying Mundy's source code.
+/// different methods. This factory is a bit different in that it always users to register new classes (that match the
+/// desired interface) and associate them with corresponding keys. These classes can then be fetched based using their
+/// registration id. Most importantly, this enables users to register their own derived classes without modifying
+/// Mundy's source code.
 ///
 /// It's important to note that the static members of this factory will be shared between any \c MetaFactory
 /// with the same set of template parameters. As a result, we can create a new factory with its own set of registered
 /// classes by simply changing the \c RegistryIdentifier. For methods that should be globally accessible, we offer a
 /// GlobalMetaFactory type specialization.
 ///
+/// Any class that wishes to be registered with this factory must must implement the following static interface. Don't
+/// worry, if your class fails to meet one of these requirements, register_new_class will throw a human-readable compile
+/// time error telling you which functions you need to implement/modify. The specific signatures of these functions are
+/// given below.
+///
+/// \code{.cpp}
+/// // The type of this class's registration id (e.g. std::string_view).
+/// using RegistrationType = ...;
+///
+/// // The type of this class's polymorphic base type (e.g. MetaKernel).
+/// using PolymorphicBaseType = ...;
+///
+/// // Get the requirements generator for this class. May be nullptr.
+/// static std::shared_ptr<RequirementsGenerator> get_requirements_generator();
+///
+/// // Get the params validator for this class. May be nullptr.
+/// static std::shared_ptr<ParamsValidator> get_params_validator();
+///
+/// // Get the new class generator for this class. May be nullptr.
+/// static std::shared_ptr<NewClassGenerator> get_new_class_generator();
+///
+/// // Get the registration id for this class.
+/// static RegistrationType get_registration_id();
+/// &fixed_params);
+/// \endcode
+///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
 /// \tparam PolymorphicBaseType_t A polymorphic base type shared by each registered class.
-/// \tparam RegistrationType_t The type of each class's identifier.
+/// \tparam RegistrationType_t The type to register each class with (defaults to std::string_view).
 /// \tparam RegistryIdentifier_t A template type used to create different independent instances of \c MetaFactory.
 template <typename PolymorphicBaseType_t, typename RegistryIdentifier_t, typename RegistrationType_t = std::string_view>
 class MetaFactory {
@@ -181,6 +207,23 @@ class MetaFactory {
   /// \brief Register a new class. The key for the class is determined by its class identifier.
   template <typename ClassToRegister>
   static void register_new_class() {
+    // Check that the ClassToRegister has the desired interface.
+    using Checker = HasMeshRequirementsAndIsRegisterable<ClassToRegister>;
+    std::string error_msg_post_fix =
+        "See the documentation of MetaFactory for more information about the expected interface.";
+    static_assert(Checker::has_get_requirements_generator,
+                  "MetaFactory: The class to register doesn't have the correct get_requirements_generator function.\n"
+                      << error_msg_post_fix);
+    static_assert(Checker::has_get_params_validator,
+                  "MetaFactory: The class to register doesn't have the correct get_params_validator function.\n"
+                      << error_msg_post_fix);
+    static_assert(Checker::has_get_registration_id,
+                  "MetaFactory: The class to register doesn't have the correct get_registration_id function.\n"
+                      << error_msg_post_fix);
+    static_assert(Checker::has_create_new_instance,
+                  "MetaFactory: The class to register doesn't have the correct create_new_instance function.\n"
+                      << error_msg_post_fix);
+
     const RegistrationType key = ClassToRegister::static_get_class_identifier();
 
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,

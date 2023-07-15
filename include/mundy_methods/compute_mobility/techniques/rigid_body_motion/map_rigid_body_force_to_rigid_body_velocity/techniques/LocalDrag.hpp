@@ -162,7 +162,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void, LocalDrag> {
     }
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);
   }

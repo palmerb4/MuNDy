@@ -183,7 +183,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void, CollisionSphe
                const stk::mesh::Entity &right_sphere_element) override;
 
   /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
   void finalize() override;
   //@}
 

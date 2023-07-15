@@ -131,7 +131,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void, ComputeCo
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static std::string details_static_get_class_identifier() {
     return std::string(class_identifier_);
   }

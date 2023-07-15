@@ -26,6 +26,7 @@
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <string>       // for std::string
+#include <tuple>        // for std::tuple
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <vector>       // for std::vector
 
@@ -34,28 +35,29 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
-#include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
-#include <mundy_meta/PartRequirements.hpp>                      // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
 namespace meta {
 
-/// \class MetaMethodBase
-/// \brief The polymorphic interface which all \c MetaMethods will share.
-///
-/// This design pattern allows for \c MetaMethod to use CRTP to force derived classes to implement certain static
-/// functions while also having a consistent polymorphic interface that allows different \c MetaMethods to be stored in
-/// a vector of pointers.
+/// \class MetaMethod
+/// \brief A virtual interface that defines the core functionality of a method--a class that acts on a subset of
+/// entities.
 ///
 /// \tparam ReturnType The return type of the execute function.
-/// \tparam RegistrationType The type of this class's identifier.
-template <typename ReturnType, typename RegistrationType = std::string_view>
-class MetaMethodBase
-    : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaMethodBase<ReturnType, RegistrationType>,
-                                                              RegistrationType> {
+/// \tparam Args The types of the arguments to the execute function.
+template <typename ReturnType_t, typename... Args>
+class MetaMethod {
  public:
+  //! \name Typedefs
+  //@{
+
+  using ReturnType = ReturnType_t;
+  using ArgsTuple = std::tuple<Args...>;
+  //@}
+
   //! \name Setters
   //@{
 
@@ -67,92 +69,10 @@ class MetaMethodBase
   //@{
 
   /// \brief Run the method's core calculation.
-  virtual ReturnType execute(const stk::mesh::Selector &input_selector) = 0;
-  //@}
-};  // MetaMethodBase
-
-/// \class MetaMethod
-/// \brief The static interface that encodes a class's assumptions about the structure and contents of an STK mesh.
-///
-/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c MetaMethod must
-/// implement the following static member functions
-/// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
-/// - \c details_static_validate_fixed_parameters_and_set_defaults implementation of the
-///     \c static_validate_fixed_parameters_and_set_defaults interface.
-/// - \c details_static_validate_mutable_parameters_and_set_defaults implementation of the
-///     \c static_validate_mutable_parameters_and_set_defaults interface.
-/// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
-/// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
-///
-/// To keep these out of the public interface, we suggest that each details function be made private and
-/// \c MetaMethod<DerivedMetaMethod> be made a friend of \c DerivedMetaMethod.
-///
-/// \note The _t in our template paramaters breaks our naming convention for types but is used to prevent template
-/// shaddowing by internal typedefs.
-///
-/// \tparam ReturnType_t The return type of the execute function.
-/// \tparam DerivedMetaMethod_t A class derived from \c MetaMethod that implements the desired interface.
-/// \tparam RegistrationType_t The type of this class's identifier.
-template <typename ReturnType_t, class DerivedMetaMethod_t, typename RegistrationType_t = std::string_view>
-class MetaMethod
-    : virtual public MetaMethodBase<ReturnType_t, RegistrationType_t>,
-      public HasMeshRequirementsAndIsRegisterable<MetaMethod<ReturnType_t, DerivedMetaMethod_t, RegistrationType_t>,
-                                                  MetaMethodBase<ReturnType_t, RegistrationType_t>,
-                                                  RegistrationType_t> {
- public:
-  //! \name Typedefs
-  //@{
-
-  using ReturnType = ReturnType_t;
-  using RegistrationType = RegistrationType_t;
-  using PolymorphicBase = MetaMethodBase<ReturnType, RegistrationType>;
-  //@}
-
-  //! \name Getters
-  //@{
-
-  /// \brief Get the requirements that this \c MetaMethod imposes upon each input part.
-  ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this class
-  /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_params but not the \c mutable_params.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<MeshRequirements> details_static_get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_params) {
-    return DerivedMetaMethod_t::details_static_get_mesh_requirements(fixed_params);
-  }
-
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void details_static_validate_fixed_parameters_and_set_defaults(
-      Teuchos::ParameterList *const fixed_params_ptr) {
-    DerivedMetaMethod_t::details_static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
-  }
-
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void details_static_validate_mutable_parameters_and_set_defaults(
-      Teuchos::ParameterList *const mutable_params_ptr) {
-    DerivedMetaMethod_t::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
-  }
-
-  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
-  static RegistrationType details_static_get_class_identifier() {
-    return DerivedMetaMethod_t::details_static_get_class_identifier();
-  }
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<PolymorphicBase> details_static_create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return DerivedMetaMethod_t::details_static_create_new_instance(bulk_data_ptr, fixed_params);
-  }
+  /// For example, calculate the force on each entity in the given selector.
+  /// \param input_selector The selector that defines the entities to act on.
+  /// \param args The additional arguments to the kernel's core calculation.
+  virtual ReturnType execute(const stk::mesh::Selector &input_selector, Args... args) = 0;
   //@}
 };  // MetaMethod
 

@@ -100,7 +100,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
     return validate_mutable_parameters_and_set_defaults_counter_;
   }
 
-  /// \brief Get the number of times that \c get_class_identifier has been called.
+  /// \brief Get the number of times that \c get_registration_id has been called.
   static int num_get_class_identifier_calls() {
     return get_class_identifier_counter_;
   }
@@ -162,7 +162,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
     validate_mutable_parameters_and_set_defaults_counter_++;
   }
 
-  /// \brief Get the unique class identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
   static int details_static_get_class_identifier() {
     get_class_identifier_counter_++;
     return class_identifier_;
@@ -206,7 +206,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   /// \brief The number of times \c validate_mutable_parameters_and_set_defaults has been called.
   static inline int validate_mutable_parameters_and_set_defaults_counter_ = 0;
 
-  /// \brief The number of times \c get_class_identifier has been called.
+  /// \brief The number of times \c get_registration_id has been called.
   static inline int get_class_identifier_counter_ = 0;
 
   /// \brief The number of times \c create_new_instance has been called.

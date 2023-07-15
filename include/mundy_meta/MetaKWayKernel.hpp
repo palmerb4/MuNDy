@@ -51,7 +51,7 @@ namespace meta {
 ///
 /// \tparam K The number of entities passed to execute.
 /// \tparam ReturnType The return type of the execute function.
-/// \tparam RegistrationType The type of this class's identifier.
+/// \tparam RegistrationType The type of this object's registration identifier.
 template <std::size_t K, typename ReturnType, typename RegistrationType = std::string_view>
 class MetaKWayKernelBase
     : virtual public HasMeshRequirementsAndIsRegisterableBase<MetaKWayKernelBase<K, ReturnType, RegistrationType>,
@@ -75,7 +75,7 @@ class MetaKWayKernelBase
   virtual ReturnType execute(const std::array<stk::mesh::Entity, K> &entity_array) = 0;
 
   /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
   virtual void finalize() = 0;
   //@}
 };  // MetaKWayKernelBase
@@ -102,7 +102,7 @@ class MetaKWayKernelBase
 /// \tparam N The number of entities passed to execute.
 /// \tparam ReturnType_t The return type of the execute function.
 /// \tparam DerivedMetaKWayKernel_t A class derived from \c MetaKWayKernel that implements the desired interface.
-/// \tparam RegistrationType_t The type of this class's identifier.
+/// \tparam RegistrationType_t The type of this object's registration identifier.
 template <std::size_t K, typename ReturnType_t, class DerivedMetaKWayKernel_t,
           typename RegistrationType_t = std::string_view>
 class MetaKWayKernel : virtual public MetaKWayKernelBase<K, ReturnType_t, RegistrationType_t>,
@@ -146,7 +146,7 @@ class MetaKWayKernel : virtual public MetaKWayKernelBase<K, ReturnType_t, Regist
     DerivedMetaKWayKernel_t::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
   }
 
-  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
+  /// \brief Get the unique registration identifier. Here, 'unique' means with with respect to other class in our registry(s).
   static RegistrationType details_static_get_class_identifier() {
     return DerivedMetaKWayKernel_t::details_static_get_class_identifier();
   }

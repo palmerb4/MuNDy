@@ -181,7 +181,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void, Spherocylinder> {
   void execute(const stk::mesh::Entity &Spherocylinder_element) override;
 
   /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform redictions over shared entities, or swap internal variables.
+  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
   void finalize() override;
   //@}
 
