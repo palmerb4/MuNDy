@@ -19,6 +19,8 @@
 
 target_sources(mundy PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/NonSmoothLCP.cpp
-)
+    ${CMAKE_CURRENT_SOURCE_DIR}/PairwisePotential.cpp
+    )
 
 add_subdirectory(non_smooth_lcp)
+add_subdirectory(pairwise_potential)

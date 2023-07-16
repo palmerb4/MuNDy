@@ -54,7 +54,7 @@ namespace resolve_constraints {
 namespace techniques {
 
 /// \class NonSmoothLCP
-/// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
+/// \brief Method for resolving constraints using a non-smooth linear complementarity problem (LCP) formulation.
 class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
@@ -152,7 +152,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
     } else {
       compute_constraint_projection_params.set(
           "name", std::string(default_compute_constraint_projection_name_),
-          "Name of the method for projecting the constraints onto the feasable solution space.");
+          "Name of the method for projecting the constraints onto the feasible solution space.");
     }
 
     if (compute_constraint_residual_params.isParameter("name")) {
@@ -243,7 +243,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
     } else {
       compute_constraint_projection_params.set(
           "name", std::string(default_compute_constraint_projection_name_),
-          "Name of the method for projecting the constraints onto the feasable solution space.");
+          "Name of the method for projecting the constraints onto the feasible solution space.");
     }
 
     if (compute_constraint_residual_params.isParameter("name")) {
@@ -314,8 +314,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
     }
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other
-  /// \c MetaMethod.
+  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c MetaMethodRegistry.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -381,7 +380,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
   /// \brief Method for computing the force induced by the constraints on their nodes.
   std::shared_ptr<mundy::meta::MetaMethod<void>> compute_constraint_forcing_method_ptr_;
 
-  /// \brief Method for projecting the constraints onto the feasable solution space.
+  /// \brief Method for projecting the constraints onto the feasible solution space.
   std::shared_ptr<mundy::meta::MetaMethod<void>> compute_constraint_projection_method_ptr_;
 
   /// \brief Method for computing the global residual quantifying the constraint violation.

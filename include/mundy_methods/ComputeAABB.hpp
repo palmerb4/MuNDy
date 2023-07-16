@@ -51,11 +51,20 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
+///
+/// The methodology behind the design choices in this class is as follows:
+/// The \c ComputeAABB class is a \c MetaMethod that is responsible for computing the axis aligned bounding box of
+/// different parts. Originally, this class was designed as a "MetaMultibodyMethod" that assigned a \c MetaKernel to
+/// each enabled multibody part. However, this design was not flexible enough to handle the case where a multiple
+/// \c MetaKernels needed to be assigned to the same multibody type but has the advantage of allowing for default
+/// kernels. The alternative design is to allow users the freedom to directly specify the \c MetaKernels that they want
+/// to use for each part. This design is more flexible but requires more work on the user's part since they must
+/// specify the \c MetaKernels themselves.
 class ComputeAABB : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeAABB>;

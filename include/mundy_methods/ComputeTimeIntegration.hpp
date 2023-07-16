@@ -131,8 +131,7 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void> {
     OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other
-  /// \c MetaMethod.
+  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c MetaMethodRegistry.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
