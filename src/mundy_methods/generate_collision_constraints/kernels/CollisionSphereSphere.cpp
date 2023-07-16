@@ -62,7 +62,7 @@ CollisionSphereSphere::CollisionSphereSphere(mundy::mesh::BulkData *const bulk_d
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
@@ -82,7 +82,7 @@ CollisionSphereSphere::CollisionSphereSphere(mundy::mesh::BulkData *const bulk_d
 void CollisionSphereSphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Fill the internal members using the given parameter list.
   buffer_distance_ = valid_mutable_params.get<double>("buffer_distance");

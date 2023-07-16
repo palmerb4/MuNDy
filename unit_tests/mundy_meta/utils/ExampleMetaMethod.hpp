@@ -41,7 +41,7 @@
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 
 namespace mundy {
@@ -53,13 +53,22 @@ namespace utils {
 /// \class ExampleMetaMethod
 /// \brief Method for computing the axis aligned boundary box of different parts.
 ///
-/// \tparam class_identifier [in] A unique identifier for this class. This is used to register this class with
+/// \tparam registration_id [in] A unique identifier for this class. This is used to register this class with
 /// \c MetaRegistry.
 /// \tparam some_integer [in] An integer to differentiate this class from a different example meta method class with the
 /// same id.
-template <int class_identifier, int some_integer = 0>
-class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod<class_identifier, some_integer>, int> {
+template <int registration_id, int some_integer = 0>
+class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
  public:
+  //! \name Typedefs
+  //@{
+
+  using RegistrationType = int;
+  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ExampleMetaMethod<registration_id, some_integer>>;
+  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ExampleMetaMethod<registration_id, some_integer>>;
+  //@}
+
   //! \name Constructors and destructor
   //@{
 
@@ -73,13 +82,6 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
     // However, in this case, we want to be able to allow a nullptr bulk data to simplify testing.
     // MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, "ExampleMetaMethod: bulk_data_ptr must not be a nullptr.");
   }
-  //@}
-
-  //! \name Typedefs
-  //@{
-
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ExampleMetaMethod<class_identifier, some_integer>>;
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ExampleMetaMethod<class_identifier, some_integer>>;
   //@}
 
   //! \name Testing counters
@@ -101,8 +103,8 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   }
 
   /// \brief Get the number of times that \c get_registration_id has been called.
-  static int num_get_class_identifier_calls() {
-    return get_class_identifier_counter_;
+  static int num_get_registration_id_calls() {
+    return get_registration_id_counter_;
   }
 
   /// \brief Get the number of times that \c create_new_instance has been called.
@@ -125,7 +127,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
     get_mesh_requirements_counter_ = 0;
     validate_fixed_parameters_and_set_defaults_counter_ = 0;
     validate_mutable_parameters_and_set_defaults_counter_ = 0;
-    get_class_identifier_counter_ = 0;
+    get_registration_id_counter_ = 0;
     create_new_instance_counter_ = 0;
     set_mutable_params_counter_ = 0;
     execute_counter_ = 0;
@@ -133,7 +135,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
 
   //@}
 
-  //! \name MetaMethod interface implementation
+  //! \name MetaFactory static interface implementation
   //@{
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
@@ -143,7 +145,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     get_mesh_requirements_counter_++;
     std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
@@ -151,31 +153,32 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void details_static_validate_fixed_parameters_and_set_defaults(
+  static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     validate_fixed_parameters_and_set_defaults_counter_++;
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void details_static_validate_mutable_parameters_and_set_defaults(
+  static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     validate_mutable_parameters_and_set_defaults_counter_++;
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  static int details_static_get_class_identifier() {
-    get_class_identifier_counter_++;
-    return class_identifier_;
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaMethod.
+  static int get_registration_id() {
+    get_registration_id_counter_++;
+    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodBase<void, int>> details_static_create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     create_new_instance_counter_++;
-    return std::make_shared<ExampleMetaMethod<class_identifier, some_integer>>(bulk_data_ptr, fixed_params);
+    return std::make_shared<ExampleMetaMethod<registration_id, some_integer>>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
@@ -207,7 +210,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
   static inline int validate_mutable_parameters_and_set_defaults_counter_ = 0;
 
   /// \brief The number of times \c get_registration_id has been called.
-  static inline int get_class_identifier_counter_ = 0;
+  static inline int get_registration_id_counter_ = 0;
 
   /// \brief The number of times \c create_new_instance has been called.
   static inline int create_new_instance_counter_ = 0;
@@ -220,7 +223,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void, ExampleMetaMethod
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr int class_identifier_ = class_identifier;
+  static constexpr int registration_id_ = registration_id;
   //@}
 };  // ExampleMetaMethod
 

@@ -38,7 +38,7 @@
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
@@ -74,7 +74,7 @@ ComputeConstraintViolation::ComputeConstraintViolation(mundy::mesh::BulkData *co
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
@@ -90,13 +90,13 @@ ComputeConstraintViolation::ComputeConstraintViolation(mundy::mesh::BulkData *co
 }
 //}
 
-// \name MetaMethod interface implementation
+// \name MetaFactory static interface implementation
 //{
 
 void ComputeConstraintViolation::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);

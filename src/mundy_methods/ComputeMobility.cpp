@@ -37,7 +37,7 @@
 #include <mundy/throw_assert.hpp>             // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
@@ -65,7 +65,7 @@ ComputeMobility::ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, con
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fetch the technique sublist and return its parameters.
   Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
@@ -74,13 +74,13 @@ ComputeMobility::ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, con
 }
 //}
 
-// \name MetaMethod interface implementation
+// \name MetaFactory static interface implementation
 //{
 
 void ComputeMobility::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Fetch the technique sublist and return its parameters.
   Teuchos::ParameterList &technique_params = valid_mutable_params.sublist("technique");

@@ -474,7 +474,7 @@ There are some BIG changes that need to occur. Those are
   - Alternatively, we use alpha and beta to decide if values should be summed or zerod. That way the user decides when to reset.
 1. (Done) The parameters for all methods and kernels need broken into fixed and mutable parameters.
 2. (Done) All details_static_get_valid_params need updated to return the kernel/submethod params. 
-   It should look a lot like details_static_get_mesh_requirements
+   It should look a lot like get_mesh_requirements
 3. (Done) Need a way to have default parameters for different multiboidy types without the user needing to specify every single kernel. 
    One promising method is to have a parameter like, use_present_default_parameters: SPHERE. 
 
@@ -567,7 +567,7 @@ would only ever act like spheres. We shouldn't use enums directly. I would rathe
 From there, can we map from mundy::multibody::multibody_t to mundy::multibody in a way that users can extend? This way we can add a method for automatically
 mapping mundy::multibody to an stk::topology.
 
-static const mundy::multibody::multibody_t class_identifier_ = mundy::multibody::Sphere::get_id();
+static const mundy::multibody::multibody_t registration_id_ = mundy::multibody::Sphere::get_id();
 
 There's no way to go the other direction without using pointers. You'd have to map to Multibody directly, which would discard all information about the sphere. 
 Because these classes are entirely static, the factory can store all of their methods in jump tables. Then we either use the id or the string to call the correct method. 

@@ -74,7 +74,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
   node_force_field_name_ = valid_fixed_params.get<std::string>("node_force_field_name");
@@ -99,7 +99,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Fill the internal members using the given parameter list.
   viscosity_ = valid_mutable_params.get<double>("viscosity");

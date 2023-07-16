@@ -78,9 +78,9 @@ TEST(MetaRegistry, AutoRegistration) {
   using OurMetaMethodFactory = MetaMethodFactory<void, DummyRegistrationIdentifier, int>;
   EXPECT_EQ(OurMetaMethodFactory::num_registered_classes(), 2);
   EXPECT_TRUE(
-      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<1>::static_get_class_identifier()));
+      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<1>::get_registration_id()));
   EXPECT_TRUE(
-      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<2>::static_get_class_identifier()));
+      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<2>::get_registration_id()));
 }
 //@}
 

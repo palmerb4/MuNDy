@@ -72,9 +72,9 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   // Create out example class to register.
   // This class must be derived from \c HasMeshRequirementsAndIsRegisterable.
   // TODO(palmerb4): Is there a succinct way to check this at compile time?
-  constexpr int class_identifier = 1;
-  using ClassToRegister = utils::ExampleMetaMethod<class_identifier>;
-  ASSERT_TRUE(ClassToRegister::static_get_class_identifier() == class_identifier);
+  constexpr int registration_id = 1;
+  using ClassToRegister = utils::ExampleMetaMethod<registration_id>;
+  ASSERT_TRUE(ClassToRegister::get_registration_id() == registration_id);
 
   // Reset the test counter within our classes to register.
   // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
@@ -82,10 +82,10 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
 
   // Attempt to register a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory.
   EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 0);
-  EXPECT_FALSE(ExampleMetaFactory::is_valid_key(class_identifier));
+  EXPECT_FALSE(ExampleMetaFactory::is_valid_key(registration_id));
   ExampleMetaFactory::register_new_class<ClassToRegister>();
   EXPECT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
-  EXPECT_TRUE(ExampleMetaFactory::is_valid_key(class_identifier));
+  EXPECT_TRUE(ExampleMetaFactory::is_valid_key(registration_id));
 
   // Try to use the factory to access the internal member functions of our registered class.
   // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
@@ -94,19 +94,19 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   Teuchos::ParameterList mutable_params;
 
   EXPECT_EQ(ClassToRegister::num_get_mesh_requirements_calls(), 0);
-  ExampleMetaFactory::get_mesh_requirements(class_identifier, fixed_params);
+  ExampleMetaFactory::get_mesh_requirements(registration_id, fixed_params);
   EXPECT_EQ(ClassToRegister::num_get_mesh_requirements_calls(), 1);
 
   EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(class_identifier, &fixed_params);
+  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(registration_id, &fixed_params);
   EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 1);
 
   EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(class_identifier, &mutable_params);
+  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(registration_id, &mutable_params);
   EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 1);
 
   EXPECT_EQ(ClassToRegister::num_create_new_instance_calls(), 0);
-  ExampleMetaFactory::create_new_instance(class_identifier, bulk_data_ptr, fixed_params);
+  ExampleMetaFactory::create_new_instance(registration_id, bulk_data_ptr, fixed_params);
   EXPECT_EQ(ClassToRegister::num_create_new_instance_calls(), 1);
 
   ExampleMetaFactory::reset();
@@ -126,13 +126,13 @@ TEST(MetaFactoryRegistration, Reregistration) {
 
   // Create out example classes to register.
   // These classes must be derived from \c HasMeshRequirementsAndIsRegisterable.
-  constexpr int class_identifier = 1;
-  using ClassToRegister1 = utils::ExampleMetaMethod<class_identifier, 1>;
-  using ClassToRegister2 = utils::ExampleMetaMethod<class_identifier, 2>;
+  constexpr int registration_id = 1;
+  using ClassToRegister1 = utils::ExampleMetaMethod<registration_id, 1>;
+  using ClassToRegister2 = utils::ExampleMetaMethod<registration_id, 2>;
   bool classes_are_different = !std::is_same_v<ClassToRegister1, ClassToRegister2>;
   ASSERT_TRUE(classes_are_different);
-  ASSERT_TRUE(ClassToRegister1::static_get_class_identifier() == class_identifier);
-  ASSERT_TRUE(ClassToRegister2::static_get_class_identifier() == class_identifier);
+  ASSERT_TRUE(ClassToRegister1::get_registration_id() == registration_id);
+  ASSERT_TRUE(ClassToRegister2::get_registration_id() == registration_id);
 
   // Reset the test counter within our classes to register.
   // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
@@ -170,20 +170,20 @@ TEST(MetaFactoryRegistration, RegistrationWithDifferentRegistrationIdentifier) {
   ExampleMetaFactory2::reset();
 
   // Create out example class to register.
-  constexpr int class_identifier = 1;
-  using ClassToRegister = utils::ExampleMetaMethod<class_identifier>;
-  ASSERT_TRUE(ClassToRegister::static_get_class_identifier() == class_identifier);
+  constexpr int registration_id = 1;
+  using ClassToRegister = utils::ExampleMetaMethod<registration_id>;
+  ASSERT_TRUE(ClassToRegister::get_registration_id() == registration_id);
 
   // Register with the first factory.
   EXPECT_EQ(ExampleMetaFactory1::num_registered_classes(), 0);
   EXPECT_EQ(ExampleMetaFactory2::num_registered_classes(), 0);
-  EXPECT_FALSE(ExampleMetaFactory1::is_valid_key(class_identifier));
+  EXPECT_FALSE(ExampleMetaFactory1::is_valid_key(registration_id));
   ExampleMetaFactory1::register_new_class<ClassToRegister>();
   EXPECT_EQ(ExampleMetaFactory1::num_registered_classes(), 1);
   EXPECT_EQ(ExampleMetaFactory2::num_registered_classes(), 0);
 
   // Register with the second factory.
-  EXPECT_FALSE(ExampleMetaFactory2::is_valid_key(class_identifier));
+  EXPECT_FALSE(ExampleMetaFactory2::is_valid_key(registration_id));
   ExampleMetaFactory2::register_new_class<ClassToRegister>();
   EXPECT_EQ(ExampleMetaFactory1::num_registered_classes(), 1);
   EXPECT_EQ(ExampleMetaFactory2::num_registered_classes(), 1);

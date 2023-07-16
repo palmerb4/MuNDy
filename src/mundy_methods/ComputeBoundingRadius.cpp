@@ -37,7 +37,7 @@
 #include <mundy/throw_assert.hpp>                   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>               // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernel.hpp>                // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>                // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>              // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
@@ -67,7 +67,7 @@ ComputeBoundingRadius::ComputeBoundingRadius(mundy::mesh::BulkData *const bulk_d
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
@@ -83,13 +83,13 @@ ComputeBoundingRadius::ComputeBoundingRadius(mundy::mesh::BulkData *const bulk_d
 }
 //}
 
-// \name MetaMethod interface implementation
+// \name MetaFactory static interface implementation
 //{
 
 void ComputeBoundingRadius::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  static_validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);

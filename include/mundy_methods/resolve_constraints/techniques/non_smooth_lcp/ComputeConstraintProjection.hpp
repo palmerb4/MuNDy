@@ -41,7 +41,7 @@
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 
@@ -57,8 +57,16 @@ namespace non_smooth_lcp {
 
 /// \class ComputeConstraintProjection
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, ComputeConstraintProjection> {
+class ComputeConstraintProjection : public mundy::meta::MetaMethod<void> {
  public:
+  //! \name Typedefs
+  //@{
+  
+  using RegistrationType = std::string_view;
+  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>;
+  //@}
+
   //! \name Constructors and destructor
   //@{
 
@@ -69,13 +77,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   ComputeConstraintProjection(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
-  //! \name Typedefs
-  //@{
-
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>;
-  //@}
-
-  //! \name MetaMethod interface implementation
+  //! \name MetaFactory static interface implementation
   //@{
 
   /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
@@ -85,11 +87,11 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> details_static_get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
     const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
@@ -104,7 +106,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void details_static_validate_fixed_parameters_and_set_defaults(
+  static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
@@ -131,7 +133,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void details_static_validate_mutable_parameters_and_set_defaults(
+  static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
@@ -158,15 +160,15 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
-  static std::string details_static_get_class_identifier() {
-    return std::string(class_identifier_);
+  static RegistrationType get_registration_id() {
+    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodBase<void>> details_static_create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<ComputeConstraintProjection>(bulk_data_ptr, fixed_params);
   }
@@ -188,7 +190,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view class_identifier_ = "COMPUTE_CONSTRAINT_PROJECTION";
+  static constexpr std::string_view registration_id_ = "COMPUTE_CONSTRAINT_PROJECTION";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
@@ -203,7 +205,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void, Compute
   std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Kernels corresponding to each of the specified parts.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernelBase<void>>> compute_constraint_projection_kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernel<void>>> compute_constraint_projection_kernel_ptrs_;
   //@}
 };  // ComputeConstraintProjection
 

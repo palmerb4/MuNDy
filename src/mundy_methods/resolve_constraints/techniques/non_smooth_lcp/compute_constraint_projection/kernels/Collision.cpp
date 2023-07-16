@@ -68,7 +68,7 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
   element_lagrange_multiplier_field_name_ =

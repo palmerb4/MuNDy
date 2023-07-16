@@ -38,7 +38,7 @@
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
@@ -73,7 +73,7 @@ ComputeConstraintResidual::ComputeConstraintResidual(mundy::mesh::BulkData *cons
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  static_validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
   std::string element_constraint_violation_field_name_ =
@@ -86,7 +86,7 @@ ComputeConstraintResidual::ComputeConstraintResidual(mundy::mesh::BulkData *cons
 }
 //}
 
-// \name MetaMethod interface implementation
+// \name MetaFactory static interface implementation
 //{
 
 void ComputeConstraintResidual::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {

@@ -82,13 +82,17 @@ struct GlobalIdentifier {};  // GlobalIdentifier
 /// using PolymorphicBaseType = ...;
 ///
 /// // Get the requirements generator for this class. May be nullptr.
-/// static std::shared_ptr<RequirementsGenerator> get_requirements_generator();
+/// static std::shared_ptr<std::shared_ptr<MeshRequirements>> get_mesh_requirements();
 ///
-/// // Get the params validator for this class. May be nullptr.
-/// static std::shared_ptr<ParamsValidator> get_params_validator();
+/// // Validate the fixed params and set their defaults.
+/// static void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr);
+///
+/// // Validate the mutable params and set their defaults.
+/// static void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr);
 ///
 /// // Get the new class generator for this class. May be nullptr.
-/// static std::shared_ptr<NewClassGenerator> get_new_class_generator();
+/// static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData* const bulk_data_ptr, const
+///                                                                 Teuchos::ParameterList& fixed_params);
 ///
 /// // Get the registration id for this class.
 /// static RegistrationType get_registration_id();
@@ -209,32 +213,45 @@ class MetaFactory {
   static void register_new_class() {
     // Check that the ClassToRegister has the desired interface.
     using Checker = HasMeshRequirementsAndIsRegisterable<ClassToRegister>;
-    std::string error_msg_post_fix =
-        "See the documentation of MetaFactory for more information about the expected interface.";
-    static_assert(Checker::has_get_requirements_generator,
-                  "MetaFactory: The class to register doesn't have the correct get_requirements_generator function.\n"
-                      << error_msg_post_fix);
-    static_assert(Checker::has_get_params_validator,
-                  "MetaFactory: The class to register doesn't have the correct get_params_validator function.\n"
-                      << error_msg_post_fix);
+    static_assert(Checker::has_get_mesh_requirements,
+                  "MetaFactory: The class to register doesn't have the correct get_mesh_requirements function.\n"
+                  "See the documentation of MetaFactory for more information about the expected interface.");
+    static_assert(Checker::has_validate_fixed_parameters_and_set_defaults,
+                  "MetaFactory: The class to register doesn't have the correct "
+                  "validate_fixed_parameters_and_set_defaults function.\n"
+                  "See the documentation of MetaFactory for more information about the expected interface.");
+    static_assert(Checker::has_validate_mutable_parameters_and_set_defaults,
+                  "MetaFactory: The class to register doesn't have the correct "
+                  "validate_mutable_parameters_and_set_defaults function.\n"
+                  "See the documentation of MetaFactory for more information about the expected interface.");
+    static_assert(Checker::has_registration_type,
+                  "MetaFactory: The class to register doesn't have the correct RegistrationType type alias.\n"
+                  "See the documentation of MetaFactory for more information about the expected interface.");
     static_assert(Checker::has_get_registration_id,
                   "MetaFactory: The class to register doesn't have the correct get_registration_id function.\n"
-                      << error_msg_post_fix);
+                  "See the documentation of MetaFactory for more information about the expected interface.");
+    static_assert(Checker::has_polymorphic_base_type,
+                  "MetaFactory: The class to register doesn't have a PolymorphicBaseType type alias .\n"
+                  "See the documentation of MetaFactory for more information about the expected interface.");
     static_assert(Checker::has_create_new_instance,
                   "MetaFactory: The class to register doesn't have the correct create_new_instance function.\n"
-                      << error_msg_post_fix);
+                  "See the documentation of MetaFactory for more information about the expected interface.");
+    static_assert(std::is_same_v<typename ClassToRegister::RegistrationType, RegistrationType>,
+                  "MetaFactory: The class to register has a different RegistrationType type alias\n "
+                  "than the RegistrationType of this factory.");
 
-    const RegistrationType key = ClassToRegister::static_get_class_identifier();
+    // Register the class.
+    const RegistrationType key = ClassToRegister::get_registration_id();
 
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().insert(key);
-    get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::static_create_new_instance));
-    get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::static_get_mesh_requirements));
+    get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::create_new_instance));
+    get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::get_mesh_requirements));
     get_validate_fixed_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::static_validate_fixed_parameters_and_set_defaults));
+        std::make_pair(key, ClassToRegister::validate_fixed_parameters_and_set_defaults));
     get_validate_mutable_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::static_validate_mutable_parameters_and_set_defaults));
+        std::make_pair(key, ClassToRegister::validate_mutable_parameters_and_set_defaults));
   }
 
   /// \brief Generate a new instance of a registered class.
@@ -323,8 +340,7 @@ class MetaFactory {
 
 /// \brief Partial specialization for \c MetaMethods.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaMethodFactory =
-    MetaFactory<MetaMethodBase<ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
+using MetaMethodFactory = MetaFactory<MetaMethod<ReturnType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaMethods.
 template <typename ReturnType, typename RegistrationType = std::string_view>
@@ -336,8 +352,7 @@ using GlobalMetaMethodFactory = MetaMethodFactory<ReturnType, GlobalIdentifier, 
 
 /// \brief Partial specialization for \c MetaKernels.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaKernelFactory =
-    MetaFactory<MetaKernelBase<ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
+using MetaKernelFactory = MetaFactory<MetaKernel<ReturnType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for \c MetaKernels, identified by a mundy multibody type.
 template <typename ReturnType, typename RegistryIdentifier>
@@ -365,8 +380,7 @@ using GlobalMetaTopologyKernelFactory = GlobalMetaKernelFactory<ReturnType, stk:
 
 /// \brief Partial specialization for \c MetaKWayKernels.
 template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaKWayKernelFactory =
-    MetaFactory<MetaKWayKernelBase<K, ReturnType, RegistrationType>, RegistryIdentifier, RegistrationType>;
+using MetaKWayKernelFactory = MetaFactory<MetaKWayKernel<K, ReturnType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for \c MetaKWayKernels, identified by a mundy multibody type.
 template <std::size_t K, typename ReturnType, typename RegistryIdentifier>

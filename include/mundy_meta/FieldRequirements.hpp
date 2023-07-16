@@ -594,7 +594,7 @@ void FieldRequirements<FieldType>::merge(
 template <typename FieldType>
 std::shared_ptr<FieldRequirementsBase> FieldRequirements<FieldType>::create_new_instance(
     const Teuchos::ParameterList &parameter_list) const {
-  return static_create_new_instance(parameter_list);
+  return create_new_instance(parameter_list);
 }
 //}
 

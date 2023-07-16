@@ -24,7 +24,7 @@
 /// \brief Declaration of the HasMeshRequirementsAndIsRegisterable class
 
 // C++ core libs
-#include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <memory>       // for std::shared_ptr, std::shared_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <vector>       // for std::vector
@@ -47,30 +47,163 @@ namespace meta {
 /// \tparam T The type to check.
 template <typename T>
 struct HasMeshRequirementsAndIsRegisterable {
+ private:
+  /// TODO(palmerb4): Come C++20, we can use concepts to simplify this code. For now, we have to use SFINAE.
+  /// I know it's odd to have the private functions at the top, but these are used by the public functions below.
+  //! \name SFINAE helpers
+  //@{
+
+  /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c get_mesh_requirements function, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_get_mesh_requirements([[maybe_unused]] int unused)
+      -> decltype(U::get_mesh_requirements(std::declval<Teuchos::ParameterList>()), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c get_mesh_requirements function.
+  template <typename>
+  static auto check_get_mesh_requirements(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c validate_fixed_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c validate_fixed_parameters_and_set_defaults function, \c std::false_type
+  /// otherwise.
+  template <typename U>
+  static auto check_validate_fixed_parameters_and_set_defaults([[maybe_unused]] int unused)
+      -> decltype(U::validate_fixed_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>()),
+                  std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c validate_fixed_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c validate_fixed_parameters_and_set_defaults function.
+  template <typename>
+  static auto check_validate_fixed_parameters_and_set_defaults(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c validate_mutable_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c validate_mutable_parameters_and_set_defaults function, \c
+  /// std::false_type otherwise.
+  template <typename U>
+  static auto check_validate_mutable_parameters_and_set_defaults([[maybe_unused]] int unused)
+      -> decltype(U::validate_mutable_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>()),
+                  std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c validate_mutable_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c validate_mutable_parameters_and_set_defaults function.
+  template <typename>
+  static auto check_validate_mutable_parameters_and_set_defaults(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c RegistrationType type alias, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_registration_type([[maybe_unused]] int unused)
+      -> decltype(std::declval<typename U::RegistrationType>(), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c RegistrationType type alias.
+  template <typename>
+  static auto check_registration_type(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c get_registration_id function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c get_registration_id function, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_get_registration_id([[maybe_unused]] int unused)
+      -> decltype(U::get_registration_id(), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c get_registration_id function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c get_registration_id function.
+  template <typename>
+  static auto check_get_registration_id(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c PolymorphicBaseType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c PolymorphicBaseType type alias, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_polymorphic_base_type([[maybe_unused]] int unused)
+      -> decltype(std::declval<typename U::PolymorphicBaseType>(), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c PolymorphicBaseType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c PolymorphicBaseType type alias.
+  template <typename>
+  static auto check_polymorphic_base_type(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c create_new_instance function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c create_new_instance function, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_create_new_instance([[maybe_unused]] int unused)
+      -> decltype(U::create_new_instance(std::declval<mundy::mesh::BulkData *>(),
+                                         std::declval<Teuchos::ParameterList>()),
+                  std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c create_new_instance function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c create_new_instance function.
+  template <typename>
+  static auto check_create_new_instance(...) -> std::false_type;
+  //@}
+
+ public:
   //! \name Getters
   //@{
 
-  /// \brief Check for the existence of a \c get_requirements_generator function.
-  /// \return \c true if \c T has a \c get_requirements_generator function, \c false otherwise.
+  /// \brief Check for the existence of a \c get_mesh_requirements function.
+  /// \return \c true if \c T has a \c get_mesh_requirements function, \c false otherwise.
   ///
-  /// The specific signature of the \c get_requirements_generator function is:
+  /// The specific signature of the \c get_mesh_requirements function is:
   /// \code
-  /// static std::shared_ptr<RequirementsGenerator> get_requirements_generator();
+  /// static std::shared_ptr<MeshRequirements> get_mesh_requirements();
   /// \endcode
-  static constexpr bool has_get_requirements_generator =
-      decltype(check_get_requirements_generator<T>(0))::value &&
-      std::is_same<decltype(T::get_requirements_generator()), std::shared_ptr<RequirementsGenerator>>::value;
+  static constexpr bool has_get_mesh_requirements =
+      decltype(check_get_mesh_requirements<T>(0))::value &&
+      std::is_same_v<decltype(T::get_mesh_requirements(std::declval<Teuchos::ParameterList>())),
+                     std::shared_ptr<MeshRequirements>>;
 
-  /// \brief Check for the existence of a \c get_params_validator function.
-  /// \return \c true if \c T has a \c get_params_validator function, \c false otherwise.
+  /// \brief Check for the existence of a \c validate_fixed_parameters_and_set_defaults function.
+  /// \return \c true if \c T has a \c validate_fixed_parameters_and_set_defaults function, \c false otherwise.
   ///
-  /// The specific signature of the \c get_params_validator function is:
+  /// The specific signature of the \c validate_fixed_parameters_and_set_defaults function is:
   /// \code
-  /// static std::shared_ptr<ParamsValidator> get_params_validator();
+  /// static void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr);
   /// \endcode
-  static constexpr bool has_get_params_validator =
-      decltype(check_get_params_validator<T>(0))::value &&
-      std::is_same<decltype(T::get_params_validator()), std::shared_ptr<ParamsValidator>>::value;
+  static constexpr bool has_validate_fixed_parameters_and_set_defaults =
+      decltype(check_validate_fixed_parameters_and_set_defaults<T>(0))::value &&
+      std::is_same_v<decltype(T::validate_fixed_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>())),
+                     void>;
+
+  /// \brief Check for the existence of a \c validate_mutable_parameters_and_set_defaults function.
+  /// \return \c true if \c T has a \c validate_mutable_parameters_and_set_defaults function, \c false otherwise.
+  ///
+  /// The specific signature of the \c validate_mutable_parameters_and_set_defaults function is:
+  /// \code
+  /// static void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr);
+  /// \endcode
+  static constexpr bool has_validate_mutable_parameters_and_set_defaults =
+      decltype(check_validate_mutable_parameters_and_set_defaults<T>(0))::value &&
+      std::is_same_v<
+          decltype(T::validate_mutable_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>())), void>;
 
   /// \brief Check for the existence of a \c RegistrationType type alias.
   /// \return \c true if \c T has a \c RegistrationType type alias, \c false otherwise.
@@ -90,108 +223,29 @@ struct HasMeshRequirementsAndIsRegisterable {
   /// \endcode
   static constexpr bool has_get_registration_id =
       decltype(check_get_registration_id<T>(0))::value && decltype(check_registration_type<T>(0))::value &&
-      std::is_same<decltype(T::get_registration_id()), typename T::RegistrationType>::value;
+      std::is_same_v<decltype(T::get_registration_id()), typename T::RegistrationType>;
 
-  /// \brief Check for the existence of a \c get_new_class_generator function.
-  /// \return \c true if \c T has a \c get_new_class_generator function, \c false otherwise.
+  /// \brief Check for the existence of a \c PolymorphicBaseType type alias.
+  /// \return \c true if \c T has a \c PolymorphicBaseType type alias, \c false otherwise.
   ///
-  /// The specific signature of the \c get_new_class_generator function is:
+  /// The specific signature of the \c PolymorphicBaseType type alias is:
   /// \code
-  /// static std::unique_ptr<NewClassGenerator> get_new_class_generator();
+  /// T::PolymorphicBaseType
   /// \endcode
-  static constexpr bool has_new_class_generator =
-      decltype(check_new_class_generator<T>(0))::value &&
-      std::is_same<decltype(T::get_new_class_generator()), std::unique_ptr<typename T::NewClassGenerator>>::value;
+  static constexpr bool has_polymorphic_base_type = decltype(check_polymorphic_base_type<T>(0))::value;
 
- private:
-  /// TODO(palmerb4): Come C++20, we can use concepts to simplify this code. For now, we have to use SFINAE.
-  //! \name SFINAE helpers
-  //@{
-
-  /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c get_mesh_requirements function, \c std::false_type otherwise.
-  static auto check_get_mesh_requirements([[maybe_unused]] int unused)
-      -> decltype(U::get_mesh_requirements(std::declval<const Teuchos::ParameterList &>()), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c get_mesh_requirements function.
-  template <typename>
-  static auto check_get_mesh_requirements(...) -> std::false_type;
-
-  /// \brief Helper for checking if \c U has a \c get_valid_fixed_params function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c get_valid_fixed_params function, \c std::false_type otherwise.
-  static auto check_get_params_validator([[maybe_unused]] int unused)
-      -> decltype(U::get_valid_fixed_params(), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c get_valid_fixed_params function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c get_valid_fixed_params function.
-  template <typename>
-  static auto check_get_params_validator(...) -> std::false_type;
-
-  /// \brief Helper for checking if \c U has a \c get_valid_mutable_params function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c get_valid_mutable_params function, \c std::false_type otherwise.
-  static auto check_get_valid_mutable_params([[maybe_unused]] int unused)
-      -> decltype(U::get_valid_mutable_params(), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c get_valid_mutable_params function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c get_valid_mutable_params function.
-  template <typename>
-  static auto check_get_valid_mutable_params(...) -> std::false_type;
-
-  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c RegistrationType type alias, \c std::false_type otherwise.
-  static auto check_registration_type([[maybe_unused]] int unused)
-      -> decltype(std::declval<typename U::RegistrationType>(), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c RegistrationType type alias.
-  template <typename>
-  static auto check_registration_type(...) -> std::false_type;
-
-  /// \brief Helper for checking if \c U has a \c get_registration_id function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c get_registration_id function, \c std::false_type otherwise.
-  static auto check_get_registration_id([[maybe_unused]] int unused)
-      -> decltype(U::get_registration_id(), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c get_registration_id function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c get_registration_id function.
-  template <typename>
-  static auto check_get_registration_id(...) -> std::false_type;
-
-  /// \brief Helper for checking if \c U has a \c get_new_class_generator function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c get_new_class_generator function, \c std::false_type otherwise.
-  static auto check_new_class_generator([[maybe_unused]] int unused)
-      -> decltype(U::get_new_class_generator(std::declval<const Teuchos::ParameterList &>()), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c get_new_class_generator function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c get_new_class_generator function.
-  template <typename>
-  static auto check_new_class_generator(...) -> std::false_type;
-  //@}
+  /// \brief Check for the existence of a \c create_new_instance function.
+  /// \return \c true if \c T has a \c create_new_instance function, \c false otherwise.
+  ///
+  /// The specific signature of the \c create_new_instance function is:
+  /// \code
+  /// static std::shared_ptr<PolymorphicBaseType> create_new_instance();
+  /// \endcode
+  static constexpr bool has_create_new_instance =
+      decltype(check_create_new_instance<T>(0))::value && decltype(check_polymorphic_base_type<T>(0))::value &&
+      std::is_same_v<decltype(T::create_new_instance(std::declval<mundy::mesh::BulkData *>(),
+                                                     std::declval<Teuchos::ParameterList>())),
+                     std::shared_ptr<typename T::PolymorphicBaseType>>;
 };  // HasMeshRequirementsAndIsRegisterable
 
 }  // namespace meta
