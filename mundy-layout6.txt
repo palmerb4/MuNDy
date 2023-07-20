@@ -1,0 +1,130 @@
+As Mundy grows, we need a higher level of abstraction and organization to better support our end goals. Toward this end, 
+we are restructuring Mundy into the following namespaces, classes, and methods. This is a work in progress and will be
+updated as we go. Where applicable, we show the parent class that our methods inherit from.
+
+mundy
+  throw_assert
+
+mundy::balance
+  (Various load balancing settings and maybe an stk::balance wrapper if we need it. I would like to use kway_part_geom 
+   but it is not currently supported.)
+
+mundy::search
+  NeighborList
+  ComputeAABB : MetaKernelDispatcher
+    kernels: (all derived from MetaKernel)
+      Sphere
+      Spherocylinder
+      SuperEllipsoid
+      Polytope
+      Collision
+      Spring
+      AngularSpring
+      Joint
+      Hinge
+  ComputeOBB : MetaKernelDispatcher
+    kernels: (all derived from MetaKernel)
+      ...
+  ComputeBoundingRadius : MetaKernelDispatcher
+    kernels: (all derived from MetaKernel)
+      ...
+  DetectNeighbors
+  GhostNeighbors
+  RefineNeighbors
+
+mundy::io
+  (Various methods for writing out agents that are not supported by stk::io. For example, a NURBS surface.)
+
+mundy::constraint
+  GenerateAndAttachCollisionConstraints
+  UpdateConstraints : MetaKernelDispatcher
+    kernels: (all derived from MetaKernel)
+      Collision
+      Spring
+      AngularSpring
+      Joint
+      Hinge
+  ComputeConstraintViolation : MetaKernelDispatcher
+     kernels: (all derived from MetaKernel)
+       ...
+  ComputeConstraintForcing : MetaKernelDispatcher
+       kernels: (all derived from MetaKernel)
+       ...
+  ComputeConstraintProjection : MetaKernelDispatcher
+       kernels: (all derived from MetaKernel)
+       ...
+  ComputeConstraintViolationLinearizedRateOfChange : MetaKernelDispatcher
+       kernels: (all derived from MetaKernel)
+       ...
+
+mundy::pairwise
+  EvaluatePairwiseInteractions
+  LenardJonesPotential : MetaKernelDispatcher
+    kernels: (all derived from MetaTwoWayKernel)
+      SphereSphere
+      SphereEllipsoid
+      EllipsoidEllipsoid
+      ...
+  WeakChandlerAndersenPotential : MetaKernelDispatcher
+    kernels: (all derived from MetaTwoWayKernel)
+      ...
+  HookianPotential : MetaKernelDispatcher
+    kernels: (all derived from MetaTwoWayKernel)
+      ...
+  HertzianPenalty : MetaKernelDispatcher
+    kernels: (all derived from MetaTwoWayKernel)
+      ...
+
+mundy::motion
+  utils::
+    Quaternion
+  TimeIntegration : MetaMethodDispatcher
+    Unconstrained : MetaMethodDispatcher
+      NodeEuler
+      NodeAdamsBashforth
+    Constrained : MetaMethodDispatcher
+      LCP
+      ReLCP
+
+mundy::init
+  Configurator
+
+mundy::mesh
+  MeshBuilder
+  MetaData
+  BulkData
+
+mundy::meta
+  FieldRequirementsBase
+  FieldRequirements : FieldRequirementsBase
+  PartRequirements
+  NeighborListRequirements
+  MeshRequirements
+  HasRequirementsAndIsRegisterable
+  MetaFactory
+  MetaRegistry
+  MetaMethod
+  MetaMethodDispatcher
+  MetaKernel
+  MetaKWayKernel
+  MetaKernelDispatcher
+  MetaKWayKernelDispatcher
+
+mundy::agent
+  type:: (all derived from Agent)
+    Sphere
+    Spherocylinder
+    Ellipsoid
+    SuperEllipsoid
+    Polytope
+    Spring
+    AngularSpring
+    Joint
+    Hinge
+  Agent
+  AgentFactory
+  AgentRegistry
+  AgentAttribute
+
+This change breaks mundy::methods into more manageable pieces and introduces a more granular view of Mundy.
+

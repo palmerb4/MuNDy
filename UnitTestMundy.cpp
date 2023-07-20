@@ -1124,7 +1124,7 @@ TEST(UnitTestMundy, Particles)
 {
   /*
   Initialization procedure
-    1. generate N random particles accross all processors
+    1. generate N random particles across all processors
     2. balance the particles
     3. perform AABB neighbor detection
     4. generate collision constraints/linkers between neighbors
