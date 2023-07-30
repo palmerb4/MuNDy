@@ -64,23 +64,13 @@ namespace {
 
 struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
 
-// Register a class with the MetaMethodFactory with a given RegistrationIdentifier.
-MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<1>,
-                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);
-
-// Register a different class with the same MetaMethodFactory with a given RegistrationIdentifier.
-MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<2>,
-                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);
-
 TEST(MetaRegistry, AutoRegistration) {
   // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the MetaMethodFactory with a given
   // RegistrationIdentifier
   using OurMetaMethodFactory = MetaMethodFactory<void, DummyRegistrationIdentifier, int>;
   EXPECT_EQ(OurMetaMethodFactory::num_registered_classes(), 2);
-  EXPECT_TRUE(
-      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<1>::get_registration_id()));
-  EXPECT_TRUE(
-      OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<2>::get_registration_id()));
+  EXPECT_TRUE(OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<1>::get_registration_id()));
+  EXPECT_TRUE(OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<2>::get_registration_id()));
 }
 //@}
 
@@ -89,3 +79,13 @@ TEST(MetaRegistry, AutoRegistration) {
 }  // namespace meta
 
 }  // namespace mundy
+
+// Registration shouldn't need to explicitly come before TEST, since it will be registered at compile time.
+
+// Register a class with the MetaMethodFactory with a given RegistrationIdentifier.
+MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<1>,
+                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);
+
+// Register a different class with the same MetaMethodFactory with a given RegistrationIdentifier.
+MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<2>,
+                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);

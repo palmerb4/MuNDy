@@ -35,14 +35,6 @@
 #include <mundy_methods/ComputeAABB.hpp>                          // for mundy::methods::ComputeAABB
 #include <mundy_methods/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::methods::compute_aabb::kernels::Spherocylinder
 
-// \name Registration
-//{
-
-/// @brief Register ComputeAABB with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::methods::compute_aabb::kernels::Spherocylinder,
-                         mundy::methods::ComputeAABB::OurKernelFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

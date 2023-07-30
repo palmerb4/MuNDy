@@ -204,7 +204,7 @@ class Factory {
 
   /// \brief The number of registered multibody types.
   /// \note This is initialized to zero outside the class declaration.
-  static multibody_t number_of_registered_types_;
+  inline static multibody_t number_of_registered_types_ = 0;
   //@}
 
   //! \name Typedefs
@@ -269,9 +269,6 @@ class Factory {
   friend class Registry;
   //@}
 };  // Factory
-
-// Initialize the number of states to zero. This is a non-const static member, so it cannot be initialized in-class.
-multibody_t Factory::number_of_registered_types_ = 0;
 
 }  // namespace multibody
 

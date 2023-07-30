@@ -44,13 +44,6 @@
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/ComputeAABB.hpp>    // for mundy::methods::ComputeAABB
 
-// \name Registration
-//{
-
-/// @brief Register ComputeAABB with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::methods::ComputeAABB, mundy::meta::GlobalMetaMethodFactory<void>)
-//}
-
 namespace mundy {
 
 namespace methods {

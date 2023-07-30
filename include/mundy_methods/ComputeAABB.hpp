@@ -215,4 +215,11 @@ class ComputeAABB : public mundy::meta::MetaMethod<void> {
 
 }  // namespace mundy
 
+// \name Registration
+//{
+
+/// @brief Register ComputeAABB with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::ComputeAABB, mundy::meta::GlobalMetaMethodFactory<void>)
+//}
+
 #endif  // MUNDY_METHODS_COMPUTEAABB_HPP_

@@ -29,10 +29,16 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>   // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>   // for mundy::meta::MetaMethod
+
+/// @brief Register \c ClassToRegister with the \c MetaMethodFactory.
+#define MUNDY_REGISTER_TYPE(ClassToRegister, ... /* FactoryToRegisterWith */) \
+  ([]() -> bool {                                                             \
+    __VA_ARGS__::template register_new_class<ClassToRegister>();              \
+    return true;                                                              \
+  })()
 
 namespace mundy {
 
@@ -52,40 +58,13 @@ struct MetaRegistry {
   //@{
 
   /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
-  inline static const bool is_registered = false;
+  static const bool is_registered = false;
   //@}
 };  // MetaRegistry
 
 }  // namespace meta
 
 }  // namespace mundy
-
-/// \brief A helper macro for checking if a \c MetaMethod has been registered with the \c MetaMethodFactory.
-///
-/// This macro is used to check if a \c MetaMethod has been registered with the \c MetaMethodFactory. The macro should
-/// be used in the following way:
-///
-/// \code{.cpp}
-/// MUNDY_IS_REGISTERED(ClassToCheck, FactoryToCheckWith)
-/// \endcode
-///
-/// \note The second argument to this macro is supposed to be the \c MetaMethodFactory that the class should be
-/// registered with. The reason we use the weird "... /* FactoryToCheckWith */" syntax is because we want to allow
-/// FactoryToCheckWith to potentially be a templated class with multiple template arguments. In this case, the C++
-/// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
-/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
-/// together into the desired \c FactoryToCheckWith using \c __VA_ARGS__.
-///
-/// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
-/// \c MUNDY_IS_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple definition
-/// errors.
-///
-/// \param ClassToCheck A class derived from \c MetaMethod that we wish to check if it has been registered.
-/// \param FactoryToCheckWith The \c MetaMethodFactory to check if the class has been registered with.
-#define MUNDY_IS_REGISTERED(ClassToCheck, ... /* FactoryToCheckWith */)         \
-  ([]() -> bool {                                                               \
-    return mundy::meta::MetaRegistry<ClassToCheck, __VA_ARGS__>::is_registered; \
-  }())
 
 /// @brief A helper macro for registering a \c MetaMethod with the \c MetaMethodFactory.
 ///
@@ -140,12 +119,38 @@ struct MetaRegistry {
   namespace meta {                                                                 \
   template <>                                                                      \
   struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                              \
-    inline static const bool is_registered = ([]() -> bool {                       \
-      __VA_ARGS__::template register_new_class<ClassToRegister>();                 \
-      return true;                                                                 \
-    })();                                                                          \
+    static const bool is_registered;                                               \
   };                                                                               \
+  const bool MetaRegistry<ClassToRegister, __VA_ARGS__>::is_registered =           \
+      MUNDY_REGISTER_TYPE(ClassToRegister, __VA_ARGS__);                           \
   }                                                                                \
   }
+
+/// \brief A helper macro for checking if a \c MetaMethod has been registered with the \c MetaMethodFactory.
+///
+/// This macro is used to check if a \c MetaMethod has been registered with the \c MetaMethodFactory. The macro should
+/// be used in the following way:
+///
+/// \code{.cpp}
+/// MUNDY_IS_REGISTERED(ClassToCheck, FactoryToCheckWith)
+/// \endcode
+///
+/// \note The second argument to this macro is supposed to be the \c MetaMethodFactory that the class should be
+/// registered with. The reason we use the weird "... /* FactoryToCheckWith */" syntax is because we want to allow
+/// FactoryToCheckWith to potentially be a templated class with multiple template arguments. In this case, the C++
+/// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
+/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
+/// together into the desired \c FactoryToCheckWith using \c __VA_ARGS__.
+///
+/// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
+/// \c MUNDY_IS_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple definition
+/// errors.
+///
+/// \param ClassToCheck A class derived from \c MetaMethod that we wish to check if it has been registered.
+/// \param FactoryToCheckWith The \c MetaMethodFactory to check if the class has been registered with.
+#define MUNDY_IS_REGISTERED(ClassToCheck, ... /* FactoryToCheckWith */)         \
+  ([]() -> bool {                                                               \
+    return mundy::meta::MetaRegistry<ClassToCheck, __VA_ARGS__>::is_registered; \
+  }())
 
 #endif  // MUNDY_META_METAREGISTRY_HPP_

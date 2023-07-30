@@ -249,4 +249,12 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
 
 }  // namespace mundy
 
+// \name Registration
+//{
+
+/// @brief Register ComputeAABB with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_aabb::kernels::Spherocylinder,
+                         mundy::methods::ComputeAABB::OurKernelFactory)
+//}
+
 #endif  // MUNDY_METHODS_COMPUTE_AABB_KERNELS_SPHEROCYLINDER_HPP_

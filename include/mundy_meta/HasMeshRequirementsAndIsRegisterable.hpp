@@ -169,13 +169,6 @@ struct HasMeshRequirementsAndIsRegisterable {
   //! \name Getters
   //@{
 
-  /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
-  /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
-  /// false otherwise.
-  static constexpr bool value = has_get_mesh_requirements && has_validate_fixed_parameters_and_set_defaults &&
-                                has_validate_mutable_parameters_and_set_defaults && has_registration_type &&
-                                has_get_registration_id && has_polymorphic_base_type && has_create_new_instance;
-
   /// \brief Check for the existence of a \c get_mesh_requirements function.
   /// \return \c true if \c T has a \c get_mesh_requirements function, \c false otherwise.
   ///
@@ -253,6 +246,13 @@ struct HasMeshRequirementsAndIsRegisterable {
       std::is_same_v<decltype(T::create_new_instance(std::declval<mundy::mesh::BulkData *>(),
                                                      std::declval<Teuchos::ParameterList>())),
                      std::shared_ptr<typename T::PolymorphicBaseType>>;
+
+  /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
+  /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
+  /// false otherwise.
+  static constexpr bool value = has_get_mesh_requirements && has_validate_fixed_parameters_and_set_defaults &&
+                                has_validate_mutable_parameters_and_set_defaults && has_registration_type &&
+                                has_get_registration_id && has_polymorphic_base_type && has_create_new_instance;
 };  // HasMeshRequirementsAndIsRegisterable
 
 }  // namespace meta

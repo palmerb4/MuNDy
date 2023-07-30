@@ -225,4 +225,12 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
 }  // namespace mundy
 
+// \name Registration
+//{
+
+/// @brief Register ComputeAABB with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_bounding_radius::kernels::Sphere,
+                         mundy::methods::ComputeBoundingRadius::OurKernelFactory)
+//}
+
 #endif  // MUNDY_METHODS_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_
