@@ -42,7 +42,7 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_multibody/Factory.hpp>       // for mundy::multibody::Factory
+#include <mundy_multibody/MultibodyFactory.hpp>       // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -58,7 +58,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
@@ -93,7 +93,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHERE");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("SPHERE"));
     part_reqs->add_field_reqs(
         std::make_shared<mundy::meta::FieldRequirements<double>>(obb_field_name, stk::topology::ELEMENT_RANK, 4, 1));
     part_reqs->add_field_reqs(
@@ -249,5 +249,12 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register Sphere with ComputeOBB's kernel factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_obb::kernels::Sphere, mundy::methods::ComputeOBB::OurKernelFactory)
+//}
 
 #endif  // MUNDY_METHODS_COMPUTE_OBB_KERNELS_SPHERE_HPP_

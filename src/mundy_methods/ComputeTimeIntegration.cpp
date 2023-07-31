@@ -43,13 +43,6 @@
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::methods::ComputeTimeIntegration
 
-// \name Registration
-//{
-
-/// @brief Register ComputeTimeIntegration with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::methods::ComputeTimeIntegration, mundy::meta::GlobalMetaMethodFactory<void>)
-//@}
-
 namespace mundy {
 
 namespace methods {

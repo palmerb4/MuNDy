@@ -36,14 +36,15 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>                    // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>                          // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
+#include <mundy_methods/compute_obb/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 
@@ -51,11 +52,20 @@ namespace methods {
 
 /// \class ComputeOBB
 /// \brief Method for computing the axis aligned boundary box of different parts.
+///
+/// The methodology behind the design choices in this class is as follows:
+/// The \c ComputeOBB class is a \c MetaMethod that is responsible for computing the axis aligned bounding box of
+/// different parts. Originally, this class was designed as a "MetaMultibodyMethod" that assigned a \c MetaKernel to
+/// each enabled multibody part. However, this design was not flexible enough to handle the case where a multiple
+/// \c MetaKernels needed to be assigned to the same multibody type but has the advantage of allowing for default
+/// kernels. The alternative design is to allow users the freedom to directly specify the \c MetaKernels that they want
+/// to use for each part. This design is more flexible but requires more work on the user's part since they must
+/// specify the \c MetaKernels themselves.
 class ComputeOBB : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeOBB>;
@@ -82,7 +92,7 @@ class ComputeOBB : public mundy::meta::MetaMethod<void> {
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
+      const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
@@ -100,13 +110,10 @@ class ComputeOBB : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    Teuchos::ParameterList params = *fixed_params_ptr;
-
-    if (params.isSublist("kernels")) {
+  static void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) {
+    if (fixed_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
-      Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", true);
+      Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", true);
       const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
       for (size_t i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
@@ -115,13 +122,13 @@ class ComputeOBB : public mundy::meta::MetaMethod<void> {
       }
     } else {
       // Validate and fill parameters for any kernel in our registry.
-      Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", false);
+      Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", false);
       const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
       kernels_sublist.set("count", num_specified_kernels);
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -129,8 +136,7 @@ class ComputeOBB : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
+  static void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);
@@ -148,14 +154,15 @@ class ComputeOBB : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
     }
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaMethod.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -165,8 +172,8 @@ class ComputeOBB : public mundy::meta::MetaMethod<void> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<ComputeOBB>(bulk_data_ptr, parameter_list);
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<ComputeOBB>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
@@ -208,5 +215,12 @@ class ComputeOBB : public mundy::meta::MetaMethod<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register ComputeOBB with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::ComputeOBB, mundy::meta::GlobalMetaMethodFactory<void>)
+//}
 
 #endif  // MUNDY_METHODS_COMPUTEOBB_HPP_

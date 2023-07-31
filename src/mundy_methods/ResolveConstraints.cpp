@@ -43,13 +43,6 @@
 #include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
 #include <mundy_methods/ResolveConstraints.hpp>  // for mundy::methods::ResolveConstraints
 
-// \name Registration
-//{
-
-/// @brief Register ResolveConstraints with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::methods::ResolveConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
-//@}
-
 namespace mundy {
 
 namespace methods {

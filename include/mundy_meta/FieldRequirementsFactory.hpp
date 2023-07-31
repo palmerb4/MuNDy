@@ -73,7 +73,8 @@ namespace meta {
 /// of \c FieldRequirements's static member functions.
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
-/// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
+/// self-registering types design (albeit with heavy modifications).
+/// https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 class FieldRequirementsFactory {
  public:
   //! \name Typedefs

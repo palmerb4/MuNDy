@@ -399,4 +399,12 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
 
 }  // namespace mundy
 
+//! \name Registration
+//@{
+
+/// @brief Register NonSmoothLCP with ResolveConstraints's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::resolve_constraints::techniques::NonSmoothLCP,
+                         mundy::methods::ResolveConstraints::OurMethodFactory)
+//}
+
 #endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NONSMOOTHLCP_HPP_

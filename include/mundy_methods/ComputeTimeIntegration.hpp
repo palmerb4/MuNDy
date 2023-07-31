@@ -45,6 +45,7 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_methods/compute_time_integration/techniques/AllTechniques.hpp>  // performs the registration of all techniques
 
 namespace mundy {
 
@@ -184,5 +185,12 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register ComputeTimeIntegration with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::ComputeTimeIntegration, mundy::meta::GlobalMetaMethodFactory<void>)
+//@}
 
 #endif  // MUNDY_METHODS_COMPUTETIMEINTEGRATION_HPP_

@@ -43,13 +43,6 @@
 #include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
 
-// \name Registration
-//{
-
-/// @brief Register ComputeMobility with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::methods::ComputeMobility, mundy::meta::GlobalMetaMethodFactory<void>)
-//@}
-
 namespace mundy {
 
 namespace methods {

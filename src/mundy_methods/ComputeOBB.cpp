@@ -43,13 +43,6 @@
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/ComputeOBB.hpp>     // for mundy::methods::ComputeOBB
 
-// \name Registration
-//{
-
-/// @brief Register ComputeOBB with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::methods::ComputeOBB, mundy::meta::GlobalMetaMethodFactory<void>)
-//@}
-
 namespace mundy {
 
 namespace methods {

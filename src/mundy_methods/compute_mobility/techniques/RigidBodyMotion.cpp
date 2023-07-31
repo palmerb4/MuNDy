@@ -44,14 +44,6 @@
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
 #include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
 
-// \name Registration
-//{
-
-/// @brief Register RigidBodyMotion with ComputeMobility's method factory.
-MUNDY_REGISTER_METACLASS(mundy::methods::compute_mobility::techniques::RigidBodyMotion,
-                         mundy::methods::ComputeMobility::OurMethodFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

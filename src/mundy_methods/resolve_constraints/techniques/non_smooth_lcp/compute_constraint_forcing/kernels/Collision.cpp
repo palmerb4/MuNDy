@@ -35,15 +35,6 @@
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::ComputeConstraintForcing
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_forcing/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
-// \name Registration
-//{
-
-/// @brief Register Collision with ComputeConstraintForcing's kernel factory.
-MUNDY_REGISTER_METACLASS(
-    mundy::methods::resolve_constraints::techniques::non_smooth_lcp::compute_constraint_forcing::kernels::Collision,
-    mundy::methods::resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintForcing::OurKernelFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

@@ -44,14 +44,6 @@
 #include <mundy_methods/ResolveConstraints.hpp>  // for mundy::methods::ResolveConstraints
 #include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
-// \name Registration
-//{
-
-/// @brief Register NonSmoothLCP with ResolveConstraints's method factory.
-MUNDY_REGISTER_METACLASS(mundy::methods::resolve_constraints::NonSmoothLCP,
-                         mundy::methods::ResolveConstraints::OurMethodFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

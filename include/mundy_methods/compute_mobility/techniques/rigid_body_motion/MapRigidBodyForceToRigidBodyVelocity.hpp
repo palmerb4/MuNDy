@@ -199,4 +199,14 @@ class MapRigidBodyForceToRigidBodyVelocity
 
 }  // namespace mundy
 
+
+//! \name Registration
+//@{
+
+/// @brief Register MapRigidBodyForceToRigidBodyVelocity with RigidBodyMotion's method factory.
+MUNDY_REGISTER_METACLASS(
+    mundy::methods::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity,
+    mundy::methods::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
+//}
+
 #endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAPRIGIDBODYFORCETORIGIDBODYVELOCITY_HPP_

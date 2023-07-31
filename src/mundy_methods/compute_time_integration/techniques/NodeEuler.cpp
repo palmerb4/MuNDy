@@ -44,14 +44,6 @@
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 #include <mundy_methods/compute_time_integration/techniques/NodeEuler.hpp>  // for mundy::methods::...::NodeEuler
 
-// \name Registration
-//{
-
-/// @brief Register NodeEuler with ComputeTimeIntegration's method factory.
-MUNDY_REGISTER_METACLASS(mundy::methods::compute_time_integration::techniques::NodeEuler,
-                         mundy::methods::ComputeTimeIntegration::OurMethodFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

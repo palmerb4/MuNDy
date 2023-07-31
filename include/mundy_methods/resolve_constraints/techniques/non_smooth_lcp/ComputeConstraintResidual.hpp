@@ -101,7 +101,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void> {
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("CONSTRAINT");
     part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("CONSTRAINT"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("CONSTRAINT"));
     mesh_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
@@ -198,5 +198,13 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register ComputeConstraintResidual with NonSmoothLCP's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintResidual,
+                         mundy::methods::resolve_constraints::techniques::NonSmoothLCP::OurMethodFactory)
+//}
 
 #endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTRESIDUAL_HPP_

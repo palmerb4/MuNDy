@@ -130,7 +130,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -157,7 +157,7 @@ class LocalDrag : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -227,5 +227,14 @@ class LocalDrag : public mundy::meta::MetaMethod<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register LocalDrag with the ComputeMobility's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_mobility::techniques::rigid_body_motion::
+                             map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag,
+                         mundy::methods::ComputeMobility::OurMethodFactory)
+//}
 
 #endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCALDRAG_HPP_

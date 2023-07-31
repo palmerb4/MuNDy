@@ -36,14 +36,15 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for MUNDY_REGISTER_METACLASS
+#include <mundy/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>                    // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>                          // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
+#include <mundy_methods/compute_aabb/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 
@@ -127,7 +128,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -153,7 +154,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -215,8 +216,8 @@ class ComputeAABB : public mundy::meta::MetaMethod<void> {
 
 }  // namespace mundy
 
-// \name Registration
-//{
+//! \name Registration
+//@{
 
 /// @brief Register ComputeAABB with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::methods::ComputeAABB, mundy::meta::GlobalMetaMethodFactory<void>)

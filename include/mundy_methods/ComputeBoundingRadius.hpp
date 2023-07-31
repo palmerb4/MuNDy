@@ -44,6 +44,7 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_methods/compute_bounding_radius/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 
@@ -121,7 +122,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -148,7 +149,7 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -209,5 +210,12 @@ class ComputeBoundingRadius : public mundy::meta::MetaMethod<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register ComputeBoundingRadius with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::ComputeBoundingRadius, mundy::meta::GlobalMetaMethodFactory<void>)
+//@}
 
 #endif  // MUNDY_METHODS_COMPUTEBOUNDINGRADIUS_HPP_

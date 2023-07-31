@@ -36,16 +36,6 @@
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/local_drag/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
 #include <mundy_methods/utils/Quaternion.hpp>  // for mundy::utils::Quaternion
 
-// \name Registration
-//{
-
-/// @brief Register ComputeAABB with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::methods::compute_mobility::techniques::rigid_body_motion::
-                             map_rigid_body_force_to_rigid_body_velocity::techniques::local_drag::kernels::Sphere,
-                         mundy::methods::compute_mobility::techniques::rigid_body_motion::
-                             map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag::OurKernelFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

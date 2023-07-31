@@ -250,4 +250,12 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
 
 }  // namespace mundy
 
+//! \name Registration
+//@{
+
+/// @brief Register PairwisePotential with ResolveConstraints's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::resolve_constraints::techniques::PairwisePotential,
+                         mundy::methods::ResolveConstraints::OurMethodFactory)
+//}
+
 #endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_PAIRWISEPOTENTIAL_HPP_

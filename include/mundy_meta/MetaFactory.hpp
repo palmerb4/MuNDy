@@ -33,6 +33,7 @@
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <utility>      // for std::make_pair
 #include <vector>       // for std::vector
+#include <iostream>
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
@@ -96,11 +97,11 @@ struct GlobalIdentifier {};  // GlobalIdentifier
 ///
 /// // Get the registration id for this class.
 /// static RegistrationType get_registration_id();
-/// &fixed_params);
 /// \endcode
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
-/// self-registering types design. https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
+/// self-registering types design (albeit with heavy modifications).
+/// https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
 /// \tparam PolymorphicBaseType_t A polymorphic base type shared by each registered class.
 /// \tparam RegistrationType_t The type to register each class with (defaults to std::string_view).
@@ -243,6 +244,8 @@ class MetaFactory {
     // Register the class.
     const RegistrationType key = ClassToRegister::get_registration_id();
 
+    std::cout << "MetaFactory: Registering class " << key << std::endl;
+
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().insert(key);
@@ -319,19 +322,6 @@ class MetaFactory {
     static ParamsValidatorGeneratorMap mutable_params_validator_generator_map;
     return mutable_params_validator_generator_map;
   }
-  //@}
-
-  //! \name Friends
-  //@{
-
-  /// \brief Every concrete class that inherits from the MetaRegistry will be added to this factory's
-  /// registry. This process requires friendship <3.
-  ///
-  /// \note For devs: Unfortunately, "Friend declarations cannot refer to partial specializations," so there is no way
-  /// to only have MetaRegistry with the same identifier be friends with this factory. Instead, ALL
-  /// MetaRegistry are friends, including the ones we don't want. TODO(palmerb4): Find a workaround.
-  template <class, class>
-  friend class MetaRegistry;
   //@}
 };  // MetaFactory
 

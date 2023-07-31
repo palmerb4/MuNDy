@@ -42,7 +42,7 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
+#include <mundy_multibody/MultibodyFactory.hpp>  // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -99,7 +99,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     sphere_part_reqs->set_part_name("SPHERE");
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("SPHERE"));
+    sphere_part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("SPHERE"));
     sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
     sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -110,7 +110,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     linker_part_reqs->set_part_name("LINKER");
     linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-    linker_part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("CONSTRAINT"));
+    linker_part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("CONSTRAINT"));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(sphere_part_reqs);
@@ -275,5 +275,16 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+
+//! \name Registration
+//@{
+
+/// @brief Register Sphere with MapSurfaceForceToRigidBodyForce's kernel factory.
+MUNDY_REGISTER_METACLASS(
+    mundy::methods::compute_mobility::techniques::rigid_body_motion::map_surface_force_to_rigid_body_force::kernels::
+        Sphere,
+    mundy::methods::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce::OurKernelFactory)
+//}
 
 #endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_

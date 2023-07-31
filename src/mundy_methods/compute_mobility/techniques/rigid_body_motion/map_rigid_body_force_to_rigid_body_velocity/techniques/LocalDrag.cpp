@@ -44,15 +44,6 @@
 #include <mundy_methods/ComputeMobility.hpp>  // for mundy::methods::ComputeMobility
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp>  // for mundy::methods::...::LocalDrag
 
-// \name Registration
-//{
-
-/// @brief Register LocalDrag with the ComputeMobility's method factory.
-MUNDY_REGISTER_METACLASS(mundy::methods::compute_mobility::techniques::rigid_body_motion::
-                             map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag,
-                         mundy::methods::ComputeMobility::OurMethodFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

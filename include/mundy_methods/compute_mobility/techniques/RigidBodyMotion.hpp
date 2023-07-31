@@ -280,4 +280,12 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
 
 }  // namespace mundy
 
+//! \name Registration
+//@{
+
+/// @brief Register RigidBodyMotion with ComputeMobility's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_mobility::techniques::RigidBodyMotion,
+                         mundy::methods::ComputeMobility::OurMethodFactory)
+//}
+
 #endif  // MUNDY_METHODS_COMPUTE_MOBILITY_TECHNIQUES_RIGIDBODYMOTION_HPP_

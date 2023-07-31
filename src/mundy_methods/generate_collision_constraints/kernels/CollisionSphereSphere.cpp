@@ -35,14 +35,6 @@
 #include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 #include <mundy_methods/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::methods::...::CollisionSphereSphere
 
-// \name Registration
-//{
-
-/// @brief Register CollisionSphereSphere with GenerateCollisionConstraints's kernel factory.
-MUNDY_REGISTER_METACLASS(mundy::methods::generate_collision_constraints::kernels::CollisionSphereSphere,
-                         mundy::methods::GenerateCollisionConstraints::OurKernelFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

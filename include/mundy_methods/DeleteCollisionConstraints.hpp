@@ -121,7 +121,7 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -148,7 +148,7 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -211,11 +211,15 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void> {
   //@}
 };  // DeleteCollisionConstraints
 
-/// @brief Register DeleteCollisionConstraints with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(DeleteCollisionConstraints, mundy::meta::GlobalMetaMethodFactory<void>);
-
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register DeleteCollisionConstraints with the global MetaMethodFactory.
+MUNDY_REGISTER_METACLASS(mundy::methods::DeleteCollisionConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
+//@}
 
 #endif  // MUNDY_METHODS_DeleteCollisionConstraints_HPP_

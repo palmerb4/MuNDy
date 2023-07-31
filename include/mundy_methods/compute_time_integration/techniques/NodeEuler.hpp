@@ -44,7 +44,7 @@
 #include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
-#include <mundy_multibody/Factory.hpp>               // for mundy::multibody::Factory
+#include <mundy_multibody/MultibodyFactory.hpp>               // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -100,7 +100,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void> {
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("BODY");
     part_reqs->set_part_rank(stk::topology::ELEMENT_RANK);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("BODY"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("BODY"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                        stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
@@ -250,5 +250,13 @@ class NodeEuler : public mundy::meta::MetaMethod<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register NodeEuler with ComputeTimeIntegration's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::compute_time_integration::techniques::NodeEuler,
+                         mundy::methods::ComputeTimeIntegration::OurMethodFactory)
+//}
 
 #endif  // MUNDY_METHODS_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODEEULER_HPP_

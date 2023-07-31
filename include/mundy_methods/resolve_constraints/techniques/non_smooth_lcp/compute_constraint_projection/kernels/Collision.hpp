@@ -43,7 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintProjection.hpp>  // for mundy::methods::...::ComputeConstraintProjection
-#include <mundy_multibody/Factory.hpp>  // for mundy::multibody::Factory
+#include <mundy_multibody/MultibodyFactory.hpp>  // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -99,7 +99,7 @@ class Collision : public mundy::meta::MetaKernel<void> {
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("COLLISION");
     part_reqs->set_part_topology(stk::topology::BEAM_2);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::Factory::get_fast_id("COLLISION"));
+    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("COLLISION"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
@@ -209,5 +209,14 @@ MUNDY_REGISTER_METACLASS(Collision, ComputeConstraintProjection::OurKernelFactor
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register Collision with ComputeConstraintForcing's kernel factory.
+MUNDY_REGISTER_METACLASS(
+    mundy::methods::resolve_constraints::techniques::non_smooth_lcp::compute_constraint_projection::kernels::Collision,
+    mundy::methods::resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintProjection::OurKernelFactory)
+//}
 
 #endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTE_CONSTRAINT_PROJECTION_KERNELS_COLLISION_HPP_

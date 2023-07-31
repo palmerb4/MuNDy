@@ -44,15 +44,6 @@
 #include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::methods::...::MapRigidBodyVelocityToSurfaceVelocity
 
-// \name Registration
-//{
-
-/// @brief Register MapRigidBodyForceToRigidBodyVelocity with RigidBodyMotion's method factory.
-MUNDY_REGISTER_METACLASS(
-    mundy::methods::compute_mobility::techniques::rigid_body_motion::MapRigidBodyVelocityToSurfaceVelocity,
-    mundy::methods::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

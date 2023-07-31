@@ -125,7 +125,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -152,7 +152,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void> {
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", key);
+        kernel_params.set("name", std::string(key));
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
         i++;
       }
@@ -218,5 +218,13 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void> {
 }  // namespace methods
 
 }  // namespace mundy
+
+//! \name Registration
+//@{
+
+/// @brief Register ComputeConstraintProjection with NonSmoothLCP's method factory.
+MUNDY_REGISTER_METACLASS(mundy::methods::resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintProjection,
+                         mundy::methods::resolve_constraints::techniques::NonSmoothLCP::OurMethodFactory)
+//}
 
 #endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTPROJECTION_HPP_

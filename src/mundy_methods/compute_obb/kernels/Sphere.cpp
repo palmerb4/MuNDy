@@ -35,13 +35,6 @@
 #include <mundy_methods/ComputeOBB.hpp>                  // for mundy::methods::ComputeOBB
 #include <mundy_methods/compute_obb/kernels/Sphere.hpp>  // for mundy::methods::compute_obb::kernels::Sphere
 
-// \name Registration
-//{
-
-/// @brief Register Sphere with ComputeOBB's kernel factory.
-MUNDY_REGISTER_METACLASS(mundy::methods::compute_obb::kernels::Sphere, mundy::methods::ComputeOBB::OurKernelFactory)
-//}
-
 namespace mundy {
 
 namespace methods {

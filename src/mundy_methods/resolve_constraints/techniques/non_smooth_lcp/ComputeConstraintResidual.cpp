@@ -44,14 +44,6 @@
 #include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintResidual.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintResidual
 
-// \name Registration
-//{
-
-/// @brief Register ComputeConstraintResidual with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(mundy::methods::resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintResidual,
-                         mundy::methods::resolve_constraints::techniques::NonSmoothLCP::OurMethodFactory)
-//}
-
 namespace mundy {
 
 namespace methods {
