@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                                // for mundy::mesh::BulkData
-#include <mundy_methods/ComputeAABB.hpp>                          // for mundy::methods::ComputeAABB
 #include <mundy_methods/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::methods::compute_aabb::kernels::Spherocylinder
 
 namespace mundy {
@@ -93,7 +92,7 @@ void Spherocylinder::execute(const stk::mesh::Entity &spherocylinder_element) {
   double *left_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *right_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
   double *radius = stk::mesh::field_data(*element_radius_field_ptr_, spherocylinder_element);
-  double *aabb = stk::mesh::field_data(*aabb_field_ptr_, spherocylinder_element);
+  double *aabb = stk::mesh::field_data(*element_aabb_field_ptr_, spherocylinder_element);
 
   aabb[0] = std::min(left_endpt_coords[0], right_endpt_coords[0]) - radius[0] - buffer_distance_;
   aabb[1] = std::min(left_endpt_coords[1], right_endpt_coords[1]) - radius[0] - buffer_distance_;

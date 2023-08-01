@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
-#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp>  // for mundy::methods::...::LocalDrag
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/local_drag/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
 #include <mundy_methods/utils/Quaternion.hpp>  // for mundy::utils::Quaternion
 

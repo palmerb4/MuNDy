@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
-#include <mundy_methods/ComputeBoundingRadius.hpp>                   // for mundy::methods::ComputeBoundingRadius
 #include <mundy_methods/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::methods::compute_bounding_radius::kernels::Sphere
 
 namespace mundy {

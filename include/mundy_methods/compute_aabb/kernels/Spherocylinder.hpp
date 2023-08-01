@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_multibody/MultibodyFactory.hpp>       // for mundy::multibody::MultibodyFactory
+#include <mundy_methods/ComputeAABB.hpp>                          // for mundy::methods::ComputeAABB
 
 namespace mundy {
 
@@ -58,7 +59,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
  public:
   //! \name Typedefs
   //@{
-    
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
@@ -92,7 +93,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("SPHEROCYLINDER");
-    part_reqs->set_part_topology(stk::topology::BEAM3);
+    part_reqs->set_part_topology(stk::topology::BEAM_3);
     part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("SPHEROCYLINDER"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                        stk::topology::NODE_RANK, 3, 1));

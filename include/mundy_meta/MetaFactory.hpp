@@ -211,7 +211,7 @@ class MetaFactory {
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
   template <typename ClassToRegister>
-  static void register_new_class() {
+  static inline bool register_new_class() {
     // Check that the ClassToRegister has the desired interface.
     using Checker = HasMeshRequirementsAndIsRegisterable<ClassToRegister>;
     static_assert(Checker::has_get_mesh_requirements,
@@ -255,6 +255,8 @@ class MetaFactory {
         std::make_pair(key, ClassToRegister::validate_fixed_parameters_and_set_defaults));
     get_validate_mutable_params_generator_map().insert(
         std::make_pair(key, ClassToRegister::validate_mutable_parameters_and_set_defaults));
+
+    return true;
   }
 
   /// \brief Generate a new instance of a registered class.

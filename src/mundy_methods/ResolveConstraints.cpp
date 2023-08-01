@@ -42,6 +42,7 @@
 #include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
 #include <mundy_methods/ResolveConstraints.hpp>  // for mundy::methods::ResolveConstraints
+#include <mundy_methods/resolve_constraints/techniques/AllTechniques.hpp>  // performs the registration of all techniques
 
 namespace mundy {
 

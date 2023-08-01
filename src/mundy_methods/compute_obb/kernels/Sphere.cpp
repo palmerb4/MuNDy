@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                       // for mundy::mesh::BulkData
-#include <mundy_methods/ComputeOBB.hpp>                  // for mundy::methods::ComputeOBB
 #include <mundy_methods/compute_obb/kernels/Sphere.hpp>  // for mundy::methods::compute_obb::kernels::Sphere
 
 namespace mundy {

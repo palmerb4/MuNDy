@@ -29,7 +29,10 @@
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <vector>       // for std::vector
 
-// Mundy includes
+// Trilinos libs
+#include <stk_topology/topology.hpp>  // for stk::topology
+
+// Mundy libs
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
 
 namespace mundy {
@@ -45,6 +48,7 @@ namespace type {
 /// The design of this class is in accordance with the static interface requirements of
 /// mundy::multibody::MultibodyFactory.
 class Body {
+ public:
   //! \name Getters
   //@{
 
@@ -55,12 +59,12 @@ class Body {
   }
 
   /// \brief Get the Body's topology.
-  static constexpr inline stk::topology get_topology() {
+  static constexpr inline stk::topology::topology_t get_topology() {
     return stk::topology::INVALID_TOPOLOGY;
   }
 
   /// \brief Get the Body's rank.
-  static constexpr inline stk::topology get_rank() {
+  static constexpr inline stk::topology::rank_t get_rank() {
     return stk::topology::ELEMENT_RANK;
   }
 

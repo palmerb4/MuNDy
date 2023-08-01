@@ -31,16 +31,13 @@
 #include <string>     // for std::string
 #include <utility>    // for std::make_pair
 
+// Trilinos libs
+#include <stk_topology/topology.hpp>  // for stk::topology
+
 // Mundy libs
 #include <mundy/throw_assert.hpp>               // for MUNDY_THROW_ASSERT
 #include <mundy_multibody/IsMultibodyType.hpp>  // for mundy::multibody::IsMultibodyType
 #include <mundy_multibody/Multibody.hpp>        // for mundy::multibody::Multibody
-
-// While not directly used by this class, this header is included here to ensure that all multibody types are
-// registered with the factory. If you are a user and wish to register your own multibody type, make sure that
-// you include the header file containing MUNDY_REGISTER_MULTIBODYTYPE(YourType) somewhere in your code. Otherwise,
-// registration will never occur and your type will not be recognized by the factory.
-#include <mundy_multibody/type/AllTypes.hpp>  // performs registration of all multibody types
 
 namespace mundy {
 
@@ -113,123 +110,133 @@ class MultibodyFactory {
     return get_name_to_type_map().count(name) != 0;
   }
 
-  /// \brief Get if the provided fast id is valid or not
-  /// \param multibody_type [in] A fast id that may or may not correspond to a registered class.
+  /// \brief Get if the provided multibody_type is valid or not
+  /// \param multibody_type [in] A multibody_type that may or may not correspond to a registered class.
   static bool is_valid(const multibody_t multibody_type) {
     return get_name_map().count(multibody_type) != 0;
   }
 
-  /// \brief Get the fast id corresponding to a registered class with the given name.
+  /// \brief Throw if the provided name is invalid
+  /// \param name [in] A string name that may or may not correspond to a registered class.
+  static void assert_is_valid(const std::string_view& name) {
+    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
+                       "MultibodyFactory: The provided class's name '"
+                           << name << "' is not valid.\n"
+                           << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
+                           << "Their names are:" << get_valid_names_as_a_string() << "\n"
+                           << "Their ids are:" << get_valid_ids_as_a_string() << "\n");
+  }
+
+  /// \brief Throw if the provided multibody_type is invalid
+  /// \param multibody_type [in] A multibody_type that may or may not correspond to a registered class.
+  static void assert_is_valid(const multibody_t multibody_type) {
+    MUNDY_THROW_ASSERT(is_valid(multibody_type), std::invalid_argument,
+                       "MultibodyFactory: The provided class's id '"
+                           << multibody_type << "' is not valid."
+                           << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
+                           << "Their names are:" << get_valid_names_as_a_string() << "\n"
+                           << "Their ids are:" << get_valid_ids_as_a_string() << "\n");
+  }
+
+  /// \brief Get the multibody_type corresponding to a registered class with the given name.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static multibody_t get_multibody_type(const std::string_view& name) {
-    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
-                       "MultibodyFactory: The provided class's name '" << name << "' is not valid.");
+    assert_is_valid(name);
     return get_name_to_type_map()[name];
   }
 
-  /// \brief Get the name corresponding to a registered class with the given fast id.
-  /// \param multibody_type [in] A fast id that correspond to a registered class.
+  /// \brief Get the name corresponding to a registered class with the given multibody_type.
+  /// \param multibody_type [in] A multibody_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(multibody_type) returns false
   static std::string_view get_name(const multibody_t multibody_type) {
-    MUNDY_THROW_ASSERT(is_valid(multibody_type), std::invalid_argument,
-                       "MultibodyFactory: The provided class's id '" << multibody_type << "' is not valid.");
+    assert_is_valid(multibody_type);
     return get_name_map()[multibody_type];
   }
 
-  /// \brief Get the topology corresponding to a registered class with the given fast id.
+  /// \brief Get the topology corresponding to a registered class with the given multibody_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static stk::topology::topology_t get_topology(const std::string_view& name) {
-    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
-                       "MultibodyFactory: The provided class's name '" << name << "' is not valid.");
+    assert_is_valid(name);
     const multibody_t multibody_type = get_multibody_type(name);
     return get_topology(multibody_type);
   }
 
-  /// \brief Get the topology corresponding to a registered class with the given fast id.
-  /// \param multibody_type [in] A fast id that correspond to a registered class.
+  /// \brief Get the topology corresponding to a registered class with the given multibody_type.
+  /// \param multibody_type [in] A multibody_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(multibody_type) returns false
   static stk::topology::topology_t get_topology(const multibody_t multibody_type) {
-    MUNDY_THROW_ASSERT(is_valid(multibody_type), std::invalid_argument,
-                       "MultibodyFactory: The provided class's id '" << multibody_type << "' is not valid.");
+    assert_is_valid(multibody_type);
     return get_topology_generator_map()[multibody_type]();
   }
 
-  /// \brief Get the rank corresponding to a registered class with the given fast id.
+  /// \brief Get the rank corresponding to a registered class with the given multibody_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static stk::topology::rank_t get_rank(const std::string_view& name) {
-    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
-                       "MultibodyFactory: The provided class's name '" << name << "' is not valid.");
+    assert_is_valid(name);
     const multibody_t multibody_type = get_multibody_type(name);
     return get_rank(multibody_type);
   }
 
-  /// \brief Get the rank corresponding to a registered class with the given fast id.
-  /// \param multibody_type [in] A fast id that correspond to a registered class.
+  /// \brief Get the rank corresponding to a registered class with the given multibody_type.
+  /// \param multibody_type [in] A multibody_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(multibody_type) returns false
   static stk::topology::rank_t get_rank(const multibody_t multibody_type) {
-    MUNDY_THROW_ASSERT(is_valid(multibody_type), std::invalid_argument,
-                       "MultibodyFactory: The provided class's id '" << multibody_type << "' is not valid.");
+    assert_is_valid(multibody_type);
     return get_rank_generator_map()[multibody_type]();
   }
 
-  /// \brief Get the if the registered class with the given fast id has a parent multibody type.
+  /// \brief Get the if the registered class with the given multibody_type has a parent multibody type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static bool has_parent(const std::string_view& name) {
-    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
-                       "MultibodyFactory: The provided class's name '" << name << "' is not valid.");
+    assert_is_valid(name);
     const multibody_t multibody_type = get_multibody_type(name);
     return has_parent(multibody_type);
   }
 
-  /// \brief Get the if the registered class with the given fast id has a parent multibody type.
-  /// \param multibody_type [in] A fast id that correspond to a registered class.
+  /// \brief Get the if the registered class with the given multibody_type has a parent multibody type.
+  /// \param multibody_type [in] A multibody_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(multibody_type) returns false
   static bool has_parent(const multibody_t multibody_type) {
-    MUNDY_THROW_ASSERT(is_valid(multibody_type), std::invalid_argument,
-                       "MultibodyFactory: The provided class's id '" << multibody_type << "' is not valid.");
-    return get_has_parent_generator_map()[multibody_type]();
+    assert_is_valid(multibody_type);
+    return has_parent_generator_map()[multibody_type]();
   }
 
-  /// \brief Get the parent multibody type's fast id corresponding to a registered class with the given fast id.
-  /// \param name [in] A string name that correspond to a registered class.
-  /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
+  /// \brief Get the parent multibody type's multibody_type corresponding to a registered class with the given
+  /// multibody_type. \param name [in] A string name that correspond to a registered class. Throws an error if this name
+  /// is not registered to an existing class, i.e., is_valid(name) returns false
   static bool get_parent_multibody_type(const std::string_view& name) {
-    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
-                       "MultibodyFactory: The provided class's name '" << name << "' is not valid.");
+    assert_is_valid(name);
     const multibody_t multibody_type = get_multibody_type(name);
     return get_parent_multibody_type(multibody_type);
   }
 
-  /// \brief Get the parent multibody type's fast id corresponding to a registered class with the given fast id.
-  /// \param multibody_type [in] A fast id that correspond to a registered class.
-  /// Throws an error if this id is not registered to an existing class, i.e., is_valid(multibody_type) returns false.
+  /// \brief Get the parent multibody type's multibody_type corresponding to a registered class with the given
+  /// multibody_type. \param multibody_type [in] A multibody_type that correspond to a registered class. Throws an error
+  /// if this id is not registered to an existing class, i.e., is_valid(multibody_type) returns false.
   static bool get_parent_multibody_type(const multibody_t multibody_type) {
-    MUNDY_THROW_ASSERT(is_valid(multibody_type), std::invalid_argument,
-                       "MultibodyFactory: The provided class's id '" << multibody_type << "' is not valid.");
+    assert_is_valid(multibody_type);
     std::string_view parent_name = get_parent_name(multibody_type);
     return get_multibody_type(parent_name);
   }
 
-  /// \brief Get the parent multibody type's name corresponding to a registered class with the given fast id.
+  /// \brief Get the parent multibody type's name corresponding to a registered class with the given multibody_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static std::string_view get_parent_name(const std::string_view& name) {
-    MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
-                       "MultibodyFactory: The provided class's name '" << name << "' is not valid.");
+    assert_is_valid(name);
     const multibody_t multibody_type = get_multibody_type(name);
     return get_parent_name(multibody_type);
   }
 
-  /// \brief Get the parent multibody type's name corresponding to a registered class with the given fast id.
-  /// \param multibody_type [in] A fast id that correspond to a registered class.
+  /// \brief Get the parent multibody type's name corresponding to a registered class with the given multibody_type.
+  /// \param multibody_type [in] A multibody_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(multibody_type) returns false
   static std::string_view get_parent_name(const multibody_t multibody_type) {
-    MUNDY_THROW_ASSERT(is_valid(multibody_type), std::invalid_argument,
-                       "MultibodyFactory: The provided class's id '" << multibody_type << "' is not valid.");
+    assert_is_valid(multibody_type);
     return get_parent_name_generator_map()[multibody_type]();
   }
   //@}
@@ -239,7 +246,7 @@ class MultibodyFactory {
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
   template <typename ClassToRegister>
-  static void register_new_class() {
+  static inline bool register_new_class() {
     // Check that the ClassToRegister has the desired interface.
     using Checker = IsMultibodyType<ClassToRegister>;
     static_assert(Checker::has_get_name,
@@ -251,16 +258,12 @@ class MultibodyFactory {
     static_assert(Checker::has_get_rank,
                   "MultibodyFactory: The class to register doesn't have the correct has_get_rank function.\n"
                   "See the documentation of MultibodyFactory for more information about the expected interface.");
-    static_assert(Checker::has_get_has_parent,
-                  "MultibodyFactory: The class to register doesn't have the correct has_get_has_parent function.\n"
+    static_assert(Checker::has_has_parent,
+                  "MultibodyFactory: The class to register doesn't have the correct has_has_parent function.\n"
                   "See the documentation of MultibodyFactory for more information about the expected interface.");
     static_assert(Checker::has_get_parent_name,
                   "MultibodyFactory: The class to register doesn't have the correct has_get_parent_name function.\n"
                   "See the documentation of MultibodyFactory for more information about the expected interface.");
-    static_assert(
-        Checker::has_get_parent_multibody_type,
-        "MultibodyFactory: The class to register doesn't have the correct has_get_parent_multibody_type function.\n"
-        "See the documentation of MultibodyFactory for more information about the expected interface.");
 
     std::cout << "MultibodyFactory: Registering class " << ClassToRegister::get_name() << " with id "
               << number_of_registered_types_ << std::endl;
@@ -277,8 +280,10 @@ class MultibodyFactory {
     get_name_map().insert(std::make_pair(multibody_type, name));
     get_topology_generator_map().insert(std::make_pair(multibody_type, ClassToRegister::get_topology));
     get_rank_generator_map().insert(std::make_pair(multibody_type, ClassToRegister::get_rank));
-    get_has_parent_generator_map().insert(std::make_pair(multibody_type, ClassToRegister::has_parent));
+    has_parent_generator_map().insert(std::make_pair(multibody_type, ClassToRegister::has_parent));
     get_parent_name_generator_map().insert(std::make_pair(multibody_type, ClassToRegister::get_parent_name));
+
+    return true;
   }
   //@}
 
@@ -288,25 +293,25 @@ class MultibodyFactory {
 
   /// \brief The number of registered multibody types.
   /// \note This is initialized to zero outside the class declaration.
-  inline static multibody_t number_of_registered_types_ = 0;
+  static multibody_t number_of_registered_types_;
   //@}
 
   //! \name Typedefs
   //@{
 
-  /// \brief A map from a string_view to fast id.
+  /// \brief A map from a string_view to multibody_type.
   using NameToFastIdMap = std::map<std::string_view, multibody_t>;
 
-  /// \brief A map from a string_view to fast id.
+  /// \brief A map from a string_view to multibody_type.
   using FastIdToNameMap = std::map<multibody_t, std::string_view>;
 
-  /// \brief A map from fast id to a function that returns a string view.
+  /// \brief A map from multibody_type to a function that returns a string view.
   using FastIdToStringViewGeneratorMap = std::map<multibody_t, StringViewGenerator>;
 
-  /// \brief A map from fast id to a function that returns an stk::topology::topology_t.
+  /// \brief A map from multibody_type to a function that returns an stk::topology::topology_t.
   using FastIdToTopologyGeneratorMap = std::map<multibody_t, TopologyGenerator>;
 
-  /// \brief A map from fast id to a function that returns an stk::topology::rank_t.
+  /// \brief A map from multibody_type to a function that returns an stk::topology::rank_t.
   using FastIdToRankGeneratorMap = std::map<multibody_t, RankGenerator>;
 
   /// \brief A function that takes in a multibody_t and returns a boolean.
@@ -315,6 +320,21 @@ class MultibodyFactory {
 
   //! \name Attributes
   //@{
+  static std::string get_valid_names_as_a_string() {
+    std::ostringstream oss;
+    for (const auto& pair : get_name_to_type_map()) {
+      oss << " " << pair.first;
+    }
+    return oss.str();
+  }
+
+  static std::string get_valid_ids_as_a_string() {
+    std::ostringstream oss;
+    for (const auto& pair : get_name_map()) {
+      oss << " " << pair.first;
+    }
+    return oss.str();
+  }
 
   static NameToFastIdMap& get_name_to_type_map() {
     // Static: One and the same instance for all function calls.
@@ -340,7 +360,7 @@ class MultibodyFactory {
     return rank_generator_map;
   }
 
-  static FastIdToBooleanGeneratorMap& get_has_parent_generator_map() {
+  static FastIdToBooleanGeneratorMap& has_parent_generator_map() {
     // Static: One and the same instance for all function calls.
     static FastIdToBooleanGeneratorMap has_parent_generator_map;
     return has_parent_generator_map;

@@ -42,6 +42,7 @@
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::methods::ComputeTimeIntegration
+#include <mundy_methods/compute_time_integration/techniques/AllTechniques.hpp>  // performs the registration of all techniques
 
 namespace mundy {
 

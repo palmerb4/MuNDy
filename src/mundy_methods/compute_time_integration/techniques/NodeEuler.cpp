@@ -41,7 +41,6 @@
 #include <mundy_meta/MetaKernel.hpp>                 // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 #include <mundy_methods/compute_time_integration/techniques/NodeEuler.hpp>  // for mundy::methods::...::NodeEuler
 
 namespace mundy {

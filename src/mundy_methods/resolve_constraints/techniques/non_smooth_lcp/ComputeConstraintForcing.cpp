@@ -41,8 +41,8 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintForcing
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_forcing/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 

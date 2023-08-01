@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_methods/resolve_constraints/techniques/AllTechniques.hpp>  // performs the registration of all techniques
 
 namespace mundy {
 
@@ -57,6 +56,7 @@ class ResolveConstraints : public mundy::meta::MetaMethod<void> {
   //! \name Typedefs
   //@{
 
+  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ResolveConstraints>;
   //@}

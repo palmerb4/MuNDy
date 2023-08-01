@@ -48,7 +48,7 @@ struct MultibodyRegistry {
   //@{
 
   /// @brief A flag for if the given type has been registered with \c MultibodyFactory or not.
-  inline static const bool is_registered = false;
+  static inline const bool is_registered = false;
   //@}
 };  // MultibodyRegistry
 
@@ -116,17 +116,15 @@ struct MultibodyRegistry {
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 ///
 /// \param ClassToRegister A class derived from \c Multibody that we wish to register.
-#define MUNDY_REGISTER_MULTIBODYTYPE(ClassToRegister)                   \
-  namespace mundy {                                                     \
-  namespace multibody {                                                 \
-  template <>                                                           \
-  struct MultibodyRegistry<ClassToRegister> {                           \
-    inline static const bool is_registered = ([]() -> bool {            \
-      MultibodyFactory::template register_new_class<ClassToRegister>(); \
-      return true;                                                      \
-    })();                                                               \
-  };                                                                    \
-  }                                                                     \
+#define MUNDY_REGISTER_MULTIBODYTYPE(ClassToRegister)                     \
+  namespace mundy {                                                       \
+  namespace multibody {                                                   \
+  template <>                                                             \
+  struct MultibodyRegistry<ClassToRegister> {                             \
+    static inline volatile const bool is_registered =                     \
+        MultibodyFactory::template register_new_class<ClassToRegister>(); \
+  };                                                                      \
+  }                                                                       \
   }
 
 #endif  // MUNDY_MULTIBODY_MULTIBODYREGISTRY_HPP_

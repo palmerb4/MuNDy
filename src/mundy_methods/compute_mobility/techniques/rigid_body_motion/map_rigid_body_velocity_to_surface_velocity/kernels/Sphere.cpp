@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
-#include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::methods::...::MapRigidBodyVelocityToSurfaceVelocity
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_velocity_to_surface_velocity/kernels/Sphere.hpp>  // for mundy::methods::...::kernels::Sphere.hpp
 
 namespace mundy {

@@ -43,6 +43,7 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/ComputeAABB.hpp>    // for mundy::methods::ComputeAABB
+#include <mundy_methods/compute_aabb/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 

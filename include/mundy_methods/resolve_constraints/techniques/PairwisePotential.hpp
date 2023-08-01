@@ -141,9 +141,9 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
     // Fetch the parameters for this part's sub-methods.
     Teuchos::ParameterList &compute_pairwise_potential_params =
         valid_fixed_params.sublist("subkernels").sublist("compute_pairwise_potential");
-    const std::string compute_pairwise_potential_name = compute_pairwise_potential.get<std::string>("name");
+    const std::string compute_pairwise_potential_name = compute_pairwise_potential_params.get<std::string>("name");
 
-    return OurKernelFactory::get_mesh_requirements(compute_pairwise_potential_name, compute_pairwise_potential_params);
+    return OurTwoWayKernelFactory::get_mesh_requirements(compute_pairwise_potential_name, compute_pairwise_potential_params);
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
@@ -153,7 +153,7 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
         fixed_params_ptr->sublist("subkernels", false).sublist("compute_pairwise_potential", false);
 
     if (compute_pairwise_potential_params.isParameter("name")) {
-      const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      const bool valid_type = compute_pairwise_potential_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "PairwisePotential: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
@@ -162,10 +162,10 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
       compute_pairwise_potential_params.set("name", std::string(default_compute_pairwise_potential_name_),
                                             "Name of the method for computing the pairwise potential.");
     }
-    const std::string compute_pairwise_potential_name = compute_pairwise_potential.get<std::string>("name");
+    const std::string compute_pairwise_potential_name = compute_pairwise_potential_params.get<std::string>("name");
 
     // Validate the fixed parameters of the subkernels.
-    OurKernelFactory::validate_fixed_parameters_and_set_defaults(compute_pairwise_potential_name,
+    OurTwoWayKernelFactory::validate_fixed_parameters_and_set_defaults(compute_pairwise_potential_name,
                                                                  &compute_pairwise_potential_params);
   }
 
@@ -176,7 +176,7 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
         mutable_params_ptr->sublist("subkernels", false).sublist("compute_pairwise_potential", false);
 
     if (compute_pairwise_potential_params.isParameter("name")) {
-      const bool valid_type = compute_constraint_forcing_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
+      const bool valid_type = compute_pairwise_potential_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
           "PairwisePotential: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
@@ -185,10 +185,10 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
       compute_pairwise_potential_params.set("name", std::string(default_compute_pairwise_potential_name_),
                                             "Name of the method for computing the pairwise potential.");
     }
-    const std::string compute_pairwise_potential_name = compute_pairwise_potential.get<std::string>("name");
+    const std::string compute_pairwise_potential_name = compute_pairwise_potential_params.get<std::string>("name");
 
     // Validate the fixed parameters of the subkernels.
-    OurKernelFactory::validate_mutable_parameters_and_set_defaults(compute_pairwise_potential_name,
+    OurTwoWayKernelFactory::validate_mutable_parameters_and_set_defaults(compute_pairwise_potential_name,
                                                                    &compute_pairwise_potential_params);
   }
 
@@ -238,7 +238,7 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Method for computing the actual pairwise potential.
-  std::shared_ptr<mundy::meta::MetaMethodBase<void>> compute_pairwise_potential_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethod<void>> compute_pairwise_potential_method_ptr_;
   //@}
 };  // PairwisePotential
 

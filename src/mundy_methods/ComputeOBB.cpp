@@ -42,6 +42,7 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_methods/ComputeOBB.hpp>     // for mundy::methods::ComputeOBB
+#include <mundy_methods/compute_obb/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 

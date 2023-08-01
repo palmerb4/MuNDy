@@ -52,7 +52,7 @@ struct MetaRegistry {
   //@{
 
   /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
-  inline static const bool is_registered = false;
+  static inline const bool is_registered = false;
   //@}
 };  // MetaRegistry
 
@@ -135,17 +135,14 @@ struct MetaRegistry {
 ///
 /// \param ClassToRegister A class derived from \c MetaMethod that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
-#define MUNDY_REGISTER_METACLASS(ClassToRegister, ... /* FactoryToRegisterWith */) \
-  namespace mundy {                                                                \
-  namespace meta {                                                                 \
-  template <>                                                                      \
-  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                              \
-    inline static const bool is_registered = ([]() -> bool {                       \
-      __VA_ARGS__::template register_new_class<ClassToRegister>();                 \
-      return true;                                                                 \
-    })();                                                                          \
-  };                                                                               \
-  }                                                                                \
+#define MUNDY_REGISTER_METACLASS(ClassToRegister, ... /* FactoryToRegisterWith */)                        \
+  namespace mundy {                                                                                       \
+  namespace meta {                                                                                        \
+  template <>                                                                                             \
+  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                     \
+    static inline volatile const bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(); \
+  };                                                                                                      \
+  }                                                                                                       \
   }
 
 #endif  // MUNDY_META_METAREGISTRY_HPP_

@@ -42,6 +42,7 @@
 #include <mundy_meta/MetaRegistry.hpp>              // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 #include <mundy_methods/ComputeBoundingRadius.hpp>  // for mundy::methods::ComputeBoundingRadius
+#include <mundy_methods/compute_bounding_radius/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 

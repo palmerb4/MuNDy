@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                        // for mundy::mesh::BulkData
-#include <mundy_methods/ComputeAABB.hpp>                  // for mundy::methods::ComputeAABB
 #include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
 
 namespace mundy {

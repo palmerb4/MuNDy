@@ -27,6 +27,9 @@
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
 
+// Trilinos libs
+#include <stk_topology/topology.hpp>  // for stk::topology
+
 namespace mundy {
 
 namespace multibody {

@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>                          // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
-#include <mundy_methods/compute_obb/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 

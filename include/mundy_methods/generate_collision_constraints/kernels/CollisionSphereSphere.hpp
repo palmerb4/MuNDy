@@ -44,6 +44,7 @@
 #include <mundy_meta/MetaRegistry.hpp>                     // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
 #include <mundy_multibody/MultibodyFactory.hpp>                     // for mundy::multibody::MultibodyFactory
+#include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 
 namespace mundy {
 

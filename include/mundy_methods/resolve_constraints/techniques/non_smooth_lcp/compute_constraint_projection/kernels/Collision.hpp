@@ -42,8 +42,8 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintProjection.hpp>  // for mundy::methods::...::ComputeConstraintProjection
 #include <mundy_multibody/MultibodyFactory.hpp>  // for mundy::multibody::MultibodyFactory
+#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintProjection.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintProjection
 
 namespace mundy {
 

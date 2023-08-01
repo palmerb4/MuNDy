@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
-#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintViolation.hpp>  // for mundy::methods::...::ComputeConstraintViolation
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
 namespace mundy {

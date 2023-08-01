@@ -30,6 +30,6 @@
 #include <mundy_multibody/type/Invalid.hpp>
 #include <mundy_multibody/type/Linker.hpp>
 #include <mundy_multibody/type/Sphere.hpp>
-#include <mundy_multibody/type/Sphereocylinder.hpp>
+#include <mundy_multibody/type/Spherocylinder.hpp>
 
 #endif  // MUNDY_MULTIBODY_TYPE_ALLTYPES_HPP_

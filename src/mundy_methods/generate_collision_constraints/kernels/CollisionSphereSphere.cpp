@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
-#include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
 #include <mundy_methods/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::methods::...::CollisionSphereSphere
 
 namespace mundy {

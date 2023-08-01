@@ -45,6 +45,7 @@
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
 #include <mundy_multibody/MultibodyFactory.hpp>               // for mundy::multibody::MultibodyFactory
+#include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 
 namespace mundy {
 
