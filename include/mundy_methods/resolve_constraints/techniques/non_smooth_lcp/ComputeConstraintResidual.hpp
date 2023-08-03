@@ -62,7 +62,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintResidual>;
@@ -134,7 +134,8 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void> {
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaMethod.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }

@@ -21,7 +21,8 @@
 /// \brief Registration of the Spherocylinder class
 
 // Mundy libs
+#include "mundy_multibody/type/Spherocylinder.hpp"  // for mundy::multibody::type::Spherocylinder
+
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
-#include "mundy_multibody/type/Spherocylinder.hpp"          // for mundy::multibody::type::Spherocylinder
 
 // MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::type::Spherocylinder)

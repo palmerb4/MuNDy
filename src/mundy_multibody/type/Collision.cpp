@@ -21,7 +21,8 @@
 /// \brief Registration of the Collision class
 
 // Mundy libs
+#include "mundy_multibody/type/Collision.hpp"  // for mundy::multibody::type::Collision
+
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
-#include "mundy_multibody/type/Collision.hpp"          // for mundy::multibody::type::Collision
 
 // MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::type::Collision)

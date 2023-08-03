@@ -45,7 +45,8 @@ namespace type {
 /// \brief The static interface for all of Mundy's multibody Constraint objects.
 /// This is the parent/root class from which all constraints derive.
 ///
-/// The design of this class is in accordance with the static interface requirements of mundy::multibody::MultibodyFactory.
+/// The design of this class is in accordance with the static interface requirements of
+/// mundy::multibody::MultibodyFactory.
 class Constraint {
  public:
   //! \name Getters

@@ -48,7 +48,6 @@ namespace mundy {
 
 namespace methods {
 
-
 // \name Constructors and destructor
 //{
 

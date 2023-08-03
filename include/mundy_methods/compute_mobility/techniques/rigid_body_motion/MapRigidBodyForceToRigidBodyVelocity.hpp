@@ -58,12 +58,11 @@ namespace rigid_body_motion {
 
 /// \class MapRigidBodyForceToRigidBodyVelocity
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class MapRigidBodyForceToRigidBodyVelocity
-    : public mundy::meta::MetaMethod<void> {
+class MapRigidBodyForceToRigidBodyVelocity : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, MapRigidBodyForceToRigidBodyVelocity>;
@@ -139,7 +138,8 @@ class MapRigidBodyForceToRigidBodyVelocity
     OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
-  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c MetaMethodRegistry.
+  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
+  /// MetaMethodRegistry.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -199,7 +199,6 @@ class MapRigidBodyForceToRigidBodyVelocity
 }  // namespace methods
 
 }  // namespace mundy
-
 
 //! \name Registration
 //@{

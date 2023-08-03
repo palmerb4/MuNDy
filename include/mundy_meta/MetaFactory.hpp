@@ -24,7 +24,8 @@
 /// \brief Declaration of the MetaFactory class
 
 // C++ core libs
-#include <functional>   // for std::function
+#include <functional>  // for std::function
+#include <iostream>
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
 #include <set>          // for std::set
@@ -33,7 +34,6 @@
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <utility>      // for std::make_pair
 #include <vector>       // for std::vector
-#include <iostream>
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList

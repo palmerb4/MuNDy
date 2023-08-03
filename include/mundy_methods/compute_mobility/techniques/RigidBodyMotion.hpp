@@ -60,7 +60,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, RigidBodyMotion>;

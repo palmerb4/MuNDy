@@ -31,7 +31,7 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>                                                         // for mundy::mesh::BulkData
 #include <mundy_methods/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::methods::...::CollisionSphereSphere
 
 namespace mundy {

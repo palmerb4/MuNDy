@@ -56,7 +56,7 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ComputeTimeIntegration>;
@@ -131,7 +131,8 @@ class ComputeTimeIntegration : public mundy::meta::MetaMethod<void> {
     OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
   }
 
-  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c MetaMethodRegistry.
+  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
+  /// MetaMethodRegistry.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }

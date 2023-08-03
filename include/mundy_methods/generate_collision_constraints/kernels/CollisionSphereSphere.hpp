@@ -43,8 +43,8 @@
 #include <mundy_meta/MetaKernel.hpp>                       // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>                     // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>                 // for mundy::meta::PartRequirements
-#include <mundy_multibody/MultibodyFactory.hpp>                     // for mundy::multibody::MultibodyFactory
 #include <mundy_methods/GenerateCollisionConstraints.hpp>  // for mundy::methods::GenerateCollisionConstraints
+#include <mundy_multibody/MultibodyFactory.hpp>            // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -61,7 +61,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKernel<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   //@}

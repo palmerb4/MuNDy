@@ -62,7 +62,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintProjection>;
@@ -96,7 +96,7 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void> {
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
     const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
-    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
+    auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     for (size_t i = 0; i < num_specified_kernels; i++) {
       Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
       const std::string kernel_name = kernel_params.get<std::string>("name");
@@ -160,7 +160,8 @@ class ComputeConstraintProjection : public mundy::meta::MetaMethod<void> {
     }
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaMethod.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }

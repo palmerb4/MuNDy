@@ -282,6 +282,10 @@ void PartRequirements::delete_part_rank() {
 }
 
 void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
+  MUNDY_THROW_ASSERT(field_req_ptr != nullptr,
+                      std::invalid_argument,
+                      "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.");
+
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
 
@@ -295,18 +299,22 @@ void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> fie
   if (name_already_exists) {
     part_field_map[field_name]->merge({field_req_ptr});
   } else {
-    part_field_map[field_name] = field_req_ptr;
+    part_field_map.insert(std::make_pair(field_name, field_req_ptr));
   }
 }
 
 void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
+  MUNDY_THROW_ASSERT(part_req_ptr != nullptr,
+                      std::invalid_argument,
+                      "MeshRequirements: The pointer passed to add_subpart_reqs cannot be a nullptr.");
+
   // Check if the provided parameters are valid.
   part_req_ptr->check_if_valid();
 
-  // Check for conflicts?
+  // TODO(palmerb4): Check for conflicts?
 
   // Store the params.
-  part_subpart_map_[part_req_ptr->get_part_name()] = part_req_ptr;
+  part_subpart_map_.insert(std::make_pair(part_req_ptr->get_part_name(), part_req_ptr));
 }
 
 void PartRequirements::add_part_attribute(const std::any &some_attribute) {

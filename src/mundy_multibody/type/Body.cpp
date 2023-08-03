@@ -21,7 +21,8 @@
 /// \brief Registration of the Body class
 
 // Mundy libs
+#include "mundy_multibody/type/Body.hpp"  // for mundy::multibody::type::Body
+
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
-#include "mundy_multibody/type/Body.hpp"          // for mundy::multibody::type::Body
 
 // MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::type::Body)

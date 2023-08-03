@@ -44,8 +44,8 @@
 #include <mundy_meta/MetaMethod.hpp>                 // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>               // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>           // for mundy::meta::PartRequirements
-#include <mundy_multibody/MultibodyFactory.hpp>               // for mundy::multibody::MultibodyFactory
 #include <mundy_methods/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
+#include <mundy_multibody/MultibodyFactory.hpp>      // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -61,7 +61,7 @@ class NodeEuler : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   //@}
@@ -167,7 +167,8 @@ class NodeEuler : public mundy::meta::MetaMethod<void> {
     }
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c MetaMethod.
+  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
+  /// MetaMethod.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }

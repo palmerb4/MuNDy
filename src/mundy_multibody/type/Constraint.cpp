@@ -21,7 +21,8 @@
 /// \brief Registration of the Constraint class
 
 // Mundy libs
+#include "mundy_multibody/type/Constraint.hpp"  // for mundy::multibody::type::Constraint
+
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
-#include "mundy_multibody/type/Constraint.hpp"          // for mundy::multibody::type::Constraint
 
 // MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::type::Constraint)

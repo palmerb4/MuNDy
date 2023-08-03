@@ -36,14 +36,14 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>                    // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>                          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for MUNDY_REGISTER_METACLASS
 
 namespace mundy {
 
@@ -98,7 +98,7 @@ class ComputeAABB : public mundy::meta::MetaMethod<void> {
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
     const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
 
-    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
+    auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     for (size_t i = 0; i < num_specified_kernels; i++) {
       Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
       const std::string kernel_name = kernel_params.get<std::string>("name");

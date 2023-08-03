@@ -44,7 +44,8 @@ namespace type {
 /// \class Spherocylinder
 /// \brief The static interface for all of Mundy's multibody Spherocylinder objects.
 ///
-/// The design of this class is in accordance with the static interface requirements of mundy::multibody::MultibodyFactory.
+/// The design of this class is in accordance with the static interface requirements of
+/// mundy::multibody::MultibodyFactory.
 class Spherocylinder {
  public:
   //! \name Getters

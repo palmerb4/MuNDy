@@ -143,7 +143,8 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
         valid_fixed_params.sublist("subkernels").sublist("compute_pairwise_potential");
     const std::string compute_pairwise_potential_name = compute_pairwise_potential_params.get<std::string>("name");
 
-    return OurTwoWayKernelFactory::get_mesh_requirements(compute_pairwise_potential_name, compute_pairwise_potential_params);
+    return OurTwoWayKernelFactory::get_mesh_requirements(compute_pairwise_potential_name,
+                                                         compute_pairwise_potential_params);
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
@@ -166,7 +167,7 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
 
     // Validate the fixed parameters of the subkernels.
     OurTwoWayKernelFactory::validate_fixed_parameters_and_set_defaults(compute_pairwise_potential_name,
-                                                                 &compute_pairwise_potential_params);
+                                                                       &compute_pairwise_potential_params);
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
@@ -189,7 +190,7 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
 
     // Validate the fixed parameters of the subkernels.
     OurTwoWayKernelFactory::validate_mutable_parameters_and_set_defaults(compute_pairwise_potential_name,
-                                                                   &compute_pairwise_potential_params);
+                                                                         &compute_pairwise_potential_params);
   }
 
   /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c

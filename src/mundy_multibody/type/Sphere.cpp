@@ -21,7 +21,8 @@
 /// \brief Registration of the Sphere class
 
 // Mundy libs
+#include "mundy_multibody/type/Sphere.hpp"  // for mundy::multibody::type::Sphere
+
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
-#include "mundy_multibody/type/Sphere.hpp"          // for mundy::multibody::type::Sphere
 
 // MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::type::Sphere)

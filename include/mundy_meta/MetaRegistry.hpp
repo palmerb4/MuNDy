@@ -135,14 +135,14 @@ struct MetaRegistry {
 ///
 /// \param ClassToRegister A class derived from \c MetaMethod that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
-#define MUNDY_REGISTER_METACLASS(ClassToRegister, ... /* FactoryToRegisterWith */)                        \
-  namespace mundy {                                                                                       \
-  namespace meta {                                                                                        \
-  template <>                                                                                             \
-  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                     \
+#define MUNDY_REGISTER_METACLASS(ClassToRegister, ... /* FactoryToRegisterWith */)                                 \
+  namespace mundy {                                                                                                \
+  namespace meta {                                                                                                 \
+  template <>                                                                                                      \
+  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                              \
     static inline volatile const bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(); \
-  };                                                                                                      \
-  }                                                                                                       \
+  };                                                                                                               \
+  }                                                                                                                \
   }
 
 #endif  // MUNDY_META_METAREGISTRY_HPP_

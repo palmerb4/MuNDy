@@ -21,7 +21,8 @@
 /// \brief Registration of the Linker class
 
 // Mundy libs
+#include "mundy_multibody/type/Linker.hpp"  // for mundy::multibody::type::Linker
+
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
-#include "mundy_multibody/type/Linker.hpp"          // for mundy::multibody::type::Linker
 
 // MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::type::Linker)

@@ -36,14 +36,14 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>             // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>             // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -59,7 +59,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
-  
+
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, NonSmoothLCP>;
@@ -314,7 +314,8 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
     }
   }
 
-  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c MetaMethodRegistry.
+  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
+  /// MetaMethodRegistry.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }

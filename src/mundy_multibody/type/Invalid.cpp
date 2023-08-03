@@ -21,7 +21,8 @@
 /// \brief Registration of the Invalid class
 
 // Mundy libs
+#include "mundy_multibody/type/Invalid.hpp"  // for mundy::multibody::type::Invalid
+
 #include "mundy_multibody/MultibodyRegistry.hpp"  // for MUNDY_REGISTER_MULTIBODYTYPE
-#include "mundy_multibody/type/Invalid.hpp"          // for mundy::multibody::type::Invalid
 
 // MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::type::Invalid)
