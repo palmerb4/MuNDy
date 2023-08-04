@@ -62,7 +62,7 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveFieldAttribute) {
   stk::mesh::Field<double> &field = meta_data.declare_field<double>(field_rank, field_name, field_dimension);
 
   // Create an attribute.
-  std::any attribute1 = 3.14;
+  std::any attribute1 = 3.14159265358979323846;
   std::any attribute2 = std::string("Hello world!");
 
   // Declare the attribute.
@@ -99,7 +99,7 @@ TEST(MetaDataAttributes, DeclareFetchAndRemovePartAttribute) {
   stk::mesh::Part &part = meta_data.declare_part(part_name, stk::topology::NODE_RANK);
 
   // Create an attribute.
-  std::any attribute1 = 3.14;
+  std::any attribute1 = 3.14159265358979323846;
   std::any attribute2 = std::string("Hello world!");
 
   // Declare the attribute.
@@ -130,7 +130,7 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveMeshAttribute) {
   MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create an attribute.
-  std::any attribute1 = 3.14;
+  std::any attribute1 = 3.14159265358979323846;
   std::any attribute2 = std::string("Hello world!");
 
   // Declare the attribute.

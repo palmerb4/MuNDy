@@ -63,7 +63,7 @@ TEST(MultibodyRegistry, AutoRegistration) {
 
 }  // namespace
 
-}  // namespace meta
+}  // namespace multibody
 
 }  // namespace mundy
 
@@ -74,4 +74,3 @@ MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::utils::ExampleMultibodyType<1>)
 
 // Register a different class with MultibodyFactory
 MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::utils::ExampleMultibodyType<2>)
-

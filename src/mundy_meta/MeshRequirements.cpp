@@ -346,9 +346,8 @@ void MeshRequirements::check_if_valid() const {
 }
 
 void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
-  MUNDY_THROW_ASSERT(field_req_ptr != nullptr,
-                      std::invalid_argument,
-                      "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.");
+  MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
+                     "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.");
 
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
@@ -368,9 +367,8 @@ void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> fie
 }
 
 void MeshRequirements::add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
-  MUNDY_THROW_ASSERT(part_req_ptr != nullptr,
-                      std::invalid_argument,
-                      "MeshRequirements: The pointer passed to add_part_reqs cannot be a nullptr.");
+  MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
+                     "MeshRequirements: The pointer passed to add_part_reqs cannot be a nullptr.");
 
   // Check if the provided parameters are valid.
   part_req_ptr->check_if_valid();

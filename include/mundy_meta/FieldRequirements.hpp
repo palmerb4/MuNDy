@@ -600,7 +600,6 @@ std::shared_ptr<FieldRequirementsBase> FieldRequirements<FieldType>::create_new_
   return create_new_instance(parameter_list);
 }
 
-
 template <typename FieldType>
 void FieldRequirements<FieldType>::dump_to_screen(int indent_level) const {
   std::string indent(indent_level * 2, ' ');
@@ -640,8 +639,8 @@ void FieldRequirements<FieldType>::dump_to_screen(int indent_level) const {
   std::cout << indent << "  Field attributes map: " << std::endl;
   int attribute_count = 0;
   for (auto const &[attribute_type_index, attribute] : field_attributes_map_) {
-    std::cout << indent << "  Field attribute " << attribute_count << " has type (" << attribute_type_index.name() << ")"
-              << std::endl;
+    std::cout << indent << "  Field attribute " << attribute_count << " has type (" << attribute_type_index.name()
+              << ")" << std::endl;
     attribute_count++;
   }
 

@@ -413,9 +413,9 @@ stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *c
 
   MUNDY_THROW_ASSERT(this->get_part_name() == part_ptr->name(), std::logic_error,
                      "PartRequirements: Weird. The desired part name and actual part name differ.\n"
-                     << "This should never happen. Please report this bug to the developers.\n"
-                     << "  Desired part name: " << this->get_part_name() << "\n"
-                     << "  Actual part name: " << part_ptr->name() << "\n");
+                         << "This should never happen. Please report this bug to the developers.\n"
+                         << "  Desired part name: " << this->get_part_name() << "\n"
+                         << "  Actual part name: " << part_ptr->name() << "\n");
 
   // Declare the Part's fields and associate them with the Part.
   // Loop over each rank's field map.

@@ -169,7 +169,7 @@ TEST(PartRequirementsSetters, AddPartAttribute) {
   // Check that part attributes can be added.
 
   // Create a dummy part attribute.
-  std::any part_attribute = 3.14;
+  std::any part_attribute = 3.14159265358979323846;
 
   // Create a PartRequirements object and add the part attribute.
   PartRequirements part_reqs;
@@ -416,8 +416,8 @@ TEST(PartRequirementsMerge, ArePartAttributesMergable) {
 
   // Setup the dummy attributes.
   std::any attribute1 = 1;
-  std::any attribute2 = 3.14;
-  std::any attribute3 = 3.14;
+  std::any attribute2 = 3.14159265358979323846;
+  std::any attribute3 = 3.14159265358979323846;
   std::any attribute4 = "something";
 
   // Setup the part requirements according to the diagram above.
@@ -523,8 +523,8 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   // Setup the dummy attributes.
   std::any attribute1 = false;
   std::any attribute2 = 1;
-  std::any attribute3 = 3.14;
-  std::any attribute4 = 3.14;
+  std::any attribute3 = 3.14159265358979323846;
+  std::any attribute4 = 3.14159265358979323846;
   std::any attribute5 = "something";
   std::any attribute6 = 8675309;
 

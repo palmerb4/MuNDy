@@ -37,12 +37,12 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                        // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>                     // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>                        // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>               // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>           // for mundy::meta::FieldRequirementsBase
-#include <mundy_methods/ComputeAABB.hpp>                  // for mundy::methods::ComputeAABB
+#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+#include <mundy_methods/ComputeAABB.hpp>         // for mundy::methods::ComputeAABB
 // #include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
 
 namespace mundy {
@@ -62,7 +62,8 @@ TEST(ComputeAABBStaticInterface, IsRegisterable) {
 TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
   // This test requires that the Sphere class has been registered with ComputeAABB's kernel factory.
   // bool is_registered =
-  //     MUNDY_IS_REGISTERED(mundy::methods::compute_aabb::kernels::Sphere, mundy::methods::ComputeAABB::OurKernelFactory);
+  //     MUNDY_IS_REGISTERED(mundy::methods::compute_aabb::kernels::Sphere,
+  //     mundy::methods::ComputeAABB::OurKernelFactory);
   // ASSERT_TRUE(is_registered);
 
   // Check the expected default values.

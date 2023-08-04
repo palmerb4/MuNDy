@@ -152,7 +152,7 @@ TEST(MeshRequirementsSetters, AddMeshAttributes) {
   // Check that the add_mesh_attribute method works.
 
   // Create a dummy mesh attribute object.
-  std::any attribute = 3.14;
+  std::any attribute = 3.14159265358979323846;
 
   // Create a mesh requirements object and add the mesh attribute to it.
   MeshRequirements mesh_reqs(MPI_COMM_WORLD);
@@ -363,8 +363,8 @@ TEST(MeshRequirementsMerge, AreMeshAttributesMergable) {
 
   // Setup the dummy attributes.
   std::any attribute1 = 1;
-  std::any attribute2 = 3.14;
-  std::any attribute3 = 3.14;
+  std::any attribute2 = 3.14159265358979323846;
+  std::any attribute3 = 3.14159265358979323846;
   std::any attribute4 = "something";
 
   // Setup the mesh requirements according to the diagram above.
@@ -419,7 +419,7 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
   // Setup the dummy attributes.
   std::any attribute1 = 8675309;
   std::any attribute2 = 8675309;
-  std::any attribute3 = 3.14;
+  std::any attribute3 = 3.14159265358979323846;
 
   // Setup the dummy parts.
   auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");
@@ -586,7 +586,7 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndAttributes) {
   // Check that the declare function properly declares a mesh with attributes.
 
   // Create a dummy attributes.
-  std::any attribute = 3.14;
+  std::any attribute = 3.14159265358979323846;
 
   // Setup the Mesh requirements.
   auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
@@ -628,7 +628,7 @@ TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
 
   // Setup the dummy attributes.
   std::any attribute1 = 8675309;
-  std::any attribute2 = 3.14;
+  std::any attribute2 = 3.14159265358979323846;
 
   // Setup the dummy parts.
   auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");

@@ -55,7 +55,7 @@ namespace utils {
 ///
 /// The design of this class is in accordance with the static interface requirements of
 /// mundy::multibody::MultibodyFactory.
-template<int I>
+template <int I>
 class ExampleMultibodyType {
  public:
   //! \name Getters
