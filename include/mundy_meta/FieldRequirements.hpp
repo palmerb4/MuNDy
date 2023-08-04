@@ -161,7 +161,7 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief Return the minimum number of field states.
   /// Will throw an error if the minimum number of field states.
-  unsigned get_field_min_number_of_states() const final;
+  unsigned get_field_min_num_states() const final;
 
   /// \brief Return the typeinfo related to the field's type.
   const std::type_info &get_field_type_info() const final;
@@ -249,6 +249,9 @@ class FieldRequirements : public FieldRequirementsBase {
       const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<FieldRequirements<FieldType>>(parameter_list);
   }
+
+  /// \brief Dump the contents of \c FieldRequirements to the screen.
+  void dump_to_screen(int indent_level = 0) const final;
   //@}
 
  private:
@@ -415,7 +418,7 @@ unsigned FieldRequirements<FieldType>::get_field_dimension() const {
 }
 
 template <typename FieldType>
-unsigned FieldRequirements<FieldType>::get_field_min_number_of_states() const {
+unsigned FieldRequirements<FieldType>::get_field_min_num_states() const {
   MUNDY_THROW_ASSERT(
       this->constrains_field_min_number_of_states(), std::logic_error,
       "FieldRequirements: Attempting to access the field minimum number of states requirement even though field "
@@ -455,7 +458,7 @@ void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *
 
   // Declare the field and assign it to the given part.
   stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
-      this->get_field_rank(), this->get_field_name(), this->get_field_min_number_of_states());
+      this->get_field_rank(), this->get_field_name(), this->get_field_min_num_states());
   stk::mesh::put_field_on_mesh(field, part, this->get_field_dimension(), nullptr);
 
   // Set the field attributes.
@@ -480,7 +483,7 @@ void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::Met
 
   // Declare the field and assign it to the given part.
   stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
-      this->get_field_rank(), this->get_field_name(), this->get_field_min_number_of_states());
+      this->get_field_rank(), this->get_field_name(), this->get_field_min_num_states());
   stk::mesh::put_field_on_entire_mesh(field, this->get_field_dimension());
 
   // Set the field attributes.
@@ -574,7 +577,7 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
   }
 
   if (field_req_ptr->constrains_field_min_number_of_states()) {
-    this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
+    this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_num_states());
   }
 
   // Loop over the attribute map.
@@ -595,6 +598,54 @@ template <typename FieldType>
 std::shared_ptr<FieldRequirementsBase> FieldRequirements<FieldType>::create_new_instance(
     const Teuchos::ParameterList &parameter_list) const {
   return create_new_instance(parameter_list);
+}
+
+
+template <typename FieldType>
+void FieldRequirements<FieldType>::dump_to_screen(int indent_level) const {
+  std::string indent(indent_level * 2, ' ');
+
+  std::cout << indent << "FieldRequirements: " << std::endl;
+
+  if (this->constrains_field_name()) {
+    std::cout << indent << "  Field name is set." << std::endl;
+    std::cout << indent << "  Field name: " << this->get_field_name() << std::endl;
+  } else {
+    std::cout << indent << "  Field name is not set." << std::endl;
+  }
+
+  if (this->constrains_field_rank()) {
+    std::cout << indent << "  Field rank is set." << std::endl;
+    std::cout << indent << "  Field rank: " << this->get_field_rank() << std::endl;
+  } else {
+    std::cout << indent << "  Field rank is not set." << std::endl;
+  }
+
+  if (this->constrains_field_dimension()) {
+    std::cout << indent << "  Field dimension is set." << std::endl;
+    std::cout << indent << "  Field dimension: " << this->get_field_dimension() << std::endl;
+  } else {
+    std::cout << indent << "  Field dimension is not set." << std::endl;
+  }
+
+  if (this->constrains_field_min_number_of_states()) {
+    std::cout << indent << "  Field min number of states is set." << std::endl;
+    std::cout << indent << "  Field min number of states: " << this->get_field_min_num_states() << std::endl;
+  } else {
+    std::cout << indent << "  Field min number of states is not set." << std::endl;
+  }
+
+  std::cout << indent << "  Field type info: " << field_type_info_.name() << std::endl;
+
+  std::cout << indent << "  Field attributes map: " << std::endl;
+  int attribute_count = 0;
+  for (auto const &[attribute_type_index, attribute] : field_attributes_map_) {
+    std::cout << indent << "  Field attribute " << attribute_count << " has type (" << attribute_type_index.name() << ")"
+              << std::endl;
+    attribute_count++;
+  }
+
+  std::cout << indent << "End of FieldRequirements" << std::endl;
 }
 //}
 

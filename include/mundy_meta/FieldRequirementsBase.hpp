@@ -106,7 +106,7 @@ class FieldRequirementsBase {
 
   /// \brief Return the minimum number of field states.
   /// Will throw an error if the minimum number of field states.
-  virtual unsigned get_field_min_number_of_states() const = 0;
+  virtual unsigned get_field_min_num_states() const = 0;
 
   /// \brief Return the typeinfo related to the field's type.
   virtual const std::type_info &get_field_type_info() const = 0;
@@ -231,6 +231,9 @@ class FieldRequirementsBase {
   /// \brief Generate new instance of this class, constructed using the given parameter list.
   virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(
       const Teuchos::ParameterList &parameter_list) const = 0;
+
+  /// \brief Dump the contents of \c FieldRequirements to the screen.
+  virtual void dump_to_screen(int indent_level) const = 0;
   //@}
 };  // FieldRequirementsBase
 

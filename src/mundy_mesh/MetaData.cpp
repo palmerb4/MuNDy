@@ -70,7 +70,9 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
     const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
     MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
                        "MetaData: An attribute with the same type as the provided attribute already "
-                       "exists on the given field.");
+                       "exists on the given field.\n"
+                           << "  Field name: " << field.name() << "\n"
+                           << "  Attribute type: " << attribute.type().name() << "\n");
   } else {
     field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::type_index, std::any>()));
   }
@@ -87,7 +89,9 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
     const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
     MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
                        "MetaData: An attribute with the same type as the provided attribute already "
-                       "exists on the given field.");
+                       "exists on the given field.\n"
+                           << "  Field name: " << field.name() << "\n"
+                           << "  Attribute type: " << attribute.type().name() << "\n");
   } else {
     field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::type_index, std::any>()));
   }
@@ -97,14 +101,17 @@ void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::a
 
 void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &attribute) {
   std::type_index attribute_type_index = std::type_index(attribute.type());
-  const unsigned part_id = part.id();
+  const unsigned part_id = part.mesh_meta_data_ordinal();
 
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {
     const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_type_index) == 0);
     MUNDY_THROW_ASSERT(
         attribute_is_unique, std::invalid_argument,
-        "MetaData: An attribute with the same type as the provided attribute already exists on the given part.");
+        "MetaData: An attribute with the same type as the provided attribute already exists on the given part.\n"
+            << "  Part id: " << part_id << "\n"
+            << "  Part name: " << part.name() << "\n"
+            << "  Attribute type: " << attribute.type().name() << "\n");
   } else {
     part_to_part_attributes_map_.insert(std::make_pair(part_id, std::map<std::type_index, std::any>()));
   }
@@ -114,14 +121,17 @@ void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &at
 
 void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &&attribute) {
   std::type_index attribute_type_index = std::type_index(attribute.type());
-  const unsigned part_id = part.id();
+  const unsigned part_id = part.mesh_meta_data_ordinal();
 
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {
     const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_type_index) == 0);
     MUNDY_THROW_ASSERT(
         attribute_is_unique, std::invalid_argument,
-        "MetaData: An attribute with the same type as the provided attribute already exists on the given part.");
+        "MetaData: An attribute with the same type as the provided attribute already exists on the given part.\n"
+            << "  Part id: " << part_id << "\n"
+            << "  Part name: " << part.name() << "\n"
+            << "  Attribute type: " << attribute.type().name() << "\n");
   } else {
     part_to_part_attributes_map_.insert(std::make_pair(part_id, std::map<std::type_index, std::any>()));
   }
@@ -135,7 +145,8 @@ void MetaData::declare_attribute(const std::any &attribute) {
   const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_type_index) == 0);
   MUNDY_THROW_ASSERT(
       attribute_is_unique, std::invalid_argument,
-      "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.");
+      "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.\n"
+          << "  Attribute type: " << attribute.type().name() << "\n");
 
   mesh_attributes_map_.insert(std::make_pair(attribute_type_index, attribute));
 }
@@ -146,7 +157,8 @@ void MetaData::declare_attribute(const std::any &&attribute) {
   const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_type_index) == 0);
   MUNDY_THROW_ASSERT(
       attribute_is_unique, std::invalid_argument,
-      "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.");
+      "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.\n"
+          << "  Attribute type: " << attribute.type().name() << "\n");
 
   mesh_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(attribute)));
 }

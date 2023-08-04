@@ -120,15 +120,18 @@ TEST(ComputeAABBStaticInterface, GetMeshRequirementsFromDefaultParameters) {
 TEST(ComputeAABBStaticInterface, CreateNewInstanceFromDefaultParameters) {
   // Attempt to get the mesh requirements using the default parameters.
   auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->set_spatial_dimension(3);
+  mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+
   Teuchos::ParameterList fixed_params;
   ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
-  ASSERT_NO_THROW(ComputeAABB::get_mesh_requirements(fixed_params));
+  EXPECT_NO_THROW(ComputeAABB::get_mesh_requirements(fixed_params));
   mesh_reqs_ptr->merge(ComputeAABB::get_mesh_requirements(fixed_params));
 
   // Create a new instance of ComputeAABB using the default parameters and the mesh generated from the mesh
   // requirements.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
-  ASSERT_NO_THROW(ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params));
+  EXPECT_NO_THROW(ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params));
 }
 //@}
 
@@ -145,12 +148,17 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   Teuchos::ParameterList fixed_params;
   auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
+  mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
   ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
   mesh_reqs_ptr->merge(ComputeAABB::get_mesh_requirements(fixed_params));
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
-  // Create a new instance of ComputeAABB.
+  // At this point, we solidify the mesh structure by calling commit.
+  meta_data_ptr->commit();
+
+  // Create a new instance of ComputeAABB with the default fixed params.
+  // Note, we do not specify the mutable params, so the default values will be used.
   auto compute_aabb_ptr = ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params);
 
   // Fetch the multibody sphere part and add a single sphere to it.
@@ -158,15 +166,17 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   ASSERT_TRUE(sphere_part_ptr != nullptr);
   bulk_data_ptr->modification_begin();
   stk::mesh::EntityId sphere_id = 1;
-  stk::mesh::Entity sphere_entity =
+  stk::mesh::Entity sphere_element =
       bulk_data_ptr->declare_element(sphere_id, stk::mesh::ConstPartVector{sphere_part_ptr});
+  stk::mesh::Entity sphere_node = bulk_data_ptr->declare_node(sphere_id);
+  bulk_data_ptr->declare_relation(sphere_element, sphere_node, 0);
   bulk_data_ptr->modification_end();
 
   // Set the sphere's position.
   double sphere_position[3] = {0.0, 0.0, 0.0};
   stk::mesh::Field<double> &node_coord_field =
       *meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORD");
-  double *node_coords = stk::mesh::field_data(node_coord_field, sphere_entity);
+  double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
   node_coords[0] = sphere_position[0];
   node_coords[1] = sphere_position[1];
   node_coords[2] = sphere_position[2];
@@ -174,17 +184,18 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   // Set the sphere's radius.
   double sphere_radius = 1.0;
   stk::mesh::Field<double> &radius_field = *meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
-  double *radius = stk::mesh::field_data(radius_field, sphere_entity);
+  double *radius = stk::mesh::field_data(radius_field, sphere_element);
+  radius[0] = sphere_radius;
 
   // Compute the AABB.
-  compute_aabb_ptr->execute(meta_data_ptr->locally_owned_part());
+  compute_aabb_ptr->execute(*sphere_part_ptr);
 
   // Check that the computed aabb is as expected.
   stk::mesh::Field<double> &aabb_field = *meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "AABB");
-  double *aabb = stk::mesh::field_data(aabb_field, sphere_entity);
+  double *aabb = stk::mesh::field_data(aabb_field, sphere_element);
   double expected_aabb[6] = {-1.0, -1.0, -1.0, 1.0, 1.0, 1.0};
   for (int i = 0; i < 6; i++) {
-    ASSERT_DOUBLE_EQ(aabb[i], expected_aabb[i]);
+    EXPECT_DOUBLE_EQ(aabb[i], expected_aabb[i]);
   }
 }
 //@}

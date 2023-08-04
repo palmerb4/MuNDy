@@ -341,6 +341,9 @@ class MeshRequirements {
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c MeshRequirements objects to merge with the
   /// current object.
   void merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs);
+
+  /// \brief Dump the contents of \c MeshRequirements to the screen.
+  void dump_to_screen(int indent_level = 0) const;
   //@}
 
  private:

@@ -282,9 +282,8 @@ void PartRequirements::delete_part_rank() {
 }
 
 void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
-  MUNDY_THROW_ASSERT(field_req_ptr != nullptr,
-                      std::invalid_argument,
-                      "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.");
+  MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
+                     "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.");
 
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
@@ -304,9 +303,8 @@ void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> fie
 }
 
 void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
-  MUNDY_THROW_ASSERT(part_req_ptr != nullptr,
-                      std::invalid_argument,
-                      "MeshRequirements: The pointer passed to add_subpart_reqs cannot be a nullptr.");
+  MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
+                     "MeshRequirements: The pointer passed to add_subpart_reqs cannot be a nullptr.");
 
   // Check if the provided parameters are valid.
   part_req_ptr->check_if_valid();
@@ -413,6 +411,12 @@ stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *c
     part_ptr = &meta_data_ptr->declare_part(this->get_part_name());
   }
 
+  MUNDY_THROW_ASSERT(this->get_part_name() == part_ptr->name(), std::logic_error,
+                     "PartRequirements: Weird. The desired part name and actual part name differ.\n"
+                     << "This should never happen. Please report this bug to the developers.\n"
+                     << "  Desired part name: " << this->get_part_name() << "\n"
+                     << "  Actual part name: " << part_ptr->name() << "\n");
+
   // Declare the Part's fields and associate them with the Part.
   // Loop over each rank's field map.
   for (auto const &part_field_map : part_ranked_field_maps_) {
@@ -508,6 +512,66 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
   for (const auto &part_req_ptr : vector_of_part_req_ptrs) {
     merge(part_req_ptr);
   }
+}
+
+void PartRequirements::dump_to_screen(int indent_level) const {
+  std::string indent(indent_level * 2, ' ');
+
+  std::cout << indent << "PartRequirements: " << std::endl;
+
+  if (this->constrains_part_name()) {
+    std::cout << indent << "  Part name is set." << std::endl;
+    std::cout << indent << "  Part name: " << this->get_part_name() << std::endl;
+  } else {
+    std::cout << "  Part name is not set." << std::endl;
+  }
+
+  if (this->constrains_part_rank()) {
+    std::cout << indent << "  Part rank is set." << std::endl;
+    std::cout << indent << "  Part rank: " << this->get_part_rank() << std::endl;
+  } else {
+    std::cout << indent << "  Part rank is not set." << std::endl;
+  }
+
+  if (this->constrains_part_topology()) {
+    std::cout << indent << "  Part topology is set." << std::endl;
+    std::cout << indent << "  Part topology: " << this->get_part_topology() << std::endl;
+  } else {
+    std::cout << indent << "  Part topology is not set." << std::endl;
+  }
+
+  std::cout << indent << "  Part Fields: " << std::endl;
+  int rank = 0;
+  int field_count = 0;
+  for (auto const &part_field_map : part_ranked_field_maps_) {
+    for (auto const &[field_name, field_req_ptr] : part_field_map) {
+      std::cout << indent << "  Part field " << field_count << " has name (" << field_name << "), rank (" << rank
+                << "), and requirements" << std::endl;
+      field_req_ptr->dump_to_screen(indent_level + 1);
+      field_count++;
+    }
+
+    rank++;
+  }
+
+  std::cout << indent << "  Part Subparts: " << std::endl;
+  int subpart_count = 0;
+  for (auto const &[subpart_name, subpart_req_ptr] : part_subpart_map_) {
+    std::cout << indent << "  Part subpart " << subpart_count << " has name (" << subpart_name << ") and requirements"
+              << std::endl;
+    subpart_req_ptr->dump_to_screen(indent_level + 1);
+    subpart_count++;
+  }
+
+  std::cout << indent << "  Part Attributes: " << std::endl;
+  int attribute_count = 0;
+  for (auto const &[attribute_type_index, attribute] : part_attributes_map_) {
+    std::cout << indent << "  Part attribute " << attribute_count << " has type (" << attribute_type_index.name() << ")"
+              << std::endl;
+    attribute_count++;
+  }
+
+  std::cout << indent << "End of PartRequirements" << std::endl;
 }
 //}
 

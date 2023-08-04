@@ -56,25 +56,6 @@ struct MultibodyRegistry {
 
 }  // namespace mundy
 
-/// \brief A helper macro for checking if a \c Multibody has been registered with \c MultibodyFactory.
-///
-/// This macro is used to check if a \c Multibody has been registered with the \c MultibodyFactory. The macro should
-/// be used in the following way:
-///
-/// \code{.cpp}
-/// MUNDY_IS_MULTIBODYTYPE_REGISTERED(ClassToCheck)
-/// \endcode
-///
-/// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
-/// \c MUNDY_IS_MULTIBODYTYPE_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple
-/// definition errors.
-///
-/// \param ClassToCheck A class derived from \c Multibody that we wish to check if it has been registered.
-#define MUNDY_IS_MULTIBODYTYPE_REGISTERED(ClassToCheck)                      \
-  ([]() -> bool {                                                            \
-    return mundy::multibody::MultibodyRegistry<ClassToCheck>::is_registered; \
-  }())
-
 /// @brief A helper macro for registering a \c Multibody with \c MultibodyFactory.
 ///
 /// This macro is used to register a \c Multibody with \c MultibodyFactory. The macro should be
@@ -126,5 +107,24 @@ struct MultibodyRegistry {
   };                                                                      \
   }                                                                       \
   }
+
+/// \brief A helper macro for checking if a \c Multibody has been registered with \c MultibodyFactory.
+///
+/// This macro is used to check if a \c Multibody has been registered with the \c MultibodyFactory. The macro should
+/// be used in the following way:
+///
+/// \code{.cpp}
+/// MUNDY_IS_MULTIBODYTYPE_REGISTERED(ClassToCheck)
+/// \endcode
+///
+/// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
+/// \c MUNDY_IS_MULTIBODYTYPE_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple
+/// definition errors.
+///
+/// \param ClassToCheck A class derived from \c Multibody that we wish to check if it has been registered.
+#define MUNDY_IS_MULTIBODYTYPE_REGISTERED(ClassToCheck)                      \
+  ([]() -> bool {                                                            \
+    return mundy::multibody::MultibodyRegistry<ClassToCheck>::is_registered; \
+  }())
 
 #endif  // MUNDY_MULTIBODY_MULTIBODYREGISTRY_HPP_

@@ -158,7 +158,7 @@ TEST(FieldRequirementsGetters, IsGettable) {
   EXPECT_THROW(field_reqs.get_field_name(), std::logic_error);
   EXPECT_THROW(field_reqs.get_field_rank(), std::logic_error);
   EXPECT_THROW(field_reqs.get_field_dimension(), std::logic_error);
-  EXPECT_THROW(field_reqs.get_field_min_number_of_states(), std::logic_error);
+  EXPECT_THROW(field_reqs.get_field_min_num_states(), std::logic_error);
   field_reqs.set_field_name(field_name);
   field_reqs.set_field_rank(field_rank);
   field_reqs.set_field_dimension(field_dimension);
@@ -166,7 +166,7 @@ TEST(FieldRequirementsGetters, IsGettable) {
   EXPECT_EQ(field_reqs.get_field_name(), field_name);
   EXPECT_EQ(field_reqs.get_field_rank(), field_rank);
   EXPECT_EQ(field_reqs.get_field_dimension(), field_dimension);
-  EXPECT_EQ(field_reqs.get_field_min_number_of_states(), field_min_number_of_states);
+  EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states);
   EXPECT_EQ(field_reqs.get_field_type_info(), typeid(ExampleFieldType));
 }
 //@}
@@ -219,7 +219,7 @@ TEST(FieldRequirementsMerge, IsMergeable) {
   EXPECT_EQ(main_field_reqs.get_field_name(), field_name);
   EXPECT_EQ(main_field_reqs.get_field_rank(), field_rank);
   EXPECT_EQ(main_field_reqs.get_field_dimension(), field_dimension);
-  EXPECT_EQ(main_field_reqs.get_field_min_number_of_states(), field_min_number_of_states);
+  EXPECT_EQ(main_field_reqs.get_field_min_num_states(), field_min_number_of_states);
   EXPECT_EQ(main_field_reqs.get_field_type_info(), typeid(ExampleFieldType));
 }
 
@@ -244,7 +244,7 @@ TEST(FieldRequirementsMerge, IsMergeableWithVectorOfOtherRequirements) {
   EXPECT_EQ(main_field_reqs.get_field_name(), field_name);
   EXPECT_EQ(main_field_reqs.get_field_rank(), field_rank);
   EXPECT_EQ(main_field_reqs.get_field_dimension(), field_dimension);
-  EXPECT_EQ(main_field_reqs.get_field_min_number_of_states(), field_min_number_of_states);
+  EXPECT_EQ(main_field_reqs.get_field_min_num_states(), field_min_number_of_states);
   EXPECT_EQ(main_field_reqs.get_field_type_info(), typeid(ExampleFieldType));
 }
 
@@ -338,11 +338,11 @@ TEST(FieldRequirementsMerge, MergeProperlyHandlesMinNumStates) {
 
   // The merge should increase the min number of states to the maximum of the two values.
   field_reqs.merge(other_field_reqs_ptr);
-  EXPECT_EQ(field_reqs.get_field_min_number_of_states(), field_min_number_of_states + 1);
+  EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states + 1);
   other_field_reqs_ptr->delete_field_min_number_of_states();
   other_field_reqs_ptr->set_field_min_number_of_states(field_min_number_of_states - 1);
   field_reqs.merge(other_field_reqs_ptr);
-  EXPECT_EQ(field_reqs.get_field_min_number_of_states(), field_min_number_of_states + 1);
+  EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states + 1);
 }
 //@}
 

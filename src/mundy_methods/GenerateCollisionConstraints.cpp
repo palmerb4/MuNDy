@@ -64,7 +64,7 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
-  const unsigned num_multibody_types_ = kernels_sublist.get<unsigned>("count");
+  num_multibody_types_ = kernels_sublist.get<unsigned>("count");
   multibody_part_ptr_vector_.reserve(num_multibody_types_);
   multibody_kernel_ptrs_.reserve(num_multibody_types_);
   for (size_t i = 0; i < num_multibody_types_; i++) {

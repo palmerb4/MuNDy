@@ -333,6 +333,9 @@ class PartRequirements {
       }
     }
   }
+
+  /// \brief Dump the contents of \c PartRequirements to the screen.
+  void dump_to_screen(int indent_level = 0) const;
   //@}
 
  private:

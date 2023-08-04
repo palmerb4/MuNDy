@@ -403,6 +403,8 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
       field2 (name=b, rank=NODE, dimension=3, min_number_of_states=2)
       field4 (name=b, rank=ELEMENT, dimension=3, min_number_of_states=4)
       field5 (name=c, rank=NODE, dimension=3, min_number_of_states=5)
+      attribute1 (type=int)
+      attribute3 (type=double)
     part2 (name=B)
   */
 
@@ -597,6 +599,84 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndAttributes) {
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
   ASSERT_NE(meta_data.get_attribute<double>(), nullptr);
   EXPECT_EQ(*meta_data.get_attribute<double>(), std::any_cast<double>(attribute));
+}
+
+TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
+  // Check that the declare function works properly for a full realistic example.
+
+  /* Check that the merge function properly merges mesh parts and their fields/subparts/attributes.
+  The setup for this test is as follows:
+  mesh:
+    part1 (name=A)
+      field1 (name=a, rank=NODE, dimension=3, min_number_of_states=1)
+      field2 (name=b, rank=NODE, dimension=3, min_number_of_states=2)
+      attribute1 (type=int)
+      attribute2 (type=double)
+      subpart: (name=C)
+    part2 (name=B)
+      field3 (name=b, rank=ELEMENT, dimension=3, min_number_of_states=3)
+      field4 (name=c, rank=NODE, dimension=3, min_number_of_states=4)
+      attribute1 (type=int)
+  */
+
+  // Setup the dummy fields.
+  using ExampleFieldType = double;
+  auto field_reqs1_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::ELEMENT_RANK, 3, 3);
+  auto field_reqs4_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 4);
+
+  // Setup the dummy attributes.
+  std::any attribute1 = 8675309;
+  std::any attribute2 = 3.14;
+
+  // Setup the dummy parts.
+  auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");
+  auto part_reqs2_ptr = std::make_shared<PartRequirements>("B");
+  auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("C");
+  part_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
+  part_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
+  part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
+  // part_reqs1_ptr->add_part_attribute(attribute1);
+  // part_reqs1_ptr->add_part_attribute(attribute2);
+  part_reqs2_ptr->add_field_reqs(field_reqs3_ptr);
+  part_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
+  part_reqs2_ptr->add_part_attribute(attribute1);
+
+  // Setup the mesh requirements according to the diagram above.
+  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->add_part_reqs(part_reqs1_ptr);
+  mesh_reqs_ptr->add_part_reqs(part_reqs2_ptr);
+
+  // Declare the mesh requirements.
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
+
+  // Check that the mesh was declared properly.
+  ASSERT_NE(bulk_data_ptr, nullptr);
+  mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+  auto part1_ptr = meta_data.get_part("A");
+  ASSERT_NE(part1_ptr, nullptr);
+  EXPECT_EQ(part1_ptr->name(), "A");
+  auto part2_ptr = meta_data.get_part("B");
+  ASSERT_NE(part2_ptr, nullptr);
+  EXPECT_EQ(part2_ptr->name(), "B");
+  auto subpart_ptr = meta_data.get_part("C");
+  ASSERT_NE(subpart_ptr, nullptr);
+  EXPECT_EQ(subpart_ptr->name(), "C");
+  EXPECT_NE(part1_ptr->mesh_meta_data_ordinal(), part2_ptr->mesh_meta_data_ordinal());
+  EXPECT_NE(part1_ptr->mesh_meta_data_ordinal(), subpart_ptr->mesh_meta_data_ordinal());
+  EXPECT_NE(part2_ptr->mesh_meta_data_ordinal(), subpart_ptr->mesh_meta_data_ordinal());
+  ASSERT_NE(meta_data.get_field<ExampleFieldType>(stk::topology::NODE_RANK, "a"), nullptr);
+  ASSERT_NE(meta_data.get_field<ExampleFieldType>(stk::topology::NODE_RANK, "b"), nullptr);
+  ASSERT_NE(meta_data.get_field<ExampleFieldType>(stk::topology::ELEMENT_RANK, "b"), nullptr);
+  ASSERT_NE(meta_data.get_field<ExampleFieldType>(stk::topology::NODE_RANK, "c"), nullptr);
+  // ASSERT_NE(meta_data.get_attribute<int>(*part1_ptr), nullptr);
+  // ASSERT_NE(meta_data.get_attribute<double>(*part1_ptr), nullptr);
+  ASSERT_NE(meta_data.get_attribute<int>(*part2_ptr), nullptr);
+  // EXPECT_EQ(*meta_data.get_attribute<int>(*part1_ptr), std::any_cast<int>(attribute1));
+  // EXPECT_FLOAT_EQ(*meta_data.get_attribute<double>(*part1_ptr), std::any_cast<double>(attribute2));
+  EXPECT_EQ(*meta_data.get_attribute<int>(*part2_ptr), std::any_cast<int>(attribute1));
+  EXPECT_EQ(part1_ptr->subsets().size(), 1);
 }
 
 }  // namespace

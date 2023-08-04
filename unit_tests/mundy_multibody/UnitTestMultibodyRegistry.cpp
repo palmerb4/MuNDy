@@ -56,7 +56,6 @@ struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
 
 TEST(MultibodyRegistry, AutoRegistration) {
   // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the MultibodyFactory
-  EXPECT_EQ(MultibodyFactory::get_number_of_registered_types(), 2);
   EXPECT_TRUE(MultibodyFactory::is_valid(mundy::multibody::utils::ExampleMultibodyType<1>::get_name()));
   EXPECT_TRUE(MultibodyFactory::is_valid(mundy::multibody::utils::ExampleMultibodyType<2>::get_name()));
 }

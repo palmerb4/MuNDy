@@ -178,7 +178,7 @@ bool MetaData::remove_attribute(const stk::mesh::FieldBase &field) {
 template <typename AttributeTypeToRemove>
 bool MetaData::remove_attribute(const stk::mesh::Part &part) {
   std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
-  const unsigned part_id = part.id();
+  const unsigned part_id = part.mesh_meta_data_ordinal();
 
   // TODO(palmerb4): Attributes should be inherited. Check if any of our parents are in the list.
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
@@ -232,7 +232,7 @@ AttributeTypeToFetch *MetaData::get_attribute(const stk::mesh::FieldBase &field)
 template <class AttributeTypeToFetch>
 AttributeTypeToFetch *MetaData::get_attribute(const stk::mesh::Part &part) {
   std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
-  const unsigned part_id = part.id();
+  const unsigned part_id = part.mesh_meta_data_ordinal();
 
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {

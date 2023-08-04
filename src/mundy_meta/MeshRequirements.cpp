@@ -497,6 +497,95 @@ void MeshRequirements::merge(const std::vector<std::shared_ptr<MeshRequirements>
     merge(mesh_req_ptr);
   }
 }
+
+void MeshRequirements::dump_to_screen(int indent_level) const {
+  std::string indent(indent_level * 2, ' ');
+
+  std::cout << indent << "MeshRequirements: " << std::endl;
+
+  if (this->constrains_spatial_dimension()) {
+    std::cout << indent << "  Spatial dimension is set." << std::endl;
+    std::cout << indent << "  Spatial dimension: " << this->get_spatial_dimension() << std::endl;
+  } else {
+    std::cout << indent << "  Spatial dimension is not set." << std::endl;
+  }
+
+  if (this->constrains_entity_rank_names()) {
+    std::cout << indent << "  Entity rank names are set." << std::endl;
+    std::cout << indent << "  Entity rank names: ";
+    for (const auto &entity_rank_name : this->get_entity_rank_names()) {
+      std::cout << indent << entity_rank_name << " ";
+    }
+    std::cout << indent << std::endl;
+  } else {
+    std::cout << indent << "  Entity rank names are not set." << std::endl;
+  }
+
+  if (this->constrains_communicator()) {
+    std::cout << indent << "  MPI communicator is set." << std::endl;
+  } else {
+    std::cout << indent << "  MPI communicator is not set." << std::endl;
+  }
+
+  if (this->constrains_aura_option()) {
+    std::cout << indent << "  Aura option is set." << std::endl;
+    std::cout << indent << "  Aura option: " << this->get_aura_option() << std::endl;
+  } else {
+    std::cout << indent << "  Aura option is not set." << std::endl;
+  }
+
+  if (this->constrains_field_data_manager()) {
+    std::cout << indent << "  Field data manager is set." << std::endl;
+  } else {
+    std::cout << indent << "  Field data manager is not set." << std::endl;
+  }
+
+  if (this->constrains_bucket_capacity()) {
+    std::cout << indent << "  Bucket capacity is set." << std::endl;
+    std::cout << indent << "  Bucket capacity: " << this->get_bucket_capacity() << std::endl;
+  } else {
+    std::cout << indent << "  Bucket capacity is not set." << std::endl;
+  }
+
+  if (this->constrains_upward_connectivity_flag()) {
+    std::cout << indent << "  Upward connectivity flag is set." << std::endl;
+    std::cout << indent << "  Upward connectivity flag: " << this->get_upward_connectivity_flag() << std::endl;
+  } else {
+    std::cout << indent << "  Upward connectivity flag is not set." << std::endl;
+  }
+
+  std::cout << indent << "  Mesh Attributes: " << std::endl;
+  int attribute_count = 0;
+  for (auto const &[attribute_type_index, attribute] : mesh_attributes_map_) {
+    std::cout << indent << "  Mesh attribute " << attribute_count << " has type (" << attribute_type_index.name() << ")"
+              << std::endl;
+    attribute_count++;
+  }
+
+  std::cout << indent << "  Mesh Fields: " << std::endl;
+  int rank = 0;
+  int field_count = 0;
+  for (auto const &mesh_field_map : mesh_ranked_field_maps_) {
+    for (auto const &[field_name, field_req_ptr] : mesh_field_map) {
+      std::cout << indent << "  Mesh field " << field_count << " has name (" << field_name << "), rank (" << rank
+                << "), and requirements" << std::endl;
+      field_req_ptr->dump_to_screen(indent_level + 1);
+      field_count++;
+    }
+
+    rank++;
+  }
+
+  std::cout << indent << "  Mesh Parts: " << std::endl;
+  int part_count = 0;
+  for (auto const &[part_name, part_req_ptr] : mesh_part_map_) {
+    std::cout << "  Mesh part " << part_count << " has name (" << part_name << ") and requirements" << std::endl;
+    part_req_ptr->dump_to_screen(indent_level + 1);
+    part_count++;
+  }
+
+  std::cout << indent << "End of MeshRequirements" << std::endl;
+}
 //}
 
 }  // namespace meta
