@@ -26,24 +26,16 @@
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
 #include <string>  // for std::string
-#include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy/StringLiteral.hpp>                                        // for mundy::make_string_literal
+#include <mundy_mesh/BulkData.hpp>                                        // for mundy::mesh::BulkData
+#include <mundy_meta/MetaMethod.hpp>                                      // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>                                    // for MUNDY_REGISTER_METACLASS
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>                         // for mundy::meta::MetaTechniqueDispatcher
 #include <mundy_methods/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::methods::...::RigidBodyMotion
 
 namespace mundy {
@@ -58,16 +50,10 @@ namespace rigid_body_motion {
 
 /// \class MapRigidBodyForceToRigidBodyVelocity
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class MapRigidBodyForceToRigidBodyVelocity : public mundy::meta::MetaMethod<void> {
+class MapRigidBodyForceToRigidBodyVelocity
+    : public mundy::meta::MetaTechniqueDispatcher<MapRigidBodyForceToRigidBodyVelocity,
+                                                  mundy::make_string_literal("LOCAL_DRAG")> {
  public:
-  //! \name Typedefs
-  //@{
-
-  using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, MapRigidBodyForceToRigidBodyVelocity>;
-  //@}
-
   //! \name Constructors and destructor
   //@{
 
@@ -81,62 +67,6 @@ class MapRigidBodyForceToRigidBodyVelocity : public mundy::meta::MetaMethod<void
 
   //! \name MetaFactory static interface implementation
   //@{
-
-  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    // Validate the input params. Use default values for any parameter not given.
-    Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
-
-    // Fetch the technique sublist and return its parameters.
-    Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
-    const std::string technique_name = technique_params.get<std::string>("name");
-
-    return OurMethodFactory::get_mesh_requirements(technique_name, technique_params);
-  }
-
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    // Fetch the technique sublist and return its parameters.
-    Teuchos::ParameterList &technique_params = fixed_params_ptr->sublist("technique", false);
-    if (technique_params.isParameter("name")) {
-      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
-    } else {
-      technique_params.set("name", std::string(default_technique_name_), "The name of the technique to use.");
-    }
-
-    const std::string technique_name = technique_params.get<std::string>("name");
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, &technique_params);
-  }
-
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    // Fetch the technique sublist and return its parameters.
-    Teuchos::ParameterList &technique_params = mutable_params_ptr->sublist("technique", false);
-    if (technique_params.isParameter("name")) {
-      const bool valid_type = technique_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "ComputeMobility: Type error. Given a parameter with name 'name' but with a type other than std::string");
-    } else {
-      technique_params.set("name", std::string(default_technique_name_), "The name of the technique to use.");
-    }
-
-    const std::string technique_name = technique_params.get<std::string>("name");
-    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, &technique_params);
-  }
 
   /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
   /// MetaMethodRegistry.
@@ -152,41 +82,15 @@ class MapRigidBodyForceToRigidBodyVelocity : public mundy::meta::MetaMethod<void
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<MapRigidBodyForceToRigidBodyVelocity>(bulk_data_ptr, fixed_params);
   }
-
-  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Run the method's core calculation.
-  void execute(const stk::mesh::Selector &input_selector) override;
   //@}
 
  private:
-  //! \name Default values
-  //@{
-
-  /// \brief The default technique name.
-  static constexpr std::string_view default_technique_name_ = "LOCAL_DRAG";
-  //@}
-
   //! \name Internal members
   //@{
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
   static constexpr std::string_view registration_id_ = "MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY";
-
-  /// \brief The BulkData object this class acts upon.
-  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
-
-  /// \brief The MetaData object this class acts upon.
-  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
-
-  /// \brief Method corresponding to the specified technique.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> technique_ptr_;
   //@}
 };  // MapRigidBodyForceToRigidBodyVelocity
 

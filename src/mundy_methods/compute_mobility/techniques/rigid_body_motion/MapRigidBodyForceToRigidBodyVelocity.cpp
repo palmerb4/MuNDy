@@ -20,27 +20,13 @@
 /// \file MapRigidBodyForceToRigidBodyVelocity.cpp
 /// \brief Definition of the MapRigidBodyForceToRigidBodyVelocity class
 
-// C++ core libs
-#include <memory>     // for std::shared_ptr, std::unique_ptr
-#include <stdexcept>  // for std::logic_error, std::invalid_argument
-#include <string>     // for std::string
-#include <vector>     // for std::vector
-
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
-#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy/StringLiteral.hpp>                 // for mundy::make_string_literal
+#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/MapRigidBodyForceToRigidBodyVelocity.hpp>  // for mundy::methods::...::MapRigidBodyForceToRigidBodyVelocity
 #include <mundy_methods/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/AllTechniques.hpp>  // performs the registration of all techniques
 
@@ -59,42 +45,8 @@ namespace rigid_body_motion {
 
 MapRigidBodyForceToRigidBodyVelocity::MapRigidBodyForceToRigidBodyVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                            const Teuchos::ParameterList &fixed_params)
-    : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
-  // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "MapRigidBodyForceToRigidBodyVelocity: bulk_data_ptr cannot be a nullptr.");
-
-  // Validate the input params. Use default values for any parameter not given.
-  Teuchos::ParameterList valid_fixed_params = fixed_params;
-  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
-
-  // Fetch the technique sublist and return its parameters.
-  Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
-  const std::string technique_name = technique_params.get<std::string>("name");
-  technique_ptr_ = OurMethodFactory::create_new_instance(technique_name, bulk_data_ptr_, technique_params);
-}
-//}
-
-// \name MetaFactory static interface implementation
-//{
-
-void MapRigidBodyForceToRigidBodyVelocity::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
-  // Validate the input params. Use default values for any parameter not given.
-  Teuchos::ParameterList valid_mutable_params = mutable_params;
-  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
-
-  // Fetch the technique sublist and return its parameters.
-  Teuchos::ParameterList &technique_params = valid_mutable_params.sublist("technique");
-  const std::string technique_name = technique_params.get<std::string>("name");
-  technique_ptr_->set_mutable_params(technique_params);
-}
-//}
-
-// \name Actions
-//{
-
-void MapRigidBodyForceToRigidBodyVelocity::execute(const stk::mesh::Selector &input_selector) {
-  technique_ptr_->execute(input_selector);
+    : mundy::meta::MetaTechniqueDispatcher<MapRigidBodyForceToRigidBodyVelocity,
+                                           mundy::make_string_literal("LOCAL_DRAG")>(bulk_data_ptr, fixed_params) {
 }
 //}
 
