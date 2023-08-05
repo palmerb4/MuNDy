@@ -149,6 +149,7 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   // Fetch the multibody sphere part and add a single sphere to it.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERE");
   ASSERT_TRUE(sphere_part_ptr != nullptr);
+
   bulk_data_ptr->modification_begin();
   stk::mesh::EntityId sphere_id = 1;
   stk::mesh::Entity sphere_element =

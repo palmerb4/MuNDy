@@ -65,6 +65,12 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   element_radius_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
   element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name_);
+
+  // Check that the fields exist.
+  MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
+                     "Spherocylinder: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
+                     "Spherocylinder: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
 

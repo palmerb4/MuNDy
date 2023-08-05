@@ -50,25 +50,25 @@ namespace mundy {
 
 namespace meta {
 
-template <typename KernelType, typename KernelFactoryType>
-class KernelDispatcher : public mundy::meta::MetaMethod<void> {
+template <typename RegistryIdentifier>
+class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
 
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
-  using OurKernelFactory = KernelFactoryType;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, RegistryIdentifier>;
   //@}
 
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  KernelDispatcher() = delete;
+  MetaKernelDispatcher() = delete;
 
   /// \brief Constructor
-  KernelDispatcher(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  MetaKernelDispatcher(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaFactory static interface implementation
@@ -110,11 +110,12 @@ class KernelDispatcher : public mundy::meta::MetaMethod<void> {
 
         // Ensure that each kernel has a name and associated part name.
         const std::string kernel_name = kernel_params.get<std::string>("name");
-        MUNDY_THROW_ASSERT(kernel_params.isParameter("part_name"), std::invalid_argument,
-                           "KernelDispatcher: Missing required parameter 'part_name' for kernel " + std::to_string(i));
+        MUNDY_THROW_ASSERT(
+            kernel_params.isParameter("part_name"), std::invalid_argument,
+            "MetaKernelDispatcher: Missing required parameter 'part_name' for kernel " + std::to_string(i));
         const bool valid_type = kernel_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
         MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                           "KernelDispatcher: Type error. Given a parameter with name 'part_name'  for kernel " +
+                           "MetaKernelDispatcher: Type error. Given a parameter with name 'part_name'  for kernel " +
                                std::to_string(i) + " but with a type other than std::string");
 
         // Validate and fill parameters for this kernel.
@@ -146,11 +147,12 @@ class KernelDispatcher : public mundy::meta::MetaMethod<void> {
 
         // Ensure that each kernel has a name and associated part name.
         const std::string kernel_name = kernel_params.get<std::string>("name");
-        MUNDY_THROW_ASSERT(kernel_params.isParameter("part_name"), std::invalid_argument,
-                           "KernelDispatcher: Missing required parameter 'part_name' for kernel " + std::to_string(i));
+        MUNDY_THROW_ASSERT(
+            kernel_params.isParameter("part_name"), std::invalid_argument,
+            "MetaKernelDispatcher: Missing required parameter 'part_name' for kernel " + std::to_string(i));
         const bool valid_type = kernel_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
         MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                           "KernelDispatcher: Type error. Given a parameter with name 'part_name'  for kernel " +
+                           "MetaKernelDispatcher: Type error. Given a parameter with name 'part_name'  for kernel " +
                                std::to_string(i) + " but with a type other than std::string");
 
         // Validate and fill parameters for this kernel.
@@ -183,7 +185,7 @@ class KernelDispatcher : public mundy::meta::MetaMethod<void> {
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<KernelDispatcher>(bulk_data_ptr, fixed_params);
+    return std::make_shared<MetaKernelDispatcher>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
@@ -218,9 +220,9 @@ class KernelDispatcher : public mundy::meta::MetaMethod<void> {
   std::vector<stk::mesh::Part *> part_ptr_vector_;
 
   /// \brief Vector of kernels, one for each active kernel.
-  std::vector<std::shared_ptr<KernelType>> kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernel<void>>> kernel_ptrs_;
   //@}
-};  // KernelDispatcher
+};  // MetaKernelDispatcher
 
 //! \name Template specializations
 //@{
@@ -228,13 +230,13 @@ class KernelDispatcher : public mundy::meta::MetaMethod<void> {
 // \name Constructors and destructor
 //{
 
-template <typename KernelType, typename KernelFactoryType>
-KernelDispatcher<KernelType, KernelFactoryType>::KernelDispatcher(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                  const Teuchos::ParameterList &fixed_params)
+template <typename RegistryIdentifier>
+MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                          const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "KernelDispatcher: bulk_data_ptr cannot be a nullptr.");
+                     "MetaKernelDispatcher: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -258,8 +260,9 @@ KernelDispatcher<KernelType, KernelFactoryType>::KernelDispatcher(mundy::mesh::B
 // \name MetaFactory static interface implementation
 //{
 
-template <typename KernelType, typename KernelFactoryType>
-void KernelDispatcher<KernelType, KernelFactoryType>::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+template <typename RegistryIdentifier>
+void MetaKernelDispatcher<RegistryIdentifier>::set_mutable_params(
+    const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
@@ -267,7 +270,7 @@ void KernelDispatcher<KernelType, KernelFactoryType>::set_mutable_params(const T
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
   MUNDY_THROW_ASSERT(num_active_kernels_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
-                     "KernelDispatcher: Internal error. Mismatch between the stored kernel count\n"
+                     "MetaKernelDispatcher: Internal error. Mismatch between the stored kernel count\n"
                          << "and the parameter list kernel count. This should not happen.\n"
                          << "Please contact the development team.");
   for (size_t i = 0; i < num_active_kernels_; i++) {
@@ -280,8 +283,8 @@ void KernelDispatcher<KernelType, KernelFactoryType>::set_mutable_params(const T
 // \name Actions
 //{
 
-template <typename KernelType, typename KernelFactoryType>
-void KernelDispatcher<KernelType, KernelFactoryType>::execute(const stk::mesh::Selector &input_selector) {
+template <typename RegistryIdentifier>
+void MetaKernelDispatcher<RegistryIdentifier>::execute(const stk::mesh::Selector &input_selector) {
   for (size_t i = 0; i < num_active_kernels_; i++) {
     kernel_ptrs_[i]->setup();
   }

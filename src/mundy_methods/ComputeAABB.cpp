@@ -20,28 +20,12 @@
 /// \file ComputeAABB.cpp
 /// \brief Definition of the ComputeAABB class
 
-// C++ core libs
-#include <memory>     // for std::shared_ptr, std::unique_ptr
-#include <stdexcept>  // for std::logic_error, std::invalid_argument
-#include <string>     // for std::string
-#include <vector>     // for std::vector
-
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
-#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
-#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
-#include <mundy_meta/MeshRequirements.hpp>                    // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>                          // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
 #include <mundy_methods/ComputeAABB.hpp>                      // for mundy::methods::ComputeAABB
 #include <mundy_methods/compute_aabb/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
@@ -53,8 +37,7 @@ namespace methods {
 //{
 
 ComputeAABB::ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-    : mundy::meta::KernelDispatcher<mundy::meta::MetaKernel<void>, mundy::meta::MetaKernelFactory<void, ComputeAABB>>(
-          bulk_data_ptr, fixed_params) {
+    : mundy::meta::MetaKernelDispatcher<ComputeAABB>(bulk_data_ptr, fixed_params) {
 }
 //}
 

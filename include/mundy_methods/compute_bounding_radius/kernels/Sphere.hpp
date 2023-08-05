@@ -89,11 +89,11 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     // Fill the requirements using the given parameter list.
     std::string radius_field_name = valid_fixed_params.get<std::string>("radius_field_name");
     std::string bounding_radius_field_name = valid_fixed_params.get<std::string>("bounding_radius_field_name");
+    std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("SPHERE");
+    part_reqs->set_part_name(associated_part_name);
     part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("SPHERE"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -126,6 +126,16 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     } else {
       fixed_params_ptr->set("bounding_radius_field_name", std::string(default_bounding_radius_field_name_),
                             "Name of the element field within which the output bounding radius will be written.");
+    }
+
+    if (fixed_params_ptr->isParameter("part_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "Sphere: Type error. Given a parameter with name 'part_name' but "
+                             << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("part_name", std::string(default_part_name_),
+                            "Name of the part associated with this kernel.");
     }
   }
 
@@ -183,6 +193,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //@{
 
   static constexpr double default_buffer_distance_ = 0.0;
+  static constexpr std::string_view default_part_name_ = "SPHERE";
   static constexpr std::string_view default_bounding_radius_field_name_ = "BOUNDING_RADIUS";
   static constexpr std::string_view default_radius_field_name_ = "RADIUS";
   //@}

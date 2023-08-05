@@ -26,25 +26,15 @@
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
 #include <string>  // for std::string
-#include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/KernelDispatcher.hpp>  // for mundy::meta::KernelDispatcher
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for MUNDY_REGISTER_METACLASS
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::GlobalMetaMethodFactory
+#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
 
 namespace mundy {
 
@@ -52,17 +42,7 @@ namespace methods {
 
 /// \class ComputeAABB
 /// \brief Method for computing the axis aligned boundary box of different parts.
-///
-/// The methodology behind the design choices in this class is as follows:
-/// The \c ComputeAABB class is a \c MetaMethod that is responsible for computing the axis aligned bounding box of
-/// different parts. Originally, this class was designed as a "MetaMultibodyMethod" that assigned a \c MetaKernel to
-/// each enabled multibody part. However, this design was not flexible enough to handle the case where a multiple
-/// \c MetaKernels needed to be assigned to the same multibody type but has the advantage of allowing for default
-/// kernels. The alternative design is to allow users the freedom to directly specify the \c MetaKernels that they want
-/// to use for each part. This design is more flexible but requires more work on the user's part since they must
-/// specify the \c MetaKernels themselves.
-class ComputeAABB : public mundy::meta::KernelDispatcher<mundy::meta::MetaKernel<void>,
-                                                         mundy::meta::MetaKernelFactory<void, ComputeAABB>> {
+class ComputeAABB : public mundy::meta::MetaKernelDispatcher<ComputeAABB> {
  public:
   //! \name Constructors and destructor
   //@{
