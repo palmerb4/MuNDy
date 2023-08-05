@@ -31,7 +31,7 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy/throw_assert.hpp>                         // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                        // for mundy::mesh::BulkData
 #include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
 
@@ -106,6 +106,12 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   aabb[3] = coords[0] + radius[0] + buffer_distance_;
   aabb[4] = coords[1] + radius[0] + buffer_distance_;
   aabb[5] = coords[2] + radius[0] + buffer_distance_;
+
+  std::cout << "Sphere: " << sphere_element << std::endl;
+  std::cout << "Sphere radius: " << radius[0] << std::endl;
+  std::cout << "Sphere aabb:"
+            << " " << aabb[0] << " " << aabb[1] << " " << aabb[2] << " " << aabb[3] << " " << aabb[4] << " " << aabb[5]
+            << std::endl;
 }
 
 void Sphere::finalize() {

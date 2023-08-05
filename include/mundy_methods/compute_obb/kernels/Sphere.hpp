@@ -232,7 +232,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   ///
   /// For example, if the original object-aligned boundary box has left corner at [0,0,0] and right corner at [1,1,1],
   /// then a buffer distance of 2 will shift the left corner to [-2,-2,-2] and right corner to [3,3,3].
-  double buffer_distance_;
+  double buffer_distance_ = default_buffer_distance_;
 
   /// \brief Name of the element field within which the output object-aligned boundary boxes will be written.
   std::string obb_field_name_;

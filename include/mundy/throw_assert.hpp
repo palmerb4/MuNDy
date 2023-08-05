@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_ASSERT_HPP_
-#define MUNDY_ASSERT_HPP_
+#ifndef MUNDY_THROW_ASSERT_HPP_
+#define MUNDY_THROW_ASSERT_HPP_
 
 /// \file MundyAssert.cpp
 /// \brief Declaration of our assertion macros
@@ -55,4 +55,4 @@
     }                                                                                                \
   } while (0)
 
-#endif  // MUNDY_ASSERT_HPP_
+#endif  // MUNDY_THROW_ASSERT_HPP_

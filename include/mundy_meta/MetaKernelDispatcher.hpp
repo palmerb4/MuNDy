@@ -185,7 +185,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<MetaKernelDispatcher>(bulk_data_ptr, fixed_params);
+    return std::make_shared<MetaKernelDispatcher<RegistryIdentifier>>(bulk_data_ptr, fixed_params);
   }
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
@@ -205,7 +205,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "KERNEL_DISPATCHER";
+  static constexpr std::string_view registration_id_ = "META_KERNEL_DISPATCHER";
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
