@@ -90,11 +90,11 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
     std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
     std::string element_radius_field_name = valid_fixed_params.get<std::string>("element_radius_field_name");
     std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
+    std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("SPHEROCYLINDER");
+    part_reqs->set_part_name(associated_part_name);
     part_reqs->set_part_topology(stk::topology::BEAM_3);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("SPHEROCYLINDER"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                        stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -141,6 +141,16 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
       fixed_params_ptr->set(
           "element_aabb_field_name", std::string(default_element_aabb_field_name_),
           "Name of the element field within which the output axis-aligned boundary boxes will be written.");
+    }
+
+    if (fixed_params_ptr->isParameter("part_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "Sphere: Type error. Given a parameter with name 'part_name' but "
+                             << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("part_name", std::string(default_part_name_),
+                            "Name of the part associated with this kernel.");
     }
   }
 
@@ -198,6 +208,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
   //@{
 
   static constexpr double default_buffer_distance_ = 0.0;
+  static constexpr std::string_view default_part_name_ = "SPHEROCYLINDER";
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_element_radius_field_name_ = "ELEMENT_RADIUS";
   static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
