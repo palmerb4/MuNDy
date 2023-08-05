@@ -95,11 +95,11 @@ class Collision : public mundy::meta::MetaKernel<void> {
     // Fill the requirements using the given parameter list.
     std::string element_lagrange_multiplier_field_name =
         valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+    std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("COLLISION");
+    part_reqs->set_part_name(associated_part_name);
     part_reqs->set_part_topology(stk::topology::BEAM_2);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("COLLISION"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
@@ -122,6 +122,16 @@ class Collision : public mundy::meta::MetaKernel<void> {
       fixed_params_ptr->set("element_lagrange_multiplier_field_name",
                             std::string(default_element_lagrange_multiplier_field_name_),
                             "Name of the element field containing the constraint's Lagrange multiplier.");
+    }
+  
+    if (fixed_params_ptr->isParameter("part_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "Collision: Type error. Given a parameter with name 'part_name' but "
+                             << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("part_name", std::string(default_part_name_),
+                            "Name of the part associated with this kernel.");
     }
   }
 
@@ -169,6 +179,7 @@ class Collision : public mundy::meta::MetaKernel<void> {
   //! \name Default parameters
   //@{
 
+  static constexpr std::string_view default_part_name_ = "COLLISION";
   static constexpr std::string_view default_element_lagrange_multiplier_field_name_ = "ELEMENT_LAGRANGE_MULTIPLIER";
   //@}
 

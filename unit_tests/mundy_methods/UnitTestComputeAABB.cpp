@@ -158,27 +158,32 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   bulk_data_ptr->declare_relation(sphere_element, sphere_node, 0);
   bulk_data_ptr->modification_end();
 
+  // Fetch the required fields.
+  stk::mesh::Field<double> *node_coord_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORD");
+  ASSERT_TRUE(node_coord_field_ptr != nullptr);
+  stk::mesh::Field<double> *radius_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
+  ASSERT_TRUE(radius_field_ptr != nullptr);
+  stk::mesh::Field<double> *aabb_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "AABB");
+  ASSERT_TRUE(aabb_field_ptr != nullptr);
+
   // Set the sphere's position.
   double sphere_position[3] = {0.0, 0.0, 0.0};
-  stk::mesh::Field<double> &node_coord_field =
-      *meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORD");
-  double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
+  double *node_coords = stk::mesh::field_data(*node_coord_field_ptr, sphere_node);
   node_coords[0] = sphere_position[0];
   node_coords[1] = sphere_position[1];
   node_coords[2] = sphere_position[2];
 
   // Set the sphere's radius.
   double sphere_radius = 1.0;
-  stk::mesh::Field<double> &radius_field = *meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
-  double *radius = stk::mesh::field_data(radius_field, sphere_element);
+  double *radius = stk::mesh::field_data(*radius_field_ptr, sphere_element);
   radius[0] = sphere_radius;
 
   // Compute the AABB.
   compute_aabb_ptr->execute(*sphere_part_ptr);
 
   // Check that the computed aabb is as expected.
-  stk::mesh::Field<double> &aabb_field = *meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "AABB");
-  double *aabb = stk::mesh::field_data(aabb_field, sphere_element);
+  double *aabb = stk::mesh::field_data(*aabb_field_ptr, sphere_element);
   double expected_aabb[6] = {-1.0, -1.0, -1.0, 1.0, 1.0, 1.0};
   for (int i = 0; i < 6; i++) {
     EXPECT_DOUBLE_EQ(aabb[i], expected_aabb[i]);

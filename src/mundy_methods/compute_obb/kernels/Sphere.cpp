@@ -58,9 +58,19 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   obb_field_name_ = valid_fixed_params.get<std::string>("obb_field_name");
   radius_field_name_ = valid_fixed_params.get<std::string>("radius_field_name");
   node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
+
+  // Get the field pointers.
   obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, obb_field_name_);
   radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+
+  // Check that the fields exist.
+  MUNDY_THROW_ASSERT(obb_field_ptr_ != nullptr, std::invalid_argument,
+                    "Sphere: obb_field_ptr_ cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(radius_field_ptr_ != nullptr, std::invalid_argument,
+                    "Sphere: radius_field_ptr_ cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
+                    "Sphere: node_coord_field_ptr_ cannot be a nullptr. Check that the field exists.");
 }
 //}
 

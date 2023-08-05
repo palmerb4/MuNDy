@@ -65,10 +65,18 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   node_velocity_field_name_ = valid_fixed_params.get<std::string>("node_velocity_field_name");
   node_omega_field_name_ = valid_fixed_params.get<std::string>("node_omega_field_name");
 
-  // Store the input params.
+  // Get the field pointers.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
   node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name_);
   node_omega_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_omega_field_name_);
+
+  // Check that the fields exist.
+  MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(node_velocity_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: node_velocity_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(node_omega_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: node_omega_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
 

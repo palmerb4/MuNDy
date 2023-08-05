@@ -31,6 +31,7 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
@@ -67,13 +68,24 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   element_constraint_violation_field_name_ =
       valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
 
-  // Store the input params.
+  // Get the field pointers.
   element_signed_separation_dist_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_signed_separation_dist_field_name_);
   element_lagrange_multiplier_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name_);
   element_constraint_violation_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_constraint_violation_field_name_);
+
+  // Check that the fields and part exist.
+  MUNDY_THROW_ASSERT(
+      element_signed_separation_dist_field_ptr_ != nullptr, std::invalid_argument,
+      "Collision: element_signed_separation_dist_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(
+      element_lagrange_multiplier_field_ptr_ != nullptr, std::invalid_argument,
+      "Collision: element_lagrange_multiplier_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(
+      element_constraint_violation_field_ptr_ != nullptr, std::invalid_argument,
+      "Collision: element_constraint_violation_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
 

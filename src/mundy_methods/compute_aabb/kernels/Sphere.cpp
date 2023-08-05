@@ -31,6 +31,7 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                        // for mundy::mesh::BulkData
 #include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
 
@@ -59,7 +60,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   radius_field_name_ = valid_fixed_params.get<std::string>("radius_field_name");
   aabb_field_name_ = valid_fixed_params.get<std::string>("aabb_field_name");
 
-  // Store the input params.
+  // Get the field pointers.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
   radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
   aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, aabb_field_name_);

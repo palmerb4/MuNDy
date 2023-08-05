@@ -97,11 +97,11 @@ class Collision : public mundy::meta::MetaKernel<void> {
     std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
     std::string element_lagrange_multiplier_field_name =
         valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+    std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("COLLISION");
+    part_reqs->set_part_name(associated_part_name);
     part_reqs->set_part_topology(stk::topology::BEAM_2);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("COLLISION"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                        stk::topology::NODE_RANK, 3, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_force_field_name,
@@ -149,6 +149,16 @@ class Collision : public mundy::meta::MetaKernel<void> {
                             std::string(default_element_lagrange_multiplier_field_name_),
                             "Name of the element field containing the constraint's Lagrange multiplier.");
     }
+
+    if (fixed_params_ptr->isParameter("part_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "Collision: Type error. Given a parameter with name 'part_name' but "
+                             << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("part_name", std::string(default_part_name_),
+                            "Name of the part associated with this kernel.");
+    }
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
@@ -195,6 +205,7 @@ class Collision : public mundy::meta::MetaKernel<void> {
   //! \name Default parameters
   //@{
 
+  static constexpr std::string_view default_part_name_ = "COLLISION";
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
   static constexpr std::string_view default_element_lagrange_multiplier_field_name_ = "ELEMENT_LAGRANGE_MULTIPLIER";
@@ -206,6 +217,9 @@ class Collision : public mundy::meta::MetaKernel<void> {
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
   static constexpr std::string_view registration_id_ = "COLLISION";
+
+  /// \brief The name of the part associated with this kernel.
+  std::string associated_part_name_;
 
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;

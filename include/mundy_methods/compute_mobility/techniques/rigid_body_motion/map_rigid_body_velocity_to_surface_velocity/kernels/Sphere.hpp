@@ -96,11 +96,11 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
     std::string node_omega_field_name = valid_fixed_params.get<std::string>("node_omega_field_name");
+    std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    sphere_part_reqs->set_part_name("SPHERE");
+    sphere_part_reqs->set_part_name(associated_part_name);
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("SPHERE"));
     sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
     sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -109,10 +109,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
         node_omega_field_name, stk::topology::NODE_RANK, 3, 1));
 
     auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    linker_part_reqs->set_part_name("LINKER");
+    linker_part_reqs->set_part_name(associated_part_name + "_LINKER");
     linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-    linker_part_reqs->put_multibody_part_attribute(
-        mundy::multibody::MultibodyFactory::get_multibody_type("CONSTRAINT"));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(sphere_part_reqs);
@@ -153,6 +151,16 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     } else {
       fixed_params_ptr->set("node_omega_field_name", std::string(default_node_omega_field_name_),
                             "Name of the node field containing the surface and body rotational velocity.");
+    }
+
+    if (fixed_params_ptr->isParameter("part_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "Sphere: Type error. Given a parameter with name 'part_name' but "
+                             << "with a type other than std::string");
+    } else {
+      fixed_params_ptr->set("part_name", std::string(default_part_name_),
+                            "Name of the part associated with this kernel.");
     }
   }
 
@@ -200,6 +208,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //! \name Default parameters
   //@{
 
+  static constexpr std::string_view default_part_name_ = "SPHERE";
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   static constexpr std::string_view default_node_omega_field_name_ = "NODE_OMEGA";

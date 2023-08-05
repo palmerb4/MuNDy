@@ -65,11 +65,15 @@ TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
   // Create an instance of ComputeOBB based on committed mesh that meets the requirements for ComputeOBB.
   auto [compute_obb_ptr, bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<ComputeOBB>();
+  ASSERT_TRUE(compute_obb_ptr != nullptr);
+  ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
+  ASSERT_TRUE(meta_data_ptr != nullptr);
 
   // Fetch the multibody sphere part and add a single sphere to it.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERE");
   ASSERT_TRUE(sphere_part_ptr != nullptr);
+
   bulk_data_ptr->modification_begin();
   stk::mesh::EntityId sphere_id = 1;
   stk::mesh::Entity sphere_element =
@@ -78,27 +82,32 @@ TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
   bulk_data_ptr->declare_relation(sphere_element, sphere_node, 0);
   bulk_data_ptr->modification_end();
 
+  // Fetch the required fields.
+  stk::mesh::Field<double> *node_coord_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORD");
+  ASSERT_TRUE(node_coord_field_ptr != nullptr);
+  stk::mesh::Field<double> *radius_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
+  ASSERT_TRUE(radius_field_ptr != nullptr);
+  stk::mesh::Field<double> *obb_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "OBB");
+  ASSERT_TRUE(obb_field_ptr != nullptr);
+
   // Set the sphere's position.
   double sphere_position[3] = {0.0, 0.0, 0.0};
-  stk::mesh::Field<double> &node_coord_field =
-      *meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORD");
-  double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
+  double *node_coords = stk::mesh::field_data(*node_coord_field_ptr, sphere_node);
   node_coords[0] = sphere_position[0];
   node_coords[1] = sphere_position[1];
   node_coords[2] = sphere_position[2];
 
   // Set the sphere's radius.
   double sphere_radius = 1.0;
-  stk::mesh::Field<double> &radius_field = *meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
-  double *radius = stk::mesh::field_data(radius_field, sphere_element);
+  double *radius = stk::mesh::field_data(*radius_field_ptr, sphere_element);
   radius[0] = sphere_radius;
 
   // Compute the OBB.
   compute_obb_ptr->execute(*sphere_part_ptr);
 
   // Check that the computed obb is as expected.
-  stk::mesh::Field<double> &obb_field = *meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "OBB");
-  double *obb = stk::mesh::field_data(obb_field, sphere_element);
+  double *obb = stk::mesh::field_data(*obb_field_ptr, sphere_element);
   double expected_obb[6] = {-1.0, -1.0, -1.0, 1.0, 1.0, 1.0};
   for (int i = 0; i < 6; i++) {
     EXPECT_DOUBLE_EQ(obb[i], expected_obb[i]);

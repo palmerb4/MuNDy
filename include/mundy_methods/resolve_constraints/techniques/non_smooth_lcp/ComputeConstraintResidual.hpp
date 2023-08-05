@@ -44,7 +44,7 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintResidual.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintResidual
+#include <mundy_methods/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::methods::...::NonSmoothLCP
 
 namespace mundy {
 
@@ -57,7 +57,7 @@ namespace techniques {
 namespace non_smooth_lcp {
 
 /// \class ComputeConstraintResidual
-/// \brief Method for computing the axis aligned boundary box of different parts.
+/// \brief Method for computing the global constraint residual based on the current constraint violation.
 class ComputeConstraintResidual : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
@@ -67,11 +67,8 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void> {
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ComputeConstraintResidual>;
   //@}
-
-  //! \name Constructors and destructor
-  //@{
-
-  /// \brief No default constructor
+  /// \brief Method for computing the global constraint residual based on the current constraint violation.
+  //! \name Constructors and de : public mundy::meta::MetaMethod<void>t constructor
   ComputeConstraintResidual() = delete;
 
   /// \brief Constructor
@@ -207,6 +204,9 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<void> {
 /// @brief Register ComputeConstraintResidual with NonSmoothLCP's method factory.
 MUNDY_REGISTER_METACLASS(mundy::methods::resolve_constraints::techniques::non_smooth_lcp::ComputeConstraintResidual,
                          mundy::methods::resolve_constraints::techniques::NonSmoothLCP::OurMethodFactory)
+//}
+
+#endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTRESIDUAL_HPP_
 //}
 
 #endif  // MUNDY_METHODS_RESOLVE_CONSTRAINTS_TECHNIQUES_NON_SMOOTH_LCP_COMPUTECONSTRAINTRESIDUAL_HPP_

@@ -20,27 +20,12 @@
 /// \file ComputeConstraintForcing.cpp
 /// \brief Definition of the ComputeConstraintForcing class
 
-// C++ core libs
-#include <memory>     // for std::shared_ptr, std::unique_ptr
-#include <stdexcept>  // for std::logic_error, std::invalid_argument
-#include <string>     // for std::string
-#include <vector>     // for std::vector
-
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
-#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/ComputeConstraintForcing.hpp>  // for mundy::methods::...::non_smooth_lcp::ComputeConstraintForcing
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_forcing/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
@@ -57,80 +42,11 @@ namespace non_smooth_lcp {
 // \name Constructors and destructor
 //{
 
-ComputeAABB::ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-    : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
-  // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "ComputeAABB: bulk_data_ptr cannot be a nullptr.");
-
-  // Validate the input params. Use default values for any parameter not given.
-  Teuchos::ParameterList valid_fixed_params = fixed_params;
-  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
-
-  // Parse the parameters
-  Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
-  num_multibody_types_ = kernels_sublist.get<unsigned>("count");
-  multibody_part_ptr_vector_.reserve(num_multibody_types_);
-  multibody_kernel_ptrs_.reserve(num_multibody_types_);
-  for (size_t i = 0; i < num_multibody_types_; i++) {
-    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
-    const std::string kernel_name = kernel_params.get<std::string>("name");
-    multibody_part_ptr_vector_.push_back(meta_data_ptr_->get_part(kernel_name));
-    multibody_kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
-  }
-}
-//}
-
-// \name MetaFactory static interface implementation
-//{
-
-void ComputeAABB::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
-  // Validate the input params. Use default values for any parameter not given.
-  Teuchos::ParameterList valid_mutable_params = mutable_params;
-  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
-
-  // Parse the parameters
-  Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  MUNDY_THROW_ASSERT(
-      num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
-      "ComputeAABB: Internal error. Mismatch between the stored kernel count and the parameter list kernel count.\n"
-          << "Odd... Please contact the development team.");
-  for (size_t i = 0; i < num_multibody_types_; i++) {
-    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
-    multibody_kernel_ptrs_[i]->set_mutable_params(kernel_params);
-  }
-}
-//}
-
-// \name Actions
-//{
-
-void ComputeConstraintForcing::execute(const stk::mesh::Selector &input_selector) {
-  // TODO(palmerb4): The following is incorrect because we do never reset the constraint force field.
-  // We need to add in alpha and beta to let the user choose.
-  for (size_t i = 0; i < num_multibody_types_; i++) {
-    multibody_kernel_ptrs_[i]->setup();
-  }
-
-  for (size_t i = 0; i < num_multibody_types_; i++) {
-    auto multibody_part_ptr_i = multibody_part_ptr_vector_[i];
-    auto multibody_kernel_ptr_i = multibody_kernel_ptrs_[i];
-
-    stk::mesh::Selector locally_owned_intersection_with_part_i =
-        stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & stk::mesh::Selector(*multibody_part_ptr_i) &
-        input_selector;
-
-    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
-                                   locally_owned_intersection_with_part_i,
-                                   [&multibody_kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                             const stk::mesh::Entity &element) {
-                                     multibody_kernel_ptr_i->execute(element);
-                                   });
-  }
-
-  for (size_t i = 0; i < num_multibody_types_; i++) {
-    multibody_kernel_ptrs_[i]->finalize();
-  }
+// TODO(palmerb4): The following is incorrect because we do never reset the constraint force field.
+// We need to add in alpha and beta to let the user choose.
+ComputeConstraintForcing::ComputeConstraintForcing(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                   const Teuchos::ParameterList &fixed_params)
+    : mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing>(bulk_data_ptr, fixed_params) {
 }
 //}
 

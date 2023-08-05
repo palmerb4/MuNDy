@@ -31,6 +31,7 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 #include <mundy_methods/resolve_constraints/techniques/non_smooth_lcp/compute_constraint_forcing/kernels/Collision.hpp>  // for mundy::methods::...::kernels::Collision
 
@@ -65,15 +66,26 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   node_force_field_name_ = valid_fixed_params.get<std::string>("node_force_field_name");
   element_lagrange_multiplier_field_name_ =
       valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
+  associated_part_name_ = valid_fixed_params.get<std::string>("part_name");
 
-  // Store the input params.
+  // Get the field pointers.
   node_normal_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_normal_field_name_);
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
   element_lagrange_multiplier_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name_);
 
   // Prefetch the collision part.
-  collision_part_ptr_ = meta_data_ptr_->get_part("COLLISION");
+  collision_part_ptr_ = meta_data_ptr_->get_part(associated_part_name_);
+
+  // Check that the fields and part exist.
+  MUNDY_THROW_ASSERT(node_normal_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: node_normal_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(node_force_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: node_force_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(element_lagrange_multiplier_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: element_lagrange_multiplier_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(collision_part_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: collision_part_ptr cannot be a nullptr. Check that the part exists.");
 }
 //}
 
