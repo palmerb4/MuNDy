@@ -41,13 +41,13 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaKWayKernel.hpp>    // for mundy::meta::MetaKWayKernel
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
-#include <stk_util/util/ReportHandler.hpp>  // for STK_ThrowAssertMsg
+#include <mundy/throw_assert.hpp>                               // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
+#include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
+#include <mundy_meta/MeshRequirements.hpp>                      // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaKWayKernel.hpp>                        // for mundy::meta::MetaKWayKernel
+#include <mundy_meta/MetaKernel.hpp>                            // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>                            // for mundy::meta::MetaMethod
 
 namespace mundy {
 

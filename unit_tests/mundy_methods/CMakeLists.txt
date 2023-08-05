@@ -22,4 +22,6 @@
 # as it produces more logical error messages when a test fails.
 target_sources(${utest_ex_name} PRIVATE
    ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestComputeAABB.cpp
-)
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestComputeBoundingRadius.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestComputeOBB.cpp
+   )

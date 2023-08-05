@@ -43,7 +43,9 @@
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 #include <mundy_methods/ComputeAABB.hpp>         // for mundy::methods::ComputeAABB
-// #include <mundy_methods/compute_aabb/kernels/Sphere.hpp>  // for mundy::methods::compute_aabb::kernels::Sphere
+
+// Mundy test libs
+#include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 
 namespace mundy {
 
@@ -60,12 +62,6 @@ TEST(ComputeAABBStaticInterface, IsRegisterable) {
 }
 
 TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
-  // This test requires that the Sphere class has been registered with ComputeAABB's kernel factory.
-  // bool is_registered =
-  //     MUNDY_IS_REGISTERED(mundy::methods::compute_aabb::kernels::Sphere,
-  //     mundy::methods::ComputeAABB::OurKernelFactory);
-  // ASSERT_TRUE(is_registered);
-
   // Check the expected default values.
   Teuchos::ParameterList fixed_params;
   ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
@@ -145,22 +141,10 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   and center at the sphere's position.
   */
 
-  // Create a mesh that meets the requirements for ComputeAABB.
-  Teuchos::ParameterList fixed_params;
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs_ptr->set_spatial_dimension(3);
-  mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
-  ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
-  mesh_reqs_ptr->merge(ComputeAABB::get_mesh_requirements(fixed_params));
-  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
-  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-
-  // At this point, we solidify the mesh structure by calling commit.
-  meta_data_ptr->commit();
-
-  // Create a new instance of ComputeAABB with the default fixed params.
-  // Note, we do not specify the mutable params, so the default values will be used.
-  auto compute_aabb_ptr = ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params);
+  // Create an instance of ComputeAABB based on committed mesh that meets the requirements for ComputeAABB.
+  auto [compute_aabb_ptr, bulk_data_ptr] =
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<ComputeAABB>();
+  auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
   // Fetch the multibody sphere part and add a single sphere to it.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERE");
