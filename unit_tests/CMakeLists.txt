@@ -20,5 +20,5 @@
 add_subdirectory(mundy)
 add_subdirectory(mundy_mesh)
 add_subdirectory(mundy_meta)
-add_subdirectory(mundy_methods)
 add_subdirectory(mundy_multibody)
+add_subdirectory(mundy_shape)

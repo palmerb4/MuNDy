@@ -17,14 +17,12 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(mundy_balance)
-add_subdirectory(mundy_constraint)
-add_subdirectory(mundy_init)
-add_subdirectory(mundy_io)
-add_subdirectory(mundy_mesh)
-add_subdirectory(mundy_meta)
-add_subdirectory(mundy_motion)
-add_subdirectory(mundy_multibody)
-add_subdirectory(mundy_pairwise)
-add_subdirectory(mundy_search)
-add_subdirectory(mundy_shape)
+target_sources(mundy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeAABB.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeBoundingRadius.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeOBB.cpp
+)
+
+add_subdirectory(compute_aabb)
+add_subdirectory(compute_bounding_radius)
+add_subdirectory(compute_obb)

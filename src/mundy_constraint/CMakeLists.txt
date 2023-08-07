@@ -17,14 +17,16 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(mundy_balance)
-add_subdirectory(mundy_constraint)
-add_subdirectory(mundy_init)
-add_subdirectory(mundy_io)
-add_subdirectory(mundy_mesh)
-add_subdirectory(mundy_meta)
-add_subdirectory(mundy_motion)
-add_subdirectory(mundy_multibody)
-add_subdirectory(mundy_pairwise)
-add_subdirectory(mundy_search)
-add_subdirectory(mundy_shape)
+target_sources(mundy PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintForcing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintProjection.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintResidual.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeConstraintViolation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/GenerateCollisionConstraints.cpp
+)
+
+add_subdirectory(compute_constraint_forcing)
+add_subdirectory(compute_constraint_projection)
+add_subdirectory(compute_constraint_violation)
+add_subdirectory(generate_collision_constraints)
+
