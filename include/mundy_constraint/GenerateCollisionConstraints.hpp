@@ -24,10 +24,10 @@
 /// \brief Declaration of the GenerateCollisionConstraints class
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
-#include <utility> // for std::pair
+#include <memory>   // for std::shared_ptr, std::unique_ptr
+#include <string>   // for std::string
+#include <utility>  // for std::pair
+#include <vector>   // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList

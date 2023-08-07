@@ -98,7 +98,7 @@ double ComputeConstraintResidual::execute(const stk::mesh::Selector &input_selec
   stk::mesh::impl::for_each_selected_entity_run_no_threads(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
       locally_owned_intersection_with_constraints,
-      [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::MeshIndex& meshIndex) {
+      [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::MeshIndex &meshIndex) {
         // Fetch the entity from the mesh index
         stk::mesh::Entity element = (*meshIndex.bucket)[meshIndex.bucket_ordinal];
 

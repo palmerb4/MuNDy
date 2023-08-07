@@ -165,4 +165,3 @@ Methodology: TLDR We're using a method-centric functional programming design to 
     to add new methods without modifying the existing code base. If a user wants to add their own technique, they need only register it with ComputeAABB's static factory. Mundy consists of a hierarchy of such factories, 
     each of which is responsible for a set of methods, techniques, or computational operations.
   - Mundy's static factory is compiled in a you-only-get-what-you-use fashion and special care is given to ensuring that registration and construction of Mundy's hierarchy occurs only when necessary.
-

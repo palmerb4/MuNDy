@@ -34,13 +34,13 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_meta/MeshRequirements.hpp>       // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>             // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>             // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaMethodRegistry
+#include <mundy/throw_assert.hpp>               // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MeshRequirements.hpp>      // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 #include <mundy_motion/ResolveConstraints.hpp>  // for mundy::motion::ResolveConstraints
 #include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
 #include <mundy_motion/resolve_constraints/techniques/non_smooth_lcp/AllSubMethods.hpp>  // performs the registration of all sub-methods

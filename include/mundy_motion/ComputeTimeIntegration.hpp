@@ -24,11 +24,11 @@
 /// \brief Declaration of the ComputeTimeIntegration class
 
 // C++ core libs
-#include <memory>   // for std::shared_ptr, std::unique_ptr
-#include <string>   // for std::string
+#include <memory>  // for std::shared_ptr, std::unique_ptr
+#include <string>  // for std::string
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
 #include <mundy/StringLiteral.hpp>                 // for mundy::make_string_literal

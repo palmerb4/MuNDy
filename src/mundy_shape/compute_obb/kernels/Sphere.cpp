@@ -31,7 +31,7 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                       // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>                     // for mundy::mesh::BulkData
 #include <mundy_shape/compute_obb/kernels/Sphere.hpp>  // for mundy::shape::compute_obb::kernels::Sphere
 
 namespace mundy {
@@ -66,11 +66,11 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 
   // Check that the fields exist.
   MUNDY_THROW_ASSERT(obb_field_ptr_ != nullptr, std::invalid_argument,
-                    "Sphere: obb_field_ptr_ cannot be a nullptr. Check that the field exists.");
+                     "Sphere: obb_field_ptr_ cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(radius_field_ptr_ != nullptr, std::invalid_argument,
-                    "Sphere: radius_field_ptr_ cannot be a nullptr. Check that the field exists.");
+                     "Sphere: radius_field_ptr_ cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
-                    "Sphere: node_coord_field_ptr_ cannot be a nullptr. Check that the field exists.");
+                     "Sphere: node_coord_field_ptr_ cannot be a nullptr. Check that the field exists.");
 }
 //}
 

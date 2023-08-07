@@ -91,8 +91,9 @@ class ComputeConstraintForcing : public mundy::meta::MetaKernelDispatcher<Comput
 //@{
 
 /// @brief Register ComputeConstraintForcing with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::ComputeConstraintForcing,
-                         mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintForcingMethodFactory)
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintForcing,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintForcingMethodFactory)
 //}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTFORCING_HPP_

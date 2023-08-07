@@ -31,8 +31,8 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                         // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>                        // for mundy::mesh::BulkData
+#include <mundy/throw_assert.hpp>                       // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
 #include <mundy_shape/compute_aabb/kernels/Sphere.hpp>  // for mundy::shape::compute_aabb::kernels::Sphere
 
 namespace mundy {

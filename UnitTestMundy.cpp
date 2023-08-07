@@ -1,36 +1,36 @@
-//Start
-// Copyright 2002 - 2008, 2010, 2011 National Technology Engineering
-// Solutions of Sandia, LLC (NTESS). Under the terms of Contract
-// DE-NA0003525 with NTESS, the U.S. Government retains certain rights
-// in this software.
+// Start
+//  Copyright 2002 - 2008, 2010, 2011 National Technology Engineering
+//  Solutions of Sandia, LLC (NTESS). Under the terms of Contract
+//  DE-NA0003525 with NTESS, the U.S. Government retains certain rights
+//  in this software.
 //
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are
+//  met:
 //
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
+//      * Redistributions of source code must retain the above copyright
+//        notice, this list of conditions and the following disclaimer.
 //
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
+//      * Redistributions in binary form must reproduce the above
+//        copyright notice, this list of conditions and the following
+//        disclaimer in the documentation and/or other materials provided
+//        with the distribution.
 //
-//     * Neither the name of NTESS nor the names of its contributors
-//       may be used to endorse or promote products derived from this
-//       software without specific prior written permission.
+//      * Neither the name of NTESS nor the names of its contributors
+//        may be used to endorse or promote products derived from this
+//        software without specific prior written permission.
 //
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
 // #######################  Start Clang Header Tool Managed Headers ########################
@@ -60,8 +60,7 @@
 // clang-format on
 // #######################   End Clang Header Tool Managed Headers  ########################
 
-namespace
-{
+namespace {
 
 //////////////////
 // type defines //
@@ -88,36 +87,38 @@ struct Quaternion {
   double z;
 
   // constructors
-  Quaternion(const stk::math::Vec<double, 4> &q)
-  {
+  Quaternion(const stk::math::Vec<double, 4> &q) {
     w = q[0];
     x = q[1];
     y = q[2];
     z = q[3];
   }
 
-  Quaternion(const double qw, const double qx, const double qy, const double qz)
-  {
+  Quaternion(const double qw, const double qx, const double qy, const double qz) {
     w = qw;
     x = qx;
     y = qy;
     z = qz;
   }
 
-  Quaternion(const stk::math::Vec<double, 3> &v, const double sina_2, const double cosa_2)
-  {
+  Quaternion(const stk::math::Vec<double, 3> &v, const double sina_2, const double cosa_2) {
     from_rot(v, sina_2, cosa_2);
   }
 
-  Quaternion(const stk::math::Vec<double, 3> &v, const double angle) { from_rot(v, angle); }
+  Quaternion(const stk::math::Vec<double, 3> &v, const double angle) {
+    from_rot(v, angle);
+  }
 
-  Quaternion(const double u1, const double u2, const double u3) { from_unit_random(u1, u2, u3); }
+  Quaternion(const double u1, const double u2, const double u3) {
+    from_unit_random(u1, u2, u3);
+  }
 
-  Quaternion() { from_unit_random(); }
+  Quaternion() {
+    from_unit_random();
+  }
 
   // quaternion from rotation around a given axis (given sine and cosine of HALF the rotation angle)
-  void from_rot(const stk::math::Vec<double, 3> &v, const double sina_2, const double cosa_2)
-  {
+  void from_rot(const stk::math::Vec<double, 3> &v, const double sina_2, const double cosa_2) {
     w = cosa_2;
     x = sina_2 * v[0];
     y = sina_2 * v[1];
@@ -125,8 +126,7 @@ struct Quaternion {
   }
 
   // rotation around a given axis (angle without range restriction)
-  void from_rot(const stk::math::Vec<double, 3> &v, const double angle)
-  {
+  void from_rot(const stk::math::Vec<double, 3> &v, const double angle) {
     const double sina_2 = sin(angle / 2);
     const double cosa_2 = cos(angle / 2);
     w = cosa_2;
@@ -136,8 +136,7 @@ struct Quaternion {
   }
 
   // set a unit random quaternion representing uniform distribution on sphere surface
-  void from_unit_random(const double u1, const double u2, const double u3)
-  {
+  void from_unit_random(const double u1, const double u2, const double u3) {
     // a random unit quaternion following a uniform distribution law on SO(3)
     // from three U[0,1] random numbers
     constexpr double pi = 3.14159265358979323846;
@@ -154,18 +153,16 @@ struct Quaternion {
   }
 
   // set a unit random quaternion representing uniform distribution on sphere surface
-  void from_unit_random()
-  {
+  void from_unit_random() {
     // non threadsafe random unit quaternion
-    const double u1 = (double) rand() / RAND_MAX;
-    const double u2 = (double) rand() / RAND_MAX;
-    const double u3 = (double) rand() / RAND_MAX;
+    const double u1 = (double)rand() / RAND_MAX;
+    const double u2 = (double)rand() / RAND_MAX;
+    const double u3 = (double)rand() / RAND_MAX;
     from_unit_random(u1, u2, u3);
   }
 
   // normalize the quaternion q / ||q||
-  void normalize()
-  {
+  void normalize() {
     const double norm = sqrt(w * w + x * x + y * y + z * z);
     w = w / norm;
     x = x / norm;
@@ -175,8 +172,7 @@ struct Quaternion {
 
   // rotate a point v in 3D space around the origin using this quaternion
   // see EN Wikipedia on Quaternions and spatial rotation
-  stk::math::Vec<double, 3> rotate(const stk::math::Vec<double, 3> &v) const
-  {
+  stk::math::Vec<double, 3> rotate(const stk::math::Vec<double, 3> &v) const {
     const double t2 = x * y;
     const double t3 = x * z;
     const double t4 = x * w;
@@ -187,13 +183,13 @@ struct Quaternion {
     const double t9 = z * w;
     const double t10 = -w * w;
     return stk::math::Vec<double, 3>({double(2.0) * ((t8 + t10) * v[0] + (t6 - t4) * v[1] + (t3 + t7) * v[2]) + v[0],
-        double(2.0) * ((t4 + t6) * v[0] + (t5 + t10) * v[1] + (t9 - t2) * v[2]) + v[1],
-        double(2.0) * ((t7 - t3) * v[0] + (t2 + t9) * v[1] + (t5 + t8) * v[2]) + v[2]});
+                                      double(2.0) * ((t4 + t6) * v[0] + (t5 + t10) * v[1] + (t9 - t2) * v[2]) + v[1],
+                                      double(2.0) * ((t7 - t3) * v[0] + (t2 + t9) * v[1] + (t5 + t8) * v[2]) + v[2]});
   }
 
   // rotate a point v in 3D space around a given point p using this quaternion
-  stk::math::Vec<double, 3> rotate_around_point(const stk::math::Vec<double, 3> &v, const stk::math::Vec<double, 3> &p)
-  {
+  stk::math::Vec<double, 3> rotate_around_point(const stk::math::Vec<double, 3> &v,
+                                                const stk::math::Vec<double, 3> &p) {
     return rotate(v - p) + p;
   }
 
@@ -205,8 +201,7 @@ struct Quaternion {
    * @param omega rotational velocity
    * @param dt time interval
    */
-  void rotate_self(const stk::math::Vec<double, 3> &rot_vel, const double dt)
-  {
+  void rotate_self(const stk::math::Vec<double, 3> &rot_vel, const double dt) {
     const double rot_vel_norm = sqrt(rot_vel[0] * rot_vel[0] + rot_vel[1] * rot_vel[1] + rot_vel[2] * rot_vel[2]);
     if (rot_vel_norm < std::numeric_limits<double>::epsilon()) {
       return;
@@ -234,8 +229,7 @@ struct Quaternion {
    * @param omega rotational velocity
    * @param dt time interval
    */
-  void rotate_self(const double rot_vel_x, const double rot_vel_y, const double rot_vel_z, const double dt)
-  {
+  void rotate_self(const double rot_vel_x, const double rot_vel_y, const double rot_vel_z, const double dt) {
     const double rot_vel_norm = sqrt(rot_vel_x * rot_vel_x + rot_vel_y * rot_vel_y + rot_vel_z * rot_vel_z);
     if (rot_vel_norm < std::numeric_limits<double>::epsilon()) {
       return;
@@ -260,8 +254,7 @@ struct Quaternion {
 // Generating collision constraint helpers //
 /////////////////////////////////////////////
 
-void filterOutSelfOverlap(const stk::mesh::BulkData &bulkData, SearchIdPairVector &searchResults)
-{
+void filterOutSelfOverlap(const stk::mesh::BulkData &bulkData, SearchIdPairVector &searchResults) {
   size_t numFiltered = 0;
 
   for (const auto &searchResult : searchResults) {
@@ -270,8 +263,8 @@ void filterOutSelfOverlap(const stk::mesh::BulkData &bulkData, SearchIdPairVecto
     int owningProcElement1 = searchResult.first.proc();
     int owningProcElement2 = searchResult.second.proc();
 
-    ThrowRequireWithSierraHelpMsg(
-        owningProcElement1 == bulkData.parallel_rank() || owningProcElement2 == bulkData.parallel_rank());
+    ThrowRequireWithSierraHelpMsg(owningProcElement1 == bulkData.parallel_rank() ||
+                                  owningProcElement2 == bulkData.parallel_rank());
 
     bool anyIntersections = false;
 
@@ -288,8 +281,7 @@ void filterOutSelfOverlap(const stk::mesh::BulkData &bulkData, SearchIdPairVecto
   searchResults.resize(numFiltered);
 }
 
-void filterOutNonLocalResults(const stk::mesh::BulkData &bulkData, SearchIdPairVector &searchResults)
-{
+void filterOutNonLocalResults(const stk::mesh::BulkData &bulkData, SearchIdPairVector &searchResults) {
   const int rank = bulkData.parallel_rank();
   size_t numFiltered = 0;
 
@@ -309,8 +301,7 @@ void filterOutNonLocalResults(const stk::mesh::BulkData &bulkData, SearchIdPairV
  */
 
 // ghost the nodes, the upward connections will be automatically ghosted in the aura
-void create_ghosting(stk::mesh::BulkData &bulkData, const SearchIdPairVector &searchResults, const std::string &name)
-{
+void create_ghosting(stk::mesh::BulkData &bulkData, const SearchIdPairVector &searchResults, const std::string &name) {
   ThrowRequire(bulkData.in_modifiable_state());
   const int parallel_rank = bulkData.parallel_rank();
   std::vector<stk::mesh::EntityProc> send_nodes;
@@ -346,13 +337,10 @@ void create_ghosting(stk::mesh::BulkData &bulkData, const SearchIdPairVector &se
 // Particle kernels //
 //////////////////////
 
-double compute_maximum_abs_projected_sep(stk::mesh::BulkData &bulkData,
-    stk::mesh::Field<double> &linkerLagMultField,
-    stk::mesh::Field<double> &linkerSignedSepField,
-    stk::mesh::Field<double> &linkerSignedSepDotField,
-    const double dt,
-    double &global_maximum_abs_projected_sep)
-{
+double compute_maximum_abs_projected_sep(stk::mesh::BulkData &bulkData, stk::mesh::Field<double> &linkerLagMultField,
+                                         stk::mesh::Field<double> &linkerSignedSepField,
+                                         stk::mesh::Field<double> &linkerSignedSepDotField, const double dt,
+                                         double &global_maximum_abs_projected_sep) {
   // compute the maximum absolute projected sep for each constraint
   double local_maximum_abs_projected_sep = -1.0;
 
@@ -393,16 +381,12 @@ double compute_maximum_abs_projected_sep(stk::mesh::BulkData &bulkData,
   stk::all_reduce_max(bulkData.parallel(), &local_maximum_abs_projected_sep, &global_maximum_abs_projected_sep, 1);
 }
 
-void compute_diff_dots(stk::mesh::BulkData &bulkData,
-    const stk::mesh::Field<double> &linkerLagMultField,
-    const stk::mesh::Field<double> &linkerLagMultTmpField,
-    const stk::mesh::Field<double> &linkerSignedSepDotField,
-    const stk::mesh::Field<double> &linkerSignedSepDotTmpField,
-    const double dt,
-    double &global_dot_xkdiff_xkdiff,
-    double &global_dot_xkdiff_gkdiff,
-    double &global_dot_gkdiff_gkdiff)
-{
+void compute_diff_dots(stk::mesh::BulkData &bulkData, const stk::mesh::Field<double> &linkerLagMultField,
+                       const stk::mesh::Field<double> &linkerLagMultTmpField,
+                       const stk::mesh::Field<double> &linkerSignedSepDotField,
+                       const stk::mesh::Field<double> &linkerSignedSepDotTmpField, const double dt,
+                       double &global_dot_xkdiff_xkdiff, double &global_dot_xkdiff_gkdiff,
+                       double &global_dot_gkdiff_gkdiff) {
   // compute dot(xkdiff, xkdiff), dot(xkdiff, gkdiff), dot(gkdiff, gkdiff)
   // where xkdiff = xk - xkm1 and gkdiff = gk - gkm1
   double local_dot_xkdiff_xkdiff = 0.0;
@@ -446,10 +430,8 @@ void compute_diff_dots(stk::mesh::BulkData &bulkData,
   stk::all_reduce_sum(bulkData.parallel(), &local_dot_gkdiff_gkdiff, &global_dot_gkdiff_gkdiff, 1);
 }
 
-void generate_neighbor_pairs(const stk::mesh::BulkData &bulkData,
-    const stk::mesh::Field<double> &elemAabbField,
-    SearchIdPairVector &neighborPairs)
-{
+void generate_neighbor_pairs(const stk::mesh::BulkData &bulkData, const stk::mesh::Field<double> &elemAabbField,
+                             SearchIdPairVector &neighborPairs) {
   // setup the search boxes (for each element)
   const stk::mesh::MetaData &metaData = bulkData.mesh_meta_data();
   BoxIdVector elementBoxes;
@@ -484,19 +466,15 @@ void generate_neighbor_pairs(const stk::mesh::BulkData &bulkData,
   filterOutNonLocalResults(bulkData, neighborPairs);
 }
 
-void generate_collision_constraints(stk::mesh::BulkData &bulkData,
-    const SearchIdPairVector &neighborPairs,
-    stk::mesh::Part &linkerPart,
-    stk::mesh::Field<double> &nodeCoordField,
-    stk::mesh::Field<double> &particleRadiusField,
-    stk::mesh::Field<double> &linkerSignedSepField,
-    stk::mesh::Field<double> &linkerSignedSepDotField,
-    stk::mesh::Field<double> &linkerSignedSepDotTmpField,
-    stk::mesh::Field<double> &linkerLagMultField,
-    stk::mesh::Field<double> &linkerLagMultTmpField,
-    stk::mesh::Field<double> &conLocField,
-    stk::mesh::Field<double> &conNormField)
-{
+void generate_collision_constraints(stk::mesh::BulkData &bulkData, const SearchIdPairVector &neighborPairs,
+                                    stk::mesh::Part &linkerPart, stk::mesh::Field<double> &nodeCoordField,
+                                    stk::mesh::Field<double> &particleRadiusField,
+                                    stk::mesh::Field<double> &linkerSignedSepField,
+                                    stk::mesh::Field<double> &linkerSignedSepDotField,
+                                    stk::mesh::Field<double> &linkerSignedSepDotTmpField,
+                                    stk::mesh::Field<double> &linkerLagMultField,
+                                    stk::mesh::Field<double> &linkerLagMultTmpField,
+                                    stk::mesh::Field<double> &conLocField, stk::mesh::Field<double> &conNormField) {
   /*
   Note:
     A niave procedure can generate two linkers between every pair of particles
@@ -516,7 +494,7 @@ void generate_collision_constraints(stk::mesh::BulkData &bulkData,
   bulkData.modification_end();
 
   // communicate the necessary ghost particle fields
-  std::vector<const stk::mesh::FieldBase*> fields{&nodeCoordField, &particleRadiusField};
+  std::vector<const stk::mesh::FieldBase *> fields{&nodeCoordField, &particleRadiusField};
   stk::mesh::communicate_field_data(bulkData, fields);
 
   // generate linkers between the neighbors
@@ -524,10 +502,10 @@ void generate_collision_constraints(stk::mesh::BulkData &bulkData,
   // the particles already have nodes, so we only need to generate linker entities
   // and declare relations/sharing between those entities and the connected nodes
   bulkData.modification_begin();
-  const size_t num_linkers = std::count_if(
-      neighborPairs.begin(), neighborPairs.end(), [](const std::pair<SearchIdentProc, SearchIdentProc> &neighborPair) {
-        return neighborPair.first.id() < neighborPair.second.id();
-      });
+  const size_t num_linkers = std::count_if(neighborPairs.begin(), neighborPairs.end(),
+                                           [](const std::pair<SearchIdentProc, SearchIdentProc> &neighborPair) {
+                                             return neighborPair.first.id() < neighborPair.second.id();
+                                           });
   std::vector<size_t> requests(bulkData.mesh_meta_data().entity_rank_count(), 0);
   requests[stk::topology::ELEMENT_RANK] = num_linkers;
 
@@ -614,15 +592,13 @@ void generate_collision_constraints(stk::mesh::BulkData &bulkData,
   bulkData.modification_end();
 }
 
-void compute_constraint_center_of_mass_force_torque(stk::mesh::BulkData &bulkData,
+void compute_constraint_center_of_mass_force_torque(
+    stk::mesh::BulkData &bulkData,
     const stk::mesh::Field<double> &nodeForceField,  // TODO: should these be non-const?
-    const stk::mesh::Field<double> &nodeTorqueField,
-    const stk::mesh::Field<double> &linkerLagMultField,
-    const stk::mesh::Field<double> &conNormField,
-    const stk::mesh::Field<double> &conLocField)
-{
+    const stk::mesh::Field<double> &nodeTorqueField, const stk::mesh::Field<double> &linkerLagMultField,
+    const stk::mesh::Field<double> &conNormField, const stk::mesh::Field<double> &conLocField) {
   // communicate the necessary ghost linker fields
-  std::vector<const stk::mesh::FieldBase*> fields{&linkerLagMultField, &conNormField, &conLocField};
+  std::vector<const stk::mesh::FieldBase *> fields{&linkerLagMultField, &conNormField, &conLocField};
   stk::mesh::communicate_field_data(bulkData, fields);
 
   // compute D xk
@@ -701,14 +677,12 @@ void compute_constraint_center_of_mass_force_torque(stk::mesh::BulkData &bulkDat
 }
 
 void compute_the_mobility_problem(stk::mesh::BulkData &bulkData,
-    const stk::mesh::Field<double> &particleOrientationField,
-    const stk::mesh::Field<double> &particleRadiusField,
-    const stk::mesh::Field<double> &nodeForceField,
-    const stk::mesh::Field<double> &nodeTorqueField,
-    stk::mesh::Field<double> &nodeVelocityField,
-    stk::mesh::Field<double> &nodeOmegaField,
-    const double viscosity)
-{
+                                  const stk::mesh::Field<double> &particleOrientationField,
+                                  const stk::mesh::Field<double> &particleRadiusField,
+                                  const stk::mesh::Field<double> &nodeForceField,
+                                  const stk::mesh::Field<double> &nodeTorqueField,
+                                  stk::mesh::Field<double> &nodeVelocityField, stk::mesh::Field<double> &nodeOmegaField,
+                                  const double viscosity) {
   stk::mesh::MetaData &metaData = bulkData.mesh_meta_data();
   stk::mesh::Selector selectLocalParticles =
       metaData.locally_owned_part() & metaData.get_topology_root_part(stk::topology::PARTICLE);
@@ -729,14 +703,16 @@ void compute_the_mobility_problem(stk::mesh::BulkData &bulkData,
       const double *const particle_orientation = stk::mesh::field_data(particleOrientationField, particle);
       const double particle_radius = stk::mesh::field_data(particleRadiusField, particle)[0];
 
-      Quaternion quat(
-          particle_orientation[0], particle_orientation[1], particle_orientation[2], particle_orientation[3]);
+      Quaternion quat(particle_orientation[0], particle_orientation[1], particle_orientation[2],
+                      particle_orientation[3]);
 
       const stk::math::Vec<double, 3> q = quat.rotate(stk::math::Vec<double, 3>({0, 0, 1}));
-      const double qq[3][3] = {{q[0] * q[0], q[0] * q[1], q[0] * q[2]}, {q[1] * q[0], q[1] * q[1], q[1] * q[2]},
-          {q[2] * q[0], q[2] * q[1], q[2] * q[2]}};
-      const double Imqq[3][3] = {{1 - qq[0][0], -qq[0][1], -qq[0][2]}, {-qq[1][0], 1 - qq[1][1], -qq[1][2]},
-          {-qq[2][0], -qq[2][1], 1 - qq[2][2]}};
+      const double qq[3][3] = {{q[0] * q[0], q[0] * q[1], q[0] * q[2]},
+                               {q[1] * q[0], q[1] * q[1], q[1] * q[2]},
+                               {q[2] * q[0], q[2] * q[1], q[2] * q[2]}};
+      const double Imqq[3][3] = {{1 - qq[0][0], -qq[0][1], -qq[0][2]},
+                                 {-qq[1][0], 1 - qq[1][1], -qq[1][2]},
+                                 {-qq[2][0], -qq[2][1], 1 - qq[2][2]}};
       const double drag_para = 6 * PI * particle_radius * viscosity;
       const double drag_perp = drag_para;
       const double drag_rot = 8 * PI * particle_radius * particle_radius * particle_radius * viscosity;
@@ -745,18 +721,18 @@ void compute_the_mobility_problem(stk::mesh::BulkData &bulkData,
       const double drag_rot_inv = 1.0 / drag_rot;
       const double mob_trans[3][3] = {
           {drag_para_inv * qq[0][0] + drag_perp_inv * Imqq[0][0], drag_para_inv * qq[0][1] + drag_perp_inv * Imqq[0][1],
-              drag_para_inv * qq[0][2] + drag_perp_inv * Imqq[0][2]},
+           drag_para_inv * qq[0][2] + drag_perp_inv * Imqq[0][2]},
           {drag_para_inv * qq[1][0] + drag_perp_inv * Imqq[1][0], drag_para_inv * qq[1][1] + drag_perp_inv * Imqq[1][1],
-              drag_para_inv * qq[1][2] + drag_perp_inv * Imqq[1][2]},
+           drag_para_inv * qq[1][2] + drag_perp_inv * Imqq[1][2]},
           {drag_para_inv * qq[2][0] + drag_perp_inv * Imqq[2][0], drag_para_inv * qq[2][1] + drag_perp_inv * Imqq[2][1],
-              drag_para_inv * qq[2][2] + drag_perp_inv * Imqq[2][2]}};
+           drag_para_inv * qq[2][2] + drag_perp_inv * Imqq[2][2]}};
       const double mob_rot[3][3] = {
           {drag_rot_inv * qq[0][0] + drag_rot_inv * Imqq[0][0], drag_rot_inv * qq[0][1] + drag_rot_inv * Imqq[0][1],
-              drag_rot_inv * qq[0][2] + drag_rot_inv * Imqq[0][2]},
+           drag_rot_inv * qq[0][2] + drag_rot_inv * Imqq[0][2]},
           {drag_rot_inv * qq[1][0] + drag_rot_inv * Imqq[1][0], drag_rot_inv * qq[1][1] + drag_rot_inv * Imqq[1][1],
-              drag_rot_inv * qq[1][2] + drag_rot_inv * Imqq[1][2]},
+           drag_rot_inv * qq[1][2] + drag_rot_inv * Imqq[1][2]},
           {drag_rot_inv * qq[2][0] + drag_rot_inv * Imqq[2][0], drag_rot_inv * qq[2][1] + drag_rot_inv * Imqq[2][1],
-              drag_rot_inv * qq[2][2] + drag_rot_inv * Imqq[2][2]}};
+           drag_rot_inv * qq[2][2] + drag_rot_inv * Imqq[2][2]}};
 
       // solve for the induced velocity and omega
       const double *const node_force = stk::mesh::field_data(nodeForceField, node);
@@ -777,15 +753,13 @@ void compute_the_mobility_problem(stk::mesh::BulkData &bulkData,
   }
 }
 
-void compute_rate_of_change_of_sep(stk::mesh::BulkData &bulkData,
-    const stk::mesh::Field<double> &nodeVelocityField,
-    const stk::mesh::Field<double> &nodeOmegaField,
-    const stk::mesh::Field<double> &conLocField,
-    const stk::mesh::Field<double> &conNormField,
-    stk::mesh::Field<double> &linkerSignedSepDotField)
-{
+void compute_rate_of_change_of_sep(stk::mesh::BulkData &bulkData, const stk::mesh::Field<double> &nodeVelocityField,
+                                   const stk::mesh::Field<double> &nodeOmegaField,
+                                   const stk::mesh::Field<double> &conLocField,
+                                   const stk::mesh::Field<double> &conNormField,
+                                   stk::mesh::Field<double> &linkerSignedSepDotField) {
   // communicate the necessary ghost node fields
-  std::vector<const stk::mesh::FieldBase*> fields{&nodeVelocityField, &nodeOmegaField};
+  std::vector<const stk::mesh::FieldBase *> fields{&nodeVelocityField, &nodeOmegaField};
   stk::mesh::communicate_field_data(bulkData, fields);
 
   // compute D^T U for each constraint
@@ -850,14 +824,9 @@ void compute_rate_of_change_of_sep(stk::mesh::BulkData &bulkData,
   }
 }
 
-void update_con_gammas(stk::mesh::BulkData &bulkData,
-    stk::mesh::Field<double> &linkerLagMultField,
-    stk::mesh::Field<double> &linkerLagMultTmpField,
-    stk::mesh::Field<double> &linkerSignedSepField,
-    stk::mesh::Field<double> &linkerSignedSepDotField,
-    const double dt,
-    const double alpha)
-{
+void update_con_gammas(stk::mesh::BulkData &bulkData, stk::mesh::Field<double> &linkerLagMultField,
+                       stk::mesh::Field<double> &linkerLagMultTmpField, stk::mesh::Field<double> &linkerSignedSepField,
+                       stk::mesh::Field<double> &linkerSignedSepDotField, const double dt, const double alpha) {
   // compute xk = xkm1 - alpha * gkm1;
   // and perform the bound projection xk = boundProjection(xk)
   stk::mesh::MetaData &metaData = bulkData.mesh_meta_data();
@@ -887,12 +856,9 @@ void update_con_gammas(stk::mesh::BulkData &bulkData,
   }
 }
 
-void swap_con_gammas(stk::mesh::BulkData &bulkData,
-    stk::mesh::Field<double> &linkerLagMultField,
-    stk::mesh::Field<double> &linkerLagMultTmpField,
-    stk::mesh::Field<double> &linkerSignedSepDotField,
-    stk::mesh::Field<double> &linkerSignedSepDotTmpField)
-{
+void swap_con_gammas(stk::mesh::BulkData &bulkData, stk::mesh::Field<double> &linkerLagMultField,
+                     stk::mesh::Field<double> &linkerLagMultTmpField, stk::mesh::Field<double> &linkerSignedSepDotField,
+                     stk::mesh::Field<double> &linkerSignedSepDotTmpField) {
   stk::mesh::MetaData &metaData = bulkData.mesh_meta_data();
   stk::mesh::Selector selectLocalLinkers =
       metaData.locally_owned_part() & metaData.get_topology_root_part(stk::topology::BEAM_2);
@@ -917,13 +883,9 @@ void swap_con_gammas(stk::mesh::BulkData &bulkData,
   }
 }
 
-void step_euler(stk::mesh::BulkData &bulkData,
-    const stk::mesh::Field<double> &nodeVelocityField,
-    const stk::mesh::Field<double> &nodeOmegaField,
-    stk::mesh::Field<double> &nodeCoordField,
-    stk::mesh::Field<double> &particleOrientationField,
-    const double dt)
-{
+void step_euler(stk::mesh::BulkData &bulkData, const stk::mesh::Field<double> &nodeVelocityField,
+                const stk::mesh::Field<double> &nodeOmegaField, stk::mesh::Field<double> &nodeCoordField,
+                stk::mesh::Field<double> &particleOrientationField, const double dt) {
   stk::mesh::MetaData &metaData = bulkData.mesh_meta_data();
   stk::mesh::Selector selectLocalParticles =
       metaData.locally_owned_part() & metaData.get_topology_root_part(stk::topology::PARTICLE);
@@ -949,8 +911,8 @@ void step_euler(stk::mesh::BulkData &bulkData,
       // Euler step orientation
       double *node_omega = stk::mesh::field_data(nodeOmegaField, node);
       double *particle_orientation = stk::mesh::field_data(particleOrientationField, particle);
-      Quaternion quat(
-          particle_orientation[0], particle_orientation[1], particle_orientation[2], particle_orientation[3]);
+      Quaternion quat(particle_orientation[0], particle_orientation[1], particle_orientation[2],
+                      particle_orientation[3]);
       quat.rotate_self(node_omega[0], node_omega[1], node_omega[2], dt);
       particle_orientation[0] = quat.w;
       particle_orientation[1] = quat.x;
@@ -960,50 +922,40 @@ void step_euler(stk::mesh::BulkData &bulkData,
   }
 }
 
-void resolve_collisions(stk::mesh::BulkData &bulkData,
-    stk::mesh::Field<double> &nodeCoordField,
-    stk::mesh::Field<double> &nodeVelocityField,
-    stk::mesh::Field<double> &nodeOmegaField,
-    stk::mesh::Field<double> &nodeForceField,
-    stk::mesh::Field<double> &nodeTorqueField,
-    stk::mesh::Field<double> &particleOrientationField,
-    stk::mesh::Field<double> &particleRadiusField,
-    stk::mesh::Field<double> &linkerSignedSepField,
-    stk::mesh::Field<double> &linkerSignedSepDotField,
-    stk::mesh::Field<double> &linkerSignedSepDotTmpField,
-    stk::mesh::Field<double> &linkerLagMultField,
-    stk::mesh::Field<double> &linkerLagMultTmpField,
-    stk::mesh::Field<double> &conLocField,
-    stk::mesh::Field<double> &conNormField,
-    const double viscosity,
-    const double dt,
-    const double con_tol,
-    const int con_ite_max)
-{
+void resolve_collisions(stk::mesh::BulkData &bulkData, stk::mesh::Field<double> &nodeCoordField,
+                        stk::mesh::Field<double> &nodeVelocityField, stk::mesh::Field<double> &nodeOmegaField,
+                        stk::mesh::Field<double> &nodeForceField, stk::mesh::Field<double> &nodeTorqueField,
+                        stk::mesh::Field<double> &particleOrientationField,
+                        stk::mesh::Field<double> &particleRadiusField, stk::mesh::Field<double> &linkerSignedSepField,
+                        stk::mesh::Field<double> &linkerSignedSepDotField,
+                        stk::mesh::Field<double> &linkerSignedSepDotTmpField,
+                        stk::mesh::Field<double> &linkerLagMultField, stk::mesh::Field<double> &linkerLagMultTmpField,
+                        stk::mesh::Field<double> &conLocField, stk::mesh::Field<double> &conNormField,
+                        const double viscosity, const double dt, const double con_tol, const int con_ite_max) {
   // Matrix-free BBPGD
   int ite_count = 0;
 
   // compute gkm1 = D^T M D xkm1
 
   // compute F = D xkm1
-  compute_constraint_center_of_mass_force_torque(
-      bulkData, nodeForceField, nodeTorqueField, linkerLagMultTmpField, conNormField, conLocField);
+  compute_constraint_center_of_mass_force_torque(bulkData, nodeForceField, nodeTorqueField, linkerLagMultTmpField,
+                                                 conNormField, conLocField);
 
   // compute U = M F
   compute_the_mobility_problem(bulkData, particleOrientationField, particleRadiusField, nodeForceField, nodeTorqueField,
-      nodeVelocityField, nodeOmegaField, viscosity);
+                               nodeVelocityField, nodeOmegaField, viscosity);
 
   // compute gkm1 = D^T U
-  compute_rate_of_change_of_sep(
-      bulkData, nodeVelocityField, nodeOmegaField, conLocField, conNormField, linkerSignedSepDotTmpField);
+  compute_rate_of_change_of_sep(bulkData, nodeVelocityField, nodeOmegaField, conLocField, conNormField,
+                                linkerSignedSepDotTmpField);
 
   ///////////////////////
   // check convergence //
   ///////////////////////
   // res = max(abs(projectPhi(gkm1)));
   double maximum_abs_projected_sep = -1.0;
-  compute_maximum_abs_projected_sep(
-      bulkData, linkerLagMultTmpField, linkerSignedSepField, linkerSignedSepDotTmpField, dt, maximum_abs_projected_sep);
+  compute_maximum_abs_projected_sep(bulkData, linkerLagMultTmpField, linkerSignedSepField, linkerSignedSepDotTmpField,
+                                    dt, maximum_abs_projected_sep);
 
   if (bulkData.parallel_rank() == 0) {
     std::cout << "maximum_abs_projected_sep " << maximum_abs_projected_sep << std::endl;
@@ -1025,26 +977,26 @@ void resolve_collisions(stk::mesh::BulkData &bulkData,
       // compute xk = xkm1 - alpha * gkm1;
       // and perform the bound projection xk = boundProjection(xk)
       update_con_gammas(bulkData, linkerLagMultField, linkerLagMultTmpField, linkerSignedSepField,
-          linkerSignedSepDotField, dt, alpha);
+                        linkerSignedSepDotField, dt, alpha);
 
       // compute new grad with xk: gk = D^T M D xk
       // compute F = D xk
-      compute_constraint_center_of_mass_force_torque(
-          bulkData, nodeForceField, nodeTorqueField, linkerLagMultField, conNormField, conLocField);
+      compute_constraint_center_of_mass_force_torque(bulkData, nodeForceField, nodeTorqueField, linkerLagMultField,
+                                                     conNormField, conLocField);
 
       // compute U = M F
       compute_the_mobility_problem(bulkData, particleOrientationField, particleRadiusField, nodeForceField,
-          nodeTorqueField, nodeVelocityField, nodeOmegaField, viscosity);
+                                   nodeTorqueField, nodeVelocityField, nodeOmegaField, viscosity);
 
       // compute gk = D^T U
-      compute_rate_of_change_of_sep(
-          bulkData, nodeVelocityField, nodeOmegaField, conLocField, conNormField, linkerSignedSepDotField);
+      compute_rate_of_change_of_sep(bulkData, nodeVelocityField, nodeOmegaField, conLocField, conNormField,
+                                    linkerSignedSepDotField);
 
       ///////////////////////
       // check convergence //
       // res = max(abs(projectPhi(gk)));
-      compute_maximum_abs_projected_sep(
-          bulkData, linkerLagMultField, linkerSignedSepField, linkerSignedSepDotField, dt, maximum_abs_projected_sep);
+      compute_maximum_abs_projected_sep(bulkData, linkerLagMultField, linkerSignedSepField, linkerSignedSepDotField, dt,
+                                        maximum_abs_projected_sep);
 
       if (bulkData.parallel_rank() == 0) {
         std::cout << "maximum_abs_projected_sep " << maximum_abs_projected_sep << std::endl;
@@ -1064,7 +1016,8 @@ void resolve_collisions(stk::mesh::BulkData &bulkData,
       double global_dot_xkdiff_gkdiff = 0.0;
       double global_dot_gkdiff_gkdiff = 0.0;
       compute_diff_dots(bulkData, linkerLagMultField, linkerLagMultTmpField, linkerSignedSepDotField,
-          linkerSignedSepDotTmpField, dt, global_dot_xkdiff_xkdiff, global_dot_xkdiff_gkdiff, global_dot_gkdiff_gkdiff);
+                        linkerSignedSepDotTmpField, dt, global_dot_xkdiff_xkdiff, global_dot_xkdiff_gkdiff,
+                        global_dot_gkdiff_gkdiff);
 
       ////////////////////////////////////////////
       // compute the Barzilai-Borwein step size //
@@ -1091,8 +1044,8 @@ void resolve_collisions(stk::mesh::BulkData &bulkData,
       /////////////////////////////////
       // set xkm1 = xk and gkm1 = gk //
       /////////////////////////////////
-      swap_con_gammas(
-          bulkData, linkerLagMultField, linkerLagMultTmpField, linkerSignedSepDotField, linkerSignedSepDotTmpField);
+      swap_con_gammas(bulkData, linkerLagMultField, linkerLagMultTmpField, linkerSignedSepDotField,
+                      linkerSignedSepDotTmpField);
     }
   }
 
@@ -1108,20 +1061,28 @@ void resolve_collisions(stk::mesh::BulkData &bulkData,
 ///////////////////////////
 // Partitioning settings //
 ///////////////////////////
-class RcbSettings : public stk::balance::BalanceSettings
-{
+class RcbSettings : public stk::balance::BalanceSettings {
  public:
-  RcbSettings() {}
-  virtual ~RcbSettings() {}
+  RcbSettings() {
+  }
+  virtual ~RcbSettings() {
+  }
 
-  virtual bool isIncrementalRebalance() const { return false; }
-  virtual std::string getDecompMethod() const { return std::string("rcb"); }
-  virtual std::string getCoordinateFieldName() const { return std::string("coordinates"); }
-  virtual bool shouldPrintMetrics() const { return true; }
+  virtual bool isIncrementalRebalance() const {
+    return false;
+  }
+  virtual std::string getDecompMethod() const {
+    return std::string("rcb");
+  }
+  virtual std::string getCoordinateFieldName() const {
+    return std::string("coordinates");
+  }
+  virtual bool shouldPrintMetrics() const {
+    return true;
+  }
 };  // RcbSettings
 
-TEST(UnitTestMundy, Particles)
-{
+TEST(UnitTestMundy, Particles) {
   /*
   Initialization procedure
     1. generate N random particles across all processors
@@ -1425,24 +1386,23 @@ TEST(UnitTestMundy, Particles)
 
   // generate collision constraints between neighbors
   generate_collision_constraints(bulkData, neighborPairs, linkerPart, nodeCoordField, particleRadiusField,
-      linkerSignedSepField, linkerSignedSepDotField, linkerSignedSepDotTmpField, linkerLagMultField,
-      linkerLagMultTmpField, conLocField, conNormField);
+                                 linkerSignedSepField, linkerSignedSepDotField, linkerSignedSepDotTmpField,
+                                 linkerLagMultField, linkerLagMultTmpField, conLocField, conNormField);
 
   // resolve initial collisions
   double start_time = stk::wall_time();
 
   resolve_collisions(bulkData, nodeCoordField, nodeVelocityField, nodeOmegaField, nodeForceField, nodeTorqueField,
-      particleOrientationField, particleRadiusField, linkerSignedSepField, linkerSignedSepDotField,
-      linkerSignedSepDotTmpField, linkerLagMultField, linkerLagMultTmpField, conLocField, conNormField, viscosity, dt,
-      con_tol, con_ite_max);
+                     particleOrientationField, particleRadiusField, linkerSignedSepField, linkerSignedSepDotField,
+                     linkerSignedSepDotTmpField, linkerLagMultField, linkerLagMultTmpField, conLocField, conNormField,
+                     viscosity, dt, con_tol, con_ite_max);
 
   double total_time = stk::wall_time() - start_time;
-  const char* timer_label = "Total Time (s)";
+  const char *timer_label = "Total Time (s)";
   if (bulkData.parallel_rank() == 0) {
     stk::print_timers_and_memory(&timer_label, &total_time, 1);
   }
   stk::parallel_print_time_without_output_and_hwm(MPI_COMM_WORLD, total_time);
-
 
   // write out the balanced results (with linkers)
   {

@@ -46,7 +46,7 @@
 #include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>      // for mundy::meta::PartRequirements
-#include <mundy_motion/ComputeMobility.hpp>    // for mundy::motion::ComputeMobility
+#include <mundy_motion/ComputeMobility.hpp>     // for mundy::motion::ComputeMobility
 
 namespace mundy {
 

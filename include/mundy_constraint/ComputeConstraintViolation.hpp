@@ -91,8 +91,9 @@ class ComputeConstraintViolation : public mundy::meta::MetaKernelDispatcher<Comp
 //@{
 
 /// @brief Register ComputeConstraintViolation with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::ComputeConstraintViolation,
-                         mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintViolationMethodFactory)
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintViolation,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintViolationMethodFactory)
 //}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTVIOLATION_HPP_

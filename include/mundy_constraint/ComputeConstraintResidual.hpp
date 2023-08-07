@@ -194,8 +194,9 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<double> {
 //@{
 
 /// @brief Register ComputeConstraintResidual with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::ComputeConstraintResidual,
-                         mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintResidualMethodFactory)
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintResidual,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintResidualMethodFactory)
 //}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTRESIDUAL_HPP_

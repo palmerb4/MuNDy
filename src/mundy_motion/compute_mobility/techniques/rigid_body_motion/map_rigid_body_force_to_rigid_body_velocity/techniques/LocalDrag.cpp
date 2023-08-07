@@ -21,7 +21,7 @@
 /// \brief Definition of the LocalDrag class
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData

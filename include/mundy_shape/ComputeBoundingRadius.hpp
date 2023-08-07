@@ -28,13 +28,13 @@
 #include <string>  // for std::string
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::GlobalMetaMethodRegistry
 
 namespace mundy {
 
@@ -42,7 +42,7 @@ namespace shape {
 
 /// \class ComputeBoundingRadius
 /// \brief Method for computing the axis aligned boundary box of different parts.
-class ComputeBoundingRadius : public mundy::meta::MetaKernelDispatcher<ComputeBoundingRadius>  {
+class ComputeBoundingRadius : public mundy::meta::MetaKernelDispatcher<ComputeBoundingRadius> {
  public:
   //! \name Constructors and destructor
   //@{

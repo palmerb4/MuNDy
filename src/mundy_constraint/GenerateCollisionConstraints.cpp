@@ -71,7 +71,8 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
     Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
     const std::string kernel_name = kernel_params.get<std::string>("name");
     multibody_part_ptr_vector_.push_back(meta_data_ptr_->get_part(kernel_name));
-    multibody_kernel_ptrs_.push_back(OurThreeWayKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
+    multibody_kernel_ptrs_.push_back(
+        OurThreeWayKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
   }
 }
 //}

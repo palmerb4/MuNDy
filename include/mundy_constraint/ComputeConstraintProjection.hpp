@@ -91,8 +91,9 @@ class ComputeConstraintProjection : public mundy::meta::MetaKernelDispatcher<Com
 //@{
 
 /// @brief Register ComputeConstraintProjection with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::ComputeConstraintProjection,
-                         mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintProjectionMethodFactory)
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintProjection,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintProjectionMethodFactory)
 //}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTPROJECTION_HPP_

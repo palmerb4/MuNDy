@@ -232,7 +232,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
 
 template <typename RegistryIdentifier>
 MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                          const Teuchos::ParameterList &fixed_params)
+                                                               const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
@@ -261,8 +261,7 @@ MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::Bulk
 //{
 
 template <typename RegistryIdentifier>
-void MetaKernelDispatcher<RegistryIdentifier>::set_mutable_params(
-    const Teuchos::ParameterList &mutable_params) {
+void MetaKernelDispatcher<RegistryIdentifier>::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   validate_mutable_parameters_and_set_defaults(&valid_mutable_params);

@@ -85,11 +85,10 @@ struct StringLiteral {
 ///
 /// \param str The string literal to copy
 /// \return A StringLiteral with the same content as the input string literal
-template<size_t N>
+template <size_t N>
 constexpr StringLiteral<N> make_string_literal(const char (&str)[N]) {
-    return StringLiteral<N>(str);
+  return StringLiteral<N>(str);
 }
-
 
 }  // namespace mundy
 

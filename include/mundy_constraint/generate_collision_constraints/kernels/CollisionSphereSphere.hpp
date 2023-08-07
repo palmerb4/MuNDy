@@ -201,7 +201,6 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
   /// [collision_element, left_sphere_element, right_sphere_element]
   void execute(const std::array<stk::mesh::Entity, 3> &entity_array) override;
 
-
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
   void finalize() override;
