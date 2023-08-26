@@ -286,7 +286,7 @@ class MetaFactory {
   /// \brief A map from key to a function for generating a new class.
   using InstanceGeneratorMap = std::map<RegistrationType, NewClassGenerator>;
 
-  /// \brief A map from key to a function for generating a class's part requirements.
+  /// \brief A map from key to a function for generating a class's mesh requirements.
   using RequirementGeneratorMap = std::map<RegistrationType, NewRequirementsGenerator>;
 
   /// \brief A map from key to a function for generating a class's part default requirements.

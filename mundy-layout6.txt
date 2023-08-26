@@ -132,7 +132,7 @@ mundy::meta
 This change breaks mundy::methods into more manageable pieces and introduces a more granular view of Mundy. 
 
 
-Methodology: TLDR We're using a method-centric functional programming design to achieve a form of deconstructed object oriented programming. We have "inheritance" and "multiple dispatch" but no objects. Wild, right?
+Methodology: TLDR We're using a data-centric command design patter to achieve a form of deconstructed object oriented programming. We have "inheritance" and "multiple dispatch" but no objects.
   - Mundy is designed to act on systems of particles interconnected by springs, hinges, or joints and interacting though pairwise potentials, long-ranged interactions, and/or particle-particle collisions. 
   - The system is defined by a mesh of nodes, edges, and faces that connect to form various shapes (e.g., spheres, ellipsoids, cylinders, polytopes, etc.) and constraints (e.g., springs, hinges, joints, etc.).
   - The defining feature that distinguishes one shape from another is its topology (the static connectivity of its nodes, edges, and faces) and the fields necessary to describe its geometry (e.g., position, 
@@ -165,3 +165,13 @@ Methodology: TLDR We're using a method-centric functional programming design to 
     to add new methods without modifying the existing code base. If a user wants to add their own technique, they need only register it with ComputeAABB's static factory. Mundy consists of a hierarchy of such factories, 
     each of which is responsible for a set of methods, techniques, or computational operations.
   - Mundy's static factory is compiled in a you-only-get-what-you-use fashion and special care is given to ensuring that registration and construction of Mundy's hierarchy occurs only when necessary.
+
+
+
+By design, we are trying to avoid design patterns within which adding a method with new data requirements for an agent doesn't require modifying the agent class itself. 
+
+For example, I was considering a design pattern within which users interfaced with the shapes like structs, i.e. Sphere(element_id, bulik_data_ptr).radius rather than needing to fetch the 
+radius field name, fetch the radius field, and then use MetaData to fetch the radius. I like this design because it is clean and simple and looks like array of structures. The problem is that
+C++ only allows interfaces to change at compile-time not run-time. Is it possible to use the requirements to build something like this? No, we would need to use templates. 
+
+

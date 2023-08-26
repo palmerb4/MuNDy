@@ -349,10 +349,10 @@ void compute_maximum_abs_projected_sep(stk::mesh::BulkData &bulkData, stk::mesh:
   stk::mesh::Selector selectLocalLinkers =
       metaData.locally_owned_part() & metaData.get_topology_root_part(stk::topology::BEAM_2);
   const stk::mesh::BucketVector &linkerBuckets = bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalLinkers);
-
-#pragma omp parallel for reduction(max : local_maximum_abs_projected_sep)
   for (size_t bucket_idx = 0; bucket_idx < linkerBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &linkerBucket = *linkerBuckets[bucket_idx];
+
+    // #pragma omp parallel for
     for (size_t linker_idx = 0; linker_idx < linkerBucket.size(); ++linker_idx) {
       // fetch the entities
       stk::mesh::Entity const &linker = linkerBucket[linker_idx];
@@ -398,10 +398,10 @@ void compute_diff_dots(stk::mesh::BulkData &bulkData, const stk::mesh::Field<dou
   stk::mesh::Selector selectLocalLinkers =
       metaData.locally_owned_part() & metaData.get_topology_root_part(stk::topology::BEAM_2);
   const stk::mesh::BucketVector &linkerBuckets = bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalLinkers);
-
-#pragma omp parallel for reduction(+ : local_dot_xkdiff_xkdiff, local_dot_xkdiff_gkdiff, local_dot_gkdiff_gkdiff)
   for (size_t bucket_idx = 0; bucket_idx < linkerBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &linkerBucket = *linkerBuckets[bucket_idx];
+
+    // #pragma omp parallel for
     for (size_t linker_idx = 0; linker_idx < linkerBucket.size(); ++linker_idx) {
       // fetch the entities
       stk::mesh::Entity const &linker = linkerBucket[linker_idx];
@@ -490,7 +490,6 @@ void generate_collision_constraints(stk::mesh::BulkData &bulkData, const SearchI
   */
 
   // populate the ghost using the search results
-  std::cout << "Generating ghosting..." << std::endl;
   bulkData.modification_begin();
   create_ghosting(bulkData, neighborPairs, "geometricGhosts");
   bulkData.modification_end();
@@ -523,8 +522,7 @@ void generate_collision_constraints(stk::mesh::BulkData &bulkData, const SearchI
   add_linkerPart[0] = &linkerPart;
 
   // set topologies of new entities
-  std::cout << "Setting topologies..." << std::endl;
-// #pragma omp parallel for
+  // #pragma omp parallel for
   for (int i = 0; i < num_linkers; i++) {
     stk::mesh::Entity linker_i = requested_entities[i];
     bulkData.change_entity_parts(linker_i, add_linkerPart);
@@ -533,6 +531,7 @@ void generate_collision_constraints(stk::mesh::BulkData &bulkData, const SearchI
   // the elements should be associated with a topology before they are connected to their nodes/edges
   // set downward relations of entities
   // loop over the neighbor pairs
+  // #pragma omp parallel for
   size_t count = 0;
   for (int i = 0; i < neighborPairs.size(); i++) {
     stk::mesh::Entity particleI = bulkData.get_entity(neighborPairs[i].first.id());
@@ -611,9 +610,9 @@ void compute_constraint_center_of_mass_force_torque(
       bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalParticles);
 
   // compute com force and torque from gamma
-#pragma omp parallel for
   for (size_t bucket_idx = 0; bucket_idx < particleBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &particleBucket = *particleBuckets[bucket_idx];
+    // #pragma omp parallel for
     for (size_t particle_idx = 0; particle_idx < particleBucket.size(); ++particle_idx) {
       // fetch the entities
       stk::mesh::Entity const &particle = particleBucket[particle_idx];
@@ -693,9 +692,9 @@ void compute_the_mobility_problem(stk::mesh::BulkData &bulkData,
 
   // compute U = M F
   // for now, M is block diagonal
-#pragma omp parallel for
   for (size_t bucket_idx = 0; bucket_idx < particleBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &particleBucket = *particleBuckets[bucket_idx];
+    // #pragma omp parallel for
     for (size_t particle_idx = 0; particle_idx < particleBucket.size(); ++particle_idx) {
       // fetch the entities
       stk::mesh::Entity const &particle = particleBucket[particle_idx];
@@ -771,10 +770,10 @@ void compute_rate_of_change_of_sep(stk::mesh::BulkData &bulkData, const stk::mes
   const stk::mesh::BucketVector &linkerBuckets = bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalLinkers);
 
   // compute the (linearized) rate of change in sep
-
-#pragma omp parallel for
   for (size_t bucket_idx = 0; bucket_idx < linkerBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &linkerBucket = *linkerBuckets[bucket_idx];
+
+    // #pragma omp parallel for
     for (size_t linker_idx = 0; linker_idx < linkerBucket.size(); ++linker_idx) {
       // fetch the entities
       stk::mesh::Entity const &linker = linkerBucket[linker_idx];
@@ -837,9 +836,9 @@ void update_con_gammas(stk::mesh::BulkData &bulkData, stk::mesh::Field<double> &
   const stk::mesh::BucketVector &linkerBuckets = bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalLinkers);
 
   // set xkm1 = xk and gkm1 = gk
-#pragma omp parallel for
   for (size_t bucket_idx = 0; bucket_idx < linkerBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &linkerBucket = *linkerBuckets[bucket_idx];
+    // #pragma omp parallel for
     for (size_t linker_idx = 0; linker_idx < linkerBucket.size(); ++linker_idx) {
       // fetch the entities
       stk::mesh::Entity const &linker = linkerBucket[linker_idx];
@@ -867,9 +866,9 @@ void swap_con_gammas(stk::mesh::BulkData &bulkData, stk::mesh::Field<double> &li
   const stk::mesh::BucketVector &linkerBuckets = bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalLinkers);
 
   // set xkm1 = xk and gkm1 = gk
-#pragma omp parallel for
   for (size_t bucket_idx = 0; bucket_idx < linkerBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &linkerBucket = *linkerBuckets[bucket_idx];
+    // #pragma omp parallel for
     for (size_t linker_idx = 0; linker_idx < linkerBucket.size(); ++linker_idx) {
       // fetch the entities
       stk::mesh::Entity const &linker = linkerBucket[linker_idx];
@@ -895,9 +894,9 @@ void step_euler(stk::mesh::BulkData &bulkData, const stk::mesh::Field<double> &n
       bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalParticles);
 
   // take an Euler step
-#pragma omp parallel for
   for (size_t bucket_idx = 0; bucket_idx < particleBuckets.size(); ++bucket_idx) {
     stk::mesh::Bucket &particleBucket = *particleBuckets[bucket_idx];
+    // #pragma omp parallel for
     for (size_t particle_idx = 0; particle_idx < particleBucket.size(); ++particle_idx) {
       // fetch the entities
       stk::mesh::Entity const &particle = particleBucket[particle_idx];
@@ -1083,27 +1082,6 @@ class RcbSettings : public stk::balance::BalanceSettings {
     return false;
   }
 };  // RcbSettings
-
-class ParMETISSettings : public stk::balance::BalanceSettings {
- public:
-  ParMETISSettings() {
-  }
-  virtual ~ParMETISSettings() {
-  }
-
-  virtual bool isIncrementalRebalance() const {
-    return false;
-  }
-  virtual std::string getDecompMethod() const {
-    return std::string("parmetis");
-  }
-  virtual std::string getCoordinateFieldName() const {
-    return std::string("coordinates");
-  }
-  virtual bool shouldPrintMetrics() const {
-    return false;
-  }
-};  // ParMETISSettings
 
 }  // namespace
 
@@ -1295,9 +1273,9 @@ int main(int argc, char** argv) {
         metaData.locally_owned_part() & metaData.get_topology_root_part(stk::topology::PARTICLE);
     const stk::mesh::BucketVector &particleBuckets =
         bulkData.get_buckets(stk::topology::ELEMENT_RANK, selectLocalParticles);
-#pragma omp parallel for
     for (size_t bucket_idx = 0; bucket_idx < particleBuckets.size(); ++bucket_idx) {
       stk::mesh::Bucket &particleBucket = *particleBuckets[bucket_idx];
+      // #pragma omp parallel for
       for (size_t particle_idx = 0; particle_idx < particleBucket.size(); ++particle_idx) {
         // set entity values
         stk::mesh::Entity const &particle = particleBucket[particle_idx];
@@ -1406,17 +1384,17 @@ int main(int argc, char** argv) {
   //   stkIo.end_output_step(outputFileIndex);
   // }
 
-  // // perform an aperiodic stk balance
-  // ParMETISSettings balanceSettings;
-  // stk::balance::balanceStkMesh(balanceSettings, bulkData);
+  // perform an aperiodic stk balance
+  RcbSettings balanceSettings;
+  stk::balance::balanceStkMesh(balanceSettings, bulkData);
 
   // store the updated processor ID
   {
     const int rank = bulkData.parallel_rank();
     const stk::mesh::BucketVector &elementBuckets = bulkData.buckets(stk::topology::ELEMENT_RANK);
-#pragma omp parallel for
     for (size_t bucket_idx = 0; bucket_idx < elementBuckets.size(); ++bucket_idx) {
       stk::mesh::Bucket &elemBucket = *elementBuckets[bucket_idx];
+      // #pragma omp parallel for
       for (size_t elem_idx = 0; elem_idx < elemBucket.size(); ++elem_idx) {
         int *element_rank = stk::mesh::field_data(elemRankField, elemBucket[elem_idx]);
         *element_rank = rank;
@@ -1424,10 +1402,10 @@ int main(int argc, char** argv) {
     }
   }
 
+
   // resolve initial collisions
 
   // Time and memory tracking for generate_neighbor_pairs
-  std::cout << "Generating neighbor pairs..." << std::endl;
   auto start_time1 = std::chrono::high_resolution_clock::now();
   SearchIdPairVector neighborPairs;
   generate_neighbor_pairs(bulkData, elemAabbField, neighborPairs);
@@ -1435,7 +1413,6 @@ int main(int argc, char** argv) {
   long long total_time1 = std::chrono::duration_cast<std::chrono::microseconds>(end_time1 - start_time1).count();
 
   // Time and memory tracking for generate_collision_constraints
-  std::cout << "Generating collision constraints..." << std::endl;
   auto start_time2 = std::chrono::high_resolution_clock::now();
   generate_collision_constraints(bulkData, neighborPairs, linkerPart, nodeCoordField, particleRadiusField,
                                   linkerSignedSepField, linkerSignedSepDotField, linkerSignedSepDotTmpField,
@@ -1443,13 +1420,7 @@ int main(int argc, char** argv) {
   auto end_time2 = std::chrono::high_resolution_clock::now();
   long long total_time2 = std::chrono::duration_cast<std::chrono::microseconds>(end_time2 - start_time2).count();
 
-  // perform an aperiodic stk balance
-  ParMETISSettings balanceSettings;
-  stk::balance::balanceStkMesh(balanceSettings, bulkData);
-
-
   // Time and memory tracking for resolve_collisions
-  std::cout << "Resolving collisions..." << std::endl;
   auto start_time3 = std::chrono::high_resolution_clock::now();
   resolve_collisions(bulkData, nodeCoordField, nodeVelocityField, nodeOmegaField, nodeForceField, nodeTorqueField,
                       particleOrientationField, particleRadiusField, linkerSignedSepField, linkerSignedSepDotField,
@@ -1471,7 +1442,7 @@ int main(int argc, char** argv) {
       // Create the filename string
       std::string filename = "timings_for_box_size_" + std::to_string(box_size) +
                             "_and_num_particles_" + std::to_string(num_particles_global) +
-                            "_with_" + std::to_string(num_procs * omp_get_max_threads()) + "_procs.csv";
+                            "_with_" + std::to_string(num_procs) + "_procs.csv";
 
       // Open the file for writing
       std::ofstream outFile(filename);

@@ -80,7 +80,7 @@ TEST(ComputeBoundingRadius, PerformsBoundingRadiusCalculationCorrectlyForSphere)
   bulk_data_ptr->modification_end();
 
   // Fetch the required fields.
-  stk::mesh::Field<double> *radius_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "RADIUS");
+  stk::mesh::Field<double> *radius_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   ASSERT_TRUE(radius_field_ptr != nullptr);
   stk::mesh::Field<double> *bounding_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "BOUNDING_RADIUS");

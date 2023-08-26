@@ -208,7 +208,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   static constexpr double default_buffer_distance_ = 0.0;
   static constexpr std::string_view default_part_name_ = "SPHERE";
   static constexpr std::string_view default_aabb_field_name_ = "AABB";
-  static constexpr std::string_view default_radius_field_name_ = "RADIUS";
+  static constexpr std::string_view default_radius_field_name_ = "ELEMENT_RADIUS";
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   //@}
 

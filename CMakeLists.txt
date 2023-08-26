@@ -35,7 +35,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED)
 
 # Create targets
 set(mundy_exe_name "mundy.X")
-add_executable(${mundy_exe_name} ${CMAKE_CURRENT_SOURCE_DIR}/test_mundy_app.cpp)
+add_executable(${mundy_exe_name} ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestMundy.cpp)
 add_library(mundy "")
 
 if(ENABLE_UNIT_TESTS)
