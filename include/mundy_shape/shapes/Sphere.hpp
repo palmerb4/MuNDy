@@ -21,7 +21,7 @@
 #define MUNDY_SHAPE_SHAPES_SPHERE_HPP_
 
 /// \file Sphere.hpp
-/// \brief Declaration of the Sphere class
+/// \brief Declaration of the Spheres part class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -35,7 +35,7 @@
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_shape/ShapeRegistry.hpp>     // for MUNDY_REGISTER_SHAPE
+#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
 
 namespace mundy {
 
@@ -53,72 +53,120 @@ class Sphere {
   //! \name Getters
   //@{
 
-  /// \brief Get the Sphere's name.
-  /// This name must be unique and not shared by any other shape.
+  /// \brief Get the name of our part.
   static constexpr inline std::string_view get_name() {
-    return our_part_name_;
+    return our_name_;
   }
 
-  /// \brief Get the Sphere's topology.
+  /// @brief Get the name of our parent part.
+  static constexpr inline std::string_view get_parent_name() {
+    return our_parents_name_;
+  }
+
+  /// \brief Get the topology of our part.
   static constexpr inline stk::topology::topology_t get_topology() {
     return our_topology_;
   }
 
-  /// \brief Get the requirements for the Sphere part.
-  static inline mundy::meta::PartRequirements get_part_requirements() {
-    // By default, we assume that the Sphere is a point particle with a radius.
-    static auto our_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    our_part_reqs->set_part_name(our_part_name_);
-    our_part_reqs->set_part_topology(our_topology_);
-    our_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        our_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
-    our_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        our_element_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
-    return our_part_reqs;
+  /// \brief Get the rank of our part.
+  static constexpr inline stk::topology::rank_t get_rank() {
+    return our_rank_;
   }
 
-  /// \brief Get the mesh requirements for the Sphere.
-  static inline mundy::meta::MeshRequirements get_mesh_requirements() {
-    // By default, we assume that the Sphere is a point particle with a radius.
-    static auto all_agents_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    all_shapes_part_reqs->set_part_name("AGENTS");
-    all_shapes_part_reqs->set_part_rank(stk::topology::ELEMENT_RANK);
-
-    static auto all_shapes_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    all_shapes_part_reqs->set_part_name("SHAPES");
-    
-    static auto our_part_reqs = get_part_requirements();
-    all_shapes_part_reqs->add_subpart_reqs(our_part_reqs);
-    all_agents_part_reqs->add_subpart_reqs(all_shapes_part_reqs);
-
-    static auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(all_agents_part_reqs);
-    return mesh_reqs;
+  /// \brief Get if our part has a topology or not.
+  static constexpr inline bool has_topology() {
+    return our_has_topology_;
   }
 
-  /// \brief Get the set of default field names for the Sphere.
+  /// \brief Get if our part has a rank or not.
+  static constexpr inline bool has_rank() {
+    return our_has_rank_;
+  }
+
+  /// \brief Add new part requirements to ALL members of this agent part.
+  /// These modifications are reflected in our mesh requirements.
+  static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
+    our_part_reqs_ptr_->merge(part_reqs_ptr);
+  }
+
+  /// \brief Add sub-part requirements.
+  /// These modifications are reflected in our mesh requirements.
+  static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
+    our_part_reqs_ptr_->add_subpart_reqs(subpart_reqs_ptr);
+  }
+
+  /// \brief Get our mesh requirements.
+  static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
+    // By default, we assume that the Spheres part is a point particle with a radius.
+    // All Spheres are Shapes.
+
+    // Declare our part as a subpart of our parent part.
+    mundy::agent::AgentHierarchy::add_subpart_reqs(our_parents_name_, our_grandparents_name_, our_part_reqs_ptr_);
+
+    // Fetch our parent's requirements.
+    // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
+    // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
+    // combined requirements for all parts touched in this traversal are then returned here.
+    return mundy::agent::AgentHierarchy::get_mesh_requirements(our_parents_name_, our_grandparents_name_);
+  }
+
+  /// \brief Get the set of default field names for the Spheres part.
   static inline std::vector<std::string> get_default_field_names() {
     return {our_node_coord_field_name_, our_element_radius_field_name_};
   }
 
-  /// \brief Get the default element radius field name for the Sphere.
+  /// \brief Get the default element radius field name for the Spheres part.
   static constexpr inline std::string_view get_element_radius_field_name() {
     return our_element_radius_field_name_;
   }
 
-  /// \brief Get the default node coordinate field name for the Sphere.
+  /// \brief Get the default node coordinate field name for the Spheres part.
   static constexpr inline std::string_view get_node_coord_field_name() {
     return our_node_coord_field_name_;
   }
 
  private:
-  //! \name Internal members
+  //! \name Member variable definitions
   //@{
 
+  /// \brief The name of the our part.
+  static constexpr std::string_view our_name_ = "SPHERES";
+
+  /// \brief The name of the our parent part.
+  static constexpr inline std::string_view our_parents_name_ = "SHAPES";
+
+  /// \brief The name of the our grandparent part.
+  static constexpr inline std::string_view our_grandparents_name_ = "AGENTS";
+
+  /// \brief Our topology
   static constexpr stk::topology::topology_t our_topology_ = stk::topology::PARTICLE;
-  static constexpr std::string_view our_part_name_ = "SPHERE";
+
+  /// \brief Our rank (we have a rank, so this is never used).
+  static constexpr inline stk::topology::rank_t our_rank_ = stk::topology::INVALID_RANK;
+
+  /// \brief If our part has a topology or not.
+  static constexpr inline bool our_has_topology_ = false;
+
+  /// \brief If our part has a rank or not.
+  static constexpr inline bool our_has_rank_ = true;
+
+  /// @brief The name of our element radius field.
   static constexpr std::string_view our_element_radius_field_name_ = "ELEMENT_RADIUS";
+
+  /// @brief The name of our node coordinate field.
   static constexpr std::string_view our_node_coord_field_name_ = "NODE_COORD";
+
+  /// \brief Our part requirements.
+  static inline std::shared_ptr<mundy::meta::PartRequirements> our_part_reqs_ptr_ = []() {
+    auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
+    part_reqs_ptr->set_part_name(our_name_);
+    part_reqs_ptr->set_part_topology(our_topology_);
+    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        our_node_coord_field_name_, stk::topology::NODE_RANK, 3, 1));
+    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        our_element_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1));
+    return part_reqs_ptr;
+  }();
   //@}
 };  // Sphere
 
@@ -128,6 +176,6 @@ class Sphere {
 
 }  // namespace mundy
 
-MUNDY_REGISTER_SHAPE(mundy::shape::shapes::Sphere)
+MUNDY_REGISTER_AGENT(mundy::shape::shapes::Sphere)
 
 #endif  // MUNDY_SHAPE_SHAPES_SPHERE_HPP_

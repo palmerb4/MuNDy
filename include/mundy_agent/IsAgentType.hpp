@@ -37,6 +37,43 @@ namespace agent {
 /// \class IsAgentType
 /// \brief A traits class for checking if a given type has the desired agent static interface.
 ///
+/// Here is an example that satisfies the desired interface:
+/// \code{.cpp}
+/// class ExampleAgent {
+///  public:
+///   //! \name Getters
+///   //@{
+///
+///   /// \brief Get the ExampleAgent's name.
+///   static constexpr inline std::string_view get_name();
+///
+///   /// \brief Get the ExampleAgent's parent's name.
+///   static constexpr inline std::string_view get_parent_name();
+///
+///   /// \brief Get the ExampleAgent's topology (throws if the part doesn't constrain topology)
+///   static constexpr inline stk::topology::topology_t get_topology();
+///
+///   /// \brief Get the ExampleAgent's rank (throws if the part doesn't constrain rank)
+///   static constexpr inline stk::topology::rank_t get_rank();
+///
+///   /// \brief Get if the ExampleAgent constrains the part's topology.
+///   static constexpr inline bool constrains_topology();
+///
+///   /// \brief Get if the ExampleAgent constrains the part's rank.
+///   static constexpr inline bool constrains_rank();
+///
+///   /// \brief Add new part requirements to ALL members of this agent part.
+///   /// These modifications are reflected in our mesh requirements.
+///   static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
+///
+///   /// \brief Add sub-part requirements.
+///   /// These modifications are reflected in our mesh requirements.
+///   static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
+///
+///   /// \brief Get the mesh requirements for the ExampleAgent.
+///   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements();
+/// };  // ExampleAgent
+/// \endcode
 /// \tparam T The type to check.
 template <typename T>
 struct IsAgentType {
@@ -75,39 +112,83 @@ struct IsAgentType {
   template <typename>
   static auto check_get_topology(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c add_part_requirements function.
+  /// \brief Helper for checking if \c U has a \c get_rank function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c add_part_requirements function, \c std::false_type
+  /// \return \c std::true_type if \c U has a \c get_rank function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_add_part_requirements([[maybe_unused]] int unused)
-      -> decltype(U::add_part_requirements(std::declval<td::shared_ptr<mundy::meta::PartRequirements>>()),
-                  std::true_type{});
+  static auto check_get_rank([[maybe_unused]] int unused) -> decltype(U::get_rank(), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c add_part_requirements function.
+  /// \brief Helper for checking if \c U has a \c get_rank function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c add_part_requirements function.
+  /// \return \c std::false_type if \c U does not have a \c get_rank function.
   template <typename>
-  static auto check_add_part_requirements(...) -> std::false_type;
+  static auto check_get_rank(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c add_subpart_requirements function.
+  /// \brief Helper for checking if \c U has a \c constrains_topology function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c add_subpart_requirements function, \c std::false_type
+  /// \return \c std::true_type if \c U has a \c constrains_topology function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_add_subpart_requirements([[maybe_unused]] int unused)
-      -> decltype(U::add_subpart_requirements(std::declval<td::shared_ptr<mundy::meta::PartRequirements>>()),
-                  std::true_type{});
+  static auto check_constrains_topology([[maybe_unused]] int unused)
+      -> decltype(U::constrains_topology(), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c add_subpart_requirements function.
+  /// \brief Helper for checking if \c U has a \c constrains_topology function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c add_subpart_requirements function.
+  /// \return \c std::false_type if \c U does not have a \c constrains_topology function.
   template <typename>
-  static auto check_add_subpart_requirements(...) -> std::false_type;
+  static auto check_constrains_topology(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c constrains_rank function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c constrains_rank function, \c std::false_type
+  /// otherwise.
+  template <typename U>
+  static auto check_constrains_rank([[maybe_unused]] int unused) -> decltype(U::constrains_rank(), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c constrains_rank function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c constrains_rank function.
+  template <typename>
+  static auto check_constrains_rank(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c add_part_reqs function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c add_part_reqs function, \c std::false_type
+  /// otherwise.
+  template <typename U>
+  static auto check_add_part_reqs([[maybe_unused]] int unused)
+      -> decltype(U::add_part_reqs(std::declval<td::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c add_part_reqs function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c add_part_reqs function.
+  template <typename>
+  static auto check_add_part_reqs(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c add_subpart_reqs function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c add_subpart_reqs function, \c std::false_type
+  /// otherwise.
+  template <typename U>
+  static auto check_add_subpart_reqs([[maybe_unused]] int unused)
+      -> decltype(U::add_subpart_reqs(std::declval<td::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c add_subpart_reqs function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c add_subpart_reqs function.
+  template <typename>
+  static auto check_add_subpart_reqs(...) -> std::false_type;
 
   /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
   /// \tparam U The type to check.
@@ -150,23 +231,53 @@ struct IsAgentType {
   static constexpr bool has_get_topology = decltype(check_get_topology<T>(0))::value &&
                                            std::is_same_v<decltype(T::get_topology()), stk::topology::topology_t>;
 
-  /// \brief Check for the existence of a \c add_part_requirements function.
-  /// \return \c true if \c T has a \c add_part_requirements function, \c false otherwise.
+  /// \brief Check for the existence of a \c get_rank function.
+  /// \return \c true if \c T has a \c get_rank function, \c false otherwise.
   ///
-  /// The specific signature of the \c add_part_requirements function is:
+  /// The specific signature of the \c get_rank function is:
   /// \code
-  /// static inline void add_part_requirements(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
+  /// static constexpr inline stk::topology::rank_t get_rank();
   /// \endcode
-  static constexpr bool has_add_part_requirements = decltype(check_add_part_requirements<T>(0))::value;
+  static constexpr bool has_get_rank =
+      decltype(check_get_rank<T>(0))::value && std::is_same_v<decltype(T::get_rank()), stk::topology::rank_t>;
 
-  /// \brief Check for the existence of a \c add_subpart_requirements function.
-  /// \return \c true if \c T has a \c add_subpart_requirements function, \c false otherwise.
+  /// \brief Check for the existence of a \c constrains_topology function.
+  /// \return \c true if \c T has a \c constrains_topology function, \c false otherwise.
   ///
-  /// The specific signature of the \c add_subpart_requirements function is:
+  /// The specific signature of the \c constrains_topology function is:
   /// \code
-  /// static inline void add_subpart_requirements(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
+  /// static constexpr inline bool constrains_topology();
   /// \endcode
-  static constexpr bool has_add_subpart_requirements = decltype(check_add_subpart_requirements<T>(0))::value;
+  static constexpr bool has_constrains_topology =
+      decltype(check_constrains_topology<T>(0))::value && std::is_same_v<decltype(T::constrains_topology()), bool>;
+
+  /// \brief Check for the existence of a \c constrains_rank function.
+  /// \return \c true if \c T has a \c constrains_rank function, \c false otherwise.
+  ///
+  /// The specific signature of the \c constrains_rank function is:
+  /// \code
+  /// static constexpr inline bool constrains_rank();
+  /// \endcode
+  static constexpr bool has_constrains_rank =
+      decltype(check_constrains_rank<T>(0))::value && std::is_same_v<decltype(T::constrains_rank()), bool>;
+
+  /// \brief Check for the existence of a \c add_part_reqs function.
+  /// \return \c true if \c T has a \c add_part_reqs function, \c false otherwise.
+  ///
+  /// The specific signature of the \c add_part_reqs function is:
+  /// \code
+  /// static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
+  /// \endcode
+  static constexpr bool has_add_part_reqs = decltype(check_add_part_reqs<T>(0))::value;
+
+  /// \brief Check for the existence of a \c add_subpart_reqs function.
+  /// \return \c true if \c T has a \c add_subpart_reqs function, \c false otherwise.
+  ///
+  /// The specific signature of the \c add_subpart_reqs function is:
+  /// \code
+  /// static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
+  /// \endcode
+  static constexpr bool has_add_subpart_reqs = decltype(check_add_subpart_reqs<T>(0))::value;
 
   /// \brief Check for the existence of a \c get_mesh_requirements function.
   /// \return \c true if \c T has a \c get_mesh_requirements function, \c false otherwise.
@@ -180,8 +291,9 @@ struct IsAgentType {
   /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
   /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
   /// false otherwise.
-  static constexpr bool value = has_get_name && has_get_topology && has_add_part_requirements &&
-                                has_add_subpart_requirements && has_get_mesh_requirements;
+  static constexpr bool value = has_get_name && has_get_topology && has_get_rank && has_constrains_topology &&
+                                has_constrains_rank && has_add_part_reqs && has_add_subpart_reqs &&
+                                has_get_mesh_requirements;
 };  // IsAgentType
 
 }  // namespace agent

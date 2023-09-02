@@ -87,7 +87,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    std::string radius_field_name = valid_fixed_params.get<std::string>("radius_field_name");
+    std::string element_radius_field_name = valid_fixed_params.get<std::string>("element_radius_field_name");
     std::string bounding_radius_field_name = valid_fixed_params.get<std::string>("bounding_radius_field_name");
     std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
@@ -95,7 +95,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     part_reqs->set_part_name(associated_part_name);
     part_reqs->set_part_topology(stk::topology::PARTICLE);
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
+        std::string(element_radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(bounding_radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
 
@@ -107,13 +107,13 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("radius_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("radius_field_name");
+    if (fixed_params_ptr->isParameter("element_radius_field_name")) {
+      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'radius_field_name' but "
+                         "Sphere: Type error. Given a parameter with name 'element_radius_field_name' but "
                          "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("radius_field_name", std::string(default_radius_field_name_),
+      fixed_params_ptr->set("element_radius_field_name", std::string(default_radius_field_name_),
                             "Name of the element field containing the sphere radius.");
     }
 
@@ -220,7 +220,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   std::string bounding_radius_field_name_;
 
   /// \brief Name of the element field containing the sphere radius.
-  std::string radius_field_name_;
+  std::string element_radius_field_name_;
 
   /// \brief Element field within which the output bounding radius will be written.
   stk::mesh::Field<double> *bounding_radius_field_ptr_;

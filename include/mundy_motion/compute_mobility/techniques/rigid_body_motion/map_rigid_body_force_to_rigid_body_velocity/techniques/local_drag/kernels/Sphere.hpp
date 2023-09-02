@@ -131,7 +131,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     if (fixed_params_ptr->isParameter("node_force_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'aabb_field_name' but "
+                         "Sphere: Type error. Given a parameter with name 'element_aabb_field_name' but "
                          "with a type other than std::string");
     } else {
       fixed_params_ptr->set("node_force_field_name", std::string(default_node_force_field_name_),

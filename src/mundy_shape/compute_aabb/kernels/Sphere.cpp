@@ -56,21 +56,21 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
-  node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
-  radius_field_name_ = valid_fixed_params.get<std::string>("radius_field_name");
-  aabb_field_name_ = valid_fixed_params.get<std::string>("aabb_field_name");
+  const std::string_view node_coord_field_name = mundy::shape::shapes::Sphere::get_node_coord_field_name();
+  const std::string_view element_radius_field_name = mundy::shape::shapes::Sphere::get_element_radius_field_name();
+  const std::string_view element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
 
   // Get the field pointers.
-  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, radius_field_name_);
-  aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, aabb_field_name_);
+  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
+  element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name);
 
   // Check that the fields exist.
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: radius_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(aabb_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: aabb_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
@@ -98,7 +98,7 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
-  double *aabb = stk::mesh::field_data(*aabb_field_ptr_, sphere_element);
+  double *aabb = stk::mesh::field_data(*element_aabb_field_ptr_, sphere_element);
 
   aabb[0] = coords[0] - radius[0] - buffer_distance_;
   aabb[1] = coords[1] - radius[0] - buffer_distance_;
@@ -106,12 +106,6 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   aabb[3] = coords[0] + radius[0] + buffer_distance_;
   aabb[4] = coords[1] + radius[0] + buffer_distance_;
   aabb[5] = coords[2] + radius[0] + buffer_distance_;
-
-  std::cout << "Sphere: " << sphere_element << std::endl;
-  std::cout << "Sphere radius: " << radius[0] << std::endl;
-  std::cout << "Sphere aabb:"
-            << " " << aabb[0] << " " << aabb[1] << " " << aabb[2] << " " << aabb[3] << " " << aabb[4] << " " << aabb[5]
-            << std::endl;
 }
 
 void Sphere::finalize() {

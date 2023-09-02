@@ -501,7 +501,7 @@ you could have a topology kernel.
 I don't think that we should force all multibody types to have the same aabb field name or same node force name. No, it's better for performance if we do, but it's an
 unnecessary restriction. The only reason we wanted to make the change, where methods fetch and then pass down the chain fields like aabb, was to allow certain methods
 to zero-out force fields. Instead, why don't we loop over each of the kernels, fetch their force field and zero it out? That would require us to force all sub-kernels
-to have a parameter with the aabb_field_name. I'm not ok with that since it assumes a form without a way to enforce it. If we use alpha and beta and mutable parameters,
+to have a parameter with the element_aabb_field_name. I'm not ok with that since it assumes a form without a way to enforce it. If we use alpha and beta and mutable parameters,
 then we can allow the user to decide when to zero out and when to add.
 
 What are the required parameters for every method? 
@@ -516,14 +516,14 @@ ComputeAABB
       kernels:
         name: sphere
         buffer_distance:
-        aabb_field_name:
-        radius_field_name:
+        element_aabb_field_name:
+        element_radius_field_name:
     input_part_1:
       name:
       kernels:
         name: ellipsoid
         buffer_distance:
-        aabb_field_name:
+        element_aabb_field_name:
         axis_length_field_name:
 
 What we should do with multibody types:
@@ -533,8 +533,8 @@ ComputeAABB
     kernel_0: 
       multibody_type: sphere
       buffer_distance:
-      aabb_field_name:
-      radius_field_name:
+      element_aabb_field_name:
+      element_radius_field_name:
     kernel_1: 
       multibody_type: ellipsoid
       axis_length_field_name:
@@ -546,12 +546,12 @@ ComputeAABB
     kernel_0: 
       multibody_type: sphere
       buffer_distance:
-      aabb_field_name:
-      radius_field_name:
+      element_aabb_field_name:
+      element_radius_field_name:
     kernel_1: 
       multibody_type: ellipsoid
       buffer_distance:
-      aabb_field_name:
+      element_aabb_field_name:
       axis_length_field_name:
 
 

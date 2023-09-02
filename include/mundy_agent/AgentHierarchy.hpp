@@ -57,35 +57,48 @@ using agent_t = unsigned;
 /// \brief A factory containing generation routines for different Agent types that form a hierarchical structure.
 ///
 /// Agents are used to streamlike the requirements generation process. Typically, an agent will hardcode only the bare
-/// minimum requirements (e.g., all spheres have a radius and a center). All other requirements should be added at run-time.
-/// Either one uses an agent directly, modifies the requirements of an agent, or inherits from/subsets an agent. Typically,
-/// subsetting is more appropriate than direct modification since it's unlikely that you want ALL agents of a type to have a
-/// certain field other than their default fields. If a subset occurs repeatedly in your problem, consider creating and
-/// registering your own agent.
-/// 
+/// minimum requirements (e.g., all spheres have a radius and a center). All other requirements should be added at
+/// run-time. Either one uses an agent directly, modifies the requirements of an agent, or inherits from/subsets an
+/// agent. Typically, subsetting is more appropriate than direct modification since it's unlikely that you want ALL
+/// agents of a type to have a certain field other than their default fields. If a subset occurs repeatedly in your
+/// problem, consider creating and registering your own agent.
+///
+/// \code{.cpp}
 /// class ExampleAgent {
 ///  public:
 ///   //! \name Getters
 ///   //@{
-/// 
+///
 ///   /// \brief Get the ExampleAgent's name.
-///   /// This name must be unique and not shared by any other shape.
 ///   static constexpr inline std::string_view get_name();
-/// 
-///   /// \brief Get the ExampleAgent's topology.
+///
+///   /// \brief Get the ExampleAgent's parent's name.
+///   static constexpr inline std::string_view get_parent_name();
+///
+///   /// \brief Get the ExampleAgent's topology (throws if the part doesn't constrain topology)
 ///   static constexpr inline stk::topology::topology_t get_topology();
-/// 
+///
+///   /// \brief Get the ExampleAgent's rank (throws if the part doesn't constrain rank)
+///   static constexpr inline stk::topology::rank_t get_rank();
+///
+///   /// \brief Get if the ExampleAgent constrains the part's topology.
+///   static constexpr inline bool constrains_topology();
+///
+///   /// \brief Get if the ExampleAgent constrains the part's rank.
+///   static constexpr inline bool constrains_rank();
+///
 ///   /// \brief Add new part requirements to ALL members of this agent part.
 ///   /// These modifications are reflected in our mesh requirements.
-///   static inline void add_part_requirements(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
-/// 
+///   static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
+///
 ///   /// \brief Add sub-part requirements.
 ///   /// These modifications are reflected in our mesh requirements.
-///   static inline void add_subpart_requirements(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
-/// 
+///   static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
+///
 ///   /// \brief Get the mesh requirements for the ExampleAgent.
 ///   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements();
 /// };  // ExampleAgent
+/// \endcode
 ///
 /// This class is a tree of AgentFactories that can be used to generate the different types of agents. For example,
 /// imagine a simple hierarchy of agents:
@@ -102,6 +115,13 @@ using agent_t = unsigned;
 /// Because this factory is constructed at static initialization time, the order in which nodes in the tree
 /// are registered is not guarenteed (due to the static initialization order fiasco). As a result, the id's of the nodes
 /// in the tree are not guarenteed to be in the order you would expect and they need not be consistent between runs.
+///
+/// It's important to note that the topology/rank of each part in this hierarchy take some consideration when building
+/// your agents. For example, if certain shapes have different topologies than others, how should one construct the
+/// Shapes part to allow for proper subsetting. Because topologies are inhertited and changing the topology of subparts
+/// is invalid, the proper way to think of parts like Shapes, Constraints, and Agents is as "assemblies." Assemblies are
+/// specialized parts that are meant to contain any number of sub-parts with arbitrary topologies/ranks. STK identifies
+/// assemblies as ranked parts with INVALID_RANK.
 class AgentHeirarchy {
  public:
   //! \name Typedefs
@@ -119,6 +139,9 @@ class AgentHeirarchy {
 
   /// \brief A function that takes in a part reqirements and returns a void.
   using AddRequirementsGenerator = std::function<void(std::shared_ptr<PartRequirements>)>;
+
+  /// \brief A function that returns a bool.
+  using BoolGenerator = std::function<bool()>;
   //@}
 
   //! \name Getters
@@ -148,7 +171,8 @@ class AgentHeirarchy {
                        "AgentFactory: The provided class's name '"
                            << name << "' is not valid.\n"
                            << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
-                           << "The hierarchy is:\n" << get_hierarchy_as_a_string() << "\n");
+                           << "The hierarchy is:\n"
+                           << get_hierarchy_as_a_string() << "\n");
   }
 
   /// \brief Throw if the provided agent_type is invalid
@@ -158,7 +182,8 @@ class AgentHeirarchy {
                        "AgentFactory: The provided class's id '"
                            << agent_type << "' is not valid."
                            << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
-                           << "The hierarchy is:\n" << get_hierarchy_as_a_string() << "\n");
+                           << "The hierarchy is:\n"
+                           << get_hierarchy_as_a_string() << "\n");
   }
 
   /// \brief Get the agent_type corresponding to a registered class with the given name.
@@ -169,12 +194,29 @@ class AgentHeirarchy {
     return get_name_to_type_map()[name];
   }
 
-  /// \brief Get the name corresponding to a registered class with the given agent_type.
+  /// \brief Get the name corresponding to the registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
   static std::string_view get_name(const agent_t agent_type) {
     assert_is_valid(agent_type);
     return get_name_map()[agent_type];
+  }
+
+  /// \brief Get the name corresponding to the parent of the registered class with the given name.
+  /// \param name [in] A string name that correspond to a registered class.
+  /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
+  static std::string_view get_parent_name(const std::string_view& name, const std::string_view& parent_name = "") {
+    assert_is_valid(name, parent_name);
+    const agent_t agent_type = get_agent_type(name);
+    return get_parent_name(agent_type);
+  }
+
+  /// \brief Get the name corresponding to the parent of the registered class with the given agent_type.
+  /// \param agent_type [in] A agent_type that correspond to a registered class.
+  /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
+  static std::string_view get_parent_name(const agent_t agent_type) {
+    assert_is_valid(agent_type);
+    return get_parent_name_map()[agent_type];
   }
 
   /// \brief Get the topology corresponding to a registered class with the given agent_type.
@@ -195,22 +237,38 @@ class AgentHeirarchy {
     return get_topology_generator_map()[agent_type]();
   }
 
+  /// \brief Get the rank corresponding to a registered class with the given agent_type.
+  /// \param name [in] A string name that correspond to a registered class.
+  /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
+  static stk::topology::rank_t get_rank(const std::string_view& name, const std::string_view& parent_name = "") {
+    assert_is_valid(name, parent_name);
+    const agent_t agent_type = get_agent_type(name);
+    return get_rank(agent_type);
+  }
+
+  /// \brief Get the rank corresponding to a registered class with the given agent_type.
+  /// \param agent_type [in] A agent_type that correspond to a registered class.
+  /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
+  static stk::topology::rank_t get_rank(const agent_t agent_type) {
+    assert_is_valid(agent_type);
+    return get_rank_generator_map()[agent_type]();
+  }
+
   /// \brief Add new part requirements to ALL members of the specified agent part.
   /// \param name [in] A string name that correspond to a registered class.
   /// \param part_reqs_ptr [in] A pointer to the part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_part_requirements(const std::string_view& name, const std::string_view& parent_name = "",
-                                    std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
+  static void add_part_reqs(const std::string_view& name, const std::string_view& parent_name = "",
+                            std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
     assert_is_valid(name, parent_name);
     const agent_t agent_type = get_agent_type(name);
-    add_part_requirements(agent_type, part_reqs_ptr);
+    add_part_reqs(agent_type, part_reqs_ptr);
   }
 
   /// \brief Add new part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static void add_part_requirements(const agent_t agent_type,
-                                    std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
+  static void add_part_reqs(const agent_t agent_type, std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
     assert_is_valid(agent_type);
     get_part_requirements_generator_map()[agent_type](part_reqs_ptr);
   }
@@ -219,18 +277,18 @@ class AgentHeirarchy {
   /// \param name [in] A string name that correspond to a registered class.
   /// \param subpart_reqs_ptr [in] A pointer to the sub-part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_subpart_requirements(const std::string_view& name, const std::string_view& parent_name = "",
-                                       std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
+  static void add_subpart_reqs(const std::string_view& name, const std::string_view& parent_name = "",
+                               std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
     assert_is_valid(name, parent_name);
     const agent_t agent_type = get_agent_type(name);
-    add_subpart_requirements(agent_type, subpart_reqs_ptr);
+    add_subpart_reqs(agent_type, subpart_reqs_ptr);
   }
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static void add_subpart_requirements(const agent_t agent_type,
-                                       std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
+  static void add_subpart_reqs(const agent_t agent_type,
+                               std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
     assert_is_valid(agent_type);
     get_subpart_requirements_generator_map()[agent_type](subpart_reqs_ptr);
   }
@@ -271,11 +329,20 @@ class AgentHeirarchy {
     static_assert(Checker::has_get_topology,
                   "AgentFactory: The class to register doesn't have the correct get_topology function.\n"
                   "See the documentation of AgentFactory for more information about the expected interface.");
-    static_assert(Checker::has_add_part_requirements,
-                  "AgentFactory: The class to register doesn't have the correct add_part_requirements function.\n"
+    static_assert(Checker::has_get_rank,
+                  "AgentFactory: The class to register doesn't have the correct get_rank function.\n"
                   "See the documentation of AgentFactory for more information about the expected interface.");
-    static_assert(Checker::has_add_subpart_requirements,
-                  "AgentFactory: The class to register doesn't have the correct add_subpart_requirements "
+    static_assert(Checker::has_constrains_topology,
+                  "AgentFactory: The class to register doesn't have the correct constrains_topology function\n"
+                  "See the documentation of AgentFactory for more information about the expected interface.");
+    static_assert(Checker::has_constrains_rank,
+                  "AgentFactory: The class to register doesn't have the correct constrains_rank function\n"
+                  "See the documentation of AgentFactory for more information about the expected interface.");
+    static_assert(Checker::has_add_part_reqs,
+                  "AgentFactory: The class to register doesn't have the correct add_part_reqs function.\n"
+                  "See the documentation of AgentFactory for more information about the expected interface.");
+    static_assert(Checker::has_add_subpart_reqs,
+                  "AgentFactory: The class to register doesn't have the correct add_subpart_reqs "
                   "function.\n"
                   "See the documentation of AgentFactory for more information about the expected interface.");
     static_assert(Checker::has_get_mesh_requirements,
@@ -303,10 +370,11 @@ class AgentHeirarchy {
     get_name_pair_to_type_map().insert(std::make_pair(std::make_pair(name, parent_name), agent_type));
     get_name_map().insert(std::make_pair(agent_type, name));
     get_topology_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_topology));
-    get_add_part_requirements_generator_map().insert(
-        std::make_pair(agent_type, ClassToRegister::add_part_requirements));
-    get_add_subpart_requirements_generator_map().insert(
-        std::make_pair(agent_type, ClassToRegister::add_subpart_requirements));
+    get_rank_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_rank));
+    get_constrains_topology_generator_map().insert(std::make_pair(agent_type, ClassToRegister::constrains_topology));
+    get_constrains_rank_generator_map().insert(std::make_pair(agent_type, ClassToRegister::constrains_rank));
+    get_add_part_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_part_reqs));
+    get_add_subpart_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_subpart_reqs));
     get_mesh_requirements_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_mesh_requirements));
     return true;
   }
@@ -446,7 +514,8 @@ class AgentHeirarchy {
       for (int i = 0; i < depth; ++i) {
         os << "  ";
       }
-      os << "Name: " << node->get_name() << " | " << "ID: " << node->get_id() << std::endl;
+      os << "Name: " << node->get_name() << " | "
+         << "ID: " << node->get_id() << std::endl;
 
       for (const auto& child : node->get_children()) {
         print_tree(child, os, depth + 1);
@@ -480,6 +549,9 @@ class AgentHeirarchy {
 
   /// \brief A map from agent_type to a function that returns a class's mesh requirements.
   using TypeToNewRequirementsGeneratorMap = std::map<agent_t, NewRequirementsGenerator>;
+
+  /// \brief A map from agent_type to a function that returns a bool.
+  using TypeToBoolGeneratorMap = std::map<agent_t, BoolGenerator>;
   //@}
 
   //! \name Attributes
@@ -502,16 +574,34 @@ class AgentHeirarchy {
     return topology_generator_map;
   }
 
-  static TypeToAddRequirementsGeneratorMap& get_add_part_requirements_generator_map() {
+  static TypeToStringViewGeneratorMap& get_rank_generator_map() {
     // Static: One and the same instance for all function calls.
-    static TypeToAddRequirementsGeneratorMap add_part_requirements_generator_map;
-    return add_part_requirements_generator_map;
+    static TypeToStringViewGeneratorMap rank_generator_map;
+    return rank_generator_map;
   }
 
-  static TypeToAddRequirementsGeneratorMap& get_add_subpart_requirements_generator_map() {
+  static TypeToBoolGeneratorMap& get_constrains_topology_generator_map() {
     // Static: One and the same instance for all function calls.
-    static TypeToAddRequirementsGeneratorMap add_subpart_requirements_generator_map;
-    return add_subpart_requirements_generator_map;
+    static TypeToBoolGeneratorMap constrains_topology_generator_map;
+    return constrains_topology_generator_map;
+  }
+
+  static TypeToBoolGeneratorMap& get_constrains_rank_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static TypeToBoolGeneratorMap constrains_rank_generator_map;
+    return constrains_rank_generator_map;
+  }
+
+  static TypeToAddRequirementsGeneratorMap& get_add_part_reqs_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static TypeToAddRequirementsGeneratorMap add_part_reqs_generator_map;
+    return add_part_reqs_generator_map;
+  }
+
+  static TypeToAddRequirementsGeneratorMap& get_add_subpart_reqs_generator_map() {
+    // Static: One and the same instance for all function calls.
+    static TypeToAddRequirementsGeneratorMap add_subpart_reqs_generator_map;
+    return add_subpart_reqs_generator_map;
   }
 
   static TypeToNewRequirementsGeneratorMap& get_mesh_requirements_generator_map() {

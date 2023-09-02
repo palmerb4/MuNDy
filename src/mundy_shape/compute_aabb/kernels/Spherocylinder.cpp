@@ -56,21 +56,26 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
-  node_coord_field_name_ = valid_fixed_params.get<std::string>("node_coord_field_name");
-  element_radius_field_name_ = valid_fixed_params.get<std::string>("element_radius_field_name");
-  element_aabb_field_name_ = valid_fixed_params.get<std::string>("element_aabb_field_name");
+  const std::string_view node_coord_field_name = mundy::shape::shapes::Sphere::get_node_coord_field_name();
+  const std::string_view element_radius_field_name = vmundy::shape::shapes::Sphere::get_element_radius_field_name();
+  const std::string_view element_length_field_name = vmundy::shape::shapes::Sphere::get_element_length_field_name();
+  const std::string_view element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
 
   // Store the input params.
-  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
-  element_radius_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
-  element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name_);
+  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+  element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
+  element_length_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_length_field_name);
+  element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name);
 
   // Check that the fields exist.
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(element_length_field_ptr_ != nullptr, std::invalid_argument,
+                     "Spherocylinder: element_length_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: element_aabb_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
 
@@ -98,6 +103,7 @@ void Spherocylinder::execute(const stk::mesh::Entity &spherocylinder_element) {
   double *left_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *right_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
   double *radius = stk::mesh::field_data(*element_radius_field_ptr_, spherocylinder_element);
+  double *length = stk::mesh::field_data(*element_length_field_ptr_, spherocylinder_element);
   double *aabb = stk::mesh::field_data(*element_aabb_field_ptr_, spherocylinder_element);
 
   aabb[0] = std::min(left_endpt_coords[0], right_endpt_coords[0]) - radius[0] - buffer_distance_;
