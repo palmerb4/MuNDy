@@ -87,44 +87,35 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    std::string element_radius_field_name = valid_fixed_params.get<std::string>("element_radius_field_name");
-    std::string bounding_radius_field_name = valid_fixed_params.get<std::string>("bounding_radius_field_name");
+    std::string element_bounding_radius_field_name = valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
     std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name(associated_part_name);
-    part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(bounding_radius_field_name), stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_reqs(
+        std::make_shared<mundy::meta::FieldRequirements<double>>(element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(part_reqs);
-    return mesh_reqs;
+    constexpr std::string_view parent_part_name = "SPHERES";
+    constexpr std::string_view grandparent_part_name = "SHAPES";
+    if (associated_part_name == default_part_name_) {
+      mundy::agent::AgentHierarchy::add_part_reqs(parent_part_name, grandparent_part_name, part_reqs);
+    } else {
+      mundy::agent::AgentHierarchy::add_subpart_requirements(parent_part_name, grandparent_part_name, part_reqs);
+    }
+    return mundy::agent::AgentHierarchy::get_mesh_requirements(parent_part_name, grandparent_part_name);
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("element_radius_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'element_radius_field_name' but "
-                         "with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("element_radius_field_name", std::string(default_radius_field_name_),
-                            "Name of the element field containing the sphere radius.");
-    }
-
-    if (fixed_params_ptr->isParameter("bounding_radius_field_name")) {
+    if (fixed_params_ptr->isParameter("element_bounding_radius_field_name")) {
       const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("bounding_radius_field_name");
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_bounding_radius_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'bounding_radius_field_name' but "
+                         "Sphere: Type error. Given a parameter with name 'element_bounding_radius_field_name' but "
                          "with a type other than std::string");
     } else {
-      fixed_params_ptr->set("bounding_radius_field_name", std::string(default_bounding_radius_field_name_),
+      fixed_params_ptr->set("element_bounding_radius_field_name", std::string(default_bounding_radius_field_name_),
                             "Name of the element field within which the output bounding radius will be written.");
     }
 
@@ -194,8 +185,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
   static constexpr double default_buffer_distance_ = 0.0;
   static constexpr std::string_view default_part_name_ = "SPHERE";
-  static constexpr std::string_view default_bounding_radius_field_name_ = "BOUNDING_RADIUS";
-  static constexpr std::string_view default_radius_field_name_ = "ELEMENT_RADIUS";
+  static constexpr std::string_view default_bounding_radius_field_name_ = "ELEMENT_BOUNDING_RADIUS";
   //@}
 
   //! \name Internal members
@@ -216,17 +206,11 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   /// then a buffer distance of 2 will shift the left corner to [-2,-2,-2] and right corner to [3,3,3].
   double buffer_distance_ = default_buffer_distance_;
 
-  /// \brief Name of the element field within which the output bounding radius will be written.
-  std::string bounding_radius_field_name_;
-
-  /// \brief Name of the element field containing the sphere radius.
-  std::string element_radius_field_name_;
-
   /// \brief Element field within which the output bounding radius will be written.
-  stk::mesh::Field<double> *bounding_radius_field_ptr_;
+  stk::mesh::Field<double> *element_bounding_radius_field_ptr_;
 
   /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *radius_field_ptr_;
+  stk::mesh::Field<double> *element_radius_field_ptr_;
 };  // Sphere
 
 }  // namespace kernels

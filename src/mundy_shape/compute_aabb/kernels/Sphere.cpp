@@ -62,13 +62,13 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 
   // Get the field pointers.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
+  element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
   element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name);
 
   // Check that the fields exist.
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(radius_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: radius_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: aabb_field_ptr cannot be a nullptr. Check that the field exists.");
@@ -97,7 +97,7 @@ void Sphere::setup() {
 void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
+  double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
   double *aabb = stk::mesh::field_data(*element_aabb_field_ptr_, sphere_element);
 
   aabb[0] = coords[0] - radius[0] - buffer_distance_;

@@ -55,18 +55,18 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
-  element_radius_field_name_ = valid_fixed_params.get<std::string>("element_radius_field_name");
-  bounding_radius_field_name_ = valid_fixed_params.get<std::string>("bounding_radius_field_name");
+  const std::string_view element_radius_field_name = mundy::shape::shapes::Sphere::get_element_radius_field_name();
+  const std::string_view element_bounding_radius_field_name = valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
 
   // Store the input params.
-  radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
-  bounding_radius_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, bounding_radius_field_name_);
+  element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
+  element_bounding_radius_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_bounding_radius_field_name);
 
   // Check that the fields exist.
-  MUNDY_THROW_ASSERT(radius_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: radius_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(bounding_radius_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(element_bounding_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: bounding_radius_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
@@ -90,8 +90,8 @@ void Sphere::setup() {
 }
 
 void Sphere::execute(const stk::mesh::Entity &sphere_element) {
-  double *radius = stk::mesh::field_data(*radius_field_ptr_, sphere_element);
-  double *bounding_radius = stk::mesh::field_data(*bounding_radius_field_ptr_, sphere_element);
+  double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
+  double *bounding_radius = stk::mesh::field_data(*element_bounding_radius_field_ptr_, sphere_element);
   bounding_radius[0] = radius[0] + buffer_distance_;
 }
 

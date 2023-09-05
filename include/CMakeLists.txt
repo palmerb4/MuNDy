@@ -17,6 +17,8 @@
 # **********************************************************************************************************************
 # @HEADER
 
+add_subdirectory(mundy)
+add_subdirectory(mundy_agent)
 add_subdirectory(mundy_balance)
 add_subdirectory(mundy_constraint)
 add_subdirectory(mundy_init)
@@ -24,7 +26,6 @@ add_subdirectory(mundy_io)
 add_subdirectory(mundy_mesh)
 add_subdirectory(mundy_meta)
 add_subdirectory(mundy_motion)
-add_subdirectory(mundy_multibody)
 add_subdirectory(mundy_pairwise)
 add_subdirectory(mundy_search)
 add_subdirectory(mundy_shape)
