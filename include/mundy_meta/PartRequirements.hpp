@@ -39,7 +39,6 @@
 // Mundy libs
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
-#include <mundy_multibody/Multibody.hpp>     // for mundy::multibody::Multibody
 
 namespace mundy {
 
@@ -221,9 +220,6 @@ class PartRequirements {
 
   /// \brief Add the io part attribute to this part.
   void put_io_part_attribute();
-
-  /// \brief Add the given multibody part attribute to this part.
-  void put_multibody_part_attribute(const mundy::multibody::multibody_t &body_type);
   //@}
 
   //! \name Getters

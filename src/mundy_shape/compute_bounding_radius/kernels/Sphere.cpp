@@ -55,8 +55,8 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
-  const std::string_view element_radius_field_name = mundy::shape::shapes::Sphere::get_element_radius_field_name();
-  const std::string_view element_bounding_radius_field_name = valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
+  const std::string element_radius_field_name = mundy::shape::shapes::Sphere::get_element_radius_field_name();
+  const std::string element_bounding_radius_field_name = valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
 
   // Store the input params.
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);

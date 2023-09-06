@@ -45,7 +45,6 @@
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
-#include <mundy_multibody/MultibodyFactory.hpp>                          // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -97,7 +96,6 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<double> {
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("CONSTRAINT");
     part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-    part_reqs->put_multibody_part_attribute(mundy::multibody::MultibodyFactory::get_multibody_type("CONSTRAINT"));
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 

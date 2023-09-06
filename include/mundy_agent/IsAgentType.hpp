@@ -44,23 +44,23 @@ namespace agent {
 ///   //! \name Getters
 ///   //@{
 ///
-///   /// \brief Get the ExampleAgent's name.
+///   /// \brief Get the name of our part.
 ///   static constexpr inline std::string_view get_name();
 ///
-///   /// \brief Get the ExampleAgent's parent's name.
+///   /// @brief Get the name of our parent part.
 ///   static constexpr inline std::string_view get_parent_name();
 ///
-///   /// \brief Get the ExampleAgent's topology (throws if the part doesn't constrain topology)
+///   /// \brief Get the topology of our part. (throws if the part doesn't constrain rank)
 ///   static constexpr inline stk::topology::topology_t get_topology();
 ///
-///   /// \brief Get the ExampleAgent's rank (throws if the part doesn't constrain rank)
+///   /// \brief Get the rank of our part. (throws if the part doesn't constrain rank)
 ///   static constexpr inline stk::topology::rank_t get_rank();
 ///
-///   /// \brief Get if the ExampleAgent constrains the part's topology.
-///   static constexpr inline bool constrains_topology();
+///   /// \brief Get if our part has a topology or not.
+///   static constexpr inline bool has_topology();
 ///
-///   /// \brief Get if the ExampleAgent constrains the part's rank.
-///   static constexpr inline bool constrains_rank();
+///   /// \brief Get if our part has a rank or not.
+///   static constexpr inline bool has_rank();
 ///
 ///   /// \brief Add new part requirements to ALL members of this agent part.
 ///   /// These modifications are reflected in our mesh requirements.
@@ -97,6 +97,20 @@ struct IsAgentType {
   template <typename>
   static auto check_get_name(...) -> std::false_type;
 
+  /// \brief Helper for checking if \c U has a \c get_parent_name function.
+    /// \tparam U The type to check.
+    /// \param[in] unused An unused parameter to allow SFINAE to work.
+    /// \return \c std::true_type if \c U has a \c get_parent_name function, \c std::false_type otherwise.
+    template <typename U>
+    static auto check_get_parent_name([[maybe_unused]] int unused) -> decltype(U::get_parent_name(), std::true_type{});
+
+    /// \brief Helper for checking if \c U has a \c get_parent_name function.
+    /// \tparam U The type to check.
+    /// \param[in] unused An unused parameter to allow SFINAE to work.
+    /// \return \c std::false_type if \c U does not have a \c get_parent_name function.
+    template <typename>
+    static auto check_get_parent_name(...) -> std::false_type;
+
   /// \brief Helper for checking if \c U has a \c get_topology function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
@@ -127,36 +141,36 @@ struct IsAgentType {
   template <typename>
   static auto check_get_rank(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c constrains_topology function.
+  /// \brief Helper for checking if \c U has a \c has_topology function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c constrains_topology function, \c std::false_type
+  /// \return \c std::true_type if \c U has a \c has_topology function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_constrains_topology([[maybe_unused]] int unused)
-      -> decltype(U::constrains_topology(), std::true_type{});
+  static auto check_has_topology([[maybe_unused]] int unused)
+      -> decltype(U::has_topology(), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c constrains_topology function.
+  /// \brief Helper for checking if \c U has a \c has_topology function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c constrains_topology function.
+  /// \return \c std::false_type if \c U does not have a \c has_topology function.
   template <typename>
-  static auto check_constrains_topology(...) -> std::false_type;
+  static auto check_has_topology(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c constrains_rank function.
+  /// \brief Helper for checking if \c U has a \c has_rank function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c constrains_rank function, \c std::false_type
+  /// \return \c std::true_type if \c U has a \c has_rank function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_constrains_rank([[maybe_unused]] int unused) -> decltype(U::constrains_rank(), std::true_type{});
+  static auto check_has_rank([[maybe_unused]] int unused) -> decltype(U::has_rank(), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c constrains_rank function.
+  /// \brief Helper for checking if \c U has a \c has_rank function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c constrains_rank function.
+  /// \return \c std::false_type if \c U does not have a \c has_rank function.
   template <typename>
-  static auto check_constrains_rank(...) -> std::false_type;
+  static auto check_has_rank(...) -> std::false_type;
 
   /// \brief Helper for checking if \c U has a \c add_part_reqs function.
   /// \tparam U The type to check.
@@ -165,7 +179,7 @@ struct IsAgentType {
   /// otherwise.
   template <typename U>
   static auto check_add_part_reqs([[maybe_unused]] int unused)
-      -> decltype(U::add_part_reqs(std::declval<td::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
+      -> decltype(U::add_part_reqs(std::declval<std::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
 
   /// \brief Helper for checking if \c U has a \c add_part_reqs function.
   /// \tparam U The type to check.
@@ -181,7 +195,7 @@ struct IsAgentType {
   /// otherwise.
   template <typename U>
   static auto check_add_subpart_reqs([[maybe_unused]] int unused)
-      -> decltype(U::add_subpart_reqs(std::declval<td::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
+      -> decltype(U::add_subpart_reqs(std::declval<std::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
 
   /// \brief Helper for checking if \c U has a \c add_subpart_reqs function.
   /// \tparam U The type to check.
@@ -221,6 +235,16 @@ struct IsAgentType {
   static constexpr bool has_get_name =
       decltype(check_get_name<T>(0))::value && std::is_same_v<decltype(T::get_name()), std::string_view>;
 
+  /// \brief Check for the existence of a \c get_parent_name function.
+    /// \return \c true if \c T has a \c get_parent_name function, \c false otherwise.
+    ///
+    /// The specific signature of the \c get_parent_name function is:
+    /// \code
+    /// static constexpr inline std::string_view get_parent_name();
+    /// \endcode
+    static constexpr bool has_get_parent_name =
+        decltype(check_get_parent_name<T>(0))::value && std::is_same_v<decltype(T::get_parent_name()), std::string_view>;
+
   /// \brief Check for the existence of a \c get_topology function.
   /// \return \c true if \c T has a \c get_topology function, \c false otherwise.
   ///
@@ -241,25 +265,25 @@ struct IsAgentType {
   static constexpr bool has_get_rank =
       decltype(check_get_rank<T>(0))::value && std::is_same_v<decltype(T::get_rank()), stk::topology::rank_t>;
 
-  /// \brief Check for the existence of a \c constrains_topology function.
-  /// \return \c true if \c T has a \c constrains_topology function, \c false otherwise.
+  /// \brief Check for the existence of a \c has_topology function.
+  /// \return \c true if \c T has a \c has_topology function, \c false otherwise.
   ///
-  /// The specific signature of the \c constrains_topology function is:
+  /// The specific signature of the \c has_topology function is:
   /// \code
-  /// static constexpr inline bool constrains_topology();
+  /// static constexpr inline bool has_topology();
   /// \endcode
-  static constexpr bool has_constrains_topology =
-      decltype(check_constrains_topology<T>(0))::value && std::is_same_v<decltype(T::constrains_topology()), bool>;
+  static constexpr bool has_has_topology =
+      decltype(check_has_topology<T>(0))::value && std::is_same_v<decltype(T::has_topology()), bool>;
 
-  /// \brief Check for the existence of a \c constrains_rank function.
-  /// \return \c true if \c T has a \c constrains_rank function, \c false otherwise.
+  /// \brief Check for the existence of a \c has_rank function.
+  /// \return \c true if \c T has a \c has_rank function, \c false otherwise.
   ///
-  /// The specific signature of the \c constrains_rank function is:
+  /// The specific signature of the \c has_rank function is:
   /// \code
-  /// static constexpr inline bool constrains_rank();
+  /// static constexpr inline bool has_rank();
   /// \endcode
-  static constexpr bool has_constrains_rank =
-      decltype(check_constrains_rank<T>(0))::value && std::is_same_v<decltype(T::constrains_rank()), bool>;
+  static constexpr bool has_has_rank =
+      decltype(check_has_rank<T>(0))::value && std::is_same_v<decltype(T::has_rank()), bool>;
 
   /// \brief Check for the existence of a \c add_part_reqs function.
   /// \return \c true if \c T has a \c add_part_reqs function, \c false otherwise.
@@ -291,8 +315,8 @@ struct IsAgentType {
   /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
   /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
   /// false otherwise.
-  static constexpr bool value = has_get_name && has_get_topology && has_get_rank && has_constrains_topology &&
-                                has_constrains_rank && has_add_part_reqs && has_add_subpart_reqs &&
+  static constexpr bool value = has_get_name && has_get_topology && has_get_rank && has_has_topology &&
+                                has_has_rank && has_add_part_reqs && has_add_subpart_reqs &&
                                 has_get_mesh_requirements;
 };  // IsAgentType
 

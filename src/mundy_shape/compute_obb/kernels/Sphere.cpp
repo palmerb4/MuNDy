@@ -55,18 +55,18 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the valid parameter list
-  const std::string_view element_obb_field_name_ = valid_fixed_params.get<std::string>("element_obb_field_name");
-  const std::string_view element_radius_field_name = mundy::shape::shapes::Sphere::get_element_radius_field_name();
-  const std::string_view node_coord_field_name = mundy::shape::shapes::Sphere::get_node_coord_field_name();
+  const std::string element_obb_field_name = valid_fixed_params.get<std::string>("element_obb_field_name");
+  const std::string element_radius_field_name = mundy::shape::shapes::Sphere::get_element_radius_field_name();
+  const std::string node_coord_field_name = mundy::shape::shapes::Sphere::get_node_coord_field_name();
 
   // Get the field pointers.
-  obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_obb_field_name_);
-  element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name_);
-  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name_);
+  element_obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_obb_field_name);
+  element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
+  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
 
   // Check that the fields exist.
-  MUNDY_THROW_ASSERT(obb_field_ptr_ != nullptr, std::invalid_argument,
-                     "Sphere: obb_field_ptr_ cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(element_obb_field_ptr_ != nullptr, std::invalid_argument,
+                     "Sphere: element_obb_field_ptr_ cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: element_radius_field_ptr_ cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
@@ -97,7 +97,7 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
-  double *obb = stk::mesh::field_data(*obb_field_ptr_, sphere_element);
+  double *obb = stk::mesh::field_data(*element_obb_field_ptr_, sphere_element);
 
   obb[0] = coords[0] - radius[0] - buffer_distance_;
   obb[1] = coords[1] - radius[0] - buffer_distance_;

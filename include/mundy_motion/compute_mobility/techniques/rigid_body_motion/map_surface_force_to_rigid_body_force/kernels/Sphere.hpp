@@ -43,7 +43,6 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp>  // for mundy::motion::...::MapSurfaceForceToRigidBodyForce
-#include <mundy_multibody/MultibodyFactory.hpp>  // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -111,8 +110,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     linker_part_reqs->set_part_name(associated_part_name + "_LINKER");
     linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-    linker_part_reqs->put_multibody_part_attribute(
-        mundy::multibody::MultibodyFactory::get_multibody_type("CONSTRAINT"));
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(sphere_part_reqs);

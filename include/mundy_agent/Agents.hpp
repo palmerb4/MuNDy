@@ -28,17 +28,25 @@
 #include <string>  // for std::string
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::GlobalMetaMethodFactory
-#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
 namespace agent {
+
+/// \brief Unique agent identifier
+/// In the current design, an "agent" is a Part endowed with a set of default requirements. Each agent can be
+/// uniquely identified by either the agent's part or a unique uint, namely agent_t.
+///
+/// \note Agent_t is not a class enum, so comparing two agent_t's equates to comparing two unsigned ints (same as
+/// regular enums). However, agent_t is unique in that no two agents will share the same agent_t. It is important to note that, while agent_t is unique, the agent_t
+/// assigned to an agent need not be the same between consecutive compilations of the code (due to the static
+/// initialization order fiasco).
+using agent_t = unsigned;
 
 class Agents {
  public:
@@ -46,51 +54,51 @@ class Agents {
   //@{
 
   /// \brief Get the Agents's name.
-  static constexpr inline std::string_view get_name() {
-    return our_name_;
+  static inline std::string get_name() {
+    return std::string(name_);
   }
 
-  static constexpr inline std::string_view get_parent_name() {
-    return our_parents_name_;
+  static inline std::string get_parent_name() {
+    return std::string(parents_name_);
   }
 
   /// \brief Get the Agents's topology.
   static constexpr inline stk::topology::topology_t get_topology() {
-    return our_topology_;
+    return topology_;
   }
 
   /// \brief Get the Agents's rank.
   static constexpr inline stk::topology::rank_t get_rank() {
-    return our_rank_;
+    return rank_;
   }
 
   /// \brief Get if the Agents has a topology or not.
   static constexpr inline bool has_topology() {
-    return our_has_topology_;
+    return has_topology_;
   }
 
   /// \brief Get if the Agents has a rank or not.
   static constexpr inline bool has_rank() {
-    return our_has_rank_;
+    return has_rank_;
   }
 
   /// \brief Add new part requirements to ALL members of this agent part.
   /// These modifications are reflected in our mesh requirements.
   static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
-    our_part_reqs_ptr_->merge(part_reqs_ptr);
+    part_reqs_ptr_->merge(part_reqs_ptr);
   }
 
   /// \brief Add sub-part requirements.
   /// These modifications are reflected in our mesh requirements.
   static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
-    our_part_reqs_ptr_->add_subpart_reqs(subpart_reqs_ptr);
+    part_reqs_ptr_->add_subpart_reqs(subpart_reqs_ptr);
   }
 
   /// \brief Get the mesh requirements for the Agents.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
     // Agents is an assembly part containing all agents.
      static auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(our_part_reqs_ptr_);
+    mesh_reqs->add_part_reqs(part_reqs_ptr_);
     return mesh_reqs;
   }
 
@@ -99,27 +107,26 @@ class Agents {
   //@{
 
   /// \brief The name of the Agents part.
-  static constexpr inline std::string_view our_name_ = "AGENTS";
+  static constexpr inline std::string_view name_ = "AGENTS";
 
   /// \brief The name of the Agents' parent part.
-  static constexpr inline std::string_view our_parents_name_ = "";
+  static constexpr inline std::string_view parents_name_ = "";
 
   /// \brief The topology of the Agents (we don't have a topology, so this will never be used).
-  static constexpr inline stk::topology::topology_t our_topology_ = stk::topology::INVALID_TOPOLOGY;
+  static constexpr inline stk::topology::topology_t topology_ = stk::topology::INVALID_TOPOLOGY;
 
   /// \brief The rank of the Agents (INVALID_RANK is used to indicate assembly parts).
-  static constexpr inline stk::topology::rank_t our_rank_ = stk::topology::INVALID_RANK;
+  static constexpr inline stk::topology::rank_t rank_ = stk::topology::INVALID_RANK;
 
   /// \brief If the Shape has a topology or not.
-  static constexpr inline bool our_has_topology_ = false;
+  static constexpr inline bool has_topology_ = false;
 
   /// brief If the Shape has a rank or not.
-  static constexpr inline bool our_has_rank_ = true;
+  static constexpr inline bool has_rank_ = true;
 
-  static inline std::shared_ptr<mundy::meta::PartRequirements> our_part_reqs_ptr_ =
-      std::make_shared<mundy::meta::PartRequirements>(our_name_, our_rank_);
-};
-//@}
+  static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ =
+      std::make_shared<mundy::meta::PartRequirements>(std::string(name_), rank_);
+  //@}
 };  // Agents
 
 }  // namespace agent

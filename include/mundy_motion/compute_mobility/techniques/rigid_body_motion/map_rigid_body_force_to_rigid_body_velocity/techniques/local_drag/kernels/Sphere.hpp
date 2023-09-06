@@ -43,7 +43,6 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp>  // for mundy::motion::...::LocalDrag
-#include <mundy_multibody/MultibodyFactory.hpp>  // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 

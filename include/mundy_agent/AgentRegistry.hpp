@@ -113,15 +113,15 @@ struct AgentRegistry {
 /// be used in the following way:
 ///
 /// \code{.cpp}
-/// MUNDY_IS_AGENTTYPE_REGISTERED(ClassToCheck)
+/// MUNDY_IS_AGENT_REGISTERED(ClassToCheck)
 /// \endcode
 ///
 /// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
-/// \c MUNDY_IS_AGENTTYPE_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple
+/// \c MUNDY_IS_AGENT_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple
 /// definition errors.
 ///
 /// \param ClassToCheck A class derived from \c Agent that we wish to check if it has been registered.
-#define MUNDY_IS_AGENTTYPE_REGISTERED(ClassToCheck)                  \
+#define MUNDY_IS_AGENT_REGISTERED(ClassToCheck)                  \
   ([]() -> bool {                                                    \
     return mundy::agent::AgentRegistry<ClassToCheck>::is_registered; \
   }())

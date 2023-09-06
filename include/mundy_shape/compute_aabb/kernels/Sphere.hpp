@@ -44,6 +44,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_shape/ComputeAABB.hpp>       // for mundy::shape::ComputeAABB
+#include <mundy_shape/shapes/Sphere.hpp>    // for mundy::shape::shapes::Sphere
 
 namespace mundy {
 
@@ -98,9 +99,9 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     constexpr std::string_view parent_part_name = "SPHERES";
     constexpr std::string_view grandparent_part_name = "SHAPES";
     if (associated_part_name == default_part_name_) {
-      mundy::agent::AgentHierarchy::add_part_reqs(parent_part_name, grandparent_part_name, part_reqs);
+      mundy::agent::AgentHierarchy::add_part_reqs(part_reqs, parent_part_name, grandparent_part_name);
     } else {
-      mundy::agent::AgentHierarchy::add_subpart_requirements(parent_part_name, grandparent_part_name, part_reqs);
+      mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, parent_part_name, grandparent_part_name);
     }
     return mundy::agent::AgentHierarchy::get_mesh_requirements(parent_part_name, grandparent_part_name);
   }
@@ -206,6 +207,9 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   /// For example, if the original axis-aligned boundary box has left corner at [0,0,0] and right corner at [1,1,1],
   /// then a buffer distance of 2 will shift the left corner to [-2,-2,-2] and right corner to [3,3,3].
   double buffer_distance_ = default_buffer_distance_;
+
+  /// \brief Node field containing the coordinate of the Sphere's center.
+  stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
 
   /// \brief Element field within which the output axis-aligned boundary boxes will be written.
   stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;

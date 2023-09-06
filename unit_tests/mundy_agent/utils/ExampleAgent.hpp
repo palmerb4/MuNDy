@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPE_SHAPES_SPHEROCYLINDER_HPP_
-#define MUNDY_SHAPE_SHAPES_SPHEROCYLINDER_HPP_
+#ifndef UNIT_TESTS_MUNDY_AGENT_UTILS_EXAMPLEAGENT_HPP_
+#define UNIT_TESTS_MUNDY_AGENT_UTILS_EXAMPLEAGENT_HPP_
 
-/// \file Spherocylinder.hpp
-/// \brief Declaration of the Spherocylinders part class
+/// \file ExampleMetaMethod.hpp
+/// \brief Declaration of the ExampleMetaMethod class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -29,26 +29,31 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <stk_topology/topology.hpp>  // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
-// Mundy includes
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
+// Mundy libs
+#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 
 namespace mundy {
 
-namespace shape {
+namespace agent {
 
-namespace shapes {
+namespace utils {
 
-/// \class Spherocylinder
-/// \brief The static interface for all of Mundy's Spherocylinder shapes.
-///
-/// The design of this class is in accordance with the static interface requirements of
-/// mundy::agent::AgentHierarchy. After all, shapes are just a special type of agent.
-class Spherocylinder {
+/// \class ExampleAgent
+/// \brief The static interface for all of Mundy's ExampleAgent objects.
+template <int I>
+class ExampleAgent {
  public:
   //! \name Getters
   //@{
@@ -97,8 +102,7 @@ class Spherocylinder {
 
   /// \brief Get our mesh requirements.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
-    // By default, we assume that the Spherocylinders part is a point particle with a radius.
-    // All Spherocylinders are Shapes.
+    // By default, we assume that the ExampleAgents part is an agent with an INVALID_TOPOLOGY.
 
     // Declare our part as a subpart of our parent part.
     mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, parents_name_, grandparents_name_);
@@ -110,41 +114,32 @@ class Spherocylinder {
     return mundy::agent::AgentHierarchy::get_mesh_requirements(parents_name_, grandparents_name_);
   }
 
-  /// \brief Get the set of default field names for the Spherocylinders part.
-  static inline std::vector<std::string> get_default_field_names() {
-    return {std::string(node_coord_field_name_), std::string(element_radius_field_name_), std::string(element_length_field_name_)};
-  }
-
-  /// \brief Get the default node coordinate field name for the Spherocylinders part.
-  static inline std::string get_node_coord_field_name() {
-    return std::string(node_coord_field_name_);
-  }
-
-  /// \brief Get the default element radius field name for the Spherocylinders part.
-  static inline std::string get_element_radius_field_name() {
-    return std::string(element_radius_field_name_);
-  }
-
-  /// \brief Get the default element length field name for the Spherocylinders part.
-  static inline std::string get_element_length_field_name() {
-    return std::string(element_length_field_name_);
-  }
-
  private:
   //! \name Member variable definitions
   //@{
 
   /// \brief The name of the our part.
-  static constexpr std::string_view name_ = "SPHEROCYLINDERS";
+  static constexpr std::string_view name_ = []() {
+    if constexpr (I == 0) {
+      return "FAKE_NAME_0";
+    } else if constexpr (I == 1) {
+      return "FAKE_NAME_1";
+    } else if constexpr (I == 2) {
+      return "FAKE_NAME_2";
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid ExampleAgent index.");
+      return "FAKE_NAME_N";
+    }
+  }();
 
   /// \brief The name of the our parent part.
-  static constexpr inline std::string_view parents_name_ = "SHAPES";
+  static constexpr inline std::string_view parents_name_ = "AGENTS";
 
   /// \brief The name of the our grandparent part.
-  static constexpr inline std::string_view grandparents_name_ = "AGENTS";
+  static constexpr inline std::string_view grandparents_name_ = "";
 
   /// \brief Our topology
-  static constexpr stk::topology::topology_t topology_ = stk::topology::PARTICLE;
+  static constexpr stk::topology::topology_t topology_ = stk::topology::INVALID_TOPOLOGY;
 
   /// \brief Our rank (we have a rank, so this is never used).
   static constexpr inline stk::topology::rank_t rank_ = stk::topology::INVALID_RANK;
@@ -155,37 +150,20 @@ class Spherocylinder {
   /// \brief If our part has a rank or not.
   static constexpr inline bool has_rank_ = false;
 
-  /// @brief The name of our element radius field.
-  static constexpr std::string_view element_radius_field_name_ = "ELEMENT_RADIUS";
-
-  /// @brief The name of our element length field.
-  static constexpr std::string_view element_length_field_name_ = "ELEMENT_LENGTH";
-
-  /// @brief The name of our node coordinate field.
-  static constexpr std::string_view node_coord_field_name_ = "NODE_COORD";
-
   /// \brief Our part requirements.
   static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ = []() {
     auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs_ptr->set_part_name(std::string(name_));
     part_reqs_ptr->set_part_topology(topology_);
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_length_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return part_reqs_ptr;
   }();
   //@}
-};  // Spherocylinder
+};  // ExampleAgent
 
-}  // namespace shapes
+}  // namespace utils
 
-}  // namespace shape
+}  // namespace agent
 
 }  // namespace mundy
 
-MUNDY_REGISTER_AGENT(mundy::shape::shapes::Spherocylinder)
-
-#endif  // MUNDY_SHAPE_SHAPES_SPHEROCYLINDER_HPP_
+#endif  // UNIT_TESTS_MUNDY_AGENT_UTILS_EXAMPLEAGENT_HPP_

@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
-#include <mundy_multibody/MultibodyFactory.hpp>               // for mundy::multibody::MultibodyFactory
 
 namespace mundy {
 
@@ -55,7 +54,7 @@ namespace generate_collision_constraints {
 namespace kernels {
 
 /// \class CollisionSphereSphere
-/// \brief Concrete implementation of a \c MetaMultibodyTwoWayKernel for generating a collision constraint between two
+/// \brief Concrete implementation of a \c MetaKWayKernel for generating a collision constraint between two
 /// spheres.
 class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
  public:

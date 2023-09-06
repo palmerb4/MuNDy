@@ -42,8 +42,9 @@
 #include <mundy_meta/MetaKernel.hpp>             // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
-#include <mundy_multibody/MultibodyFactory.hpp>  // for mundy::multibody::MultibodyFactory
 #include <mundy_shape/ComputeAABB.hpp>           // for mundy::shape::ComputeAABB
+#include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
+#include <mundy_shape/shapes/Spherocylinder.hpp>    // for mundy::shape::shapes::Spherocylinder
 
 namespace mundy {
 
@@ -98,9 +99,9 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
     constexpr std::string_view parent_part_name = "SHEROCYLINDERS";
     constexpr std::string_view grandparent_part_name = "SHAPES";
     if (associated_part_name == default_part_name_) {
-      mundy::agent::AgentHierarchy::add_part_reqs(parent_part_name, grandparent_part_name, part_reqs);
+      mundy::agent::AgentHierarchy::add_part_reqs(part_reqs, parent_part_name, grandparent_part_name);
     } else {
-      mundy::agent::AgentHierarchy::add_subpart_requirements(parent_part_name, grandparent_part_name, part_reqs);
+      mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, parent_part_name, grandparent_part_name);
     }
     return mundy::agent::AgentHierarchy::get_mesh_requirements(parent_part_name, grandparent_part_name);
   }

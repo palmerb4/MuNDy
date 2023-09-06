@@ -328,11 +328,6 @@ void PartRequirements::add_part_attribute(std::any &&some_attribute) {
 void PartRequirements::put_io_part_attribute() {
   is_io_part_ = true;
 }
-
-void PartRequirements::put_multibody_part_attribute(const mundy::multibody::multibody_t &body_type) {
-  std::any a = body_type;
-  this->add_part_attribute(std::move(a));
-}
 //@}
 
 // \name Getters

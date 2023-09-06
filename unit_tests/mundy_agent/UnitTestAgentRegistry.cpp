@@ -31,46 +31,46 @@
 #include <vector>       // for std::vector
 
 // Mundy libs
-#include <mundy_multibody/MultibodyFactory.hpp>   // for mundy::multibody::MultibodyFactory
-#include <mundy_multibody/MultibodyRegistry.hpp>  // for mundy::multibody::MultibodyRegistry
+#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
+#include <mundy_agent/AgentRegistry.hpp>  // for mundy::agent::AgentRegistry
 
 // Mundy test libs
-#include <mundy_multibody/utils/ExampleMultibodyType.hpp>  // for mundy::multibody::ExampleMultibodyType
+#include <mundy_agent/utils/ExampleAgent.hpp>  // for mundy::agent::ExampleAgent
 
 namespace mundy {
 
-namespace multibody {
+namespace agent {
 
 namespace {
 
-// MultibodyRegistry has a fascinating, albeit odd design. It is designed to automatically register classes derived from
-// \c HasMeshRequirementsAndIsRegisterable with some \c MultibodyFactory. To do so, one simply inherits from
-// MultibodyRegistry with the appropriate template parameters. This class is rather abstract but allows us to use
+// AgentRegistry has a fascinating, albeit odd design. It is designed to automatically register classes derived from
+// \c HasMeshRequirementsAndIsRegisterable with some \c AgentHierarchy. To do so, one simply inherits from
+// AgentRegistry with the appropriate template parameters. This class is rather abstract but allows us to use
 // partial specialization to generate many different registries without duplicating code. Here, we directly test
-// MultibodyRegistry's functionality and some of its partial specializations.
+// AgentRegistry's functionality and some of its partial specializations.
 
-//! \name MultibodyRegistry automatic registration tests
+//! \name AgentRegistry automatic registration tests
 //@{
 
 struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
 
-TEST(MultibodyRegistry, AutoRegistration) {
-  // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the MultibodyFactory
-  EXPECT_TRUE(MultibodyFactory::is_valid(mundy::multibody::utils::ExampleMultibodyType<1>::get_name()));
-  EXPECT_TRUE(MultibodyFactory::is_valid(mundy::multibody::utils::ExampleMultibodyType<2>::get_name()));
+TEST(AgentRegistry, AutoRegistration) {
+  // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the AgentHierarchy
+  EXPECT_TRUE(AgentHierarchy::is_valid(mundy::agent::utils::ExampleAgent<1>::get_name()));
+  EXPECT_TRUE(AgentHierarchy::is_valid(mundy::agent::utils::ExampleAgent<2>::get_name()));
 }
 //@}
 
 }  // namespace
 
-}  // namespace multibody
+}  // namespace agent
 
 }  // namespace mundy
 
 // Registration shouldn't need to explicitly come before TEST, since it will be registered at compile time.
 
-// Register a class with MultibodyFactory
-MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::utils::ExampleMultibodyType<1>)
+// Register a class with AgentHierarchy
+MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<1>)
 
-// Register a different class with MultibodyFactory
-MUNDY_REGISTER_MULTIBODYTYPE(mundy::multibody::utils::ExampleMultibodyType<2>)
+// Register a different class with AgentHierarchy
+MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<2>)
