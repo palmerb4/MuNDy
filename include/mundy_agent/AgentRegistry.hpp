@@ -97,14 +97,14 @@ struct AgentRegistry {
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
 ///
 /// \param ClassToRegister A class derived from \c Agent that we wish to register.
-#define MUNDY_REGISTER_AGENT(ClassToRegister)                                                                       \
-  namespace mundy {                                                                                                 \
-  namespace agent {                                                                                                 \
-  template <>                                                                                                       \
-  struct AgentRegistry<ClassToRegister> {                                                                           \
+#define MUNDY_REGISTER_AGENT(ClassToRegister)                                                                         \
+  namespace mundy {                                                                                                   \
+  namespace agent {                                                                                                   \
+  template <>                                                                                                         \
+  struct AgentRegistry<ClassToRegister> {                                                                             \
     static inline volatile const bool is_registered = AgentHierarchy::template register_new_class<ClassToRegister>(); \
-  };                                                                                                                \
-  }                                                                                                                 \
+  };                                                                                                                  \
+  }                                                                                                                   \
   }
 
 /// \brief A helper macro for checking if a \c Agent has been registered with \c AgentHierarchy.
@@ -121,7 +121,7 @@ struct AgentRegistry {
 /// definition errors.
 ///
 /// \param ClassToCheck A class derived from \c Agent that we wish to check if it has been registered.
-#define MUNDY_IS_AGENT_REGISTERED(ClassToCheck)                  \
+#define MUNDY_IS_AGENT_REGISTERED(ClassToCheck)                      \
   ([]() -> bool {                                                    \
     return mundy::agent::AgentRegistry<ClassToCheck>::is_registered; \
   }())

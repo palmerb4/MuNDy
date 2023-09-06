@@ -44,7 +44,7 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_shape/ComputeAABB.hpp>       // for mundy::shape::ComputeAABB
-#include <mundy_shape/shapes/Sphere.hpp>    // for mundy::shape::shapes::Sphere
+#include <mundy_shape/shapes/Sphere.hpp>     // for mundy::shape::shapes::Sphere
 
 namespace mundy {
 
@@ -93,8 +93,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name(associated_part_name);
-    part_reqs->add_field_reqs(
-        std::make_shared<mundy::meta::FieldRequirements<double>>(element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
+    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
 
     constexpr std::string_view parent_part_name = "SPHERES";
     constexpr std::string_view grandparent_part_name = "SHAPES";
@@ -110,7 +110,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("element_aabb_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_aabb_field_name");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_aabb_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'element_aabb_field_name' but "
                              << "with a type other than std::string");

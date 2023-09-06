@@ -32,10 +32,10 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy includes
+#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
 
 namespace mundy {
 

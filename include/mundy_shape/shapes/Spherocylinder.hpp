@@ -32,10 +32,10 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy includes
+#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
 
 namespace mundy {
 
@@ -112,7 +112,8 @@ class Spherocylinder {
 
   /// \brief Get the set of default field names for the Spherocylinders part.
   static inline std::vector<std::string> get_default_field_names() {
-    return {std::string(node_coord_field_name_), std::string(element_radius_field_name_), std::string(element_length_field_name_)};
+    return {std::string(node_coord_field_name_), std::string(element_radius_field_name_),
+            std::string(element_length_field_name_)};
   }
 
   /// \brief Get the default node coordinate field name for the Spherocylinders part.

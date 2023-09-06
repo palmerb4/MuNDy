@@ -43,9 +43,9 @@ namespace agent {
 /// uniquely identified by either the agent's part or a unique uint, namely agent_t.
 ///
 /// \note Agent_t is not a class enum, so comparing two agent_t's equates to comparing two unsigned ints (same as
-/// regular enums). However, agent_t is unique in that no two agents will share the same agent_t. It is important to note that, while agent_t is unique, the agent_t
-/// assigned to an agent need not be the same between consecutive compilations of the code (due to the static
-/// initialization order fiasco).
+/// regular enums). However, agent_t is unique in that no two agents will share the same agent_t. It is important to
+/// note that, while agent_t is unique, the agent_t assigned to an agent need not be the same between consecutive
+/// compilations of the code (due to the static initialization order fiasco).
 using agent_t = unsigned;
 
 class Agents {
@@ -97,7 +97,7 @@ class Agents {
   /// \brief Get the mesh requirements for the Agents.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
     // Agents is an assembly part containing all agents.
-     static auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    static auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(part_reqs_ptr_);
     return mesh_reqs;
   }

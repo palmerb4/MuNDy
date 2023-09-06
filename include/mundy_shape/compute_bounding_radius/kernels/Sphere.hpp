@@ -35,6 +35,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_agent/AgentHierarchy.hpp>         // for mundy::agent::AgentHierarchy
 #include <mundy_mesh/BulkData.hpp>                // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>       // for mundy::meta::FieldRequirements
@@ -43,8 +44,7 @@
 #include <mundy_meta/MetaRegistry.hpp>            // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>        // for mundy::meta::PartRequirements
 #include <mundy_shape/ComputeBoundingRadius.hpp>  // for mundy::shape::ComputeBoundingRadius
-#include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
-#include <mundy_shape/shapes/Sphere.hpp>    // for mundy::shape::shapes::Sphere
+#include <mundy_shape/shapes/Sphere.hpp>          // for mundy::shape::shapes::Sphere
 
 namespace mundy {
 
@@ -88,13 +88,14 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    std::string element_bounding_radius_field_name = valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
+    std::string element_bounding_radius_field_name =
+        valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
     std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name(associated_part_name);
-    part_reqs->add_field_reqs(
-        std::make_shared<mundy::meta::FieldRequirements<double>>(element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
     constexpr std::string_view parent_part_name = "SPHERES";
     constexpr std::string_view grandparent_part_name = "SHAPES";

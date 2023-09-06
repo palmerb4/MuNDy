@@ -31,8 +31,8 @@
 #include <vector>       // for std::vector
 
 // Mundy libs
-#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
-#include <mundy_agent/AgentRegistry.hpp>  // for mundy::agent::AgentRegistry
+#include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
+#include <mundy_agent/AgentRegistry.hpp>   // for mundy::agent::AgentRegistry
 
 // Mundy test libs
 #include <mundy_agent/utils/ExampleAgent.hpp>  // for mundy::agent::ExampleAgent

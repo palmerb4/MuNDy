@@ -24,19 +24,23 @@
 /// \brief Declaration of the AgentHierarchy class
 
 // C++ core libs
-#include <functional>  // for std::function
-#include <iostream>
-#include <map>        // for std::map
-#include <stdexcept>  // for std::logic_error, std::invalid_argument
-#include <string>     // for std::string
-#include <utility>    // for std::make_pair
+#include <functional>     // for std::function
+#include <iostream>       // for std::cout, std::endl
+#include <map>            // for std::map
+#include <memory>         // for std::shared_ptr
+#include <sstream>        // for std::stringstream
+#include <stdexcept>      // for std::logic_error, std::invalid_argument
+#include <string>         // for std::string
+#include <unordered_map>  // for std::unordered_map
+#include <utility>        // for std::make_pair
+#include <vector>         // for std::vector
 
 // Trilinos libs
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
 #include <mundy/throw_assert.hpp>       // for MUNDY_THROW_ASSERT
-#include <mundy_agent/Agents.hpp>        // for mundy::agent::Agent
+#include <mundy_agent/Agents.hpp>       // for mundy::agent::Agent
 #include <mundy_agent/IsAgentType.hpp>  // for mundy::agent::IsAgentType
 
 namespace mundy {
@@ -46,7 +50,7 @@ namespace agent {
 /// \class AgentHierarchy
 /// \brief A factory containing generation routines for different Agent types that form a hierarchical structure.
 ///
-/// Agents are used to streamlike the requirements generation process. Typically, an agent will hardcode only the bare
+/// Agents are used to streamline the requirements generation process. Typically, an agent will hardcode only the bare
 /// minimum requirements (e.g., all spheres have a radius and a center). All other requirements should be added at
 /// run-time. Either one uses an agent directly, modifies the requirements of an agent, or inherits from/subsets an
 /// agent. Typically, subsetting is more appropriate than direct modification since it's unlikely that you want ALL
@@ -96,19 +100,19 @@ namespace agent {
 ///                  |                           |
 ///               Shapes                    Constraints
 ///    |         |           |               |       |      |
-/// Spheres Ellipsoids Spherocylinders  Springs Hingles Joints
+/// Spheres Ellipsoids Spherocylinders  Springs Hinges Joints
 ///
 /// In this example, every node in the tree knows its unique name and the name of its parent. Together, these names map
-/// onto a agent_t that is unique accross all nodes in the tree. The pair of names or the corresponding agent_t can be
+/// onto a agent_t that is unique across all nodes in the tree. The pair of names or the corresponding agent_t can be
 /// used to access the internal member functions of the registered agent in the hierarchy.
 ///
 /// Because this factory is constructed at static initialization time, the order in which nodes in the tree
-/// are registered is not guarenteed (due to the static initialization order fiasco). As a result, the id's of the nodes
-/// in the tree are not guarenteed to be in the order you would expect and they need not be consistent between runs.
+/// are registered is not guaranteed (due to the static initialization order fiasco). As a result, the id's of the nodes
+/// in the tree are not guaranteed to be in the order you would expect and they need not be consistent between runs.
 ///
 /// It's important to note that the topology/rank of each part in this hierarchy take some consideration when building
 /// your agents. For example, if certain shapes have different topologies than others, how should one construct the
-/// Shapes part to allow for proper subsetting. Because topologies are inhertited and changing the topology of subparts
+/// Shapes part to allow for proper subsetting. Because topologies are inherited and changing the topology of subparts
 /// is invalid, the proper way to think of parts like Shapes, Constraints, and Agents is as "assemblies." Assemblies are
 /// specialized parts that are meant to contain any number of sub-parts with arbitrary topologies/ranks. STK identifies
 /// assemblies as ranked parts with INVALID_RANK.
@@ -130,7 +134,7 @@ class AgentHierarchy {
   /// instances.
   using NewRequirementsGenerator = std::function<std::shared_ptr<mundy::meta::MeshRequirements>()>;
 
-  /// \brief A function that takes in a part reqirements and returns a void.
+  /// \brief A function that takes in a part requirements and returns a void.
   using AddRequirementsGenerator = std::function<void(std::shared_ptr<mundy::meta::PartRequirements>)>;
 
   /// \brief A function that returns a bool.
@@ -251,7 +255,8 @@ class AgentHierarchy {
   /// \param name [in] A string name that correspond to a registered class.
   /// \param part_reqs_ptr [in] A pointer to the part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const std::string_view& name, const std::string_view& parent_name = "") {
+  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const std::string_view& name,
+                            const std::string_view& parent_name = "") {
     assert_is_valid(name, parent_name);
     const agent_t agent_type = get_agent_type(name);
     add_part_reqs(part_reqs_ptr, agent_type);
@@ -269,7 +274,8 @@ class AgentHierarchy {
   /// \param name [in] A string name that correspond to a registered class.
   /// \param subpart_reqs_ptr [in] A pointer to the sub-part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr, const std::string_view& name, const std::string_view& parent_name = "") {
+  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
+                               const std::string_view& name, const std::string_view& parent_name = "") {
     assert_is_valid(name, parent_name);
     const agent_t agent_type = get_agent_type(name);
     add_subpart_reqs(subpart_reqs_ptr, agent_type);
@@ -278,7 +284,8 @@ class AgentHierarchy {
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr, const agent_t agent_type) {
+  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
+                               const agent_t agent_type) {
     assert_is_valid(agent_type);
     get_add_subpart_reqs_generator_map()[agent_type](subpart_reqs_ptr);
   }
@@ -466,23 +473,23 @@ class AgentHierarchy {
 
       // If parent name exists in the map, attach the current node to its parent.
       if (!parent_name.empty()) {
-          const auto parent_iter = node_map_.find(parent_name);
-          if (parent_iter != node_map_.end()) {
-              parent_iter->second->add_child(node);
-          } else {
-              // Parent doesn't exist yet. Store this node in orphaned map.
-              orphaned_node_map_.insert({parent_name, node});
-          }
+        const auto parent_iter = node_map_.find(parent_name);
+        if (parent_iter != node_map_.end()) {
+          parent_iter->second->add_child(node);
+        } else {
+          // Parent doesn't exist yet. Store this node in orphaned map.
+          orphaned_node_map_.insert({parent_name, node});
+        }
       } else {
-          // This node doesn't have a parent, so it's a root.
-          root_node_map_.insert({name, node});
+        // This node doesn't have a parent, so it's a root.
+        root_node_map_.insert({name, node});
       }
 
       // Try to attach any orphaned nodes to this new node.
       auto orphan_range = orphaned_node_map_.equal_range(name);
       for (auto it = orphan_range.first; it != orphan_range.second;) {
-          node->add_child(it->second);
-          it = orphaned_node_map_.erase(it);
+        node->add_child(it->second);
+        it = orphaned_node_map_.erase(it);
       }
 
       return node;
@@ -514,7 +521,7 @@ class AgentHierarchy {
     static inline std::unordered_multimap<std::string_view, std::shared_ptr<StringTreeNode>> orphaned_node_map_;
     static inline std::map<std::string_view, std::shared_ptr<StringTreeNode>> root_node_map_;
     static inline std::map<std::string_view, std::shared_ptr<StringTreeNode>> node_map_;
-};  // StringTreeManager
+  };  // StringTreeManager
 
   //@}
 

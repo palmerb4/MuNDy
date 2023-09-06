@@ -42,7 +42,7 @@
 
 // Mundy libs
 #include <mundy/throw_assert.hpp>                               // for MUNDY_THROW_ASSERT
-#include <mundy_agent/Agents.hpp>                              // for mundy::agent::agent_t
+#include <mundy_agent/Agents.hpp>                               // for mundy::agent::agent_t
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/MeshRequirements.hpp>                      // for mundy::meta::MeshRequirements
@@ -377,8 +377,7 @@ using MetaKWayKernelFactory = MetaFactory<MetaKWayKernel<K, ReturnType>, Registr
 
 /// \brief Partial specialization for \c MetaKWayKernels, identified by a mundy agent type.
 template <std::size_t K, typename ReturnType, typename RegistryIdentifier>
-using MetaAgentKWayKernelFactory =
-    MetaKWayKernelFactory<K, ReturnType, RegistryIdentifier, mundy::agent::agent_t>;
+using MetaAgentKWayKernelFactory = MetaKWayKernelFactory<K, ReturnType, RegistryIdentifier, mundy::agent::agent_t>;
 
 /// \brief Partial specialization for \c MetaKWayKernels, identified by an stk topology type.
 template <std::size_t K, typename ReturnType, typename RegistryIdentifier>

@@ -35,16 +35,16 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>             // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>           // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
-#include <mundy_shape/ComputeOBB.hpp>            // for mundy::shape::ComputeOBB
 #include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
-#include <mundy_shape/shapes/Sphere.hpp>    // for mundy::shape::shapes::Sphere
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_shape/ComputeOBB.hpp>        // for mundy::shape::ComputeOBB
+#include <mundy_shape/shapes/Sphere.hpp>     // for mundy::shape::shapes::Sphere
 
 namespace mundy {
 
@@ -93,8 +93,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name(associated_part_name);
-    part_reqs->add_field_reqs(
-        std::make_shared<mundy::meta::FieldRequirements<double>>(element_obb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
+    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+        element_obb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
 
     constexpr std::string_view parent_part_name = "SPHERES";
     constexpr std::string_view grandparent_part_name = "SHAPES";
@@ -110,7 +110,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("element_obb_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_obb_field_name");
+      const bool valid_type =
+          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_obb_field_name");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'element_obb_field_name' but "
                              << "with a type other than std::string");

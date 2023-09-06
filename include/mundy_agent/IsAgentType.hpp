@@ -24,8 +24,10 @@
 /// \brief Declaration of the IsAgentType class
 
 // C++ core libs
+#include <memory>       // for std::shared_ptr
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
+#include <utility>      // for std::declval
 
 // Trilinos libs
 #include <stk_topology/topology.hpp>  // for stk::topology
@@ -98,18 +100,18 @@ struct IsAgentType {
   static auto check_get_name(...) -> std::false_type;
 
   /// \brief Helper for checking if \c U has a \c get_parent_name function.
-    /// \tparam U The type to check.
-    /// \param[in] unused An unused parameter to allow SFINAE to work.
-    /// \return \c std::true_type if \c U has a \c get_parent_name function, \c std::false_type otherwise.
-    template <typename U>
-    static auto check_get_parent_name([[maybe_unused]] int unused) -> decltype(U::get_parent_name(), std::true_type{});
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c get_parent_name function, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_get_parent_name([[maybe_unused]] int unused) -> decltype(U::get_parent_name(), std::true_type{});
 
-    /// \brief Helper for checking if \c U has a \c get_parent_name function.
-    /// \tparam U The type to check.
-    /// \param[in] unused An unused parameter to allow SFINAE to work.
-    /// \return \c std::false_type if \c U does not have a \c get_parent_name function.
-    template <typename>
-    static auto check_get_parent_name(...) -> std::false_type;
+  /// \brief Helper for checking if \c U has a \c get_parent_name function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c get_parent_name function.
+  template <typename>
+  static auto check_get_parent_name(...) -> std::false_type;
 
   /// \brief Helper for checking if \c U has a \c get_topology function.
   /// \tparam U The type to check.
@@ -147,8 +149,7 @@ struct IsAgentType {
   /// \return \c std::true_type if \c U has a \c has_topology function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_has_topology([[maybe_unused]] int unused)
-      -> decltype(U::has_topology(), std::true_type{});
+  static auto check_has_topology([[maybe_unused]] int unused) -> decltype(U::has_topology(), std::true_type{});
 
   /// \brief Helper for checking if \c U has a \c has_topology function.
   /// \tparam U The type to check.
@@ -195,7 +196,8 @@ struct IsAgentType {
   /// otherwise.
   template <typename U>
   static auto check_add_subpart_reqs([[maybe_unused]] int unused)
-      -> decltype(U::add_subpart_reqs(std::declval<std::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
+      -> decltype(U::add_subpart_reqs(std::declval<std::shared_ptr<mundy::meta::PartRequirements>>()),
+                  std::true_type{});
 
   /// \brief Helper for checking if \c U has a \c add_subpart_reqs function.
   /// \tparam U The type to check.
@@ -236,14 +238,14 @@ struct IsAgentType {
       decltype(check_get_name<T>(0))::value && std::is_same_v<decltype(T::get_name()), std::string_view>;
 
   /// \brief Check for the existence of a \c get_parent_name function.
-    /// \return \c true if \c T has a \c get_parent_name function, \c false otherwise.
-    ///
-    /// The specific signature of the \c get_parent_name function is:
-    /// \code
-    /// static constexpr inline std::string_view get_parent_name();
-    /// \endcode
-    static constexpr bool has_get_parent_name =
-        decltype(check_get_parent_name<T>(0))::value && std::is_same_v<decltype(T::get_parent_name()), std::string_view>;
+  /// \return \c true if \c T has a \c get_parent_name function, \c false otherwise.
+  ///
+  /// The specific signature of the \c get_parent_name function is:
+  /// \code
+  /// static constexpr inline std::string_view get_parent_name();
+  /// \endcode
+  static constexpr bool has_get_parent_name =
+      decltype(check_get_parent_name<T>(0))::value && std::is_same_v<decltype(T::get_parent_name()), std::string_view>;
 
   /// \brief Check for the existence of a \c get_topology function.
   /// \return \c true if \c T has a \c get_topology function, \c false otherwise.
@@ -315,9 +317,8 @@ struct IsAgentType {
   /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
   /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
   /// false otherwise.
-  static constexpr bool value = has_get_name && has_get_topology && has_get_rank && has_has_topology &&
-                                has_has_rank && has_add_part_reqs && has_add_subpart_reqs &&
-                                has_get_mesh_requirements;
+  static constexpr bool value = has_get_name && has_get_topology && has_get_rank && has_has_topology && has_has_rank &&
+                                has_add_part_reqs && has_add_subpart_reqs && has_get_mesh_requirements;
 };  // IsAgentType
 
 }  // namespace agent
