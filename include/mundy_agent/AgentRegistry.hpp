@@ -102,7 +102,7 @@ struct AgentRegistry {
   namespace agent {                                                                                                   \
   template <>                                                                                                         \
   struct AgentRegistry<ClassToRegister> {                                                                             \
-    static inline volatile const bool is_registered = AgentHierarchy::template register_new_class<ClassToRegister>(); \
+    static inline volatile const bool is_registered = AgentHierarchy::register_new_class<ClassToRegister>(); \
   };                                                                                                                  \
   }                                                                                                                   \
   }

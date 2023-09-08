@@ -26,11 +26,15 @@
 // C++ core libs
 #include <memory>       // for std::shared_ptr
 #include <string>       // for std::string
-#include <type_traits>  // for std::enable_if, std::is_base_of
+#include <type_traits>  // for std::enable_if, std::is_base_of_v, std::is_same_v, std::true_type, std::false_type
 #include <utility>      // for std::declval
 
 // Trilinos libs
 #include <stk_topology/topology.hpp>  // for stk::topology
+
+// Mundy libs
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 
 namespace mundy {
 
@@ -47,10 +51,10 @@ namespace agent {
 ///   //@{
 ///
 ///   /// \brief Get the name of our part.
-///   static constexpr inline std::string_view get_name();
+///   static constexpr inline std::string get_name();
 ///
 ///   /// @brief Get the name of our parent part.
-///   static constexpr inline std::string_view get_parent_name();
+///   static constexpr inline std::string get_parent_name();
 ///
 ///   /// \brief Get the topology of our part. (throws if the part doesn't constrain rank)
 ///   static constexpr inline stk::topology::topology_t get_topology();
@@ -232,20 +236,20 @@ struct IsAgentType {
   ///
   /// The specific signature of the \c get_name function is:
   /// \code
-  /// static constexpr inline std::string_view get_name();
+  /// static constexpr inline std::string get_name();
   /// \endcode
   static constexpr bool has_get_name =
-      decltype(check_get_name<T>(0))::value && std::is_same_v<decltype(T::get_name()), std::string_view>;
+      decltype(check_get_name<T>(0))::value && std::is_same_v<decltype(T::get_name()), std::string>;
 
   /// \brief Check for the existence of a \c get_parent_name function.
   /// \return \c true if \c T has a \c get_parent_name function, \c false otherwise.
   ///
   /// The specific signature of the \c get_parent_name function is:
   /// \code
-  /// static constexpr inline std::string_view get_parent_name();
+  /// static constexpr inline std::string get_parent_name();
   /// \endcode
   static constexpr bool has_get_parent_name =
-      decltype(check_get_parent_name<T>(0))::value && std::is_same_v<decltype(T::get_parent_name()), std::string_view>;
+      decltype(check_get_parent_name<T>(0))::value && std::is_same_v<decltype(T::get_parent_name()), std::string>;
 
   /// \brief Check for the existence of a \c get_topology function.
   /// \return \c true if \c T has a \c get_topology function, \c false otherwise.

@@ -54,13 +54,13 @@ class Sphere {
   //@{
 
   /// \brief Get the name of our part.
-  static constexpr inline std::string_view get_name() {
-    return name_;
+  static inline std::string get_name() {
+    return std::string(name_);
   }
 
   /// @brief Get the name of our parent part.
-  static constexpr inline std::string_view get_parent_name() {
-    return parents_name_;
+  static inline std::string get_parent_name() {
+    return std::string(parents_name_);
   }
 
   /// \brief Get the topology of our part.
@@ -101,13 +101,15 @@ class Sphere {
     // All Spheres are Shapes.
 
     // Declare our part as a subpart of our parent part.
-    mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, parents_name_, grandparents_name_);
+    mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, std::string(parents_name_),
+                                                   std::string(grandparents_name_));
 
     // Fetch our parent's requirements.
     // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
     // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
     // combined requirements for all parts touched in this traversal are then returned here.
-    return mundy::agent::AgentHierarchy::get_mesh_requirements(parents_name_, grandparents_name_);
+    return mundy::agent::AgentHierarchy::get_mesh_requirements(std::string(parents_name_),
+                                                               std::string(grandparents_name_));
   }
 
   /// \brief Get the set of default field names for the Spheres part.

@@ -24,4 +24,5 @@ add_subdirectory(utils)
 # as it produces more logical error messages when a test fails.
 target_sources(${utest_ex_name} PRIVATE
    ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestAgentRegistry.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestAgentHierarchy.cpp
 )

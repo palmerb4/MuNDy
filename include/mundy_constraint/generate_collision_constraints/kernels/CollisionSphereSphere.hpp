@@ -96,7 +96,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
         valid_fixed_params.get<std::string>("element_signed_separation_dist_field_name");
 
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("SPHERE");
+    part_reqs->set_part_name("SPHERES");
     part_reqs->set_part_topology(stk::topology::PARTICLE);
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
                                                                                        stk::topology::NODE_RANK, 3, 1));

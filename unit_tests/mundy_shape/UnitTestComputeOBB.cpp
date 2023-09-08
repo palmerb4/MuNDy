@@ -71,7 +71,7 @@ TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
   ASSERT_TRUE(meta_data_ptr != nullptr);
 
   // Fetch the multibody sphere part and add a single sphere to it.
-  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERE");
+  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
   ASSERT_TRUE(sphere_part_ptr != nullptr);
 
   bulk_data_ptr->modification_begin();

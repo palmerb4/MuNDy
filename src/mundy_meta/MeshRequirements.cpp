@@ -194,49 +194,63 @@ bool MeshRequirements::is_fully_specified() const {
 unsigned MeshRequirements::get_spatial_dimension() const {
   MUNDY_THROW_ASSERT(
       this->constrains_spatial_dimension(), std::logic_error,
-      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
   return spatial_dimension_;
 }
 
 std::vector<std::string> MeshRequirements::get_entity_rank_names() const {
   MUNDY_THROW_ASSERT(
       this->constrains_entity_rank_names(), std::logic_error,
-      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
   return entity_rank_names_;
 }
 
 stk::ParallelMachine MeshRequirements::get_communicator() const {
   MUNDY_THROW_ASSERT(
       this->constrains_communicator(), std::logic_error,
-      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
   return communicator_;
 }
 
 mundy::mesh::BulkData::AutomaticAuraOption MeshRequirements::get_aura_option() const {
   MUNDY_THROW_ASSERT(
       this->constrains_aura_option(), std::logic_error,
-      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
   return aura_option_;
 }
 
 stk::mesh::FieldDataManager *MeshRequirements::get_field_data_manager() const {
   MUNDY_THROW_ASSERT(
       this->constrains_field_data_manager(), std::logic_error,
-      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
   return field_data_manager_ptr_;
 }
 
 unsigned MeshRequirements::get_bucket_capacity() const {
   MUNDY_THROW_ASSERT(
       this->constrains_bucket_capacity(), std::logic_error,
-      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
   return bucket_capacity_;
 }
 
 bool MeshRequirements::get_upward_connectivity_flag() const {
   MUNDY_THROW_ASSERT(
       this->constrains_upward_connectivity_flag(), std::logic_error,
-      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.");
+      "MeshRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
   return upward_connectivity_flag_;
 }
 
@@ -264,7 +278,9 @@ std::map<std::type_index, std::any> MeshRequirements::get_mesh_attributes_map() 
 //{
 std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
   MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
-                     "MeshRequirements: The MPI communicator must be ste before calling declare_mesh.");
+                     "MeshRequirements: The MPI communicator must be ste before calling declare_mesh.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   // The mesh itself is generated using stk's MeshBuilder which we provide a wrapper for.
   // If any of our parameters are not constrained, we use the default value.
@@ -347,7 +363,9 @@ void MeshRequirements::check_if_valid() const {
 
 void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
   MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
-                     "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.");
+                     "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
@@ -368,7 +386,9 @@ void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> fie
 
 void MeshRequirements::add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
   MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
-                     "MeshRequirements: The pointer passed to add_part_reqs cannot be a nullptr.");
+                     "MeshRequirements: The pointer passed to add_part_reqs cannot be a nullptr.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   // Check if the provided parameters are valid.
   part_req_ptr->check_if_valid();
@@ -407,7 +427,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
     if (this->constrains_spatial_dimension()) {
       MUNDY_THROW_ASSERT(this->get_spatial_dimension() == mesh_req_ptr->get_spatial_dimension(), std::invalid_argument,
                          "MeshRequirements: One of the inputs has incompatible spatial dimension ("
-                             << mesh_req_ptr->get_spatial_dimension() << ").");
+                             << mesh_req_ptr->get_spatial_dimension() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_spatial_dimension(mesh_req_ptr->get_spatial_dimension());
     }
@@ -416,7 +438,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   if (mesh_req_ptr->constrains_entity_rank_names()) {
     if (this->constrains_entity_rank_names()) {
       MUNDY_THROW_ASSERT(this->get_entity_rank_names() == mesh_req_ptr->get_entity_rank_names(), std::invalid_argument,
-                         "MeshRequirements: One of the inputs has incompatible entity rank names.");
+                         "MeshRequirements: One of the inputs has incompatible entity rank names.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_entity_rank_names(mesh_req_ptr->get_entity_rank_names());
     }
@@ -425,7 +449,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   if (mesh_req_ptr->constrains_communicator()) {
     if (this->constrains_communicator()) {
       MUNDY_THROW_ASSERT(this->get_communicator() == mesh_req_ptr->get_communicator(), std::invalid_argument,
-                         "MeshRequirements: One of the inputs has incompatible MPI communicator.");
+                         "MeshRequirements: One of the inputs has incompatible MPI communicator.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_communicator(mesh_req_ptr->get_communicator());
     }
@@ -434,7 +460,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   if (mesh_req_ptr->constrains_aura_option()) {
     if (this->constrains_aura_option()) {
       MUNDY_THROW_ASSERT(this->get_aura_option() == mesh_req_ptr->get_aura_option(), std::invalid_argument,
-                         "MeshRequirements: One of the inputs has incompatible aura option.");
+                         "MeshRequirements: One of the inputs has incompatible aura option.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_aura_option(mesh_req_ptr->get_aura_option());
     }
@@ -444,7 +472,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
     if (this->constrains_field_data_manager()) {
       MUNDY_THROW_ASSERT(this->get_field_data_manager() == mesh_req_ptr->get_field_data_manager(),
                          std::invalid_argument,
-                         "MeshRequirements: One of the inputs has incompatible field data manager.");
+                         "MeshRequirements: One of the inputs has incompatible field data manager.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_field_data_manager(mesh_req_ptr->get_field_data_manager());
     }
@@ -454,7 +484,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
     if (this->constrains_bucket_capacity()) {
       MUNDY_THROW_ASSERT(this->get_bucket_capacity() == mesh_req_ptr->get_bucket_capacity(), std::invalid_argument,
                          "MeshRequirements: One of the inputs has incompatible bucket capacity ("
-                             << mesh_req_ptr->get_bucket_capacity() << ").");
+                             << mesh_req_ptr->get_bucket_capacity() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_bucket_capacity(mesh_req_ptr->get_bucket_capacity());
     }
@@ -465,7 +497,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
       MUNDY_THROW_ASSERT(this->get_upward_connectivity_flag() == mesh_req_ptr->get_upward_connectivity_flag(),
                          std::invalid_argument,
                          "MeshRequirements: One of the inputs has incompatible connectivity flag ("
-                             << mesh_req_ptr->get_upward_connectivity_flag() << ").");
+                             << mesh_req_ptr->get_upward_connectivity_flag() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_upward_connectivity_flag(mesh_req_ptr->get_upward_connectivity_flag());
     }
@@ -496,93 +530,99 @@ void MeshRequirements::merge(const std::vector<std::shared_ptr<MeshRequirements>
   }
 }
 
-void MeshRequirements::dump_to_screen(int indent_level) const {
+void MeshRequirements::print_reqs(std::ostream& os, int indent_level) const {
   std::string indent(indent_level * 2, ' ');
 
-  std::cout << indent << "MeshRequirements: " << std::endl;
+  os << indent << "MeshRequirements: " << std::endl;
 
   if (this->constrains_spatial_dimension()) {
-    std::cout << indent << "  Spatial dimension is set." << std::endl;
-    std::cout << indent << "  Spatial dimension: " << this->get_spatial_dimension() << std::endl;
+    os << indent << "  Spatial dimension is set." << std::endl;
+    os << indent << "  Spatial dimension: " << this->get_spatial_dimension() << std::endl;
   } else {
-    std::cout << indent << "  Spatial dimension is not set." << std::endl;
+    os << indent << "  Spatial dimension is not set." << std::endl;
   }
 
   if (this->constrains_entity_rank_names()) {
-    std::cout << indent << "  Entity rank names are set." << std::endl;
-    std::cout << indent << "  Entity rank names: ";
+    os << indent << "  Entity rank names are set." << std::endl;
+    os << indent << "  Entity rank names: ";
     for (const auto &entity_rank_name : this->get_entity_rank_names()) {
-      std::cout << indent << entity_rank_name << " ";
+      os << indent << entity_rank_name << " ";
     }
-    std::cout << indent << std::endl;
+    os << indent << std::endl;
   } else {
-    std::cout << indent << "  Entity rank names are not set." << std::endl;
+    os << indent << "  Entity rank names are not set." << std::endl;
   }
 
   if (this->constrains_communicator()) {
-    std::cout << indent << "  MPI communicator is set." << std::endl;
+    os << indent << "  MPI communicator is set." << std::endl;
   } else {
-    std::cout << indent << "  MPI communicator is not set." << std::endl;
+    os << indent << "  MPI communicator is not set." << std::endl;
   }
 
   if (this->constrains_aura_option()) {
-    std::cout << indent << "  Aura option is set." << std::endl;
-    std::cout << indent << "  Aura option: " << this->get_aura_option() << std::endl;
+    os << indent << "  Aura option is set." << std::endl;
+    os << indent << "  Aura option: " << this->get_aura_option() << std::endl;
   } else {
-    std::cout << indent << "  Aura option is not set." << std::endl;
+    os << indent << "  Aura option is not set." << std::endl;
   }
 
   if (this->constrains_field_data_manager()) {
-    std::cout << indent << "  Field data manager is set." << std::endl;
+    os << indent << "  Field data manager is set." << std::endl;
   } else {
-    std::cout << indent << "  Field data manager is not set." << std::endl;
+    os << indent << "  Field data manager is not set." << std::endl;
   }
 
   if (this->constrains_bucket_capacity()) {
-    std::cout << indent << "  Bucket capacity is set." << std::endl;
-    std::cout << indent << "  Bucket capacity: " << this->get_bucket_capacity() << std::endl;
+    os << indent << "  Bucket capacity is set." << std::endl;
+    os << indent << "  Bucket capacity: " << this->get_bucket_capacity() << std::endl;
   } else {
-    std::cout << indent << "  Bucket capacity is not set." << std::endl;
+    os << indent << "  Bucket capacity is not set." << std::endl;
   }
 
   if (this->constrains_upward_connectivity_flag()) {
-    std::cout << indent << "  Upward connectivity flag is set." << std::endl;
-    std::cout << indent << "  Upward connectivity flag: " << this->get_upward_connectivity_flag() << std::endl;
+    os << indent << "  Upward connectivity flag is set." << std::endl;
+    os << indent << "  Upward connectivity flag: " << this->get_upward_connectivity_flag() << std::endl;
   } else {
-    std::cout << indent << "  Upward connectivity flag is not set." << std::endl;
+    os << indent << "  Upward connectivity flag is not set." << std::endl;
   }
 
-  std::cout << indent << "  Mesh Attributes: " << std::endl;
+  os << indent << "  Mesh Attributes: " << std::endl;
   int attribute_count = 0;
   for (auto const &[attribute_type_index, attribute] : mesh_attributes_map_) {
-    std::cout << indent << "  Mesh attribute " << attribute_count << " has type (" << attribute_type_index.name() << ")"
+    os << indent << "  Mesh attribute " << attribute_count << " has type (" << attribute_type_index.name() << ")"
               << std::endl;
     attribute_count++;
   }
 
-  std::cout << indent << "  Mesh Fields: " << std::endl;
+  os << indent << "  Mesh Fields: " << std::endl;
   int rank = 0;
   int field_count = 0;
   for (auto const &mesh_field_map : mesh_ranked_field_maps_) {
     for (auto const &[field_name, field_req_ptr] : mesh_field_map) {
-      std::cout << indent << "  Mesh field " << field_count << " has name (" << field_name << "), rank (" << rank
+      os << indent << "  Mesh field " << field_count << " has name (" << field_name << "), rank (" << rank
                 << "), and requirements" << std::endl;
-      field_req_ptr->dump_to_screen(indent_level + 1);
+      field_req_ptr->print_reqs(os, indent_level + 1);
       field_count++;
     }
 
     rank++;
   }
 
-  std::cout << indent << "  Mesh Parts: " << std::endl;
+  os << indent << "  Mesh Parts: " << std::endl;
   int part_count = 0;
   for (auto const &[part_name, part_req_ptr] : mesh_part_map_) {
-    std::cout << "  Mesh part " << part_count << " has name (" << part_name << ") and requirements" << std::endl;
-    part_req_ptr->dump_to_screen(indent_level + 1);
+    os << "  Mesh part " << part_count << " has name (" << part_name << ") and requirements" << std::endl;
+    part_req_ptr->print_reqs(os, indent_level + 1);
     part_count++;
   }
 
-  std::cout << indent << "End of MeshRequirements" << std::endl;
+  os << indent << "End of MeshRequirements" << std::endl;
+}
+
+std::string MeshRequirements::get_reqs_as_a_string() const {
+  std::stringstream ss;
+  this->print_reqs(ss);
+  return ss.str();
 }
 //}
 

@@ -430,27 +430,27 @@ using GlobalMetaTopologyTwoWayKernelFactory = GlobalMetaTopologyKWayKernelFactor
 
 /// \brief Partial specialization for \c MetaThreeWayKernels.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaThreeWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
+using MetaThreeWayKernelFactory = MetaKWayKernelFactory<3, ReturnType, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for \c MetaThreeWayKernels, identified by a mundy agent type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaAgentThreeWayKernelFactory = MetaAgentKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
+using MetaAgentThreeWayKernelFactory = MetaAgentKWayKernelFactory<3, ReturnType, RegistryIdentifier>;
 
 /// \brief Partial specialization for \c MetaThreeWayKernels, identified by an stk topology type.
 template <typename ReturnType, typename RegistryIdentifier>
-using MetaTopologyThreeWayKernelFactory = MetaTopologyKWayKernelFactory<2, ReturnType, RegistryIdentifier>;
+using MetaTopologyThreeWayKernelFactory = MetaTopologyKWayKernelFactory<3, ReturnType, RegistryIdentifier>;
 
 /// \brief Partial specialization for global \c MetaThreeWayKernels.
 template <typename ReturnType, typename RegistrationType = std::string_view>
-using GlobalMetaThreeWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
+using GlobalMetaThreeWayKernelFactory = GlobalMetaKWayKernelFactory<3, ReturnType, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaThreeWayKernels, identified by a mundy agent type.
 template <typename ReturnType>
-using GlobalMetaAgentThreeWayKernelFactory = GlobalMetaAgentKWayKernelFactory<2, ReturnType>;
+using GlobalMetaAgentThreeWayKernelFactory = GlobalMetaAgentKWayKernelFactory<3, ReturnType>;
 
 /// \brief Partial specialization for global \c MetaThreeWayKernels, identified by an stk topology type.
 template <typename ReturnType>
-using GlobalMetaTopologyThreeWayKernelFactory = GlobalMetaTopologyKWayKernelFactory<2, ReturnType>;
+using GlobalMetaTopologyThreeWayKernelFactory = GlobalMetaTopologyKWayKernelFactory<3, ReturnType>;
 //@}
 }  // namespace meta
 

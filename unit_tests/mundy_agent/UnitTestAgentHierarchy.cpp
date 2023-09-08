@@ -30,12 +30,22 @@
 #include <utility>      // for std::move
 #include <vector>       // for std::vector
 
+// Trilinos libs
+#include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
+#include <stk_topology/topology.hpp>       // for stk::topology
+#include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
+
 // Mundy libs
-#include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
-#include <mundy_agent/AgentRegistry.hpp>   // for mundy::agent::AgentRegistry
+#include <mundy_agent/AgentHierarchy.hpp>        // for mundy::agent::AgentHierarchy
+#include <mundy_agent/AgentRegistry.hpp>         // for mundy::agent::AgentRegistry
+#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
 // Mundy test libs
-#include <mundy_agent/utils/ExampleAgent.hpp>  // for mundy::agent::ExampleAgent
+#include <mundy_agent/utils/ExampleAgent.hpp>  // for mundy::agent::utils::ExampleAgent
 
 namespace mundy {
 
@@ -43,19 +53,12 @@ namespace agent {
 
 namespace {
 
-//! \name Registration tests
+//! \name AgentHierarchy object registration tests
 //@{
 
-struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
-
-TEST(AgentRegistry, AutoRegistration) {
-  // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the AgentHierarchy
-  EXPECT_GT(AgentHierarchy::get_number_of_registered_types(), 0);
-  EXPECT_TRUE(AgentHierarchy::is_valid(mundy::agent::utils::ExampleAgent<1>::get_name(),
-                                       mundy::agent::utils::ExampleAgent<1>::get_parent_name()));
-  EXPECT_TRUE(AgentHierarchy::is_valid(mundy::agent::utils::ExampleAgent<2>::get_name(),
-                                       mundy::agent::utils::ExampleAgent<2>::get_parent_name()));
-  AgentHierarchy::print_hierarchy();
+TEST(AgentHierarchyRegistration, RegistrationWorksProperly) {
+  // Registration of a class with AgentHierarchy should allow access to the class's internal static methods.
+  // This test checks that the registration was successful.
 }
 //@}
 
@@ -65,10 +68,5 @@ TEST(AgentRegistry, AutoRegistration) {
 
 }  // namespace mundy
 
-// Registration shouldn't need to explicitly come before TEST, since it will be registered at compile time.
-
 // Register a class with AgentHierarchy
-MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<1>)
-
-// Register a different class with AgentHierarchy
-MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<2>)
+MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<3>)

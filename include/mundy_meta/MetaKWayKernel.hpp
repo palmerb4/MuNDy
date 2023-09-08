@@ -28,6 +28,7 @@
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of
 #include <vector>       // for std::vector
+#include <tuple>        // for std::tuple
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
@@ -35,7 +36,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
-#include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/PartRequirements.hpp>                      // for mundy::meta::PartRequirements
 
 namespace mundy {

@@ -26,7 +26,7 @@
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::shared_ptr
 #include <string>       // for std::string
-#include <type_traits>  // for std::enable_if, std::is_base_of
+#include <type_traits>  // for std::enable_if, std::is_base_of, std::is_same_v
 #include <vector>       // for std::vector
 
 // Trilinos libs
@@ -174,12 +174,13 @@ struct HasMeshRequirementsAndIsRegisterable {
   ///
   /// The specific signature of the \c get_mesh_requirements function is:
   /// \code
-  /// static std::shared_ptr<MeshRequirements> get_mesh_requirements();
+  /// static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(Teuchos::ParameterList *const
+  /// fixed_params_ptr);
   /// \endcode
   static constexpr bool has_get_mesh_requirements =
       decltype(check_get_mesh_requirements<T>(0))::value &&
       std::is_same_v<decltype(T::get_mesh_requirements(std::declval<Teuchos::ParameterList>())),
-                     std::shared_ptr<MeshRequirements>>;
+                     std::shared_ptr<mundy::meta::MeshRequirements>>;
 
   /// \brief Check for the existence of a \c validate_fixed_parameters_and_set_defaults function.
   /// \return \c true if \c T has a \c validate_fixed_parameters_and_set_defaults function, \c false otherwise.

@@ -97,8 +97,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
-    constexpr std::string_view parent_part_name = "SPHERES";
-    constexpr std::string_view grandparent_part_name = "SHAPES";
+    const std::string parent_part_name = "SPHERES";
+    const std::string grandparent_part_name = "SHAPES";
     if (associated_part_name == default_part_name_) {
       mundy::agent::AgentHierarchy::add_part_reqs(part_reqs, parent_part_name, grandparent_part_name);
     } else {
@@ -186,7 +186,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //@{
 
   static constexpr double default_buffer_distance_ = 0.0;
-  static constexpr std::string_view default_part_name_ = "SPHERE";
+  static constexpr std::string_view default_part_name_ = "SPHERES";
   static constexpr std::string_view default_bounding_radius_field_name_ = "ELEMENT_BOUNDING_RADIUS";
   //@}
 
@@ -195,7 +195,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static constexpr std::string_view registration_id_ = "SPHERE";
+  static constexpr std::string_view registration_id_ = "SPHERES";
 
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 

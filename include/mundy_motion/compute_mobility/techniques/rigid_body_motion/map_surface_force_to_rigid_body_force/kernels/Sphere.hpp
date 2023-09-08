@@ -227,7 +227,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
   static constexpr double default_alpha_ = 1.0;
   static constexpr double default_beta_ = 0.0;
-  static constexpr std::string_view default_part_name_ = "SPHERE";
+  static constexpr std::string_view default_part_name_ = "SPHERES";
   static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
   static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
   static constexpr std::string_view default_node_torque_field_name_ = "NODE_TORQUE";
@@ -238,7 +238,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static constexpr std::string_view registration_id_ = "SPHERE";
+  static constexpr std::string_view registration_id_ = "SPHERES";
 
   /// \brief Scale for the force and torque such that F = beta * F0 + alpha * Fnew.
   double alpha_;

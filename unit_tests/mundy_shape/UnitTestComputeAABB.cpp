@@ -58,7 +58,7 @@ namespace {
 
 TEST(ComputeAABBStaticInterface, IsRegisterable) {
   // Check if ComputeAABB has the correct static interface to be compatible with MetaFactory.
-  ASSERT_TRUE(meta::HasMeshRequirementsAndIsRegisterable<ComputeAABB>::value);
+  ASSERT_TRUE(mundy::meta::HasMeshRequirementsAndIsRegisterable<ComputeAABB>::value);
 }
 
 TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
@@ -122,7 +122,6 @@ TEST(ComputeAABBStaticInterface, CreateNewInstanceFromDefaultParameters) {
 
   Teuchos::ParameterList fixed_params;
   ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
-  EXPECT_NO_THROW(ComputeAABB::get_mesh_requirements(fixed_params));
   mesh_reqs_ptr->merge(ComputeAABB::get_mesh_requirements(fixed_params));
 
   // Create a new instance of ComputeAABB using the default parameters and the mesh generated from the mesh
@@ -147,7 +146,7 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
   // Fetch the multibody sphere part and add a single sphere to it.
-  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERE");
+  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
   ASSERT_TRUE(sphere_part_ptr != nullptr);
 
   bulk_data_ptr->modification_begin();

@@ -124,7 +124,7 @@ class FieldRequirementsBase {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
       MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
-          "FieldRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string");
+          "FieldRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string.");
     } else {
       parameter_list_ptr->set("name", "INVALID", "Name of the field.");
     }
@@ -134,7 +134,7 @@ class FieldRequirementsBase {
                                (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "FieldRequirements: Type error. Given a parameter with name 'rank' but with a "
-                             << "type other than std::string or stk::topology::rank_t");
+                             << "type other than std::string or stk::topology::rank_t.");
     } else {
       parameter_list_ptr->set("rank", stk::topology::INVALID_RANK, "Rank of the field, in string form.");
     }
@@ -143,7 +143,7 @@ class FieldRequirementsBase {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("dimension");
       MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
-          "FieldRequirements: Type error. Given a parameter with name 'dimension' but with a type other than unsigned");
+          "FieldRequirements: Type error. Given a parameter with name 'dimension' but with a type other than unsigned.");
     } else {
       parameter_list_ptr->set("dimension", 0, "Dimension of the part.");
     }
@@ -152,7 +152,7 @@ class FieldRequirementsBase {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("min_number_of_states");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "FieldRequirements: Type error. Given a parameter with name 'min_number_of_states' "
-                         "but with a type other than unsigned");
+                         "but with a type other than unsigned.");
     } else {
       parameter_list_ptr->set("min_number_of_states", 1,
                               "Minimum number of rotating states that this field will have.");
@@ -232,8 +232,11 @@ class FieldRequirementsBase {
   virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(
       const Teuchos::ParameterList &parameter_list) const = 0;
 
-  /// \brief Dump the contents of \c FieldRequirements to the screen.
-  virtual void dump_to_screen(int indent_level) const = 0;
+  /// \brief Dump the contents of \c FieldRequirements to the given stream (defaults to std::cout).
+  virtual void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const = 0;
+
+  /// \brief Return a string representation of the current set of requirements.
+  virtual std::string get_reqs_as_a_string() const = 0;
   //@}
 };  // FieldRequirementsBase
 

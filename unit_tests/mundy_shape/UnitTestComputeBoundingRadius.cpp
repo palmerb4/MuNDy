@@ -68,7 +68,7 @@ TEST(ComputeBoundingRadius, PerformsBoundingRadiusCalculationCorrectlyForSphere)
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
   // Fetch the multibody sphere part and add a single sphere to it.
-  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERE");
+  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
   ASSERT_TRUE(sphere_part_ptr != nullptr);
 
   bulk_data_ptr->modification_begin();

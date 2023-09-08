@@ -26,6 +26,7 @@
 // C++ core libs
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <sstream>      // for std::stringstream
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
 #include <utility>      // for std::move
@@ -123,7 +124,7 @@ class PartRequirements {
   /// \brief Fully  Constructor with partial requirements. Version 1.
   ///
   /// \param part_name [in] Name of the part.
-  PartRequirements(const std::string &part_name);
+  explicit PartRequirements(const std::string &part_name);
 
   /// \brief Constructor with partial requirements. Version 2.
   ///
@@ -303,7 +304,7 @@ class PartRequirements {
     const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
     MUNDY_THROW_ASSERT(
         valid_type, std::invalid_argument,
-        "PartRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string");
+        "PartRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string.");
 
     bool valid_topology_rank_combo =
         !(parameter_list_ptr->isParameter("topology") && parameter_list_ptr->isParameter("rank"));
@@ -317,7 +318,7 @@ class PartRequirements {
            (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::topology_t>("topology")));
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "PartRequirements: Type error. Given a parameter with name 'topology' but "
-                             << "with a type other than std::string or stk::topology::topology_t");
+                             << "with a type other than std::string or stk::topology::topology_t.");
     } else {
       if (parameter_list_ptr->isParameter("rank")) {
         const bool valid_type =
@@ -325,13 +326,16 @@ class PartRequirements {
              (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
         MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                            "PartRequirements: Type error. Given a parameter with name 'rank' but with a "
-                               << "type other than std::string or stk::topology::rank_t");
+                               << "type other than std::string or stk::topology::rank_t.");
       }
     }
   }
 
-  /// \brief Dump the contents of \c PartRequirements to the screen.
-  void dump_to_screen(int indent_level = 0) const;
+  /// \brief Dump the contents of \c PartRequirements to the given stream (defaults to std::cout).
+  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;
+
+  /// \brief Return a string representation of the current set of requirements.
+  std::string get_reqs_as_a_string() const;
   //@}
 
  private:

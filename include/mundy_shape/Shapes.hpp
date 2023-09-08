@@ -28,13 +28,15 @@
 #include <string>  // for std::string
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::GlobalMetaMethodFactory
-#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
+#include <mundy_agent/AgentRegistry.hpp>          // for MUNDY_REGISTER_AGENT
+#include <mundy_meta/FieldRequirements.hpp>       // for mundy::meta::FieldRequirements
+#include <mundy_meta/MeshRequirements.hpp>        // for mundy::meta::MeshRequirements
+#include <mundy_meta/PartRequirements.hpp>        // for mundy::meta::PartRequirements
+#include <mundy_shape/shapes/Sphere.hpp>          // for mundy::shape::Sphere
+#include <mundy_shape/shapes/Spherocylinder.hpp>  // for mundy::shape::Spherocylinder
 
 namespace mundy {
 
@@ -55,7 +57,7 @@ namespace shape {
 /// Each shape can be uniquely identified by either the shape's part or a fast unique identifier, namely shape_t.
 /// \note shape_t is simply the agent_t associated with the shape. As a result, a shape_t will never equate to, for
 /// example, a constraint_t since they are both agent_t's. You can think of this as a runtime extensible class enum.
-using shape_t = agent_t;
+using shape_t = mundy::agent::agent_t;
 
 class Shapes {
  public:
@@ -63,13 +65,13 @@ class Shapes {
   //@{
 
   /// \brief Get the name of our part.
-  static constexpr inline std::string_view get_name() {
-    return our_name_;
+  static inline std::string get_name() {
+    return std::string(our_name_);
   }
 
   /// @brief Get the name of our parent part.
-  static constexpr inline std::string_view get_parent_name() {
-    return our_parents_name_;
+  static inline std::string get_parent_name() {
+    return std::string(our_parents_name_);
   }
 
   /// \brief Get the topology of our part.
@@ -109,13 +111,15 @@ class Shapes {
     // Shapes is an assembly part containing all shapes.
 
     // Declare our part as a subpart of our parent part.
-    mundy::agent::AgentHierarchy::add_subpart_reqs(our_parents_name_, our_grandparents_name_, our_part_reqs_ptr_);
+    mundy::agent::AgentHierarchy::add_subpart_reqs(our_part_reqs_ptr_, std::string(our_parents_name_),
+                                                   std::string(our_grandparents_name_));
 
     // Fetch our parent's requirements.
     // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
     // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
     // combined requirements for all parts touched in this traversal are then returned here.
-    return mundy::agent::AgentHierarchy::get_mesh_requirements(our_parents_name_, our_grandparents_name_);
+    return mundy::agent::AgentHierarchy::get_mesh_requirements(std::string(our_parents_name_),
+                                                               std::string(our_grandparents_name_));
   }
 
  private:
@@ -152,5 +156,7 @@ class Shapes {
 }  // namespace shape
 
 }  // namespace mundy
+
+MUNDY_REGISTER_AGENT(mundy::shape::Shapes)
 
 #endif  // MUNDY_SHAPE_SHAPES_HPP_

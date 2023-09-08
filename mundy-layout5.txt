@@ -573,7 +573,7 @@ Because these classes are entirely static, the factory can store all of their me
 This means that Multibody can use CRTP to force each derived class to implement a certain static interface, the factory will store this interface. 
 If we name the factory multibody, then we can do things like
 
-unsigned id = mundy::MultibodyFactory::get_id("SPHERE");
+unsigned id = mundy::MultibodyFactory::get_id("SPHERES");
 std::string name = mundy::MultibodyFactory::get_name(id);
 mundy::MultibodyFactory::get_topology(multibody_name);
 mundy::MultibodyFactory::get_topology(multibody_id);

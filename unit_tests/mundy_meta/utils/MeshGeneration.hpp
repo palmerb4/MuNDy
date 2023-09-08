@@ -57,7 +57,7 @@ generate_class_instance_and_mesh_from_meta_class_requirements(
   MetaClass::validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Create a mesh that meets the requirements for MetaClass.
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
   mesh_reqs_ptr->merge(MetaClass::get_mesh_requirements(valid_fixed_params));

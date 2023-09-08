@@ -29,20 +29,11 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>   // for stk::topology
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -59,75 +50,165 @@ class ExampleAgent {
   //@{
 
   /// \brief Get the name of our part.
-  static constexpr inline std::string_view get_name() {
-    return name_;
+  static inline std::string get_name() {
+    get_name_counter_++;
+    return std::string(name_);
   }
 
   /// @brief Get the name of our parent part.
-  static constexpr inline std::string_view get_parent_name() {
-    return parents_name_;
+  static inline std::string get_parent_name() {
+    get_parent_name_counter_++;
+    return std::string(parents_name_);
   }
 
   /// \brief Get the topology of our part.
   static constexpr inline stk::topology::topology_t get_topology() {
+    get_topology_counter_++;
     return topology_;
   }
 
   /// \brief Get the rank of our part.
   static constexpr inline stk::topology::rank_t get_rank() {
+    get_rank_counter_++;
     return rank_;
   }
 
   /// \brief Get if our part has a topology or not.
   static constexpr inline bool has_topology() {
+    has_topology_counter_++;
     return has_topology_;
   }
 
   /// \brief Get if our part has a rank or not.
   static constexpr inline bool has_rank() {
+    has_rank_counter_++;
     return has_rank_;
   }
 
   /// \brief Add new part requirements to ALL members of this agent part.
   /// These modifications are reflected in our mesh requirements.
   static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
+    add_part_reqs_counter_++;
     part_reqs_ptr_->merge(part_reqs_ptr);
   }
 
   /// \brief Add sub-part requirements.
   /// These modifications are reflected in our mesh requirements.
   static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
+    add_subpart_reqs_counter_++;
     part_reqs_ptr_->add_subpart_reqs(subpart_reqs_ptr);
   }
 
   /// \brief Get our mesh requirements.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
+    get_mesh_requirements_counter_++;
     // By default, we assume that the ExampleAgents part is an agent with an INVALID_TOPOLOGY.
 
     // Declare our part as a subpart of our parent part.
-    mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, parents_name_, grandparents_name_);
+    mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, std::string(parents_name_),
+                                                   std::string(grandparents_name_));
 
     // Fetch our parent's requirements.
     // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
     // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
     // combined requirements for all parts touched in this traversal are then returned here.
-    return mundy::agent::AgentHierarchy::get_mesh_requirements(parents_name_, grandparents_name_);
+    return mundy::agent::AgentHierarchy::get_mesh_requirements(std::string(parents_name_),
+                                                               std::string(grandparents_name_));
   }
 
+  /// \brief Get the number of times get_name() has been called.
+  static inline int get_get_name_counter() {
+    return get_name_counter_;
+  }
+
+  /// \brief Get the number of times get_parent_name() has been called.
+  static inline int get_get_parent_name_counter() {
+    return get_parent_name_counter_;
+  }
+
+  /// \brief Get the number of times get_topology() has been called.
+  static inline int get_get_topology_counter() {
+    return get_topology_counter_;
+  }
+
+  /// \brief Get the number of times get_rank() has been called.
+  static inline int get_get_rank_counter() {
+    return get_rank_counter_;
+  }
+
+  /// \brief Get the number of times has_topology() has been called.
+  static inline int get_has_topology_counter() {
+    return has_topology_counter_;
+  }
+
+  /// \brief Get the number of times has_rank() has been called.
+  static inline int get_has_rank_counter() {
+    return has_rank_counter_;
+  }
+
+  /// \brief Get the number of times add_part_reqs() has been called.
+  static inline int get_add_part_reqs_counter() {
+    return add_part_reqs_counter_;
+  }
+
+  /// \brief Get the number of times add_subpart_reqs() has been called.
+  static inline int get_add_subpart_reqs_counter() {
+    return add_subpart_reqs_counter_;
+  }
+
+  /// \brief Get the number of times get_mesh_requirements() has been called.
+  static inline int get_get_mesh_requirements_counter() {
+    return get_mesh_requirements_counter_;
+  }
+  //@}
+
  private:
-  //! \name Member variable definitions
+  //! \name Debug member variables
+  //@{
+
+  /// \brief The number of times get_name() has been called.
+  static inline int get_name_counter_ = 0;
+
+  /// \brief The number of times get_parent_name() has been called.
+  static inline int get_parent_name_counter_ = 0;
+
+  /// \brief The number of times get_topology() has been called.
+  static inline int get_topology_counter_ = 0;
+
+  /// \brief The number of times get_rank() has been called.
+  static inline int get_rank_counter_ = 0;
+
+  /// \brief The number of times has_topology() has been called.
+  static inline int has_topology_counter_ = 0;
+
+  /// \brief The number of times has_rank() has been called.
+  static inline int has_rank_counter_ = 0;
+
+  /// \brief The number of times add_part_reqs() has been called.
+  static inline int add_part_reqs_counter_ = 0;
+
+  /// \brief The number of times add_subpart_reqs() has been called.
+  static inline int add_subpart_reqs_counter_ = 0;
+
+  /// \brief The number of times get_mesh_requirements() has been called.
+  static inline int get_mesh_requirements_counter_ = 0;
+  //@}
+
+  //! \name Standard member variables
   //@{
 
   /// \brief The name of the our part.
-  static constexpr std::string_view name_ = []() {
+  static constexpr std::string_view name_ = []() constexpr -> std::string_view {
     if constexpr (I == 0) {
       return "FAKE_NAME_0";
     } else if constexpr (I == 1) {
       return "FAKE_NAME_1";
     } else if constexpr (I == 2) {
       return "FAKE_NAME_2";
+    } else if constexpr (I == 3) {
+      return "FAKE_NAME_3";
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid ExampleAgent index.");
+      static_assert(I < 4, "Invalid ExampleAgent index.");
       return "FAKE_NAME_N";
     }
   }();

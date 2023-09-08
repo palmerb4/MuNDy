@@ -5,9 +5,9 @@ echo "Using Trilinos dir: $TRILINOS_ROOT_DIR"
 echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
 
 cmake \
--DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RELEASE} \
+-DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
 -DCMAKE_CXX_COMPILER=mpicxx \
--DCMAKE_CXX_FLAGS="-O3 -march=native" \
+-DCMAKE_CXX_FLAGS="-O0 -g -march=native" \
 -DENABLE_OPENMP=${ENABLE_OPENMP:-ON} \
 -DENABLE_CUDA=${ENABLE_CUDA:-OFF} \
 -DKokkos_ENABLE_SERIAL=ON \

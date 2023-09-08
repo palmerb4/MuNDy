@@ -28,24 +28,32 @@
 #include <iostream>       // for std::cout, std::endl
 #include <map>            // for std::map
 #include <memory>         // for std::shared_ptr
-#include <sstream>        // for std::stringstream
-#include <stdexcept>      // for std::logic_error, std::invalid_argument
+#include <stdexcept>      // for std::invalid_argument
 #include <string>         // for std::string
-#include <unordered_map>  // for std::unordered_map
 #include <utility>        // for std::make_pair
 #include <vector>         // for std::vector
+#include <unordered_map>  // for std::unordered_map
 
 // Trilinos libs
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
 #include <mundy/throw_assert.hpp>       // for MUNDY_THROW_ASSERT
-#include <mundy_agent/Agents.hpp>       // for mundy::agent::Agent
 #include <mundy_agent/IsAgentType.hpp>  // for mundy::agent::IsAgentType
 
 namespace mundy {
 
 namespace agent {
+
+/// \brief Unique agent identifier
+/// In the current design, an "agent" is a Part endowed with a set of default requirements. Each agent can be
+/// uniquely identified by either the agent's part or a unique uint, namely agent_t.
+///
+/// \note Agent_t is not a class enum, so comparing two agent_t's equates to comparing two unsigned ints (same as
+/// regular enums). However, agent_t is unique in that no two agents will share the same agent_t. It is important to
+/// note that, while agent_t is unique, the agent_t assigned to an agent need not be the same between consecutive
+/// compilations of the code (due to the static initialization order fiasco).
+using agent_t = unsigned;
 
 /// \class AgentHierarchy
 /// \brief A factory containing generation routines for different Agent types that form a hierarchical structure.
@@ -64,10 +72,10 @@ namespace agent {
 ///   //@{
 ///
 ///   /// \brief Get the ExampleAgent's name.
-///   static constexpr inline std::string_view get_name();
+///   static constexpr inline std::string get_name();
 ///
 ///   /// \brief Get the ExampleAgent's parent's name.
-///   static constexpr inline std::string_view get_parent_name();
+///   static constexpr inline std::string get_parent_name();
 ///
 ///   /// \brief Get the ExampleAgent's topology (throws if the part doesn't constrain topology)
 ///   static constexpr inline stk::topology::topology_t get_topology();
@@ -99,7 +107,7 @@ namespace agent {
 ///                             Agents
 ///                  |                           |
 ///               Shapes                    Constraints
-///    |         |           |               |       |      |
+///    |         |           |             |       |      |
 /// Spheres Ellipsoids Spherocylinders  Springs Hinges Joints
 ///
 /// In this example, every node in the tree knows its unique name and the name of its parent. Together, these names map
@@ -118,195 +126,104 @@ namespace agent {
 /// assemblies as ranked parts with INVALID_RANK.
 class AgentHierarchy {
  public:
-  //! \name Typedefs
-  //@{
-
-  /// \brief A function that returns an std::string_view.
-  using StringViewGenerator = std::function<std::string_view()>;
-
-  /// \brief A function that returns an stk::topology::topology_t.
-  using TopologyGenerator = std::function<stk::topology::topology_t()>;
-
-  /// \brief A function that returns an stk::topology::rank_t.
-  using RankGenerator = std::function<stk::topology::rank_t()>;
-
-  /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
-  /// instances.
-  using NewRequirementsGenerator = std::function<std::shared_ptr<mundy::meta::MeshRequirements>()>;
-
-  /// \brief A function that takes in a part requirements and returns a void.
-  using AddRequirementsGenerator = std::function<void(std::shared_ptr<mundy::meta::PartRequirements>)>;
-
-  /// \brief A function that returns a bool.
-  using BoolGenerator = std::function<bool()>;
-  //@}
-
   //! \name Getters
   //@{
 
   /// \brief Get the number of classes this factory recognizes.
-  static size_t get_number_of_registered_types() {
-    return number_of_registered_types_;
-  }
+  static unsigned get_number_of_registered_types();
 
   /// \brief Get if the provided name is valid or not
   /// \param name [in] A string name that may or may not correspond to a registered class.
-  static bool is_valid(const std::string_view& name, const std::string_view& parent_name = "") {
-    return is_valid(get_agent_type(name, parent_name));
-  }
+  static bool is_valid(const std::string& name, const std::string& parent_name);
 
   /// \brief Get if the provided agent_type is valid or not
   /// \param agent_type [in] A agent_type that may or may not correspond to a registered class.
-  static bool is_valid(const agent_t agent_type) {
-    return get_name_map().count(agent_type) != 0;
-  }
+  static bool is_valid(const agent_t agent_type);
 
   /// \brief Throw if the provided name is invalid
   /// \param name [in] A string name that may or may not correspond to a registered class.
-  static void assert_is_valid(const std::string_view& name, const std::string_view& parent_name = "") {
-    MUNDY_THROW_ASSERT(is_valid(name, parent_name), std::invalid_argument,
-                       "AgentHierarchy: The provided class's name '"
-                           << name << "' is not valid.\n"
-                           << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
-                           << "The hierarchy is:\n"
-                           << get_hierarchy_as_a_string() << "\n");
-  }
+  static void assert_is_valid(const std::string& name, const std::string& parent_name);
 
   /// \brief Throw if the provided agent_type is invalid
   /// \param agent_type [in] A agent_type that may or may not correspond to a registered class.
-  static void assert_is_valid(const agent_t agent_type) {
-    MUNDY_THROW_ASSERT(is_valid(agent_type), std::invalid_argument,
-                       "AgentHierarchy: The provided class's id '"
-                           << agent_type << "' is not valid."
-                           << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
-                           << "The hierarchy is:\n"
-                           << get_hierarchy_as_a_string() << "\n");
-  }
+  static void assert_is_valid(const agent_t agent_type);
 
   /// \brief Get the agent_type corresponding to a registered class with the given name.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static agent_t get_agent_type(const std::string_view& name, const std::string_view& parent_name = "") {
-    assert_is_valid(name, parent_name);
-    return get_name_pair_to_type_map()[std::make_pair(name, parent_name)];
-  }
+  static agent_t get_agent_type(const std::string& name, const std::string& parent_name);
 
   /// \brief Get the name corresponding to the registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static std::string_view get_name(const agent_t agent_type) {
-    assert_is_valid(agent_type);
-    return get_name_map()[agent_type];
-  }
+  static std::string get_name(const agent_t agent_type);
 
   /// \brief Get the name corresponding to the parent of the registered class with the given name.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static std::string_view get_parent_name(const std::string_view& name, const std::string_view& parent_name = "") {
-    assert_is_valid(name, parent_name);
-    const agent_t agent_type = get_agent_type(name);
-    return get_parent_name(agent_type);
-  }
+  static std::string get_parent_name(const std::string& name, const std::string& parent_name);
 
   /// \brief Get the name corresponding to the parent of the registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static std::string_view get_parent_name(const agent_t agent_type) {
-    assert_is_valid(agent_type);
-    return get_parent_name_map()[agent_type];
-  }
+  static std::string get_parent_name(const agent_t agent_type);
 
   /// \brief Get the topology corresponding to a registered class with the given agent_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static stk::topology::topology_t get_topology(const std::string_view& name,
-                                                const std::string_view& parent_name = "") {
-    assert_is_valid(name, parent_name);
-    const agent_t agent_type = get_agent_type(name);
-    return get_topology(agent_type);
-  }
+  static stk::topology::topology_t get_topology(const std::string& name,
+                                                const std::string& parent_name);
 
   /// \brief Get the topology corresponding to a registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static stk::topology::topology_t get_topology(const agent_t agent_type) {
-    assert_is_valid(agent_type);
-    return get_topology_generator_map()[agent_type]();
-  }
+  static stk::topology::topology_t get_topology(const agent_t agent_type);
 
   /// \brief Get the rank corresponding to a registered class with the given agent_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static stk::topology::rank_t get_rank(const std::string_view& name, const std::string_view& parent_name = "") {
-    assert_is_valid(name, parent_name);
-    const agent_t agent_type = get_agent_type(name);
-    return get_rank(agent_type);
-  }
+  static stk::topology::rank_t get_rank(const std::string& name, const std::string& parent_name);
 
   /// \brief Get the rank corresponding to a registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static stk::topology::rank_t get_rank(const agent_t agent_type) {
-    assert_is_valid(agent_type);
-    return get_rank_generator_map()[agent_type]();
-  }
+  static stk::topology::rank_t get_rank(const agent_t agent_type);
 
   /// \brief Add new part requirements to ALL members of the specified agent part.
   /// \param name [in] A string name that correspond to a registered class.
   /// \param part_reqs_ptr [in] A pointer to the part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const std::string_view& name,
-                            const std::string_view& parent_name = "") {
-    assert_is_valid(name, parent_name);
-    const agent_t agent_type = get_agent_type(name);
-    add_part_reqs(part_reqs_ptr, agent_type);
-  }
+  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const std::string& name,
+                            const std::string& parent_name);
 
   /// \brief Add new part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const agent_t agent_type) {
-    assert_is_valid(agent_type);
-    get_add_part_reqs_generator_map()[agent_type](part_reqs_ptr);
-  }
+  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const agent_t agent_type);
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param name [in] A string name that correspond to a registered class.
   /// \param subpart_reqs_ptr [in] A pointer to the sub-part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
-                               const std::string_view& name, const std::string_view& parent_name = "") {
-    assert_is_valid(name, parent_name);
-    const agent_t agent_type = get_agent_type(name);
-    add_subpart_reqs(subpart_reqs_ptr, agent_type);
-  }
+                               const std::string& name, const std::string& parent_name);
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
   static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
-                               const agent_t agent_type) {
-    assert_is_valid(agent_type);
-    get_add_subpart_reqs_generator_map()[agent_type](subpart_reqs_ptr);
-  }
+                               const agent_t agent_type);
 
   /// \brief Get the mesh requirements for the specified agent.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
-      const std::string_view& name, const std::string_view& parent_name = "") {
-    assert_is_valid(name, parent_name);
-    const agent_t agent_type = get_agent_type(name);
-    return get_mesh_requirements(agent_type);
-  }
+      const std::string& name, const std::string& parent_name);
 
   /// \brief Get the mesh requirements for the specified agent.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(const agent_t agent_type) {
-    assert_is_valid(agent_type);
-    return get_mesh_requirements_generator_map()[agent_type]();
-  }
+  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(const agent_t agent_type);
   //@}
 
   //! \name Actions
@@ -350,8 +267,8 @@ class AgentHierarchy {
               << number_of_registered_types_ << std::endl;
 
     // Ensure that the class name/parent name combo is unique.
-    const std::string_view name = ClassToRegister::get_name();
-    const std::string_view parent_name = ClassToRegister::get_parent_name();
+    const std::string name = ClassToRegister::get_name();
+    const std::string parent_name = ClassToRegister::get_parent_name();
     MUNDY_THROW_ASSERT(!is_valid(name, parent_name), std::invalid_argument,
                        "AgentHierarchy: The provided class's name '"
                            << name << "' already exists for parent node with name '" << parent_name << "'.");
@@ -378,20 +295,14 @@ class AgentHierarchy {
   }
 
   /// \brief Print the hierarchy.
-  static void print_hierarchy(std::ostream& os = std::cout) {
-    StringTreeManager::print_tree(os);
-  }
+  static void print_hierarchy(std::ostream& os = std::cout);
 
   // \brief Get the hierarchy as a string.
-  static std::string get_hierarchy_as_a_string() {
-    std::stringstream ss;
-    print_hierarchy(ss);
-    return ss.str();
-  }
+  static std::string get_hierarchy_as_a_string();
   //@}
 
  private:
-  //! \name Internal member
+  //! \name Internal members
   //@{
 
   /// \brief The number of registered agent types.
@@ -406,121 +317,42 @@ class AgentHierarchy {
    public:
     /// @brief Construct a new StringTreeNode object
     /// @param name [in] The name of this node.
-    StringTreeNode(const unsigned id, const std::string_view& name, const std::string_view& parent_name = "")
-        : id_(id), name_(name), parent_name_(parent_name) {
-    }
+    StringTreeNode(const unsigned id, const std::string& name, const std::string& parent_name);
 
-    void add_child(const unsigned id, const std::string_view& name, const std::string_view& parent_name) {
-      children_.push_back(std::make_shared<StringTreeNode>(id, name, parent_name));
-    }
+    void add_child(const unsigned id, const std::string& name, const std::string& parent_name);
+    void add_child(std::shared_ptr<StringTreeNode> child);
 
-    void add_child(std::shared_ptr<StringTreeNode> child) {
-      children_.push_back(child);
-    }
-
-    unsigned get_id() const {
-      return id_;
-    }
-
-    std::string_view get_name() const {
-      return name_;
-    }
-
-    std::string_view get_parent_name() const {
-      return parent_name_;
-    }
-
-    std::shared_ptr<StringTreeNode> get_child(const std::string_view& name) const {
-      for (const auto& child : children_) {
-        if (child->get_name() == name) {
-          return child;
-        }
-      }
-      return nullptr;
-    }
-
-    std::vector<std::shared_ptr<StringTreeNode>> get_children() const {
-      return children_;
-    }
+    unsigned get_id() const;
+    std::string get_name() const;
+    std::string get_parent_name() const;
+    std::shared_ptr<StringTreeNode> get_child(const std::string& name) const;
+    std::vector<std::shared_ptr<StringTreeNode>> get_children() const;
 
    private:
     const unsigned id_;
-    const std::string_view name_;
-    const std::string_view parent_name_;
-
+    const std::string name_;
+    const std::string parent_name_;
     std::vector<std::shared_ptr<StringTreeNode>> children_;
   };  // StringTreeNode
 
   /// \brief A non-member builder class for \c StringTreeNode's that accounts for the static initialization order.
   class StringTreeManager {
    public:
-    static std::shared_ptr<StringTreeNode> create_node(const unsigned id, const std::string_view& name,
-                                                       const std::string_view& parent_name) {
-      // Check if the node already exists.
-      const auto node_iter = node_map_.find(name);
-      if (node_iter != node_map_.end()) {
-        return node_iter->second;
-      }
-
-      const auto root_node_iter = root_node_map_.find(name);
-      if (root_node_iter != root_node_map_.end()) {
-        return root_node_iter->second;
-      }
-
-      // Create the node.
-      std::shared_ptr<StringTreeNode> node = std::make_shared<StringTreeNode>(id, name, parent_name);
-      node_map_.insert({name, node});
-
-      // If parent name exists in the map, attach the current node to its parent.
-      if (!parent_name.empty()) {
-        const auto parent_iter = node_map_.find(parent_name);
-        if (parent_iter != node_map_.end()) {
-          parent_iter->second->add_child(node);
-        } else {
-          // Parent doesn't exist yet. Store this node in orphaned map.
-          orphaned_node_map_.insert({parent_name, node});
-        }
-      } else {
-        // This node doesn't have a parent, so it's a root.
-        root_node_map_.insert({name, node});
-      }
-
-      // Try to attach any orphaned nodes to this new node.
-      auto orphan_range = orphaned_node_map_.equal_range(name);
-      for (auto it = orphan_range.first; it != orphan_range.second;) {
-        node->add_child(it->second);
-        it = orphaned_node_map_.erase(it);
-      }
-
-      return node;
-    }
+    static std::shared_ptr<StringTreeNode> create_node(const unsigned id, const std::string& name,
+                                                       const std::string& parent_name);
 
     /// @brief Print the tree.
-    static void print_tree(std::ostream& os = std::cout) {
-      for (const auto& pair : root_node_map_) {
-        print_tree(pair.second, os);
-      }
-    }
+    static void print_tree(std::ostream& os = std::cout);
 
    private:
     /// @brief Print the tree.
     /// @param node The node in the tree to print.
     /// @param depth The depth of the node in the tree.
-    static void print_tree(std::shared_ptr<StringTreeNode> node, std::ostream& os = std::cout, int depth = 0) {
-      for (int i = 0; i < depth; ++i) {
-        os << "  ";
-      }
-      os << "Name: " << node->get_name() << " | "
-         << "ID: " << node->get_id() << std::endl;
+    static void print_tree(std::shared_ptr<StringTreeNode> node, std::ostream& os = std::cout, int depth = 0);
 
-      for (const auto& child : node->get_children()) {
-        print_tree(child, os, depth + 1);
-      }
-    }
-
-    static inline std::unordered_multimap<std::string_view, std::shared_ptr<StringTreeNode>> orphaned_node_map_;
-    static inline std::map<std::string_view, std::shared_ptr<StringTreeNode>> root_node_map_;
-    static inline std::map<std::string_view, std::shared_ptr<StringTreeNode>> node_map_;
+    static inline std::unordered_multimap<std::string, std::shared_ptr<StringTreeNode>> orphaned_node_map_;
+    static inline std::map<std::string, std::shared_ptr<StringTreeNode>> root_node_map_;
+    static inline std::map<std::string, std::shared_ptr<StringTreeNode>> node_map_;
   };  // StringTreeManager
 
   //@}
@@ -528,14 +360,33 @@ class AgentHierarchy {
   //! \name Typedefs
   //@{
 
-  /// \brief A map from a string_view to agent_type.
-  using NamePairToTypeMap = std::map<std::pair<std::string_view, std::string_view>, agent_t>;
+  /// \brief A function that returns an std::string.
+  using StringGenerator = std::function<std::string()>;
 
-  /// \brief A map from a string_view to agent_type.
-  using TypeToNameMap = std::map<agent_t, std::string_view>;
+  /// \brief A function that returns an stk::topology::topology_t.
+  using TopologyGenerator = std::function<stk::topology::topology_t()>;
+
+  /// \brief A function that returns an stk::topology::rank_t.
+  using RankGenerator = std::function<stk::topology::rank_t()>;
+
+  /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
+  /// instances.
+  using NewRequirementsGenerator = std::function<std::shared_ptr<mundy::meta::MeshRequirements>()>;
+
+  /// \brief A function that takes in a part requirements and returns a void.
+  using AddRequirementsGenerator = std::function<void(std::shared_ptr<mundy::meta::PartRequirements>)>;
+
+  /// \brief A function that returns a bool.
+  using BoolGenerator = std::function<bool()>;
+
+  /// \brief A map from a string to agent_type.
+  using NamePairToTypeMap = std::map<std::pair<std::string, std::string>, agent_t>;
+
+  /// \brief A map from a string to agent_type.
+  using TypeToNameMap = std::map<agent_t, std::string>;
 
   /// \brief A map from agent_type to a function that returns a string view.
-  using TypeToStringViewGeneratorMap = std::map<agent_t, StringViewGenerator>;
+  using TypeToStringViewGeneratorMap = std::map<agent_t, StringGenerator>;
 
   /// \brief A map from agent_type to a function that returns an stk::topology::topology_t.
   using TypeToTopologyGeneratorMap = std::map<agent_t, TopologyGenerator>;
@@ -543,7 +394,7 @@ class AgentHierarchy {
   /// \brief A map from agent_type to a function that returns an stk::topology::rank_t.
   using TypeToRankGeneratorMap = std::map<agent_t, RankGenerator>;
 
-  /// \brief A map from agent_type to a function that takes in a part reqirements and returns a void.
+  /// \brief A map from agent_type to a function that takes in a part requirements and returns a void.
   using TypeToAddRequirementsGeneratorMap = std::map<agent_t, AddRequirementsGenerator>;
 
   /// \brief A map from agent_type to a function that returns a class's mesh requirements.

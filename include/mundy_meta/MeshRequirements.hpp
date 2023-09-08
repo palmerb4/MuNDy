@@ -26,6 +26,7 @@
 // C++ core libs
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <sstream>      // for std::stringstream
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
 #include <vector>       // for std::vector
@@ -225,7 +226,7 @@ class MeshRequirements {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("spatial_dimension");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
-                         "with a type other than unsigned");
+                         "with a type other than unsigned.");
     } else {
       parameter_list_ptr->set("spatial_dimension", default_spatial_dimension_,
                               "Dimension of the space within which the parts and entities reside.");
@@ -236,7 +237,7 @@ class MeshRequirements {
           parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<Teuchos::Array<std::string>>("entity_rank_names");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
-                         "with a type other than Teuchos::Array<std::string>");
+                         "with a type other than Teuchos::Array<std::string>.");
     } else {
       parameter_list_ptr->set("entity_rank_names", default_entity_rank_names_,
                               "Vector of names assigned to each rank.");
@@ -258,7 +259,7 @@ class MeshRequirements {
               "aura_option");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
-                         "type other than mundy::mesh::BulkData::AutomaticAuraOption");
+                         "type other than mundy::mesh::BulkData::AutomaticAuraOption.");
     } else {
       parameter_list_ptr->set("aura_option", default_aura_option_, "The chosen Aura option.");
     }
@@ -268,7 +269,7 @@ class MeshRequirements {
           "field_data_manager_ptr");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
-                         "but with a type other than stk::mesh::FieldDataManager *");
+                         "but with a type other than stk::mesh::FieldDataManager *.");
     } else {
       parameter_list_ptr->set("field_data_manager_ptr", default_field_data_manager_ptr_,
                               "A pointer to a preexisting field data manager.");
@@ -278,7 +279,7 @@ class MeshRequirements {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("bucket_capacity");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
-                         "a type other than unsigned");
+                             << "a type other than unsigned.");
     } else {
       parameter_list_ptr->set(
           "bucket_capacity", default_bucket_capacity_,
@@ -289,7 +290,7 @@ class MeshRequirements {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<bool>("upward_connectivity_flag");
       MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
                          "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
-                         "but with a type other than bool");
+                         "but with a type other than bool.");
     } else {
       parameter_list_ptr->set("upward_connectivity_flag", default_upward_connectivity_flag_,
                               "Flag specifying if upward connectivity will be enabled or not.");
@@ -342,8 +343,11 @@ class MeshRequirements {
   /// current object.
   void merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs);
 
-  /// \brief Dump the contents of \c MeshRequirements to the screen.
-  void dump_to_screen(int indent_level = 0) const;
+  /// \brief Dump the contents of \c MeshRequirements to the given stream (defaults to std::cout).
+  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;
+
+  /// \brief Return a string representation of the current set of requirements.
+  std::string get_reqs_as_a_string() const;
   //@}
 
  private:

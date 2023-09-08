@@ -31,22 +31,15 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_agent/AgentRegistry.hpp>    // for MUNDY_REGISTER_AGENT
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_shape/Shapes.hpp>           // to register the Shapes agent
+// #include <mundy_constraint/Constraints.hpp>  // to register the Constraints agent
 
 namespace mundy {
 
 namespace agent {
-
-/// \brief Unique agent identifier
-/// In the current design, an "agent" is a Part endowed with a set of default requirements. Each agent can be
-/// uniquely identified by either the agent's part or a unique uint, namely agent_t.
-///
-/// \note Agent_t is not a class enum, so comparing two agent_t's equates to comparing two unsigned ints (same as
-/// regular enums). However, agent_t is unique in that no two agents will share the same agent_t. It is important to
-/// note that, while agent_t is unique, the agent_t assigned to an agent need not be the same between consecutive
-/// compilations of the code (due to the static initialization order fiasco).
-using agent_t = unsigned;
 
 class Agents {
  public:
@@ -132,5 +125,7 @@ class Agents {
 }  // namespace agent
 
 }  // namespace mundy
+
+MUNDY_REGISTER_AGENT(mundy::agent::Agents)
 
 #endif  // MUNDY_AGENT_AGENTS_HPP_
