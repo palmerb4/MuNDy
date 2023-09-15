@@ -89,7 +89,8 @@ TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   ASSERT_TRUE(radius_field_ptr != nullptr);
-  stk::mesh::Field<double> *obb_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "OBB");
+  stk::mesh::Field<double> *obb_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_OBB");
   ASSERT_TRUE(obb_field_ptr != nullptr);
 
   // Set the sphere's position.

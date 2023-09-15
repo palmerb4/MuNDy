@@ -135,21 +135,21 @@ class Shapes {
   /// \brief The name of the our grandparent part.
   static constexpr inline std::string_view our_grandparents_name_ = "";
 
-  /// \brief Our topology (we don't have a topology, so this will never be used).
+  /// \brief Our topology (we don't have a topology, so this should never be used).
   static constexpr inline stk::topology::topology_t our_topology_ = stk::topology::INVALID_TOPOLOGY;
 
-  /// \brief Our rank (INVALID_RANK is used to indicate assembly parts).
+  /// \brief Our rank (we don't have a rank, so this should never be used).
   static constexpr inline stk::topology::rank_t our_rank_ = stk::topology::INVALID_RANK;
 
   /// \brief If our part has a topology or not.
   static constexpr inline bool our_has_topology_ = false;
 
   /// \brief If our part has a rank or not.
-  static constexpr inline bool our_has_rank_ = true;
+  static constexpr inline bool our_has_rank_ = false;
 
   /// @brief Our part requirements.
   static inline std::shared_ptr<mundy::meta::PartRequirements> our_part_reqs_ptr_ =
-      std::make_shared<mundy::meta::PartRequirements>("SHAPES", stk::topology::INVALID_RANK);
+      std::make_shared<mundy::meta::PartRequirements>(std::string(our_name_));
   //@}
 };  // Shapes
 

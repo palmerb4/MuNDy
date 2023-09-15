@@ -108,17 +108,17 @@ class Agents {
   /// \brief The topology of the Agents (we don't have a topology, so this will never be used).
   static constexpr inline stk::topology::topology_t topology_ = stk::topology::INVALID_TOPOLOGY;
 
-  /// \brief The rank of the Agents (INVALID_RANK is used to indicate assembly parts).
+  /// \brief The rank of the Agents (we don't have a rank, so this will never be used).
   static constexpr inline stk::topology::rank_t rank_ = stk::topology::INVALID_RANK;
 
   /// \brief If the Shape has a topology or not.
   static constexpr inline bool has_topology_ = false;
 
   /// brief If the Shape has a rank or not.
-  static constexpr inline bool has_rank_ = true;
+  static constexpr inline bool has_rank_ = false;
 
   static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ =
-      std::make_shared<mundy::meta::PartRequirements>(std::string(name_), rank_);
+      std::make_shared<mundy::meta::PartRequirements>(std::string(name_));
   //@}
 };  // Agents
 

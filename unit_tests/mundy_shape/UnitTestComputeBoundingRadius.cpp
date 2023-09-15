@@ -84,7 +84,7 @@ TEST(ComputeBoundingRadius, PerformsBoundingRadiusCalculationCorrectlyForSphere)
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   ASSERT_TRUE(radius_field_ptr != nullptr);
   stk::mesh::Field<double> *bounding_radius_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "BOUNDING_RADIUS");
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_BOUNDING_RADIUS");
   ASSERT_TRUE(bounding_radius_field_ptr != nullptr);
 
   // Set the sphere's radius.

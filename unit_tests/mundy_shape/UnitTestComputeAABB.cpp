@@ -145,6 +145,8 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<ComputeAABB>();
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
+  ComputeAABB::get_mesh_requirements(Teuchos::ParameterList())->print_reqs();
+
   // Fetch the multibody sphere part and add a single sphere to it.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
   ASSERT_TRUE(sphere_part_ptr != nullptr);
@@ -164,7 +166,8 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   ASSERT_TRUE(radius_field_ptr != nullptr);
-  stk::mesh::Field<double> *aabb_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "AABB");
+  stk::mesh::Field<double> *aabb_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_AABB");
   ASSERT_TRUE(aabb_field_ptr != nullptr);
 
   // Set the sphere's position.
