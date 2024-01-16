@@ -29,6 +29,7 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>   // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>   // for mundy::meta::MetaMethod
@@ -40,155 +41,108 @@ namespace meta {
 /// \class MetaRegistry
 /// \brief A class for registering \c MetaMethods within \c MetaMethodFactory.
 ///
-/// All classes derived from \c MetaMethod, which wish to be registered within the \c MetaMethodFactory should inherit
-/// from this class where the template parameter is the derived type itself (follows the Curiously Recurring Template
-/// Pattern).
+/// Most users shouldn't directly interface with this registry; instead, registration is performed using the provided
+/// MUNDY_REGISTER_METACLASS macro. See the documentation for that macro for more information.
 ///
-/// \tparam BaseType A polymorphic base type shared by each registered class.
-/// \tparam ClassToRegister A class derived from \c MetaMethod.
-/// \tparam RegistrationType The type of each class's identifier.
-/// \tparam RegistryIdentifier A template type used to create different independent instances of MetaMethodFactory.
-template <typename BaseType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
+/// \tparam ClassToRegister A class derived from \c MetaMethod that we wish to register.
+/// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
+template <class ClassToRegister, class FactoryToRegisterWith>
 struct MetaRegistry {
-  //! \name Actions
-  //@{
-
-  /// @brief Register \c ClassToRegister with the \c MetaMethodFactory.
-  ///
-  /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
-  /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-  static inline bool register_type() {
-    MetaMethodFactory<BaseType, RegistryIdentifier, RegistrationType>::template register_new_method<ClassToRegister>(
-        overwrite_existing);
-    return true;
-  }
-  //@}
-
-  //! \name Member variables
+  //! \name Member variable definitions
   //@{
 
   /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
-  static const bool is_registered;
+  static inline const bool is_registered = false;
   //@}
 };  // MetaRegistry
-
-/// @brief Perform the static registration.
-///
-/// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
-/// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-template <typename BaseType, class ClassToRegister, typename RegistryIdentifier, typename RegistrationType,
-          bool overwrite_existing>
-const bool MetaRegistry<BaseType, ClassToRegister, RegistryIdentifier, RegistrationType,
-                        overwrite_existing>::is_registered =
-    MetaRegistry<BaseType, ClassToRegister, RegistryIdentifier, RegistrationType, overwrite_existing>::register_type();
-
-//! \name Partial Specializations
-//@{
-
-/// \brief Partial specialization for global classes.
-template <typename BaseType, class ClassToRegister, typename RegistrationType = std::string,
-          bool overwrite_existing = false>
-using GlobalMetaRegistry =
-    MetaRegistry<BaseType, ClassToRegister, GlobalIdentifier, RegistrationType, overwrite_existing>;
-
-/// \brief Partial specialization for MetaMethods.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
-using MetaMethodRegistry = MetaRegistry<MetaMethodBase<ReturnType, RegistrationType>, ClassToRegister,
-                                        RegistryIdentifier, RegistrationType, overwrite_existing>;
-
-/// \brief Partial specialization for global MetaMethods.
-template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
-          bool overwrite_existing = false>
-using GlobalMetaMethodRegistry = GlobalMetaRegistry<MetaMethodBase<ReturnType, RegistrationType>, ClassToRegister,
-                                                    RegistrationType, overwrite_existing>;
-
-/// \brief Partial specialization for MetaKernels.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
-using MetaKernelRegistry = MetaRegistry<MetaKernelBase<ReturnType, RegistrationType>, ClassToRegister,
-                                        RegistryIdentifier, RegistrationType, overwrite_existing>;
-
-/// \brief Partial specialization for global MetaKernels.
-template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
-          bool overwrite_existing = false>
-using GlobalMetaKernelRegistry = GlobalMetaRegistry<MetaKernelBase<ReturnType, RegistrationType>, ClassToRegister,
-                                                    RegistrationType, overwrite_existing>;
-
-/// \brief Partial specialization for MetaTwoWayKernels.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier,
-          typename RegistrationType = std::string, bool overwrite_existing = false>
-using MetaTwoWayKernelRegistry = MetaRegistry<MetaTwoWayKernelBase<ReturnType, RegistrationType>, ClassToRegister,
-                                              RegistryIdentifier, RegistrationType, overwrite_existing>;
-
-/// \brief Partial specialization for global MetaTwoWayKernels.
-template <typename ReturnType, class ClassToRegister, typename RegistrationType = std::string,
-          bool overwrite_existing = false>
-using GlobalMetaTwoWayKernelRegistry = GlobalMetaRegistry<MetaTwoWayKernelBase<ReturnType, RegistrationType>,
-                                                          ClassToRegister, RegistrationType, overwrite_existing>;
-
-/// \brief Partial specialization for MetaKernels, identified by a mundy multibody type.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
-using MetaMultibodyKernelRegistry = MetaKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier,
-                                                       mundy::multibody::multibody_t, overwrite_existing>;
-
-/// \brief Partial specialization for global MetaKernels, identified by a mundy multibody type.
-template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
-using GlobalMetaMultibodyKernelRegistry =
-    GlobalMetaKernelRegistry<ReturnType, ClassToRegister, mundy::multibody::multibody_t, overwrite_existing>;
-
-/// \brief Partial specialization for MetaTwoWayKernels, identified by a mundy multibody type.
-/// To make a new key use:
-///     auto key = std::make_pair(multibody_t1, multibody_t2)
-/// This key can then be used like any other key.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
-using MetaMultibodyTwoWayKernelRegistry =
-    MetaTwoWayKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier,
-                             std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
-                             overwrite_existing>;
-
-/// \brief Partial specialization for global MetaTwoWayKernels, identified by a mundy multibody type.
-/// To make a new key use:
-///     auto key = std::make_pair(multibody_t1, multibody_t2)
-/// This key can then be used like any other key.
-template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
-using GlobalMetaMultibodyTwoWayKernelRegistry =
-    GlobalMetaTwoWayKernelRegistry<ReturnType, ClassToRegister,
-                                   std::pair<mundy::multibody::multibody_t, mundy::multibody::multibody_t>,
-                                   overwrite_existing>;
-
-/// \brief Partial specialization for MetaKernels, identified by an stk topology type.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
-using MetaTopologyKernelRegistry =
-    MetaKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier, stk::topology::topology_t, overwrite_existing>;
-
-/// \brief Partial specialization for global MetaKernels, identified by an stk topology type.
-template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
-using GlobalMetaTopologyKernelRegistry =
-    GlobalMetaKernelRegistry<ReturnType, ClassToRegister, stk::topology::topology_t, overwrite_existing>;
-
-/// \brief Partial specialization for MetaTwoWayKernels, identified by a pair of stk topology types.
-/// To make a new key use:
-///     auto key = std::make_pair(topology_t1, topology_t2)
-/// This key can then be used like any other key.
-template <typename ReturnType, class ClassToRegister, typename RegistryIdentifier, bool overwrite_existing = false>
-using MetaTopologyTwoWayKernelRegistry =
-    MetaTwoWayKernelRegistry<ReturnType, ClassToRegister, RegistryIdentifier,
-                             std::pair<stk::topology::topology_t, stk::topology::topology_t>, overwrite_existing>;
-
-/// \brief Partial specialization for global MetaTwoWayKernels, identified by a pair of stk topology types.
-/// To make a new key use:
-///     auto key = std::make_pair(topology_t1, topology_t2)
-/// This key can then be used like any other key.
-template <typename ReturnType, class ClassToRegister, bool overwrite_existing = false>
-using GlobalMetaTopologyTwoWayKernelRegistry =
-    GlobalMetaTwoWayKernelRegistry<ReturnType, ClassToRegister,
-                                   std::pair<stk::topology::topology_t, stk::topology::topology_t>, overwrite_existing>;
-//@}
 
 }  // namespace meta
 
 }  // namespace mundy
+
+/// \brief A helper macro for checking if a \c MetaMethod has been registered with the \c MetaMethodFactory.
+///
+/// This macro is used to check if a \c MetaMethod has been registered with the \c MetaMethodFactory. The macro should
+/// be used in the following way:
+///
+/// \code{.cpp}
+/// MUNDY_IS_REGISTERED(ClassToCheck, FactoryToCheckWith)
+/// \endcode
+///
+/// \note The second argument to this macro is supposed to be the \c MetaMethodFactory that the class should be
+/// registered with. The reason we use the weird "... /* FactoryToCheckWith */" syntax is because we want to allow
+/// FactoryToCheckWith to potentially be a templated class with multiple template arguments. In this case, the C++
+/// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
+/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
+/// together into the desired \c FactoryToCheckWith using \c __VA_ARGS__.
+///
+/// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
+/// \c MUNDY_IS_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple definition
+/// errors.
+///
+/// \param ClassToCheck A class derived from \c MetaMethod that we wish to check if it has been registered.
+/// \param FactoryToCheckWith The \c MetaMethodFactory to check if the class has been registered with.
+#define MUNDY_IS_REGISTERED(ClassToCheck, ... /* FactoryToCheckWith */)         \
+  ([]() -> bool {                                                               \
+    return mundy::meta::MetaRegistry<ClassToCheck, __VA_ARGS__>::is_registered; \
+  }())
+
+/// @brief A helper macro for registering a \c MetaMethod with the \c MetaMethodFactory.
+///
+/// This macro is used to register a \c MetaMethod with the \c MetaMethodFactory. The macro should be
+/// used in the following way:
+///
+/// \code{.cpp}
+/// MUNDY_REGISTER_METACLASS(ClassToRegister, FactoryToRegisterWith)
+/// \endcode
+///
+/// There are some important notes about proper use of this macro:
+///
+/// - Registration in Global Scope: The registration should typically be done in the global scope, not inside any
+/// function (including main()). This is because if the registration is done inside a function, it will not happen until
+/// that function is called, which could be after main() starts.
+///
+/// - Registration in Source Files: Best practice is to perform registration in a source file, not a header file. This
+/// is because if the registration is done in a header file, it will be registered in every translation unit that
+/// includes that header file. This can lead to multiple registrations of the same class, which will cause an error.
+/// Using header guards will not prevent this issue.
+///
+/// - No Dependency on Other Static Variables in Registration: Since C++ doesn't guarantee an order of initialization
+/// for static variables across different translation units, you should make sure that the registration of a MetaClass
+/// does not depend on the initialization of other static variables. If it does, those variables might not be
+/// initialized at the time the MetaClass is registered.
+///
+/// - No Duplicated Names: Each MetaClass must be registered (to a certain MetaFactory) with a unique
+/// identifier. If two classes are registered with the same identifier, only the first one will actually be registered,
+/// and subsequent registrations will throw an error. While allowing overwriting of existing registrations is possible,
+/// we chose to not implement such functionality because it could lead to unexpected behavior. Specifically, when using
+/// static initialization across multiple translation units, there is no guaranteed order of initialization. This means
+/// that if two classes are registered with the same identifier, it is not guaranteed which one will be registered
+/// first.
+///
+/// As long as these points are followed, the registration of MetaClass subclasses should occur before main() starts.
+///
+/// \note To anyone reading this code, it may seem like the is_registered variable is unused. However, this is not the
+/// case. When the program is started, one of the first steps is to initialize static objects. Even if is_registered
+/// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
+///
+/// \note The second argument to this macro is supposed to be the \c MetaMethodFactory that the class should be
+/// registered with. The reason we use the weird "... /* FactoryToRegisterWith */" syntax is because we want to allow
+/// FactoryToRegisterWith to potentially be a templated class with multiple template arguments. In this case, the C++
+/// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
+/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
+/// together into the desired \c FactoryToRegisterWith using \c __VA_ARGS__.
+///
+/// \param ClassToRegister A class derived from \c MetaMethod that we wish to register.
+/// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
+#define MUNDY_REGISTER_METACLASS(ClassToRegister, ... /* FactoryToRegisterWith */)                                 \
+  namespace mundy {                                                                                                \
+  namespace meta {                                                                                                 \
+  template <>                                                                                                      \
+  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                              \
+    static inline volatile const bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(); \
+  };                                                                                                               \
+  }                                                                                                                \
+  }
 
 #endif  // MUNDY_META_METAREGISTRY_HPP_

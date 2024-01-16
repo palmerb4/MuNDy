@@ -1,37 +1,35 @@
       
 All of Mundy
 
-The following layout displayes the class/registry structure for Mundy. In this layout, we have a more palatable naming system than using long names such as
+The following layout displays the class/registry structure for Mundy. In this layout, we have a more palatable naming system than using long names such as
 SolveLCPTechniqueBBPGDKernelDiffDots or my favorite ResolveConstraintsTechniqueNonSmoothLCPComputeConstraintViolationCollisionKernel.  
         
 Because techniques and kernels are accessed via their strings and the registry, the most important thing is that our layout reflect the registry. Users will never need to write 
 mundy::methods::resolve_constraints::techniques::non_smooth_lcp::compute_constraint_violation::kernels::Sphere. This will naturally arise in their parameter list when specifying
 the kernel for compute_constraint_violation. 
 
-Note, we strategically choose to not put classes like ComputeAABB in the compute_aabb namespace. At first glance this is nonuntuitive, but it is imprtitive to our code's flexibilty. 
+Note, we strategically choose to not put classes like ComputeAABB in the compute_aabb namespace. At first glance this is unintuitive, but it is imperative to our code's flexibility. 
 Take, for example, time_integration::techniques::NodeEuler. This class does not currently have any techniques or required kernels, so there is no need to place it within a
-time_integration::techniques::node_euler namespace. But, down the line, we may ellect to add techniques to NodeEuler, thereby necessitating the creation of a node_euler namespace. 
-Hence, this design avoids needless nacespacing while still allowing extensibility. It also lets us add new techniques without forcing users to change their code. All we have to do 
+time_integration::techniques::node_euler namespace. But, down the line, we may elect to add techniques to NodeEuler, thereby necessitating the creation of a node_euler namespace. Because 
+we don't have a node_euler namespace, we can add one without breaking any code. If we had placed NodeEuler in a node_euler namespace, we would have to change all of the code that uses it.
+Hence, this design avoids needless nacespacing while still allowing extensibility by lets us add new techniques without forcing users to change their code. All we have to do 
 is add a techniques switch to the parameters list and set the default technique to the old method.
 
 I do have a grievance. If I (a user) want to replace NonSmoothLCP with my own method, but want to retain some of its kernels, what should be done? Copying the kernels is bad practice. 
 Mundy's design needs to be flexible enough to avoid copying. Maybe registration shouldn't be done via inheritance. It gets worse; kernels are hidden in a namespace specific to 
-the class they are registered to. If I wanted to swap out NonSmoothLCP, I would have to use its registry in my class. That's not unreasonable.
-
-
-
-
-
+the class they are registered to. If I wanted to swap out NonSmoothLCP, I would have to use its registry in my class. That's not unreasonable. The updated registration system fixes this issue
+by moving registration to a macro-based system. Now, users can register existing kernels with their own methods. As well, we have broken up the code into more manageable chunks, so various methods
+are no longer buried in a deep hierarchy.
 
 Things that are missing,
- - What if a constraint has multiple Lagrange multipliers like friction? The current design is sufficiently abstract to support this functionality. (Not any more)
+ - What if a constraint has multiple Lagrange multipliers like friction? The current design is sufficiently abstract to support this functionality.
  - Periodicity
  - How to make reading and writing the mesh easier? 
    - Need a function that takes in an stk::io::StkMeshIoBroker and adds the fields to it. Can a parameter list be provided to specify which fields (if any) to output? 
  - How to make partitioning more visible to the user?
 	 - Need a function for computing/populating the parallel rank field. 
  - How to make initializing particles/constraints easier? 
-	 - Need a helper function for asigning a random initial orientation and initial position. Random position should be within some bounds.
+	 - Need a helper function for assigning a random initial orientation and initial position. Random position should be within some bounds.
  - Desperately need to store a multibody type attribute. Users shouldnt have to specify the entire set of kernels for a sphere part. They should be able to declare the part as a sphere 
    and then list the methods that it will use. Those methods should then deduce the correct kernel based on the multibody type. 
     - Maybe add a multibody type attribute?
@@ -40,12 +38,12 @@ Things that are missing,
     - How can users add their own attributes? We could make a MultibodyTypeFactory and registry; the registry takes in a string and the factory maps that sting to an integer (and vice versa).
     - With that technique, how should kernels state which multibody type they are made for? Also, how do we differentiate general kernels from multibody kernels?
     - For now, I think we can keep using the current setup by introducing a pair of identifiers for each MetaTwoWayKernel. These will identify the source and target name. The input params
-      for ComputeConstraintForcing will specify two sets of parts: the source parts and the target parts. Within the parsms file the source parts will have the source identifier for the TwoWay 
-      kernel as a sublist. Within that sublist, the user will provide the source params. The same is true for the target identider, the target part, and the target params.
+      for ComputeConstraintForcing will specify two sets of parts: the source parts and the target parts. Within the params file the source parts will have the source identifier for the TwoWay 
+      kernel as a sublist. Within that sublist, the user will provide the source params. The same is true for the target identifier, the target part, and the target params.
     - We will loop over the source part and check if the connected entity is in the target part, if so, we will run the source-target pairwise kernel.
 
 
-I really really dislike our current constraint setup. Using a quad as a constraint and needing to have extra nodes just so we can perform connections is hidious 
+I really really dislike our current constraint setup. Using a quad as a constraint and needing to have extra nodes just so we can perform connections is hideous 
 and fails to have proper ghosting/sharing. Instead, the most promising alternative is to assign a single constraint-rank entity per particle to hold all of the dynamically attached nodes.
 For example,
 CONSTRAINT RANK:                        CONSTRAINT1
@@ -66,7 +64,7 @@ Rules (that will one day be hard-coded into a single data structure):
      stores the dynamic connectivity information of the particle like the nodes or edges attached to a particle's smooth surface. They may NOT connect to nodes, edges, or faces already within the 
      particle's fixed connectivity. Nodes within this family tree must be attached to the particle's surfaces, they will store a surface normal vector, velocity vector, 
      and force vector. The first element topology of the particle's dynamic family tree must be the constrained particle; everything else is a linked entity. The constraints may also 
-     attach to other lower-ranked entities to guarentee proper propogation of information up and down the connectivity tree. For now, we only need to attach the nodes to communicate 
+     attach to other lower-ranked entities to guarantee proper propagation of information up and down the connectivity tree. For now, we only need to attach the nodes to communicate 
      force from the constraints to the particle and velocity from the particle to the constraints. This design works for rigid and flexible particles alike.
   5. ComputeMobility takes in the BulkData and uses it to compute the velocity of the particles/constraints. As a result, this is the class that encodes rigid body motion vs flexibility. 
      For example, rigid body motion may require ComputeMobility to sum the force from each of the linked nodes to get a single center of mass force. This force can then be used to compute 
@@ -474,7 +472,7 @@ There are some BIG changes that need to occur. Those are
   - Alternatively, we use alpha and beta to decide if values should be summed or zerod. That way the user decides when to reset.
 1. (Done) The parameters for all methods and kernels need broken into fixed and mutable parameters.
 2. (Done) All details_static_get_valid_params need updated to return the kernel/submethod params. 
-   It should look a lot like details_static_get_mesh_requirements
+   It should look a lot like get_mesh_requirements
 3. (Done) Need a way to have default parameters for different multiboidy types without the user needing to specify every single kernel. 
    One promising method is to have a parameter like, use_present_default_parameters: SPHERE. 
 
@@ -503,7 +501,7 @@ you could have a topology kernel.
 I don't think that we should force all multibody types to have the same aabb field name or same node force name. No, it's better for performance if we do, but it's an
 unnecessary restriction. The only reason we wanted to make the change, where methods fetch and then pass down the chain fields like aabb, was to allow certain methods
 to zero-out force fields. Instead, why don't we loop over each of the kernels, fetch their force field and zero it out? That would require us to force all sub-kernels
-to have a parameter with the aabb_field_name. I'm not ok with that since it assumes a form without a way to enforce it. If we use alpha and beta and mutable parameters,
+to have a parameter with the element_aabb_field_name. I'm not ok with that since it assumes a form without a way to enforce it. If we use alpha and beta and mutable parameters,
 then we can allow the user to decide when to zero out and when to add.
 
 What are the required parameters for every method? 
@@ -518,14 +516,14 @@ ComputeAABB
       kernels:
         name: sphere
         buffer_distance:
-        aabb_field_name:
-        radius_field_name:
+        element_aabb_field_name:
+        element_radius_field_name:
     input_part_1:
       name:
       kernels:
         name: ellipsoid
         buffer_distance:
-        aabb_field_name:
+        element_aabb_field_name:
         axis_length_field_name:
 
 What we should do with multibody types:
@@ -535,8 +533,8 @@ ComputeAABB
     kernel_0: 
       multibody_type: sphere
       buffer_distance:
-      aabb_field_name:
-      radius_field_name:
+      element_aabb_field_name:
+      element_radius_field_name:
     kernel_1: 
       multibody_type: ellipsoid
       axis_length_field_name:
@@ -548,12 +546,12 @@ ComputeAABB
     kernel_0: 
       multibody_type: sphere
       buffer_distance:
-      aabb_field_name:
-      radius_field_name:
+      element_aabb_field_name:
+      element_radius_field_name:
     kernel_1: 
       multibody_type: ellipsoid
       buffer_distance:
-      aabb_field_name:
+      element_aabb_field_name:
       axis_length_field_name:
 
 
@@ -567,7 +565,7 @@ would only ever act like spheres. We shouldn't use enums directly. I would rathe
 From there, can we map from mundy::multibody::multibody_t to mundy::multibody in a way that users can extend? This way we can add a method for automatically
 mapping mundy::multibody to an stk::topology.
 
-static const mundy::multibody::multibody_t class_identifier_ = mundy::multibody::Sphere::get_id();
+static const mundy::multibody::multibody_t registration_id_ = mundy::multibody::Sphere::get_id();
 
 There's no way to go the other direction without using pointers. You'd have to map to Multibody directly, which would discard all information about the sphere. 
 Because these classes are entirely static, the factory can store all of their methods in jump tables. Then we either use the id or the string to call the correct method. 
@@ -575,7 +573,7 @@ Because these classes are entirely static, the factory can store all of their me
 This means that Multibody can use CRTP to force each derived class to implement a certain static interface, the factory will store this interface. 
 If we name the factory multibody, then we can do things like
 
-unsigned id = mundy::MultibodyFactory::get_id("SPHERE");
+unsigned id = mundy::MultibodyFactory::get_id("SPHERES");
 std::string name = mundy::MultibodyFactory::get_name(id);
 mundy::MultibodyFactory::get_topology(multibody_name);
 mundy::MultibodyFactory::get_topology(multibody_id);
@@ -669,3 +667,12 @@ Unit tests:
 8. ValidateComputeAABB/OBB/BoundingShere: Ensure that ComputeAABB/OBB/BoundingSphere can output an expected result for a sphere or rod.
 9. ValidateComputeMobility: Use subfolders and write unit tests for RigidBodyMotion, its submethods, and their kernels.
 10. Validate... : Same for all the others. We almost always have a simple base case that we can generte. 
+
+
+
+Switching to a Masala-esk design.
+  HasMeshRequirementsAndIsRegisterable is now a type attribute class that uses SFINAE to check if the given type has the desired interface. 
+  With this change, we no longer use CRTP to enforce the static interface; rather, the interface is enforced via static_asserts whenever someone tries to 
+  register a class with the MetaFactory. This significantly reduced the complexity of the interaction between HasMeshRequirementsAndIsRegisterable, MetaMethod, and MetaKernel.
+  Now, MetaMethod and MetaKernel are pure virtual interfaces and it's much easier for users (and us) to make their own custom interfaces.
+

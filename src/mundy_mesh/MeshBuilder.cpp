@@ -27,7 +27,6 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
-#include <Teuchos_TestForException.hpp>                            // for TEUCHOS_TEST_FOR_EXCEPTION
 #include <stk_mesh/base/BulkData.hpp>                              // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>                      // for stk::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>                           // for stk::mesh::MeshBuilder
@@ -36,6 +35,7 @@
 #include <stk_util/parallel/Parallel.hpp>                          // for stk::ParallelMachine
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>     // for BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for MetaData
@@ -141,7 +141,11 @@ std::shared_ptr<stk::mesh::impl::AuraGhosting> MeshBuilder::create_aura_ghosting
 }
 
 std::shared_ptr<MetaData> MeshBuilder::create_meta_data() {
-  return std::make_shared<MetaData>(spatial_dimension_, entity_rank_names_);
+  if (spatial_dimension_ > 0 || !entity_rank_names_.empty()) {
+    return std::make_shared<MetaData>(spatial_dimension_, entity_rank_names_);
+  } else {
+    return std::make_shared<MetaData>();
+  }
 }
 
 std::unique_ptr<BulkData> MeshBuilder::create_bulk_data() {
@@ -149,8 +153,8 @@ std::unique_ptr<BulkData> MeshBuilder::create_bulk_data() {
 }
 
 std::unique_ptr<BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<MetaData> meta_data_ptr) {
-  TEUCHOS_TEST_FOR_EXCEPTION(has_comm_, std::logic_error,
-                             "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
+  MUNDY_THROW_ASSERT(has_comm_, std::logic_error,
+                     "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
 
   return std::unique_ptr<BulkData>(new BulkData(meta_data_ptr, comm_, auto_aura_option_,
 #ifdef SIERRA_MIGRATION

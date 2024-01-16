@@ -26,6 +26,7 @@
 // C++ core libs
 #include <map>          // for std::map
 #include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <sstream>      // for std::stringstream
 #include <string>       // for std::string
 #include <type_traits>  // for std::enable_if, std::is_base_of, std::conjunction, std::is_convertible
 #include <vector>       // for std::vector
@@ -57,6 +58,11 @@ class MeshRequirements {
   /// Default construction corresponds to having no requirements.
   MeshRequirements() = default;
 
+  /// \brief Construct a fully specified set of mesh requirements.
+  ///
+  /// \param comm [in] The MPI communicator.
+  explicit MeshRequirements(const stk::ParallelMachine &comm);
+
   /// \brief Construct from a parameter list.
   ///
   /// \param parameter_list [in] Optional list of parameters for specifying the mesh requirements. The set of valid
@@ -64,7 +70,7 @@ class MeshRequirements {
   explicit MeshRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
-  //! \name Setters and Getters
+  //! \name Setters
   //@{
 
   /// \brief Set the spatial dimension of the mash.
@@ -98,6 +104,67 @@ class MeshRequirements {
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
   void set_upward_connectivity_flag(const bool enable_upward_connectivity);
 
+  /// \brief Delete the spatial dimension constraint (if it exists).
+  void delete_spatial_dimension();
+
+  /// \brief Delete the entity rank names constraint (if it exists).
+  void delete_entity_rank_names();
+
+  /// \brief Delete the communicator constraint (if it exists).
+  void delete_communicator();
+
+  /// \brief Delete the aura option constraint (if it exists).
+  void delete_aura_option();
+
+  /// \brief Delete the field data manager constraint (if it exists).
+  void delete_field_data_manager();
+
+  /// \brief Delete the bucket capacity constraint (if it exists).
+  void delete_bucket_capacity();
+
+  /// \brief Delete the upward connectivity flag constraint (if it exists).
+  void delete_upward_connectivity_flag();
+
+  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
+  ///
+  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
+  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+
+  /// \brief Add the provided part to the mesh, given that it is valid.
+  ///
+  /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
+  ///
+  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
+  void add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
+
+  /// \brief Store a copy of an attribute on the mesh.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on the mesh.
+  void add_mesh_attribute(const std::any &some_attribute);
+
+  /// \brief Store an attribute on the mesh.
+  ///
+  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
+  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
+  /// attribute of that type already exists, then the contents of the two attributes must match.
+  ///
+  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
+  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
+  ///
+  /// \param some_attribute Any attribute that you wish to store on the mesh.
+  void add_mesh_attribute(std::any &&some_attribute);
+  //@}
+
+  //! \name Getters
+  //@{
+
   /// \brief Get if the spatial dimension is constrained or not.
   bool constrains_spatial_dimension() const;
 
@@ -118,6 +185,9 @@ class MeshRequirements {
 
   /// \brief Get if the upward connectivity flag is constrained or not.
   bool constrains_upward_connectivity_flag() const;
+
+  /// @brief Get if the mesh is fully specified.
+  bool is_fully_specified() const;
 
   /// \brief Return the dimension of the space within which the parts and entities reside.
   unsigned get_spatial_dimension() const;
@@ -154,9 +224,9 @@ class MeshRequirements {
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
     if (parameter_list_ptr->isParameter("spatial_dimension")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("spatial_dimension");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
-                                 "with a type other than unsigned");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
+                         "with a type other than unsigned.");
     } else {
       parameter_list_ptr->set("spatial_dimension", default_spatial_dimension_,
                               "Dimension of the space within which the parts and entities reside.");
@@ -165,9 +235,9 @@ class MeshRequirements {
     if (parameter_list_ptr->isParameter("entity_rank_names")) {
       const bool valid_type =
           parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<Teuchos::Array<std::string>>("entity_rank_names");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
-                                 "with a type other than Teuchos::Array<std::string>");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
+                         "with a type other than Teuchos::Array<std::string>.");
     } else {
       parameter_list_ptr->set("entity_rank_names", default_entity_rank_names_,
                               "Vector of names assigned to each rank.");
@@ -176,7 +246,7 @@ class MeshRequirements {
     // if (parameter_list_ptr->isParameter("communicator")) {
     //   const bool valid_type =
     //       parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::ParallelMachine>("communicator");
-    //   TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
+    //   MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
     //                              "MeshRequirements: Type error. Given a parameter with name 'communicator' but with a
     //                              " "type other than stk::ParallelMachine");
     // } else {
@@ -187,9 +257,9 @@ class MeshRequirements {
       const bool valid_type =
           parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<mundy::mesh::BulkData::AutomaticAuraOption>(
               "aura_option");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
-                                 "type other than mundy::mesh::BulkData::AutomaticAuraOption");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
+                         "type other than mundy::mesh::BulkData::AutomaticAuraOption.");
     } else {
       parameter_list_ptr->set("aura_option", default_aura_option_, "The chosen Aura option.");
     }
@@ -197,9 +267,9 @@ class MeshRequirements {
     if (parameter_list_ptr->isParameter("field_data_manager_ptr")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::mesh::FieldDataManager *>(
           "field_data_manager_ptr");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
-                                 "but with a type other than stk::mesh::FieldDataManager *");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
+                         "but with a type other than stk::mesh::FieldDataManager *.");
     } else {
       parameter_list_ptr->set("field_data_manager_ptr", default_field_data_manager_ptr_,
                               "A pointer to a preexisting field data manager.");
@@ -207,9 +277,9 @@ class MeshRequirements {
 
     if (parameter_list_ptr->isParameter("bucket_capacity")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("bucket_capacity");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
-                                 "a type other than unsigned");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
+                             << "a type other than unsigned.");
     } else {
       parameter_list_ptr->set(
           "bucket_capacity", default_bucket_capacity_,
@@ -218,9 +288,9 @@ class MeshRequirements {
 
     if (parameter_list_ptr->isParameter("upward_connectivity_flag")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<bool>("upward_connectivity_flag");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
-                                 "but with a type other than bool");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
+                         "but with a type other than bool.");
     } else {
       parameter_list_ptr->set("upward_connectivity_flag", default_upward_connectivity_flag_,
                               "Flag specifying if upward connectivity will be enabled or not.");
@@ -256,68 +326,11 @@ class MeshRequirements {
   /// default options which will be used if not set.
   std::shared_ptr<mundy::mesh::BulkData> declare_mesh() const;
 
-  /// \brief Delete the spatial dimension constraint (if it exists).
-  void delete_spatial_dimension_constraint();
-
-  /// \brief Delete the entity rank names constraint (if it exists).
-  void delete_entity_rank_names_constraint();
-
-  /// \brief Delete the communicator constraint (if it exists).
-  void delete_communicator_constraint();
-
-  /// \brief Delete the aura option constraint (if it exists).
-  void delete_aura_option_constraint();
-
-  /// \brief Delete the field data manager constraint (if it exists).
-  void delete_field_data_manager_constraint();
-
-  /// \brief Delete the bucket capacity constraint (if it exists).
-  void delete_bucket_capacity_constraint();
-
-  /// \brief Delete the upward connectivity flag constraint (if it exists).
-  void delete_upward_connectivity_flag_constraint();
-
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means:
   ///   - TODO(palmerb4): What are the mesh invariants set by STK?
   void check_if_valid() const;
-
-  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
-  ///
-  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_req(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
-
-  /// \brief Add the provided part to the mesh, given that it is valid.
-  ///
-  /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
-  ///
-  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
-  void add_part_req(std::shared_ptr<PartRequirements> part_req_ptr);
-
-  /// \brief Store a copy of an attribute on the mesh.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(const std::any &some_attribute);
-
-  /// \brief Store an attribute on the mesh.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(std::any &&some_attribute);
 
   /// \brief Merge the current requirements with another \c MeshRequirements.
   ///
@@ -329,6 +342,12 @@ class MeshRequirements {
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c MeshRequirements objects to merge with the
   /// current object.
   void merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs);
+
+  /// \brief Dump the contents of \c MeshRequirements to the given stream (defaults to std::cout).
+  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;
+
+  /// \brief Return a string representation of the current set of requirements.
+  std::string get_reqs_as_a_string() const;
   //@}
 
  private:

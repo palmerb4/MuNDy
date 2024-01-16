@@ -24,9 +24,9 @@
 /// \brief Declaration of the HasMeshRequirementsAndIsRegisterable class
 
 // C++ core libs
-#include <memory>       // for std::shared_ptr, std::unique_ptr
+#include <memory>       // for std::shared_ptr, std::shared_ptr
 #include <string>       // for std::string
-#include <type_traits>  // for std::enable_if, std::is_base_of
+#include <type_traits>  // for std::enable_if, std::is_base_of, std::is_same_v
 #include <vector>       // for std::vector
 
 // Trilinos libs
@@ -41,197 +41,220 @@ namespace mundy {
 
 namespace meta {
 
-/// \class HasMeshRequirementsAndIsRegisterableBase
-/// \brief The polymorphic interface that encodes a class's assumptions about the structure and contents of an STK mesh.
-///
-/// This design pattern allows for \c HasMeshRequirementsAndIsRegisterable to use CRTP to force derived classes to
-/// implement certain static functions while also having a consistant polymorphic interface that allows different
-/// \c HasMeshRequirementsAndIsRegisterables to be stored in a vector of pointers.
-///
-/// \tparam DerivedInterface The polymorphic interface returned by create_new_instance.
-/// \tparam RegistrationType The type of this class's identifier.
-template <typename DerivedInterface, typename RegistrationType = std::string>
-class HasMeshRequirementsAndIsRegisterableBase {
- public:
-  //! \name Getters
-  //@{
-
-  /// \brief Get the requirements that this class imposes upon each input part.
-  ///
-  /// The set of part requirements returned by this function are meant to encode the assumptions made by this class
-  /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_params but not the \c mutable_params.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  /// \note Fixed parameters are those that change the part requirements.
-  virtual std::shared_ptr<MeshRequirements> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) const = 0;
-
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  virtual void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) const = 0;
-
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  virtual void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) const = 0;
-
-  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
-  virtual RegistrationType get_class_identifier() const = 0;
-  //@}
-
-  //! \name Setters
-  //@{
-
-  /// \brief Set the mutable parameters. If a valid parameter is not provided, we use the default value.
-  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) = 0;
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  virtual std::shared_ptr<DerivedInterface> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                const Teuchos::ParameterList &fixed_params) const = 0;
-  //@}
-};  // HasMeshRequirementsAndIsRegisterableBase
-
 /// \class HasMeshRequirementsAndIsRegisterable
-/// \brief The static interface that encodes a class's assumptions about the structure and contents of an STK mesh.
+/// \brief A traits class for checking if a given type has the desired static interface.
 ///
-/// This class follows the Curiously Recurring Template Pattern such that each class derived from \c
-/// HasMeshRequirementsAndIsRegisterable must implement the following static member functions
-/// - \c details_static_get_mesh_requirements implementation of the \c static_get_mesh_requirements interface.
-/// - \c details_static_validate_fixed_parameters_and_set_defaults implementation of the
-///     \c static_validate_fixed_parameters_and_set_defaults interface.
-/// - \c details_static_validate_mutable_parameters_and_set_defaults implementation of the
-///     \c static_validate_mutable_parameters_and_set_defaults interface.
-/// - \c details_static_get_class_identifier implementation of the \c static_get_class_identifier interface.
-/// - \c details_static_create_new_instance implementation of the \c static_create_new_instance interface.
-///
-/// To keep these out of the public interface, we suggest that each details function be made private and
-/// \c HasMeshRequirementsAndIsRegisterable<DerivedClass> be made a friend of \c DerivedClass.
-///
-/// \tparam DerivedClass A class derived from \c HasMeshRequirementsAndIsRegisterable that implements the desired
-/// interface.
-/// \tparam RegistrationType The type of this class's identifier.
-template <class DerivedClass, class DerivedInterface, typename RegistrationType = std::string>
-class HasMeshRequirementsAndIsRegisterable
-    : virtual public HasMeshRequirementsAndIsRegisterableBase<DerivedInterface, RegistrationType> {
+/// \tparam T The type to check.
+template <typename T>
+struct HasMeshRequirementsAndIsRegisterable {
+ private:
+  /// TODO(palmerb4): Come C++20, we can use concepts to simplify this code. For now, we have to use SFINAE.
+  /// I know it's odd to have the private functions at the top, but these are used by the public functions below.
+  //! \name SFINAE helpers
+  //@{
+
+  /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c get_mesh_requirements function, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_get_mesh_requirements([[maybe_unused]] int unused)
+      -> decltype(U::get_mesh_requirements(std::declval<Teuchos::ParameterList>()), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c get_mesh_requirements function.
+  template <typename>
+  static auto check_get_mesh_requirements(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c validate_fixed_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c validate_fixed_parameters_and_set_defaults function, \c std::false_type
+  /// otherwise.
+  template <typename U>
+  static auto check_validate_fixed_parameters_and_set_defaults([[maybe_unused]] int unused)
+      -> decltype(U::validate_fixed_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>()),
+                  std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c validate_fixed_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c validate_fixed_parameters_and_set_defaults function.
+  template <typename>
+  static auto check_validate_fixed_parameters_and_set_defaults(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c validate_mutable_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c validate_mutable_parameters_and_set_defaults function, \c
+  /// std::false_type otherwise.
+  template <typename U>
+  static auto check_validate_mutable_parameters_and_set_defaults([[maybe_unused]] int unused)
+      -> decltype(U::validate_mutable_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>()),
+                  std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c validate_mutable_parameters_and_set_defaults function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c validate_mutable_parameters_and_set_defaults function.
+  template <typename>
+  static auto check_validate_mutable_parameters_and_set_defaults(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c RegistrationType type alias, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_registration_type([[maybe_unused]] int unused)
+      -> decltype(std::declval<typename U::RegistrationType>(), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c RegistrationType type alias.
+  template <typename>
+  static auto check_registration_type(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c get_registration_id function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c get_registration_id function, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_get_registration_id([[maybe_unused]] int unused)
+      -> decltype(U::get_registration_id(), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c get_registration_id function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c get_registration_id function.
+  template <typename>
+  static auto check_get_registration_id(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c PolymorphicBaseType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c PolymorphicBaseType type alias, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_polymorphic_base_type([[maybe_unused]] int unused)
+      -> decltype(std::declval<typename U::PolymorphicBaseType>(), std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c PolymorphicBaseType type alias.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c PolymorphicBaseType type alias.
+  template <typename>
+  static auto check_polymorphic_base_type(...) -> std::false_type;
+
+  /// \brief Helper for checking if \c U has a \c create_new_instance function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::true_type if \c U has a \c create_new_instance function, \c std::false_type otherwise.
+  template <typename U>
+  static auto check_create_new_instance([[maybe_unused]] int unused)
+      -> decltype(U::create_new_instance(std::declval<mundy::mesh::BulkData *>(),
+                                         std::declval<Teuchos::ParameterList>()),
+                  std::true_type{});
+
+  /// \brief Helper for checking if \c U has a \c create_new_instance function.
+  /// \tparam U The type to check.
+  /// \param[in] unused An unused parameter to allow SFINAE to work.
+  /// \return \c std::false_type if \c U does not have a \c create_new_instance function.
+  template <typename>
+  static auto check_create_new_instance(...) -> std::false_type;
+  //@}
+
  public:
   //! \name Getters
   //@{
 
-  /// \brief Get the requirements that this \c HasMeshRequirementsAndIsRegisterable imposes upon each input part.
+  /// \brief Check for the existence of a \c get_mesh_requirements function.
+  /// \return \c true if \c T has a \c get_mesh_requirements function, \c false otherwise.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this class
-  /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_params but not the \c mutable_params.
+  /// The specific signature of the \c get_mesh_requirements function is:
+  /// \code
+  /// static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(Teuchos::ParameterList *const
+  /// fixed_params_ptr);
+  /// \endcode
+  static constexpr bool has_get_mesh_requirements =
+      decltype(check_get_mesh_requirements<T>(0))::value &&
+      std::is_same_v<decltype(T::get_mesh_requirements(std::declval<Teuchos::ParameterList>())),
+                     std::shared_ptr<mundy::meta::MeshRequirements>>;
+
+  /// \brief Check for the existence of a \c validate_fixed_parameters_and_set_defaults function.
+  /// \return \c true if \c T has a \c validate_fixed_parameters_and_set_defaults function, \c false otherwise.
   ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::shared_ptr<MeshRequirements> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) const final;
+  /// The specific signature of the \c validate_fixed_parameters_and_set_defaults function is:
+  /// \code
+  /// static void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr);
+  /// \endcode
+  static constexpr bool has_validate_fixed_parameters_and_set_defaults =
+      decltype(check_validate_fixed_parameters_and_set_defaults<T>(0))::value &&
+      std::is_same_v<decltype(T::validate_fixed_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>())),
+                     void>;
 
-  /// \brief Get the requirements that this \c HasMeshRequirementsAndIsRegisterable imposes upon each input part.
+  /// \brief Check for the existence of a \c validate_mutable_parameters_and_set_defaults function.
+  /// \return \c true if \c T has a \c validate_mutable_parameters_and_set_defaults function, \c false otherwise.
   ///
-  /// The set part requirements returned by this function are meant to encode the assumptions made by this class
-  /// with respect to the structure, topology, and fields of the STK mesh. These assumptions may vary
-  /// based on parameters in the \c fixed_params but not the \c mutable_params.
+  /// The specific signature of the \c validate_mutable_parameters_and_set_defaults function is:
+  /// \code
+  /// static void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr);
+  /// \endcode
+  static constexpr bool has_validate_mutable_parameters_and_set_defaults =
+      decltype(check_validate_mutable_parameters_and_set_defaults<T>(0))::value &&
+      std::is_same_v<
+          decltype(T::validate_mutable_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>())), void>;
+
+  /// \brief Check for the existence of a \c RegistrationType type alias.
+  /// \return \c true if \c T has a \c RegistrationType type alias, \c false otherwise.
   ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<MeshRequirements> static_get_mesh_requirements(const Teuchos::ParameterList &fixed_params) {
-    return DerivedClass::details_static_get_mesh_requirements(fixed_params);
-  }
+  /// The specific signature of the \c RegistrationType type alias is:
+  /// \code
+  /// T::RegistrationType
+  /// \endcode
+  static constexpr bool has_registration_type = decltype(check_registration_type<T>(0))::value;
 
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) const final;
-
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) const final;
-
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void static_validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) {
-    DerivedClass::details_static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
-  }
-
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void static_validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) {
-    DerivedClass::details_static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
-  }
-
-  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
-  RegistrationType get_class_identifier() const final;
-
-  /// \brief Get the unique class identifier. Here, 'unique' means with with respect to other class in our registere(s).
-  static RegistrationType static_get_class_identifier() {
-    return DerivedClass::details_static_get_class_identifier();
-  }
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Generate a new instance of this class.
+  /// \brief Check for the existence of a \c get_registration_id function.
+  /// \return \c true if \c T has a \c get_registration_id function, \c false otherwise.
   ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  std::shared_ptr<DerivedInterface> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                        const Teuchos::ParameterList &fixed_params) const final;
+  /// The specific signature of the \c get_registration_id function is:
+  /// \code
+  /// static RegistrationType get_registration_id();
+  /// \endcode
+  static constexpr bool has_get_registration_id =
+      decltype(check_get_registration_id<T>(0))::value && decltype(check_registration_type<T>(0))::value &&
+      std::is_same_v<decltype(T::get_registration_id()), typename T::RegistrationType>;
 
-  /// \brief Generate a new instance of this class.
+  /// \brief Check for the existence of a \c PolymorphicBaseType type alias.
+  /// \return \c true if \c T has a \c PolymorphicBaseType type alias, \c false otherwise.
   ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<DerivedInterface> static_create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                      const Teuchos::ParameterList &fixed_params) {
-    return DerivedClass::details_static_create_new_instance(bulk_data_ptr, fixed_params);
-  }
-  //@}
+  /// The specific signature of the \c PolymorphicBaseType type alias is:
+  /// \code
+  /// T::PolymorphicBaseType
+  /// \endcode
+  static constexpr bool has_polymorphic_base_type = decltype(check_polymorphic_base_type<T>(0))::value;
+
+  /// \brief Check for the existence of a \c create_new_instance function.
+  /// \return \c true if \c T has a \c create_new_instance function, \c false otherwise.
+  ///
+  /// The specific signature of the \c create_new_instance function is:
+  /// \code
+  /// static std::shared_ptr<PolymorphicBaseType> create_new_instance();
+  /// \endcode
+  static constexpr bool has_create_new_instance =
+      decltype(check_create_new_instance<T>(0))::value && decltype(check_polymorphic_base_type<T>(0))::value &&
+      std::is_same_v<decltype(T::create_new_instance(std::declval<mundy::mesh::BulkData *>(),
+                                                     std::declval<Teuchos::ParameterList>())),
+                     std::shared_ptr<typename T::PolymorphicBaseType>>;
+
+  /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
+  /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
+  /// false otherwise.
+  static constexpr bool value = has_get_mesh_requirements && has_validate_fixed_parameters_and_set_defaults &&
+                                has_validate_mutable_parameters_and_set_defaults && has_registration_type &&
+                                has_get_registration_id && has_polymorphic_base_type && has_create_new_instance;
 };  // HasMeshRequirementsAndIsRegisterable
-
-//! \name Template implementations
-//@{
-
-// \name Getters
-//{
-template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-std::shared_ptr<MeshRequirements>
-HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_mesh_requirements(
-    const Teuchos::ParameterList &fixed_params) const {
-  return static_get_mesh_requirements(fixed_params);
-}
-
-template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-void HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::
-    validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) const {
-  static_validate_fixed_parameters_and_set_defaults(fixed_params_ptr);
-}
-
-template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-void HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::
-    validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) const {
-  static_validate_mutable_parameters_and_set_defaults(mutable_params_ptr);
-}
-
-template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-RegistrationType
-HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::get_class_identifier() const {
-  return static_get_class_identifier();
-}
-//}
-
-// \name Actions
-//{
-
-template <class DerivedClass, class DerivedInterface, typename RegistrationType>
-std::shared_ptr<DerivedInterface>
-HasMeshRequirementsAndIsRegisterable<DerivedClass, DerivedInterface, RegistrationType>::create_new_instance(
-    mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) const {
-  return static_create_new_instance(bulk_data_ptr, fixed_params);
-}
-//}
-//@}
 
 }  // namespace meta
 

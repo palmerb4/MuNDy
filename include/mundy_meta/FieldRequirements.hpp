@@ -34,14 +34,14 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
-#include <stk_util/util/CSet.hpp>        // for stk::CSet
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
+#include <stk_util/util/CSet.hpp>     // for stk::CSet
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>                // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
@@ -84,7 +84,7 @@ class FieldRequirements : public FieldRequirementsBase {
   //@{
 
   /// \brief Default construction is allowed
-  /// Default construction corresponds to having no requirements.
+  /// Default construction corresponds to having no requirements (expect for the field type).
   FieldRequirements() = default;
 
   /// \brief Constructor with full fill.
@@ -125,6 +125,10 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \param field_dimension [in] Required dimension of the field.
   void set_field_dimension(const unsigned field_dimension) final;
 
+  /// \brief Set the minimum required number of field states.
+  /// \param field_min_number_of_states [in] Minimum required number of states of the field.
+  void set_field_min_number_of_states(const unsigned field_min_number_of_states) final;
+
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \param field_min_number_of_states [in] Minimum required number of states of the field.
   void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) final;
@@ -141,6 +145,9 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief Get if the field minimum number of states is constrained or not.
   bool constrains_field_min_number_of_states() const final;
 
+  /// @brief Get if the field is fully specified.
+  bool is_fully_specified() const final;
+
   /// \brief Return the field name.
   /// Will throw an error if the field name is not constrained.
   std::string get_field_name() const final;
@@ -155,7 +162,7 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief Return the minimum number of field states.
   /// Will throw an error if the minimum number of field states.
-  unsigned get_field_min_number_of_states() const final;
+  unsigned get_field_min_num_states() const final;
 
   /// \brief Return the typeinfo related to the field's type.
   const std::type_info &get_field_type_info() const final;
@@ -174,16 +181,16 @@ class FieldRequirements : public FieldRequirementsBase {
   void declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const final;
 
   /// \brief Delete the field name constraint (if it exists).
-  void delete_field_name_constraint() final;
+  void delete_field_name() final;
 
   /// \brief Delete the field rank constraint (if it exists).
-  void delete_field_rank_constraint() final;
+  void delete_field_rank() final;
 
   /// \brief Delete the field dimension constraint (if it exists).
-  void delete_field_dimension_constraint() final;
+  void delete_field_dimension() final;
 
   /// \brief Delete the field minimum number of states constraint (if it exists).
-  void delete_field_min_number_of_states_constraint() final;
+  void delete_field_min_number_of_states() final;
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
@@ -243,6 +250,12 @@ class FieldRequirements : public FieldRequirementsBase {
       const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<FieldRequirements<FieldType>>(parameter_list);
   }
+
+  /// \brief Dump the contents of \c FieldRequirements to the given stream (defaults to std::cout).
+  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const final;
+
+  /// \brief Return a string representation of the current set of requirements.
+  std::string get_reqs_as_a_string() const final;
   //@}
 
  private:
@@ -289,7 +302,7 @@ FieldRequirements<FieldType>::FieldRequirements(const std::string &field_name, c
   this->set_field_name(field_name);
   this->set_field_rank(field_rank);
   this->set_field_dimension(field_dimension);
-  this->set_field_min_number_of_states_if_larger(field_min_number_of_states);
+  this->set_field_min_number_of_states(field_min_number_of_states);
 }
 
 template <typename FieldType>
@@ -303,7 +316,7 @@ FieldRequirements<FieldType>::FieldRequirements(const Teuchos::ParameterList &pa
   this->set_field_name(valid_params.get<std::string>("name"));
   this->set_field_rank(valid_params.get<std::string>("rank"));
   this->set_field_dimension(valid_params.get<unsigned>("dimension"));
-  this->set_field_min_number_of_states_if_larger(valid_params.get<unsigned>("min_number_of_states"));
+  this->set_field_min_number_of_states(valid_params.get<unsigned>("min_number_of_states"));
 }
 //}
 
@@ -334,6 +347,13 @@ template <typename FieldType>
 void FieldRequirements<FieldType>::set_field_dimension(const unsigned field_dimension) {
   field_dimension_ = field_dimension;
   field_dimension_is_set_ = true;
+  this->check_if_valid();
+}
+
+template <typename FieldType>
+void FieldRequirements<FieldType>::set_field_min_number_of_states(const unsigned field_min_number_of_states) {
+  field_min_number_of_states_ = field_min_number_of_states;
+  field_min_number_of_states_is_set_ = true;
   this->check_if_valid();
 }
 
@@ -369,38 +389,52 @@ bool FieldRequirements<FieldType>::constrains_field_min_number_of_states() const
 }
 
 template <typename FieldType>
+bool FieldRequirements<FieldType>::is_fully_specified() const {
+  return this->constrains_field_name() && this->constrains_field_rank() && this->constrains_field_dimension() &&
+         this->constrains_field_min_number_of_states();
+}
+
+template <typename FieldType>
 std::string FieldRequirements<FieldType>::get_field_name() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_field_name(), std::logic_error,
-      "FieldRequirements: Attempting to access the field name requirement even though field name is unconstrained.");
+  MUNDY_THROW_ASSERT(
+      this->constrains_field_name(), std::logic_error,
+      "FieldRequirements: Attempting to access the field name requirement even though field name is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   return field_name_;
 }
 
 template <typename FieldType>
 stk::topology::rank_t FieldRequirements<FieldType>::get_field_rank() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_field_rank(), std::logic_error,
-      "FieldRequirements: Attempting to access the field rank requirement even though field rank is unconstrained.");
+  MUNDY_THROW_ASSERT(
+      this->constrains_field_rank(), std::logic_error,
+      "FieldRequirements: Attempting to access the field rank requirement even though field rank is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   return field_rank_;
 }
 
 template <typename FieldType>
 unsigned FieldRequirements<FieldType>::get_field_dimension() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(!this->constrains_field_dimension(), std::logic_error,
-                             "FieldRequirements: Attempting to access the field dimension requirement even though "
-                             "field dimension is unconstrained.");
+  MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
+                     "FieldRequirements: Attempting to access the field dimension requirement even though "
+                     "field dimension is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   return field_dimension_;
 }
 
 template <typename FieldType>
-unsigned FieldRequirements<FieldType>::get_field_min_number_of_states() const {
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      !this->constrains_field_min_number_of_states(), std::logic_error,
+unsigned FieldRequirements<FieldType>::get_field_min_num_states() const {
+  MUNDY_THROW_ASSERT(
+      this->constrains_field_min_number_of_states(), std::logic_error,
       "FieldRequirements: Attempting to access the field minimum number of states requirement even though field "
-      "min_number_of_states is unconstrained.");
+      "min_number_of_states is unconstrained.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   return field_min_number_of_states_;
 }
@@ -422,63 +456,87 @@ std::map<std::type_index, std::any> FieldRequirements<FieldType>::get_field_attr
 template <typename FieldType>
 void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
                                                          const stk::mesh::Part &part) const {
-  TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
-                             "FieldRequirements: MetaData pointer cannot be null).");
+  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
+                     "FieldRequirements: MetaData pointer cannot be null).");
 
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_name(), std::logic_error,
-                             "FieldRequirements: Field name must be set before calling declare_field.");
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_rank(), std::logic_error,
-                             "FieldRequirements: Field rank must be set before calling declare_field.");
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_dimension(), std::logic_error,
-                             "FieldRequirements: Field dimension must be set before calling declare_field.");
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      this->constrains_field_min_number_of_states(), std::logic_error,
-      "FieldRequirements: Field minimum number of states must be set before calling declare_field.");
+  MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
+                     "FieldRequirements: Field name must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_field_rank(), std::logic_error,
+                     "FieldRequirements: Field rank must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
+                     "FieldRequirements: Field dimension must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_field_min_number_of_states(), std::logic_error,
+                     "FieldRequirements: Field minimum number of states must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
-  // Declare the field and assign it to the given part
-  stk::mesh::Field<FieldType> &field =
-      meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name());
-  stk::mesh::put_field_on_mesh(field, part, this->field_dimension(), nullptr);
+  // Declare the field and assign it to the given part.
+  stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
+      this->get_field_rank(), this->get_field_name(), this->get_field_min_num_states());
+  stk::mesh::put_field_on_mesh(field, part, this->get_field_dimension(), nullptr);
+
+  // Set the field attributes.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : field_attributes_map_) {
+    meta_data_ptr->declare_attribute(field, attribute);
+  }
 }
 
 template <typename FieldType>
 void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const {
-  TEUCHOS_TEST_FOR_EXCEPTION(meta_data_ptr == nullptr, std::invalid_argument,
-                             "FieldRequirements: MetaData pointer cannot be null).");
+  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
+                     "FieldRequirements: MetaData pointer cannot be null).");
 
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_name(), std::logic_error,
-                             "FieldRequirements: Field name must be set before calling declare_field.");
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_rank(), std::logic_error,
-                             "FieldRequirements: Field rank must be set before calling declare_field.");
-  TEUCHOS_TEST_FOR_EXCEPTION(this->constrains_field_dimension(), std::logic_error,
-                             "FieldRequirements: Field dimension must be set before calling declare_field.");
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      this->constrains_field_min_number_of_states(), std::logic_error,
-      "FieldRequirements: Field minimum number of states must be set before calling declare_field.");
+  MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
+                     "FieldRequirements: Field name must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_field_rank(), std::logic_error,
+                     "FieldRequirements: Field rank must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
+                     "FieldRequirements: Field dimension must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_field_min_number_of_states(), std::logic_error,
+                     "FieldRequirements: Field minimum number of states must be set before calling declare_field.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
-  // Declare the field and assign it to the given part
-  stk::mesh::Field<FieldType> &field =
-      meta_data_ptr->declare_field<FieldType>(this->get_field_rank(), this->get_field_name());
-  stk::mesh::put_field_on_entire_mesh(field, this->field_dimension(), nullptr);
+  // Declare the field and assign it to the given part.
+  stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
+      this->get_field_rank(), this->get_field_name(), this->get_field_min_num_states());
+  stk::mesh::put_field_on_entire_mesh(field, this->get_field_dimension());
+
+  // Set the field attributes.
+  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : field_attributes_map_) {
+    meta_data_ptr->declare_attribute(field, attribute);
+  }
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_name_constraint() {
+void FieldRequirements<FieldType>::delete_field_name() {
   field_name_is_set_ = false;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_rank_constraint() {
+void FieldRequirements<FieldType>::delete_field_rank() {
   field_rank_is_set_ = false;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_dimension_constraint() {
+void FieldRequirements<FieldType>::delete_field_dimension() {
   field_dimension_is_set_ = false;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_min_number_of_states_constraint() {
+void FieldRequirements<FieldType>::delete_field_min_number_of_states() {
   field_min_number_of_states_is_set_ = false;
 }
 
@@ -503,19 +561,28 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
+  // Check if the provided pointer is valid.
+  // If it is not, then there is nothing to merge.
+  if (field_req_ptr == nullptr) {
+    return;
+  }
+
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
 
   // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-  TEUCHOS_TEST_FOR_EXCEPTION(
-      this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
-      "FieldRequirements: Field type mismatch between our field type and the given requirements.");
+  MUNDY_THROW_ASSERT(this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
+                     "FieldRequirements: Field type mismatch between our field type and the given requirements.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
   if (field_req_ptr->constrains_field_name()) {
     if (this->constrains_field_name()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
-          "FieldRequirements: One of the inputs has incompatible name (" << field_req_ptr->get_field_name() << ").");
+          "FieldRequirements: One of the inputs has incompatible name (" << field_req_ptr->get_field_name() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_field_name(field_req_ptr->get_field_name());
     }
@@ -523,9 +590,11 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
 
   if (field_req_ptr->constrains_field_rank()) {
     if (this->constrains_field_rank()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
-          "FieldRequirements: One of the inputs has incompatible rank (" << field_req_ptr->get_field_rank() << ").");
+          "FieldRequirements: One of the inputs has incompatible rank (" << field_req_ptr->get_field_rank() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_field_rank(field_req_ptr->get_field_rank());
     }
@@ -533,17 +602,18 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
 
   if (field_req_ptr->constrains_field_dimension()) {
     if (this->constrains_field_dimension()) {
-      TEUCHOS_TEST_FOR_EXCEPTION(this->get_field_dimension() == field_req_ptr->get_field_dimension(),
-                                 std::invalid_argument,
-                                 "FieldRequirements: One of the inputs has incompatible dimension ("
-                                     << field_req_ptr->get_field_dimension() << ").");
+      MUNDY_THROW_ASSERT(this->get_field_dimension() == field_req_ptr->get_field_dimension(), std::invalid_argument,
+                         "FieldRequirements: One of the inputs has incompatible dimension ("
+                             << field_req_ptr->get_field_dimension() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
     } else {
       this->set_field_dimension(field_req_ptr->get_field_dimension());
     }
   }
 
   if (field_req_ptr->constrains_field_min_number_of_states()) {
-    this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_number_of_states());
+    this->set_field_min_number_of_states_if_larger(field_req_ptr->get_field_min_num_states());
   }
 
   // Loop over the attribute map.
@@ -563,7 +633,61 @@ void FieldRequirements<FieldType>::merge(
 template <typename FieldType>
 std::shared_ptr<FieldRequirementsBase> FieldRequirements<FieldType>::create_new_instance(
     const Teuchos::ParameterList &parameter_list) const {
-  return static_create_new_instance(parameter_list);
+  return create_new_instance(parameter_list);
+}
+
+template <typename FieldType>
+void FieldRequirements<FieldType>::print_reqs(std::ostream& os, int indent_level) const {
+  std::string indent(indent_level * 2, ' ');
+
+  os << indent << "FieldRequirements: " << std::endl;
+
+  if (this->constrains_field_name()) {
+    os << indent << "  Field name is set." << std::endl;
+    os << indent << "  Field name: " << this->get_field_name() << std::endl;
+  } else {
+    os << indent << "  Field name is not set." << std::endl;
+  }
+
+  if (this->constrains_field_rank()) {
+    os << indent << "  Field rank is set." << std::endl;
+    os << indent << "  Field rank: " << this->get_field_rank() << std::endl;
+  } else {
+    os << indent << "  Field rank is not set." << std::endl;
+  }
+
+  if (this->constrains_field_dimension()) {
+    os << indent << "  Field dimension is set." << std::endl;
+    os << indent << "  Field dimension: " << this->get_field_dimension() << std::endl;
+  } else {
+    os << indent << "  Field dimension is not set." << std::endl;
+  }
+
+  if (this->constrains_field_min_number_of_states()) {
+    os << indent << "  Field min number of states is set." << std::endl;
+    os << indent << "  Field min number of states: " << this->get_field_min_num_states() << std::endl;
+  } else {
+    os << indent << "  Field min number of states is not set." << std::endl;
+  }
+
+  os << indent << "  Field type info: " << field_type_info_.name() << std::endl;
+
+  os << indent << "  Field attributes map: " << std::endl;
+  int attribute_count = 0;
+  for (auto const &[attribute_type_index, attribute] : field_attributes_map_) {
+    os << indent << "  Field attribute " << attribute_count << " has type (" << attribute_type_index.name()
+              << ")" << std::endl;
+    attribute_count++;
+  }
+
+  os << indent << "End of FieldRequirements" << std::endl;
+}
+
+template <typename FieldType>
+std::string FieldRequirements<FieldType>::get_reqs_as_a_string() const {
+  std::stringstream ss;
+  this->print_reqs(ss);
+  return ss.str();
 }
 //}
 

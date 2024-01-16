@@ -33,13 +33,13 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>     // for Teuchos::ParameterList
-#include <Teuchos_TestForException.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
-#include <stk_mesh/base/Field.hpp>       // for stk::mesh::Field
-#include <stk_mesh/base/Part.hpp>        // for stk::mesh::Part
-#include <stk_topology/topology.hpp>     // for stk::topology
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
+#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
+#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
+#include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
 
 namespace mundy {
@@ -47,7 +47,7 @@ namespace mundy {
 namespace meta {
 
 /// \class FieldRequirementsBase
-/// \brief A consistant interface for all \c FieldRequirementsBase.
+/// \brief A consistent interface for all \c FieldRequirementsBase.
 class FieldRequirementsBase {
  public:
   //! \name Setters and Getters
@@ -69,6 +69,10 @@ class FieldRequirementsBase {
   /// \brief field_dimension [in] Required dimension of the field.
   virtual void set_field_dimension(const unsigned field_dimension) = 0;
 
+  /// \brief Set the minimum required number of field states to the given value.
+  /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
+  virtual void set_field_min_number_of_states(const unsigned field_min_number_of_states) = 0;
+
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
   virtual void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) = 0;
@@ -85,6 +89,9 @@ class FieldRequirementsBase {
   /// \brief Get if the field minimum number of states is constrained or not.
   virtual bool constrains_field_min_number_of_states() const = 0;
 
+  /// @brief Get if the field is fully specified.
+  virtual bool is_fully_specified() const = 0;
+
   /// \brief Return the field name.
   /// Will throw an error if the field name is not constrained.
   virtual std::string get_field_name() const = 0;
@@ -99,7 +106,7 @@ class FieldRequirementsBase {
 
   /// \brief Return the minimum number of field states.
   /// Will throw an error if the minimum number of field states.
-  virtual unsigned get_field_min_number_of_states() const = 0;
+  virtual unsigned get_field_min_num_states() const = 0;
 
   /// \brief Return the typeinfo related to the field's type.
   virtual const std::type_info &get_field_type_info() const = 0;
@@ -115,9 +122,9 @@ class FieldRequirementsBase {
   static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
     if (parameter_list_ptr->isParameter("name")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
-          "FieldRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string");
+          "FieldRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string.");
     } else {
       parameter_list_ptr->set("name", "INVALID", "Name of the field.");
     }
@@ -125,27 +132,27 @@ class FieldRequirementsBase {
     if (parameter_list_ptr->isParameter("rank")) {
       const bool valid_type = ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
                                (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "FieldRequirements: Type error. Given a parameter with name 'rank' but with a "
-                                     << "type other than std::string or stk::topology::rank_t");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "FieldRequirements: Type error. Given a parameter with name 'rank' but with a "
+                             << "type other than std::string or stk::topology::rank_t.");
     } else {
       parameter_list_ptr->set("rank", stk::topology::INVALID_RANK, "Rank of the field, in string form.");
     }
 
     if (parameter_list_ptr->isParameter("dimension")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("dimension");
-      TEUCHOS_TEST_FOR_EXCEPTION(
+      MUNDY_THROW_ASSERT(
           valid_type, std::invalid_argument,
-          "FieldRequirements: Type error. Given a parameter with name 'dimension' but with a type other than unsigned");
+          "FieldRequirements: Type error. Given a parameter with name 'dimension' but with a type other than unsigned.");
     } else {
       parameter_list_ptr->set("dimension", 0, "Dimension of the part.");
     }
 
     if (parameter_list_ptr->isParameter("min_number_of_states")) {
       const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("min_number_of_states");
-      TEUCHOS_TEST_FOR_EXCEPTION(valid_type, std::invalid_argument,
-                                 "FieldRequirements: Type error. Given a parameter with name 'min_number_of_states' "
-                                 "but with a type other than unsigned");
+      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+                         "FieldRequirements: Type error. Given a parameter with name 'min_number_of_states' "
+                         "but with a type other than unsigned.");
     } else {
       parameter_list_ptr->set("min_number_of_states", 1,
                               "Minimum number of rotating states that this field will have.");
@@ -159,16 +166,16 @@ class FieldRequirementsBase {
   virtual void declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const = 0;
 
   /// \brief Delete the field name constraint (if it exists).
-  virtual void delete_field_name_constraint() = 0;
+  virtual void delete_field_name() = 0;
 
   /// \brief Delete the field rank constraint (if it exists).
-  virtual void delete_field_rank_constraint() = 0;
+  virtual void delete_field_rank() = 0;
 
   /// \brief Delete the field dimension constraint (if it exists).
-  virtual void delete_field_dimension_constraint() = 0;
+  virtual void delete_field_dimension() = 0;
 
   /// \brief Delete the field minimum number of states constraint (if it exists).
-  virtual void delete_field_min_number_of_states_constraint() = 0;
+  virtual void delete_field_min_number_of_states() = 0;
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
@@ -219,11 +226,17 @@ class FieldRequirementsBase {
   /// match the current name of this field.
   ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
-  virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> vector_of_field_req_ptrs) = 0;
+  virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) = 0;
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
   virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(
       const Teuchos::ParameterList &parameter_list) const = 0;
+
+  /// \brief Dump the contents of \c FieldRequirements to the given stream (defaults to std::cout).
+  virtual void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const = 0;
+
+  /// \brief Return a string representation of the current set of requirements.
+  virtual std::string get_reqs_as_a_string() const = 0;
   //@}
 };  // FieldRequirementsBase
 

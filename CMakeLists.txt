@@ -23,12 +23,13 @@ project(Mundy CXX)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # ################################################ OPTIONS ############################################################
-option(ENABLE_CUDA "Enable build targeting GPU" OFF)
-option(ENABLE_ALL_WARNINGS "Show most warnings for most compilers" ON)
-option(ENABLE_WERROR "Warnings are errors" ON)
-option(ENABLE_OPENMP "Enable OpenMP flags" OFF)
+option(ENABLE_CUDA "Enable build targeting GPU." OFF)
+option(ENABLE_ALL_WARNINGS "Show most warnings for most compilers." ON)
+option(ENABLE_WERROR "Warnings are errors." ON)
+option(ENABLE_OPENMP "Enable OpenMP flags." OFF)
+option(ENABLE_UNIT_TESTS "Enable unit testing." ON)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED)
 
@@ -36,6 +37,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED)
 set(mundy_exe_name "mundy.X")
 add_executable(${mundy_exe_name} ${CMAKE_CURRENT_SOURCE_DIR}/test_mundy_app.cpp)
 add_library(mundy "")
+
+if(ENABLE_UNIT_TESTS)
+  set(utest_ex_name "mundy_unit_tests.X")
+  add_executable(${utest_ex_name} ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests.cpp)
+endif()
 
 # ################################################### MPI ##############################################################
 find_package(MPI REQUIRED)
@@ -110,9 +116,45 @@ target_include_directories(mundy PUBLIC
 
 # Most linking, etc, is set to PUBLIC for libmundy, so we merely link to libmundy for the exes
 target_link_libraries(${mundy_exe_name} PRIVATE mundy)
+if(ENABLE_UNIT_TESTS)
+  # Unit tests are a separate executable and depend on libmundy and GoogleTest/GoogleMock
+  include(FetchContent)
+  FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG        release-1.12.1
+  )
+
+  # For Windows: Prevent overriding the parent project's compiler/linker settings
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
+
+  # Link against gtest_main and mundy
+  target_link_libraries(${utest_ex_name} PRIVATE 
+    mundy 
+    GTest::gtest 
+    GTest::gtest_main 
+    GTest::gmock 
+    GTest::gmock_main)
+  target_include_directories(${utest_ex_name} PRIVATE 
+    "${CMAKE_SOURCE_DIR}/unit_tests"
+    "${googletest_SOURCE_DIR}/googlemock/include"
+    "${googletest_SOURCE_DIR}/googletest/include")
+endif()
 
 add_subdirectory(src)
+add_subdirectory(include)
+if(ENABLE_UNIT_TESTS)
+  add_subdirectory(unit_tests)
+endif()
 
+if(ENABLE_UNIT_TESTS)
+  install(TARGETS ${utest_ex_name}
+          EXPORT "${PROJECT_NAME}Targets"
+          RUNTIME DESTINATION bin
+          ARCHIVE DESTINATION lib
+          LIBRARY DESTINATION lib)
+endif()
 install(TARGETS ${mundy_exe_name} mundy
         EXPORT "${PROJECT_NAME}Targets"
         RUNTIME DESTINATION bin
