@@ -17,23 +17,42 @@
 // **********************************************************************************************************************
 // @HEADER
 
-// External libs
-#include "gmock/gmock.h"  // for InitGoogleMock, etc
-#include "gtest/gtest.h"  // for InitGoogleTest, etc
-#include "mpi.h"          // for MPI_Init, MPI_Finalize, etc
+#ifndef MUNDY_MATH_TOLERANCE_HPP_
+#define MUNDY_MATH_TOLERANCE_HPP_
 
+// External libs
 #include <Kokkos_Core.hpp>
 
-int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
-  Kokkos::initialize(argc, argv);
+// C++ core libs
+#include <cmath>
+#include <concepts>
+#include <initializer_list>
+#include <iostream>
+#include <type_traits>
 
-  testing::InitGoogleMock(&argc, argv);
+// Our libs
+#include <mundy/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 
-  int return_val = RUN_ALL_TESTS();
+namespace mundy {
 
-  Kokkos::finalize();
-  MPI_Finalize();
+namespace math {
 
-  return return_val;
+/// \brief Function to get the default tolerance for a type.
+/// \tparam T The type to get the tolerance for.
+template <typename T>
+constexpr T get_default_tolerance() {
+  if constexpr (std::is_same_v<T, float>) {
+    return 1e-6f;
+  } else if constexpr (std::is_same_v<T, double>) {
+    return 1e-6;
+  } else {
+    // For integral types, tolerance doesn't make sense, return 0
+    return T(0);
+  }
 }
+
+}  // namespace math
+
+}  // namespace mundy
+
+#endif  // MUNDY_MATH_TOLERANCE_HPP_

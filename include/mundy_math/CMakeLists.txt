@@ -16,10 +16,3 @@
 #
 # **********************************************************************************************************************
 # @HEADER
-
-add_subdirectory(mundy)
-add_subdirectory(mundy_agent)
-add_subdirectory(mundy_math)
-add_subdirectory(mundy_mesh)
-add_subdirectory(mundy_meta)
-add_subdirectory(mundy_shape)
