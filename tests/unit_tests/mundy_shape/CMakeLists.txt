@@ -20,8 +20,8 @@
 # Here, we attempt to organize unit tests logically by dependencies (not by spelling). Simple classes are tested first 
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
-target_sources(${utest_ex_name} PRIVATE
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestVector3.cpp
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestMatrix3.cpp
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestQuaternion.cpp
-)
+target_sources(test_all PRIVATE
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestComputeAABB.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestComputeBoundingRadius.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestComputeOBB.cpp
+   )

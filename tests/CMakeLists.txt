@@ -17,9 +17,20 @@
 # **********************************************************************************************************************
 # @HEADER
 
-# Here, we attempt to organize unit tests logically by dependencies (not by spelling). Simple classes are tested first 
-# and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
-# as it produces more logical error messages when a test fails.
-target_sources(${utest_ex_name} PRIVATE
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestThrowAssert.cpp
-)
+###############################################################################
+# Fetch google test
+###############################################################################
+include(FetchContent)
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY  https://github.com/google/googletest.git
+    GIT_TAG         release-1.12.1
+    )
+# Do the same Windows preventing override from MuNDy
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+# Create the test files directory
+set(TEST_FILES_DIR ${CMAKE_SOURCE_DIR}/tests/test_files)
+
+add_subdirectory(unit_tests)
