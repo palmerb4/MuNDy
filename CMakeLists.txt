@@ -35,7 +35,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED)
 
 # Create targets
 set(mundy_exe_name "mundy.X")
-add_executable(${mundy_exe_name} ${CMAKE_CURRENT_SOURCE_DIR}/test_mundy_app.cpp)
+add_executable(${mundy_exe_name} ${CMAKE_CURRENT_SOURCE_DIR}/mundy.cpp)
 add_library(mundy "")
 
 if(ENABLE_UNIT_TESTS)
@@ -80,7 +80,7 @@ if(ENABLE_CUDA)
     target_compile_options(mundy PUBLIC $<$<COMPILE_LANGUAGE:CXX>:--expt-relaxed-constexpr>)
 endif()
 
-# ############################################### TEST_STK_APP ##########################################################
+# ############################################### MUNDY ##########################################################
 message(STATUS "CMAKE_SYSTEM_NAME = ${CMAKE_SYSTEM_NAME}")
 message(STATUS "CMAKE_CXX_COMPILER_ID = ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
@@ -146,6 +146,10 @@ add_subdirectory(src)
 add_subdirectory(include)
 if(ENABLE_UNIT_TESTS)
   add_subdirectory(unit_tests)
+  
+  # Register our unit test executable with CTest
+  enable_testing()
+  add_test(NAME unit_tests COMMAND ${utest_ex_name})
 endif()
 
 if(ENABLE_UNIT_TESTS)

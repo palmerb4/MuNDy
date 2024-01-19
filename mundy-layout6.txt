@@ -175,3 +175,8 @@ radius field name, fetch the radius field, and then use MetaData to fetch the ra
 C++ only allows interfaces to change at compile-time not run-time. Is it possible to use the requirements to build something like this? No, we would need to use templates. 
 
 
+
+Notes for the newest wave of changes:
+  - STK has a ProfilerBlock concept, notifier concept, and sorter concept. See modification_end, sort_entities
+  - modification_end returns if it failed or not. We need to assert success.
+  - Sharing of ELEMENT_RANK or higher entities is not supported. 

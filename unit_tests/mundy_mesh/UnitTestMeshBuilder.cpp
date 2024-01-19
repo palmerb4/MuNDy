@@ -146,7 +146,7 @@ TEST(MeshBuilderTest, SpatialDimensionDefaultThenInitialize) {
 
 TEST(MeshBuilderTest, SetEntityRankNamesWithoutSpatialDimension) {
   MeshBuilder builder(MPI_COMM_WORLD);
-  builder.set_entity_rank_names({"node", "edge", "face", "elem", "constraint"});
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
   EXPECT_ANY_THROW(builder.create_bulk_data());
 }
 
@@ -166,7 +166,7 @@ TEST(MeshBuilderTest, SetSpatialDimensionAndEntityRankNames) {
   MeshBuilder builder(MPI_COMM_WORLD);
   const unsigned expected_spatial_dim = 3;
   builder.set_spatial_dimension(expected_spatial_dim);
-  std::vector<std::string> expected_rank_names = {"node", "edge", "face", "elem", "constraint"};
+  std::vector<std::string> expected_rank_names = {"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"};
   builder.set_entity_rank_names(expected_rank_names);
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
 

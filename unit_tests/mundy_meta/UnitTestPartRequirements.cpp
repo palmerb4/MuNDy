@@ -363,7 +363,7 @@ TEST(PartRequirementsMerge, AreFieldsMergable) {
     field5 (name=c, rank=NODE, dimension=3, min_number_of_states=5)
 
   Note, only fields with the same name AND rank will be merged. As a result, field2 will be merged with field 4 (this
-  should increase it's minimim number of states to 4), but field3 will not be merged with field 5 because they don't
+  should increase it's minimum number of states to 4), but field3 will not be merged with field 5 because they don't
   have the same rank.
   */
 
@@ -410,7 +410,7 @@ TEST(PartRequirementsMerge, ArePartAttributesMergable) {
     attribute4 (type=std::string)
 
   Note, only attributes with the same name will be merged. As a result, attribute2 will be merged with attribute 4
-  (this should increase it's minimim number of states to 4), but attribute3 will not be merged with attribute 5 because
+  (this should increase it's minimum number of states to 4), but attribute3 will not be merged with attribute 5 because
   they don't have the same name.
   */
 

@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
   const size_t spatial_dimension = 3;
   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(spatial_dimension);
-  builder.set_entity_rank_names({"node", "edge", "face", "elem", "constraint"});
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create();
 
   if (bulk_data_ptr->parallel_size() == 2) {
