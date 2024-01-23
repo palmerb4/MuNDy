@@ -10,22 +10,31 @@ SET(HEADERS "")
 SET(SOURCES "")
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
-tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-SET(HEADERS ${HEADERS}
-  ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
-  )
+tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-APPEND_GLOB(HEADERS ${CMAKE_CURRENT_BINARY_DIR}/include/mundy_mesh/*.hpp)
-APPEND_GLOB(SOURCES ${CMAKE_CURRENT_BINARY_DIR}/src/mundy_mesh/*.cpp)
+APPEND_GLOB(HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/mundy_mesh/*.hpp)
+APPEND_GLOB(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mundy_mesh/*.cpp)
 
 #
 # C) Add the libraries, tests, and examples
 #
-tribits_add_library(
-  mundy_mesh
-  HEADERS ${HEADERS}
-  SOURCES ${SOURCES}
-  )
+list(LENGTH HEADERS HEADERS_LEN)
+list(LENGTH SOURCES SOURCES_LEN)
+
+if (HEADERS_LEN AND SOURCES_LEN)
+  # Add a standard library
+  tribits_add_library(
+    mundy_mesh
+    HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+    SOURCES ${SOURCES}
+    )
+elseif (HEADERS_LEN)
+  # Directly install the headers
+  tribits_install_headers(HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp)
+else()
+  # Empty package. Do nothing.
+endif()
 
 tribits_add_test_directories(tests)
 
