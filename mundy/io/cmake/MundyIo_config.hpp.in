@@ -1,0 +1,6 @@
+#ifndef MUNDYIO_CONFIG_H
+#define MUNDYIO_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYIO_CONFIG_H

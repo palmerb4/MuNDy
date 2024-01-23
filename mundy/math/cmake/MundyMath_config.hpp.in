@@ -1,0 +1,6 @@
+#ifndef MUNDYMATH_CONFIG_H
+#define MUNDYMATH_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYMATH_CONFIG_H

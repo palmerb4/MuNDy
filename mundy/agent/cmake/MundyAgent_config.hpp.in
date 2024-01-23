@@ -1,0 +1,6 @@
+#ifndef MUNDYAGENT_CONFIG_H
+#define MUNDYAGENT_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYAGENT_CONFIG_H

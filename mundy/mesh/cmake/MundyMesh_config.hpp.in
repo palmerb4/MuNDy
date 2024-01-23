@@ -1,0 +1,6 @@
+#ifndef MUNDYMESH_CONFIG_H
+#define MUNDYMESH_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYMESH_CONFIG_H

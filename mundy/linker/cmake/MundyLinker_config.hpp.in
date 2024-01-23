@@ -1,0 +1,6 @@
+#ifndef MUNDYLINKER_CONFIG_H
+#define MUNDYLINKER_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYLINKER_CONFIG_H

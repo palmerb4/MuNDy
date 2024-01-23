@@ -17,26 +17,4 @@
 # **********************************************************************************************************************
 # @HEADER
 
-cmake_minimum_required(VERSION 3.23.0 FATAL_ERROR)
-
-# Make CMake set WIN32 with CYGWIN for older CMake versions.  CMake requires
-# this to be in the top-level CMakeLists.txt file and not an include file :-(
-set(CMAKE_LEGACY_CYGWIN_WIN32 1 CACHE BOOL "" FORCE)
-
-# Get and declare PROJECT_NAME
-include("${CMAKE_CURRENT_SOURCE_DIR}/ProjectName.cmake")
-project(${PROJECT_NAME} NONE)
-
-set(TRIBITS_HIDE_DEPRECATED_INCLUDE_DIRECTORIES_OVERRIDE  TRUE)
-
-# Pull in the TriBITS system
-set(${PROJECT_NAME}_TRIBITS_DIR
-   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/TriBITS/tribits"  CACHE  STRING
-  "TriBITS base directory (default assumes in TriBITS source tree)")
-include("${${PROJECT_NAME}_TRIBITS_DIR}/TriBITS.cmake")
-
-# Mundy only has one project so just enable it :-)
-set(${PROJECT_NAME}_ENABLE_Mundy ON CACHE BOOL "" FORCE)
-
-# Do all of the processing for this Tribits project
-tribits_project()
+add_subdirectory(mundy_agent)

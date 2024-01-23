@@ -180,3 +180,13 @@ Notes for the newest wave of changes:
   - STK has a ProfilerBlock concept, notifier concept, and sorter concept. See modification_end, sort_entities
   - modification_end returns if it failed or not. We need to assert success.
   - Sharing of ELEMENT_RANK or higher entities is not supported. 
+
+
+By breaking up mundy into subpackages such that users can disable different pieces of mundy based on their needs,
+we have better exposed the interactions between functional subgroups within mundy and some of the flaws in the current groupings.
+We should still have core, math, mesh, meta, agent, shape, constraint, linker but larger collections like init
+that attempt to perform initialization for all agent types, don't much much sense. If I don't want constraints, why should I be
+forced to include constraints just to initialize my shapes. Each agent type should have its own initialization routines. The same
+isn't quite true for motion, which includes custom routines for time integration, particle mobility, and constraint resolution. 
+We should move particle mobility to shapes; the rest can stay. 
+

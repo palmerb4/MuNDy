@@ -1,0 +1,6 @@
+#ifndef MUNDYMOTION_CONFIG_H
+#define MUNDYMOTION_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYMOTION_CONFIG_H

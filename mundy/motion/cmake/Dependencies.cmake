@@ -1,0 +1,4 @@
+tribits_package_define_dependencies(
+  LIB_REQUIRED_PACKAGES MundyCore MundyMesh MundyMeta
+  LIB_OPTIONAL_PACKAGES MundyShape MundyConstraint
+  )

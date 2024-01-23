@@ -1,0 +1,6 @@
+#ifndef MUNDYBALANCE_CONFIG_H
+#define MUNDYBALANCE_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYBALANCE_CONFIG_H

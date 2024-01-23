@@ -1,0 +1,6 @@
+#ifndef MUNDYCORE_CONFIG_H
+#define MUNDYCORE_CONFIG_H
+
+// Declare special variables
+
+#endif // MUNDYCORE_CONFIG_H
