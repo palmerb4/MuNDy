@@ -35,7 +35,7 @@
 #include <mundy_meta/MetaFactory.hpp>                                    // for mundy::meta::GlobalMetaMethodFactory
 #include <mundy_meta/MetaKernelDispatcher.hpp>                           // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>                                   // for MUNDY_REGISTER_METACLASS
-#include <mundy_motion/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::motion::...::RigidBodyMotion
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_surface_force_to_rigid_body_force/kernels/Sphere.hpp>  // for mundy::motion::...::kernels::Sphere
 
 namespace mundy {
 
@@ -104,10 +104,11 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaKernelDispatcher
 //! \name Registration
 //@{
 
-/// @brief Register MapSurfaceForceToRigidBodyForce with RigidBodyMotion's method factory.
+/// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS(
-    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce,
-    mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
+    mundy::motion::compute_mobility::techniques::rigid_body_motion::map_surface_force_to_rigid_body_force::kernels::
+        Sphere,
+    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce::OurKernelFactory)
 //}
 
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAPSURFACEFORCETORIGIDBODYFORCE_HPP_

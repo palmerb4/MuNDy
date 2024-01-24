@@ -31,11 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/StringLiteral.hpp>                 // for mundy::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                 // for mundy_core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
+#include <mundy_motion/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::motion::compute_mobility::techniques::RigidBodyMotion
 
 namespace mundy {
 
@@ -44,7 +45,7 @@ namespace motion {
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class ComputeMobility
-    : public mundy::meta::MetaTechniqueDispatcher<ComputeMobility, mundy::make_string_literal("RIGID_BODY_MOTION")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ComputeMobility, mundy_core::make_string_literal("RIGID_BODY_MOTION")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -94,6 +95,11 @@ class ComputeMobility
 
 /// @brief Register ComputeMobility with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::motion::ComputeMobility, mundy::meta::GlobalMetaMethodFactory<void>)
+
+/// @brief Register our default techniques
+MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::RigidBodyMotion,
+                         mundy::motion::ComputeMobility::OurMethodFactory)
+
 //@}
 
 #endif  // MUNDY_METHODS_COMPUTEMOBILITY_HPP_

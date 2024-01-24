@@ -42,7 +42,6 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::motion::...::MapRigidBodyVelocityToSurfaceVelocity
 
 namespace mundy {
 
@@ -259,15 +258,5 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 }  // namespace motion
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register Sphere with MapRigidBodyVelocityToSurfaceVelocity's kernel factory.
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::
-                             map_rigid_body_velocity_to_surface_velocity::kernels::Sphere,
-                         mundy::motion::compute_mobility::techniques::rigid_body_motion::
-                             MapRigidBodyVelocityToSurfaceVelocity::OurKernelFactory)
-//}
 
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY_KERNELS_SPHERE_HPP_

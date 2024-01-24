@@ -24,11 +24,10 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/StringLiteral.hpp>                                        // for mundy::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                                        // for mundy_core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                                        // for mundy::mesh::BulkData
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>                         // for mundy::meta::MetaTechniqueDispatcher
 #include <mundy_motion/ResolveConstraints.hpp>                            // for mundy::motion::ResolveConstraints
-#include <mundy_motion/resolve_constraints/techniques/AllTechniques.hpp>  // performs the registration of all techniques
 
 namespace mundy {
 
@@ -39,7 +38,7 @@ namespace motion {
 
 ResolveConstraints::ResolveConstraints(mundy::mesh::BulkData *const bulk_data_ptr,
                                        const Teuchos::ParameterList &fixed_params)
-    : mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::make_string_literal("NON_SMOOTH_LCP")>(
+    : mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy_core::make_string_literal("NON_SMOOTH_LCP")>(
           bulk_data_ptr, fixed_params) {
 }
 //}

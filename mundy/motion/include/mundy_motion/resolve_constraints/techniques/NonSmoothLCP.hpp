@@ -36,15 +36,18 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>               // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>              // for mundy::mesh::MetaData
-#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
-#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>      // for mundy::meta::PartRequirements
-#include <mundy_motion/ResolveConstraints.hpp>  // for mundy::motion::ResolveConstraints
+#include <mundy_constraint/ComputeConstraintForcing.hpp>     // for mundy::constraint::ComputeConstraintForcing
+#include <mundy_constraint/ComputeConstraintProjection.hpp>  // for mundy::constraint::ComputeConstraintProjection
+#include <mundy_constraint/ComputeConstraintResidual.hpp>    // for mundy::constraint::ComputeConstraintResidual
+#include <mundy_constraint/ComputeConstraintViolation.hpp>   // for mundy::constraint::ComputeConstraintViolation
+#include <mundy_core/throw_assert.hpp>                       // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                           // for mundy::mesh::MetaData
+#include <mundy_meta/MetaFactory.hpp>                        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethod.hpp>                         // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaRegistry.hpp>                       // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>                   // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -60,6 +63,11 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
   //@{
+
+  // TODO(palmerb4): MetaMethodFactory should be able to spawn multiple factories for a single class.
+  // Below, we see why this is necessary. Even though we have different aliases for the various factories,
+  // three of them are actually the same type. To me, this tells me that RegistryIdentifier_t should be replaced with
+  // compile-time strings via mundy_core::Stringliteral.
 
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
@@ -408,9 +416,25 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
 //! \name Registration
 //@{
 
-/// @brief Register NonSmoothLCP with ResolveConstraints's method factory.
-MUNDY_REGISTER_METACLASS(mundy::motion::resolve_constraints::techniques::NonSmoothLCP,
-                         mundy::motion::ResolveConstraints::OurMethodFactory)
+/// @brief Register our default constraint forcing method with our method factory.
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintForcing,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintForcingMethodFactory)
+
+/// @brief Register our default constraint projection method with our method factory.
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintProjection,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintProjectionMethodFactory)
+
+/// @brief Register our default constraint residual method with our method factory.
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintResidual,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintResidualMethodFactory)
+
+/// @brief Register our default constraint violation method with our method factory.
+MUNDY_REGISTER_METACLASS(
+    mundy::constraint::ComputeConstraintViolation,
+    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintViolationMethodFactory)
 //}
 
 #endif  // MUNDY_MOTION_RESOLVE_CONSTRAINTS_TECHNIQUES_NONSMOOTHLCP_HPP_

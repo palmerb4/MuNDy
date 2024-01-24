@@ -43,7 +43,6 @@
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 #include <mundy_motion/ResolveConstraints.hpp>  // for mundy::motion::ResolveConstraints
 #include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
-#include <mundy_motion/resolve_constraints/techniques/non_smooth_lcp/AllSubMethods.hpp>  // performs the registration of all sub-methods
 
 namespace mundy {
 

@@ -31,11 +31,13 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/StringLiteral.hpp>                 // for mundy::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                 // for mundy_core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
+#include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
+#include <mundy_motion/resolve_constraints/techniques/PairwisePotential.hpp>  // for mundy::motion::...::PairwisePotential
 
 namespace mundy {
 
@@ -44,7 +46,7 @@ namespace motion {
 /// \class ResolveConstraints
 /// \brief Method for resolving constraints between N bodies
 class ResolveConstraints
-    : public mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::make_string_literal("NON_SMOOTH_LCP")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy_core::make_string_literal("NON_SMOOTH_LCP")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -94,6 +96,13 @@ class ResolveConstraints
 
 /// @brief Register ResolveConstraints with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::motion::ResolveConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
+
+/// @brief Register our default techniques
+MUNDY_REGISTER_METACLASS(mundy::motion::resolve_constraints::techniques::NonSmoothLCP,
+                         mundy::motion::ResolveConstraints::OurMethodFactory)
+
+MUNDY_REGISTER_METACLASS(mundy::motion::resolve_constraints::techniques::PairwisePotential,
+                          mundy::motion::ResolveConstraints::OurMethodFactory)
 //@}
 
 #endif  // MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_

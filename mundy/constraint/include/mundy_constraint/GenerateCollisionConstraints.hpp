@@ -46,6 +46,7 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_constraint/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::constraint::...::CollisionSphereSphere
 
 namespace mundy {
 
@@ -298,6 +299,10 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
 
 /// @brief Register GenerateCollisionConstraints with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::constraint::GenerateCollisionConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
+
+/// @brief Register our default kernels
+MUNDY_REGISTER_METACLASS(mundy::constraint::generate_collision_constraints::kernels::CollisionSphereSphere,
+                         mundy::constraint::GenerateCollisionConstraints::OurThreeWayKernelFactory)
 //@}
 
 #endif  // MUNDY_CONSTRAINT_GENERATECOLLISIONCONSTRAINTS_HPP_

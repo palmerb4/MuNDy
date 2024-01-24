@@ -46,7 +46,7 @@
 #include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>      // for mundy::meta::PartRequirements
-#include <mundy_motion/ComputeMobility.hpp>     // for mundy::motion::ComputeMobility
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/local_drag/kernels/Sphere.hpp>  // for mundy::motion::...::kernels::Sphere
 
 namespace mundy {
 
@@ -122,10 +122,12 @@ class LocalDrag : public mundy::meta::MetaKernelDispatcher<LocalDrag> {
 //! \name Registration
 //@{
 
-/// @brief Register LocalDrag with the ComputeMobility's method factory.
+/// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::
-                             map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag,
-                         mundy::motion::ComputeMobility::OurMethodFactory)
+                             map_rigid_body_force_to_rigid_body_velocity::techniques::local_drag::kernels::Sphere,
+                         mundy::motion::compute_mobility::techniques::rigid_body_motion::
+                             map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag::OurKernelFactory)
+
 //}
 
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY_TECHNIQUES_LOCALDRAG_HPP_

@@ -263,12 +263,4 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
 
 }  // namespace mundy
 
-//! \name Registration
-//@{
-
-/// @brief Register CollisionSphereSphere with GenerateCollisionConstraints's kernel factory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::generate_collision_constraints::kernels::CollisionSphereSphere,
-                         mundy::constraint::GenerateCollisionConstraints::OurThreeWayKernelFactory)
-//}
-
 #endif  // MUNDY_CONSTRAINT_GENERATE_COLLISION_CONSTRAINTS_KERNELS_COLLISIONSPHERESPHERE_HPP_

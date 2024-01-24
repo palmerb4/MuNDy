@@ -34,7 +34,7 @@
 #include <mundy_mesh/BulkData.hpp>                                       // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>                           // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>                                   // for mundy::meta::MetaMethodRegistry
-#include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
+#include <mundy_constraint/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::constraint::...::kernels::Collision
 
 namespace mundy {
 
@@ -90,10 +90,11 @@ class ComputeConstraintViolation : public mundy::meta::MetaKernelDispatcher<Comp
 //! \name Registration
 //@{
 
-/// @brief Register ComputeConstraintViolation with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(
-    mundy::constraint::ComputeConstraintViolation,
-    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintViolationMethodFactory)
-//}
+/// @brief Register our default kernels
+//@{
+
+MUNDY_REGISTER_METACLASS(mundy::constraint::compute_constraint_violation::kernels::Collision,
+                         mundy::constraint::ComputeConstraintViolation::OurKernelFactory)
+//@}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTVIOLATION_HPP_

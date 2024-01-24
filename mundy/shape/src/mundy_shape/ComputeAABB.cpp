@@ -27,7 +27,6 @@
 #include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>              // for mundy::meta::MetaKernelDispatcher
 #include <mundy_shape/ComputeAABB.hpp>                      // for mundy::shape::ComputeAABB
-#include <mundy_shape/compute_aabb/kernels/AllKernels.hpp>  // performs the registration of all kernels
 
 namespace mundy {
 

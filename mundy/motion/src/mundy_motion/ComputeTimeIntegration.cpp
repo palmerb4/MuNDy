@@ -24,11 +24,10 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/StringLiteral.hpp>                  // for mundy::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                  // for mundy_core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>   // for mundy::meta::MetaTechniqueDispatcher
 #include <mundy_motion/ComputeTimeIntegration.hpp>  // for mundy::motion::ComputeTimeIntegration
-#include <mundy_motion/compute_time_integration/techniques/AllTechniques.hpp>  // performs the registration of all techniques
 
 namespace mundy {
 
@@ -39,7 +38,7 @@ namespace motion {
 
 ComputeTimeIntegration::ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr,
                                                const Teuchos::ParameterList &fixed_params)
-    : mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::make_string_literal("NODE_EULER")>(
+    : mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy_core::make_string_literal("NODE_EULER")>(
           bulk_data_ptr, fixed_params) {
 }
 //}

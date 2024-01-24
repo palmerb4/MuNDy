@@ -44,7 +44,9 @@
 #include <mundy_meta/MetaMethod.hpp>         // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_motion/ComputeMobility.hpp>  // for mundy::motion::ComputeMobility
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapRigidBodyForceToRigidBodyVelocity.hpp>  // for mundy::motion::...::MapRigidBodyForceToRigidBodyVelocity
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::motion::...::MapRigidBodyVelocityToSurfaceVelocity
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp>        // for mundy::motion::...::MapSurfaceForceToRigidBodyForce
 
 namespace mundy {
 
@@ -61,6 +63,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
   //! \name Typedefs
   //@{
 
+  // TODO(palmerb4): OurMethodFactory needs to be broken into a different factory for each group of methods.
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, RigidBodyMotion>;
@@ -284,9 +287,15 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
 //! \name Registration
 //@{
 
-/// @brief Register RigidBodyMotion with ComputeMobility's method factory.
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::RigidBodyMotion,
-                         mundy::motion::ComputeMobility::OurMethodFactory)
+/// @brief Register our default method with our method factory.
+MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity,
+                         mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
+
+MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyVelocityToSurfaceVelocity,
+                         mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
+
+MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce,
+                          mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
 //}
 
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGIDBODYMOTION_HPP_

@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaMethod.hpp>                // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>              // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
-#include <mundy_motion/ComputeTimeIntegration.hpp>  // for mundy::meta::ComputeTimeIntegration
 
 namespace mundy {
 
@@ -250,13 +249,5 @@ class NodeEuler : public mundy::meta::MetaMethod<void> {
 }  // namespace motion
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register NodeEuler with ComputeTimeIntegration's method factory.
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_time_integration::techniques::NodeEuler,
-                         mundy::motion::ComputeTimeIntegration::OurMethodFactory)
-//}
 
 #endif  // MUNDY_MOTION_COMPUTE_TIME_INTEGRATION_TECHNIQUES_NODEEULER_HPP_

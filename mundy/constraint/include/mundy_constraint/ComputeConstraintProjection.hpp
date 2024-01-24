@@ -33,8 +33,8 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                                       // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>                           // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>                                   // for mundy::meta::MetaMethodRegistry
-#include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
+#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_constraint/compute_constraint_projection/kernels/Collision.hpp>  // for mundy::constraint::...::Collision
 
 namespace mundy {
 
@@ -90,10 +90,8 @@ class ComputeConstraintProjection : public mundy::meta::MetaKernelDispatcher<Com
 //! \name Registration
 //@{
 
-/// @brief Register ComputeConstraintProjection with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(
-    mundy::constraint::ComputeConstraintProjection,
-    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintProjectionMethodFactory)
-//}
+MUNDY_REGISTER_METACLASS(mundy::constraint::compute_constraint_projection::kernels::Collision,
+                         mundy::constraint::ComputeConstraintProjection::OurKernelFactory)
+//@}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTPROJECTION_HPP_

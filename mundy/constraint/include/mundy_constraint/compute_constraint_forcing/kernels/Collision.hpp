@@ -35,7 +35,6 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_constraint/ComputeConstraintForcing.hpp>  // for mundy::constraint::ComputeConstraintForcing
 #include <mundy_mesh/BulkData.hpp>                        // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                        // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>               // for mundy::meta::FieldRequirements
@@ -254,13 +253,5 @@ class Collision : public mundy::meta::MetaKernel<void> {
 }  // namespace constraint
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register Collision with ComputeConstraintForcing's kernel factory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::compute_constraint_forcing::kernels::Collision,
-                         mundy::constraint::ComputeConstraintForcing::OurKernelFactory)
-//}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTE_CONSTRAINT_FORCING_KERNELS_COLLISION_HPP_

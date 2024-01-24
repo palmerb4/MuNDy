@@ -44,7 +44,6 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
 
 namespace mundy {
 
@@ -59,7 +58,6 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<double> {
 
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<double>;
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<double, ComputeConstraintResidual>;
   //@}
 
   //! \name Constructors
@@ -187,14 +185,5 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<double> {
 }  // namespace constraint
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register ComputeConstraintResidual with NonSmoothLCP's method factory.
-MUNDY_REGISTER_METACLASS(
-    mundy::constraint::ComputeConstraintResidual,
-    mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintResidualMethodFactory)
-//}
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTRESIDUAL_HPP_

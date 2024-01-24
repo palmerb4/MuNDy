@@ -31,11 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy/StringLiteral.hpp>                 // for mundy::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                 // for mundy_core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
+#include <mundy_motion/compute_time_integration/techniques/NodeEuler.hpp>  // for mundy::motion::...::NodeEuler
 
 namespace mundy {
 
@@ -44,7 +45,7 @@ namespace motion {
 /// \class ComputeTimeIntegration
 /// \brief Method for moving particles forward in time (unconstrained).
 class ComputeTimeIntegration
-    : public mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::make_string_literal("NODE_EULER")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy_core::make_string_literal("NODE_EULER")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -94,6 +95,11 @@ class ComputeTimeIntegration
 
 /// @brief Register ComputeTimeIntegration with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::motion::ComputeTimeIntegration, mundy::meta::GlobalMetaMethodFactory<void>)
+
+/// @brief Register our default techniques
+MUNDY_REGISTER_METACLASS(mundy::motion::compute_time_integration::techniques::NodeEuler,
+                         mundy::motion::ComputeTimeIntegration::OurMethodFactory)
+
 //@}
 
 #endif  // MUNDY_METHODS_COMPUTETIMEINTEGRATION_HPP_

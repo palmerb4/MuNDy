@@ -25,7 +25,6 @@
 
 // Mundy libs
 #include <mundy_constraint/ComputeConstraintProjection.hpp>  // for mundy::constraint::ComputeConstraintProjection
-#include <mundy_constraint/compute_constraint_projection/kernels/AllKernels.hpp>  // performs the registration of all kernels
 #include <mundy_mesh/BulkData.hpp>                                                // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 

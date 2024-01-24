@@ -286,14 +286,4 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
 }  // namespace mundy
 
-//! \name Registration
-//@{
-
-/// @brief Register Sphere with MapSurfaceForceToRigidBodyForce's kernel factory.
-MUNDY_REGISTER_METACLASS(
-    mundy::motion::compute_mobility::techniques::rigid_body_motion::map_surface_force_to_rigid_body_force::kernels::
-        Sphere,
-    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce::OurKernelFactory)
-//}
-
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE_KERNELS_SPHERE_HPP_

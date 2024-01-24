@@ -29,6 +29,7 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
+#include <mundy_core/attribute_unused.hpp>  // for MUNDY_ATTRIBUTE_UNUSED
 #include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
 
 namespace mundy {
@@ -48,7 +49,7 @@ struct AgentRegistry {
   //@{
 
   /// @brief A flag for if the given type has been registered with \c AgentHierarchy or not.
-  static inline const bool is_registered = false;
+  static bool is_registered MUNDY_ATTRIBUTE_UNUSED;
   //@}
 };  // AgentRegistry
 
@@ -102,7 +103,7 @@ struct AgentRegistry {
   namespace agent {                                                                                                   \
   template <>                                                                                                         \
   struct AgentRegistry<ClassToRegister> {                                                                             \
-    static inline volatile const bool is_registered = AgentHierarchy::register_new_class<ClassToRegister>(); \
+    static volatile bool is_registered = AgentHierarchy::register_new_class<ClassToRegister>(); \
   };                                                                                                                  \
   }                                                                                                                   \
   }
