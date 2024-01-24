@@ -29,11 +29,11 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
+#include <mundy_core/attribute_unused.hpp>  // for MUNDY_ATTRIBUTE_UNUSED
 #include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>   // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>   // for mundy::meta::MetaMethod
-
 namespace mundy {
 
 namespace meta {
@@ -52,7 +52,7 @@ struct MetaRegistry {
   //@{
 
   /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
-  static inline const bool is_registered = false;
+  static bool is_registered MUNDY_ATTRIBUTE_UNUSED;
   //@}
 };  // MetaRegistry
 
@@ -140,7 +140,7 @@ struct MetaRegistry {
   namespace meta {                                                                                                 \
   template <>                                                                                                      \
   struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                              \
-    static inline volatile const bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(); \
+    static inline volatile bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(); \
   };                                                                                                               \
   }                                                                                                                \
   }

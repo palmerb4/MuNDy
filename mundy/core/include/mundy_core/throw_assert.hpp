@@ -30,7 +30,7 @@
 #include <string>
 
 // Trilinos libs
-#include "Teuchos_Assert.hpp"  // for TEUCHOS_TEST_FOR_EXCEPTION
+#include <Teuchos_Assert.hpp>  // for TEUCHOS_TEST_FOR_EXCEPTION
 
 /// \def MUNDY_THROW_ASSERT
 /// \brief Throw an exception if the given assertion is false.
