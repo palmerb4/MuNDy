@@ -38,5 +38,17 @@ include("${${PROJECT_NAME}_TRIBITS_DIR}/TriBITS.cmake")
 # Mundy only has one project so just enable it :-)
 set(${PROJECT_NAME}_ENABLE_Mundy ON CACHE BOOL "" FORCE)
 
+# Define some global flags
+set(${PROJECT_NAME}_CMAKE_CXX_STANDARD_DEFAULT 20)
+set(${PROJECT_NAME}_CMAKE_CXX_STANDARDS_ALLOWED "(20|23)")
+advanced_set(CMAKE_CXX_STANDARD ${${PROJECT_NAME}_CMAKE_CXX_STANDARD_DEFAULT}
+  CACHE STRING
+  "C++ standard number with values ${${PROJECT_NAME}_CMAKE_CXX_STANDARDS_ALLOWED} (default ${${PROJECT_NAME}_CMAKE_CXX_STANDARD_DEFAULT})")
+if (NOT CMAKE_CXX_STANDARD MATCHES "^${${PROJECT_NAME}_CMAKE_CXX_STANDARDS_ALLOWED}$")
+  MESSAGE(FATAL_ERROR
+    "CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} is not in the allowed set "
+    "${${PROJECT_NAME}_CMAKE_CXX_STANDARDS_ALLOWED}")
+endif ()
+
 # Do all of the processing for this Tribits project
 tribits_project()

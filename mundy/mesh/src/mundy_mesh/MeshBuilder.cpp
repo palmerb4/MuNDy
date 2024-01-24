@@ -35,7 +35,7 @@
 #include <stk_util/parallel/Parallel.hpp>                          // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>     // for BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for MetaData

@@ -35,7 +35,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory

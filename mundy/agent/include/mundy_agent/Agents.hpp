@@ -34,8 +34,6 @@
 #include <mundy_agent/AgentRegistry.hpp>    // for MUNDY_REGISTER_AGENT
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_shape/Shapes.hpp>           // to register the Shapes agent
-// #include <mundy_constraint/Constraints.hpp>  // to register the Constraints agent
 
 namespace mundy {
 

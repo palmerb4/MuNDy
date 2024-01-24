@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_STRINGLITERAL_HPP_
-#define MUNDY_STRINGLITERAL_HPP_
+#ifndef MUNDY_CORE_STRINGLITERAL_HPP_
+#define MUNDY_CORE_STRINGLITERAL_HPP_
 
 /// \file StringLiteral.cpp
 /// \brief Declaration of our StringLiteral class type.
@@ -27,6 +27,8 @@
 #include <iostream>
 
 namespace mundy {
+
+namespace core {
 
 /// \brief Literal class type that wraps a constant expression string.
 ///
@@ -90,6 +92,8 @@ constexpr StringLiteral<N> make_string_literal(const char (&str)[N]) {
   return StringLiteral<N>(str);
 }
 
+}  // namespace core
+
 }  // namespace mundy
 
-#endif  // MUNDY_STRINGLITERAL_HPP_
+#endif  // MUNDY_CORE_STRINGLITERAL_HPP_

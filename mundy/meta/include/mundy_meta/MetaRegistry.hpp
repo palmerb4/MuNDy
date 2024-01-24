@@ -29,7 +29,7 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>   // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>   // for mundy::meta::MetaMethod

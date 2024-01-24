@@ -12,7 +12,10 @@
 tribits_repository_define_tpls(
   MPI            "${${PROJECT_NAME}_TRIBITS_DIR}/core/std_tpls/"  PT
   CUDA           "${${PROJECT_NAME}_TRIBITS_DIR}/core/std_tpls/"  ST
-  KokkosCore     "cmake/TPLs/"                                    PT
+  Kokkos         "cmake/TPLs/"                                    PT
+  Teuchos        "cmake/TPLs/"                                    PT
+  STK            "cmake/TPLs/"                                    PT
   ArborX         "cmake/TPLs/"                                    PT
   ParMETIS       "cmake/TPLs/"                                    PT
+  gtest          "cmake/TPLs/"                                    PT
   )

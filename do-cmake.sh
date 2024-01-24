@@ -14,7 +14,9 @@ cmake \
 -DKokkos_ENABLE_OPENMP=OFF \
 -DKokkos_ENABLE_CUDA=OFF \
 -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS:-OFF} \
--DTrilinos_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DTPL_Kokkos_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DTPL_STK_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DTPL_Teuchos_DIR:PATH=${TRILINOS_ROOT_DIR} \
 ${ccache_args} \
 ${compiler_flags} \
 ${install_dir} \

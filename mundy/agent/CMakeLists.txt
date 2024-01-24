@@ -22,19 +22,14 @@ APPEND_GLOB(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mundy_agent/*.cpp)
 list(LENGTH HEADERS HEADERS_LEN)
 list(LENGTH SOURCES SOURCES_LEN)
 
-if (HEADERS_LEN AND SOURCES_LEN)
-  # Add a standard library
-  tribits_add_library(
-    mundy_agent
-    HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
-    SOURCES ${SOURCES}
-    )
-elseif (HEADERS_LEN)
-  # Directly install the headers
-  tribits_install_headers(HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp)
-else()
-  # Empty package. Do nothing.
-endif()
+
+# Add a standard library
+tribits_add_library(
+  mundy_agent
+  HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  SOURCES ${SOURCES}
+  )
+
 
 tribits_add_test_directories(tests)
 

@@ -41,7 +41,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                               // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                               // for MUNDY_THROW_ASSERT
 #include <mundy_agent/Agents.hpp>                               // for mundy::agent::agent_t
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable

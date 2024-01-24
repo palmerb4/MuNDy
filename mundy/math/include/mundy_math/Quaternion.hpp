@@ -27,7 +27,7 @@
 #include <initializer_list>  // for std::initializer_list
 
 // Our libs
-#include <mundy/throw_assert.hpp>    // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>    // for MUNDY_THROW_ASSERT
 #include <mundy_math/Accessor.hpp>   // for mundy::math::ValidAccessor
 #include <mundy_math/Array.hpp>      // for mundy::math::Array
 #include <mundy_math/Matrix3.hpp>    // for mundy::math::Matrix3

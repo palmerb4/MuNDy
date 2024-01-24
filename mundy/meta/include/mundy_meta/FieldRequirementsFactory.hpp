@@ -38,7 +38,7 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 
 namespace mundy {

@@ -1,1 +1,10 @@
-tribits_package_define_dependencies()
+tribits_package_define_dependencies(
+  LIB_REQUIRED_PACKAGES
+  LIB_OPTIONAL_PACKAGES
+  TEST_REQUIRED_PACKAGES
+  TEST_OPTIONAL_PACKAGES
+  LIB_REQUIRED_TPLS
+  LIB_OPTIONAL_TPLS
+  TEST_REQUIRED_TPLS gtest
+  TEST_OPTIONAL_TPLS
+  )

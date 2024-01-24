@@ -35,7 +35,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
 #include <mundy_constraint/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory

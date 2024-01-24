@@ -36,7 +36,7 @@
 #include <stk_util/parallel/ParallelReduce.hpp>  // for stk::all_reduce_max
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                          // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                          // for MUNDY_THROW_ASSERT
 #include <mundy_constraint/ComputeConstraintResidual.hpp>  // for mundy::constraint::ComputeConstraintResidual
 #include <mundy_mesh/BulkData.hpp>                         // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>                 // for mundy::meta::MeshRequirements

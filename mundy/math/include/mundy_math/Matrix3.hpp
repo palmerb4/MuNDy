@@ -31,7 +31,7 @@
 #include <type_traits>
 
 // Our libs
-#include <mundy/throw_assert.hpp>    // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>    // for MUNDY_THROW_ASSERT
 #include <mundy_math/Accessor.hpp>   // for mundy::math::ValidAccessor
 #include <mundy_math/Array.hpp>      // for mundy::math::Array
 #include <mundy_math/Tolerance.hpp>  // for mundy::math::get_default_tolerance
