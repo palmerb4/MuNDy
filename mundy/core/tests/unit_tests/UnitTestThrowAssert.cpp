@@ -27,6 +27,10 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 
+namespace mundy {
+
+namespace core {
+
 namespace {
 
 //! \name Throw assert tests
@@ -98,4 +102,8 @@ TEST(ThrowAssert, ThrowsCorrectMessage) {
 }
 //@}
 
-}  // namespace
+} // namespace 
+  
+}  // namespace core
+
+}  // namespace mundy

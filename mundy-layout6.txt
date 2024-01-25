@@ -1,3 +1,8 @@
+A note on naming: 
+Formally, Mundy is capitalized as MuNDy, in accordance with its fully expanded version Multi-body Nonlocal Dynamics. 
+This capitalization is, however, a pain when coding. As  result, we will refer to MuNDy as Mundy, mundy, or MUNDY depending 
+on the context but NEVER MuNDy.
+
 As Mundy grows, we need a higher level of abstraction and organization to better support our end goals. Toward this end, 
 we are restructuring Mundy into the following namespaces, classes, and methods. This is a work in progress and will be
 updated as we go. Where applicable, we show the parent class that our methods inherit from.

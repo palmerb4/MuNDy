@@ -2,13 +2,15 @@ tribits_package_decl(Mundy)
 
 tribits_add_debug_option()
 
-tribits_process_subpackages()
+# For some odd reason, our PACKAGE_SOURCE_DIR is not the current directory. It's ../ ??
 
-# If you have any excludes, declare them here
-#tribits_exclude_files(
-#  b/ExcludeFromRelease.txt
-#  b/src/AlsoExcludeFromTarball.txt
-#  )
+# Global variables
+GLOBAL_SET(MUNDY_DEFAULT_UNIT_TEST_MAIN
+  "${PACKAGE_SOURCE_DIR}/mundy/tests/unit_tests/DefaultUnitTestMain.cpp")
+
+tribits_add_test_directories(${PACKAGE_SOURCE_DIR}/mundy/tests)
+
+tribits_process_subpackages()
 
 tribits_package_def()
 

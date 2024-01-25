@@ -10,5 +10,10 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # Set the global variables for TriBITS
-GLOBAL_SET(TPL_gtest_INCLUDE_DIRS "${googletest_SOURCE_DIR}/googlemock/include;${googletest_SOURCE_DIR}/googletest/include")
-GLOBAL_SET(TPL_gtest_LIBRARIES "GTest::gtest;GTest::gtest_main;GTest::gmock;GTest::gmock_main")
+#GLOBAL_SET(TPL_gtest_INCLUDE_DIRS "${googletest_SOURCE_DIR}/googlemock/include;${googletest_SOURCE_DIR}/googletest/include")
+#GLOBAL_SET(TPL_gtest_LIBRARIES "GTest::gtest;GTest::gtest_main;GTest::gmock;GTest::gmock_main")
+
+tribits_extpkg_create_imported_all_libs_target_and_config_file(
+  gtest
+  INNER_FIND_PACKAGE_NAME gtest
+  IMPORTED_TARGETS_FOR_ALL_LIBS GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)

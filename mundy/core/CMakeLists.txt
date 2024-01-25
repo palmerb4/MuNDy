@@ -22,10 +22,6 @@ APPEND_GLOB(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mundy_core/*.cpp)
 list(LENGTH HEADERS HEADERS_LEN)
 list(LENGTH SOURCES SOURCES_LEN)
 
-message(STATUS "Headers: ${HEADERS}")
-message(STATUS "Sources: ${SOURCES}")
-
-
 # Add a standard library
 tribits_add_library(
   mundy_core

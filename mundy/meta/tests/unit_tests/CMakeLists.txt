@@ -19,13 +19,41 @@
 
 add_subdirectory(utils)
 
+
 # Here, we attempt to organize unit tests logically by dependencies (not by spelling). Simple classes are tested first 
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
-target_sources(${utest_ex_name} PRIVATE
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestFieldRequirements.cpp
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestPartRequirements.cpp
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestMeshRequirements.cpp
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestMetaFactory.cpp
-   ${CMAKE_CURRENT_SOURCE_DIR}/UnitTestMetaRegistry.cpp
-)
+tribits_add_executable_and_test(
+    UnitTestFieldRequirements
+    SOURCES
+      UnitTestFieldRequirements.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    )
+
+tribits_add_executable_and_test(
+    UnitTestPartRequirements
+    SOURCES
+      UnitTestPartRequirements.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    )
+
+tribits_add_executable_and_test(
+    UnitTestMeshRequirements
+    SOURCES
+      UnitTestMeshRequirements.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    )
+
+tribits_add_executable_and_test(
+    UnitTestMetaFactory
+    SOURCES
+      UnitTestMetaFactory.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    )
+
+tribits_add_executable_and_test(
+    UnitTestMetaRegistry
+    SOURCES
+      UnitTestMetaRegistry.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    )
