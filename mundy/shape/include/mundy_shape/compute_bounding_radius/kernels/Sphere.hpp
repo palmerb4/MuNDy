@@ -43,7 +43,6 @@
 #include <mundy_meta/MetaKernel.hpp>              // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>            // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>        // for mundy::meta::PartRequirements
-#include <mundy_shape/ComputeBoundingRadius.hpp>  // for mundy::shape::ComputeBoundingRadius
 #include <mundy_shape/shapes/Sphere.hpp>          // for mundy::shape::shapes::Sphere
 
 namespace mundy {
@@ -222,13 +221,5 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 }  // namespace shape
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register ComputeAABB with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::shape::compute_bounding_radius::kernels::Sphere,
-                         mundy::shape::ComputeBoundingRadius::OurKernelFactory)
-//}
 
 #endif  // MUNDY_SHAPE_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_

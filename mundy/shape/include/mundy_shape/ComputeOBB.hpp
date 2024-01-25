@@ -35,6 +35,7 @@
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::GlobalMetaMethodFactory
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
+#include <mundy_shape/compute_obb/kernels/Sphere.hpp>  // for mundy::shape::compute_obb::kernels::Sphere
 
 namespace mundy {
 
@@ -92,6 +93,9 @@ class ComputeOBB : public mundy::meta::MetaKernelDispatcher<ComputeOBB> {
 
 /// @brief Register ComputeOBB with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::shape::ComputeOBB, mundy::meta::GlobalMetaMethodFactory<void>)
-//}
+
+/// @brief Register our default kernels
+MUNDY_REGISTER_METACLASS(mundy::shape::compute_obb::kernels::Sphere, mundy::shape::ComputeOBB::OurKernelFactory)
+//@}
 
 #endif  // MUNDY_SHAPE_COMPUTEOBB_HPP_

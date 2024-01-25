@@ -31,12 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>            // for mundy_core::make_string_literal
+#include <mundy_core/StringLiteral.hpp>            // for mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>             // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
-#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp  // for mundy::motion::...::techniques::LocalDrag
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp> // for mundy::motion::...::techniques::LocalDrag
 
 namespace mundy {
 
@@ -52,7 +52,7 @@ namespace rigid_body_motion {
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class MapRigidBodyForceToRigidBodyVelocity
     : public mundy::meta::MetaTechniqueDispatcher<MapRigidBodyForceToRigidBodyVelocity,
-                                                  mundy_core::make_string_literal("LOCAL_DRAG")> {
+                                                  mundy::core::make_string_literal("LOCAL_DRAG")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -111,7 +111,7 @@ class MapRigidBodyForceToRigidBodyVelocity
 MUNDY_REGISTER_METACLASS(
     mundy::motion::compute_mobility::techniques::rigid_body_motion::map_rigid_body_force_to_rigid_body_velocity::
         techniques::LocalDrag,
-    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity)
+    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity::OurMethodFactory)
 //}
 
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAPRIGIDBODYFORCETORIGIDBODYVELOCITY_HPP_

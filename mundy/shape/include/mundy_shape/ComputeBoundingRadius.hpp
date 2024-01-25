@@ -35,6 +35,7 @@
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_shape/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::shape::compute_bounding_radius::kernels::Sphere
 
 namespace mundy {
 
@@ -92,6 +93,10 @@ class ComputeBoundingRadius : public mundy::meta::MetaKernelDispatcher<ComputeBo
 
 /// @brief Register ComputeBoundingRadius with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::shape::ComputeBoundingRadius, mundy::meta::GlobalMetaMethodFactory<void>)
+
+/// @brief Register our default kernels
+MUNDY_REGISTER_METACLASS(mundy::shape::compute_bounding_radius::kernels::Sphere,
+                         mundy::shape::ComputeBoundingRadius::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_SHAPE_COMPUTEBOUNDINGRADIUS_HPP_

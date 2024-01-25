@@ -31,7 +31,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                 // for mundy_core::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                 // for mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
@@ -45,7 +45,7 @@ namespace motion {
 /// \class ComputeTimeIntegration
 /// \brief Method for moving particles forward in time (unconstrained).
 class ComputeTimeIntegration
-    : public mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy_core::make_string_literal("NODE_EULER")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::core::make_string_literal("NODE_EULER")> {
  public:
   //! \name Constructors and destructor
   //@{

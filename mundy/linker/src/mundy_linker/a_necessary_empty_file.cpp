@@ -17,14 +17,5 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPE_COMPUTE_AABB_KERNELS_ALLKERNELS_HPP_
-#define MUNDY_SHAPE_COMPUTE_AABB_KERNELS_ALLKERNELS_HPP_
-
-/// \file AllKernels.hpp
-/// \brief The header file that includes all of the kernel headers.
-
-// Mundy includes
-#include <mundy_shape/compute_aabb/kernels/Sphere.hpp>
-#include <mundy_shape/compute_aabb/kernels/Spherocylinder.hpp>
-
-#endif  // MUNDY_SHAPE_COMPUTE_AABB_KERNELS_ALLKERNELS_HPP_
+/// \file a_necessary_empty_file.cpp
+/// \brief A file used to trick TriBITS into compiling header only packages/subpackages

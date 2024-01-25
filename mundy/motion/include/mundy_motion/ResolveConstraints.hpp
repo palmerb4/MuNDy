@@ -31,7 +31,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                 // for mundy_core::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                 // for mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
@@ -46,7 +46,7 @@ namespace motion {
 /// \class ResolveConstraints
 /// \brief Method for resolving constraints between N bodies
 class ResolveConstraints
-    : public mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy_core::make_string_literal("NON_SMOOTH_LCP")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::core::make_string_literal("NON_SMOOTH_LCP")> {
  public:
   //! \name Constructors and destructor
   //@{

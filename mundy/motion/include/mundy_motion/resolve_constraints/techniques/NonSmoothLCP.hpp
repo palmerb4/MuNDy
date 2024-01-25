@@ -67,7 +67,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
   // TODO(palmerb4): MetaMethodFactory should be able to spawn multiple factories for a single class.
   // Below, we see why this is necessary. Even though we have different aliases for the various factories,
   // three of them are actually the same type. To me, this tells me that RegistryIdentifier_t should be replaced with
-  // compile-time strings via mundy_core::Stringliteral.
+  // compile-time strings via mundy::core::Stringliteral.
 
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethod<void>;

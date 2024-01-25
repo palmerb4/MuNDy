@@ -49,7 +49,7 @@ struct AgentRegistry {
   //@{
 
   /// @brief A flag for if the given type has been registered with \c AgentHierarchy or not.
-  static bool is_registered MUNDY_ATTRIBUTE_UNUSED;
+  static inline volatile const bool is_registered MUNDY_ATTRIBUTE_UNUSED = false;
   //@}
 };  // AgentRegistry
 
@@ -103,7 +103,7 @@ struct AgentRegistry {
   namespace agent {                                                                                                   \
   template <>                                                                                                         \
   struct AgentRegistry<ClassToRegister> {                                                                             \
-    static volatile bool is_registered = AgentHierarchy::register_new_class<ClassToRegister>(); \
+    static inline volatile const bool is_registered = AgentHierarchy::register_new_class<ClassToRegister>(); \
   };                                                                                                                  \
   }                                                                                                                   \
   }

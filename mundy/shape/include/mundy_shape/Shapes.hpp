@@ -35,8 +35,6 @@
 #include <mundy_meta/FieldRequirements.hpp>       // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>        // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>        // for mundy::meta::PartRequirements
-#include <mundy_shape/shapes/Sphere.hpp>          // for mundy::shape::Sphere
-#include <mundy_shape/shapes/Spherocylinder.hpp>  // for mundy::shape::Spherocylinder
 
 namespace mundy {
 
@@ -157,6 +155,11 @@ class Shapes {
 
 }  // namespace mundy
 
+//! Registration
+//@{
+
+/// @brief Register Shapes with the Agent Hierarchy
 MUNDY_REGISTER_AGENT(mundy::shape::Shapes)
+//@}
 
 #endif  // MUNDY_SHAPE_SHAPES_HPP_

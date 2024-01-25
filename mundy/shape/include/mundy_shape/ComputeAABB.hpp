@@ -35,6 +35,8 @@
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::GlobalMetaMethodFactory
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
+#include <mundy_shape/compute_aabb/kernels/Sphere.hpp>  // for mundy::shape::compute_aabb::kernels::Sphere
+#include <mundy_shape/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::shape::compute_aabb::kernels::Spherocylinder
 
 namespace mundy {
 
@@ -92,6 +94,11 @@ class ComputeAABB : public mundy::meta::MetaKernelDispatcher<ComputeAABB> {
 
 /// @brief Register ComputeAABB with the global MetaMethodFactory.
 MUNDY_REGISTER_METACLASS(mundy::shape::ComputeAABB, mundy::meta::GlobalMetaMethodFactory<void>)
-//}
+
+/// @brief Register our default kernels
+MUNDY_REGISTER_METACLASS(mundy::shape::compute_aabb::kernels::Sphere, mundy::shape::ComputeAABB::OurKernelFactory)
+
+MUNDY_REGISTER_METACLASS(mundy::shape::compute_aabb::kernels::Spherocylinder, mundy::shape::ComputeAABB::OurKernelFactory)
+//@}
 
 #endif  // MUNDY_SHAPE_COMPUTEAABB_HPP_

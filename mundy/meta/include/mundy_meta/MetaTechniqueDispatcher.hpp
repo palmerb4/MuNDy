@@ -37,7 +37,7 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>          // for mundy_core::StringLiteral
+#include <mundy_core/StringLiteral.hpp>          // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
@@ -51,7 +51,7 @@ namespace mundy {
 
 namespace meta {
 
-template <typename RegistryIdentifier, mundy_core::StringLiteral DefaultMethodStringLiteral>
+template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
 class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
  public:
   //! \name Typedefs
@@ -191,7 +191,7 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
 // // \name Constructors and destructor
 // //{
 
-// template <typename RegistryIdentifier, mundy_core::StringLiteral DefaultMethodStringLiteral>
+// template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
 // MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::MetaTechniqueDispatcher(
 //     mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
 //   // Forward the inputs to the technique.
@@ -203,7 +203,7 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
 // // \name MetaFactory static interface implementation
 // //{
 
-// template <typename RegistryIdentifier, mundy_core::StringLiteral DefaultMethodStringLiteral>
+// template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
 // void MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::set_mutable_params(
 //     const Teuchos::ParameterList &mutable_params) {
 //   // Forward the inputs to the technique.
@@ -214,7 +214,7 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
 // // \name Actions
 // //{
 
-// template <typename RegistryIdentifier, mundy_core::StringLiteral DefaultMethodStringLiteral>
+// template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
 // void MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::execute(
 //     const stk::mesh::Selector &input_selector) {
 //   // Forward the inputs to the technique.

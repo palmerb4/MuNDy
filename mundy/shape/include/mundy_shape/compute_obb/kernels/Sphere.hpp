@@ -43,7 +43,6 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_shape/ComputeOBB.hpp>        // for mundy::shape::ComputeOBB
 #include <mundy_shape/shapes/Sphere.hpp>     // for mundy::shape::shapes::Sphere
 
 namespace mundy {
@@ -230,12 +229,5 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 }  // namespace shape
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register Sphere with ComputeOBB's kernel factory.
-MUNDY_REGISTER_METACLASS(mundy::shape::compute_obb::kernels::Sphere, mundy::shape::ComputeOBB::OurKernelFactory)
-//}
 
 #endif  // MUNDY_SHAPE_COMPUTE_OBB_KERNELS_SPHERE_HPP_

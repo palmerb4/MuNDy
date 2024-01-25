@@ -43,7 +43,6 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_shape/ComputeAABB.hpp>       // for mundy::shape::ComputeAABB
 #include <mundy_shape/shapes/Sphere.hpp>     // for mundy::shape::shapes::Sphere
 
 namespace mundy {
@@ -228,13 +227,5 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 }  // namespace shape
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-/// @brief Forward declaration of ComputeAABB to avoid circular dependencies and reduce compile times.
-
-/// @brief Register ComputeAABB with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::shape::compute_aabb::kernels::Sphere, mundy::shape::ComputeAABB::OurKernelFactory)
-//}
 
 #endif  // MUNDY_SHAPE_COMPUTE_AABB_KERNELS_SPHERE_HPP_

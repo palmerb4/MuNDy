@@ -31,7 +31,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                 // for mundy_core::make_string_literal
+#include <mundy_core/StringLiteral.hpp>                 // for mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
@@ -45,7 +45,7 @@ namespace motion {
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class ComputeMobility
-    : public mundy::meta::MetaTechniqueDispatcher<ComputeMobility, mundy_core::make_string_literal("RIGID_BODY_MOTION")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ComputeMobility, mundy::core::make_string_literal("RIGID_BODY_MOTION")> {
  public:
   //! \name Constructors and destructor
   //@{
