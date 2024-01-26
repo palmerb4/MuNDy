@@ -197,7 +197,6 @@ TYPED_TEST(Matrix3SingleTypeTest, Comparison) {
 
 TYPED_TEST(Matrix3SingleTypeTest, CopyConstructor) {
   Matrix3<TypeParam> m1{1, 2, 3, 4, 5, 6, -7, -8, -9};
-  ASSERT_NO_THROW(Matrix3<TypeParam>(m1));
   Matrix3<TypeParam> m2(m1);
   is_close_debug(m1, m2, "Copy constructor failed.");
 

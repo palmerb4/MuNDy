@@ -194,7 +194,6 @@ TYPED_TEST(Vector3SingleTypeTest, Comparison) {
 
 TYPED_TEST(Vector3SingleTypeTest, CopyConstructor) {
   Vector3<TypeParam> v1{1, 2, 3};
-  ASSERT_NO_THROW(Vector3<TypeParam>(v1));
   Vector3<TypeParam> v2(v1);
   is_close_debug(v1, v2, "Copy constructor failed.");
 

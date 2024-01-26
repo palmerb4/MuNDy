@@ -4,24 +4,32 @@
 tribits_subpackage(Mesh)
 
 #
-# B) Define the header and source files 
+# B) Define the header and source files
 #
-SET(HEADERS "")
-SET(SOURCES "")
+
+# Headers are relative to the tribits_include_directory
+# We don't recommend typing these by hand. Use 
+# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
+
+SET(HEADERS 
+  include/mundy_mesh/MetaData.hpp
+  include/mundy_mesh/MeshBuilder.hpp
+  include/mundy_mesh/BulkData.hpp
+  )
+
+SET(SOURCES 
+  src/mundy_mesh/MeshBuilder.cpp
+  src/mundy_mesh/MetaData.cpp
+  )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
 tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-APPEND_GLOB(HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/mundy_mesh/*.hpp)
-APPEND_GLOB(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mundy_mesh/*.cpp)
-
 #
 # C) Add the libraries, tests, and examples
 #
-list(LENGTH HEADERS HEADERS_LEN)
-list(LENGTH SOURCES SOURCES_LEN)
-
 
 # Add a standard library
 tribits_add_library(

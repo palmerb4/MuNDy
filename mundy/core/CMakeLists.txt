@@ -4,30 +4,37 @@
 tribits_subpackage(Core)
 
 #
-# B) Define the header and source files 
+# B) Define the header and source files
 #
-SET(HEADERS "")
-SET(SOURCES "")
+
+# Headers are relative to the tribits_include_directory
+# We don't recommend typing these by hand. Use 
+# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
+
+SET(HEADERS 
+  include/mundy_core/throw_assert.hpp
+  include/mundy_core/StringLiteral.hpp
+  include/mundy_core/attribute_unused.hpp
+  )
+
+SET(SOURCES 
+  src/mundy_core/a_necessary_empty_file.cpp
+  )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
 tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-APPEND_GLOB(HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/mundy_core/*.hpp)
-APPEND_GLOB(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mundy_core/*.cpp)
-
 #
 # C) Add the libraries, tests, and examples
 #
-list(LENGTH HEADERS HEADERS_LEN)
-list(LENGTH SOURCES SOURCES_LEN)
 
 # Add a standard library
 tribits_add_library(
   mundy_core
   HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
   SOURCES ${SOURCES}
-  HEADERS_INSTALL_SUBDIR mundy_core
   )
 
 tribits_add_test_directories(tests)

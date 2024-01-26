@@ -17,9 +17,5 @@
 # **********************************************************************************************************************
 # @HEADER
 
-target_sources(mundy PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/LocalDrag.cpp
-)
-
 add_subdirectory(local_drag)
 

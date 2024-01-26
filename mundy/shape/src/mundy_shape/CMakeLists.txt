@@ -17,12 +17,6 @@
 # **********************************************************************************************************************
 # @HEADER
 
-target_sources(mundy PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeAABB.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeBoundingRadius.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeOBB.cpp
-)
-
 add_subdirectory(compute_aabb)
 add_subdirectory(compute_bounding_radius)
 add_subdirectory(compute_obb)

@@ -20,8 +20,8 @@
 #ifndef UNIT_TESTS_MUNDY_AGENT_UTILS_EXAMPLEAGENT_HPP_
 #define UNIT_TESTS_MUNDY_AGENT_UTILS_EXAMPLEAGENT_HPP_
 
-/// \file ExampleMetaMethod.hpp
-/// \brief Declaration of the ExampleMetaMethod class
+/// \file ExampleAgent.hpp
+/// \brief Declaration of the ExampleAgent class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr

@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef UNIT_TESTS_MUNDY_META_UTILS_MESHGENERATION_HPP_
-#define UNIT_TESTS_MUNDY_META_UTILS_MESHGENERATION_HPP_
+#ifndef MUNDY_META_UTILS_MESHGENERATION_HPP_
+#define MUNDY_META_UTILS_MESHGENERATION_HPP_
 
 /// \file MeshGeneration.hpp
 /// \brief A set of helper methods for generating meshes for unit tests.
@@ -80,4 +80,4 @@ generate_class_instance_and_mesh_from_meta_class_requirements(
 
 }  // namespace mundy
 
-#endif  // UNIT_TESTS_MUNDY_META_UTILS_MESHGENERATION_HPP_
+#endif  // MUNDY_META_UTILS_MESHGENERATION_HPP_

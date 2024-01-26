@@ -17,8 +17,4 @@
 # **********************************************************************************************************************
 # @HEADER
 
-target_sources(mundy PRIVATE
-${CMAKE_CURRENT_SOURCE_DIR}/RigidBodyMotion.cpp
-)
-
 add_subdirectory(rigid_body_motion)

@@ -35,7 +35,7 @@
 #include <mundy_agent/AgentRegistry.hpp>   // for mundy::agent::AgentRegistry
 
 // Mundy test libs
-#include <mundy_agent/utils/ExampleAgent.hpp>  // for mundy::agent::ExampleAgent
+#include "utils/ExampleAgent.hpp"  // for mundy::agent::ExampleAgent
 
 namespace mundy {
 

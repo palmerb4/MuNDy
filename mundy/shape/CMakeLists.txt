@@ -4,24 +4,44 @@
 tribits_subpackage(Agent)
 
 #
-# B) Define the header and source files 
+# B) Define the header and source files
 #
-SET(HEADERS "")
-SET(SOURCES "")
+
+# Headers are relative to the tribits_include_directory
+# We don't recommend typing these by hand. Use 
+# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
+
+SET(HEADERS 
+  include/mundy_shape/Shapes.hpp
+  include/mundy_shape/ComputeAABB.hpp
+  include/mundy_shape/ComputeBoundingRadius.hpp
+  include/mundy_shape/shapes/Spherocylinder.hpp
+  include/mundy_shape/shapes/Sphere.hpp
+  include/mundy_shape/compute_aabb/kernels/Spherocylinder.hpp
+  include/mundy_shape/compute_aabb/kernels/Sphere.hpp
+  include/mundy_shape/compute_bounding_radius/kernels/Sphere.hpp
+  include/mundy_shape/ComputeOBB.hpp
+  include/mundy_shape/compute_obb/kernels/Sphere.hpp
+  )
+
+SET(SOURCES 
+  src/mundy_shape/compute_aabb/kernels/Sphere.cpp
+  src/mundy_shape/compute_aabb/kernels/Spherocylinder.cpp
+  src/mundy_shape/compute_bounding_radius/kernels/Sphere.cpp
+  src/mundy_shape/ComputeBoundingRadius.cpp
+  src/mundy_shape/ComputeOBB.cpp
+  src/mundy_shape/ComputeAABB.cpp
+  src/mundy_shape/compute_obb/kernels/Sphere.cpp
+  )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
 tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-APPEND_GLOB(HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/mundy_shape/*.hpp)
-APPEND_GLOB(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mundy_shape/*.cpp)
-
 #
 # C) Add the libraries, tests, and examples
 #
-list(LENGTH HEADERS HEADERS_LEN)
-list(LENGTH SOURCES SOURCES_LEN)
-
 
 # Add a standard library
 tribits_add_library(

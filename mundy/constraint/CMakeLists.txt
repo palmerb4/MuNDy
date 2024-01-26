@@ -4,37 +4,53 @@
 tribits_subpackage(Constraint)
 
 #
-# B) Define the header and source files 
+# B) Define the header and source files
 #
-SET(HEADERS "")
-SET(SOURCES "")
+
+# Headers are relative to the tribits_include_directory
+# We don't recommend typing these by hand. Use 
+# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
+
+SET(HEADERS 
+  include/mundy_constraint/DeleteCollisionConstraints.hpp
+  include/mundy_constraint/ComputeConstraintForcing.hpp
+  # include/mundy_constraint/generate_collision_constraints/kernels/CollisionSphereSphere.hpp
+  include/mundy_constraint/compute_constraint_projection/kernels/Collision.hpp
+  include/mundy_constraint/ComputeConstraintProjection.hpp
+  include/mundy_constraint/compute_constraint_violation/kernels/Collision.hpp
+  include/mundy_constraint/ComputeConstraintViolation.hpp
+  include/mundy_constraint/compute_constraint_forcing/kernels/Collision.hpp
+  include/mundy_constraint/ComputeConstraintResidual.hpp
+  #include/mundy_constraint/GenerateCollisionConstraints.hpp
+  )
+
+SET(SOURCES 
+  # src/mundy_constraint/GenerateCollisionConstraints.cpp
+  # src/mundy_constraint/generate_collision_constraints/kernels/CollisionSphereSphere.cpp
+  src/mundy_constraint/ComputeConstraintViolation.cpp
+  src/mundy_constraint/ComputeConstraintResidual.cpp
+  src/mundy_constraint/compute_constraint_projection/kernels/Collision.cpp
+  src/mundy_constraint/compute_constraint_violation/kernels/Collision.cpp
+  src/mundy_constraint/ComputeConstraintProjection.cpp
+  src/mundy_constraint/compute_constraint_forcing/kernels/Collision.cpp
+  src/mundy_constraint/ComputeConstraintForcing.cpp
+  )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
 tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-APPEND_GLOB(HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/mundy_constraint/*.hpp)
-APPEND_GLOB(SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mundy_constraint/*.cpp)
-
 #
 # C) Add the libraries, tests, and examples
 #
-list(LENGTH HEADERS HEADERS_LEN)
-list(LENGTH SOURCES SOURCES_LEN)
 
-if (HEADERS_LEN AND SOURCES_LEN)
-  # Add a standard library
-  tribits_add_library(
-    mundy_constraint
-    HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
-    SOURCES ${SOURCES}
-    )
-elseif (HEADERS_LEN)
-  # Directly install the headers
-  tribits_install_headers(HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp)
-else()
-  # Empty package. Do nothing.
-endif()
+# Add a standard library
+tribits_add_library(
+  mundy_constraint
+  HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  SOURCES ${SOURCES}
+  )
 
 tribits_add_test_directories(tests)
 

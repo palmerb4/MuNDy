@@ -17,12 +17,6 @@
 # **********************************************************************************************************************
 # @HEADER
 
-target_sources(mundy PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeMobility.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ComputeTimeIntegration.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ResolveConstraints.cpp
-)
-
 add_subdirectory(compute_mobility)
 add_subdirectory(compute_time_integration)
 add_subdirectory(resolve_constraints)

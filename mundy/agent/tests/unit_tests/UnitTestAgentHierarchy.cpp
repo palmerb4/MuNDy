@@ -45,7 +45,7 @@
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
 // Mundy test libs
-#include <mundy_agent/utils/ExampleAgent.hpp>  // for mundy::agent::utils::ExampleAgent
+#include "utils/ExampleAgent.hpp"  // for mundy::agent::utils::ExampleAgent
 
 namespace mundy {
 

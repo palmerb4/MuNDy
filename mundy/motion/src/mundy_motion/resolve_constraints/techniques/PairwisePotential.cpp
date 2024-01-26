@@ -41,11 +41,11 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
-#include <mundy_methods/resolve_constraints/techniques/PairwisePotential.hpp>  // for mundy::methods::...::PairwisePotential
+#include <mundy_motion/resolve_constraints/techniques/PairwisePotential.hpp>  // for mundy::methods::...::PairwisePotential
 
 namespace mundy {
 
-namespace methods {
+namespace motion {
 
 namespace resolve_constraints {
 

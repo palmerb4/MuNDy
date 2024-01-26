@@ -223,7 +223,6 @@ TYPED_TEST(QuaternionSingleTypeTest, Comparison) {
 
 TYPED_TEST(QuaternionSingleTypeTest, CopyConstructor) {
   Quaternion<TypeParam> q1{1, 2, 3, 4};
-  ASSERT_NO_THROW(Quaternion<TypeParam>(q1));
   Quaternion<TypeParam> q2(q1);
   is_close_debug(q1, q2, "Copy constructor failed.");
 

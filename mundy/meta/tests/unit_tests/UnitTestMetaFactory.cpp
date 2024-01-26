@@ -44,7 +44,7 @@
 #include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaFactory
 
 // Mundy test libs
-#include <mundy_meta/utils/ExampleMetaMethod.hpp>  // for mundy::meta::utils::ExampleMetaMethod
+#include "utils/ExampleMetaMethod.hpp"  // for mundy::meta::utils::ExampleMetaMethod
 
 namespace mundy {
 
