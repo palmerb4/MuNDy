@@ -6,5 +6,5 @@ tribits_package_define_dependencies(
   LIB_REQUIRED_TPLS Kokkos
   LIB_OPTIONAL_TPLS
   TEST_REQUIRED_TPLS gtest
-  TEST_OPTIONAL_TPLS
+  TEST_OPTIONAL_TPLS MPI
   )

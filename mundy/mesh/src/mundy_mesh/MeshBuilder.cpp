@@ -27,6 +27,8 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
+#include <stk_util/stk_config.h>  // for MPI_COMM_NULL (MPI_COMM_NULL is defined by STK even if MPI is not enabled.)
+
 #include <stk_mesh/base/BulkData.hpp>                              // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>                      // for stk::mesh::FieldDataManager
 #include <stk_mesh/base/MeshBuilder.hpp>                           // for stk::mesh::MeshBuilder
@@ -35,10 +37,10 @@
 #include <stk_util/parallel/Parallel.hpp>                          // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>     // for BulkData
-#include <mundy_mesh/MeshBuilder.hpp>  // for MeshBuilder
-#include <mundy_mesh/MetaData.hpp>     // for MetaData
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>      // for BulkData
+#include <mundy_mesh/MeshBuilder.hpp>   // for MeshBuilder
+#include <mundy_mesh/MetaData.hpp>      // for MetaData
 
 namespace mundy {
 

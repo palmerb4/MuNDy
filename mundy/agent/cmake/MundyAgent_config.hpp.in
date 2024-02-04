@@ -1,6 +1,6 @@
 #ifndef MUNDYAGENT_CONFIG_H
 #define MUNDYAGENT_CONFIG_H
 
-// Declare special variables
+// Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
 #endif // MUNDYAGENT_CONFIG_H

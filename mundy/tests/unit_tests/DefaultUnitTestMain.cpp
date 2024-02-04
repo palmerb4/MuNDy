@@ -33,41 +33,32 @@
 ///
 ///  Here, MUNDY_DEFAULT_UNIT_TEST_MAIN is set to this file, DefaultUnitTestMain.cpp. TestName.cpp contains a collection
 ///  of GTEST-based unit tests. The above code will compile TestName.cpp and DefaultUnitTestMain.cpp into an executable
-///  called TestName. When the executable is run, it will run all of the unit tests in TestName.cpp in serial and MPI with one process.
-///  If the test was only meant to run in parallel, then COMM should be set to mpi. Conversely, if the test was only meant to run in serial,
-///  then COMM should be set to serial.
+///  called TestName. When the executable is run, it will run all of the unit tests in TestName.cpp in serial and MPI
+///  with one process. If the test was only meant to run in parallel, then COMM should be set to mpi. Conversely, if the
+///  test was only meant to run in serial, then COMM should be set to serial.
 
 // External libs
 #include <gmock/gmock.h>  // for EXPECT_THAT, HasSubstr, etc
 #include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
 
-#ifdef MUNDY_HAVE_MPI
-#include <mpi.h>
-#endif
-
-#ifdef MUNDY_HAVE_KOKKOS
-#include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize
-#endif
+// Trilinos libs
+#include <Kokkos_Core.hpp>                 // for Kokkos::initialize, Kokkos::finalize
+#include <stk_util/parallel/Parallel.hpp>  // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 int main(int argc, char** argv) {
-  #ifdef MUNDY_HAVE_MPI
-  MPI_Init(&argc,&argv);
-  #endif
+  // Initialize MPI and Kokkos
+  // Note, we mitigate our interaction with MPI through STK's stk::ParallelMachine.
+  // If STK is MPI enabled, then we're MPI enabled. As such, Mundy doesn't directly depend on or interact with MPI.
+  // However, if tests are to be run in parallel, then TPL_ENABLE_MPI must be set to ON in the TriBITS configuration.
 
-  #ifdef MUNDY_HAVE_KOKKOS
+  stk::parallel_machine_init(&argc, &argv);
   Kokkos::initialize(argc, argv);
-  #endif
 
   testing::InitGoogleMock(&argc, argv);
   int return_val = RUN_ALL_TESTS();
 
-  #ifdef MUNDY_HAVE_KOKKOS
   Kokkos::finalize();
-  #endif
-
-  #ifdef MUNDY_HAVE_MPI
-  MPI_Finalize();
-  #endif
+  stk::parallel_machine_finalize();
 
   return return_val;
 }

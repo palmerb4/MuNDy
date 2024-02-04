@@ -7,7 +7,6 @@ list(APPEND CMAKE_MODULE_PATH "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/cma
 #set(MUNDY_USES_BOOST @ENABLE_BOOST@)
 
 # Load dependency libraries so that the targets are available
-
 if (NOT ${Trilinos_FOUND})
   set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "@Trilinos_DIR@")
   find_package(Trilinos QUIET REQUIRED)
