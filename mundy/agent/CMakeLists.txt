@@ -13,6 +13,7 @@ tribits_subpackage(Agent)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(HEADERS 
+  include/mundy_agent/PerformRegistration.hpp
   include/mundy_agent/Agents.hpp
   include/mundy_agent/IsAgentType.hpp
   include/mundy_agent/AgentHierarchy.hpp
@@ -20,6 +21,7 @@ SET(HEADERS
   )
 
 SET(SOURCES 
+  src/mundy_agent/PerformRegistration.cpp
   src/mundy_agent/AgentHierarchy.cpp
   )
 

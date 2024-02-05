@@ -16,8 +16,3 @@
 #
 # **********************************************************************************************************************
 # @HEADER
-
-add_subdirectory(shapes)
-add_subdirectory(compute_aabb)
-add_subdirectory(compute_bounding_radius)
-add_subdirectory(compute_obb)

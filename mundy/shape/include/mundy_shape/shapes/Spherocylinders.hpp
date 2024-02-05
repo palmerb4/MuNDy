@@ -17,10 +17,10 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPE_SHAPES_SPHEROCYLINDER_HPP_
-#define MUNDY_SHAPE_SHAPES_SPHEROCYLINDER_HPP_
+#ifndef MUNDY_SHAPE_SHAPES_SPHEROCYLINDERS_HPP_
+#define MUNDY_SHAPE_SHAPES_SPHEROCYLINDERS_HPP_
 
-/// \file Spherocylinder.hpp
+/// \file Spherocylinders.hpp
 /// \brief Declaration of the Spherocylinders part class
 
 // C++ core libs
@@ -32,7 +32,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy includes
-#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
+#include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
@@ -43,12 +43,12 @@ namespace shape {
 
 namespace shapes {
 
-/// \class Spherocylinder
-/// \brief The static interface for all of Mundy's Spherocylinder shapes.
+/// \class Spherocylinders
+/// \brief The static interface for all of Mundy's Spherocylinders shapes.
 ///
 /// The design of this class is in accordance with the static interface requirements of
 /// mundy::agent::AgentHierarchy. After all, shapes are just a special type of agent.
-class Spherocylinder {
+class Spherocylinders {
  public:
   //! \name Getters
   //@{
@@ -181,7 +181,7 @@ class Spherocylinder {
     return part_reqs_ptr;
   }();
   //@}
-};  // Spherocylinder
+};  // Spherocylinders
 
 }  // namespace shapes
 
@@ -189,6 +189,4 @@ class Spherocylinder {
 
 }  // namespace mundy
 
-MUNDY_REGISTER_AGENT(mundy::shape::shapes::Spherocylinder)
-
-#endif  // MUNDY_SHAPE_SHAPES_SPHEROCYLINDER_HPP_
+#endif  // MUNDY_SHAPE_SHAPES_SPHEROCYLINDERS_HPP_

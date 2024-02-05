@@ -33,6 +33,7 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_shape/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::shape::compute_aabb::kernels::Spherocylinder
+#include <mundy_shape/shapes/Spherocylinders.hpp>               // for mundy::shape::shapes::Spherocylinders
 
 namespace mundy {
 
@@ -56,9 +57,9 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
-  const std::string node_coord_field_name = mundy::shape::shapes::Spherocylinder::get_node_coord_field_name();
-  const std::string element_radius_field_name = mundy::shape::shapes::Spherocylinder::get_element_radius_field_name();
-  const std::string element_length_field_name = mundy::shape::shapes::Spherocylinder::get_element_length_field_name();
+  const std::string node_coord_field_name = mundy::shape::shapes::Spherocylinders::get_node_coord_field_name();
+  const std::string element_radius_field_name = mundy::shape::shapes::Spherocylinders::get_element_radius_field_name();
+  const std::string element_length_field_name = mundy::shape::shapes::Spherocylinders::get_element_length_field_name();
   const std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
 
   // Store the input params.

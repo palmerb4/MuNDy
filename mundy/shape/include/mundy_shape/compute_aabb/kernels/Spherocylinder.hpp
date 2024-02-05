@@ -43,7 +43,6 @@
 #include <mundy_meta/MetaKernel.hpp>              // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>            // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/PartRequirements.hpp>        // for mundy::meta::PartRequirements
-#include <mundy_shape/shapes/Spherocylinder.hpp>  // for mundy::shape::shapes::Spherocylinder
 
 namespace mundy {
 

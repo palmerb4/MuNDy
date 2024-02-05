@@ -17,5 +17,21 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file a_necessary_empty_file.cpp
-/// \brief A file used to trick TriBITS into compiling header only packages/subpackages
+/// \file PerformRegistration.cpp
+/// \brief Perform all registrations within MundyAgent.
+
+// Mundy libs
+#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
+#include <mundy_agent/Agents.hpp>           // for mundy::agent::Agents
+
+namespace mundy {
+
+namespace agent {
+
+void perform_registration() {
+  AgentHierarchy::register_new_class<Agents>();
+}
+
+}  // namespace agent
+
+}  // namespace mundy

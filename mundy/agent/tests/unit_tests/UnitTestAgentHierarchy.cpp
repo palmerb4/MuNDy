@@ -37,7 +37,6 @@
 
 // Mundy libs
 #include <mundy_agent/AgentHierarchy.hpp>        // for mundy::agent::AgentHierarchy
-#include <mundy_agent/AgentRegistry.hpp>         // for mundy::agent::AgentRegistry
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
@@ -59,6 +58,7 @@ namespace {
 TEST(AgentHierarchyRegistration, RegistrationWorksProperly) {
   // Registration of a class with AgentHierarchy should allow access to the class's internal static methods.
   // This test checks that the registration was successful.
+  AgentHierarchy::register_new_class<mundy::agent::utils::ExampleAgent<3>>();
 }
 //@}
 
@@ -67,6 +67,3 @@ TEST(AgentHierarchyRegistration, RegistrationWorksProperly) {
 }  // namespace agent
 
 }  // namespace mundy
-
-// Register a class with AgentHierarchy
-MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<3>)

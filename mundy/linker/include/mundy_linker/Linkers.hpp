@@ -33,9 +33,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_agent/AgentRegistry.hpp>            // for MUNDY_REGISTER_AGENT
-#include <mundy_linker/linkers/Sphere.hpp>          // for mundy::linker::Sphere
-#include <mundy_linker/linkers/Spherocylinder.hpp>  // for mundy::linker::Spherocylinder
+#include <mundy_agent/AgentHierarchy.hpp>           // for mundy::agent::AgentHierarchy
 #include <mundy_meta/FieldRequirements.hpp>         // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
@@ -84,17 +82,17 @@ namespace linker {
 /// The following is an example of a linker that connects a sphere to a node on its surface partitioned over two ranks.
 ///                     RANK0                            |                  RANK1
 ///                                     CONSTRAINT1(A)   |              CONSTRAINT1(LO)
-///                                    /                 |             /      |        \
-///           SPRING1(LO)             /                  |            /   SPHERE1(LO)   |
-///          /           \           /                   |           /        |        /
+///                                    |                 |             |      |        |
+///           SPRING1(LO)             |                  |            |   SPHERE1(LO)   |
+///          |           |           |                   |           |        |        |
 /// NODE1(LO)             NODE2(LO,S)                    |   NODE2(S)         NODE3(LO)
 ///
 /// or we could divide this schematic a bit differently:
 ///                     RANK0                            |                  RANK1
 ///                                     CONSTRAINT1(A)   |              CONSTRAINT1(LO)
-///                                    /      |       \  |             /      |        \
-///           SPRING1(LO)             /   SPHERE1(LO)  | |            /   SPHERE1(A)    |
-///          /           \           /        |       /  |           /        |        /
+///                                    |      |       |  |             |      |        |
+///           SPRING1(LO)             |   SPHERE1(LO)  | |            |   SPHERE1(A)    |
+///          |           |           |        |       |  |           |        |        |
 /// NODE1(LO)             NODE2(LO,S)        NODE3(LO,S) |   NODE2(S)          NODE3(S)
 ///
 /// LO: Locally owned
@@ -235,7 +233,7 @@ void declare_relation(mundy::mesh::BulkData* const bulk_data_ptr, stk::mesh::Ent
   auto declare_relation_to_entity = [&](stk::mesh::Entity entity_to_link) {
     // Declare a relation between the linker and the entity.
     bulk_data_ptr->declare_relation(linker_from, entity_to_link,
-                                    ranked_relation_counter[bulk_data_ptr->entity_rank(entity_to_link)++]++);
+                                    ranked_relation_counter[bulk_data_ptr->entity_rank(entity_to_link) + 1]++);
   };
 
   // Lambda function to declare downward relations from the linker to the lower-ranked family tree of an entity.
@@ -244,7 +242,7 @@ void declare_relation(mundy::mesh::BulkData* const bulk_data_ptr, stk::mesh::Ent
     for (stk::mesh::EntityRank lower_rank :
          {stk::topology::NODE_RANK, stk::topology::EDGE_RANK, stk::topology::FACE_RANK}) {
       const unsigned num_connection_of_lower_rank = bulk_data_ptr->num_connectivity(entity_to_link, lower_rank);
-      const Entity* connected_entities_of_lower_rank = bulk_data_ptr->begin(entity_to_link, lower_rank);
+      const stk::mesh::Entity* connected_entities_of_lower_rank = bulk_data_ptr->begin(entity_to_link, lower_rank);
       for (unsigned i = 0; i < num_connection_of_lower_rank; ++i) {
         declare_relation_to_entity(connected_entities_of_lower_rank[i]);
       }
@@ -260,7 +258,5 @@ void declare_relation(mundy::mesh::BulkData* const bulk_data_ptr, stk::mesh::Ent
 }  // namespace linker
 
 }  // namespace mundy
-
-MUNDY_REGISTER_AGENT(mundy::linker::Linkers)
 
 #endif  // MUNDY_SHAPE_LINKERS_HPP_

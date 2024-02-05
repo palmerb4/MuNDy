@@ -34,9 +34,8 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>          // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
 #include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
-#include <mundy_agent/Agents.hpp>          // Performs the registration of the agent types.
 
 namespace mundy {
 

@@ -33,6 +33,7 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                                 // for mundy::mesh::BulkData
 #include <mundy_shape/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::shape::compute_bounding_radius::kernels::Sphere
+#include <mundy_shape/shapes/Spheres.hpp>                          // for mundy::shape::shapes::Spheres
 
 namespace mundy {
 
@@ -55,7 +56,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Fill the internal members using the given parameter list.
-  const std::string element_radius_field_name = mundy::shape::shapes::Sphere::get_element_radius_field_name();
+  const std::string element_radius_field_name = mundy::shape::shapes::Spheres::get_element_radius_field_name();
   const std::string element_bounding_radius_field_name =
       valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
 

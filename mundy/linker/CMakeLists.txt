@@ -13,12 +13,13 @@ tribits_subpackage(Agent)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(HEADERS 
+  include/mundy_linker/PerformRegistration.hpp
   include/mundy_linker/Linkers.hpp
   )
 
 SET(SOURCES 
-  src/mundy_linker/a_necessary_empty_file.cpp
-  )
+  src/mundy_linker/PerformRegistration.cpp
+)
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
 tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)

@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
-#include <mundy_agent/AgentRegistry.hpp>   // for mundy::agent::AgentRegistry
 
 // Mundy test libs
 #include "utils/ExampleAgent.hpp"  // for mundy::agent::ExampleAgent
@@ -50,6 +49,9 @@ struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
 
 TEST(AgentRegistry, AutoRegistration) {
   // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the AgentHierarchy
+  AgentHierarchy::register_new_class<mundy::agent::utils::ExampleAgent<1>>();
+  AgentHierarchy::register_new_class<mundy::agent::utils::ExampleAgent<2>>();
+
   EXPECT_GT(AgentHierarchy::get_number_of_registered_types(), 0);
   EXPECT_TRUE(AgentHierarchy::is_valid(mundy::agent::utils::ExampleAgent<1>::get_name(),
                                        mundy::agent::utils::ExampleAgent<1>::get_parent_name()));
@@ -64,11 +66,3 @@ TEST(AgentRegistry, AutoRegistration) {
 }  // namespace agent
 
 }  // namespace mundy
-
-// Registration shouldn't need to explicitly come before TEST, since it will be registered at compile time.
-
-// Register a class with AgentHierarchy
-MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<1>)
-
-// Register a different class with AgentHierarchy
-MUNDY_REGISTER_AGENT(mundy::agent::utils::ExampleAgent<2>)

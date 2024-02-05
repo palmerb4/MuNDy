@@ -29,33 +29,8 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
+#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
 #include <mundy_core/attribute_unused.hpp>  // for MUNDY_ATTRIBUTE_UNUSED
-#include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
-
-namespace mundy {
-
-namespace agent {
-
-/// \class AgentRegistry
-/// \brief A class for registering \c Agents with \c AgentHierarchy.
-///
-/// Most users shouldn't directly interface with this registry; instead, registration is performed using the provided
-/// MUNDY_REGISTER_AGENT macro. See the documentation for that macro for more information.
-///
-/// \tparam ClassToRegister A class derived from \c Agent that we wish to register.
-template <class ClassToRegister>
-struct AgentRegistry {
-  //! \name Member variable definitions
-  //@{
-
-  /// @brief A flag for if the given type has been registered with \c AgentHierarchy or not.
-  static inline volatile const bool is_registered MUNDY_ATTRIBUTE_UNUSED = false;
-  //@}
-};  // AgentRegistry
-
-}  // namespace agent
-
-}  // namespace mundy
 
 /// @brief A helper macro for registering a \c Agent with \c AgentHierarchy.
 ///
@@ -93,38 +68,11 @@ struct AgentRegistry {
 /// As long as these points are followed, the registration of agent type subclasses should occur before main()
 /// starts.
 ///
-/// \note To anyone reading this code, it may seem like the is_registered variable is unused. However, this is not the
-/// case. When the program is started, one of the first steps is to initialize static objects. Even if is_registered
-/// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-///
 /// \param ClassToRegister A class derived from \c Agent that we wish to register.
-#define MUNDY_REGISTER_AGENT(ClassToRegister)                                                                         \
-  namespace mundy {                                                                                                   \
-  namespace agent {                                                                                                   \
-  template <>                                                                                                         \
-  struct AgentRegistry<ClassToRegister> {                                                                             \
-    static inline volatile const bool is_registered = AgentHierarchy::register_new_class<ClassToRegister>(); \
-  };                                                                                                                  \
-  }                                                                                                                   \
-  }
-
-/// \brief A helper macro for checking if a \c Agent has been registered with \c AgentHierarchy.
-///
-/// This macro is used to check if a \c Agent has been registered with the \c AgentHierarchy. The macro should
-/// be used in the following way:
-///
-/// \code{.cpp}
-/// MUNDY_IS_AGENT_REGISTERED(ClassToCheck)
-/// \endcode
-///
-/// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
-/// \c MUNDY_IS_AGENT_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple
-/// definition errors.
-///
-/// \param ClassToCheck A class derived from \c Agent that we wish to check if it has been registered.
-#define MUNDY_IS_AGENT_REGISTERED(ClassToCheck)                      \
-  ([]() -> bool {                                                    \
-    return mundy::agent::AgentRegistry<ClassToCheck>::is_registered; \
-  }())
+#define TOKENPASTE(x, y) x##y
+#define TOKENPASTE2(x, y) TOKENPASTE(x, y)
+#define MUNDY_REGISTER_AGENT(... /* ClassToRegister */)                              \
+  static volatile bool TOKENPASTE2(__registered__, __LINE__) MUNDY_ATTRIBUTE_UNUSED = \
+      mundy::agent::AgentHierarchy::register_new_class<__VA_ARGS__>();
 
 #endif  // MUNDY_AGENT_AGENTREGISTRY_HPP_

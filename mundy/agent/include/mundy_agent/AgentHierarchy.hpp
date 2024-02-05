@@ -263,15 +263,15 @@ class AgentHierarchy {
                   "AgentHierarchy: The class to register doesn't have the correct get_mesh_requirements function.\n"
                   "See the documentation of AgentHierarchy for more information about the expected interface.");
 
-    std::cout << "AgentHierarchy: Registering class " << ClassToRegister::get_name() << " with id "
-              << number_of_registered_types_ << std::endl;
-
     // Ensure that the class name/parent name combo is unique.
     const std::string name = ClassToRegister::get_name();
     const std::string parent_name = ClassToRegister::get_parent_name();
-    MUNDY_THROW_ASSERT(!is_valid(name, parent_name), std::invalid_argument,
-                       "AgentHierarchy: The provided class's name '"
-                           << name << "' already exists for parent node with name '" << parent_name << "'.");
+    const bool already_registered = is_valid(name, parent_name);
+    if (already_registered) {
+      std::cout << "AgentHierarchy: Skipping registration for class " << ClassToRegister::get_name() << " with parent "
+                << parent_name << " because it is already registered." << std::endl;
+      return true;     
+    }
 
     // Get the agent type for this class.
     number_of_registered_types_++;
@@ -291,6 +291,9 @@ class AgentHierarchy {
     get_add_part_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_part_reqs));
     get_add_subpart_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_subpart_reqs));
     get_mesh_requirements_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_mesh_requirements));
+    
+    std::cout << "AgentHierarchy: Class " << ClassToRegister::get_name() << " registered with id "
+              << number_of_registered_types_ - 1 << " and parent " << parent_name << std::endl;
     return true;
   }
 

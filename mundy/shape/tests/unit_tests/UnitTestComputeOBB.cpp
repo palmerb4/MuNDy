@@ -43,6 +43,7 @@
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 #include <mundy_shape/ComputeOBB.hpp>            // for mundy::shape::ComputeOBB
+#include <mundy_shape/PerformRegistration.hpp>   // for mundy::shape::perform_registration
 
 // Mundy test libs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
@@ -57,6 +58,8 @@ namespace {
 //@{
 
 TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
+  perform_registration();
+
   /* Check that ComputeOBB works correctly for spheres.
   For a sphere at any arbitrary position, the OBB should be a cube with side length equal to the diameter of the sphere
   and center at the sphere's position.

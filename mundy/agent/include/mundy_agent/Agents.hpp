@@ -31,7 +31,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_agent/AgentRegistry.hpp>    // for MUNDY_REGISTER_AGENT
+#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
@@ -124,6 +124,5 @@ class Agents {
 
 }  // namespace mundy
 
-MUNDY_REGISTER_AGENT(mundy::agent::Agents)
 
 #endif  // MUNDY_AGENT_AGENTS_HPP_

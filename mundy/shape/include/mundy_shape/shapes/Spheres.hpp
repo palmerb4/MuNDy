@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPE_SHAPES_SPHERE_HPP_
-#define MUNDY_SHAPE_SHAPES_SPHERE_HPP_
+#ifndef MUNDY_SHAPE_SHAPES_SPHERES_HPP_
+#define MUNDY_SHAPE_SHAPES_SPHERES_HPP_
 
 /// \file Sphere.hpp
 /// \brief Declaration of the Spheres part class
@@ -32,7 +32,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy includes
-#include <mundy_agent/AgentRegistry.hpp>     // for MUNDY_REGISTER_AGENT
+#include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
@@ -43,12 +43,12 @@ namespace shape {
 
 namespace shapes {
 
-/// \class Sphere
+/// \class Spheres
 /// \brief The static interface for all of Mundy's Sphere shapes.
 ///
 /// The design of this class is in accordance with the static interface requirements of
 /// mundy::shape::ShapeFactory.
-class Sphere {
+class Spheres {
  public:
   //! \name Getters
   //@{
@@ -170,7 +170,7 @@ class Sphere {
     return part_reqs_ptr;
   }();
   //@}
-};  // Sphere
+};  // Spheres
 
 }  // namespace shapes
 
@@ -178,6 +178,4 @@ class Sphere {
 
 }  // namespace mundy
 
-MUNDY_REGISTER_AGENT(mundy::shape::shapes::Sphere)
-
-#endif  // MUNDY_SHAPE_SHAPES_SPHERE_HPP_
+#endif  // MUNDY_SHAPE_SHAPES_SPHERES_HPP_

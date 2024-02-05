@@ -13,11 +13,12 @@ tribits_subpackage(Agent)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(HEADERS 
+  include/mundy_shape/PerformRegistration.hpp
   include/mundy_shape/Shapes.hpp
   include/mundy_shape/ComputeAABB.hpp
   include/mundy_shape/ComputeBoundingRadius.hpp
-  include/mundy_shape/shapes/Spherocylinder.hpp
-  include/mundy_shape/shapes/Sphere.hpp
+  include/mundy_shape/shapes/Spherocylinders.hpp
+  include/mundy_shape/shapes/Spheres.hpp
   include/mundy_shape/compute_aabb/kernels/Spherocylinder.hpp
   include/mundy_shape/compute_aabb/kernels/Sphere.hpp
   include/mundy_shape/compute_bounding_radius/kernels/Sphere.hpp
@@ -26,6 +27,7 @@ SET(HEADERS
   )
 
 SET(SOURCES 
+  src/mundy_shape/PerformRegistration.cpp
   src/mundy_shape/compute_aabb/kernels/Sphere.cpp
   src/mundy_shape/compute_aabb/kernels/Spherocylinder.cpp
   src/mundy_shape/compute_bounding_radius/kernels/Sphere.cpp
