@@ -17,7 +17,6 @@ SET(HEADERS
   include/mundy_agent/Agents.hpp
   include/mundy_agent/IsAgentType.hpp
   include/mundy_agent/AgentHierarchy.hpp
-  include/mundy_agent/AgentRegistry.hpp
   )
 
 SET(SOURCES 

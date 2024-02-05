@@ -47,7 +47,7 @@ namespace {
 
 struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
 
-TEST(AgentRegistry, AutoRegistration) {
+TEST(AgentHierarchy, AutoRegistration) {
   // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the AgentHierarchy
   AgentHierarchy::register_new_class<mundy::agent::utils::ExampleAgent<1>>();
   AgentHierarchy::register_new_class<mundy::agent::utils::ExampleAgent<2>>();
