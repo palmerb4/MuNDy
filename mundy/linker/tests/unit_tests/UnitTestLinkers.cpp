@@ -32,11 +32,14 @@
 #include <stk_mesh/base/Comm.hpp>           // for comm_mesh_counts
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/GetEntities.hpp>    // for stk::mesh::get_selected_entities
 #include <stk_mesh/base/MeshBuilder.hpp>    // for stk::mesh::MeshBuilder
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
-#include <stk_mesh/base/GetEntities.hpp>  // for stk::mesh::get_selected_entities
+
+// Mundy libs
+#include <mundy_linker/Linkers.hpp>  // for mundy::linker::Linker and  mundy::linker::declare_family_tree_relation
 
 namespace mundy {
 
@@ -138,7 +141,8 @@ TEST(Linkers, STKProperlyHandlesConstraintRankSharingGhostingAndAura) {
       stk::mesh::Part &aura_part = metaData.aura_part();
       stk::mesh::EntityVector aura_constraints;
       stk::mesh::Selector aura_selector = aura_part;
-      stk::mesh::get_selected_entities(aura_selector, bulk_data_ptr->buckets(stk::topology::CONSTRAINT_RANK), aura_constraints);
+      stk::mesh::get_selected_entities(aura_selector, bulk_data_ptr->buckets(stk::topology::CONSTRAINT_RANK),
+                                       aura_constraints);
       EXPECT_EQ(aura_constraints.size(), 1u);
       EXPECT_EQ(1, bulk_data_ptr->num_connectivity(node2, stk::topology::CONSTRAINT_RANK));
       EXPECT_EQ(aura_constraints[0], bulk_data_ptr->begin(node2, stk::topology::CONSTRAINT_RANK)[0]);
@@ -206,6 +210,142 @@ TEST(Linkers, STKProperlyHandlesConstraintRankSharingGhostingAndAura) {
     }
   }
 }
+
+// TEST(Linkers, FamilyTreeRelationGeneration) {
+//   /*
+//   The schematic for this test:
+//         CONSTRAINT1
+//       /    |   |    \
+//      |SPHERE1 SPHERE2|
+//       \    |   |    /
+//        NODE1   NODE2
+
+//   We divide this schematic over two processes as follows:
+//                 RANK0            |      RANK1
+//             CONSTRAINT1(LO)      |  CONSTRAINT1(G)
+//       /         |   |         \  |       |        \
+//      | SPHERE1(LO)  SPHERE2(G) | |    SPHERE2(LO)  |
+//       \    |          |       /  |       |        /
+//         NODE1(LO)    NODE2(S)    |    NODE1(LO,S)
+//   LO: Locally owned
+//   G: Ghosted
+//   S: Shared
+//   */
+
+//   // Construct metaData and bulk data.
+//   const size_t spatial_dimension = 3;
+//   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+//   builder.set_spatial_dimension(spatial_dimension);
+//   builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+//   std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create();
+
+//   // Setup the meta mesh.
+//   stk::mesh::MetaData &metaData = bulk_data_ptr->mesh_meta_data();
+//   metaData.use_simple_fields();
+//   stk::mesh::Part &linker_part = metaData.declare_part("linker", stk::topology::CONSTRAINT_RANK);
+//   stk::mesh::Part &particle_part = metaData.declare_part_with_topology("particle", stk::topology::PARTICLE);
+
+//   metaData.commit();
+
+//   // Construct the mesh.
+//   bulk_data_ptr->modification_begin();
+//   const int my_rank = bulk_data_ptr->parallel_rank();
+
+//   // Both ranks will declare the linker. This might not work!
+//   if (my_rank == 0) {
+//     stk::mesh::Entity linker1 = bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{&linker_part});
+//     stk::mesh::Entity sphere1 = bulk_data_ptr->declare_element(1, stk::mesh::ConstPartVector{&particle_part});
+//     stk::mesh::Entity node1 = bulk_data_ptr->declare_node(1);
+//     bulk_data_ptr->declare_relation(sphere1, node1, 0);
+
+//     // Connect the linker to the sphere.
+//     mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker1, sphere1);
+//     bulk_data_ptr->modification_end();
+
+//     // Check the connectivity.
+//     EXPECT_EQ(bulk_data_ptr->num_nodes(sphere1), 1u);
+//     EXPECT_EQ(node1, bulk_data_ptr->begin_nodes(sphere1)[0]);
+//     EXPECT_EQ(bulk_data_ptr->num_elements(linker1), 1u);
+//     EXPECT_EQ(sphere1, bulk_data_ptr->begin_elements(linker1)[0]);
+//     EXPECT_EQ(linker1, bulk_data_ptr->begin(sphere1, stk::topology::CONSTRAINT_RANK)[0]);
+//     EXPECT_EQ(bulk_data_ptr->num_nodes(linker1), 1u);
+//     EXPECT_EQ(node1, bulk_data_ptr->begin_nodes(linker1)[0]);
+
+//     // Check ownership.
+//     EXPECT_EQ(bulk_data_ptr->parallel_size(), 2);
+//     EXPECT_EQ(bulk_data_ptr->parallel_rank(), 0);
+//     EXPECT_EQ(bulk_data_ptr->parallel_owner_rank(node1), 0);
+//     EXPECT_EQ(bulk_data_ptr->parallel_owner_rank(sphere1), 0);
+//     if (bulk_data_ptr->bucket(linker1).owned()) {
+//       std::cout << "Linker is owned on rank " << my_rank << std::endl;
+//     }
+
+//     // Check sharing.
+//     stk::mesh::Part &shared_part = metaData.globally_shared_part();
+//     stk::mesh::EntityVector shared_nodes;
+//     stk::mesh::Selector shared_selector = shared_part;
+//     stk::mesh::get_selected_entities(shared_selector, bulk_data_ptr->buckets(stk::topology::NODE_RANK), shared_nodes);
+//     EXPECT_EQ(shared_nodes.size(), 1u);
+//     EXPECT_EQ(node1, shared_nodes[0]);
+
+//     // Check aura generation.
+//     stk::mesh::Part &aura_part = metaData.aura_part();
+//     stk::mesh::EntityVector aura_constraints;
+//     stk::mesh::Selector aura_selector = aura_part;
+//     stk::mesh::get_selected_entities(aura_selector, bulk_data_ptr->buckets(stk::topology::CONSTRAINT_RANK),
+//                                      aura_constraints);
+//     if (aura_constraints.size() == 1u) {
+//       std::cout << "Linker is in the aura on rank " << my_rank << std::endl;
+//     }
+//   } else {
+//     stk::mesh::Entity linker1 = bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{&linker_part});
+//     stk::mesh::Entity sphere2 = bulk_data_ptr->declare_element(2, stk::mesh::ConstPartVector{&particle_part});
+//     stk::mesh::Entity node2 = bulk_data_ptr->declare_node(2);
+//     bulk_data_ptr->declare_relation(sphere2, node2, 0);
+
+//     // Connect the linker to the sphere.
+//     mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker1, sphere2);
+//     bulk_data_ptr->modification_end();
+
+//     // Check the connectivity.
+//     EXPECT_EQ(bulk_data_ptr->num_nodes(sphere2), 1u);
+//     EXPECT_EQ(node2, bulk_data_ptr->begin_nodes(sphere2)[0]);
+//     EXPECT_EQ(bulk_data_ptr->num_elements(linker1), 1u);
+//     EXPECT_EQ(sphere2, bulk_data_ptr->begin_elements(linker1)[0]);
+//     EXPECT_EQ(linker1, bulk_data_ptr->begin(sphere2, stk::topology::CONSTRAINT_RANK)[0]);
+//     EXPECT_EQ(bulk_data_ptr->num_nodes(linker1), 1u);
+//     EXPECT_EQ(node2, bulk_data_ptr->begin_nodes(linker1)[0]);
+
+//     // Check ownership.
+//     EXPECT_EQ(bulk_data_ptr->parallel_size(), 2);
+//     EXPECT_EQ(bulk_data_ptr->parallel_rank(), 1);
+//     EXPECT_EQ(bulk_data_ptr->parallel_owner_rank(node2), 1);
+//     EXPECT_EQ(bulk_data_ptr->parallel_owner_rank(sphere2), 1);
+//     if (bulk_data_ptr->bucket(linker1).shared()) {
+//       std::cout << "Linker is shared on rank " << my_rank << std::endl;
+//     }
+
+//     // Check sharing.
+//     stk::mesh::Part &shared_part = metaData.globally_shared_part();
+//     stk::mesh::EntityVector shared_nodes;
+//     stk::mesh::Selector shared_selector = shared_part;
+//     stk::mesh::get_selected_entities(shared_selector, bulk_data_ptr->buckets(stk::topology::NODE_RANK), shared_nodes);
+//     EXPECT_EQ(shared_nodes.size(), 1u);
+//     EXPECT_EQ(node2, shared_nodes[0]);
+
+//     // Check aura generation.
+//     stk::mesh::Part &aura_part = metaData.aura_part();
+//     stk::mesh::EntityVector aura_constraints;
+//     stk::mesh::Selector aura_selector = aura_part;
+//     stk::mesh::get_selected_entities(aura_selector, bulk_data_ptr->buckets(stk::topology::CONSTRAINT_RANK),
+//                                      aura_constraints);
+//     if (aura_constraints.size() == 1u) {
+//       std::cout << "Linker is in the aura on rank " << my_rank << std::endl;
+//     }
+//   }
+
+// }
+
 //@}
 
 }  // namespace

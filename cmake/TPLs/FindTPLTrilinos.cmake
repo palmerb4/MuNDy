@@ -8,6 +8,10 @@ FIND_PACKAGE(Trilinos REQUIRED
     OPTIONAL_COMPONENTS
       ${${PACKAGE_NAME}_Trilinos_OPTIONAL_COMPONENTS}
 )
-GLOBAL_SET(TPL_Trilinos_INCLUDE_DIRS "${Trilinos_INCLUDE_DIRS};${Trilinos_LIBRARY_DIRS}")
-GLOBAL_SET(TPL_Trilinos_LIBRARIES    "${Trilinos_LIBRARIES};${Trilinos_TPL_LIBRARIES}")
-GLOBAL_SET(TPL_Trilinos_LIBRARY_DIRS "${Trilinos_LIBRARY_DIRS};${Trilinos_TPL_LIBRARY_DIRS}")
+
+# Create the TriBITS-compliant <tplName>Config.cmake wrapper file
+# This appears to be the minimal requirement to load in a TriBITS-compliant TPL.
+tribits_extpkgwit_create_package_config_file(
+  Trilinos
+  INNER_FIND_PACKAGE_NAME Trilinos
+  IMPORTED_TARGETS_FOR_ALL_LIBS Trilinos::all_libs)

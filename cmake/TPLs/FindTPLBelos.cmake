@@ -8,6 +8,10 @@ FIND_PACKAGE(Belos REQUIRED
     OPTIONAL_COMPONENTS
       ${${PACKAGE_NAME}_Belos_OPTIONAL_COMPONENTS}
 )
-GLOBAL_SET(TPL_Belos_INCLUDE_DIRS "${Belos_INCLUDE_DIRS};${Belos_LIBRARY_DIRS}")
-GLOBAL_SET(TPL_Belos_LIBRARIES    "${Belos_LIBRARIES};${Belos_TPL_LIBRARIES}")
-GLOBAL_SET(TPL_Belos_LIBRARY_DIRS "${Belos_LIBRARY_DIRS};${Belos_TPL_LIBRARY_DIRS}")
+
+# Create the TriBITS-compliant <tplName>Config.cmake wrapper file
+# This appears to be the minimal requirement to load in a TriBITS-compliant TPL.
+tribits_extpkgwit_create_package_config_file(
+  Belos
+  INNER_FIND_PACKAGE_NAME Belos
+  IMPORTED_TARGETS_FOR_ALL_LIBS Belos::all_libs)

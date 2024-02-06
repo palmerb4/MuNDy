@@ -17,5 +17,5 @@ tribits_repository_define_tpls(
   STK            "cmake/TPLs/"                                    PT
   ArborX         "cmake/TPLs/"                                    PT
   ParMETIS       "cmake/TPLs/"                                    PT
-  gtest          "cmake/TPLs/"                                    PT
+  GTest          "cmake/TPLs/"                                    PT
   )

@@ -8,6 +8,10 @@ FIND_PACKAGE(STK REQUIRED
     OPTIONAL_COMPONENTS
       ${${PACKAGE_NAME}_STK_OPTIONAL_COMPONENTS}
 )
-GLOBAL_SET(TPL_STK_INCLUDE_DIRS "${STK_INCLUDE_DIRS};${STK_LIBRARY_DIRS}")
-GLOBAL_SET(TPL_STK_LIBRARIES    "${STK_LIBRARIES};${STK_TPL_LIBRARIES}")
-GLOBAL_SET(TPL_STK_LIBRARY_DIRS "${STK_LIBRARY_DIRS};${STK_TPL_LIBRARY_DIRS}")
+
+# Create the TriBITS-compliant <tplName>Config.cmake wrapper file
+# This appears to be the minimal requirement to load in a TriBITS-compliant TPL.
+tribits_extpkgwit_create_package_config_file(
+  STK
+  INNER_FIND_PACKAGE_NAME STK
+  IMPORTED_TARGETS_FOR_ALL_LIBS STK::all_libs)

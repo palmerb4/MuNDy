@@ -8,6 +8,10 @@ FIND_PACKAGE(Tpetra REQUIRED
     OPTIONAL_COMPONENTS
       ${${PACKAGE_NAME}_Tpetra_OPTIONAL_COMPONENTS}
 )
-GLOBAL_SET(TPL_Tpetra_INCLUDE_DIRS "${Tpetra_INCLUDE_DIRS};${Tpetra_LIBRARY_DIRS}")
-GLOBAL_SET(TPL_Tpetra_LIBRARIES    "${Tpetra_LIBRARIES};${Tpetra_TPL_LIBRARIES}")
-GLOBAL_SET(TPL_Tpetra_LIBRARY_DIRS "${Tpetra_LIBRARY_DIRS};${Tpetra_TPL_LIBRARY_DIRS}")
+
+# Create the TriBITS-compliant <tplName>Config.cmake wrapper file
+# This appears to be the minimal requirement to load in a TriBITS-compliant TPL.
+tribits_extpkgwit_create_package_config_file(
+  Tpetra
+  INNER_FIND_PACKAGE_NAME Tpetra
+  IMPORTED_TARGETS_FOR_ALL_LIBS Tpetra::all_libs)

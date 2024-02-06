@@ -33,10 +33,10 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_agent/AgentHierarchy.hpp>           // for mundy::agent::AgentHierarchy
-#include <mundy_meta/FieldRequirements.hpp>         // for mundy::meta::FieldRequirements
-#include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
+#include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -206,53 +206,79 @@ class Linkers {
   //@}
 };  // Linkers
 
-/// \brief Declare the relations and their converse between a linker and the family tree of the entities it is supposed
-/// to link within the same mesh. Requires the number of arguments to be N and the type of each to be stk::mesh::Entity.
+/// \brief Declare the relations and their converse between a constraint-rank entity and the family tree of any number
+/// of entities within the same mesh.
 ///
 /// A parallel-local mesh modification operation.
 ///
-/// Note that relation-declarations must be symmetric across all
-/// sharers of the involved entities within a modification cycle.
+/// Note that relation-declarations must be symmetric across all sharers of the involved entities within a modification
+/// cycle.
 template <typename... Entities>
   requires(std::is_same_v<std::remove_cv_t<std::remove_reference_t<Entities>>, stk::mesh::Entity> && ...)
-void declare_relation(mundy::mesh::BulkData* const bulk_data_ptr, stk::mesh::Entity linker_from,
-                      Entities&... entities_to_link) {
-  // For each entity to link, we will declare a relation between the linker and them. These will be our "head" relations
-  // and will be the first relations in the linker's relation list in the order they are given. We'll use a counter to
-  // tell how many relations we've declared per rank. We will then declare relations between the linker the family tree
-  // of the entities we're linking. These will be the final relations in the linker's relation list and will not be in
-  // any particular order.
-
-  // The mesh must be in a modification cycle.
+void declare_constraint_relations_to_family_tree_with_sharing(mundy::mesh::BulkData* const bulk_data_ptr,
+                                                              const stk::mesh::Entity &from_constraint,
+                                                              const Entities&... to_entities) {
+  // For each entity to connect, we will declare a relation between the constraint rank entity and them. These will be
+  // our "head" relations and will be the first relations in the constraint's relation list in the order they are given.
+  // We'll use a counter to tell how many relations we've declared per rank. We will then declare relations between the
+  // constraint and the family tree of the entities we're connecting. These will be the final relations in the
+  // constraints's relation list and will not be in any particular order.
+  //
+  // To have proper sharing of low-rank entities, we want need to consider the following:
+  //  - The constraint could be locally owned, shared, or aura'ed.
+  //  - The entities we're connecting to could be locally owned, shared, or aura'ed.
+  //
+  // If the constraint is locally owned, then we need to declare sharing with non-locally owned NODE, EDGE, and
+  // FACE-rank entities that we connect to. If the constraint is not locally owned, then we need to declare sharing with
+  // the locally owned NODE, EDGE, and FACE-rank entities that we connect to.
+  //
+  // TODO(palmerb4): Test if having a non-locally owned constraint connects to non-locally owned entities is valid or
+  // not.
   MUNDY_THROW_ASSERT(bulk_data_ptr->in_modifiable_state(), std::logic_error,
                      "declare_relation: The mesh must be in a modification cycle.");
+  MUNDY_THROW_ASSERT(bulk_data_ptr->entity_rank(from_constraint) == stk::topology::CONSTRAINT_RANK, std::logic_error,
+                     "declare_relation: The from entity must be constraint rank.");
+
+  const bool is_from_constraint_locally_owned = bulk_data_ptr->bucket(from_constraint).owned();
+  const int from_constraint_owner = bulk_data_ptr->parallel_owner_rank(from_constraint);
 
   std::vector<unsigned> ranked_relation_counter(bulk_data_ptr->mesh_meta_data().entity_rank_count(), 0);
 
-  // Lambda function to declare a downward relation from the linker to an entity.
-  auto declare_relation_to_entity = [&](stk::mesh::Entity entity_to_link) {
-    // Declare a relation between the linker and the entity.
-    bulk_data_ptr->declare_relation(linker_from, entity_to_link,
-                                    ranked_relation_counter[bulk_data_ptr->entity_rank(entity_to_link) + 1]++);
+  // Lambda function to declare a downward relation from the constraint to an entity.
+  auto declare_relation_to_entity = [&](const stk::mesh::Entity& to_entity) {
+    // Declare a relation between the constraint and the entity.
+    bulk_data_ptr->declare_relation(from_constraint, to_entity,
+                                    ranked_relation_counter[bulk_data_ptr->entity_rank(to_entity) + 1]++);
   };
 
-  // Lambda function to declare downward relations from the linker to the lower-ranked family tree of an entity.
-  auto declare_relations_to_family_tree = [&](stk::mesh::Entity entity_to_link) {
-    // Declare relations between the linker and the family tree of the entity.
+  // Lambda function to declare downward relations from the constraint to the lower-ranked family tree of an entity.
+  auto declare_relations_to_family_tree = [&](const stk::mesh::Entity& to_entity) {
+    // Declare relations between the constraint and the family tree of the entity. Optionally, add sharing.
     for (stk::mesh::EntityRank lower_rank :
          {stk::topology::NODE_RANK, stk::topology::EDGE_RANK, stk::topology::FACE_RANK}) {
-      const unsigned num_connection_of_lower_rank = bulk_data_ptr->num_connectivity(entity_to_link, lower_rank);
-      const stk::mesh::Entity* connected_entities_of_lower_rank = bulk_data_ptr->begin(entity_to_link, lower_rank);
+      const unsigned num_connection_of_lower_rank = bulk_data_ptr->num_connectivity(to_entity, lower_rank);
+      const stk::mesh::Entity* connected_entities_of_lower_rank = bulk_data_ptr->begin(to_entity, lower_rank);
       for (unsigned i = 0; i < num_connection_of_lower_rank; ++i) {
         declare_relation_to_entity(connected_entities_of_lower_rank[i]);
+
+        // If necessary, add sharing.
+        const bool is_to_entity_locally_owned = bulk_data_ptr->bucket(connected_entities_of_lower_rank[i]).owned();
+        if (is_from_constraint_locally_owned && !is_to_entity_locally_owned) {
+          // We own the linker but not the entity we're connecting to.
+          const int to_entity_owner = bulk_data_ptr->parallel_owner_rank(connected_entities_of_lower_rank[i]);
+          bulk_data_ptr->add_node_sharing(connected_entities_of_lower_rank[i], to_entity_owner);
+        } else if (!is_from_constraint_locally_owned && is_to_entity_locally_owned) {
+          // We don't own the linker but we own the entity we're connecting to.
+          bulk_data_ptr->add_node_sharing(connected_entities_of_lower_rank[i], from_constraint_owner);
+        }
       }
     }
   };
 
-  // Use a fold expression to link the linker to all the entities we're linking and then to the family tree of all the
-  // entities we're linking.
-  (declare_relation_to_entity(entities_to_link), ...);
-  (declare_relations_to_family_tree(entities_to_link), ...);
+  // Use a fold expression to link the constraint to all the entities we're connecting and then to the family tree of
+  // all the entities we're connecting.
+  (declare_relation_to_entity(to_entities), ...);
+  (declare_relations_to_family_tree(to_entities), ...);
 }
 
 }  // namespace linker
