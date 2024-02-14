@@ -18,4 +18,5 @@ tribits_repository_define_tpls(
   ArborX         "cmake/TPLs/"                                    PT
   ParMETIS       "cmake/TPLs/"                                    PT
   GTest          "cmake/TPLs/"                                    PT
+  # OpenRAND       "cmake/TPLs/"                                    PT # TODO(palmerb4): Get OpenRAND to install its headers!
   )

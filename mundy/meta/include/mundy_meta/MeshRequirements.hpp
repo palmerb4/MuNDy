@@ -298,7 +298,7 @@ class MeshRequirements {
 
     if (parameter_list_ptr->isSublist("fields")) {
       Teuchos::ParameterList &fields_sublist = parameter_list_ptr->sublist("fields");
-      const unsigned num_fields = fields_sublist.get<unsigned>("count");
+      const unsigned num_fields = fields_sublist.get<int>("count");
       for (unsigned i = 0; i < num_fields; i++) {
         Teuchos::ParameterList &field_i_sublist = parameter_list_ptr->sublist("field_" + std::to_string(i));
         FieldRequirementsBase::validate_parameters_and_set_defaults(&field_i_sublist);
@@ -307,7 +307,7 @@ class MeshRequirements {
 
     if (parameter_list_ptr->isSublist("parts")) {
       Teuchos::ParameterList &fields_sublist = parameter_list_ptr->sublist("parts");
-      const unsigned num_fields = fields_sublist.get<unsigned>("count");
+      const unsigned num_fields = fields_sublist.get<int>("count");
       for (unsigned i = 0; i < num_fields; i++) {
         Teuchos::ParameterList &part_i_sublist = parameter_list_ptr->sublist("parts_" + std::to_string(i));
         PartRequirements::validate_parameters_and_set_defaults(&part_i_sublist);

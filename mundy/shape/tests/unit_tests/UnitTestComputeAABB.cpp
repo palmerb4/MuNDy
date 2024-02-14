@@ -73,8 +73,8 @@ TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
   ASSERT_TRUE(fixed_params.isSublist("kernels"));
   Teuchos::ParameterList &kernels_sublist = fixed_params.sublist("kernels", true);
   ASSERT_TRUE(kernels_sublist.isParameter("count"));
-  ASSERT_EQ(kernels_sublist.get<unsigned>("count"), ComputeAABB::OurKernelFactory::num_registered_classes());
-  ASSERT_TRUE(kernels_sublist.get<unsigned>("count") > 0);
+  ASSERT_EQ(kernels_sublist.get<int>("count"), ComputeAABB::OurKernelFactory::num_registered_classes());
+  ASSERT_TRUE(kernels_sublist.get<int>("count") > 0);
   int i = 0;
   for (auto &key : ComputeAABB::OurKernelFactory::get_keys()) {
     ASSERT_TRUE(kernels_sublist.isSublist("kernel_" + std::to_string(i)));
@@ -94,8 +94,8 @@ TEST(ComputeAABBStaticInterface, MutableParameterDefaults) {
   ASSERT_TRUE(mutable_params.isSublist("kernels"));
   Teuchos::ParameterList &kernels_sublist = mutable_params.sublist("kernels", true);
   ASSERT_TRUE(kernels_sublist.isParameter("count"));
-  ASSERT_EQ(kernels_sublist.get<unsigned>("count"), ComputeAABB::OurKernelFactory::num_registered_classes());
-  ASSERT_TRUE(kernels_sublist.get<unsigned>("count") > 0);
+  ASSERT_EQ(kernels_sublist.get<int>("count"), ComputeAABB::OurKernelFactory::num_registered_classes());
+  ASSERT_TRUE(kernels_sublist.get<int>("count") > 0);
   int i = 0;
   for (auto &key : ComputeAABB::OurKernelFactory::get_keys()) {
     ASSERT_TRUE(kernels_sublist.isSublist("kernel_" + std::to_string(i)));

@@ -123,7 +123,7 @@ void NonSmoothLCP::set_mutable_params(const Teuchos::ParameterList &mutable_para
 
   // Fill the internal members using the valid parameter list.
   constraint_residual_tolerance_ = valid_mutable_params.get<double>("constraint_residual_tolerance");
-  max_num_iterations_ = valid_mutable_params.get<unsigned>("max_num_iterations");
+  max_num_iterations_ = valid_mutable_params.get<int>("max_num_iterations");
 }
 //}
 

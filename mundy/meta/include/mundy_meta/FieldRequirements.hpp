@@ -315,8 +315,8 @@ FieldRequirements<FieldType>::FieldRequirements(const Teuchos::ParameterList &pa
   // Store the given parameters.
   this->set_field_name(valid_params.get<std::string>("name"));
   this->set_field_rank(valid_params.get<std::string>("rank"));
-  this->set_field_dimension(valid_params.get<unsigned>("dimension"));
-  this->set_field_min_number_of_states(valid_params.get<unsigned>("min_number_of_states"));
+  this->set_field_dimension(valid_params.get<int>("dimension"));
+  this->set_field_min_number_of_states(valid_params.get<int>("min_number_of_states"));
 }
 //}
 

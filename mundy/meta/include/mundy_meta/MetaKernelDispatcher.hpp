@@ -87,10 +87,10 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
-    const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
+    const int num_specified_kernels = kernels_sublist.get<int>("count");
 
     auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-    for (size_t i = 0; i < num_specified_kernels; i++) {
+    for (int i = 0; i < num_specified_kernels; i++) {
       Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
       const std::string kernel_name = kernel_params.get<std::string>("name");
       mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
@@ -104,8 +104,8 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
     if (fixed_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", true);
-      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
-      for (size_t i = 0; i < num_specified_kernels; i++) {
+      const int num_specified_kernels = kernels_sublist.get<int>("count");
+      for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
 
         // Ensure that each kernel has a name and associated part name.
@@ -141,8 +141,8 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
     if (mutable_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);
-      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
-      for (size_t i = 0; i < num_specified_kernels; i++) {
+      const int num_specified_kernels = kernels_sublist.get<int>("count");
+      for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
 
         // Ensure that each kernel has a name and associated part name.
@@ -214,7 +214,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Number of active kernels.
-  size_t num_active_kernels_ = 0;
+  int num_active_kernels_ = 0;
 
   /// \brief Vector of part pointers, one for each active kernel.
   std::vector<stk::mesh::Part *> part_ptr_vector_;
@@ -244,10 +244,10 @@ MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::Bulk
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
-  num_active_kernels_ = kernels_sublist.get<unsigned>("count");
+  num_active_kernels_ = kernels_sublist.get<int>("count");
   part_ptr_vector_.reserve(num_active_kernels_);
   kernel_ptrs_.reserve(num_active_kernels_);
-  for (size_t i = 0; i < num_active_kernels_; i++) {
+  for (int i = 0; i < num_active_kernels_; i++) {
     Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
     const std::string kernel_name = kernel_params.get<std::string>("name");
     const std::string associated_part_name = kernel_params.get<std::string>("part_name");
@@ -268,11 +268,11 @@ void MetaKernelDispatcher<RegistryIdentifier>::set_mutable_params(const Teuchos:
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  MUNDY_THROW_ASSERT(num_active_kernels_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+  MUNDY_THROW_ASSERT(num_active_kernels_ == kernels_sublist.get<int>("count"), std::invalid_argument,
                      "MetaKernelDispatcher: Internal error. Mismatch between the stored kernel count\n"
                          << "and the parameter list kernel count. This should not happen.\n"
                          << "Please contact the development team.");
-  for (size_t i = 0; i < num_active_kernels_; i++) {
+  for (int i = 0; i < num_active_kernels_; i++) {
     Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
     kernel_ptrs_[i]->set_mutable_params(kernel_params);
   }
@@ -284,11 +284,11 @@ void MetaKernelDispatcher<RegistryIdentifier>::set_mutable_params(const Teuchos:
 
 template <typename RegistryIdentifier>
 void MetaKernelDispatcher<RegistryIdentifier>::execute(const stk::mesh::Selector &input_selector) {
-  for (size_t i = 0; i < num_active_kernels_; i++) {
+  for (int i = 0; i < num_active_kernels_; i++) {
     kernel_ptrs_[i]->setup();
   }
 
-  for (size_t i = 0; i < num_active_kernels_; i++) {
+  for (int i = 0; i < num_active_kernels_; i++) {
     auto part_ptr_i = part_ptr_vector_[i];
     auto kernel_ptr_i = kernel_ptrs_[i];
 
@@ -303,7 +303,7 @@ void MetaKernelDispatcher<RegistryIdentifier>::execute(const stk::mesh::Selector
         });
   }
 
-  for (size_t i = 0; i < num_active_kernels_; i++) {
+  for (int i = 0; i < num_active_kernels_; i++) {
     kernel_ptrs_[i]->finalize();
   }
 }

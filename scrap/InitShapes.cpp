@@ -64,7 +64,7 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
-  num_multibody_types_ = kernels_sublist.get<unsigned>("count");
+  num_multibody_types_ = kernels_sublist.get<int>("count");
   multibody_part_ptr_vector_.reserve(num_multibody_types_);
   multibody_kernel_ptrs_.reserve(num_multibody_types_);
   for (size_t i = 0; i < num_multibody_types_; i++) {
@@ -87,7 +87,7 @@ void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teu
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+  MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<int>("count"), std::invalid_argument,
                      "GenerateCollisionConstraints: Internal error. Mismatch between the stored kernel count "
                      "and the parameter list kernel count.\n"
                          << "Odd... Please contact the development team.");

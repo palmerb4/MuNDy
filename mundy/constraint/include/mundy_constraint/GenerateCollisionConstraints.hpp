@@ -98,10 +98,10 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
     Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
-    const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
+    const int num_specified_kernels = kernels_sublist.get<int>("count");
 
     auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-    for (size_t i = 0; i < num_specified_kernels; i++) {
+    for (int i = 0; i < num_specified_kernels; i++) {
       Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
       const std::string kernel_name = kernel_params.get<std::string>("name");
       mesh_requirements_ptr->merge(OurThreeWayKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
@@ -118,8 +118,8 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
     if (params.isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", true);
-      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
-      for (size_t i = 0; i < num_specified_kernels; i++) {
+      const int num_specified_kernels = kernels_sublist.get<int>("count");
+      for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
         const std::string kernel_name = kernel_params.get<std::string>("name");
         OurThreeWayKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, &kernel_params);
@@ -127,7 +127,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
     } else {
       // Validate and fill parameters for any kernel in our registry.
       Teuchos::ParameterList &kernels_sublist = params.sublist("kernels", false);
-      const unsigned num_specified_kernels = OurThreeWayKernelFactory::num_registered_classes();
+      const int num_specified_kernels = OurThreeWayKernelFactory::num_registered_classes();
       kernels_sublist.set("count", num_specified_kernels);
       int i = 0;
       for (auto &key : OurThreeWayKernelFactory::get_keys()) {
@@ -145,8 +145,8 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
     if (mutable_params_ptr->isSublist("kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);
-      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
-      for (size_t i = 0; i < num_specified_kernels; i++) {
+      const int num_specified_kernels = kernels_sublist.get<int>("count");
+      for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
         const std::string kernel_name = kernel_params.get<std::string>("name");
         OurThreeWayKernelFactory::validate_mutable_parameters_and_set_defaults(kernel_name, &kernel_params);

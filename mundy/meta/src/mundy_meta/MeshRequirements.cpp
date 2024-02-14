@@ -75,7 +75,7 @@ MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list)
   validate_parameters_and_set_defaults(&valid_params);
 
   // Store the core parameters.
-  this->set_spatial_dimension(parameter_list.get<unsigned>("spatial_dimension"));
+  this->set_spatial_dimension(parameter_list.get<int>("spatial_dimension"));
   this->set_entity_rank_names(parameter_list.get<Teuchos::Array<std::string>>("entity_rank_names").toVector());
 
   const std::type_info &ti2 = typeid(stk::ParallelMachine);
@@ -85,13 +85,13 @@ MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list)
 
   this->set_aura_option(parameter_list.get<mundy::mesh::BulkData::AutomaticAuraOption>("aura_option"));
   this->set_field_data_manager(parameter_list.get<stk::mesh::FieldDataManager *>("field_data_manager_ptr"));
-  this->set_bucket_capacity(parameter_list.get<unsigned>("bucket_capacity"));
+  this->set_bucket_capacity(parameter_list.get<int>("bucket_capacity"));
   this->set_upward_connectivity_flag(parameter_list.get<bool>("upward_connectivity_flag"));
 
   // Store the optional field params.
   if (parameter_list.isSublist("fields")) {
     const Teuchos::ParameterList &fields_sublist = parameter_list.sublist("fields");
-    const unsigned num_fields = fields_sublist.get<unsigned>("count");
+    const unsigned num_fields = fields_sublist.get<int>("count");
     for (unsigned i = 0; i < num_fields; i++) {
       const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(i));
       const std::string field_type_string = field_i_sublist.get<std::string>("type");
@@ -104,7 +104,7 @@ MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list)
   // Store the optional sub-part params.
   if (parameter_list.isSublist("parts")) {
     const Teuchos::ParameterList &subparts_sublist = parameter_list.sublist("parts");
-    const unsigned num_subparts = subparts_sublist.get<unsigned>("count");
+    const unsigned num_subparts = subparts_sublist.get<int>("count");
     for (unsigned i = 0; i < num_subparts; i++) {
       const Teuchos::ParameterList &part_i_sublist = parameter_list.sublist("part_" + std::to_string(i));
       auto part_i = std::make_shared<PartRequirements>(part_i_sublist);

@@ -65,7 +65,7 @@ NodeEuler::NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
 
   // Parse the parameters
   Teuchos::ParameterList &parts_params = valid_fixed_params.sublist("input_parts");
-  num_parts_ = parts_params.get<unsigned>("count");
+  num_parts_ = parts_params.get<int>("count");
   part_ptr_vector_.resize(num_parts_);
   for (size_t i = 0; i < num_parts_; i++) {
     // Fetch the i'th part and its parameters

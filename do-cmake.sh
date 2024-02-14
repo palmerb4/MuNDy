@@ -1,10 +1,10 @@
 TRILINOS_ROOT_DIR=$1
-GTEST_ROOT_DIR=$2
+TPL_ROOT_DIR=$2
 MUNDY_SOURCE_DIR=$3
 
 # bash ../do-cmake.sh /mnt/sw/nix/store/ajfmwdjwipp5rrpkq8dj4aff23ar4cix-trilinos-14.2.0 ~/envs/MundyScratch/ ../
 echo "Using Trilinos dir: $TRILINOS_ROOT_DIR"
-echo "Using GTest dir: $GTEST_ROOT_DIR"
+echo "Using TPL dir: $TPL_ROOT_DIR"
 echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
 
 cmake \
@@ -18,10 +18,12 @@ cmake \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_TESTS=ON \
 -DMundy_ENABLE_GTest=ON \
--DTPL_GTest_DIR:PATH=${GTEST_ROOT_DIR} \
+-DMundy_TEST_CATEGORIES="BASIC;CONTINUOUS;NIGHTLY;HEAVY;PERFORMANCE" \
+-DTPL_GTest_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_Kokkos_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_STK_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_Teuchos_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DOpenRAND_INCLUDE_DIRS:PATH=${TPL_ROOT_DIR}/include \
 ${ccache_args} \
 ${compiler_flags} \
 ${install_dir} \
