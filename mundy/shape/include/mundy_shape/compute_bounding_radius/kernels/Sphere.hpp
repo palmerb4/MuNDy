@@ -35,14 +35,15 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_agent/AgentHierarchy.hpp>         // for mundy::agent::AgentHierarchy
-#include <mundy_mesh/BulkData.hpp>                // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>       // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>             // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>              // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>            // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>        // for mundy::meta::PartRequirements
+#include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -86,62 +87,58 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string element_bounding_radius_field_name =
         valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
-    std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
+    Teuchos::Array<std::string> input_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
+    const int num_parts = input_part_names.size();
+    for (int i = 0; i < num_parts; i++) {
+      const std::string part_name = input_part_names[i];
+      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      part_reqs->set_part_name(part_name);
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
-    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name(associated_part_name);
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-
-    const std::string parent_part_name = "SPHERES";
-    const std::string grandparent_part_name = "SHAPES";
-    if (associated_part_name == default_part_name_) {
-      mundy::agent::AgentHierarchy::add_part_reqs(part_reqs, parent_part_name, grandparent_part_name);
-    } else {
-      mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, parent_part_name, grandparent_part_name);
+      if (part_name == "SPHERES") {
+        // Add the requirements directly to spheres part.
+        const std::string parent_part_name = "SHAPES";
+        mundy::agent::AgentHierarchy::add_part_reqs(part_reqs, part_name, parent_part_name);
+        mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, parent_part_name));
+      } else {
+        // Add the associated part as a subset of the spheres part.
+        const std::string parent_part_name = "SPHERES";
+        mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, part_name, parent_part_name);
+        mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, parent_part_name));
+      }
     }
-    return mundy::agent::AgentHierarchy::get_mesh_requirements(parent_part_name, grandparent_part_name);
+    return mesh_reqs_ptr;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("element_bounding_radius_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_bounding_radius_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'element_bounding_radius_field_name' but "
-                         "with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("element_bounding_radius_field_name", std::string(default_bounding_radius_field_name_),
-                            "Name of the element field within which the output bounding radius will be written.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr, ParamConfig<Teuchos::Array<std::string>>{
+                              .name = "input_part_names",
+                              .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
+                              .doc_string = "Name of the parts associated with this kernel."});
 
-    if (fixed_params_ptr->isParameter("part_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'part_name' but "
-                             << "with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("part_name", std::string(default_part_name_),
-                            "Name of the part associated with this kernel.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr,
+        ParamConfig<std::string>{.name = "element_bounding_radius_field_name",
+                                 .default_value = std::string(default_bounding_radius_field_name_),
+                                 .doc_string = "Name of the element field within which the output bounding "
+                                               "radius will be written."});
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    if (mutable_params_ptr->isParameter("buffer_distance")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("buffer_distance");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'buffer_distance' but "
-                         "with a type other than unsigned");
-    } else {
-      mutable_params_ptr->set("buffer_distance", default_buffer_distance_,
-                              "Buffer distance to be added to the bounding radius.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        mutable_params_ptr, ParamConfig<double>{.name = "buffer_distance",
+                                                .default_value = default_buffer_distance_,
+                                                .doc_string = "Buffer distance to be added to the bounding radius."});
   }
 
   /// \brief Get the unique string identifier for this class.

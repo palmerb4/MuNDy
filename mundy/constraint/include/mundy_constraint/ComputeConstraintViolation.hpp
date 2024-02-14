@@ -31,10 +31,10 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                                       // for mundy::mesh::BulkData
-#include <mundy_meta/MetaKernelDispatcher.hpp>                           // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>                                   // for mundy::meta::MetaMethodRegistry
 #include <mundy_constraint/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::constraint::...::kernels::Collision
+#include <mundy_mesh/BulkData.hpp>                                              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaKernelDispatcher.hpp>                                  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>                                          // for mundy::meta::MetaMethodRegistry
 
 namespace mundy {
 

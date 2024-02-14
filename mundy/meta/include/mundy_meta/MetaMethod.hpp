@@ -65,6 +65,14 @@ class MetaMethod {
   virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) = 0;
   //@}
 
+  //! \name Getters
+  //@{
+
+  /// \brief Get valid entity parts for the method.
+  /// By "valid entity parts," we mean the parts whose entities this method can act on.
+  virtual std::vector<stk::mesh::Part *> get_valid_entity_parts() const = 0;
+  //@}
+
   //! \name Actions
   //@{
 

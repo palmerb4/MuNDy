@@ -43,7 +43,8 @@
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -89,78 +90,71 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
     std::string node_normal_field_name = valid_fixed_params.get<std::string>("node_normal_field_name");
     std::string element_radius_field_name = valid_fixed_params.get<std::string>("element_radius_field_name");
     std::string element_signed_separation_dist_field_name =
         valid_fixed_params.get<std::string>("element_signed_separation_dist_field_name");
+    Teuchos::Array<std::string> input_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
+    const int num_parts = input_part_names.size();
+    for (int i = 0; i < num_parts; i++) {
+      const std::string part_name = input_part_names[i];
+      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::PARTICLE);
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          node_normal_field_name, stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          element_signed_separation_dist_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+      mesh_reqs_ptr->add_part_reqs(part_reqs);
+    }
 
-    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name("SPHERES");
-    part_reqs->set_part_topology(stk::topology::PARTICLE);
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_normal_field_name,
-                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        element_signed_separation_dist_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(part_reqs);
-    return mesh_reqs;
+    return mesh_reqs_ptr;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
 
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("node_coord_field_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Collision: Type error. Given a parameter with name 'node_coord_field_name' but "
-                             << "with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("node_coord_field_name", std::string(default_node_coord_field_name_),
-                            "Name of the node field containing the coordinate of each sphere's center.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr, ParamConfig<Teuchos::Array<std::string>>{
+                              .name = "input_part_names",
+                              .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
+                              .doc_string = "Name of the parts associated with this kernel."});
 
-    if (fixed_params_ptr->isParameter("node_normal_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_normal_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Collision: Type error. Given a parameter with name 'node_normal_field_name' but "
-                             << "with a type other than std::string");
-    } else {
-      fixed_params_ptr->set(
-          "node_normal_field_name", std::string(default_node_normal_field_name_),
-          "Name of the node field containing the normal at the attachment point to each sphere's surface.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr,
+        ParamConfig<std::string>{
+            .name = "node_coord_field_name",
+            .default_value = std::string(default_node_coord_field_name_),
+            .doc_string = "Name of the node field containing the coordinate of each sphere's center."});
 
-    if (fixed_params_ptr->isParameter("element_radius_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Collision: Type error. Given a parameter with name 'element_radius_field_name' but "
-                             << "with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("element_radius_field_name", std::string(default_element_radius_field_name_),
-                            "Name of the element field containing the radius of each sphere.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr,
+        ParamConfig<std::string>{
+            .name = "node_normal_field_name",
+            .default_value = std::string(default_node_normal_field_name_),
+            .doc_string =
+                "Name of the node field containing the normal at the attachment point to each sphere's surface."});
 
-    if (fixed_params_ptr->isParameter("element_signed_separation_dist_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_signed_separation_dist_field_name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "Collision: Type error. Given a parameter with name 'element_signed_separation_dist_field_name' "
-              << "but with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("element_signed_separation_dist_field_name",
-                            std::string(default_element_signed_separation_dist_field_name_),
-                            "Name of the element field containing the signed separation distance between each sphere.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr,
+        ParamConfig<std::string>{.name = "element_radius_field_name",
+                                 .default_value = std::string(default_element_radius_field_name_),
+                                 .doc_string = "Name of the element field containing the radius of each sphere."});
+
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr,
+        ParamConfig<std::string>{
+            .name = "element_signed_separation_dist_field_name",
+            .default_value = std::string(default_element_signed_separation_dist_field_name_),
+            .doc_string = "Name of the element field containing the signed separation distance between each sphere."});
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.

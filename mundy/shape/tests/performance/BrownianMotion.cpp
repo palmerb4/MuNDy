@@ -55,41 +55,11 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>      // for mundy::meta::PartRequirements
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shape/PerformRegistration.hpp>  // for mundy::shape::perform_registration
 #include <mundy_shape/shapes/Spheres.hpp>       // for mundy::shape::shapes::Spheres
-
-template <typename ValueType>
-struct ParamConfig {
-  std::string name;
-  ValueType default_value;
-  std::string doc_string = "";
-};
-
-template <typename ValueType>
-void check_parameter_and_set_default(Teuchos::ParameterList *const params_ptr, const ParamConfig<ValueType> &config) {
-  if (params_ptr->isParameter(config.name)) {
-    // Check if the parameter is of the expected type
-    const bool valid_type = params_ptr->isType<ValueType>(config.name);
-    if (!valid_type) {
-      throw std::invalid_argument("Type error in parameter '" + config.name + "'");
-    }
-  } else {
-    // Set the parameter with its default value and description
-    params_ptr->set(config.name, config.default_value, config.doc_string);
-  }
-}
-
-template <typename ValueType>
-void check_required_parameter(Teuchos::ParameterList *const params_ptr, const std::string &name) {
-  MUNDY_THROW_ASSERT(params_ptr->isParameter(name), std::invalid_argument,
-                     "Missing parameter '" << name << "' in the parameter list.");
-  const bool valid_type = params_ptr->INVALID_TEMPLATE_QUALIFIER isType<ValueType>(name);
-  MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                     "Type error. Given a parameter with name '" << name << "' but with a type other than "
-                                                                 << typeid(ValueType).name());
-}
 
 class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler> {
  public:
@@ -227,13 +197,13 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    check_parameter_and_set_default(fixed_params_ptr,
-                                    ParamConfig<Teuchos::Array<std::string>>{
-                                        .name = "input_part_names",
-                                        .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
-                                        .doc_string = "Name of the part associated with this kernel."});
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr, ParamConfig<Teuchos::Array<std::string>>{
+                              .name = "input_part_names",
+                              .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
+                              .doc_string = "Name of the parts associated with this kernel."});
 
-    check_parameter_and_set_default(
+    mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
         ParamConfig<std::string>{
             .name = "node_velocity_field_name",
@@ -245,7 +215,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    check_required_parameter<double>(mutable_params_ptr, "time_step_size");
+    mundy::meta::check_required_parameter<double>(mutable_params_ptr, "time_step_size");
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -486,13 +456,13 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    check_parameter_and_set_default(fixed_params_ptr,
-                                    ParamConfig<Teuchos::Array<std::string>>{
-                                        .name = "input_part_names",
-                                        .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
-                                        .doc_string = "Name of the part associated with this kernel."});
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr, ParamConfig<Teuchos::Array<std::string>>{
+                              .name = "input_part_names",
+                              .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
+                              .doc_string = "Name of the part associated with this kernel."});
 
-    check_parameter_and_set_default(
+    mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
         ParamConfig<std::string>{
             .name = "node_brownian_velocity_field_name",
@@ -500,7 +470,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
             .doc_string =
                 "Name of the node velocity field to be used for computing the node euler timestep of the sphere."});
 
-    check_parameter_and_set_default(
+    mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
         ParamConfig<std::string>{
             .name = "node_rng_counter_field_name",
@@ -512,14 +482,14 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    check_required_parameter<double>(mutable_params_ptr, "time_step_size");
-    check_required_parameter<double>(mutable_params_ptr, "diffusion_coeff");
-    check_parameter_and_set_default(
+    mundy::meta::check_required_parameter<double>(mutable_params_ptr, "time_step_size");
+    mundy::meta::check_required_parameter<double>(mutable_params_ptr, "diffusion_coeff");
+    mundy::meta::check_parameter_and_set_default(
         mutable_params_ptr,
         ParamConfig<double>{.name = "alpha",
                             .default_value = default_alpha_,
                             .doc_string = "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew."});
-    check_parameter_and_set_default(
+    mundy::meta::check_parameter_and_set_default(
         mutable_params_ptr,
         ParamConfig<double>{.name = "beta",
                             .default_value = default_beta_,
@@ -674,9 +644,15 @@ int main(int argc, char **argv) {
   Teuchos::ParameterList compute_brownian_velocity_fixed_params;
   compute_brownian_velocity_fixed_params.sublist("kernels").set("count", 1);
   compute_brownian_velocity_fixed_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
-  compute_brownian_velocity_fixed_params.sublist("kernels").sublist("kernel_0").set("input_part_names", {std::string("SPHERES")});
-  compute_brownian_velocity_fixed_params.sublist("kernels").sublist("kernel_0").set("node_rng_counter_field_name", "NODE_RNG_COUNTER");
-  compute_brownian_velocity_fixed_params.sublist("kernels").sublist("kernel_0").set("node_brownian_velocity_field_name", "NODE_BROWNIAN_VELOCITY");
+  compute_brownian_velocity_fixed_params.sublist("kernels")
+      .sublist("kernel_0")
+      .set("input_part_names", {std::string("SPHERES")});
+  compute_brownian_velocity_fixed_params.sublist("kernels")
+      .sublist("kernel_0")
+      .set("node_rng_counter_field_name", "NODE_RNG_COUNTER");
+  compute_brownian_velocity_fixed_params.sublist("kernels")
+      .sublist("kernel_0")
+      .set("node_brownian_velocity_field_name", "NODE_BROWNIAN_VELOCITY");
   mesh_reqs_ptr->merge(ComputeBrownianVelocity::get_mesh_requirements(compute_brownian_velocity_fixed_params));
 
   Teuchos::ParameterList node_euler_fixed_params;
@@ -698,8 +674,12 @@ int main(int argc, char **argv) {
   Teuchos::ParameterList compute_brownian_velocity_mutable_params;
   compute_brownian_velocity_mutable_params.sublist("kernels").set("count", 1);
   compute_brownian_velocity_mutable_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
-  compute_brownian_velocity_mutable_params.sublist("kernels").sublist("kernel_0").set("input_part_names", {std::string("SPHERES")});
-  compute_brownian_velocity_mutable_params.sublist("kernels").sublist("kernel_0").set("diffusion_coeff", diffusion_coeff);
+  compute_brownian_velocity_mutable_params.sublist("kernels")
+      .sublist("kernel_0")
+      .set("input_part_names", {std::string("SPHERES")});
+  compute_brownian_velocity_mutable_params.sublist("kernels")
+      .sublist("kernel_0")
+      .set("diffusion_coeff", diffusion_coeff);
   compute_brownian_velocity_mutable_params.sublist("kernels").sublist("kernel_0").set("time_step_size", time_step_size);
   compute_brownian_velocity_ptr->set_mutable_params(compute_brownian_velocity_mutable_params);
 

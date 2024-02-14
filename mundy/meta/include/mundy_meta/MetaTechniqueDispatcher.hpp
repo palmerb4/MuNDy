@@ -46,6 +46,7 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for MUNDY_REGISTER_METACLASS
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 
 namespace mundy {
 
@@ -103,15 +104,11 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     // Fetch the technique sublist and return its parameters.
-    if (fixed_params_ptr->isParameter("technique_name")) {
-      const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("technique_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MetaTechniqueDispatcher: Type error. Given a parameter with name 'technique_name'\n"
-                             << "but with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("name", default_technique_name_, "The name of the technique to use.");
-    }
-
+    mundy::meta::check_parameter_and_set_default(
+              fixed_params_ptr, ParamConfig<std::string>{
+                              .name = "technique_name",
+                              .default_value = std::string(default_technique_name_),
+                              .doc_string = "The name of the technique to use."});
     const std::string technique_name = fixed_params_ptr->get<std::string>("name");
     OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, fixed_params_ptr);
   }
@@ -120,15 +117,11 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
   static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     // Fetch the technique sublist and return its parameters.
-    if (mutable_params_ptr->isParameter("technique_name")) {
-      const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("technique_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MetaTechniqueDispatcher: Type error. Given a parameter with name 'technique_name'\n"
-                             << "but with a type other than std::string");
-    } else {
-      mutable_params_ptr->set("technique_name", default_technique_name_, "The name of the technique to use.");
-    }
-
+    mundy::meta::check_parameter_and_set_default(
+        mutable_params_ptr, ParamConfig<std::string>{
+                                .name = "technique_name",
+                                .default_value = std::string(default_technique_name_),
+                                .doc_string = "The name of the technique to use."});
     const std::string technique_name = mutable_params_ptr->get<std::string>("technique_name");
     OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, mutable_params_ptr);
   }
@@ -148,11 +141,25 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
     return std::make_shared<MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>>(bulk_data_ptr,
                                                                                                      fixed_params);
   }
+  //@}
+
+  //! \name Setters
+  //@{
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
     // Forward the inputs to the technique.
     technique_ptr_->set_mutable_params(mutable_params);
+  }
+  //@}
+
+  //! \name Getters
+  //@{
+
+  /// \brief Get valid entity parts for the method.
+  /// By "valid entity parts," we mean the parts whose entities this method can act on.
+  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
+    return technique_ptr_->get_valid_entity_parts();
   }
   //@}
 

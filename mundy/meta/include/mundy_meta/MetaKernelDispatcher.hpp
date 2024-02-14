@@ -37,7 +37,7 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
@@ -45,6 +45,7 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for MUNDY_REGISTER_METACLASS
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 
 namespace mundy {
 
@@ -108,17 +109,11 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
       for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
 
-        // Ensure that each kernel has a name and associated part name.
-        const std::string kernel_name = kernel_params.get<std::string>("name");
-        MUNDY_THROW_ASSERT(
-            kernel_params.isParameter("part_name"), std::invalid_argument,
-            "MetaKernelDispatcher: Missing required parameter 'part_name' for kernel " + std::to_string(i));
-        const bool valid_type = kernel_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
-        MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                           "MetaKernelDispatcher: Type error. Given a parameter with name 'part_name'  for kernel " +
-                               std::to_string(i) + " but with a type other than std::string");
+        // Ensure that each kernel has a name.
+        mundy::meta::check_required_parameter<std::string>(&kernel_params, "name");
 
         // Validate and fill parameters for this kernel.
+        const std::string kernel_name = kernel_params.get<std::string>("name");
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, &kernel_params);
       }
     } else {
@@ -145,17 +140,11 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
       for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
 
-        // Ensure that each kernel has a name and associated part name.
-        const std::string kernel_name = kernel_params.get<std::string>("name");
-        MUNDY_THROW_ASSERT(
-            kernel_params.isParameter("part_name"), std::invalid_argument,
-            "MetaKernelDispatcher: Missing required parameter 'part_name' for kernel " + std::to_string(i));
-        const bool valid_type = kernel_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
-        MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                           "MetaKernelDispatcher: Type error. Given a parameter with name 'part_name'  for kernel " +
-                               std::to_string(i) + " but with a type other than std::string");
+        // Ensure that each kernel has a name.
+        mundy::meta::check_required_parameter<std::string>(&kernel_params, "name");
 
         // Validate and fill parameters for this kernel.
+        const std::string kernel_name = kernel_params.get<std::string>("name");
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(kernel_name, &kernel_params);
       }
     } else {
@@ -187,9 +176,21 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<MetaKernelDispatcher<RegistryIdentifier>>(bulk_data_ptr, fixed_params);
   }
+  //@}
+
+  //! \name Setters
+  //@{
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
+  //@}
+
+  //! \name Getters
+  //@{
+
+  /// \brief Get valid entity parts for the kernel.
+  /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
+  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override;
   //@}
 
   //! \name Actions
@@ -216,8 +217,8 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
   /// \brief Number of active kernels.
   int num_active_kernels_ = 0;
 
-  /// \brief Vector of part pointers, one for each active kernel.
-  std::vector<stk::mesh::Part *> part_ptr_vector_;
+  /// \brief The valid entity parts for the kernel.
+  std::vector<stk::mesh::Part *> valid_entity_parts_;
 
   /// \brief Vector of kernels, one for each active kernel.
   std::vector<std::shared_ptr<mundy::meta::MetaKernel<void>>> kernel_ptrs_;
@@ -242,17 +243,20 @@ MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::Bulk
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Parse the parameters
+  // Populate our internal members.
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
   num_active_kernels_ = kernels_sublist.get<int>("count");
-  part_ptr_vector_.reserve(num_active_kernels_);
   kernel_ptrs_.reserve(num_active_kernels_);
+  valid_entity_parts_.reserve(num_active_kernels_);
   for (int i = 0; i < num_active_kernels_; i++) {
+    // Create the kernel and store it in the kernel_ptrs_ vector.
     Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
     const std::string kernel_name = kernel_params.get<std::string>("name");
-    const std::string associated_part_name = kernel_params.get<std::string>("part_name");
-    part_ptr_vector_.push_back(meta_data_ptr_->get_part(associated_part_name));
     kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
+
+    // Get the valid entity parts for the kernel.
+    auto valid_entity_parts_i = kernel_ptrs_[i]->get_valid_entity_parts();
+    valid_entity_parts_.insert(valid_entity_parts_.end(), valid_entity_parts_i.begin(), valid_entity_parts_i.end());
   }
 }
 //}
@@ -279,6 +283,15 @@ void MetaKernelDispatcher<RegistryIdentifier>::set_mutable_params(const Teuchos:
 }
 //}
 
+// \name Getters
+//{
+
+template <typename RegistryIdentifier>
+std::vector<stk::mesh::Part *> MetaKernelDispatcher<RegistryIdentifier>::get_valid_entity_parts() const {
+  return valid_entity_parts_;
+}
+//}
+
 // \name Actions
 //{
 
@@ -289,15 +302,20 @@ void MetaKernelDispatcher<RegistryIdentifier>::execute(const stk::mesh::Selector
   }
 
   for (int i = 0; i < num_active_kernels_; i++) {
-    auto part_ptr_i = part_ptr_vector_[i];
+    // For each kernel, we only want to evaluate the kernel ONCE for each entity in our valid entity parts.
+    // We do so via taking the union of our valid entity parts and the input selector.
     auto kernel_ptr_i = kernel_ptrs_[i];
+    auto valid_entity_parts_i = kernel_ptr_i->get_valid_entity_parts();
 
-    stk::mesh::Selector locally_owned_intersection_with_part_i =
-        stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & stk::mesh::Selector(*part_ptr_i) & input_selector;
+    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+        stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & input_selector;
+    for (auto *part_ptr_i : valid_entity_parts_i) {
+      locally_owned_intersection_with_valid_entity_parts &= *part_ptr_i;
+    }
 
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
-        locally_owned_intersection_with_part_i,
+        locally_owned_intersection_with_valid_entity_parts,
         [&kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
           kernel_ptr_i->execute(element);
         });

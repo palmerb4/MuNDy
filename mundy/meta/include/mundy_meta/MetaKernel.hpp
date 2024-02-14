@@ -69,7 +69,6 @@ class MetaKernel {
 
   /// \brief Get valid entity parts for the kernel.
   /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
-  /// \return The valid entity parts for the kernel.
   virtual std::vector<stk::mesh::Part *> get_valid_entity_parts() const = 0;
   //@}
 

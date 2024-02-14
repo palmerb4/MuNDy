@@ -36,7 +36,7 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
@@ -44,6 +44,7 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 
 namespace mundy {
 
@@ -106,18 +107,12 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<double> {
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isParameter("element_constraint_violation_field_name")) {
-      const bool valid_type =
-          fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_constraint_violation_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "ComputeConstraintResidual: Type error. Given a parameter with name "
-                         "'element_constraint_violation_field_name' but "
-                             << "with a type other than std::string");
-    } else {
-      fixed_params_ptr->set("element_constraint_violation_field_name",
-                            std::string(default_element_constraint_violation_field_name_),
-                            "Name of the element field containing the constraint's violation measure.");
-    }
+    mundy::meta::check_parameter_and_set_default(
+        fixed_params_ptr,
+        ParamConfig<std::string>{
+            .name = "element_constraint_violation_field_name",
+            .default_value = std::string(default_element_constraint_violation_field_name_),
+            .doc_string = "Name of the element field containing the constraint's violation measure."});
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
