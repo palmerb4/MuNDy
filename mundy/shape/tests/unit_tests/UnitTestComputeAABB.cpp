@@ -176,7 +176,7 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORD");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");

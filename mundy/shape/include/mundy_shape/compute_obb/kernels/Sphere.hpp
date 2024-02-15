@@ -118,14 +118,14 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr, ParamConfig<Teuchos::Array<std::string>>{
+        fixed_params_ptr, mundy::meta::ParamConfig<Teuchos::Array<std::string>>{
                               .name = "input_part_names",
                               .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
                               .doc_string = "Name of the parts associated with this kernel."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{
+        mundy::meta::ParamConfig<std::string>{
             .name = "element_obb_field_name",
             .default_value = std::string(default_element_obb_field_name_),
             .doc_string = "Element field within which the output object-aligned boundary boxes will be written."});
@@ -136,7 +136,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     mundy::meta::check_parameter_and_set_default(
         mutable_params_ptr,
-        ParamConfig<double>{.name = "buffer_distance",
+        mundy::meta::ParamConfig<double>{.name = "buffer_distance",
                             .default_value = default_buffer_distance_,
                             .doc_string = "Buffer distance to be added to the axis-aligned boundary box."});
   }

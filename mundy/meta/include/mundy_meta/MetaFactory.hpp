@@ -44,7 +44,7 @@
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/MeshRequirements.hpp>                      // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaKWayKernel.hpp>                        // for mundy::meta::MetaKWayKernel
+// #include <mundy_meta/MetaKWayKernel.hpp>                        // for mundy::meta::MetaKWayKernel
 #include <mundy_meta/MetaKernel.hpp>                            // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>                            // for mundy::meta::MetaMethod
 
@@ -350,41 +350,41 @@ template <typename ReturnType, typename RegistrationType = std::string_view>
 using GlobalMetaKernelFactory = MetaKernelFactory<ReturnType, GlobalIdentifier, RegistrationType>;
 //@}
 
-/// \name Type specializations for generating \c MetaKWayKernels.
-//@{
+// /// \name Type specializations for generating \c MetaKWayKernels.
+// //@{
 
-/// \brief Partial specialization for \c MetaKWayKernels.
-template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaKWayKernelFactory = MetaFactory<MetaKWayKernel<K, ReturnType>, RegistryIdentifier, RegistrationType>;
+// /// \brief Partial specialization for \c MetaKWayKernels.
+// template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
+// using MetaKWayKernelFactory = MetaFactory<MetaKWayKernel<K, ReturnType>, RegistryIdentifier, RegistrationType>;
 
-/// \brief Partial specialization for global \c MetaKWayKernels.
-template <std::size_t K, typename ReturnType, typename RegistrationType = std::string_view>
-using GlobalMetaKWayKernelFactory = MetaKWayKernelFactory<K, ReturnType, GlobalIdentifier, RegistrationType>;
-//@}
+// /// \brief Partial specialization for global \c MetaKWayKernels.
+// template <std::size_t K, typename ReturnType, typename RegistrationType = std::string_view>
+// using GlobalMetaKWayKernelFactory = MetaKWayKernelFactory<K, ReturnType, GlobalIdentifier, RegistrationType>;
+// //@}
 
-/// \name Type specializations for generating \c MetaTwoWayKernels.
-//@{
+// /// \name Type specializations for generating \c MetaTwoWayKernels.
+// //@{
 
-/// \brief Partial specialization for \c MetaTwoWayKernels.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaTwoWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
+// /// \brief Partial specialization for \c MetaTwoWayKernels.
+// template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
+// using MetaTwoWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
 
-/// \brief Partial specialization for global \c MetaTwoWayKernels.
-template <typename ReturnType, typename RegistrationType = std::string_view>
-using GlobalMetaTwoWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
-//@}
+// /// \brief Partial specialization for global \c MetaTwoWayKernels.
+// template <typename ReturnType, typename RegistrationType = std::string_view>
+// using GlobalMetaTwoWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
+// //@}
 
-/// \name Type specializations for generating \c MetaThreeWayKernels.
-//@{
+// /// \name Type specializations for generating \c MetaThreeWayKernels.
+// //@{
 
-/// \brief Partial specialization for \c MetaThreeWayKernels.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaThreeWayKernelFactory = MetaKWayKernelFactory<3, ReturnType, RegistryIdentifier, RegistrationType>;
+// /// \brief Partial specialization for \c MetaThreeWayKernels.
+// template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
+// using MetaThreeWayKernelFactory = MetaKWayKernelFactory<3, ReturnType, RegistryIdentifier, RegistrationType>;
 
-/// \brief Partial specialization for global \c MetaThreeWayKernels.
-template <typename ReturnType, typename RegistrationType = std::string_view>
-using GlobalMetaThreeWayKernelFactory = GlobalMetaKWayKernelFactory<3, ReturnType, RegistrationType>;
-//@}
+// /// \brief Partial specialization for global \c MetaThreeWayKernels.
+// template <typename ReturnType, typename RegistrationType = std::string_view>
+// using GlobalMetaThreeWayKernelFactory = GlobalMetaKWayKernelFactory<3, ReturnType, RegistrationType>;
+// //@}
 }  // namespace meta
 
 }  // namespace mundy

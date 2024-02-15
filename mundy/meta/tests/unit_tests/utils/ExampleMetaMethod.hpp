@@ -181,9 +181,23 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
     return std::make_shared<ExampleMetaMethod<registration_id, some_integer>>(bulk_data_ptr, fixed_params);
   }
 
+
+  //! \name Setters
+  //@{
+
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) override {
     set_mutable_params_counter_++;
+  }
+  //@}
+
+  //! \name Getters
+  //@{
+
+  /// \brief Get valid entity parts for the method.
+  /// By "valid entity parts," we mean the parts whose entities this method can act on.
+  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
+    return valid_entity_parts_;
   }
   //@}
 
@@ -220,6 +234,9 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
 
   /// \brief The number of times \c execute has been called.
   static inline int execute_counter_ = 0;
+
+  /// \brief The valid entity parts for the kernel.
+  std::vector<stk::mesh::Part *> valid_entity_parts_;
 
   /// \brief The unique string identifier for this class.
   /// By unique, we mean with respect to other methods in our MetaMethodRegistry.

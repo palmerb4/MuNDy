@@ -18,8 +18,8 @@ tribits_package_define_dependencies(
     #Io          io          PT  REQUIRED
     Agent       agent       PT  REQUIRED
     Shape       shape       PT  REQUIRED
-    Constraint  constraint  PT  REQUIRED
-    Linker      linker      PT  REQUIRED
-    Motion      motion      PT  REQUIRED
+    # Constraint  constraint  PT  REQUIRED
+    # Linker      linker      PT  REQUIRED
+    # Motion      motion      PT  REQUIRED
   REGRESSION_EMAIL_LIST brycepalmer96@gmail.com
   )

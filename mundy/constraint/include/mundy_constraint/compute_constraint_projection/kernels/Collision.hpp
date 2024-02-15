@@ -106,13 +106,13 @@ class Collision : public mundy::meta::MetaKernel<void> {
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{.name = "part_name",
+        mundy::meta::ParamConfig<std::string>{.name = "part_name",
                                  .default_value = std::string(default_part_name_),
                                  .doc_string = "Name of the part associated with this kernel."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{.name = "element_lagrange_multiplier_field_name",
+        mundy::meta::ParamConfig<std::string>{.name = "element_lagrange_multiplier_field_name",
                                  .default_value = std::string(default_element_lagrange_multiplier_field_name_),
                                  .doc_string = "Name of the element field containing the constraint's Lagrange multiplier."});
   }

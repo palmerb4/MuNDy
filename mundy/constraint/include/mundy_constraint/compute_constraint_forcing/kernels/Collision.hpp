@@ -107,7 +107,7 @@ class Collision : public mundy::meta::MetaKernel<void> {
           element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
       mesh_reqs_ptr->add_part_reqs(part_reqs);
     }
-    return mesh_reqs;
+    return mesh_reqs_ptr;
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
@@ -115,25 +115,25 @@ class Collision : public mundy::meta::MetaKernel<void> {
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{.name = "node_normal_field_name",
+        mundy::meta::ParamConfig<std::string>{.name = "node_normal_field_name",
                                  .default_value = std::string(default_node_normal_field_name_),
                                  .doc_string = "Name of the node field containing the node's normal."});
 
     mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr, ParamConfig<std::string>{
+        fixed_params_ptr, mundy::meta::ParamConfig<std::string>{
                               .name = "node_force_field_name",
                               .default_value = std::string(default_node_force_field_name_),
                               .doc_string = "Name of the node field containing force on the constraint's endpoints."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{
+        mundy::meta::ParamConfig<std::string>{
             .name = "element_lagrange_multiplier_field_name",
             .default_value = std::string(default_element_lagrange_multiplier_field_name_),
             .doc_string = "Name of the element field containing the constraint's Lagrange multiplier."});
 
     mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr, ParamConfig<Teuchos::Array<std::string>>{
+        fixed_params_ptr, mundy::meta::ParamConfig<Teuchos::Array<std::string>>{
                               .name = "input_part_names",
                               .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
                               .doc_string = "Name of the parts associated with this kernel."});
@@ -159,8 +159,19 @@ class Collision : public mundy::meta::MetaKernel<void> {
     return std::make_shared<Collision>(bulk_data_ptr, fixed_params);
   }
 
+  //! \name Setters
+  //@{
+
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
+  //@}
+
+  //! \name Getters
+  //@{
+
+  /// \brief Get valid entity parts for the kernel.
+  /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
+  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override;
   //@}
 
   //! \name Actions

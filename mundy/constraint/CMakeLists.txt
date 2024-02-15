@@ -13,7 +13,7 @@ tribits_subpackage(Constraint)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(HEADERS 
-  include/mundy_constraint/DeleteCollisionConstraints.hpp
+  # include/mundy_constraint/DeleteCollisionConstraints.hpp
   include/mundy_constraint/ComputeConstraintForcing.hpp
   # include/mundy_constraint/generate_collision_constraints/kernels/CollisionSphereSphere.hpp
   include/mundy_constraint/compute_constraint_projection/kernels/Collision.hpp

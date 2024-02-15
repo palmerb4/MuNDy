@@ -109,7 +109,7 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethod<double> {
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{
+        mundy::meta::ParamConfig<std::string>{
             .name = "element_constraint_violation_field_name",
             .default_value = std::string(default_element_constraint_violation_field_name_),
             .doc_string = "Name of the element field containing the constraint's violation measure."});

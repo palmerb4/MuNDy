@@ -15,26 +15,26 @@ tribits_subpackage(Agent)
 SET(HEADERS 
   include/mundy_shape/PerformRegistration.hpp
   include/mundy_shape/Shapes.hpp
-  include/mundy_shape/ComputeAABB.hpp
-  include/mundy_shape/ComputeBoundingRadius.hpp
-  include/mundy_shape/shapes/Spherocylinders.hpp
+  # include/mundy_shape/ComputeAABB.hpp
+  # include/mundy_shape/ComputeBoundingRadius.hpp
+  # include/mundy_shape/shapes/Spherocylinders.hpp
   include/mundy_shape/shapes/Spheres.hpp
-  include/mundy_shape/compute_aabb/kernels/Spherocylinder.hpp
-  include/mundy_shape/compute_aabb/kernels/Sphere.hpp
-  include/mundy_shape/compute_bounding_radius/kernels/Sphere.hpp
-  include/mundy_shape/ComputeOBB.hpp
-  include/mundy_shape/compute_obb/kernels/Sphere.hpp
+  # include/mundy_shape/compute_aabb/kernels/Spherocylinder.hpp
+  # include/mundy_shape/compute_aabb/kernels/Sphere.hpp
+  # include/mundy_shape/compute_bounding_radius/kernels/Sphere.hpp
+  # include/mundy_shape/ComputeOBB.hpp
+  # include/mundy_shape/compute_obb/kernels/Sphere.hpp
   )
 
 SET(SOURCES 
   src/mundy_shape/PerformRegistration.cpp
-  src/mundy_shape/compute_aabb/kernels/Sphere.cpp
-  src/mundy_shape/compute_aabb/kernels/Spherocylinder.cpp
-  src/mundy_shape/compute_bounding_radius/kernels/Sphere.cpp
-  src/mundy_shape/ComputeBoundingRadius.cpp
-  src/mundy_shape/ComputeOBB.cpp
-  src/mundy_shape/ComputeAABB.cpp
-  src/mundy_shape/compute_obb/kernels/Sphere.cpp
+  # src/mundy_shape/compute_aabb/kernels/Sphere.cpp
+  # src/mundy_shape/compute_aabb/kernels/Spherocylinder.cpp
+  # src/mundy_shape/compute_bounding_radius/kernels/Sphere.cpp
+  # src/mundy_shape/ComputeBoundingRadius.cpp
+  # src/mundy_shape/ComputeOBB.cpp
+  # src/mundy_shape/ComputeAABB.cpp
+  # src/mundy_shape/compute_obb/kernels/Sphere.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

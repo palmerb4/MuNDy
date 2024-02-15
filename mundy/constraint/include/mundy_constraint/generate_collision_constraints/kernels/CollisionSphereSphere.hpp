@@ -123,21 +123,21 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
   static void validate_fixed_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr, ParamConfig<Teuchos::Array<std::string>>{
+        fixed_params_ptr, mundy::meta::ParamConfig<Teuchos::Array<std::string>>{
                               .name = "input_part_names",
                               .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
                               .doc_string = "Name of the parts associated with this kernel."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{
+        mundy::meta::ParamConfig<std::string>{
             .name = "node_coord_field_name",
             .default_value = std::string(default_node_coord_field_name_),
             .doc_string = "Name of the node field containing the coordinate of each sphere's center."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{
+        mundy::meta::ParamConfig<std::string>{
             .name = "node_normal_field_name",
             .default_value = std::string(default_node_normal_field_name_),
             .doc_string =
@@ -145,13 +145,13 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{.name = "element_radius_field_name",
+        mundy::meta::ParamConfig<std::string>{.name = "element_radius_field_name",
                                  .default_value = std::string(default_element_radius_field_name_),
                                  .doc_string = "Name of the element field containing the radius of each sphere."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        ParamConfig<std::string>{
+        mundy::meta::ParamConfig<std::string>{
             .name = "element_signed_separation_dist_field_name",
             .default_value = std::string(default_element_signed_separation_dist_field_name_),
             .doc_string = "Name of the element field containing the signed separation distance between each sphere."});
@@ -203,7 +203,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORD";
+  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORDINATES";
   static constexpr std::string_view default_node_normal_field_name_ = "NODE_NORMAL";
   static constexpr std::string_view default_element_radius_field_name_ = "ELEMENT_RADIUS";
   static constexpr std::string_view default_element_signed_separation_dist_field_name_ =

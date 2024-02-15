@@ -105,7 +105,7 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     // Fetch the technique sublist and return its parameters.
     mundy::meta::check_parameter_and_set_default(
-              fixed_params_ptr, ParamConfig<std::string>{
+              fixed_params_ptr, mundy::meta::ParamConfig<std::string>{
                               .name = "technique_name",
                               .default_value = std::string(default_technique_name_),
                               .doc_string = "The name of the technique to use."});
@@ -118,7 +118,7 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     // Fetch the technique sublist and return its parameters.
     mundy::meta::check_parameter_and_set_default(
-        mutable_params_ptr, ParamConfig<std::string>{
+        mutable_params_ptr, mundy::meta::ParamConfig<std::string>{
                                 .name = "technique_name",
                                 .default_value = std::string(default_technique_name_),
                                 .doc_string = "The name of the technique to use."});

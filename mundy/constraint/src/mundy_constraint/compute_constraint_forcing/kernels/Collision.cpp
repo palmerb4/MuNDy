@@ -55,41 +55,51 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
-  // Fill the internal members using the given parameter list.
-  node_normal_field_name_ = valid_fixed_params.get<std::string>("node_normal_field_name");
-  node_force_field_name_ = valid_fixed_params.get<std::string>("node_force_field_name");
-  element_lagrange_multiplier_field_name_ =
+  // Store the valid entity parts for the kernel.
+  Teuchos::Array<std::string> input_part_names =
+      valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
+  for (const std::string &part_name : input_part_names) {
+    valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
+    MUNDY_THROW_ASSERT(
+        valid_entity_parts_.back() != nullptr, std::invalid_argument,
+        "Collision: Part '" << part_name << "' from the input_part_names does not exist in the meta data.");
+  }
+
+  // Fetch the fields.
+  const std::string node_normal_field_name = valid_fixed_params.get<std::string>("node_normal_field_name");
+  const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
+  const std::string element_lagrange_multiplier_field_name =
       valid_fixed_params.get<std::string>("element_lagrange_multiplier_field_name");
-  associated_part_name_ = valid_fixed_params.get<std::string>("part_name");
 
   // Get the field pointers.
-  node_normal_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_normal_field_name_);
-  node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name_);
+  node_normal_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_normal_field_name);
+  node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
   element_lagrange_multiplier_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name_);
-
-  // Prefetch the collision part ordinal.
-  stk::mesh::Part *collision_part_ptr = meta_data_ptr_->get_part(associated_part_name_);
-  MUNDY_THROW_ASSERT(collision_part_ptr != nullptr, std::invalid_argument,
-                     "Sphere: collision_part_ptr cannot be a nullptr. Check that the part exists.");
-  collision_part_ordinal_ = collision_part_ptr->mesh_meta_data_ordinal();
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_lagrange_multiplier_field_name);
 
   // Check that the fields exist
   MUNDY_THROW_ASSERT(node_normal_field_ptr_ != nullptr, std::invalid_argument,
-                     "Sphere: node_normal_field_ptr cannot be a nullptr. Check that the field exists.");
+                     "Collision: node_normal_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(node_force_field_ptr_ != nullptr, std::invalid_argument,
-                     "Sphere: node_force_field_ptr cannot be a nullptr. Check that the field exists.");
+                     "Collision: node_force_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_lagrange_multiplier_field_ptr_ != nullptr, std::invalid_argument,
-                     "Sphere: element_lagrange_multiplier_field_ptr cannot be a nullptr. Check that the field exists.");
+                     "Collision: element_lagrange_multiplier_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
 
-// \name MetaKernel interface implementation
+// \name Setters
 //{
 
 void Collision::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
 }
 //}
+
+// \name Getters
+//{
+
+std::vector<stk::mesh::Part *> Collision::get_valid_entity_parts() const {
+  return valid_entity_parts_;
+}
 
 // \name Actions
 //{

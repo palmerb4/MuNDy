@@ -156,7 +156,7 @@ class Spheres {
   static constexpr std::string_view element_radius_field_name_ = "ELEMENT_RADIUS";
 
   /// @brief The name of our node coordinate field.
-  static constexpr std::string_view node_coord_field_name_ = "NODE_COORD";
+  static constexpr std::string_view node_coord_field_name_ = "NODE_COORDINATES";
 
   /// \brief Our part requirements.
   static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ = []() {

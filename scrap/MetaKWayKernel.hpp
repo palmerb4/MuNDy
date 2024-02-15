@@ -71,6 +71,9 @@ class MetaKWayKernel {
   /// \brief Get valid entity parts for the kernel.
   /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
   virtual std::vector<stk::mesh::Part *> get_valid_entity_parts() const = 0;
+
+  /// \brief Get the entity rank that the kernel acts on.
+  virtual stk::topology::rank_t get_entity_rank() const = 0;
   //@}
 
   //! \name Actions

@@ -51,6 +51,20 @@ namespace mundy {
 
 namespace meta {
 
+/// \brief A class that dispatches the execution of multiple kernels.
+///
+/// This class is a concrete implementation of the \c MetaMethod interface. It provides a means of dispatching a
+/// collection of kernels (each associated with potentially different parts) on a subset of the entities in the mesh. In
+/// a sense, it's role is to streamline the registration of collections of kernels and to provide a means of executing
+/// them in a single call. It uses subsetting and part unions to properly dispatch the kernels on the correct entities
+/// AND (importantly) to guarantee that a kernel only acts on an entity once even if that entity is in multiple valid
+/// parts.
+///
+/// \note All kernels within a MetaKernelDispatcher must act on entities of the same rank. Otherwise, it's not clear how to
+/// properly dispatch the kernels in a way that guarantees that each entity is only acted upon once. For example, a user
+/// might erroneously create a kernel that acts on a ELEMENT_RANKED entities in a PARTICLE topology part and another
+/// that acts on NODE_RANK entities in the same part. If the NODE_RANK entity kernel changes the state of the elements, then
+/// the order of the kernels will matter.
 template <typename RegistryIdentifier>
 class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
  public:
@@ -217,6 +231,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
   /// \brief Number of active kernels.
   int num_active_kernels_ = 0;
 
+  /// \brief The entity rank that the kernels acts on.
+  stk::topology::rank_t kernel_entity_rank_ = stk::topology::INVALID_RANK;
+
   /// \brief The valid entity parts for the kernel.
   std::vector<stk::mesh::Part *> valid_entity_parts_;
 
@@ -246,17 +263,27 @@ MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::Bulk
   // Populate our internal members.
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
   num_active_kernels_ = kernels_sublist.get<int>("count");
-  kernel_ptrs_.reserve(num_active_kernels_);
-  valid_entity_parts_.reserve(num_active_kernels_);
-  for (int i = 0; i < num_active_kernels_; i++) {
-    // Create the kernel and store it in the kernel_ptrs_ vector.
-    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
-    const std::string kernel_name = kernel_params.get<std::string>("name");
-    kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
+  if (num_active_kernels_ > 0) {
+    kernel_ptrs_.reserve(num_active_kernels_);
+    valid_entity_parts_.reserve(num_active_kernels_);
+    for (int i = 0; i < num_active_kernels_; i++) {
+      // Create the kernel and store it in the kernel_ptrs_ vector.
+      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+      const std::string kernel_name = kernel_params.get<std::string>("name");
+      kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
 
-    // Get the valid entity parts for the kernel.
-    auto valid_entity_parts_i = kernel_ptrs_[i]->get_valid_entity_parts();
-    valid_entity_parts_.insert(valid_entity_parts_.end(), valid_entity_parts_i.begin(), valid_entity_parts_i.end());
+      // Store the entity rank and ensure that it is the same for all kernels.
+      if (i == 0) {
+        kernel_entity_rank_ = kernel_ptrs_[0]->get_entity_rank();
+      } else {
+        MUNDY_THROW_ASSERT(kernel_ptrs_[i]->get_entity_rank() == kernel_entity_rank_, std::invalid_argument,
+                          "MetaKernelDispatcher: All kernels in a dispatcher must act on entities of the same rank.");
+      }
+
+      // Get the valid entity parts for the kernel.
+      auto valid_entity_parts_i = kernel_ptrs_[i]->get_valid_entity_parts();
+      valid_entity_parts_.insert(valid_entity_parts_.end(), valid_entity_parts_i.begin(), valid_entity_parts_i.end());
+    }
   }
 }
 //}
@@ -314,10 +341,10 @@ void MetaKernelDispatcher<RegistryIdentifier>::execute(const stk::mesh::Selector
     }
 
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), kernel_entity_rank_,
         locally_owned_intersection_with_valid_entity_parts,
-        [&kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
-          kernel_ptr_i->execute(element);
+        [&kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &entity) {
+          kernel_ptr_i->execute(entity);
         });
   }
 
