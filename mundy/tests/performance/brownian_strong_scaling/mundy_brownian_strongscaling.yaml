@@ -10,8 +10,8 @@ parameterset:
         #- { name: ranks_per_node, type: int, _: "120,60,30,15" }
         #- { name: npart, type: int, _: "10000,100000,1000000,10000000" }
       - { name: nodes, type: int, _: "1,2,4,8" }
-      - { name: ranks_per_node, type: int, _: "120,60,30,15" }
-      - { name: npart, type: int, _: "10000" }
+      - { name: ranks_per_node, type: int, _: "120" }
+      - { name: npart, type: int, _: "100, 1000, 10000, 100000, 1000000, 10000000" }
 
 # Job configuration
   - name: execute_set
