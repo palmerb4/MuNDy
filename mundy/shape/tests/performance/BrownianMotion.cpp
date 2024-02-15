@@ -691,7 +691,9 @@ int main(int argc, char **argv) {
   Teuchos::ParameterList node_euler_fixed_params;
   node_euler_fixed_params.sublist("kernels").set("count", 1);
   node_euler_fixed_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
-  node_euler_fixed_params.sublist("kernels").sublist("kernel_0").set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
+  node_euler_fixed_params.sublist("kernels")
+      .sublist("kernel_0")
+      .set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
   node_euler_fixed_params.sublist("kernels").sublist("kernel_0").set("node_velocity_field_name", "NODE_VELOCITY");
   mesh_reqs_ptr->merge(NodeEuler::get_mesh_requirements(node_euler_fixed_params));
 
@@ -720,7 +722,9 @@ int main(int argc, char **argv) {
   Teuchos::ParameterList node_euler_mutable_params;
   node_euler_mutable_params.sublist("kernels").set("count", 1);
   node_euler_mutable_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
-  node_euler_mutable_params.sublist("kernels").sublist("kernel_0").set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
+  node_euler_mutable_params.sublist("kernels")
+      .sublist("kernel_0")
+      .set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
   node_euler_mutable_params.sublist("kernels").sublist("kernel_0").set("time_step_size", time_step_size);
   node_euler_ptr->set_mutable_params(node_euler_mutable_params);
 
@@ -798,8 +802,13 @@ int main(int argc, char **argv) {
     node_euler_ptr->execute(spheres_part);
   }
 
-  double timesteps_per_second = num_time_steps / timer.seconds();
-  std::cout << "Performance: " << timesteps_per_second << std::endl;
+  // Do a synchronize to force everybody to stop here, then write the time
+  stk::parallel_machine_barrier(bulk_data_ptr->parallel());
+
+  if (bulk_data_ptr->parallel_rank() == 0) {
+    double timesteps_per_second = num_time_steps / timer.seconds();
+    std::cout << "Performance: " << timesteps_per_second << std::endl;
+  }
 
   Kokkos::finalize();
   stk::parallel_machine_finalize();

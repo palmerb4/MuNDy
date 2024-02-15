@@ -27,7 +27,6 @@ SET(HEADERS
   include/mundy_meta/FieldRequirementsBase.hpp
   include/mundy_meta/FieldRequirements.hpp
   include/mundy_meta/MeshRequirements.hpp
-  include/mundy_meta/MetaKWayKernel.hpp
   )
 
 SET(SOURCES 
