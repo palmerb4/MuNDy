@@ -31,11 +31,11 @@
 #include <type_traits>
 
 // Our libs
-#include <mundy_core/throw_assert.hpp>    // for MUNDY_THROW_ASSERT
-#include <mundy_math/Accessor.hpp>   // for mundy::math::ValidAccessor
-#include <mundy_math/Array.hpp>      // for mundy::math::Array
-#include <mundy_math/Tolerance.hpp>  // for mundy::math::get_default_tolerance
-#include <mundy_math/Vector3.hpp>    // for mundy::math::Vector3
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
+#include <mundy_math/Array.hpp>         // for mundy::math::Array
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
+#include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
 
@@ -470,18 +470,18 @@ class Matrix3 {
   /// \brief Matrix-matrix addition
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator+(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<decltype(T() + U())> {
-    using ReturnType = decltype(T() + U());
-    Matrix3<ReturnType> result;
-    result(0) = data_[0] + other(0);
-    result(1) = data_[1] + other(1);
-    result(2) = data_[2] + other(2);
-    result(3) = data_[3] + other(3);
-    result(4) = data_[4] + other(4);
-    result(5) = data_[5] + other(5);
-    result(6) = data_[6] + other(6);
-    result(7) = data_[7] + other(7);
-    result(8) = data_[8] + other(8);
+  KOKKOS_FUNCTION auto operator+(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
+    result(0) = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(other(0));
+    result(1) = static_cast<CommonType>(data_[1]) + static_cast<CommonType>(other(1));
+    result(2) = static_cast<CommonType>(data_[2]) + static_cast<CommonType>(other(2));
+    result(3) = static_cast<CommonType>(data_[3]) + static_cast<CommonType>(other(3));
+    result(4) = static_cast<CommonType>(data_[4]) + static_cast<CommonType>(other(4));
+    result(5) = static_cast<CommonType>(data_[5]) + static_cast<CommonType>(other(5));
+    result(6) = static_cast<CommonType>(data_[6]) + static_cast<CommonType>(other(6));
+    result(7) = static_cast<CommonType>(data_[7]) + static_cast<CommonType>(other(7));
+    result(8) = static_cast<CommonType>(data_[8]) + static_cast<CommonType>(other(8));
     return result;
   }
 
@@ -491,33 +491,33 @@ class Matrix3 {
   KOKKOS_FUNCTION Matrix3<T, Accessor>& operator+=(const Matrix3<U, OtherAccessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] += other(0);
-    data_[1] += other(1);
-    data_[2] += other(2);
-    data_[3] += other(3);
-    data_[4] += other(4);
-    data_[5] += other(5);
-    data_[6] += other(6);
-    data_[7] += other(7);
-    data_[8] += other(8);
+    data_[0] += static_cast<T>(other(0));
+    data_[1] += static_cast<T>(other(1));
+    data_[2] += static_cast<T>(other(2));
+    data_[3] += static_cast<T>(other(3));
+    data_[4] += static_cast<T>(other(4));
+    data_[5] += static_cast<T>(other(5));
+    data_[6] += static_cast<T>(other(6));
+    data_[7] += static_cast<T>(other(7));
+    data_[8] += static_cast<T>(other(8));
     return *this;
   }
 
   /// \brief Matrix-matrix subtraction
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator-(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<decltype(T() - U())> {
-    using ReturnType = decltype(T() - U());
-    Matrix3<ReturnType> result;
-    result(0) = data_[0] - other(0);
-    result(1) = data_[1] - other(1);
-    result(2) = data_[2] - other(2);
-    result(3) = data_[3] - other(3);
-    result(4) = data_[4] - other(4);
-    result(5) = data_[5] - other(5);
-    result(6) = data_[6] - other(6);
-    result(7) = data_[7] - other(7);
-    result(8) = data_[8] - other(8);
+  KOKKOS_FUNCTION auto operator-(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
+    result(0) = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(other(0));
+    result(1) = static_cast<CommonType>(data_[1]) - static_cast<CommonType>(other(1));
+    result(2) = static_cast<CommonType>(data_[2]) - static_cast<CommonType>(other(2));
+    result(3) = static_cast<CommonType>(data_[3]) - static_cast<CommonType>(other(3));
+    result(4) = static_cast<CommonType>(data_[4]) - static_cast<CommonType>(other(4));
+    result(5) = static_cast<CommonType>(data_[5]) - static_cast<CommonType>(other(5));
+    result(6) = static_cast<CommonType>(data_[6]) - static_cast<CommonType>(other(6));
+    result(7) = static_cast<CommonType>(data_[7]) - static_cast<CommonType>(other(7));
+    result(8) = static_cast<CommonType>(data_[8]) - static_cast<CommonType>(other(8));
     return result;
   }
 
@@ -527,33 +527,33 @@ class Matrix3 {
   KOKKOS_FUNCTION Matrix3<T, Accessor>& operator-=(const Matrix3<U, OtherAccessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] -= other(0);
-    data_[1] -= other(1);
-    data_[2] -= other(2);
-    data_[3] -= other(3);
-    data_[4] -= other(4);
-    data_[5] -= other(5);
-    data_[6] -= other(6);
-    data_[7] -= other(7);
-    data_[8] -= other(8);
+    data_[0] -= static_cast<T>(other(0));
+    data_[1] -= static_cast<T>(other(1));
+    data_[2] -= static_cast<T>(other(2));
+    data_[3] -= static_cast<T>(other(3));
+    data_[4] -= static_cast<T>(other(4));
+    data_[5] -= static_cast<T>(other(5));
+    data_[6] -= static_cast<T>(other(6));
+    data_[7] -= static_cast<T>(other(7));
+    data_[8] -= static_cast<T>(other(8));
     return *this;
   }
 
   /// \brief Matrix-scalar addition
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator+(const U& scalar) const -> Matrix3<decltype(T() + U())> {
-    using ReturnType = decltype(T() + U());
-    Matrix3<ReturnType> result;
-    result(0) = data_[0] + scalar;
-    result(1) = data_[1] + scalar;
-    result(2) = data_[2] + scalar;
-    result(3) = data_[3] + scalar;
-    result(4) = data_[4] + scalar;
-    result(5) = data_[5] + scalar;
-    result(6) = data_[6] + scalar;
-    result(7) = data_[7] + scalar;
-    result(8) = data_[8] + scalar;
+  KOKKOS_FUNCTION auto operator+(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
+    result(0) = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(scalar);
+    result(1) = static_cast<CommonType>(data_[1]) + static_cast<CommonType>(scalar);
+    result(2) = static_cast<CommonType>(data_[2]) + static_cast<CommonType>(scalar);
+    result(3) = static_cast<CommonType>(data_[3]) + static_cast<CommonType>(scalar);
+    result(4) = static_cast<CommonType>(data_[4]) + static_cast<CommonType>(scalar);
+    result(5) = static_cast<CommonType>(data_[5]) + static_cast<CommonType>(scalar);
+    result(6) = static_cast<CommonType>(data_[6]) + static_cast<CommonType>(scalar);
+    result(7) = static_cast<CommonType>(data_[7]) + static_cast<CommonType>(scalar);
+    result(8) = static_cast<CommonType>(data_[8]) + static_cast<CommonType>(scalar);
     return result;
   }
 
@@ -563,33 +563,33 @@ class Matrix3 {
   KOKKOS_FUNCTION Matrix3<T, Accessor>& operator+=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] += scalar;
-    data_[1] += scalar;
-    data_[2] += scalar;
-    data_[3] += scalar;
-    data_[4] += scalar;
-    data_[5] += scalar;
-    data_[6] += scalar;
-    data_[7] += scalar;
-    data_[8] += scalar;
+    data_[0] += static_cast<T>(scalar);
+    data_[1] += static_cast<T>(scalar);
+    data_[2] += static_cast<T>(scalar);
+    data_[3] += static_cast<T>(scalar);
+    data_[4] += static_cast<T>(scalar);
+    data_[5] += static_cast<T>(scalar);
+    data_[6] += static_cast<T>(scalar);
+    data_[7] += static_cast<T>(scalar);
+    data_[8] += static_cast<T>(scalar);
     return *this;
   }
 
   /// \brief Matrix-scalar subtraction
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator-(const U& scalar) const -> Matrix3<decltype(T() - U())> {
-    using ReturnType = decltype(T() - U());
-    Matrix3<ReturnType> result;
-    result(0) = data_[0] - scalar;
-    result(1) = data_[1] - scalar;
-    result(2) = data_[2] - scalar;
-    result(3) = data_[3] - scalar;
-    result(4) = data_[4] - scalar;
-    result(5) = data_[5] - scalar;
-    result(6) = data_[6] - scalar;
-    result(7) = data_[7] - scalar;
-    result(8) = data_[8] - scalar;
+  KOKKOS_FUNCTION auto operator-(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
+    result(0) = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(scalar);
+    result(1) = static_cast<CommonType>(data_[1]) - static_cast<CommonType>(scalar);
+    result(2) = static_cast<CommonType>(data_[2]) - static_cast<CommonType>(scalar);
+    result(3) = static_cast<CommonType>(data_[3]) - static_cast<CommonType>(scalar);
+    result(4) = static_cast<CommonType>(data_[4]) - static_cast<CommonType>(scalar);
+    result(5) = static_cast<CommonType>(data_[5]) - static_cast<CommonType>(scalar);
+    result(6) = static_cast<CommonType>(data_[6]) - static_cast<CommonType>(scalar);
+    result(7) = static_cast<CommonType>(data_[7]) - static_cast<CommonType>(scalar);
+    result(8) = static_cast<CommonType>(data_[8]) - static_cast<CommonType>(scalar);
     return result;
   }
 
@@ -599,15 +599,15 @@ class Matrix3 {
   KOKKOS_FUNCTION Matrix3<T, Accessor>& operator-=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] -= scalar;
-    data_[1] -= scalar;
-    data_[2] -= scalar;
-    data_[3] -= scalar;
-    data_[4] -= scalar;
-    data_[5] -= scalar;
-    data_[6] -= scalar;
-    data_[7] -= scalar;
-    data_[8] -= scalar;
+    data_[0] -= static_cast<T>(scalar);
+    data_[1] -= static_cast<T>(scalar);
+    data_[2] -= static_cast<T>(scalar);
+    data_[3] -= static_cast<T>(scalar);
+    data_[4] -= static_cast<T>(scalar);
+    data_[5] -= static_cast<T>(scalar);
+    data_[6] -= static_cast<T>(scalar);
+    data_[7] -= static_cast<T>(scalar);
+    data_[8] -= static_cast<T>(scalar);
     return *this;
   }
   //@}
@@ -618,18 +618,36 @@ class Matrix3 {
   /// \brief Matrix-matrix multiplication
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator*(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<decltype(T() * U())> {
-    using ReturnType = decltype(T() * U());
-    Matrix3<ReturnType> result;
-    result(0, 0) = data_[0] * other(0, 0) + data_[1] * other(1, 0) + data_[2] * other(2, 0);
-    result(0, 1) = data_[0] * other(0, 1) + data_[1] * other(1, 1) + data_[2] * other(2, 1);
-    result(0, 2) = data_[0] * other(0, 2) + data_[1] * other(1, 2) + data_[2] * other(2, 2);
-    result(1, 0) = data_[3] * other(0, 0) + data_[4] * other(1, 0) + data_[5] * other(2, 0);
-    result(1, 1) = data_[3] * other(0, 1) + data_[4] * other(1, 1) + data_[5] * other(2, 1);
-    result(1, 2) = data_[3] * other(0, 2) + data_[4] * other(1, 2) + data_[5] * other(2, 2);
-    result(2, 0) = data_[6] * other(0, 0) + data_[7] * other(1, 0) + data_[8] * other(2, 0);
-    result(2, 1) = data_[6] * other(0, 1) + data_[7] * other(1, 1) + data_[8] * other(2, 1);
-    result(2, 2) = data_[6] * other(0, 2) + data_[7] * other(1, 2) + data_[8] * other(2, 2);
+  KOKKOS_FUNCTION auto operator*(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
+    result(0, 0) = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other(0, 0)) +
+                   static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other(1, 0)) +
+                   static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other(2, 0));
+    result(0, 1) = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other(0, 1)) +
+                   static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other(1, 1)) +
+                   static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other(2, 1));
+    result(0, 2) = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other(0, 2)) +
+                   static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other(1, 2)) +
+                   static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other(2, 2));
+    result(1, 0) = static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other(0, 0)) +
+                   static_cast<CommonType>(data_[4]) * static_cast<CommonType>(other(1, 0)) +
+                   static_cast<CommonType>(data_[5]) * static_cast<CommonType>(other(2, 0));
+    result(1, 1) = static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other(0, 1)) +
+                   static_cast<CommonType>(data_[4]) * static_cast<CommonType>(other(1, 1)) +
+                   static_cast<CommonType>(data_[5]) * static_cast<CommonType>(other(2, 1));
+    result(1, 2) = static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other(0, 2)) +
+                   static_cast<CommonType>(data_[4]) * static_cast<CommonType>(other(1, 2)) +
+                   static_cast<CommonType>(data_[5]) * static_cast<CommonType>(other(2, 2));
+    result(2, 0) = static_cast<CommonType>(data_[6]) * static_cast<CommonType>(other(0, 0)) +
+                   static_cast<CommonType>(data_[7]) * static_cast<CommonType>(other(1, 0)) +
+                   static_cast<CommonType>(data_[8]) * static_cast<CommonType>(other(2, 0));
+    result(2, 1) = static_cast<CommonType>(data_[6]) * static_cast<CommonType>(other(0, 1)) +
+                   static_cast<CommonType>(data_[7]) * static_cast<CommonType>(other(1, 1)) +
+                   static_cast<CommonType>(data_[8]) * static_cast<CommonType>(other(2, 1));
+    result(2, 2) = static_cast<CommonType>(data_[6]) * static_cast<CommonType>(other(0, 2)) +
+                   static_cast<CommonType>(data_[7]) * static_cast<CommonType>(other(1, 2)) +
+                   static_cast<CommonType>(data_[8]) * static_cast<CommonType>(other(2, 2));
     return result;
   }
 
@@ -640,15 +658,24 @@ class Matrix3 {
     requires HasNonConstAccessOperator<Accessor, T>
   {
     std::remove_const_t<T> temp[9];
-    temp[0] = data_[0] * other(0, 0) + data_[1] * other(1, 0) + data_[2] * other(2, 0);
-    temp[1] = data_[0] * other(0, 1) + data_[1] * other(1, 1) + data_[2] * other(2, 1);
-    temp[2] = data_[0] * other(0, 2) + data_[1] * other(1, 2) + data_[2] * other(2, 2);
-    temp[3] = data_[3] * other(0, 0) + data_[4] * other(1, 0) + data_[5] * other(2, 0);
-    temp[4] = data_[3] * other(0, 1) + data_[4] * other(1, 1) + data_[5] * other(2, 1);
-    temp[5] = data_[3] * other(0, 2) + data_[4] * other(1, 2) + data_[5] * other(2, 2);
-    temp[6] = data_[6] * other(0, 0) + data_[7] * other(1, 0) + data_[8] * other(2, 0);
-    temp[7] = data_[6] * other(0, 1) + data_[7] * other(1, 1) + data_[8] * other(2, 1);
-    temp[8] = data_[6] * other(0, 2) + data_[7] * other(1, 2) + data_[8] * other(2, 2);
+    temp[0] = data_[0] * static_cast<T>(other(0, 0)) + data_[1] * static_cast<T>(other(1, 0)) +
+              data_[2] * static_cast<T>(other(2, 0));
+    temp[1] = data_[0] * static_cast<T>(other(0, 1)) + data_[1] * static_cast<T>(other(1, 1)) +
+              data_[2] * static_cast<T>(other(2, 1));
+    temp[2] = data_[0] * static_cast<T>(other(0, 2)) + data_[1] * static_cast<T>(other(1, 2)) +
+              data_[2] * static_cast<T>(other(2, 2));
+    temp[3] = data_[3] * static_cast<T>(other(0, 0)) + data_[4] * static_cast<T>(other(1, 0)) +
+              data_[5] * static_cast<T>(other(2, 0));
+    temp[4] = data_[3] * static_cast<T>(other(0, 1)) + data_[4] * static_cast<T>(other(1, 1)) +
+              data_[5] * static_cast<T>(other(2, 1));
+    temp[5] = data_[3] * static_cast<T>(other(0, 2)) + data_[4] * static_cast<T>(other(1, 2)) +
+              data_[5] * static_cast<T>(other(2, 2));
+    temp[6] = data_[6] * static_cast<T>(other(0, 0)) + data_[7] * static_cast<T>(other(1, 0)) +
+              data_[8] * static_cast<T>(other(2, 0));
+    temp[7] = data_[6] * static_cast<T>(other(0, 1)) + data_[7] * static_cast<T>(other(1, 1)) +
+              data_[8] * static_cast<T>(other(2, 1));
+    temp[8] = data_[6] * static_cast<T>(other(0, 2)) + data_[7] * static_cast<T>(other(1, 2)) +
+              data_[8] * static_cast<T>(other(2, 2));
 
     data_[0] = temp[0];
     data_[1] = temp[1];
@@ -666,30 +693,36 @@ class Matrix3 {
   /// \brief Matrix-vector multiplication
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& other) const -> Vector3<decltype(T() * U())> {
-    using ReturnType = decltype(T() * U());
-    Vector3<ReturnType> result;
-    result[0] = data_[0] * other[0] + data_[1] * other[1] + data_[2] * other[2];
-    result[1] = data_[3] * other[0] + data_[4] * other[1] + data_[5] * other[2];
-    result[2] = data_[6] * other[0] + data_[7] * other[1] + data_[8] * other[2];
+  KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Vector3<CommonType> result;
+    result[0] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other[0]) +
+                static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other[1]) +
+                static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other[2]);
+    result[1] = static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other[0]) +
+                static_cast<CommonType>(data_[4]) * static_cast<CommonType>(other[1]) +
+                static_cast<CommonType>(data_[5]) * static_cast<CommonType>(other[2]);
+    result[2] = static_cast<CommonType>(data_[6]) * static_cast<CommonType>(other[0]) +
+                static_cast<CommonType>(data_[7]) * static_cast<CommonType>(other[1]) +
+                static_cast<CommonType>(data_[8]) * static_cast<CommonType>(other[2]);
     return result;
   }
 
   /// \brief Matrix-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator*(const U& scalar) const -> Matrix3<decltype(T() * U())> {
-    using ReturnType = decltype(T() * U());
-    Matrix3<ReturnType> result;
-    result(0) = data_[0] * scalar;
-    result(1) = data_[1] * scalar;
-    result(2) = data_[2] * scalar;
-    result(3) = data_[3] * scalar;
-    result(4) = data_[4] * scalar;
-    result(5) = data_[5] * scalar;
-    result(6) = data_[6] * scalar;
-    result(7) = data_[7] * scalar;
-    result(8) = data_[8] * scalar;
+  KOKKOS_FUNCTION auto operator*(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
+    result(0) = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(scalar);
+    result(1) = static_cast<CommonType>(data_[1]) * static_cast<CommonType>(scalar);
+    result(2) = static_cast<CommonType>(data_[2]) * static_cast<CommonType>(scalar);
+    result(3) = static_cast<CommonType>(data_[3]) * static_cast<CommonType>(scalar);
+    result(4) = static_cast<CommonType>(data_[4]) * static_cast<CommonType>(scalar);
+    result(5) = static_cast<CommonType>(data_[5]) * static_cast<CommonType>(scalar);
+    result(6) = static_cast<CommonType>(data_[6]) * static_cast<CommonType>(scalar);
+    result(7) = static_cast<CommonType>(data_[7]) * static_cast<CommonType>(scalar);
+    result(8) = static_cast<CommonType>(data_[8]) * static_cast<CommonType>(scalar);
     return result;
   }
 
@@ -699,33 +732,33 @@ class Matrix3 {
   KOKKOS_FUNCTION Matrix3<T, Accessor>& operator*=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] *= scalar;
-    data_[1] *= scalar;
-    data_[2] *= scalar;
-    data_[3] *= scalar;
-    data_[4] *= scalar;
-    data_[5] *= scalar;
-    data_[6] *= scalar;
-    data_[7] *= scalar;
-    data_[8] *= scalar;
+    data_[0] *= static_cast<T>(scalar);
+    data_[1] *= static_cast<T>(scalar);
+    data_[2] *= static_cast<T>(scalar);
+    data_[3] *= static_cast<T>(scalar);
+    data_[4] *= static_cast<T>(scalar);
+    data_[5] *= static_cast<T>(scalar);
+    data_[6] *= static_cast<T>(scalar);
+    data_[7] *= static_cast<T>(scalar);
+    data_[8] *= static_cast<T>(scalar);
     return *this;
   }
 
   /// \brief Matrix-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator/(const U& scalar) const -> Matrix3<decltype(T() / U())> {
-    using ReturnType = decltype(T() / U());
-    Matrix3<ReturnType> result;
-    result(0) = data_[0] / scalar;
-    result(1) = data_[1] / scalar;
-    result(2) = data_[2] / scalar;
-    result(3) = data_[3] / scalar;
-    result(4) = data_[4] / scalar;
-    result(5) = data_[5] / scalar;
-    result(6) = data_[6] / scalar;
-    result(7) = data_[7] / scalar;
-    result(8) = data_[8] / scalar;
+  KOKKOS_FUNCTION auto operator/(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
+    result(0) = static_cast<CommonType>(data_[0]) / static_cast<CommonType>(scalar);
+    result(1) = static_cast<CommonType>(data_[1]) / static_cast<CommonType>(scalar);
+    result(2) = static_cast<CommonType>(data_[2]) / static_cast<CommonType>(scalar);
+    result(3) = static_cast<CommonType>(data_[3]) / static_cast<CommonType>(scalar);
+    result(4) = static_cast<CommonType>(data_[4]) / static_cast<CommonType>(scalar);
+    result(5) = static_cast<CommonType>(data_[5]) / static_cast<CommonType>(scalar);
+    result(6) = static_cast<CommonType>(data_[6]) / static_cast<CommonType>(scalar);
+    result(7) = static_cast<CommonType>(data_[7]) / static_cast<CommonType>(scalar);
+    result(8) = static_cast<CommonType>(data_[8]) / static_cast<CommonType>(scalar);
     return result;
   }
 
@@ -735,15 +768,15 @@ class Matrix3 {
   KOKKOS_FUNCTION Matrix3<T, Accessor>& operator/=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] /= scalar;
-    data_[1] /= scalar;
-    data_[2] /= scalar;
-    data_[3] /= scalar;
-    data_[4] /= scalar;
-    data_[5] /= scalar;
-    data_[6] /= scalar;
-    data_[7] /= scalar;
-    data_[8] /= scalar;
+    data_[0] /= static_cast<T>(scalar);
+    data_[1] /= static_cast<T>(scalar);
+    data_[2] /= static_cast<T>(scalar);
+    data_[3] /= static_cast<T>(scalar);
+    data_[4] /= static_cast<T>(scalar);
+    data_[5] /= static_cast<T>(scalar);
+    data_[6] /= static_cast<T>(scalar);
+    data_[7] /= static_cast<T>(scalar);
+    data_[8] /= static_cast<T>(scalar);
     return *this;
   }
   //@}
@@ -807,14 +840,19 @@ KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix3<T, Acce
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
-                              const decltype(U() - T())& tol = get_default_tolerance<decltype(U() - T())>()) {
-  if constexpr (std::is_floating_point_v<decltype(U() - T())>) {
+                              const std::common_type_t<T, U>& tol = get_default_tolerance<std::common_type_t<T, U>>()) {
+  using CommonType = std::common_type_t<T, U>;
+  if constexpr (std::is_floating_point_v<CommonType>) {
     // For floating-point types, compare with a tolerance
-    return (std::abs(mat1(0) - mat2(0)) < tol) && (std::abs(mat1(1) - mat2(1)) < tol) &&
-           (std::abs(mat1(2) - mat2(2)) < tol) && (std::abs(mat1(3) - mat2(3)) < tol) &&
-           (std::abs(mat1(4) - mat2(4)) < tol) && (std::abs(mat1(5) - mat2(5)) < tol) &&
-           (std::abs(mat1(6) - mat2(6)) < tol) && (std::abs(mat1(7) - mat2(7)) < tol) &&
-           (std::abs(mat1(8) - mat2(8)) < tol);
+    return (std::abs(static_cast<CommonType>(mat1(0)) - static_cast<CommonType>(mat2(0))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(1)) - static_cast<CommonType>(mat2(1))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(2)) - static_cast<CommonType>(mat2(2))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(3)) - static_cast<CommonType>(mat2(3))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(4)) - static_cast<CommonType>(mat2(4))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(5)) - static_cast<CommonType>(mat2(5))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(6)) - static_cast<CommonType>(mat2(6))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(7)) - static_cast<CommonType>(mat2(7))) < tol) &&
+           (std::abs(static_cast<CommonType>(mat1(8)) - static_cast<CommonType>(mat2(8))) < tol);
   } else {
     // For integral types, compare with exact equality
     return (mat1(0) == mat2(0)) && (mat1(1) == mat2(1)) && (mat1(2) == mat2(2)) && (mat1(3) == mat2(3)) &&
@@ -831,7 +869,7 @@ KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matri
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<decltype(U() + T())> {
+KOKKOS_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return mat + scalar;
 }
 
@@ -839,7 +877,7 @@ KOKKOS_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor>& mat)
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<decltype(U() - T())> {
+KOKKOS_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return -mat + scalar;
 }
 //@}
@@ -851,7 +889,7 @@ KOKKOS_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor>& mat)
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<decltype(U() * T())> {
+KOKKOS_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return mat * scalar;
 }
 
@@ -860,12 +898,18 @@ KOKKOS_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor>& mat)
 /// \param[in] mat The matrix.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& vec, const Matrix3<T, Accessor>& mat)
-    -> Vector3<decltype(U() * T())> {
-  using ReturnType = decltype(U() * T());
-  Vector3<ReturnType> result;
-  result[0] = vec[0] * mat(0, 0) + vec[1] * mat(1, 0) + vec[2] * mat(2, 0);
-  result[1] = vec[0] * mat(0, 1) + vec[1] * mat(1, 1) + vec[2] * mat(2, 1);
-  result[2] = vec[0] * mat(0, 2) + vec[1] * mat(1, 2) + vec[2] * mat(2, 2);
+    -> Vector3<std::common_type_t<T, U>> {
+  using CommonType = std::common_type_t<T, U>;
+  Vector3<CommonType> result;
+  result[0] = static_cast<CommonType>(vec[0]) * static_cast<CommonType>(mat(0, 0)) +
+              static_cast<CommonType>(vec[1]) * static_cast<CommonType>(mat(1, 0)) +
+              static_cast<CommonType>(vec[2]) * static_cast<CommonType>(mat(2, 0));
+  result[1] = static_cast<CommonType>(vec[0]) * static_cast<CommonType>(mat(0, 1)) +
+              static_cast<CommonType>(vec[1]) * static_cast<CommonType>(mat(1, 1)) +
+              static_cast<CommonType>(vec[2]) * static_cast<CommonType>(mat(2, 1));
+  result[2] = static_cast<CommonType>(vec[0]) * static_cast<CommonType>(mat(0, 2)) +
+              static_cast<CommonType>(vec[1]) * static_cast<CommonType>(mat(1, 2)) +
+              static_cast<CommonType>(vec[2]) * static_cast<CommonType>(mat(2, 2));
   return result;
 }
 //@}
@@ -937,33 +981,57 @@ KOKKOS_FUNCTION auto max(const Matrix3<T, Accessor>& mat) {
                                : ((max_row2 > max_row3) ? max_row2 : max_row3);
 }
 
-/// \brief Mean of all elements
+/// \brief Mean of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto mean(const Matrix3<T, Accessor>& mat) {
-  using ReturnType = std::conditional_t<std::is_integral_v<T>, double, T>;
-  ReturnType sum = mat(0) + mat(1) + mat(2) + mat(3) + mat(4) + mat(5) + mat(6) + mat(7) + mat(8);
-  return sum / 9;
+template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_FUNCTION OutputType mean(const Matrix3<T, Accessor>& mat) {
+  auto sum = mundy::math::sum(mat);
+  return static_cast<OutputType>(sum) / OutputType(9);
 }
 
-/// \brief Variance of all elements
+/// \brief Mean of all elements (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto variance(const Matrix3<T, Accessor>& mat) {
-  auto mat_mean = mean(mat);
-  return ((mat(0) - mat_mean) * (mat(0) - mat_mean) + (mat(1) - mat_mean) * (mat(1) - mat_mean) +
-          (mat(2) - mat_mean) * (mat(2) - mat_mean) + (mat(3) - mat_mean) * (mat(3) - mat_mean) +
-          (mat(4) - mat_mean) * (mat(4) - mat_mean) + (mat(5) - mat_mean) * (mat(5) - mat_mean) +
-          (mat(6) - mat_mean) * (mat(6) - mat_mean) + (mat(7) - mat_mean) * (mat(7) - mat_mean) +
-          (mat(8) - mat_mean) * (mat(8) - mat_mean)) /
-         9;
+template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_FUNCTION OutputType mean_f(const Matrix3<T, Accessor>& mat) {
+  return mean<T, Accessor, OutputType>(mat);
 }
 
-/// \brief Standard deviation of all elements
+/// \brief Variance of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto stddev(const Matrix3<T, Accessor>& mat) {
-  return std::sqrt(variance(mat));
+template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_FUNCTION OutputType variance(const Matrix3<T, Accessor>& mat) {
+  auto mat_mean = mean<T, Accessor, OutputType>(mat);
+  return ((static_cast<OutputType>(mat(0)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(0)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(1)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(1)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(2)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(2)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(3)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(3)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(4)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(4)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(5)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(5)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(6)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(6)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(7)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(7)) -static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(8)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(8)) -static_cast<OutputType>(mat_mean))) /
+         OutputType(9);
+}
+
+/// \brief Variance of all elements (returns a float if T is an integral type, otherwise returns T)
+/// \param[in] mat The matrix.
+template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_FUNCTION OutputType variance_f(const Matrix3<T, Accessor>& mat) {
+  return variance<T, Accessor, OutputType>(mat);
+}
+
+/// \brief Standard deviation of all elements (returns a double if T is an integral type, otherwise returns T)
+/// \param[in] mat The matrix.
+template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_FUNCTION OutputType stddev(const Matrix3<T, Accessor>& mat) {
+  return std::sqrt(variance<T, Accessor, OutputType>(mat));
+}
+
+/// \brief Standard deviation of all elements (returns a float if T is an integral type, otherwise returns T)
+/// \param[in] mat The matrix.
+template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_FUNCTION OutputType stddev_f(const Matrix3<T, Accessor>& mat) {
+  return stddev<T, Accessor, OutputType>(mat);
 }
 //@}
 
@@ -987,24 +1055,44 @@ KOKKOS_FUNCTION Matrix3<std::remove_const_t<T>> transpose(const Matrix3<T, Acces
   return result;
 }
 
-/// \brief Matrix inverse
-/// \param[in] mat The matrix.
-template <typename T, typename Accessor>
-KOKKOS_FUNCTION Matrix3<std::remove_const_t<T>> inverse(const Matrix3<T, Accessor>& mat) {
-  const T det = determinant(mat);
+/// \brief Matrix inverse (returns a double if T is an integral type, otherwise returns T)
+/// \tparam T The input matrix element type.
+/// \tparam Accessor The accessor for the Matrix3, assuming this is part of your implementation.
+/// \tparam OutputElementType The output matrix element type, defaults T if T is an integral type (e.g., float or double) and double otherwise.
+template <typename T, typename Accessor, typename OutputElementType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_FUNCTION Matrix3<OutputElementType> inverse(const Matrix3<T, Accessor>& mat) {
+  const auto det = determinant(mat);
   MUNDY_THROW_ASSERT(det != T(0), std::runtime_error, "Matrix3<T>: matrix is singular.");
 
-  Matrix3<std::remove_const_t<T>> result;
-  result(0, 0) = mat(1, 1) * mat(2, 2) - mat(1, 2) * mat(2, 1);
-  result(0, 1) = mat(0, 2) * mat(2, 1) - mat(0, 1) * mat(2, 2);
-  result(0, 2) = mat(0, 1) * mat(1, 2) - mat(0, 2) * mat(1, 1);
-  result(1, 0) = mat(1, 2) * mat(2, 0) - mat(1, 0) * mat(2, 2);
-  result(1, 1) = mat(0, 0) * mat(2, 2) - mat(0, 2) * mat(2, 0);
-  result(1, 2) = mat(0, 2) * mat(1, 0) - mat(0, 0) * mat(1, 2);
-  result(2, 0) = mat(1, 0) * mat(2, 1) - mat(1, 1) * mat(2, 0);
-  result(2, 1) = mat(0, 1) * mat(2, 0) - mat(0, 0) * mat(2, 1);
-  result(2, 2) = mat(0, 0) * mat(1, 1) - mat(0, 1) * mat(1, 0);
+  Matrix3<OutputElementType> result;
+  result(0, 0) = static_cast<OutputElementType>(mat(1, 1)) * static_cast<OutputElementType>(mat(2, 2)) -
+                 static_cast<OutputElementType>(mat(1, 2)) * static_cast<OutputElementType>(mat(2, 1));
+  result(0, 1) = static_cast<OutputElementType>(mat(0, 2)) * static_cast<OutputElementType>(mat(2, 1)) -
+                 static_cast<OutputElementType>(mat(0, 1)) * static_cast<OutputElementType>(mat(2, 2));
+  result(0, 2) = static_cast<OutputElementType>(mat(0, 1)) * static_cast<OutputElementType>(mat(1, 2)) -
+                 static_cast<OutputElementType>(mat(0, 2)) * static_cast<OutputElementType>(mat(1, 1));
+  result(1, 0) = static_cast<OutputElementType>(mat(1, 2)) * static_cast<OutputElementType>(mat(2, 0)) -
+                 static_cast<OutputElementType>(mat(1, 0)) * static_cast<OutputElementType>(mat(2, 2));
+  result(1, 1) = static_cast<OutputElementType>(mat(0, 0)) * static_cast<OutputElementType>(mat(2, 2)) -
+                 static_cast<OutputElementType>(mat(0, 2)) * static_cast<OutputElementType>(mat(2, 0));
+  result(1, 2) = static_cast<OutputElementType>(mat(0, 2)) * static_cast<OutputElementType>(mat(1, 0)) -
+                 static_cast<OutputElementType>(mat(0, 0)) * static_cast<OutputElementType>(mat(1, 2));
+  result(2, 0) = static_cast<OutputElementType>(mat(1, 0)) * static_cast<OutputElementType>(mat(2, 1)) -
+                 static_cast<OutputElementType>(mat(1, 1)) * static_cast<OutputElementType>(mat(2, 0));
+  result(2, 1) = static_cast<OutputElementType>(mat(0, 1)) * static_cast<OutputElementType>(mat(2, 0)) -
+                 static_cast<OutputElementType>(mat(0, 0)) * static_cast<OutputElementType>(mat(2, 1));
+  result(2, 2) = static_cast<OutputElementType>(mat(0, 0)) * static_cast<OutputElementType>(mat(1, 1)) -
+                 static_cast<OutputElementType>(mat(0, 1)) * static_cast<OutputElementType>(mat(1, 0));
   return result / det;
+}
+
+/// \brief Matrix inverse (returns a float if T is an integral type, otherwise returns T)
+/// \tparam T The input matrix element type.
+/// \tparam Accessor The accessor for the Matrix3, assuming this is part of your implementation.
+/// \tparam OutputElementType The output matrix element type, defaults T if T is an integral type (e.g., float or double) and float otherwise.
+template <typename T, typename Accessor, typename OutputElementType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_FUNCTION auto inverse_f(const Matrix3<T, Accessor>& mat) {
+  return inverse<T, Accessor, OutputElementType>(mat);
 }
 
 /// \brief Matrix Frobenius inner product
@@ -1012,8 +1100,16 @@ KOKKOS_FUNCTION Matrix3<std::remove_const_t<T>> inverse(const Matrix3<T, Accesso
 /// \param[in] b The right matrix.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION auto frobenius_inner_product(const Matrix3<U, OtherAccessor>& a, const Matrix3<T, Accessor>& b) {
-  return a(0, 0) * b(0, 0) + a(0, 1) * b(0, 1) + a(0, 2) * b(0, 2) + a(1, 0) * b(1, 0) + a(1, 1) * b(1, 1) +
-         a(1, 2) * b(1, 2) + a(2, 0) * b(2, 0) + a(2, 1) * b(2, 1) + a(2, 2) * b(2, 2);
+  using CommonType = std::common_type_t<T, U>;
+  return static_cast<CommonType>(a(0, 0)) * static_cast<CommonType>(b(0, 0)) +
+         static_cast<CommonType>(a(0, 1)) * static_cast<CommonType>(b(0, 1)) +
+         static_cast<CommonType>(a(0, 2)) * static_cast<CommonType>(b(0, 2)) +
+         static_cast<CommonType>(a(1, 0)) * static_cast<CommonType>(b(1, 0)) +
+         static_cast<CommonType>(a(1, 1)) * static_cast<CommonType>(b(1, 1)) +
+         static_cast<CommonType>(a(1, 2)) * static_cast<CommonType>(b(1, 2)) +
+         static_cast<CommonType>(a(2, 0)) * static_cast<CommonType>(b(2, 0)) +
+         static_cast<CommonType>(a(2, 1)) * static_cast<CommonType>(b(2, 1)) +
+         static_cast<CommonType>(a(2, 2)) * static_cast<CommonType>(b(2, 2));
 }
 //@}
 
@@ -1025,18 +1121,18 @@ KOKKOS_FUNCTION auto frobenius_inner_product(const Matrix3<U, OtherAccessor>& a,
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION auto outer_product(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
-    -> Matrix3<decltype(U() * T())> {
-  using ReturnType = decltype(U() * T());
-  Matrix3<ReturnType> result;
-  result(0, 0) = a[0] * b[0];
-  result(0, 1) = a[0] * b[1];
-  result(0, 2) = a[0] * b[2];
-  result(1, 0) = a[1] * b[0];
-  result(1, 1) = a[1] * b[1];
-  result(1, 2) = a[1] * b[2];
-  result(2, 0) = a[2] * b[0];
-  result(2, 1) = a[2] * b[1];
-  result(2, 2) = a[2] * b[2];
+    -> Matrix3<std::common_type_t<T, U>> {
+  using CommonType = std::common_type_t<T, U>;
+  Matrix3<CommonType> result;
+  result(0, 0) = static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[0]);
+  result(0, 1) = static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[1]);
+  result(0, 2) = static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[2]);
+  result(1, 0) = static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[0]);
+  result(1, 1) = static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[1]);
+  result(1, 2) = static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[2]);
+  result(2, 0) = static_cast<CommonType>(a[2]) * static_cast<CommonType>(b[0]);
+  result(2, 1) = static_cast<CommonType>(a[2]) * static_cast<CommonType>(b[1]);
+  result(2, 2) = static_cast<CommonType>(a[2]) * static_cast<CommonType>(b[2]);
   return result;
 }
 //@}
@@ -1084,7 +1180,7 @@ KOKKOS_FUNCTION auto two_norm(const Matrix3<T, Accessor>& mat) {
 //! \name Matrix3<T, Accessor> views
 //@{
 
-/// \brief A helper function to create a Matrix3<T, Accessor> based on a given accessor.
+/// \brief A helper function to create a Matrix3<T, Accessor> based on a given (valid) accessor.
 /// \param[in] data The data accessor.
 ///
 /// In practice, this function is syntactic sugar to avoid having to specify the template parameters

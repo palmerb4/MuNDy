@@ -132,8 +132,8 @@ class MetaFactory {
   //@{
 
   /// \brief Get the number of classes this factory recognizes.
-  static size_t num_registered_classes() {
-    return get_internal_keys().size();
+  static int num_registered_classes() {
+    return static_cast<int>(get_internal_keys().size());
   }
 
   /// \brief Get the set of all registered keys.

@@ -34,7 +34,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 */
 
 // External libs
-// #include <openrand/philox.h>
+#include <openrand/philox.h>
 
 // Trilinos libs
 #include <Kokkos_Core.hpp>                 // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
@@ -171,7 +171,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
     Teuchos::Array<std::string> input_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-    const int num_parts = input_part_names.size();
+    const int num_parts = static_cast<int>(input_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = input_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
@@ -438,7 +438,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
     std::string node_rng_counter_field_name = valid_fixed_params.get<std::string>("node_rng_counter_field_name");
     Teuchos::Array<std::string> input_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-    const int num_parts = input_part_names.size();
+    const int num_parts = static_cast<int>(input_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = input_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
@@ -565,28 +565,28 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
   void execute(const stk::mesh::Entity &sphere_node) override {
     double *node_brownian_velocity = stk::mesh::field_data(*node_brownian_velocity_field_ptr_, sphere_node);
-    // const stk::mesh::EntityId sphere_node_gid = bulk_data_ptr_->identifier(sphere_node);
-    // const unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr_, sphere_node);
+    const stk::mesh::EntityId sphere_node_gid = bulk_data_ptr_->identifier(sphere_node);
+    unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr_, sphere_node);
 
-    // openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
-    // node_brownian_velocity[0] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
-    //                             beta_ * node_brownian_velocity[0];
-    // node_brownian_velocity[1] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
-    //                             beta_ * node_brownian_velocity[1];
-    // node_brownian_velocity[2] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
-    //                             beta_ * node_brownian_velocity[2];
-    // node_rng_counter[0]++;
+    openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
+    node_brownian_velocity[0] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
+                                beta_ * node_brownian_velocity[0];
+    node_brownian_velocity[1] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
+                                beta_ * node_brownian_velocity[1];
+    node_brownian_velocity[2] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
+                                beta_ * node_brownian_velocity[2];
+    node_rng_counter[0]++;
 
-    // Can't use Openrand until they fix their DEVICE
-    node_brownian_velocity[0] =
-        alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * ((double)rand() / (RAND_MAX)) +
-        beta_ * node_brownian_velocity[0];
-    node_brownian_velocity[1] =
-        alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * ((double)rand() / (RAND_MAX)) +
-        beta_ * node_brownian_velocity[1];
-    node_brownian_velocity[2] =
-        alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * ((double)rand() / (RAND_MAX)) +
-        beta_ * node_brownian_velocity[2];
+    // // Can't use Openrand until they fix their DEVICE define
+    // node_brownian_velocity[0] =
+    //     alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * ((double)rand() / (RAND_MAX)) +
+    //     beta_ * node_brownian_velocity[0];
+    // node_brownian_velocity[1] =
+    //     alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * ((double)rand() / (RAND_MAX)) +
+    //     beta_ * node_brownian_velocity[1];
+    // node_brownian_velocity[2] =
+    //     alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * ((double)rand() / (RAND_MAX)) +
+    //     beta_ * node_brownian_velocity[2];
   }
 
   /// \brief Finalize the kernel's core calculations.
@@ -776,18 +776,18 @@ int main(int argc, char **argv) {
   check_if_exists(node_velocity_field_ptr, "NODE_VELOCITY");
   check_if_exists(node_rng_counter_field_ptr, "NODE_RNG_COUNTER");
 
-  // openrand::Philox rng(bulk_data_ptr->parallel_rank(), 0);
+  openrand::Philox rng(bulk_data_ptr->parallel_rank(), 0);
   for (int i = 0; i < num_spheres_local; i++) {
     stk::mesh::Entity node_i = requested_entities[i];
     double *node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node_i);
     double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr, node_i);
     unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr, node_i);
-    // node_coords[0] = length_of_domain * rng.rand<double>();
-    // node_coords[1] = length_of_domain * rng.rand<double>();
-    // node_coords[2] = length_of_domain * rng.rand<double>();
-    node_coords[0] = length_of_domain * ((double)rand() / (RAND_MAX));
-    node_coords[1] = length_of_domain * ((double)rand() / (RAND_MAX));
-    node_coords[2] = length_of_domain * ((double)rand() / (RAND_MAX));
+    node_coords[0] = length_of_domain * rng.rand<double>();
+    node_coords[1] = length_of_domain * rng.rand<double>();
+    node_coords[2] = length_of_domain * rng.rand<double>();
+    // node_coords[0] = length_of_domain * ((double)rand() / (RAND_MAX));
+    // node_coords[1] = length_of_domain * ((double)rand() / (RAND_MAX));
+    // node_coords[2] = length_of_domain * ((double)rand() / (RAND_MAX));
     node_velocity[0] = 0.0;
     node_velocity[1] = 0.0;
     node_velocity[2] = 0.0;

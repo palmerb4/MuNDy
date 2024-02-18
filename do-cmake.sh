@@ -10,7 +10,7 @@ echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
 cmake \
 -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
 -DCMAKE_CXX_COMPILER=mpicxx \
--DCMAKE_CXX_FLAGS="-O0 -g -march=native" \
+-DCMAKE_CXX_FLAGS="-O0 -g -march=native -Wall -Wextra -Wdouble-promotion -Wconversion" \
 -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/envs/MundyScratch} \
 -DTPL_ENABLE_MPI=ON \
 -DKokkos_ENABLE_SERIAL=ON \
@@ -20,10 +20,10 @@ cmake \
 -DMundy_ENABLE_GTest=ON \
 -DMundy_TEST_CATEGORIES="BASIC;CONTINUOUS;NIGHTLY;HEAVY;PERFORMANCE" \
 -DTPL_GTest_DIR:PATH=${TPL_ROOT_DIR} \
+-DTPL_OpenRAND_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_Kokkos_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_STK_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_Teuchos_DIR:PATH=${TRILINOS_ROOT_DIR} \
--DOpenRAND_INCLUDE_DIRS:PATH=${TPL_ROOT_DIR}/include \
 ${ccache_args} \
 ${compiler_flags} \
 ${install_dir} \

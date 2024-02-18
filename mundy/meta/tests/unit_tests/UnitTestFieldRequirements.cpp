@@ -251,10 +251,6 @@ TEST(FieldRequirementsMerge, IsMergeableWithVectorOfOtherRequirements) {
 TEST(FieldRequirementsMerge, MergePropertlyHandlesNullptr) {
   // Check that the merge function works with a nullptr. It should do nothing.
   using ExampleFieldType = double;
-  const std::string field_name = "field_name";
-  const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
-  const int field_dimension = 3;
-  const int field_min_number_of_states = 2;
   auto main_field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>();
   std::shared_ptr<mundy::meta::FieldRequirementsBase> other_field_reqs_ptr = nullptr;
   EXPECT_NO_THROW(main_field_reqs.merge(other_field_reqs_ptr));

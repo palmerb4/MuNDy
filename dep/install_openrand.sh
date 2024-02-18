@@ -24,7 +24,7 @@ echo "Building in: $PWD"
 
 
 # Configure, build, and install the project with CMake
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-O3 -march=native" -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
 make -j$(nproc)
 make install
 

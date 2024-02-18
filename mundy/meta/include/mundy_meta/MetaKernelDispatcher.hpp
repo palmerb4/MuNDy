@@ -164,7 +164,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
     } else {
       // Validate and fill parameters for any kernel in our registry.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", false);
-      const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
+      const int num_specified_kernels = OurKernelFactory::num_registered_classes();
       kernels_sublist.set("count", num_specified_kernels);
       int i = 0;
       for (auto &key : OurKernelFactory::get_keys()) {

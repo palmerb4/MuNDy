@@ -34,6 +34,11 @@
 #include <mundy_math/Matrix3.hpp>  // for mundy::math::Matrix3
 #include <mundy_math/Vector3.hpp>  // for mundy::math::Vector3
 
+// Note, these tests are meant to look like real use cases for the Matrix3 class. As a result, we use implicit type
+// conversions rather than being explicit about types. This is to ensure that the Matrix3 class can be used in a
+// natural way. This choice means that compiling this test with -Wdouble-promotion or -Wconversion will result in many
+// warnings. We will not however, locally disable these warning.
+
 namespace mundy {
 
 namespace math {
@@ -77,7 +82,8 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2, const std::string& message_if_fail = "") {
+void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
+                    const std::string& message_if_fail = "") {
   if (!is_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
     std::cout << "m2 = " << m2 << std::endl;
@@ -90,7 +96,8 @@ void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Access
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2, const std::string& message_if_fail = "") {
+void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
+                    const std::string& message_if_fail = "") {
   if (!is_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
     std::cout << "v2 = " << v2 << std::endl;
@@ -103,7 +110,8 @@ void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Access
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2, const std::string& message_if_fail = "") {
+void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
+                        const std::string& message_if_fail = "") {
   if (is_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
     std::cout << "m2 = " << m2 << std::endl;
@@ -116,7 +124,8 @@ void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Ac
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2, const std::string& message_if_fail = "") {
+void is_different_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
+                        const std::string& message_if_fail = "") {
   if (is_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
     std::cout << "v2 = " << v2 << std::endl;
@@ -504,7 +513,7 @@ TYPED_TEST(Matrix3SingleTypeTest, SpecialOperations) {
   m1 = {1, 2, 3, 2, 5, 6, 3, 6, 9};
   m2 = {4, 5, 6, 7, 8, 9, -10, -11, -12};
   is_close_debug(frobenius_inner_product(m1, m2), -64, "Frobenius inner product failed.");
-  }
+}
 
 TYPED_TEST(Matrix3SingleTypeTest, SpecialOperationsEdgeCases) {
   // Test that the special vector operations work with rvalues
@@ -514,9 +523,10 @@ TYPED_TEST(Matrix3SingleTypeTest, SpecialOperationsEdgeCases) {
   // Test the inverse of a singular matrix
   EXPECT_ANY_THROW(inverse(Matrix3<TypeParam>(1, 2, 3, 2, 4, 6, 3, 6, 9)));
 
-  // Test the inverse of a non-singular matrix
-  m2 = inverse(Matrix3<TypeParam>(1, 2, 3, 0, 1, 4, 5, 6, 0));
-  is_close_debug(m2, Matrix3<TypeParam>{-24, 18, 5, 20, -15, -4, -5, 4, 1}, "Inverse failed.");
+  // Test the inverse of a non-singular matrix. Notice, that even though the input matrix may have integer entries, the
+  // inverse will have floating point entries.
+  auto m3 = inverse(Matrix3<TypeParam>(1, 2, 3, 0, 1, 4, 5, 6, 0));
+  is_close_debug(m3, Matrix3<TypeParam>{-24, 18, 5, 20, -15, -4, -5, 4, 1}, "Inverse failed.");
 
   // Test the frobenius_inner_product
   is_close_debug(frobenius_inner_product(Matrix3<TypeParam>(1, 2, 3, 2, 5, 6, 3, 6, 9),

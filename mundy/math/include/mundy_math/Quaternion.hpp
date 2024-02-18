@@ -27,12 +27,12 @@
 #include <initializer_list>  // for std::initializer_list
 
 // Our libs
-#include <mundy_core/throw_assert.hpp>    // for MUNDY_THROW_ASSERT
-#include <mundy_math/Accessor.hpp>   // for mundy::math::ValidAccessor
-#include <mundy_math/Array.hpp>      // for mundy::math::Array
-#include <mundy_math/Matrix3.hpp>    // for mundy::math::Matrix3
-#include <mundy_math/Tolerance.hpp>  // for mundy::math::get_default_tolerance
-#include <mundy_math/Vector3.hpp>    // for mundy::math::Vector3
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
+#include <mundy_math/Array.hpp>         // for mundy::math::Array
+#include <mundy_math/Matrix3.hpp>       // for mundy::math::Matrix3
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
+#include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
 
@@ -426,13 +426,14 @@ class Quaternion {
   /// \brief Quaternion-quaternion addition
   /// \param[in] other The other quaternion.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator+(const Quaternion<U, OtherAccessor> &other) const -> Quaternion<decltype(T() + U())> {
-    using ReturnType = decltype(T() + U());
-    Quaternion<ReturnType> result;
-    result[0] = data_[0] + other[0];
-    result[1] = data_[1] + other[1];
-    result[2] = data_[2] + other[2];
-    result[3] = data_[3] + other[3];
+  KOKKOS_FUNCTION auto operator+(const Quaternion<U, OtherAccessor> &other) const
+      -> Quaternion<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Quaternion<CommonType> result;
+    result[0] = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(other[0]);
+    result[1] = static_cast<CommonType>(data_[1]) + static_cast<CommonType>(other[1]);
+    result[2] = static_cast<CommonType>(data_[2]) + static_cast<CommonType>(other[2]);
+    result[3] = static_cast<CommonType>(data_[3]) + static_cast<CommonType>(other[3]);
     return result;
   }
 
@@ -442,23 +443,24 @@ class Quaternion {
   KOKKOS_FUNCTION Quaternion<T, Accessor> &operator+=(const Quaternion<U, OtherAccessor> &other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] += other[0];
-    data_[1] += other[1];
-    data_[2] += other[2];
-    data_[3] += other[3];
+    data_[0] += static_cast<T>(other[0]);
+    data_[1] += static_cast<T>(other[1]);
+    data_[2] += static_cast<T>(other[2]);
+    data_[3] += static_cast<T>(other[3]);
     return *this;
   }
 
   /// \brief Quaternion-quaternion subtraction
   /// \param[in] other The other quaternion.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator-(const Quaternion<U, OtherAccessor> &other) const -> Quaternion<decltype(T() - U())> {
-    using ReturnType = decltype(T() - U());
-    Quaternion<ReturnType> result;
-    result[0] = data_[0] - other[0];
-    result[1] = data_[1] - other[1];
-    result[2] = data_[2] - other[2];
-    result[3] = data_[3] - other[3];
+  KOKKOS_FUNCTION auto operator-(const Quaternion<U, OtherAccessor> &other) const
+      -> Quaternion<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Quaternion<CommonType> result;
+    result[0] = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(other[0]);
+    result[1] = static_cast<CommonType>(data_[1]) - static_cast<CommonType>(other[1]);
+    result[2] = static_cast<CommonType>(data_[2]) - static_cast<CommonType>(other[2]);
+    result[3] = static_cast<CommonType>(data_[3]) - static_cast<CommonType>(other[3]);
     return result;
   }
 
@@ -468,10 +470,10 @@ class Quaternion {
   KOKKOS_FUNCTION Quaternion<T, Accessor> &operator-=(const Quaternion<U, OtherAccessor> &other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] -= other[0];
-    data_[1] -= other[1];
-    data_[2] -= other[2];
-    data_[3] -= other[3];
+    data_[0] -= static_cast<T>(other[0]);
+    data_[1] -= static_cast<T>(other[1]);
+    data_[2] -= static_cast<T>(other[2]);
+    data_[3] -= static_cast<T>(other[3]);
     return *this;
   }
   //@}
@@ -482,13 +484,26 @@ class Quaternion {
   /// \brief Quaternion-quaternion multiplication
   /// \param[in] other The other quaternion.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator*(const Quaternion<U, OtherAccessor> &other) const -> Quaternion<decltype(T() * U())> {
-    using ReturnType = decltype(T() * U());
-    Quaternion<ReturnType> result;
-    result[0] = data_[0] * other[0] - data_[1] * other[1] - data_[2] * other[2] - data_[3] * other[3];
-    result[1] = data_[0] * other[1] + data_[1] * other[0] + data_[2] * other[3] - data_[3] * other[2];
-    result[2] = data_[0] * other[2] - data_[1] * other[3] + data_[2] * other[0] + data_[3] * other[1];
-    result[3] = data_[0] * other[3] + data_[1] * other[2] - data_[2] * other[1] + data_[3] * other[0];
+  KOKKOS_FUNCTION auto operator*(const Quaternion<U, OtherAccessor> &other) const
+      -> Quaternion<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Quaternion<CommonType> result;
+    result[0] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other[0]) -
+                static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other[1]) -
+                static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other[2]) -
+                static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other[3]);
+    result[1] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other[1]) +
+                static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other[0]) +
+                static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other[3]) -
+                static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other[2]);
+    result[2] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other[2]) -
+                static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other[3]) +
+                static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other[0]) +
+                static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other[1]);
+    result[3] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other[3]) +
+                static_cast<CommonType>(data_[1]) * static_cast<CommonType>(other[2]) -
+                static_cast<CommonType>(data_[2]) * static_cast<CommonType>(other[1]) +
+                static_cast<CommonType>(data_[3]) * static_cast<CommonType>(other[0]);
     return result;
   }
 
@@ -498,10 +513,14 @@ class Quaternion {
   KOKKOS_FUNCTION Quaternion<T, Accessor> &operator*=(const Quaternion<U, OtherAccessor> &other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    const T w = data_[0] * other[0] - data_[1] * other[1] - data_[2] * other[2] - data_[3] * other[3];
-    const T x = data_[0] * other[1] + data_[1] * other[0] + data_[2] * other[3] - data_[3] * other[2];
-    const T y = data_[0] * other[2] - data_[1] * other[3] + data_[2] * other[0] + data_[3] * other[1];
-    const T z = data_[0] * other[3] + data_[1] * other[2] - data_[2] * other[1] + data_[3] * other[0];
+    const T w = data_[0] * static_cast<T>(other[0]) - data_[1] * static_cast<T>(other[1]) -
+                data_[2] * static_cast<T>(other[2]) - data_[3] * static_cast<T>(other[3]);
+    const T x = data_[0] * static_cast<T>(other[1]) + data_[1] * static_cast<T>(other[0]) +
+                data_[2] * static_cast<T>(other[3]) - data_[3] * static_cast<T>(other[2]);
+    const T y = data_[0] * static_cast<T>(other[2]) - data_[1] * static_cast<T>(other[3]) +
+                data_[2] * static_cast<T>(other[0]) + data_[3] * static_cast<T>(other[1]);
+    const T z = data_[0] * static_cast<T>(other[3]) + data_[1] * static_cast<T>(other[2]) -
+                data_[2] * static_cast<T>(other[1]) + data_[3] * static_cast<T>(other[0]);
     data_[0] = w;
     data_[1] = x;
     data_[2] = y;
@@ -512,25 +531,24 @@ class Quaternion {
   /// \brief Quaternion-vector multiplication (same as R * v)
   /// \param[in] vec The vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec) const -> Vector3<decltype(T() * U())> {
+  KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec) const -> Vector3<std::common_type_t<T, U>> {
     // Quaternion-vector multiplication consists of three parts:
     // 1. The vector is converted to a quaternion with a scalar component of 0
     // 2. The quaternion-quaternion multiplication is performed
     // 3. The quaternion is converted back to a vector
-    using ReturnType = decltype(T() * U());
     const Quaternion<U> vec_quat(0.0, vec[0], vec[1], vec[2]);
     const auto quat_inv = inverse(*this);
-    const Quaternion<ReturnType> quat_result = (*this) * vec_quat * quat_inv;
+    const auto quat_result = (*this) * vec_quat * quat_inv;
     return quat_result.vector();
   }
 
   /// \brief Quaternion-matrix multiplication
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat) const -> Matrix3<decltype(T() * U())> {
+  KOKKOS_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat) const -> Matrix3<std::common_type_t<T, U>> {
     // Quaternion-vector multiplication consists of applying the quaternion to each column of the matrix
-    using ReturnType = decltype(T() * U());
-    Matrix3<ReturnType> result;
+    using CommonType = std::common_type_t<T, U>;
+    Matrix3<CommonType> result;
     result.set_column(0, (*this) * mat.get_column(0));
     result.set_column(1, (*this) * mat.get_column(1));
     result.set_column(2, (*this) * mat.get_column(2));
@@ -540,13 +558,13 @@ class Quaternion {
   /// \brief Quaternion-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator*(const U &scalar) const -> Quaternion<decltype(T() * U())> {
-    using ReturnType = decltype(T() * U());
-    Quaternion<ReturnType> result;
-    result[0] = data_[0] * scalar;
-    result[1] = data_[1] * scalar;
-    result[2] = data_[2] * scalar;
-    result[3] = data_[3] * scalar;
+  KOKKOS_FUNCTION auto operator*(const U &scalar) const -> Quaternion<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Quaternion<CommonType> result;
+    result[0] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(scalar);
+    result[1] = static_cast<CommonType>(data_[1]) * static_cast<CommonType>(scalar);
+    result[2] = static_cast<CommonType>(data_[2]) * static_cast<CommonType>(scalar);
+    result[3] = static_cast<CommonType>(data_[3]) * static_cast<CommonType>(scalar);
     return result;
   }
 
@@ -556,23 +574,23 @@ class Quaternion {
   KOKKOS_FUNCTION Quaternion<T, Accessor> &operator*=(const U &scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] *= scalar;
-    data_[1] *= scalar;
-    data_[2] *= scalar;
-    data_[3] *= scalar;
+    data_[0] *= static_cast<T>(scalar);
+    data_[1] *= static_cast<T>(scalar);
+    data_[2] *= static_cast<T>(scalar);
+    data_[3] *= static_cast<T>(scalar);
     return *this;
   }
 
   /// \brief Matrix-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator/(const U &scalar) const -> Quaternion<decltype(T() / U())> {
-    using ReturnType = decltype(T() / U());
-    Quaternion<ReturnType> result;
-    result[0] = data_[0] / scalar;
-    result[1] = data_[1] / scalar;
-    result[2] = data_[2] / scalar;
-    result[3] = data_[3] / scalar;
+  KOKKOS_FUNCTION auto operator/(const U &scalar) const -> Quaternion<std::common_type_t<T, U>> {
+    using CommonType = std::common_type_t<T, U>;
+    Quaternion<CommonType> result;
+    result[0] = static_cast<CommonType>(data_[0]) / static_cast<CommonType>(scalar);
+    result[1] = static_cast<CommonType>(data_[1]) / static_cast<CommonType>(scalar);
+    result[2] = static_cast<CommonType>(data_[2]) / static_cast<CommonType>(scalar);
+    result[3] = static_cast<CommonType>(data_[3]) / static_cast<CommonType>(scalar);
     return result;
   }
 
@@ -582,10 +600,10 @@ class Quaternion {
   KOKKOS_FUNCTION Quaternion<T, Accessor> &operator/=(const U &scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
-    data_[0] /= scalar;
-    data_[1] /= scalar;
-    data_[2] /= scalar;
-    data_[3] /= scalar;
+    data_[0] /= static_cast<T>(scalar);
+    data_[1] /= static_cast<T>(scalar);
+    data_[2] /= static_cast<T>(scalar);
+    data_[3] /= static_cast<T>(scalar);
     return *this;
   }
   //@}
@@ -638,9 +656,12 @@ KOKKOS_FUNCTION std::ostream &operator<<(std::ostream &os, const Quaternion<T, A
 /// \param[in] tol The tolerance.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION bool is_close(const Quaternion<U, OtherAccessor> &quat1, const Quaternion<T, Accessor> &quat2,
-                              const decltype(U() - T()) &tol = get_default_tolerance<decltype(U() - T())>()) {
-  return std::abs(quat1[0] - quat2[0]) < tol && std::abs(quat1[1] - quat2[1]) < tol &&
-         std::abs(quat1[2] - quat2[2]) < tol && std::abs(quat1[3] - quat2[3]) < tol;
+                              const std::common_type_t<T, U> &tol = get_default_tolerance<std::common_type_t<T, U>>()) {
+  using CommonType = std::common_type_t<T, U>;
+  return std::abs(static_cast<CommonType>(quat1[0]) - static_cast<CommonType>(quat2[0])) < tol &&
+         std::abs(static_cast<CommonType>(quat1[1]) - static_cast<CommonType>(quat2[1])) < tol &&
+         std::abs(static_cast<CommonType>(quat1[2]) - static_cast<CommonType>(quat2[2])) < tol &&
+         std::abs(static_cast<CommonType>(quat1[3]) - static_cast<CommonType>(quat2[3])) < tol;
 }
 //@}
 
@@ -652,7 +673,7 @@ KOKKOS_FUNCTION bool is_close(const Quaternion<U, OtherAccessor> &quat1, const Q
 /// \param[in] quat The quaternion.
 template <typename U, typename T, typename Accessor>
 KOKKOS_FUNCTION auto operator*(const U &scalar, const Quaternion<T, Accessor> &quat)
-    -> Quaternion<decltype(U() * T())> {
+    -> Quaternion<std::common_type_t<T, U>> {
   return quat * scalar;
 }
 
@@ -661,15 +682,14 @@ KOKKOS_FUNCTION auto operator*(const U &scalar, const Quaternion<T, Accessor> &q
 /// \param[in] quat The quaternion.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec, const Quaternion<T, Accessor> &quat)
-    -> Vector3<decltype(U() * T())> {
+    -> Vector3<std::common_type_t<T, U>> {
   // Vector-quaternion multiplication consists of three parts:
   // 1. The vector is converted to a quaternion with a scalar component of 0
   // 2. The quaternion-quaternion multiplication is performed
   // 3. The quaternion is converted back to a vector
-  using ReturnType = decltype(U() * T());
   const Quaternion<U> vec_quat(0.0, vec[0], vec[1], vec[2]);
   const auto quat_inv = inverse(quat);
-  const Quaternion<ReturnType> quat_result = quat_inv * vec_quat * quat;
+  const auto quat_result = quat_inv * vec_quat * quat;
   return quat_result.vector();
 }
 
@@ -678,10 +698,10 @@ KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec, const Quate
 /// \param[in] quat The quaternion.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat, const Quaternion<T, Accessor> &quat)
-    -> Matrix3<decltype(U() * T())> {
+    -> Matrix3<std::common_type_t<T, U>> {
   // Quaternion-vector multiplication consists of applying the quaternion to each row of the matrix
-  using ReturnType = decltype(U() * T());
-  Matrix3<ReturnType> result;
+  using CommonType = std::common_type_t<T, U>;
+  Matrix3<CommonType> result;
   result.set_row(0, mat.get_row(0) * quat);
   result.set_row(1, mat.get_row(1) * quat);
   result.set_row(2, mat.get_row(2) * quat);
@@ -697,7 +717,11 @@ KOKKOS_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat, const Quate
 /// \param[in] q2 The second quaternion.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION auto dot(const Quaternion<U, OtherAccessor> &q1, const Quaternion<T, Accessor> &q2) {
-  return q1[0] * q2[0] + q1[1] * q2[1] + q1[2] * q2[2] + q1[3] * q2[3];
+  using CommonType = std::common_type_t<U, T>;
+  return static_cast<CommonType>(q1[0]) * static_cast<CommonType>(q2[0]) +
+         static_cast<CommonType>(q1[1]) * static_cast<CommonType>(q2[1]) +
+         static_cast<CommonType>(q1[2]) * static_cast<CommonType>(q2[2]) +
+         static_cast<CommonType>(q1[3]) * static_cast<CommonType>(q2[3]);
 }
 
 /// \brief Get the conjugate of a quaternion
@@ -749,12 +773,12 @@ KOKKOS_FUNCTION Quaternion<std::remove_const_t<T>> normalize(const Quaternion<T,
 template <typename U, typename OtherAccessor, typename T, typename Accessor, typename V>
   requires std::is_arithmetic_v<V>
 KOKKOS_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quaternion<T, Accessor> &q2, const V t)
-    -> Quaternion<decltype(U() * T() * V())> {
-  using ReturnType = decltype(U() * T() * V());
-  const ReturnType epsilon = ReturnType(1e-6);  // Threshold for linear interpolation
+    -> Quaternion<std::common_type_t<U, T, V>> {
+  using CommonType = std::common_type_t<U, T, V>;
+  const CommonType epsilon = CommonType(1e-6);  // Threshold for linear interpolation
 
   // Compute the dot product
-  ReturnType dot_q12 = dot(q1, q2);
+  CommonType dot_q12 = dot(q1, q2);
 
   // Adjust second quaternion for negative dot product
   // Note, we cannot directly copy from q2 to q2_adjusted because the Accessor type may be different.
@@ -768,17 +792,30 @@ KOKKOS_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quatern
   // Check for near-parallel case
   if (1 - dot_q12 < epsilon) {
     // Linear Interpolation as fallback
-    return Quaternion<ReturnType>{q1[0] + t * (q2_adjusted[0] - q1[0]), q1[1] + t * (q2_adjusted[1] - q1[1]),
-                                  q1[2] + t * (q2_adjusted[2] - q1[2]), q1[3] + t * (q2_adjusted[3] - q1[3])};
+    return Quaternion<CommonType>{
+        static_cast<CommonType>(q1[0]) +
+            static_cast<CommonType>(t) * (static_cast<CommonType>(q2_adjusted[0]) - static_cast<CommonType>(q1[0])),
+        static_cast<CommonType>(q1[1]) +
+            static_cast<CommonType>(t) * (static_cast<CommonType>(q2_adjusted[1]) - static_cast<CommonType>(q1[1])),
+        static_cast<CommonType>(q1[2]) +
+            static_cast<CommonType>(t) * (static_cast<CommonType>(q2_adjusted[2]) - static_cast<CommonType>(q1[2])),
+        static_cast<CommonType>(q1[3]) +
+            static_cast<CommonType>(t) * (static_cast<CommonType>(q2_adjusted[3]) - static_cast<CommonType>(q1[3]))};
   } else {
     // Spherical Interpolation
-    const ReturnType theta = std::acos(dot_q12);
-    const ReturnType sin_theta = std::sin(theta);
-    const ReturnType s1 = std::sin((ReturnType(1) - t) * theta) / sin_theta;
-    const ReturnType s2 = std::sin(t * theta) / sin_theta;
+    const CommonType theta = std::acos(dot_q12);
+    const CommonType sin_theta = std::sin(theta);
+    const CommonType s1 = std::sin((CommonType(1) - t) * theta) / sin_theta;
+    const CommonType s2 = std::sin(t * theta) / sin_theta;
 
-    return Quaternion<ReturnType>{(s1 * q1[0]) + (s2 * q2_adjusted[0]), (s1 * q1[1]) + (s2 * q2_adjusted[1]),
-                                  (s1 * q1[2]) + (s2 * q2_adjusted[2]), (s1 * q1[3]) + (s2 * q2_adjusted[3])};
+    return Quaternion<CommonType>{(static_cast<CommonType>(s1) * static_cast<CommonType>(q1[0])) +
+                                      (static_cast<CommonType>(s2) * static_cast<CommonType>(q2_adjusted[0])),
+                                  (static_cast<CommonType>(s1) * static_cast<CommonType>(q1[1])) +
+                                      (static_cast<CommonType>(s2) * static_cast<CommonType>(q2_adjusted[1])),
+                                  (static_cast<CommonType>(s1) * static_cast<CommonType>(q1[2])) +
+                                      (static_cast<CommonType>(s2) * static_cast<CommonType>(q2_adjusted[2])),
+                                  (static_cast<CommonType>(s1) * static_cast<CommonType>(q1[3])) +
+                                      (static_cast<CommonType>(s2) * static_cast<CommonType>(q2_adjusted[3]))};
   }
 }
 
@@ -791,7 +828,7 @@ KOKKOS_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quatern
 //   requires std::is_arithmetic_v<V>
 // KOKKOS_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quaternion<T, Accessor> &q2, const V t)
 //     -> Quaternion<decltype(U() * T() * V())> {
-//   using ReturnType = decltype(U() * T() * V());
+//   using CommonType = decltype(U() * T() * V());
 
 //   // quaternion to return
 //   quat qm = new quat();
@@ -837,30 +874,34 @@ KOKKOS_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quatern
 /// \param[in] angle The angle.
 template <typename T, typename Accessor, typename U>
   requires std::is_arithmetic_v<U>
-KOKKOS_FUNCTION auto axis_angle_to_quaternion(const Vector3<T, Accessor> &axis, const T &angle)
-    -> Quaternion<decltype(U() * std::sin(T()))> {
-  using ReturnType = decltype(U() * std::sin(T()));
-  const auto half_angle = T(0.5) * angle;
+KOKKOS_FUNCTION auto axis_angle_to_quaternion(const Vector3<T, Accessor> &axis, const U &angle)
+    -> Quaternion<std::common_type_t<T, U>> {
+  using CommonType = std::common_type_t<T, U>;
+  const auto half_angle = U(0.5) * angle;
   const auto sin_half_angle = std::sin(half_angle);
   const auto cos_half_angle = std::cos(half_angle);
-  return Quaternion<ReturnType>(cos_half_angle, sin_half_angle * axis[0], sin_half_angle * axis[1],
-                                sin_half_angle * axis[2]);
+  return Quaternion<CommonType>(static_cast<CommonType>(cos_half_angle),
+                                static_cast<CommonType>(sin_half_angle) * static_cast<CommonType>(axis[0]),
+                                static_cast<CommonType>(sin_half_angle) * static_cast<CommonType>(axis[1]),
+                                static_cast<CommonType>(sin_half_angle) * static_cast<CommonType>(axis[2]));
 }
 
 /// \brief Get the quaternion from a rotation matrix
 /// \param[in] rot_mat The rotation matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto rotation_matrix_to_quaternion(const Matrix3<T, Accessor> &rot_mat)
-    -> Quaternion<decltype(std::sqrt(T()))> {
+KOKKOS_FUNCTION Quaternion<T> rotation_matrix_to_quaternion(const Matrix3<T, Accessor> &rot_mat) {
   // Source: https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion<T>/
-  using ReturnType = decltype(std::sqrt(T()));
-  Quaternion<ReturnType> quat;
+  Quaternion<T> quat;
 
   // Computing the quaternion components
-  quat.w() = std::sqrt(std::max(0.0, 1.0 + rot_mat(0, 0) + rot_mat(1, 1) + rot_mat(2, 2))) / 2.0;
-  quat.x() = std::sqrt(std::max(0.0, 1.0 + rot_mat(0, 0) - rot_mat(1, 1) - rot_mat(2, 2))) / 2.0;
-  quat.y() = std::sqrt(std::max(0.0, 1.0 - rot_mat(0, 0) + rot_mat(1, 1) - rot_mat(2, 2))) / 2.0;
-  quat.z() = std::sqrt(std::max(0.0, 1.0 - rot_mat(0, 0) - rot_mat(1, 1) + rot_mat(2, 2))) / 2.0;
+  quat.w() =
+      std::sqrt(std::max(T(0), T(1) + rot_mat(0, 0) + rot_mat(1, 1) + rot_mat(2, 2))) / T(2);
+  quat.x() =
+      std::sqrt(std::max(T(0), T(1) + rot_mat(0, 0) - rot_mat(1, 1) - rot_mat(2, 2))) / T(2);
+  quat.y() =
+      std::sqrt(std::max(T(0), T(1) - rot_mat(0, 0) + rot_mat(1, 1) - rot_mat(2, 2))) / T(2);
+  quat.z() =
+      std::sqrt(std::max(T(0), T(1) - rot_mat(0, 0) - rot_mat(1, 1) + rot_mat(2, 2))) / T(2);
 
   // Correcting the signs
   quat.x() = std::copysign(quat[1], rot_mat(2, 1) - rot_mat(1, 2));

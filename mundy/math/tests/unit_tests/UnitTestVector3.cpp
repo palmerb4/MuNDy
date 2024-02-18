@@ -35,6 +35,11 @@
 #include <mundy_math/Matrix3.hpp>  // for mundy::math::Matrix3
 #include <mundy_math/Vector3.hpp>  // for mundy::math::Vector3
 
+// Note, these tests are meant to look like real use cases for the Vector3 class. As a result, we use implicit type
+// conversions rather than being explicit about types. This is to ensure that the Vector3 class can be used in a
+// natural way. This choice means that compiling this test with -Wdouble-promotion or -Wconversion will result in many
+// warnings. We will not however, locally disable these warnings.
+
 namespace mundy {
 
 namespace math {
@@ -361,14 +366,14 @@ TYPED_TEST(Vector3PairwiseTypeTest, MultiplicationAndDivisionWithScalars) {
   using T2 = typename TypeParam::T2;
 
   Vector3<T1> v1(1, 2, 3);
-  auto v2 = v1 * T1(2);
+  auto v2 = v1 * T2(2);
   using T3 = decltype(v2)::value_type;
   is_close_debug(v2, Vector3<T3>{2, 4, 6}, "Vector-scalar multiplication failed.");
 
-  v2 = T1(2) * v1;
+  v2 = T2(2) * v1;
   is_close_debug(v2, Vector3<T3>{2, 4, 6}, "Scalar-vector multiplication failed.");
 
-  v2 = v2 / T1(2);
+  v2 = v2 / T2(2);
   is_close_debug(v2, Vector3<T3>{1, 2, 3}, "Vector-scalar division failed.");
 }
 //@}
@@ -420,8 +425,7 @@ TYPED_TEST(Vector3PairwiseTypeTest, SpecialOperations) {
                  "Major angle failed.");
 
   auto outer = outer_product(v1, v2);
-  using T4 = decltype(outer)::value_type;
-  is_close_debug(outer, Matrix3<T4>{4, 5, 6, 8, 10, 12, 12, 15, 18}, "Outer product failed.");
+  is_close_debug(outer, Matrix3<T3>{4, 5, 6, 8, 10, 12, 12, 15, 18}, "Outer product failed.");
 }
 
 TYPED_TEST(Vector3PairwiseTypeTest, SpecialOperationsEdgeCases) {
