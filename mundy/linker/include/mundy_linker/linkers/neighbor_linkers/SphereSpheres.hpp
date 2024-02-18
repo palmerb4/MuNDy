@@ -17,41 +17,51 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_AGENT_AGENTS_HPP_
-#define MUNDY_AGENT_AGENTS_HPP_
+#ifndef MUNDY_LINKER_LINKERS_NEIGHBORLINKERS_HPP_
+#define MUNDY_LINKER_LINKERS_NEIGHBORLINKERS_HPP_
 
-/// \file Agents.hpp
-/// \brief Declaration of the Agents class
+/// \file NeighborLinkers.hpp
+/// \brief Declaration of the NeighborLinkers part class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
 #include <string>  // for std::string
+#include <vector>  // for std::vector
 
 // Trilinos libs
 #include <stk_topology/topology.hpp>  // for stk::topology
 
-// Mundy libs
-#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
-#include <mundy_agent/Assembly.hpp>         // for mundy::agent::Assembly
-#include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+// Mundy includes
+#include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 
 namespace mundy {
 
-namespace agent {
+namespace linker {
 
-/// \class Agents
-/// \brief The static interface for all of Mundy's Agents.
+namespace linkers {
+
+namespace neighbor_linkers {
+
+/// \class SphereSpheres
+/// \brief The static interface for all of Mundy's SphereSpheres neighbor linkers.
 ///
 /// The design of this class is in accordance with the static interface requirements of mundy::agent::AgentFactory.
 ///
-/// \note This class is a assembly part containing all agents. It does not have a parent or a grandparent within the
-/// agent hierarchy.
-class Agents : public Assembly<mundy::core::make_string_literal("AGENTS")> {};  // Agents
+/// \note This class is a constraint rank assembly part containing neighbor linkers between spheres. It is a subset of the NEIGHBOR_LINKERS part.
+class SphereSpheres
+    : public mundy::agent::RankedAssembly<mundy::core::make_string_literal("SPHERE_SPHERES"), stk::topology::CONSTRAINT_RANK,
+                                          mundy::core::make_string_literal("NEIGHBOR_LINKERS"),
+                                          mundy::core::make_string_literal("LINKERS")> {};  // SphereSpheres
 
-}  // namespace agent
+} // namespace neighbor_linkers
+
+}  // namespace linkers
+
+}  // namespace linker
 
 }  // namespace mundy
 
-#endif  // MUNDY_AGENT_AGENTS_HPP_
+#endif  // MUNDY_LINKER_LINKERS_NEIGHBORLINKERS_HPP_

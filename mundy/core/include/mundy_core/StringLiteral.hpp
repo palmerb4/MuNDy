@@ -74,6 +74,11 @@ struct StringLiteral {
     std::copy_n(str, StrSize, value);
   }
 
+  /// @brief Convert the string literal to a std::string.
+  std::string to_string() const {
+    return std::string(value);
+  }
+
   /// @brief The string literal's content.
   char value[StrSize];
 

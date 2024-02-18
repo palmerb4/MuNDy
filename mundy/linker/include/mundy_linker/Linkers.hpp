@@ -34,6 +34,8 @@
 
 // Mundy libs
 #include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
+#include <mundy_agent/RankedAssembly.hpp>    // for mundy::agent::RankedAssembly
+#include <mundy_core/StringLiteral.hpp>      // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
@@ -112,99 +114,15 @@ namespace linker {
 /// example, a constraint_t since they are both agent_t's. You can think of this as a runtime extensible class enum.
 using linker_t = mundy::agent::agent_t;
 
-class Linkers {
- public:
-  //! \name Getters
-  //@{
-
-  /// \brief Get the name of our part.
-  static inline std::string get_name() {
-    return std::string(our_name_);
-  }
-
-  /// @brief Get the name of our parent part.
-  static inline std::string get_parent_name() {
-    return std::string(our_parents_name_);
-  }
-
-  /// \brief Get the topology of our part.
-  static constexpr inline stk::topology::topology_t get_topology() {
-    return our_topology_;
-  }
-
-  /// \brief Get the rank of our part.
-  static constexpr inline stk::topology::rank_t get_rank() {
-    return our_rank_;
-  }
-
-  /// \brief Get if our part has a topology or not.
-  static constexpr inline bool has_topology() {
-    return our_has_topology_;
-  }
-
-  /// \brief Get if our part has a rank or not.
-  static constexpr inline bool has_rank() {
-    return our_has_rank_;
-  }
-
-  /// \brief Add new part requirements to ALL members of this agent part.
-  /// These modifications are reflected in our mesh requirements.
-  static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
-    our_part_reqs_ptr_->merge(part_reqs_ptr);
-  }
-
-  /// \brief Add sub-part requirements.
-  /// These modifications are reflected in our mesh requirements.
-  static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
-    our_part_reqs_ptr_->add_subpart_reqs(subpart_reqs_ptr);
-  }
-
-  /// \brief Get our mesh requirements.
-  static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
-    // Linkers is an assembly part containing all linkers.
-
-    // Declare our part as a subpart of our parent part.
-    mundy::agent::AgentHierarchy::add_subpart_reqs(our_part_reqs_ptr_, std::string(our_parents_name_),
-                                                   std::string(our_grandparents_name_));
-
-    // Fetch our parent's requirements.
-    // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
-    // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
-    // combined requirements for all parts touched in this traversal are then returned here.
-    return mundy::agent::AgentHierarchy::get_mesh_requirements(std::string(our_parents_name_),
-                                                               std::string(our_grandparents_name_));
-  }
-
- private:
-  //! \name Member variable definitions
-  //@{
-
-  /// \brief The name of the our part.
-  static constexpr inline std::string_view our_name_ = "LINKERS";
-
-  /// \brief The name of the our parent part.
-  static constexpr inline std::string_view our_parents_name_ = "AGENTS";
-
-  /// \brief The name of the our grandparent part.
-  static constexpr inline std::string_view our_grandparents_name_ = "";
-
-  /// \brief Our topology (we don't have a topology, so this should never be used).
-  static constexpr inline stk::topology::topology_t our_topology_ = stk::topology::INVALID_TOPOLOGY;
-
-  /// \brief Our rank. All linkers exist one level above elements on the connectivity DAG.
-  static constexpr inline stk::topology::rank_t our_rank_ = stk::topology::CONSTRAINT_RANK;
-
-  /// \brief If our part has a topology or not.
-  static constexpr inline bool our_has_topology_ = false;
-
-  /// \brief If our part has a rank or not.
-  static constexpr inline bool our_has_rank_ = true;
-
-  /// @brief Our part requirements.
-  static inline std::shared_ptr<mundy::meta::PartRequirements> our_part_reqs_ptr_ =
-      std::make_shared<mundy::meta::PartRequirements>(std::string(our_name_), our_rank_);
-  //@}
-};  // Linkers
+/// \class Linkers
+/// \brief The static interface for all of Mundy's Linkers.
+///
+/// The design of this class is in accordance with the static interface requirements of mundy::agent::AgentFactory.
+///
+/// \note This class is a constraint rank assembly part containing all linkers. It is a subset of the AGENTS part.
+class Linkers
+    : public mundy::agent::RankedAssembly<mundy::core::make_string_literal("LINKERS"), stk::topology::CONSTRAINT_RANK,
+                                          mundy::core::make_string_literal("AGENTS")> {};  // Linkers
 
 /// \brief Declare the relations and their converse between a constraint-rank entity and the family tree of any number
 /// of entities within the same mesh.
@@ -216,7 +134,7 @@ class Linkers {
 template <typename... Entities>
   requires(std::is_same_v<std::remove_cv_t<std::remove_reference_t<Entities>>, stk::mesh::Entity> && ...)
 void declare_constraint_relations_to_family_tree_with_sharing(mundy::mesh::BulkData* const bulk_data_ptr,
-                                                              const stk::mesh::Entity &from_constraint,
+                                                              const stk::mesh::Entity& from_constraint,
                                                               const Entities&... to_entities) {
   // For each entity to connect, we will declare a relation between the constraint rank entity and them. These will be
   // our "head" relations and will be the first relations in the constraint's relation list in the order they are given.

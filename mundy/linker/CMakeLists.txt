@@ -12,9 +12,11 @@ tribits_subpackage(Agent)
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
-SET(HEADERS 
-  include/mundy_linker/PerformRegistration.hpp
+SET(HEADERS
   include/mundy_linker/Linkers.hpp
+  include/mundy_linker/linkers/NeighborLinkers.hpp
+  include/mundy_linker/linkers/neighbor_linkers/SphereSpheres.hpp
+  include/mundy_linker/PerformRegistration.hpp
   )
 
 SET(SOURCES 
