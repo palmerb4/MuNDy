@@ -86,6 +86,19 @@ struct StringLiteral {
   static constexpr size_t size = StrSize;
 };  // StringLiteral
 
+/// @brief Non-member equality operator for comparing two StringLiterals.
+/// @param lhs The left-hand side of the comparison
+/// @param rhs The right-hand side of the comparison
+template <size_t N>
+constexpr bool operator==(const StringLiteral<N>& lhs, const StringLiteral<N>& rhs) {
+    for (size_t i = 0; i < N; ++i) {
+        if (lhs.value[i] != rhs.value[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /// \brief Helper function for creating a StringLiteral.
 ///
 /// This function is used to create a StringLiteral without having to specify the template parameters.

@@ -111,36 +111,18 @@ TEST(FieldRequirementsSetters, IsSettable) {
   EXPECT_TRUE(field_reqs.is_fully_specified());
 }
 
-struct CountCopiesStruct {
-  CountCopiesStruct() = default;  // Default constructable
-  CountCopiesStruct(const CountCopiesStruct &) {
-    ++num_copies;
-  }  // Copy constructable
-  CountCopiesStruct &operator=(const CountCopiesStruct &) {
-    ++num_copies;
-    return *this;
-  }  // Copy assignable
-
-  static int num_copies;
-  int value = 1;
-};  // CountCopiesStruct
-
-int CountCopiesStruct::num_copies = 0;
-
-TEST(FieldRequirementsAttributes, AddAttributesWithoutCopy) {
+TEST(FieldRequirementsAttributes, AddAttributes) {
   // Check that the attribute adders work.
-
-  // Create an uncopiable attribute.
-  // Note, std::any requires that the element stored within it is copyable.
-  // So, we must wrap the uncopiable object in a std::shared_ptr.
-  CountCopiesStruct::num_copies = 0;
-  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Add the attribute to the FieldRequirements object.
   using ExampleFieldType = double;
   auto field_reqs = mundy::meta::FieldRequirements<ExampleFieldType>();
-  ASSERT_NO_THROW(field_reqs.add_field_attribute(std::move(uncopiable_attribute)));
-  // TODO(palmerb4): Add an attribute getter to FieldRequirements and check that the attribute was added correctly.
+  const std::string attribute_name = "attribute_name";
+  ASSERT_NO_THROW(field_reqs.add_field_attribute(attribute_name));
+
+  // Check that the attribute is in the FieldRequirements object.
+  ASSERT_EQ(field_reqs.get_field_attribute_names().size(), 1);
+  EXPECT_EQ(field_reqs.get_field_attribute_names()[0], attribute_name);
 }
 //@}
 

@@ -16,6 +16,17 @@ cmake \
 -DKokkos_ENABLE_SERIAL=ON \
 -DKokkos_ENABLE_OPENMP=OFF \
 -DKokkos_ENABLE_CUDA=OFF \
+-DMundy_ENABLE_MundyAgent=ON \
+-DMundy_ENABLE_MundyBalance=OFF \
+-DMundy_ENABLE_MundyConstraint=OFF \
+-DMundy_ENABLE_MundyCore=ON \
+-DMundy_ENABLE_MundyIo=OFF \
+-DMundy_ENABLE_MundyLinker=OFF \
+-DMundy_ENABLE_MundyMath=ON \
+-DMundy_ENABLE_MundyMesh=ON \
+-DMundy_ENABLE_MundyMeta=ON \
+-DMundy_ENABLE_MundyMotion=OFF \
+-DMundy_ENABLE_MundyShape=ON \
 -DMundy_ENABLE_TESTS=ON \
 -DMundy_ENABLE_GTest=ON \
 -DMundy_TEST_CATEGORIES="BASIC;CONTINUOUS;NIGHTLY;HEAVY;PERFORMANCE" \

@@ -13,24 +13,24 @@ tribits_subpackage(Meta)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(HEADERS 
-  include/mundy_meta/PartRequirements.hpp
-  include/mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp
-  include/mundy_meta/MetaKernelDispatcher.hpp
-  include/mundy_meta/MetaRegistry.hpp
-  include/mundy_meta/FieldRequirementsFactory.hpp
-  include/mundy_meta/MetaTechniqueDispatcher.hpp
-  include/mundy_meta/FieldRequirementsRegistry.hpp
-  include/mundy_meta/MetaFactory.hpp
-  include/mundy_meta/utils/MeshGeneration.hpp
-  include/mundy_meta/MetaMethod.hpp
-  include/mundy_meta/MetaKernel.hpp
   include/mundy_meta/FieldRequirementsBase.hpp
+  include/mundy_meta/FieldRequirementsFactory.hpp
   include/mundy_meta/FieldRequirements.hpp
+  include/mundy_meta/FieldRequirementsRegistry.hpp
+  include/mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp
   include/mundy_meta/MeshRequirements.hpp
+  include/mundy_meta/MetaFactory.hpp
+  include/mundy_meta/MetaKernelDispatcher.hpp
+  include/mundy_meta/MetaKernel.hpp
+  include/mundy_meta/MetaMethod.hpp
+  include/mundy_meta/MetaRegistry.hpp
+  include/mundy_meta/MetaTechniqueDispatcher.hpp
+  include/mundy_meta/ParameterValidationHelpers.hpp
+  include/mundy_meta/PartRequirements.hpp
+  include/mundy_meta/utils/MeshGeneration.hpp
   )
 
 SET(SOURCES 
-  src/mundy_meta/FieldRequirements.cpp
   src/mundy_meta/PartRequirements.cpp
   src/mundy_meta/MeshRequirements.cpp
   )

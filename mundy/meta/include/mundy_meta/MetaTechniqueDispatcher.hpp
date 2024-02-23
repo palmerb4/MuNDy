@@ -20,8 +20,8 @@
 #ifndef MUNDY_META_METATECHNIQUEDISPATCHER_HPP_
 #define MUNDY_META_METATECHNIQUEDISPATCHER_HPP_
 
-/// \file FieldRequirements.hpp
-/// \brief Declaration of the FieldRequirements class
+/// \file MetaTechniqueDispatcher.hpp
+/// \brief Declaration of the MetaTechniqueDispatcher class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -37,8 +37,8 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>          // for mundy::core::StringLiteral
-#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
@@ -71,9 +71,14 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
 
   /// \brief Constructor
   MetaTechniqueDispatcher(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_fixed_params());
+    
     // Forward the inputs to the technique.
-    const std::string technique_name = fixed_params.get<std::string>("technique_name");
-    technique_ptr_ = OurMethodFactory::create_new_instance(technique_name, bulk_data_ptr, fixed_params);
+    const std::string technique_name = valid_fixed_params.get<std::string>("technique_name");
+    Teuchos::ParameterList technique_params = valid_fixed_params.sublist(technique_name);
+    technique_ptr_ = OurMethodFactory::create_new_instance(technique_name, bulk_data_ptr, technique_params);
   }
   //@}
 
@@ -91,39 +96,30 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    valid_fixed_params.validateParametersAndSetDefaults(MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_fixed_params());
 
     // Fetch the technique sublist and return its parameters.
-    Teuchos::ParameterList &technique_params = valid_fixed_params.sublist("technique");
-    const std::string technique_name = technique_params.get<std::string>("name");
-
+    const std::string technique_name = valid_fixed_params.get<std::string>("technique_name");
+    const Teuchos::ParameterList &technique_params = valid_fixed_params.sublist(technique_name);
     return OurMethodFactory::get_mesh_requirements(technique_name, technique_params);
   }
 
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    // Fetch the technique sublist and return its parameters.
-    mundy::meta::check_parameter_and_set_default(
-              fixed_params_ptr, mundy::meta::ParamConfig<std::string>{
-                              .name = "technique_name",
-                              .default_value = std::string(default_technique_name_),
-                              .doc_string = "The name of the technique to use."});
-    const std::string technique_name = fixed_params_ptr->get<std::string>("name");
-    OurMethodFactory::validate_fixed_parameters_and_set_defaults(technique_name, fixed_params_ptr);
+  /// \brief Get the valid fixed parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_fixed_params() {
+    static Teuchos::ParameterList default_fixed_parameter_list;
+    return get_valid_enabled_kernels_and_kernel_params(default_fixed_parameter_list,
+                                                       [](const std::string &name) -> Teuchos::ParameterList {
+                                                         return OurMethodFactory::get_valid_fixed_params(name);
+                                                       });
   }
 
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    // Fetch the technique sublist and return its parameters.
-    mundy::meta::check_parameter_and_set_default(
-        mutable_params_ptr, mundy::meta::ParamConfig<std::string>{
-                                .name = "technique_name",
-                                .default_value = std::string(default_technique_name_),
-                                .doc_string = "The name of the technique to use."});
-    const std::string technique_name = mutable_params_ptr->get<std::string>("technique_name");
-    OurMethodFactory::validate_mutable_parameters_and_set_defaults(technique_name, mutable_params_ptr);
+  /// \brief Get the valid mutable parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_mutable_params() {
+    static Teuchos::ParameterList default_mutable_parameter_list;
+    return get_valid_enabled_kernels_and_kernel_params(default_mutable_parameter_list,
+                                                       [](const std::string &name) -> Teuchos::ParameterList {
+                                                         return OurMethodFactory::get_valid_mutable_params(name);
+                                                       });
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
@@ -148,8 +144,14 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
 
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_mutable_params = mutable_params;
+    valid_mutable_params.validateParametersAndSetDefaults(MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_mutable_params());
+
     // Forward the inputs to the technique.
-    technique_ptr_->set_mutable_params(mutable_params);
+    const std::string technique_name = valid_fixed_params.get<std::string>("technique_name");
+    Teuchos::ParameterList technique_params = valid_fixed_params.sublist(technique_name);
+    kernel_ptrs_[i]->set_mutable_params(kernel_params);
   }
   //@}
 
@@ -190,45 +192,33 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethod<void> {
   /// \brief Method corresponding to the specified technique.
   std::shared_ptr<mundy::meta::MetaMethod<void>> technique_ptr_;
   //@}
+
+  //! \name Internal methods
+  //@{
+
+  /// @brief Get the valid enabled kernels and their parameters.
+  /// @param get_kernel_params_func [in] A function that returns the valid parameters for a kernel given its name
+  static Teuchos::ParameterList get_valid_enabled_kernels_and_kernel_params(
+      const std::function<Teuchos::ParameterList(const std::string &)> &get_kernel_params_func) {
+    Teuchos::ParameterList default_parameter_list;
+
+    std::string valid_names = OurMethodFactory::get_keys_as_string();
+    default_parameter_list.set("technique_name", std::string(default_technique_name_),
+                               "The name of the technique to use. Valid names are: " + valid_names);
+
+    // Because this is the valid params we list ALL possible parameters. We expect the parameters for
+    // each technique to be a sublist of this list with the same name as the technique.
+    for (auto &key : OurMethodFactory::get_keys()) {
+      std::string valid_technique_name = key;
+      Teuchos::ParameterList &technique_params = default_parameter_list.sublist(valid_technique_name);
+      technique_params.setParameters(get_kernel_params_func(valid_technique_name));
+    }
+
+    return default_parameter_list;
+  }
+  //@}
+
 };  // MetaTechniqueDispatcher
-
-// //! \name Template specializations
-// //@{
-
-// // \name Constructors and destructor
-// //{
-
-// template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
-// MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::MetaTechniqueDispatcher(
-//     mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-//   // Forward the inputs to the technique.
-//   const std::string technique_name = fixed_params.get<std::string>("technique_name");
-//   technique_ptr_ = OurMethodFactory::create_new_instance(technique_name, bulk_data_ptr, fixed_params);
-// }
-// //}
-
-// // \name MetaFactory static interface implementation
-// //{
-
-// template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
-// void MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::set_mutable_params(
-//     const Teuchos::ParameterList &mutable_params) {
-//   // Forward the inputs to the technique.
-//   technique_ptr_->set_mutable_params(mutable_params);
-// }
-// //}
-
-// // \name Actions
-// //{
-
-// template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
-// void MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::execute(
-//     const stk::mesh::Selector &input_selector) {
-//   // Forward the inputs to the technique.
-//   technique_ptr_->execute(input_selector);
-// }
-// //}
-// //@}
 
 }  // namespace meta
 

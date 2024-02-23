@@ -33,7 +33,6 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 #include <stk_topology/topology.hpp>  // for stk::topology
 
@@ -44,71 +43,6 @@
 namespace mundy {
 
 namespace meta {
-
-//! \name Helper functions
-//@{
-
-/// \brief Map a string with a valid topology name to the corresponding topology.
-///
-/// The set of valid topology names and their corresponding return type is
-///  - No rank topologies
-///     - INVALID_TOPOLOGY                       -> stk::topology::INVALID_TOPOLOGY
-///  - Node rank topologies
-///     - NODE                                   -> stk::topology::NODE
-///  - Edge rank topologies
-///     - LINE_2                                 -> stk::topology::LINE_2
-///     - LINE_3                                 -> stk::topology::LINE_3
-///  - Face rank topologies
-///     - TRI_3 or TRIANGLE_3                    -> stk::topology::TRI_3
-///     - TRI_4 or TRIANGLE_4                    -> stk::topology::TRI_4
-///     - TRI_6 or TRIANGLE_6                    -> stk::topology::TRI_6
-///     - QUAD_4 or QUADRILATERAL_4              -> stk::topology::QUAD_4
-///     - QUAD_6 or QUADRILATERAL_6              -> stk::topology::QUAD_6
-///     - QUAD_8 or QUADRILATERAL_8              -> stk::topology::QUAD_8
-///     - QUAD_9 or QUADRILATERAL_9              -> stk::topology::QUAD_9
-///   - Element rank topologies
-///     - PARTICLE                               -> stk::topology::PARTICLE
-///     - LINE_2_1D                              -> stk::topology::LINE_2_1D
-///     - LINE_3_1D                              -> stk::topology::LINE_3_1D
-///     - BEAM_2                                 -> stk::topology::BEAM_2
-///     - BEAM_3                                 -> stk::topology::BEAM_3
-///     - SHELL_LINE_2                           -> stk::topology::SHELL_LINE_2
-///     - SHELL_LINE_3                           -> stk::topology::SHELL_LINE_3
-///     - SPRING_2                               -> stk::topology::SPRING_2
-///     - SPRING_3                               -> stk::topology::SPRING_3
-///     - TRI_3_2D or TRIANGLE_3_2D              -> stk::topology::TRI_3_2D
-///     - TRI_4_2D or TRIANGLE_4_2D              -> stk::topology::TRI_4_2D
-///     - TRI_6_2D or TRIANGLE_6_2D              -> stk::topology::TRI_6_2D
-///     - QUAD_4_2D or QUADRILATERAL_4_2D        -> stk::topology::QUAD_4_2D
-///     - QUAD_8_2D or QUADRILATERAL_8_2D        -> stk::topology::QUAD_8_2D
-///     - QUAD_9_2D or QUADRILATERAL_9_2D        -> stk::topology::QUAD_9_2D
-///     - SHELL_TRI_3 or SHELL_TRIANGLE_3        -> stk::topology::SHELL_TRI_3
-///     - SHELL_TRI_4 or SHELL_TRIANGLE_4        -> stk::topology::SHELL_TRI_4
-///     - SHELL_TRI_6 or SHELL_TRIANGLE_6        -> stk::topology::SHELL_TRI_6
-///     - SHELL_QUAD_4 or SHELL_QUADRILATERAL_4  -> stk::topology::SHELL_QUAD_4
-///     - SHELL_QUAD_8 or SHELL_QUADRILATERAL_8  -> stk::topology::SHELL_QUAD_8
-///     - SHELL_QUAD_9 or SHELL_QUADRILATERAL_9  -> stk::topology::SHELL_QUAD_9
-///     - TET_4 or TETRAHEDRON_4                 -> stk::topology::TET_4
-///     - TET_8 or TETRAHEDRON_8                 -> stk::topology::TET_8
-///     - TET_10 or TETRAHEDRON_10               -> stk::topology::TET_10
-///     - TET_11 or TETRAHEDRON_11               -> stk::topology::TET_11
-///     - PYRAMID_5                              -> stk::topology::PYRAMID_5
-///     - PYRAMID_13                             -> stk::topology::PYRAMID_13
-///     - PYRAMID_14                             -> stk::topology::PYRAMID_14
-///     - WEDGE_6                                -> stk::topology::WEDGE_6
-///     - WEDGE_12                               -> stk::topology::WEDGE_12
-///     - WEDGE_15                               -> stk::topology::WEDGE_15
-///     - WEDGE_18                               -> stk::topology::WEDGE_18
-///     - HEX_8 or HEXAHEDRON_8                  -> stk::topology::HEX_8
-///     - HEX_20 or HEXAHEDRON_20                -> stk::topology::HEX_20
-///     - HEX_27 or HEXAHEDRON_27                -> stk::topology::HEX_27
-///   - Super topologies
-///     - SUPEREDGE<N>                           -> create_superedge_topology(N)
-///     - SUPERFACE<N>                           -> create_superface_topology(N)
-///     - SUPERELEMENT<N>                        -> create_superelement_topology(N)
-/// \param rank_string [in] String containing a valid rank name.
-stk::topology map_string_to_topology(const std::string &topology_string);
-//@}
 
 /// \class PartRequirements
 /// \brief A set requirements imposed upon a Part and its fields.
@@ -143,12 +77,6 @@ class PartRequirements {
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
   PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank);
-
-  /// \brief Construct from a parameter list.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. These parameters must
-  /// be valid. That is, validate_parameters_and_set_defaults(&parameter_list) must run without error.
-  explicit PartRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name Setters
@@ -162,17 +90,9 @@ class PartRequirements {
   /// \param part_topology [in] Required topology of the part.
   void set_part_topology(const stk::topology::topology_t &part_topology);
 
-  /// \brief Set the required part topology using a valid topology string name.
-  /// \param part_topology_name [in] Required topology of the part.
-  void set_part_topology(const std::string &part_topology_string);
-
   /// \brief Set the required part rank.
   /// \param part_rank [in] Required rank of the part.
   void set_part_rank(const stk::topology::rank_t &part_rank);
-
-  /// \brief Set the required part rank using a valid rank string name.
-  /// \param part_rank [in] Required rank of the part.
-  void set_part_rank(const std::string &part_rank_string);
 
   /// \brief Delete the part name constraint (if it exists).
   void delete_part_name();
@@ -195,32 +115,10 @@ class PartRequirements {
   /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
   void add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
-  /// \brief Store a copy of an attribute on this part.
+  /// \brief Require that an attribute with the given name be present on the part.
   ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on this part.
-  void add_part_attribute(const std::any &some_attribute);
-
-  /// \brief Store an attribute on this part.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on this part.
-  void add_part_attribute(std::any &&some_attribute);
-
-  /// \brief Add the io part attribute to this part.
-  void put_io_part_attribute();
+  /// \param attribute_name [in] The name of the attribute that must be present on the part.
+  void add_part_attribute(const std::string &attribute_name);
   //@}
 
   //! \name Getters
@@ -256,8 +154,8 @@ class PartRequirements {
   /// \brief Return the part subpart map.
   std::map<std::string, std::shared_ptr<PartRequirements>> get_part_subpart_map();
 
-  /// \brief Return the part attribute map.
-  std::map<std::type_index, std::any> get_part_attributes_map();
+  /// \brief Return the required part attribute names.
+  std::vector<std::string> get_part_attribute_names();
   //@}
 
   //! \name Actions
@@ -292,44 +190,6 @@ class PartRequirements {
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
   /// current object.
   void merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs);
-
-  /// \brief Validate the given parameters and set the default values if not provided.
-  static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
-    // TODO(palmerb4): We should also take in and validate any sub-parts, fields, or known attributes.
-    // Note, topology and rank can either be in string form or in explicit type form.
-
-    MUNDY_THROW_ASSERT(parameter_list_ptr->isParameter("name"), std::invalid_argument,
-                       "PartRequirements: Expected to find a parameter with name 'name' but no such parameter exists.");
-
-    const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-    MUNDY_THROW_ASSERT(
-        valid_type, std::invalid_argument,
-        "PartRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string.");
-
-    bool valid_topology_rank_combo =
-        !(parameter_list_ptr->isParameter("topology") && parameter_list_ptr->isParameter("rank"));
-    MUNDY_THROW_ASSERT(valid_topology_rank_combo, std::invalid_argument,
-                       "PartRequirements: Topology and rank cannot both be set simultaneously; please set one "
-                           << "or the other (or neither).");
-
-    if (parameter_list_ptr->isParameter("topology")) {
-      const bool valid_type =
-          ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("topology")) ||
-           (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::topology_t>("topology")));
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "PartRequirements: Type error. Given a parameter with name 'topology' but "
-                             << "with a type other than std::string or stk::topology::topology_t.");
-    } else {
-      if (parameter_list_ptr->isParameter("rank")) {
-        const bool valid_type =
-            ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
-             (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
-        MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                           "PartRequirements: Type error. Given a parameter with name 'rank' but with a "
-                               << "type other than std::string or stk::topology::rank_t.");
-      }
-    }
-  }
 
   /// \brief Dump the contents of \c PartRequirements to the given stream (defaults to std::cout).
   void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;
@@ -367,8 +227,8 @@ class PartRequirements {
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
 
-  /// \brief A map from attribute type to this part's attributes.
-  std::map<std::type_index, std::any> part_attributes_map_;
+  /// \brief A vector of required part attribute names.
+  std::vector<std::string> required_part_attribute_names_;
 };  // PartRequirements
 
 }  // namespace meta

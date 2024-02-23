@@ -10,16 +10,16 @@ tribits_package_define_dependencies(
   TEST_REQUIRED_TPLS GTest
   TEST_OPTIONAL_TPLS MPI
   SUBPACKAGES_DIRS_CLASSIFICATIONS_OPTREQS
-    Core        core        PT  REQUIRED
-    Mesh        mesh        PT  REQUIRED
-    Math        math        PT  REQUIRED
-    Meta        meta        PT  REQUIRED
-    Agent       agent       PT  REQUIRED
-    Shape       shape       PT  REQUIRED
-    Linker      linker      PT  REQUIRED
-    # Balance     balance     PT  REQUIRED
-    # Io          io          PT  REQUIRED
-    # Constraint  constraint  PT  REQUIRED
-    # Motion      motion      PT  REQUIRED
+    Core        core        PT  OPTIONAL
+    Mesh        mesh        PT  OPTIONAL
+    Math        math        PT  OPTIONAL
+    Meta        meta        PT  OPTIONAL
+    Agent       agent       PT  OPTIONAL
+    Shape       shape       PT  OPTIONAL
+    Linker      linker      PT  OPTIONAL
+    # Balance     balance     PT  OPTIONAL
+    # Io          io          PT  OPTIONAL
+    # Constraint  constraint  PT  OPTIONAL
+    # Motion      motion      PT  OPTIONAL
   REGRESSION_EMAIL_LIST brycepalmer96@gmail.com
   )

@@ -64,205 +64,98 @@ class MetaData : public stk::mesh::MetaData {
 
   /// @brief Declare an attribute on the given field.
   /// @param field The field which should contain the given attribute.
-  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the given
+  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
   /// field.
-  void declare_attribute(const stk::mesh::FieldBase &field, const std::any &attribute);
+  /// @param attribute_data The given attribute's data.
+  void declare_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name,
+                         const std::any &attribute_data);
 
   /// @brief Declare an attribute on the given field.
   /// @param field The field which should contain the given attribute.
-  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the given
+  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
   /// field.
-  void declare_attribute(const stk::mesh::FieldBase &field, const std::any &&attribute);
+  /// @param attribute_data The given attribute's data.
+  void declare_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name,
+                         const std::any &&attribute_data);
 
   /// @brief Declare an attribute on the given part.
   /// @param part The part which should contain the given attribute.
-  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the given part.
-  void declare_attribute(const stk::mesh::Part &part, const std::any &attribute);
+  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
+  /// part.
+  /// @param attribute_data The given attribute's data.
+  void declare_attribute(const stk::mesh::Part &part, const std::string &attribute_name,
+                         const std::any &attribute_data);
 
   /// @brief Declare an attribute on the given part.
   /// @param part The part which should contain the given attribute.
-  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the given part.
-  void declare_attribute(const stk::mesh::Part &part, const std::any &&attribute);
+  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
+  /// part.
+  /// @param attribute_data The given attribute's data.
+  void declare_attribute(const stk::mesh::Part &part, const std::string &attribute_name,
+                         const std::any &&attribute_data);
 
   /// @brief Declare an attribute on the mesh itself.
-  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the mesh.
-  void declare_attribute(const std::any &attribute);
+  /// @param attribute_name The name of the attribute to declare. Must have a unique name not shared by other attributes
+  /// on the mesh.
+  /// @param attribute_data The given attribute's data.
+  void declare_attribute(const std::string &attribute_name, const std::any &attribute_data);
 
   /// @brief Declare an attribute on the mesh itself.
-  /// @param attribute The given attribute. Must have a unique type not shared by other attributes on the mesh.
-  void declare_attribute(const std::any &&attribute);
+  /// @param attribute_name The name of the attribute to declare. Must have a unique name not shared by other attributes
+  /// on the mesh.
+  /// @param attribute_data The given attribute's data.
+  void declare_attribute(const std::string &attribute_name, const std::any &&attribute_data);
 
   /// @brief Attempt to remove an attribute from the provided field.
-  /// @tparam AttributeTypeToRemove Type of the attribute to attempt to remove.
   /// @param field The given field whose attribute we are trying to remove.
+  /// @param attribute_name The name of the attribute to remove.
   /// @return A flag indicating if the attribute existed on the given field or not.
-  template <typename AttributeTypeToRemove>
-  bool remove_attribute(const stk::mesh::FieldBase &field);
+  bool remove_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name);
 
   /// @brief Attempt to remove an attribute from the provided part.
-  /// @tparam AttributeTypeToRemove Type of the attribute to attempt to remove.
   /// @param part The given part whose attribute we are trying to remove.
+  /// @param attribute_name The name of the attribute to remove.
   /// @return A flag indicating if the attribute existed on the given part or not.
-  template <typename AttributeTypeToRemove>
-  bool remove_attribute(const stk::mesh::Part &part);
+  bool remove_attribute(const stk::mesh::Part &part, const std::string &attribute_name);
 
   /// @brief Attempt to remove an attribute from this mesh.
-  /// @tparam AttributeTypeToRemove Type of the attribute to attempt to remove.
+  /// @param attribute_name The name of the attribute to remove.
   /// @return A flag indicating if the attribute existed on this mesh or not.
-  template <typename AttributeTypeToRemove>
-  bool remove_attribute();
+  bool remove_attribute(const std::string &attribute_name);
 
-  /// @brief Attempt to fetch an attribute with the provided type. Will return nullptr if type doesn't exist on the
-  /// given field.
-  /// TODO(palmerb4): This should be a const method and it should accept a field ptr.
-  /// @tparam AttributeTypeToFetch The attribute type to fetch.
+  /// @brief Attempt to fetch a field attribute with the provided name from the given field.
   /// @param field The given field whose attribute we are trying to fetch.
-  /// @return A pointer to the internally maintained attribute.
-  template <class AttributeTypeToFetch>
-  AttributeTypeToFetch *get_attribute(const stk::mesh::FieldBase &field);
+  /// @param attribute_name The name of the attribute to fetch.
+  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
+  /// mesh ordinal and name.
+  std::any *get_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name);
 
-  /// @brief Attempt to fetch an attribute with the provided type. Will return nullptr if type doesn't exist on the
-  /// given part.
-  /// TODO(palmerb4): This should be a const method and it should accept a part ptr.
-  /// @tparam AttributeTypeToFetch The attribute type to fetch.
+  /// @brief Attempt to fetch a part attribute with the provided name from the given part.
   /// @param part The given part whose attribute we are trying to fetch.
-  /// @return A pointer to the internally maintained attribute.
-  template <class AttributeTypeToFetch>
-  AttributeTypeToFetch *get_attribute(const stk::mesh::Part &part);
+  /// @param attribute_name The name of the attribute to fetch.
+  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
+  /// mesh ordinal and name.
+  std::any *get_attribute(const stk::mesh::Part &part, const std::string &attribute_name);
 
-  /// @brief Attempt to fetch an attribute with the provided type. Will return nullptr if type doesn't exist on the
-  /// current mesh.
-  /// @tparam AttributeTypeToFetch The attribute type to fetch.
-  /// @return A pointer to the internally maintained attribute.
-  template <class AttributeTypeToFetch>
-  AttributeTypeToFetch *get_attribute();
+  /// @brief Attempt to fetch an attribute with the provided name from the current mesh.
+  /// @param attribute_name The name of the attribute to fetch.
+  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
+  /// mesh ordinal and name.
+  std::any *get_attribute(const std::string &attribute_name);
   //@}
 
  private:
   //! \name Internal members
   //@{
 
-  std::map<unsigned, std::map<std::type_index, std::any>> field_to_field_attributes_map_;
-  std::map<unsigned, std::map<std::type_index, std::any>> part_to_part_attributes_map_;
-  std::map<std::type_index, std::any> mesh_attributes_map_;
+  std::map<unsigned, std::map<std::string, std::any>> field_to_field_attributes_map_;
+  std::map<unsigned, std::map<std::string, std::any>> part_to_part_attributes_map_;
+  std::map<std::string, std::any> mesh_attributes_map_;
   //@}
 };  // MetaData
-
-//! \name Template implementations
-//@{
-
-// \name Actions
-//{
-
-template <typename AttributeTypeToRemove>
-bool MetaData::remove_attribute(const stk::mesh::FieldBase &field) {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
-  const unsigned field_id = field.mesh_meta_data_ordinal();
-
-  const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
-  if (field_has_attributes) {
-    const bool attribute_exists = (field_to_field_attributes_map_[field_id].count(attribute_type_index) != 0);
-    if (attribute_exists) {
-      field_to_field_attributes_map_[field_id].erase(attribute_type_index);
-      return true;
-    } else {
-      // The attribute doesn't exist, nothing to remove.
-      return false;
-    }
-  } else {
-    // The field has no attributes, so I'm pretty certain the provided attribute doesn't exist.
-    return false;
-  }
-}
-
-template <typename AttributeTypeToRemove>
-bool MetaData::remove_attribute(const stk::mesh::Part &part) {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
-  const unsigned part_id = part.mesh_meta_data_ordinal();
-
-  // TODO(palmerb4): Attributes should be inherited. Check if any of our parents are in the list.
-  const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
-  if (part_has_attributes) {
-    const bool attribute_exists = (part_to_part_attributes_map_[part_id].count(attribute_type_index) != 0);
-    if (attribute_exists) {
-      part_to_part_attributes_map_[part_id].erase(attribute_type_index);
-      return true;
-    } else {
-      // The attribute doesn't exist, nothing to remove.
-      return false;
-    }
-  } else {
-    // The part has no attributes, so I'm pretty certain the provided attribute doesn't exist.
-    return false;
-  }
-}
-
-template <typename AttributeTypeToRemove>
-bool MetaData::remove_attribute() {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToRemove));
-
-  const bool attribute_exists = (mesh_attributes_map_.count(attribute_type_index) != 0);
-  if (attribute_exists) {
-    mesh_attributes_map_.erase(attribute_type_index);
-    return true;
-  } else {
-    // The attribute doesn't exist, nothing to remove.
-    return false;
-  }
-}
-
-template <class AttributeTypeToFetch>
-AttributeTypeToFetch *MetaData::get_attribute(const stk::mesh::FieldBase &field) {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
-  const unsigned field_id = field.mesh_meta_data_ordinal();
-
-  const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
-  if (field_has_attributes) {
-    const bool attribute_exists = (field_to_field_attributes_map_[field_id].count(attribute_type_index) != 0);
-    if (attribute_exists) {
-      // Attempt to cast the attribute to the requested type.
-      return std::any_cast<AttributeTypeToFetch>(&field_to_field_attributes_map_[field_id][attribute_type_index]);
-    }
-  }
-
-  // Attribute doesn't exist. Returning nullptr.
-  return nullptr;
-}
-
-template <class AttributeTypeToFetch>
-AttributeTypeToFetch *MetaData::get_attribute(const stk::mesh::Part &part) {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
-  const unsigned part_id = part.mesh_meta_data_ordinal();
-
-  const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
-  if (part_has_attributes) {
-    const bool attribute_exists = (part_to_part_attributes_map_[part_id].count(attribute_type_index) != 0);
-    if (attribute_exists) {
-      // Attempt to cast the attribute to the requested type.
-      return std::any_cast<AttributeTypeToFetch>(&part_to_part_attributes_map_[part_id][attribute_type_index]);
-    }
-  }
-
-  // Attribute doesn't exist. Returning nullptr.
-  return nullptr;
-}
-
-template <class AttributeTypeToFetch>
-AttributeTypeToFetch *MetaData::get_attribute() {
-  std::type_index attribute_type_index = std::type_index(typeid(AttributeTypeToFetch));
-
-  const bool attribute_exists = (mesh_attributes_map_.count(attribute_type_index) != 0);
-  if (attribute_exists) {
-    // Attempt to cast the attribute to the requested type.
-    return std::any_cast<AttributeTypeToFetch>(&mesh_attributes_map_[attribute_type_index]);
-  }
-
-  // Attribute doesn't exist. Returning nullptr.
-  return nullptr;
-}
-//}
-
-//@}
 
 }  // namespace mesh
 

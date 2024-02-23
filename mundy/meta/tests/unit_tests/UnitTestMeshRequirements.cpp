@@ -152,47 +152,15 @@ TEST(MeshRequirementsSetters, AddMeshAttributes) {
   // Check that the add_mesh_attribute method works.
 
   // Create a dummy mesh attribute object.
-  std::any attribute = 3.14159265358979323846;
+  std::string attribute_name = "attribute_name";
 
   // Create a mesh requirements object and add the mesh attribute to it.
   MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  ASSERT_NO_THROW(mesh_reqs.add_mesh_attribute(attribute));
+  ASSERT_NO_THROW(mesh_reqs.add_mesh_attribute(attribute_name));
 
   // Check that the mesh attribute was added correctly.
-  // TODO(palmerb4): Add a mesh attribute getter method so we can perform this check.
-}
-
-struct CountCopiesStruct {
-  CountCopiesStruct() = default;  // Default constructable
-  CountCopiesStruct(const CountCopiesStruct &) {
-    ++num_copies;
-  }  // Copy constructable
-  CountCopiesStruct &operator=(const CountCopiesStruct &) {
-    ++num_copies;
-    return *this;
-  }  // Copy assignable
-
-  static int num_copies;
-  int value = 1;
-};  // CountCopiesStruct
-
-int CountCopiesStruct::num_copies = 0;
-
-TEST(MeshRequirementsSetters, AddMeshAttributeWithoutCopy) {
-  // Check that the add_mesh_attribute method works with perfect forwarding.
-
-  // Create an uncopiable attribute.
-  // Note, std::any requires that the element stored within it is copyable.
-  // So, we must wrap the uncopiable object in a std::shared_ptr.
-  CountCopiesStruct::num_copies = 0;
-  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
-
-  // Create a mesh requirements object and add the mesh attribute to it.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  ASSERT_NO_THROW(mesh_reqs.add_mesh_attribute(std::move(uncopiable_attribute)));
-
-  // Check that the mesh attribute was added correctly.
-  // TODO(palmerb4): Add a mesh attribute getter method so we can perform this check.
+  ASSERT_EQ(mesh_reqs.get_mesh_attribute_names().size(), 1);
+  EXPECT_EQ(mesh_reqs.get_mesh_attribute_names()[0], attribute_name);
 }
 //@}
 
@@ -346,38 +314,49 @@ TEST(MeshRequirementsMerge, AreMeshAttributesMergable) {
   /* Check that the merge function properly merges mesh attributes.
   The setup for this test is as follows:
   mesh1
-    attribute1 (type=int)
-    attribute2 (type=double)
+    attribute1 (name="attribute1")
+    attribute2 (name="attribute23")
   mesh2:
-    attribute3 (type=double)
-    attribute4 (type=std::string)
+    attribute3 (name="attribute23")
+    attribute4 (name="attribute4")
   merged12
-    attribute1 (type=int)
-    attribute2 merged w/ attribute3 (type=double)
-    attribute4 (type=std::string)
+    attribute1 (name="attribute1")
+    attribute2 merged w/ attribute3 (name="attribute23")
+    attribute4 (name="attribute4")
 
-  Note, only attributes with the same name will be merged. As a result, attribute2 will be merged with attribute 4
-  (this should increase it's minimim number of states to 4), but attribute3 will not be merged with attribute 5 because
-  they don't have the same name.
+  Note, only attributes with the same name will be merged. As a result, attribute2 will be merged with attribute 3.
   */
 
   // Setup the dummy attributes.
-  std::any attribute1 = 1;
-  std::any attribute2 = 3.14159265358979323846;
-  std::any attribute3 = 3.14159265358979323846;
-  std::any attribute4 = "something";
+  std::string attribute1_name = "attribute1";
+  std::string attribute2_name = "attribute23";
+  std::string attribute3_name = "attribute23";
+  std::string attribute4_name = "attribute4";
 
   // Setup the mesh requirements according to the diagram above.
   auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
   auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs1_ptr->add_mesh_attribute(attribute1);
-  mesh_reqs1_ptr->add_mesh_attribute(attribute2);
-  mesh_reqs2_ptr->add_mesh_attribute(attribute3);
-  mesh_reqs2_ptr->add_mesh_attribute(attribute4);
+  mesh_reqs1_ptr->add_mesh_attribute(attribute1_name);
+  mesh_reqs1_ptr->add_mesh_attribute(attribute2_name);
+  mesh_reqs2_ptr->add_mesh_attribute(attribute3_name);
+  mesh_reqs2_ptr->add_mesh_attribute(attribute4_name);
 
   // Merge the mesh requirements and check that the attributes were merged correctly.
   ASSERT_NO_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr));
-  // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
+
+  // Check that the attributes were merged correctly.
+  ASSERT_EQ(mesh_reqs1_ptr->get_mesh_attribute_names().size(), 3);
+  const auto &merged_attribute_names = mesh_reqs1_ptr->get_mesh_attribute_names();
+  const bool attribute1_exists =
+      std::count(merged_attribute_names.begin(), merged_attribute_names.end(), attribute1_name) > 0;
+  const bool attribute2_exists =
+      std::count(merged_attribute_names.begin(), merged_attribute_names.end(), attribute2_name) > 0;
+  const bool attribute4_exists =
+      std::count(merged_attribute_names.begin(), merged_attribute_names.end(), attribute4_name) > 0;
+
+  EXPECT_TRUE(attribute1_exists);
+  EXPECT_TRUE(attribute2_exists);
+  EXPECT_TRUE(attribute4_exists);
 }
 
 TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
@@ -388,14 +367,14 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
       field1 (name=a, rank=NODE, dimension=3, min_number_of_states=1)
       field2 (name=b, rank=NODE, dimension=3, min_number_of_states=2)
       subpart1 (name=C)
-      attribute1 (type=int)
+      attribute1 (name="attribute12")
   mesh2:
     part2 (name=A)
       field3 (name=a, rank=NODE, dimension=3, min_number_of_states=3)
       field4 (name=b, rank=ELEMENT, dimension=3, min_number_of_states=4)
       field5 (name=c, rank=NODE, dimension=3, min_number_of_states=5)
-      attribute2 (type=int)
-      attribute3 (type=double)
+      attribute2 (name="attribute12")
+      attribute3 (name="attribute3")
     part3 (name=B)
   merged12:
     part1 merged w/ part2 (name=A)
@@ -403,8 +382,8 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
       field2 (name=b, rank=NODE, dimension=3, min_number_of_states=2)
       field4 (name=b, rank=ELEMENT, dimension=3, min_number_of_states=4)
       field5 (name=c, rank=NODE, dimension=3, min_number_of_states=5)
-      attribute1 (type=int)
-      attribute3 (type=double)
+      attribute1 (name="attribute12")
+      attribute3 (name="attribute3")
     part2 (name=B)
   */
 
@@ -417,9 +396,9 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
   auto field_reqs5_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the dummy attributes.
-  std::any attribute1 = 8675309;
-  std::any attribute2 = 8675309;
-  std::any attribute3 = 3.14159265358979323846;
+  std::string attribute1_name = "attribute12";
+  std::string attribute2_name = "attribute12";
+  std::string attribute3_name = "attribute3";
 
   // Setup the dummy parts.
   auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");
@@ -431,9 +410,9 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
   part_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
   part_reqs2_ptr->add_field_reqs(field_reqs5_ptr);
   part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
-  part_reqs1_ptr->add_part_attribute(attribute1);
-  part_reqs2_ptr->add_part_attribute(attribute2);
-  part_reqs2_ptr->add_part_attribute(attribute3);
+  part_reqs1_ptr->add_part_attribute(attribute1_name);
+  part_reqs2_ptr->add_part_attribute(attribute2_name);
+  part_reqs2_ptr->add_part_attribute(attribute3_name);
 
   // Setup the mesh requirements according to the diagram above.
   auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
@@ -586,19 +565,18 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndAttributes) {
   // Check that the declare function properly declares a mesh with attributes.
 
   // Create a dummy attributes.
-  std::any attribute = 3.14159265358979323846;
+  std::string attribute_name = "attribute";
 
   // Setup the Mesh requirements.
   auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs_ptr->add_mesh_attribute(attribute);
+  mesh_reqs_ptr->add_mesh_attribute(attribute_name);
   ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   ASSERT_NE(bulk_data_ptr, nullptr);
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
-  ASSERT_NE(meta_data.get_attribute<double>(), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<double>(), std::any_cast<double>(attribute));
+  ASSERT_NE(meta_data.get_attribute(attribute_name), nullptr);
 }
 
 TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
@@ -627,8 +605,8 @@ TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
   auto field_reqs4_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 4);
 
   // Setup the dummy attributes.
-  std::any attribute1 = 8675309;
-  std::any attribute2 = 3.14159265358979323846;
+  std::string attribute1_name = "attribute1";
+  std::string attribute2_name = "attribute2";
 
   // Setup the dummy parts.
   auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");
@@ -637,11 +615,11 @@ TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
   part_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
   part_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
   part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
-  // part_reqs1_ptr->add_part_attribute(attribute1);
-  // part_reqs1_ptr->add_part_attribute(attribute2);
+  part_reqs1_ptr->add_part_attribute(attribute1_name);
+  part_reqs1_ptr->add_part_attribute(attribute2_name);
   part_reqs2_ptr->add_field_reqs(field_reqs3_ptr);
   part_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
-  part_reqs2_ptr->add_part_attribute(attribute1);
+  part_reqs2_ptr->add_part_attribute(attribute1_name);
 
   // Setup the mesh requirements according to the diagram above.
   auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
@@ -670,12 +648,9 @@ TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
   ASSERT_NE(meta_data.get_field<ExampleFieldType>(stk::topology::NODE_RANK, "b"), nullptr);
   ASSERT_NE(meta_data.get_field<ExampleFieldType>(stk::topology::ELEMENT_RANK, "b"), nullptr);
   ASSERT_NE(meta_data.get_field<ExampleFieldType>(stk::topology::NODE_RANK, "c"), nullptr);
-  // ASSERT_NE(meta_data.get_attribute<int>(*part1_ptr), nullptr);
-  // ASSERT_NE(meta_data.get_attribute<double>(*part1_ptr), nullptr);
-  ASSERT_NE(meta_data.get_attribute<int>(*part2_ptr), nullptr);
-  // EXPECT_EQ(*meta_data.get_attribute<int>(*part1_ptr), std::any_cast<int>(attribute1));
-  // EXPECT_FLOAT_EQ(*meta_data.get_attribute<double>(*part1_ptr), std::any_cast<double>(attribute2));
-  EXPECT_EQ(*meta_data.get_attribute<int>(*part2_ptr), std::any_cast<int>(attribute1));
+  ASSERT_NE(meta_data.get_attribute(*part1_ptr, attribute1_name), nullptr);
+  ASSERT_NE(meta_data.get_attribute(*part1_ptr, attribute2_name), nullptr);
+  ASSERT_NE(meta_data.get_attribute(*part2_ptr, attribute1_name), nullptr);
   EXPECT_EQ(part1_ptr->subsets().size(), 1);
 }
 

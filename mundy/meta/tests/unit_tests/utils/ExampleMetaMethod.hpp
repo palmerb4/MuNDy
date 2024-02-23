@@ -92,14 +92,14 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
     return get_mesh_requirements_counter_;
   }
 
-  /// \brief Get the number of times that \c validate_fixed_parameters_and_set_defaults has been called.
-  static int num_validate_fixed_parameters_and_set_defaults_calls() {
-    return validate_fixed_parameters_and_set_defaults_counter_;
+  /// \brief Get the number of times that \c get_valid_fixed_params has been called.
+  static int num_get_valid_fixed_params_calls() {
+    return get_valid_fixed_params_counter_;
   }
 
-  /// \brief Get the number of times that \c validate_mutable_parameters_and_set_defaults has been called.
-  static int num_validate_mutable_parameters_and_set_defaults_calls() {
-    return validate_mutable_parameters_and_set_defaults_counter_;
+  /// \brief Get the number of times that \c get_valid_mutable_params has been called.
+  static int num_get_valid_mutable_params_calls() {
+    return get_valid_mutable_params_counter_;
   }
 
   /// \brief Get the number of times that \c get_registration_id has been called.
@@ -125,8 +125,8 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
   /// \brief Reset all counters to zero.
   static void reset_counters() {
     get_mesh_requirements_counter_ = 0;
-    validate_fixed_parameters_and_set_defaults_counter_ = 0;
-    validate_mutable_parameters_and_set_defaults_counter_ = 0;
+    get_valid_fixed_params_counter_ = 0;
+    get_valid_mutable_params_counter_ = 0;
     get_registration_id_counter_ = 0;
     create_new_instance_counter_ = 0;
     set_mutable_params_counter_ = 0;
@@ -153,15 +153,15 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    validate_fixed_parameters_and_set_defaults_counter_++;
+  static Teuchos::ParameterList get_valid_fixed_params() {
+    get_valid_fixed_params_counter_++;
+    return Teuchos::ParameterList();
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    validate_mutable_parameters_and_set_defaults_counter_++;
+  static Teuchos::ParameterList get_valid_mutable_params() {
+    get_valid_mutable_params_counter_++;
+    return Teuchos::ParameterList();
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
@@ -217,11 +217,11 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
   /// \brief The number of times \c get_mesh_requirements has been called.
   static inline int get_mesh_requirements_counter_ = 0;
 
-  /// \brief The number of times \c validate_fixed_parameters_and_set_defaults has been called.
-  static inline int validate_fixed_parameters_and_set_defaults_counter_ = 0;
+  /// \brief The number of times \c get_valid_fixed_params has been called.
+  static inline int get_valid_fixed_params_counter_ = 0;
 
-  /// \brief The number of times \c validate_mutable_parameters_and_set_defaults has been called.
-  static inline int validate_mutable_parameters_and_set_defaults_counter_ = 0;
+  /// \brief The number of times \c get_valid_mutable_params has been called.
+  static inline int get_valid_mutable_params_counter_ = 0;
 
   /// \brief The number of times \c get_registration_id has been called.
   static inline int get_registration_id_counter_ = 0;

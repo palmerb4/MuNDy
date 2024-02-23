@@ -34,37 +34,18 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 #include <stk_topology/topology.hpp>  // for stk::topology
-#include <stk_util/util/CSet.hpp>     // for stk::CSet
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
 namespace mundy {
 
 namespace meta {
-
-//! \name Helper functions
-//@{
-
-/// \brief Map a string with a valid rank name to the corresponding rank.
-///
-/// The set of valid rank names and their corresponding type is
-///  - NODE_RANK        -> stk::topology::NODE_RANK
-///  - EDGE_RANK        -> stk::topology::EDGE_RANK
-///  - FACE_RANK        -> stk::topology::FACE_RANK
-///  - ELEMENT_RANK     -> stk::topology::ELEMENT_RANK
-///  - CONSTRAINT_RANK  -> stk::topology::CONSTRAINT_RANK
-///  - INVALID_RANK     -> stk::topology::INVALID_RANK
-///
-/// \param rank_string [in] String containing a valid rank name.
-stk::topology::rank_t map_string_to_rank(const std::string &rank_string);
-//@}
 
 /// \class FieldRequirements
 /// \brief A set of necessary parameters for declaring a new field.
@@ -98,12 +79,6 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \param field_min_number_of_states [in] Minimum number of rotating states that this field will have.
   FieldRequirements(const std::string &field_name, const stk::topology::rank_t &field_rank,
                     const unsigned field_dimension, const unsigned field_min_number_of_states);
-
-  /// \brief Construct from a parameter list.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for specifying the part requirements. These parameters must
-  /// be valid. That is, validate_parameters_and_set_defaults(&parameter_list) must run without error.
-  explicit FieldRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name Setters and Getters
@@ -116,10 +91,6 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief Set the required field rank.
   /// \param field_rank [in] Required rank of the field.
   void set_field_rank(const stk::topology::rank_t &field_rank) final;
-
-  /// \brief Set the required field rank.
-  /// \param field_rank [in] Required rank of the field.
-  void set_field_rank(const std::string &field_rank_string) final;
 
   /// \brief Set the required field dimension.
   /// \param field_dimension [in] Required dimension of the field.
@@ -167,8 +138,8 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief Return the typeinfo related to the field's type.
   const std::type_info &get_field_type_info() const final;
 
-  /// \brief Return the map from typeindex to field attribute.
-  std::map<std::type_index, std::any> get_field_attributes_map() final;
+  /// \brief Return the required field attribute names.
+  std::vector<std::string> get_field_attribute_names() final;
   //@}
 
   //! \name Actions
@@ -199,29 +170,10 @@ class FieldRequirements : public FieldRequirementsBase {
   /// automatically satisfied.
   void check_if_valid() const final;
 
-  /// \brief Store a copy of an attribute on this field.
+  /// \brief Require that an attribute with the given name be present on the field.
   ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on this field.
-  void add_field_attribute(const std::any &some_attribute) final;
-
-  /// \brief Store an attribute on this field.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on this field.
-  void add_field_attribute(std::any &&some_attribute) final;
+  /// \param attribute_name [in] The name of the attribute that must be present on the field.
+  void add_field_attribute(const std::string &attribute_name) final;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///
@@ -241,15 +193,6 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \param vector_of_field_req_ptrs [in] A vector of pointers to other \c FieldRequirements objects to merge with the
   /// current object.
   void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) final;
-
-  /// \brief Generate new instance of this class, constructed using the given parameter list.
-  std::shared_ptr<FieldRequirementsBase> create_new_instance(const Teuchos::ParameterList &parameter_list) const final;
-
-  /// \brief Generate new instance of this class, constructed using the given parameter list.
-  static std::shared_ptr<FieldRequirementsBase> static_create_new_instance(
-      const Teuchos::ParameterList &parameter_list) {
-    return std::make_shared<FieldRequirements<FieldType>>(parameter_list);
-  }
 
   /// \brief Dump the contents of \c FieldRequirements to the given stream (defaults to std::cout).
   void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const final;
@@ -286,8 +229,8 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \brief If the minimum number of rotating states that this field will have is set or not.
   bool field_min_number_of_states_is_set_;
 
-  /// \brief A map from attribute type to this field's attributes.
-  std::map<std::type_index, std::any> field_attributes_map_;
+  /// \brief A vector of required field attribute names.
+  std::vector<std::string> required_field_attribute_names_;
 };  // FieldRequirements
 
 //! \name template implementations
@@ -303,20 +246,6 @@ FieldRequirements<FieldType>::FieldRequirements(const std::string &field_name, c
   this->set_field_rank(field_rank);
   this->set_field_dimension(field_dimension);
   this->set_field_min_number_of_states(field_min_number_of_states);
-}
-
-template <typename FieldType>
-FieldRequirements<FieldType>::FieldRequirements(const Teuchos::ParameterList &parameter_list) {
-  // Validate the input params. Throws an error if a parameter is defined but not in the valid params.
-  // This helps catch misspellings.
-  Teuchos::ParameterList valid_params = parameter_list;
-  validate_parameters_and_set_defaults(&valid_params);
-
-  // Store the given parameters.
-  this->set_field_name(valid_params.get<std::string>("name"));
-  this->set_field_rank(valid_params.get<std::string>("rank"));
-  this->set_field_dimension(valid_params.get<int>("dimension"));
-  this->set_field_min_number_of_states(valid_params.get<int>("min_number_of_states"));
 }
 //}
 
@@ -335,12 +264,6 @@ void FieldRequirements<FieldType>::set_field_rank(const stk::topology::rank_t &f
   field_rank_ = field_rank;
   field_rank_is_set_ = true;
   this->check_if_valid();
-}
-
-template <typename FieldType>
-void FieldRequirements<FieldType>::set_field_rank(const std::string &field_rank_string) {
-  const stk::topology::rank_t field_rank = mundy::meta::map_string_to_rank(field_rank_string);
-  this->set_field_rank(field_rank);
 }
 
 template <typename FieldType>
@@ -399,8 +322,8 @@ std::string FieldRequirements<FieldType>::get_field_name() const {
   MUNDY_THROW_ASSERT(
       this->constrains_field_name(), std::logic_error,
       "FieldRequirements: Attempting to access the field name requirement even though field name is unconstrained.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+          << "The current set of requirements is:\n"
+          << get_reqs_as_a_string());
 
   return field_name_;
 }
@@ -410,8 +333,8 @@ stk::topology::rank_t FieldRequirements<FieldType>::get_field_rank() const {
   MUNDY_THROW_ASSERT(
       this->constrains_field_rank(), std::logic_error,
       "FieldRequirements: Attempting to access the field rank requirement even though field rank is unconstrained.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+          << "The current set of requirements is:\n"
+          << get_reqs_as_a_string());
 
   return field_rank_;
 }
@@ -421,8 +344,8 @@ unsigned FieldRequirements<FieldType>::get_field_dimension() const {
   MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
                      "FieldRequirements: Attempting to access the field dimension requirement even though "
                      "field dimension is unconstrained.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   return field_dimension_;
 }
@@ -433,8 +356,8 @@ unsigned FieldRequirements<FieldType>::get_field_min_num_states() const {
       this->constrains_field_min_number_of_states(), std::logic_error,
       "FieldRequirements: Attempting to access the field minimum number of states requirement even though field "
       "min_number_of_states is unconstrained.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+          << "The current set of requirements is:\n"
+          << get_reqs_as_a_string());
 
   return field_min_number_of_states_;
 }
@@ -445,8 +368,8 @@ const std::type_info &FieldRequirements<FieldType>::get_field_type_info() const 
 }
 
 template <typename FieldType>
-std::map<std::type_index, std::any> FieldRequirements<FieldType>::get_field_attributes_map() {
-  return field_attributes_map_;
+std::vector<std::string> FieldRequirements<FieldType>::get_field_attribute_names() {
+  return required_field_attribute_names_;
 }
 //}
 
@@ -461,20 +384,20 @@ void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *
 
   MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
                      "FieldRequirements: Field name must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   MUNDY_THROW_ASSERT(this->constrains_field_rank(), std::logic_error,
                      "FieldRequirements: Field rank must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
                      "FieldRequirements: Field dimension must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   MUNDY_THROW_ASSERT(this->constrains_field_min_number_of_states(), std::logic_error,
                      "FieldRequirements: Field minimum number of states must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   // Declare the field and assign it to the given part.
   stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
@@ -482,8 +405,9 @@ void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *
   stk::mesh::put_field_on_mesh(field, part, this->get_field_dimension(), nullptr);
 
   // Set the field attributes.
-  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : field_attributes_map_) {
-    meta_data_ptr->declare_attribute(field, attribute);
+  for (auto const &attribute_name : required_field_attribute_names_) {
+    std::any empty_attribute;
+    meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
 }
 
@@ -494,20 +418,20 @@ void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::Met
 
   MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
                      "FieldRequirements: Field name must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   MUNDY_THROW_ASSERT(this->constrains_field_rank(), std::logic_error,
                      "FieldRequirements: Field rank must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
                      "FieldRequirements: Field dimension must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   MUNDY_THROW_ASSERT(this->constrains_field_min_number_of_states(), std::logic_error,
                      "FieldRequirements: Field minimum number of states must be set before calling declare_field.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   // Declare the field and assign it to the given part.
   stk::mesh::Field<FieldType> &field = meta_data_ptr->declare_field<FieldType>(
@@ -515,8 +439,9 @@ void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::Met
   stk::mesh::put_field_on_entire_mesh(field, this->get_field_dimension());
 
   // Set the field attributes.
-  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : field_attributes_map_) {
-    meta_data_ptr->declare_attribute(field, attribute);
+  for (auto const &attribute_name : required_field_attribute_names_) {
+    std::any empty_attribute;
+    meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
 }
 
@@ -545,15 +470,14 @@ void FieldRequirements<FieldType>::check_if_valid() const {
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::add_field_attribute(const std::any &some_attribute) {
-  std::type_index attribute_type_index = std::type_index(some_attribute.type());
-  field_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
-}
-
-template <typename FieldType>
-void FieldRequirements<FieldType>::add_field_attribute(std::any &&some_attribute) {
-  std::type_index attribute_type_index = std::type_index(some_attribute.type());
-  field_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+void FieldRequirements<FieldType>::add_field_attribute(const std::string &attribute_name) {
+  // Adding an existing attribute is perfectly fine. It's a no-op. This merely adds more responsibility to
+  // the user to ensure that an they don't unintentionally edit an attribute that is used by another method.
+  const bool attribute_exists =
+      std::count(required_field_attribute_names_.begin(), required_field_attribute_names_.end(), attribute_name) > 0;
+  if (!attribute_exists) {
+    required_field_attribute_names_.push_back(attribute_name);
+  }
 }
 
 template <typename FieldType>
@@ -573,14 +497,14 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
   // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
   MUNDY_THROW_ASSERT(this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
                      "FieldRequirements: Field type mismatch between our field type and the given requirements.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   if (field_req_ptr->constrains_field_name()) {
     if (this->constrains_field_name()) {
-      MUNDY_THROW_ASSERT(
-          this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
-          "FieldRequirements: One of the inputs has incompatible name (" << field_req_ptr->get_field_name() << ").\n"
+      MUNDY_THROW_ASSERT(this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
+                         "FieldRequirements: One of the inputs has incompatible name ("
+                             << field_req_ptr->get_field_name() << ").\n"
                              << "The current set of requirements is:\n"
                              << get_reqs_as_a_string());
     } else {
@@ -590,9 +514,9 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
 
   if (field_req_ptr->constrains_field_rank()) {
     if (this->constrains_field_rank()) {
-      MUNDY_THROW_ASSERT(
-          this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
-          "FieldRequirements: One of the inputs has incompatible rank (" << field_req_ptr->get_field_rank() << ").\n"
+      MUNDY_THROW_ASSERT(this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
+                         "FieldRequirements: One of the inputs has incompatible rank ("
+                             << field_req_ptr->get_field_rank() << ").\n"
                              << "The current set of requirements is:\n"
                              << get_reqs_as_a_string());
     } else {
@@ -617,8 +541,8 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
   }
 
   // Loop over the attribute map.
-  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : field_req_ptr->get_field_attributes_map()) {
-    this->add_field_attribute(attribute);
+  for (const std::string &attribute_name : field_req_ptr->get_field_attribute_names()) {
+    this->add_field_attribute(attribute_name);
   }
 }
 
@@ -631,13 +555,7 @@ void FieldRequirements<FieldType>::merge(
 }
 
 template <typename FieldType>
-std::shared_ptr<FieldRequirementsBase> FieldRequirements<FieldType>::create_new_instance(
-    const Teuchos::ParameterList &parameter_list) const {
-  return create_new_instance(parameter_list);
-}
-
-template <typename FieldType>
-void FieldRequirements<FieldType>::print_reqs(std::ostream& os, int indent_level) const {
+void FieldRequirements<FieldType>::print_reqs(std::ostream &os, int indent_level) const {
   std::string indent(indent_level * 2, ' ');
 
   os << indent << "FieldRequirements: " << std::endl;
@@ -672,11 +590,11 @@ void FieldRequirements<FieldType>::print_reqs(std::ostream& os, int indent_level
 
   os << indent << "  Field type info: " << field_type_info_.name() << std::endl;
 
-  os << indent << "  Field attributes map: " << std::endl;
+  os << indent << "  Field attributes: " << std::endl;
   int attribute_count = 0;
-  for (auto const &[attribute_type_index, attribute] : field_attributes_map_) {
-    os << indent << "  Field attribute " << attribute_count << " has type (" << attribute_type_index.name()
-              << ")" << std::endl;
+  for (const std::string &attribute_name : required_field_attribute_names_) {
+    os << indent << "  Field attribute " << attribute_count << " has name (" << attribute_name << ")"
+       << std::endl;
     attribute_count++;
   }
 

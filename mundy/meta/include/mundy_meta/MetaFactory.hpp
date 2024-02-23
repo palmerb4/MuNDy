@@ -44,7 +44,6 @@
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/MeshRequirements.hpp>                      // for mundy::meta::MeshRequirements
-// #include <mundy_meta/MetaKWayKernel.hpp>                        // for mundy::meta::MetaKWayKernel
 #include <mundy_meta/MetaKernel.hpp>                            // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethod.hpp>                            // for mundy::meta::MetaMethod
 
@@ -84,11 +83,11 @@ struct GlobalIdentifier {};  // GlobalIdentifier
 /// // Get the requirements generator for this class. May be nullptr.
 /// static std::shared_ptr<std::shared_ptr<MeshRequirements>> get_mesh_requirements();
 ///
-/// // Validate the fixed params and set their defaults.
-/// static void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr);
+/// // Get the valid fixed parameters for this class and their defaults.
+/// static Teuchos::ParameterList get_valid_fixed_params();
 ///
-/// // Validate the mutable params and set their defaults.
-/// static void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr);
+/// // Get the valid mutable parameters for this class and their defaults.
+/// static Teuchos::ParameterList get_valid_mutable_params();
 ///
 /// // Get the new class generator for this class. May be nullptr.
 /// static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData* const bulk_data_ptr, const
@@ -124,8 +123,8 @@ class MetaFactory {
   /// instances.
   using NewRequirementsGenerator = std::function<std::shared_ptr<MeshRequirements>(const Teuchos::ParameterList&)>;
 
-  /// \brief A function type that accepts a Teuchos::ParameterList pointer.
-  using NewParamsValidatorGenerator = std::function<void(Teuchos::ParameterList* const)>;
+  /// \brief A function type that returns a Teuchos::ParameterList.
+  using NewValidParamsGenerator = std::function<Teuchos::ParameterList()>;
   //@}
 
   //! \name Getters
@@ -139,6 +138,16 @@ class MetaFactory {
   /// \brief Get the set of all registered keys.
   static std::set<RegistrationType> get_keys() {
     return get_internal_keys();
+  }
+
+  /// \brief Get the set of all registered keys as a string.
+  static std::string get_keys_as_string() {
+    std::string keys_as_string;
+    for (const auto& key : get_internal_keys()) {
+      keys_as_string += std::string(key);
+      keys_as_string += ", ";
+    }
+    return keys_as_string;
   }
 
   /// \brief Get if the provided key is valid or not.
@@ -165,32 +174,30 @@ class MetaFactory {
     return get_requirement_generator_map()[key](fixed_params);
   }
 
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
+  /// \brief Get the valid fixed parameters for the given key.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
   /// provided \c register_new_class function.
   ///
   /// \param key [in] A key corresponding to a registered class.
-  static void validate_fixed_parameters_and_set_defaults(const RegistrationType& key,
-                                                         Teuchos::ParameterList* const fixed_params_ptr) {
+  static Teuchos::ParameterList get_valid_fixed_params(const RegistrationType& key) {
     MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " is not valid.");
-    get_validate_fixed_params_generator_map()[key](fixed_params_ptr);
+    return get_valid_fixed_params_generator_map()[key]();
   }
 
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
+  /// \brief Get the valid mutable parameters for the given key.
   ///
   /// The registered class accessed by this function is fetched based on the provided key. This key must be
   /// valid; that is, is_valid_key(key) must return true. To register a class with this factory, use the
   /// provided \c register_new_class function.
   ///
   /// \param key [in] A key corresponding to a registered class.
-  static void validate_mutable_parameters_and_set_defaults(const RegistrationType& key,
-                                                           Teuchos::ParameterList* const mutable_params_ptr) {
+  static Teuchos::ParameterList get_valid_mutable_params(const RegistrationType& key) {
     MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " is not valid.");
-    get_validate_mutable_params_generator_map()[key](mutable_params_ptr);
+    return get_valid_mutable_params_generator_map()[key]();
   }
   //@}
 
@@ -204,8 +211,8 @@ class MetaFactory {
     get_internal_keys().clear();
     get_instance_generator_map().clear();
     get_requirement_generator_map().clear();
-    get_validate_fixed_params_generator_map().clear();
-    get_validate_mutable_params_generator_map().clear();
+    get_valid_fixed_params_generator_map().clear();
+    get_valid_mutable_params_generator_map().clear();
   }
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
@@ -216,13 +223,13 @@ class MetaFactory {
     static_assert(Checker::has_get_mesh_requirements,
                   "MetaFactory: The class to register doesn't have the correct get_mesh_requirements function.\n"
                   "See the documentation of MetaFactory for more information about the expected interface.");
-    static_assert(Checker::has_validate_fixed_parameters_and_set_defaults,
+    static_assert(Checker::has_get_valid_fixed_params,
                   "MetaFactory: The class to register doesn't have the correct "
-                  "validate_fixed_parameters_and_set_defaults function.\n"
+                  "get_valid_fixed_params function.\n"
                   "See the documentation of MetaFactory for more information about the expected interface.");
-    static_assert(Checker::has_validate_mutable_parameters_and_set_defaults,
+    static_assert(Checker::has_get_valid_mutable_params,
                   "MetaFactory: The class to register doesn't have the correct "
-                  "validate_mutable_parameters_and_set_defaults function.\n"
+                  "get_valid_mutable_params function.\n"
                   "See the documentation of MetaFactory for more information about the expected interface.");
     static_assert(Checker::has_registration_type,
                   "MetaFactory: The class to register doesn't have the correct RegistrationType type alias.\n"
@@ -250,10 +257,10 @@ class MetaFactory {
     get_internal_keys().insert(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::get_mesh_requirements));
-    get_validate_fixed_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::validate_fixed_parameters_and_set_defaults));
-    get_validate_mutable_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::validate_mutable_parameters_and_set_defaults));
+    get_valid_fixed_params_generator_map().insert(
+        std::make_pair(key, ClassToRegister::get_valid_fixed_params));
+    get_valid_mutable_params_generator_map().insert(
+        std::make_pair(key, ClassToRegister::get_valid_mutable_params));
 
     return true;
   }
@@ -289,7 +296,7 @@ class MetaFactory {
   using RequirementGeneratorMap = std::map<RegistrationType, NewRequirementsGenerator>;
 
   /// \brief A map from key to a function for generating a class's part default requirements.
-  using ParamsValidatorGeneratorMap = std::map<RegistrationType, NewParamsValidatorGenerator>;
+  using ValidParamsGeneratorMap = std::map<RegistrationType, NewValidParamsGenerator>;
   //@}
 
   //! \name Internal getters
@@ -312,16 +319,16 @@ class MetaFactory {
     return requirement_generator_map;
   }
 
-  static ParamsValidatorGeneratorMap& get_validate_fixed_params_generator_map() {
+  static ValidParamsGeneratorMap& get_valid_fixed_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static ParamsValidatorGeneratorMap fixed_params_validator_generator_map;
-    return fixed_params_validator_generator_map;
+    static ValidParamsGeneratorMap valid_fixed_params_generator_map;
+    return valid_fixed_params_generator_map;
   }
 
-  static ParamsValidatorGeneratorMap& get_validate_mutable_params_generator_map() {
+  static ValidParamsGeneratorMap& get_valid_mutable_params_generator_map() {
     // Static: One and the same instance for all function calls.
-    static ParamsValidatorGeneratorMap mutable_params_validator_generator_map;
-    return mutable_params_validator_generator_map;
+    static ValidParamsGeneratorMap valid_mutable_params_generator_map;
+    return valid_mutable_params_generator_map;
   }
   //@}
 };  // MetaFactory

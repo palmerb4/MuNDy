@@ -97,13 +97,13 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   ExampleMetaFactory::get_mesh_requirements(registration_id, fixed_params);
   EXPECT_EQ(ClassToRegister::num_get_mesh_requirements_calls(), 1);
 
-  EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_fixed_parameters_and_set_defaults(registration_id, &fixed_params);
-  EXPECT_EQ(ClassToRegister::num_validate_fixed_parameters_and_set_defaults_calls(), 1);
+  EXPECT_EQ(ClassToRegister::num_get_valid_fixed_params_calls(), 0);
+  ExampleMetaFactory::get_valid_fixed_params(registration_id);
+  EXPECT_EQ(ClassToRegister::num_get_valid_fixed_params_calls(), 1);
 
-  EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 0);
-  ExampleMetaFactory::validate_mutable_parameters_and_set_defaults(registration_id, &mutable_params);
-  EXPECT_EQ(ClassToRegister::num_validate_mutable_parameters_and_set_defaults_calls(), 1);
+  EXPECT_EQ(ClassToRegister::num_get_valid_mutable_params_calls(), 0);
+  ExampleMetaFactory::get_valid_mutable_params(registration_id);
+  EXPECT_EQ(ClassToRegister::num_get_valid_mutable_params_calls(), 1);
 
   EXPECT_EQ(ClassToRegister::num_create_new_instance_calls(), 0);
   ExampleMetaFactory::create_new_instance(registration_id, bulk_data_ptr, fixed_params);

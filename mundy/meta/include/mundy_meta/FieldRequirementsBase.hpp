@@ -33,7 +33,6 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 #include <stk_topology/topology.hpp>  // for stk::topology
@@ -60,10 +59,6 @@ class FieldRequirementsBase {
   /// \brief Set the required field rank.
   /// \brief field_rank [in] Required rank of the field.
   virtual void set_field_rank(const stk::topology::rank_t &field_rank) = 0;
-
-  /// \brief Set the required field rank.
-  /// \brief field_rank [in] Required rank of the field.
-  virtual void set_field_rank(const std::string &field_rank_string) = 0;
 
   /// \brief Set the required field dimension.
   /// \brief field_dimension [in] Required dimension of the field.
@@ -111,53 +106,12 @@ class FieldRequirementsBase {
   /// \brief Return the typeinfo related to the field's type.
   virtual const std::type_info &get_field_type_info() const = 0;
 
-  /// \brief Return the map from typeindex to field attribute.
-  virtual std::map<std::type_index, std::any> get_field_attributes_map() = 0;
+  /// \brief Return the required field attribute names.
+  virtual std::vector<std::string> get_field_attribute_names() = 0;
   //@}
 
   //! \name Actions
   //@{
-
-  /// \brief Validate the given parameters and set the default values if not provided.
-  static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
-    if (parameter_list_ptr->isParameter("name")) {
-      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "FieldRequirements: Type error. Given a parameter with name 'name' but with a type other than std::string.");
-    } else {
-      parameter_list_ptr->set("name", "INVALID", "Name of the field.");
-    }
-
-    if (parameter_list_ptr->isParameter("rank")) {
-      const bool valid_type = ((parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("rank")) ||
-                               (parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::topology::rank_t>("rank")));
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "FieldRequirements: Type error. Given a parameter with name 'rank' but with a "
-                             << "type other than std::string or stk::topology::rank_t.");
-    } else {
-      parameter_list_ptr->set("rank", stk::topology::INVALID_RANK, "Rank of the field, in string form.");
-    }
-
-    if (parameter_list_ptr->isParameter("dimension")) {
-      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("dimension");
-      MUNDY_THROW_ASSERT(
-          valid_type, std::invalid_argument,
-          "FieldRequirements: Type error. Given a parameter with name 'dimension' but with a type other than unsigned.");
-    } else {
-      parameter_list_ptr->set("dimension", 0, "Dimension of the part.");
-    }
-
-    if (parameter_list_ptr->isParameter("min_number_of_states")) {
-      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("min_number_of_states");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "FieldRequirements: Type error. Given a parameter with name 'min_number_of_states' "
-                         "but with a type other than unsigned.");
-    } else {
-      parameter_list_ptr->set("min_number_of_states", 1,
-                              "Minimum number of rotating states that this field will have.");
-    }
-  }
 
   /// \brief Declare/create the field that this class defines.
   virtual void declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const = 0;
@@ -184,29 +138,10 @@ class FieldRequirementsBase {
   /// automatically satisfied.
   virtual void check_if_valid() const = 0;
 
-  /// \brief Store a copy of an attribute on this field.
+  /// \brief Require that an attribute with the given name be present on the field.
   ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on this field.
-  virtual void add_field_attribute(const std::any &some_attribute) = 0;
-
-  /// \brief Store an attribute on this field.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on this field.
-  virtual void add_field_attribute(std::any &&some_attribute) = 0;
+  /// \param attribute_name [in] The name of the attribute that must be present on the field.
+  virtual void add_field_attribute(const std::string &attribute_name) = 0;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///
@@ -227,10 +162,6 @@ class FieldRequirementsBase {
   ///
   /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
   virtual void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) = 0;
-
-  /// \brief Generate new instance of this class, constructed using the given parameter list.
-  virtual std::shared_ptr<FieldRequirementsBase> create_new_instance(
-      const Teuchos::ParameterList &parameter_list) const = 0;
 
   /// \brief Dump the contents of \c FieldRequirements to the given stream (defaults to std::cout).
   virtual void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const = 0;

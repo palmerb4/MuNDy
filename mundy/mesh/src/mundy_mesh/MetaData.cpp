@@ -36,8 +36,8 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/MetaData.hpp>  // for mundy::mesh::MetaData
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/MetaData.hpp>      // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -61,108 +61,200 @@ MetaData::~MetaData() {
 // \name Actions
 //{
 
-void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::any &attribute) {
-  std::type_index attribute_type_index = std::type_index(attribute.type());
+void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name,
+                                 const std::any &attribute_data) {
   const unsigned field_id = field.mesh_meta_data_ordinal();
 
   const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
   if (field_has_attributes) {
-    const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
+    const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_name) == 0);
     MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
-                       "MetaData: An attribute with the same type as the provided attribute already "
+                       "MetaData: An attribute with the same name as the provided attribute already "
                        "exists on the given field.\n"
                            << "  Field name: " << field.name() << "\n"
-                           << "  Attribute type: " << attribute.type().name() << "\n");
+                           << "  Attribute name: " << attribute_name << "\n");
   } else {
-    field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::type_index, std::any>()));
+    field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::string, std::any>()));
   }
 
-  field_to_field_attributes_map_[field_id].insert(std::make_pair(attribute_type_index, attribute));
+  field_to_field_attributes_map_[field_id].insert(std::make_pair(attribute_name, attribute_data));
 }
 
-void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::any &&attribute) {
-  std::type_index attribute_type_index = std::type_index(attribute.type());
+void MetaData::declare_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name,
+                                 const std::any &&attribute_data) {
   const unsigned field_id = field.mesh_meta_data_ordinal();
 
   const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
   if (field_has_attributes) {
-    const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_type_index) == 0);
+    const bool attribute_is_unique = (field_to_field_attributes_map_[field_id].count(attribute_name) == 0);
     MUNDY_THROW_ASSERT(attribute_is_unique, std::invalid_argument,
                        "MetaData: An attribute with the same type as the provided attribute already "
                        "exists on the given field.\n"
                            << "  Field name: " << field.name() << "\n"
-                           << "  Attribute type: " << attribute.type().name() << "\n");
+                           << "  Attribute name: " << attribute_name << "\n");
   } else {
-    field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::type_index, std::any>()));
+    field_to_field_attributes_map_.insert(std::make_pair(field_id, std::map<std::string, std::any>()));
   }
 
-  field_to_field_attributes_map_[field_id].insert(std::make_pair(attribute_type_index, std::move(attribute)));
+  field_to_field_attributes_map_[field_id].insert(std::make_pair(attribute_name, std::move(attribute_data)));
 }
 
-void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &attribute) {
-  std::type_index attribute_type_index = std::type_index(attribute.type());
+void MetaData::declare_attribute(const stk::mesh::Part &part, const std::string &attribute_name,
+                                 const std::any &attribute_data) {
   const unsigned part_id = part.mesh_meta_data_ordinal();
 
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {
-    const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_type_index) == 0);
+    const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_name) == 0);
     MUNDY_THROW_ASSERT(
         attribute_is_unique, std::invalid_argument,
         "MetaData: An attribute with the same type as the provided attribute already exists on the given part.\n"
             << "  Part id: " << part_id << "\n"
             << "  Part name: " << part.name() << "\n"
-            << "  Attribute type: " << attribute.type().name() << "\n");
+            << "  Attribute name: " << attribute_name << "\n");
   } else {
-    part_to_part_attributes_map_.insert(std::make_pair(part_id, std::map<std::type_index, std::any>()));
+    part_to_part_attributes_map_.insert(std::make_pair(part_id, std::map<std::string, std::any>()));
   }
 
-  part_to_part_attributes_map_[part_id].insert(std::make_pair(attribute_type_index, attribute));
+  part_to_part_attributes_map_[part_id].insert(std::make_pair(attribute_name, attribute_data));
 }
 
-void MetaData::declare_attribute(const stk::mesh::Part &part, const std::any &&attribute) {
-  std::type_index attribute_type_index = std::type_index(attribute.type());
+void MetaData::declare_attribute(const stk::mesh::Part &part, const std::string &attribute_name,
+                                 const std::any &&attribute_data) {
   const unsigned part_id = part.mesh_meta_data_ordinal();
 
   const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
   if (part_has_attributes) {
-    const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_type_index) == 0);
+    const bool attribute_is_unique = (part_to_part_attributes_map_[part_id].count(attribute_name) == 0);
     MUNDY_THROW_ASSERT(
         attribute_is_unique, std::invalid_argument,
         "MetaData: An attribute with the same type as the provided attribute already exists on the given part.\n"
             << "  Part id: " << part_id << "\n"
             << "  Part name: " << part.name() << "\n"
-            << "  Attribute type: " << attribute.type().name() << "\n");
+            << "  Attribute name: " << attribute_name << "\n");
   } else {
-    part_to_part_attributes_map_.insert(std::make_pair(part_id, std::map<std::type_index, std::any>()));
+    part_to_part_attributes_map_.insert(std::make_pair(part_id, std::map<std::string, std::any>()));
   }
 
-  part_to_part_attributes_map_[part_id].insert(std::make_pair(attribute_type_index, std::move(attribute)));
+  part_to_part_attributes_map_[part_id].insert(std::make_pair(attribute_name, std::move(attribute_data)));
 }
 
-void MetaData::declare_attribute(const std::any &attribute) {
-  std::type_index attribute_type_index = std::type_index(attribute.type());
-
-  const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_type_index) == 0);
+void MetaData::declare_attribute(const std::string &attribute_name, const std::any &attribute_data) {
+  const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_name) == 0);
   MUNDY_THROW_ASSERT(
       attribute_is_unique, std::invalid_argument,
       "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.\n"
-          << "  Attribute type: " << attribute.type().name() << "\n");
+          << "  Attribute name: " << attribute_name << "\n");
 
-  mesh_attributes_map_.insert(std::make_pair(attribute_type_index, attribute));
+  mesh_attributes_map_.insert(std::make_pair(attribute_name, attribute_data));
 }
 
-void MetaData::declare_attribute(const std::any &&attribute) {
-  std::type_index attribute_type_index = std::type_index(attribute.type());
-
-  const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_type_index) == 0);
+void MetaData::declare_attribute(const std::string &attribute_name, const std::any &&attribute_data) {
+  const bool attribute_is_unique = (mesh_attributes_map_.count(attribute_name) == 0);
   MUNDY_THROW_ASSERT(
       attribute_is_unique, std::invalid_argument,
       "MetaData: An attribute with the same type as the provided attribute already exists on this mesh.\n"
-          << "  Attribute type: " << attribute.type().name() << "\n");
+          << "  Attribute name: " << attribute_name << "\n");
 
-  mesh_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(attribute)));
+  mesh_attributes_map_.insert(std::make_pair(attribute_name, std::move(attribute_data)));
+}
+
+// \name Actions
+//{
+
+bool MetaData::remove_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name) {
+  const unsigned field_id = field.mesh_meta_data_ordinal();
+
+  const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
+  if (field_has_attributes) {
+    const bool attribute_exists = (field_to_field_attributes_map_[field_id].count(attribute_name) != 0);
+    if (attribute_exists) {
+      field_to_field_attributes_map_[field_id].erase(attribute_name);
+      return true;
+    } else {
+      // The attribute doesn't exist, nothing to remove.
+      return false;
+    }
+  } else {
+    // The field has no attributes, so I'm pretty certain the provided attribute doesn't exist.
+    return false;
+  }
+}
+
+bool MetaData::remove_attribute(const stk::mesh::Part &part, const std::string &attribute_name) {
+  const unsigned part_id = part.mesh_meta_data_ordinal();
+
+  // TODO(palmerb4): Attributes should be inherited. Check if any of our parents are in the list.
+  const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
+  if (part_has_attributes) {
+    const bool attribute_exists = (part_to_part_attributes_map_[part_id].count(attribute_name) != 0);
+    if (attribute_exists) {
+      part_to_part_attributes_map_[part_id].erase(attribute_name);
+      return true;
+    } else {
+      // The attribute doesn't exist, nothing to remove.
+      return false;
+    }
+  } else {
+    // The part has no attributes, so I'm pretty certain the provided attribute doesn't exist.
+    return false;
+  }
+}
+
+bool MetaData::remove_attribute(const std::string &attribute_name) {
+  const bool attribute_exists = (mesh_attributes_map_.count(attribute_name) != 0);
+  if (attribute_exists) {
+    mesh_attributes_map_.erase(attribute_name);
+    return true;
+  } else {
+    // The attribute doesn't exist, nothing to remove.
+    return false;
+  }
+}
+
+std::any *MetaData::get_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name) {
+  const unsigned field_id = field.mesh_meta_data_ordinal();
+  const bool field_has_attributes = (field_to_field_attributes_map_.count(field_id) != 0);
+  if (field_has_attributes) {
+    const bool attribute_exists = (field_to_field_attributes_map_[field_id].count(attribute_name) != 0);
+    if (attribute_exists) {
+      // Return a pointer to the attribute.
+      return &field_to_field_attributes_map_[field_id][attribute_name];
+    }
+  }
+
+  // Attribute doesn't exist. Returning nullptr.
+  return nullptr;
+}
+
+std::any *MetaData::get_attribute(const stk::mesh::Part &part, const std::string &attribute_name) {
+  const unsigned part_id = part.mesh_meta_data_ordinal();
+  const bool part_has_attributes = (part_to_part_attributes_map_.count(part_id) != 0);
+  if (part_has_attributes) {
+    const bool attribute_exists = (part_to_part_attributes_map_[part_id].count(attribute_name) != 0);
+    if (attribute_exists) {
+      // Return a pointer to the attribute.
+      return &part_to_part_attributes_map_[part_id][attribute_name];
+    }
+  }
+
+  // Attribute doesn't exist. Returning nullptr.
+  return nullptr;
+}
+
+std::any *MetaData::get_attribute(const std::string &attribute_name) {
+  const bool attribute_exists = (mesh_attributes_map_.count(attribute_name) != 0);
+  if (attribute_exists) {
+    // Return a pointer to the attribute.
+    return &mesh_attributes_map_[attribute_name];
+  }
+
+  // Attribute doesn't exist. Returning nullptr.
+  return nullptr;
 }
 //}
+
+//@}
 
 }  // namespace mesh
 

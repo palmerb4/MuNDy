@@ -32,7 +32,6 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
 #include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
 #include <stk_topology/topology.hpp>       // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
@@ -45,12 +44,6 @@
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
 #include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
-
-// This fixes compilation errors with OpenMPI 4.
-// The cause of the error is that OpenMPI defines MPI_Comm (and therefore stk::ParallelMachine) as a pointer to an
-// incomplete type. However, Teuchos::ParameterList's get function requires a complete type.
-// (see https://github.com/hpc4cmb/toast/issues/298)
-struct ompi_communicator_t {};
 
 namespace mundy {
 
@@ -66,51 +59,6 @@ const unsigned MeshRequirements::default_bucket_capacity_ = stk::mesh::get_defau
 //{
 MeshRequirements::MeshRequirements(const stk::ParallelMachine &comm) {
   this->set_communicator(comm);
-}
-
-MeshRequirements::MeshRequirements(const Teuchos::ParameterList &parameter_list) {
-  // Validate the input params. Use default parameters for any parameter not given.
-  // Throws an error if a parameter is defined but not in the valid params. This helps catch misspellings.
-  Teuchos::ParameterList valid_params = parameter_list;
-  validate_parameters_and_set_defaults(&valid_params);
-
-  // Store the core parameters.
-  this->set_spatial_dimension(parameter_list.get<int>("spatial_dimension"));
-  this->set_entity_rank_names(parameter_list.get<Teuchos::Array<std::string>>("entity_rank_names").toVector());
-
-  const std::type_info &ti2 = typeid(stk::ParallelMachine);
-  std::cout << ti2.name() << std::endl;
-
-  this->set_communicator(parameter_list.get<stk::ParallelMachine>("communicator"));
-
-  this->set_aura_option(parameter_list.get<mundy::mesh::BulkData::AutomaticAuraOption>("aura_option"));
-  this->set_field_data_manager(parameter_list.get<stk::mesh::FieldDataManager *>("field_data_manager_ptr"));
-  this->set_bucket_capacity(parameter_list.get<int>("bucket_capacity"));
-  this->set_upward_connectivity_flag(parameter_list.get<bool>("upward_connectivity_flag"));
-
-  // Store the optional field params.
-  if (parameter_list.isSublist("fields")) {
-    const Teuchos::ParameterList &fields_sublist = parameter_list.sublist("fields");
-    const unsigned num_fields = fields_sublist.get<int>("count");
-    for (unsigned i = 0; i < num_fields; i++) {
-      const Teuchos::ParameterList &field_i_sublist = parameter_list.sublist("field_" + std::to_string(i));
-      const std::string field_type_string = field_i_sublist.get<std::string>("type");
-      std::shared_ptr<FieldRequirementsBase> field_i =
-          FieldRequirementsFactory::create_new_instance(field_type_string, field_i_sublist);
-      this->add_field_reqs(field_i);
-    }
-  }
-
-  // Store the optional sub-part params.
-  if (parameter_list.isSublist("parts")) {
-    const Teuchos::ParameterList &subparts_sublist = parameter_list.sublist("parts");
-    const unsigned num_subparts = subparts_sublist.get<int>("count");
-    for (unsigned i = 0; i < num_subparts; i++) {
-      const Teuchos::ParameterList &part_i_sublist = parameter_list.sublist("part_" + std::to_string(i));
-      auto part_i = std::make_shared<PartRequirements>(part_i_sublist);
-      this->add_part_reqs(part_i);
-    }
-  }
 }
 //}
 
@@ -267,10 +215,10 @@ std::map<std::string, std::shared_ptr<PartRequirements>> MeshRequirements::get_m
   return mesh_part_map_;
 }
 
-std::map<std::type_index, std::any> MeshRequirements::get_mesh_attributes_map() {
-  // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal attributes.
+std::vector<std::string> MeshRequirements::get_mesh_attribute_names() {
+  // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal parts.
   // This should be private and all other MeshRequirements made friends.
-  return mesh_attributes_map_;
+  return required_mesh_attribute_names_;
 }
 //}
 
@@ -323,8 +271,9 @@ std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
   }
 
   // Declare the mesh's attributes.
-  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : mesh_attributes_map_) {
-    meta_data.declare_attribute(attribute);
+  for (const std::string &attribute_name : required_mesh_attribute_names_) {
+    std::any empty_attribute;
+    meta_data.declare_attribute(attribute_name, empty_attribute);
   }
 
   return bulk_data_ptr;
@@ -399,14 +348,14 @@ void MeshRequirements::add_part_reqs(std::shared_ptr<PartRequirements> part_req_
   mesh_part_map_.insert(std::make_pair(part_req_ptr->get_part_name(), part_req_ptr));
 }
 
-void MeshRequirements::add_mesh_attribute(const std::any &some_attribute) {
-  std::type_index attribute_type_index = std::type_index(some_attribute.type());
-  mesh_attributes_map_.insert(std::make_pair(attribute_type_index, some_attribute));
-}
-
-void MeshRequirements::add_mesh_attribute(std::any &&some_attribute) {
-  std::type_index attribute_type_index = std::type_index(some_attribute.type());
-  mesh_attributes_map_.insert(std::make_pair(attribute_type_index, std::move(some_attribute)));
+void MeshRequirements::add_mesh_attribute(const std::string &attribute_name) {
+  // Adding an existing attribute is perfectly fine. It's a no-op. This merely adds more responsibility to
+  // the user to ensure that an they don't unintentionally edit an attribute that is used by another method.
+  const bool attribute_exists =
+      std::count(required_mesh_attribute_names_.begin(), required_mesh_attribute_names_.end(), attribute_name) > 0;
+  if (!attribute_exists) {
+    required_mesh_attribute_names_.push_back(attribute_name);
+  }
 }
 
 void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr) {
@@ -518,9 +467,9 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
     this->add_part_reqs(part_req_ptr);
   }
 
-  // Loop over the attribute map.
-  for ([[maybe_unused]] auto const &[attribute_type_index, attribute] : mesh_req_ptr->get_mesh_attributes_map()) {
-    this->add_mesh_attribute(attribute);
+  // Loop over the attribute names.
+  for (const std::string &attribute_name : mesh_req_ptr->get_mesh_attribute_names()) {
+    this->add_mesh_attribute(attribute_name);
   }
 }
 
@@ -586,11 +535,11 @@ void MeshRequirements::print_reqs(std::ostream& os, int indent_level) const {
     os << indent << "  Upward connectivity flag is not set." << std::endl;
   }
 
-  os << indent << "  Mesh Attributes: " << std::endl;
+  os << indent << "  Mesh attributes: " << std::endl;
   int attribute_count = 0;
-  for (auto const &[attribute_type_index, attribute] : mesh_attributes_map_) {
-    os << indent << "  Mesh attribute " << attribute_count << " has type (" << attribute_type_index.name() << ")"
-              << std::endl;
+  for (const std::string &attribute_name : required_mesh_attribute_names_) {
+    os << indent << "  Mesh attribute " << attribute_count << " has name (" << attribute_name << ")"
+       << std::endl;
     attribute_count++;
   }
 

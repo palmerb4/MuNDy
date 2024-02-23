@@ -169,50 +169,18 @@ TEST(PartRequirementsSetters, AddPartAttribute) {
   // Check that part attributes can be added.
 
   // Create a dummy part attribute.
-  std::any part_attribute = 3.14159265358979323846;
+  std::string attribute_name = "attribute_name";
 
   // Create a PartRequirements object and add the part attribute.
   PartRequirements part_reqs;
   part_reqs.set_part_name("part_name");
-  part_reqs.add_part_attribute(part_attribute);
+  part_reqs.add_part_attribute(attribute_name);
 
   // Check that the part attribute was added correctly.
-  // TODO(palmerb4): Add a getter for the part attributes and check that they are set correctly.
+  ASSERT_EQ(part_reqs.get_part_attribute_names().size(), 1);
+  EXPECT_EQ(part_reqs.get_part_attribute_names()[0], attribute_name);
 }
 
-struct CountCopiesStruct {
-  CountCopiesStruct() = default;  // Default constructable
-  CountCopiesStruct(const CountCopiesStruct &) {
-    ++num_copies;
-  }  // Copy constructable
-  CountCopiesStruct &operator=(const CountCopiesStruct &) {
-    ++num_copies;
-    return *this;
-  }  // Copy assignable
-
-  static int num_copies;
-  int value = 1;
-};  // CountCopiesStruct
-
-int CountCopiesStruct::num_copies = 0;
-
-TEST(PartRequirementsSetters, AddPartAttributeWithoutCopy) {
-  // Check that part attributes can be added with perfect forwarding.
-
-  // Create an uncopiable attribute.
-  // Note, std::any requires that the element stored within it is copyable.
-  // So, we must wrap the uncopiable object in a std::shared_ptr.
-  CountCopiesStruct::num_copies = 0;
-  std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
-
-  // Create a PartRequirements object and add the part attribute.
-  PartRequirements part_reqs;
-  part_reqs.set_part_name("part_name");
-  part_reqs.add_part_attribute(std::move(uncopiable_attribute));
-
-  // Check that the part attribute was added correctly.
-  // TODO(palmerb4): Add a getter for the part attributes and check that they are set correctly.
-}
 //@}
 
 //! \name PartRequirements object getting tests
@@ -399,39 +367,50 @@ TEST(PartRequirementsMerge, ArePartAttributesMergable) {
   /* Check that the merge function properly merges part attributes.
   The setup for this test is as follows:
   part1 (name=part_name)
-    attribute1 (type=int)
-    attribute2 (type=double)
+    attribute1 (name="attribute1")
+    attribute2 (name="attribute23")
   part2: (name=part_name)
-    attribute3 (type=double)
-    attribute4 (type=std::string)
+    attribute3 (name="attribute23")
+    attribute4 (name="attribute4")
   merged12: part1 merged w/ part2 (name=part_name)
-    attribute1 (type=int)
-    attribute2 merged w/ attribute3 (type=double)
-    attribute4 (type=std::string)
+    attribute1 (name="attribute1")
+    attribute2 merged w/ attribute3 (name="attribute23")
+    attribute4 (name="attribute4")
 
-  Note, only attributes with the same name will be merged. As a result, attribute2 will be merged with attribute 4
-  (this should increase it's minimum number of states to 4), but attribute3 will not be merged with attribute 5 because
-  they don't have the same name.
+  Note, only attributes with the same name will be merged. As a result, attribute2 will be merged with attribute3.
   */
 
   // Setup the dummy attributes.
-  std::any attribute1 = 1;
-  std::any attribute2 = 3.14159265358979323846;
-  std::any attribute3 = 3.14159265358979323846;
-  std::any attribute4 = "something";
+  std::string attribute1_name = "attribute1";
+  std::string attribute2_name = "attribute23";
+  std::string attribute3_name = "attribute23";
+  std::string attribute4_name = "attribute4";
 
   // Setup the part requirements according to the diagram above.
   auto part_reqs1_ptr = std::make_shared<PartRequirements>("part_name");
   auto part_reqs2_ptr = std::make_shared<PartRequirements>("part_name");
 
-  part_reqs1_ptr->add_part_attribute(attribute1);
-  part_reqs1_ptr->add_part_attribute(attribute2);
-  part_reqs2_ptr->add_part_attribute(attribute3);
-  part_reqs2_ptr->add_part_attribute(attribute4);
+  part_reqs1_ptr->add_part_attribute(attribute1_name);
+  part_reqs1_ptr->add_part_attribute(attribute2_name);
+  part_reqs2_ptr->add_part_attribute(attribute3_name);
+  part_reqs2_ptr->add_part_attribute(attribute4_name);
 
   // Merge the mesh requirements and check that the attributes were merged correctly.
   part_reqs1_ptr->merge(part_reqs2_ptr);
-  // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
+
+  // Check that the part attributes were merged correctly.
+  ASSERT_EQ(part_reqs1_ptr->get_part_attribute_names().size(), 3);
+
+  const auto attribute_names = part_reqs1_ptr->get_part_attribute_names();
+  const bool attribute1_exists =
+      std::count(attribute_names.begin(), attribute_names.end(), attribute1_name) > 0;
+  const bool attribute23_exists =
+      std::count(attribute_names.begin(), attribute_names.end(), attribute2_name) > 0;
+  const bool attribute4_exists =
+      std::count(attribute_names.begin(), attribute_names.end(), attribute4_name) > 0;
+  EXPECT_TRUE(attribute1_exists);
+  EXPECT_TRUE(attribute23_exists);
+  EXPECT_TRUE(attribute4_exists);
 }
 
 TEST(PartRequirementsMerge, AreSubpartsAndTheirFieldsMergable) {
@@ -499,46 +478,52 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   The setup for this test is as follows:
   part1 (name=part_name)
     subpart1 (name=A)
-      attribute1 (type=bool)
+      attribute1 (name="attribute1")
     subpart2 (name=B)
-      attribute2 (type=int)
-      attribute3 (type=double)
+      attribute2 (name="attribute26")
+      attribute3 (name="attribute34")
   part2 (name=part_name)
     subpart3 (name=B)
-      attribute4 (type=double)
-      attribute5 (type=std::string)
+      attribute4 (name="attribute34")
+      attribute5 (name="attribute5")
     subpart4 (name=C)
-      attribute6 (type=int)
+      attribute6 (name="attribute26")
   merged12
     subpart1 (name=A)
-      attribute1 (type=bool)
+      attribute1 (name="attribute1")
     subpart2 merged w/ subpart3 (name=B)
-      attribute2 (type=int)
-      attribute3 merged w/ attribute4 (type=double)
-      attribute5 (type=std::string)
+      attribute2 (name="attribute26")
+      attribute3 merged w/ attribute4 (name="attribute34")
+      attribute5 (name="attribute5")
     subpart4 (name=C)
-      attribute6 (type=int)
+      attribute6 (name="attribute26")
   */
 
   // Setup the dummy attributes.
-  std::any attribute1 = false;
-  std::any attribute2 = 1;
-  std::any attribute3 = 3.14159265358979323846;
-  std::any attribute4 = 3.14159265358979323846;
-  std::any attribute5 = "something";
-  std::any attribute6 = 8675309;
+  std::string attribute1_name = "attribute1";
+  std::string attribute2_name = "attribute26";
+  std::string attribute3_name = "attribute34";
+  std::string attribute4_name = "attribute34";
+  std::string attribute5_name = "attribute5";
+  std::string attribute6_name = "attribute26";
 
   // Setup the subpart requirements according to the diagram above.
   auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("A");
   auto subpart_reqs2_ptr = std::make_shared<PartRequirements>("B");
   auto subpart_reqs3_ptr = std::make_shared<PartRequirements>("B");
   auto subpart_reqs4_ptr = std::make_shared<PartRequirements>("C");
-  subpart_reqs1_ptr->add_part_attribute(attribute1);
-  subpart_reqs2_ptr->add_part_attribute(attribute2);
-  subpart_reqs2_ptr->add_part_attribute(attribute3);
-  subpart_reqs3_ptr->add_part_attribute(attribute4);
-  subpart_reqs3_ptr->add_part_attribute(attribute5);
-  subpart_reqs4_ptr->add_part_attribute(attribute6);
+  subpart_reqs1_ptr->add_part_attribute(attribute1_name);
+  EXPECT_EQ(subpart_reqs1_ptr->get_part_attribute_names().size(), 1);
+  subpart_reqs2_ptr->add_part_attribute(attribute2_name);
+  EXPECT_EQ(subpart_reqs2_ptr->get_part_attribute_names().size(), 1);
+  subpart_reqs2_ptr->add_part_attribute(attribute3_name);
+  EXPECT_EQ(subpart_reqs2_ptr->get_part_attribute_names().size(), 2);
+  subpart_reqs3_ptr->add_part_attribute(attribute4_name);
+  EXPECT_EQ(subpart_reqs3_ptr->get_part_attribute_names().size(), 1);
+  subpart_reqs3_ptr->add_part_attribute(attribute5_name);
+  EXPECT_EQ(subpart_reqs3_ptr->get_part_attribute_names().size(), 2);
+  subpart_reqs4_ptr->add_part_attribute(attribute6_name);
+  EXPECT_EQ(subpart_reqs4_ptr->get_part_attribute_names().size(), 1);
 
   // Setup the part requirements according to the diagram above.
   auto part_reqs1_ptr = std::make_shared<PartRequirements>("part_name");
@@ -550,7 +535,38 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
 
   // Merge the mesh requirements and check that the attributes were merged correctly.
   part_reqs1_ptr->merge(part_reqs2_ptr);
-  // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
+
+  // Check that the parts were merged correctly.
+  const auto subpart_map = part_reqs1_ptr->get_part_subpart_map();
+  ASSERT_EQ(subpart_map.size(), 3);
+  ASSERT_NE(subpart_map.find("A"), subpart_map.end());
+  ASSERT_NE(subpart_map.find("B"), subpart_map.end());
+  ASSERT_NE(subpart_map.find("C"), subpart_map.end());
+  const auto merged_subpart1_ptr = subpart_map.find("A")->second;
+  const auto merged_subpart2_ptr = subpart_map.find("B")->second;
+  const auto merged_subpart3_ptr = subpart_map.find("C")->second;
+  
+  EXPECT_EQ(merged_subpart1_ptr->get_part_attribute_names().size(), 1);
+  EXPECT_EQ(merged_subpart2_ptr->get_part_attribute_names().size(), 3);
+  EXPECT_EQ(merged_subpart3_ptr->get_part_attribute_names().size(), 1);
+
+  const auto subpart1_attribute_names = merged_subpart1_ptr->get_part_attribute_names();
+  const auto subpart2_attribute_names = merged_subpart2_ptr->get_part_attribute_names();
+  const auto subpart3_attribute_names = merged_subpart3_ptr->get_part_attribute_names();
+  
+  EXPECT_EQ(subpart1_attribute_names[0], attribute1_name);
+
+  const bool attribute2_exists =
+      std::count(subpart2_attribute_names.begin(), subpart2_attribute_names.end(), attribute2_name) > 0;  
+  const bool attribute3_exists =
+      std::count(subpart2_attribute_names.begin(), subpart2_attribute_names.end(), attribute3_name) > 0;
+  const bool attribute5_exists =
+      std::count(subpart2_attribute_names.begin(), subpart2_attribute_names.end(), attribute5_name) > 0;
+  EXPECT_TRUE(attribute2_exists);
+  EXPECT_TRUE(attribute3_exists);
+  EXPECT_TRUE(attribute5_exists);
+
+  EXPECT_EQ(subpart3_attribute_names[0], attribute6_name);
 }
 
 TEST(PartRequirementsMerge, MergePropertlyHandlesNullptr) {
@@ -718,21 +734,18 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndAttributes) {
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create a dummy attribute requirements object.
-  std::any attribute = std::string("something");
-  ASSERT_TRUE(attribute.has_value());
-  ASSERT_EQ(std::any_cast<std::string>(attribute), "something");
+  std::string attribute_name = "attribute_name";
 
   // Declare a part on the mesh using the PartRequirements object.
   PartRequirements part_reqs("part_name");
-  part_reqs.add_part_attribute(attribute);
+  part_reqs.add_part_attribute(attribute_name);
   ASSERT_TRUE(part_reqs.is_fully_specified());
   ASSERT_NO_THROW(part_reqs.declare_part_on_mesh(&meta_data));
 
   // Check that the part and attribute were declared on the mesh.
   stk::mesh::Part *part_ptr = meta_data.get_part("part_name");
   ASSERT_NE(part_ptr, nullptr);
-  ASSERT_NE(meta_data.get_attribute<std::string>(*part_ptr), nullptr);
-  ASSERT_TRUE(*meta_data.get_attribute<std::string>(*part_ptr) == std::any_cast<std::string>(attribute));
+  ASSERT_NE(meta_data.get_attribute(*part_ptr, attribute_name), nullptr);
 }
 
 TEST(PartRequirementsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttributes) {
@@ -751,8 +764,8 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttribut
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create some dummy attributes.
-  std::any field_attribute = std::string("something");
-  std::any subpart_attribute = std::string("something else");
+  std::string field_attribute_name = "field_attribute_name";
+  std::string subpart_attribute_name = "subpart_attribute_name";
 
   // Create a dummy field requirements object.
   using ExampleFieldType = double;
@@ -762,13 +775,13 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttribut
   const int field_min_number_of_states = 2;
   auto field_reqs_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension,
                                                                               field_min_number_of_states);
-  field_reqs_ptr->add_field_attribute(field_attribute);
+  field_reqs_ptr->add_field_attribute(field_attribute_name);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
   // Create a dummy subpart requirements object.
   auto subpart_reqs_ptr = std::make_shared<PartRequirements>("subpart_name");
   subpart_reqs_ptr->add_field_reqs(field_reqs_ptr);
-  subpart_reqs_ptr->add_part_attribute(subpart_attribute);
+  subpart_reqs_ptr->add_part_attribute(subpart_attribute_name);
   ASSERT_TRUE(subpart_reqs_ptr->is_fully_specified());
 
   // Declare a part on the mesh using the PartRequirements object.
@@ -785,10 +798,8 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttribut
   ASSERT_NE(subpart_ptr, nullptr);
   stk::mesh::FieldBase *field_ptr = meta_data.get_field(field_rank, field_name);
   ASSERT_NE(field_ptr, nullptr);
-  ASSERT_NE(meta_data.get_attribute<std::string>(*field_ptr), nullptr);
-  ASSERT_NE(meta_data.get_attribute<std::string>(*subpart_ptr), nullptr);
-  ASSERT_TRUE(*meta_data.get_attribute<std::string>(*field_ptr) == std::any_cast<std::string>(field_attribute));
-  ASSERT_TRUE(*meta_data.get_attribute<std::string>(*subpart_ptr) == std::any_cast<std::string>(subpart_attribute));
+  ASSERT_NE(meta_data.get_attribute(*field_ptr, field_attribute_name), nullptr);
+  ASSERT_NE(meta_data.get_attribute(*subpart_ptr, subpart_attribute_name), nullptr);
 }
 
 }  // namespace

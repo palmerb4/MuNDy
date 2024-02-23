@@ -130,7 +130,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
 
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    valid_fixed_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_fixed_params());
 
     // Store the valid entity parts for the kernel.
     Teuchos::Array<std::string> input_part_names =
@@ -164,7 +164,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    valid_fixed_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
@@ -194,28 +194,23 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     return mesh_reqs_ptr;
   }
 
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr, mundy::meta::ParamConfig<Teuchos::Array<std::string>>{
-                              .name = "input_part_names",
-                              .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
-                              .doc_string = "Name of the parts associated with this kernel."});
-
-    mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr,
-        mundy::meta::ParamConfig<std::string>{
-            .name = "node_velocity_field_name",
-            .default_value = std::string(default_node_velocity_field_name_),
-            .doc_string =
-                "Name of the node velocity field to be used for computing the node euler timestep of the sphere."});
+  /// \brief Get the valid fixed parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "input_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "Name of the parts associated with this kernel.");
+    default_parameter_list.set(
+        "node_velocity_field_name", std::string(default_node_velocity_field_name_),
+        "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
+    return default_parameter_list;
   }
 
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    mundy::meta::check_required_parameter<double>(mutable_params_ptr, "time_step_size");
+  /// \brief Get the valid mutable parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    return default_parameter_list;
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -237,7 +232,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
     Teuchos::ParameterList valid_mutable_params = mutable_params;
-    validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+    valid_mutable_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_mutable_params());
     time_step_size_ = valid_mutable_params.get<double>("time_step_size");
   }
   //@}
@@ -285,6 +280,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   //! \name Default parameters
   //@{
 
+  static inline double default_time_step_size_ = 0.0;
   static constexpr std::string_view default_part_name_ = "SPHERES";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   //@}
@@ -392,7 +388,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
 
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    valid_fixed_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_fixed_params());
 
     // Store the valid entity parts for the kernel.
     Teuchos::Array<std::string> input_part_names =
@@ -429,7 +425,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    valid_fixed_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
@@ -463,49 +459,31 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
     return mesh_reqs_ptr;
   }
 
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr, mundy::meta::ParamConfig<Teuchos::Array<std::string>>{
-                              .name = "input_part_names",
-                              .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
-                              .doc_string = "Name of the part associated with this kernel."});
-
-    mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr,
-        mundy::meta::ParamConfig<std::string>{
-            .name = "node_brownian_velocity_field_name",
-            .default_value = std::string(default_node_brownian_velocity_field_name_),
-            .doc_string =
-                "Name of the node velocity field to be used for computing the node euler timestep of the sphere."});
-
-    mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr,
-        mundy::meta::ParamConfig<std::string>{
-            .name = "node_rng_counter_field_name",
-            .default_value = std::string(default_node_rng_counter_field_name_),
-            .doc_string =
-                "Name of the node velocity field to be used for computing the node euler timestep of the sphere."});
+  /// \brief Get the valid fixed parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "input_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "Name of the parts associated with this kernel.");
+    default_parameter_list.set(
+        "node_brownian_velocity_field_name", std::string(default_node_brownian_velocity_field_name_),
+        "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
+    default_parameter_list.set(
+        "node_rng_counter_field_name", std::string(default_node_rng_counter_field_name_),
+        "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
+    return default_parameter_list;
   }
 
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    mundy::meta::check_required_parameter<double>(mutable_params_ptr, "time_step_size");
-    mundy::meta::check_required_parameter<double>(mutable_params_ptr, "diffusion_coeff");
-    mundy::meta::check_parameter_and_set_default(
-        mutable_params_ptr,
-        mundy::meta::ParamConfig<double>{
-            .name = "alpha",
-            .default_value = default_alpha_,
-            .doc_string = "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew."});
-    mundy::meta::check_parameter_and_set_default(
-        mutable_params_ptr,
-        mundy::meta::ParamConfig<double>{
-            .name = "beta",
-            .default_value = default_beta_,
-            .doc_string = "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew."});
+  /// \brief Get the valid mutable parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    default_parameter_list.set("diffusion_coeff", default_diffusion_coeff_, "The diffusion coefficient.");
+    default_parameter_list.set("alpha", default_alpha_,
+                               "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
+    default_parameter_list.set("beta", default_beta_,
+                               "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
+    return default_parameter_list;
   }
 
   /// \brief Get the unique string identifier for this class.
@@ -530,7 +508,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
     Teuchos::ParameterList valid_mutable_params = mutable_params;
-    validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+    valid_mutable_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_mutable_params());
     time_step_size_ = valid_mutable_params.get<double>("time_step_size");
     diffusion_coeff_ = valid_mutable_params.get<double>("diffusion_coeff");
     alpha_ = valid_mutable_params.get<double>("alpha");
@@ -599,6 +577,8 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   //! \name Default parameters
   //@{
 
+  static inline double default_time_step_size_ = 0.0;
+  static inline double default_diffusion_coeff_ = 0.0;
   static constexpr double default_alpha_ = 1.0;
   static constexpr double default_beta_ = 0.0;
   static constexpr std::string_view default_part_name_ = "SPHERES";

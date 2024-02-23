@@ -62,28 +62,31 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveFieldAttribute) {
   stk::mesh::Field<double> &field = meta_data.declare_field<double>(field_rank, field_name, field_dimension);
 
   // Create an attribute.
+  std::string attribute1_name = "attribute1";
+  std::string attribute2_name = "attribute2";
   std::any attribute1 = 3.14159265358979323846;
   std::any attribute2 = std::string("Hello world!");
 
   // Declare the attribute.
-  meta_data.declare_attribute(field, attribute1);
-  meta_data.declare_attribute(field, attribute2);
+  meta_data.declare_attribute(field, attribute1_name, attribute1);
+  meta_data.declare_attribute(field, attribute2_name, attribute2);
 
   // Fetch the attribute and check that it is correct.
-  ASSERT_NE(meta_data.get_attribute<double>(field), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<double>(field), std::any_cast<double>(attribute1));
-  ASSERT_NE(meta_data.get_attribute<double>(field), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<std::string>(field), std::any_cast<std::string>(attribute2));
+  ASSERT_NE(meta_data.get_attribute(field, attribute1_name), nullptr);
+  EXPECT_EQ(std::any_cast<double>(*meta_data.get_attribute(field, attribute1_name)), std::any_cast<double>(attribute1));
+  ASSERT_NE(meta_data.get_attribute(field, attribute2_name), nullptr);
+  EXPECT_EQ(std::any_cast<std::string>(*meta_data.get_attribute(field, attribute2_name)),
+            std::any_cast<std::string>(attribute2));
 
   // Remove the attribute.
-  bool attribute1_successfully_removed = meta_data.remove_attribute<double>(field);
+  bool attribute1_successfully_removed = meta_data.remove_attribute(field, attribute1_name);
   ASSERT_TRUE(attribute1_successfully_removed);
-  bool attribute2_successfully_removed = meta_data.remove_attribute<std::string>(field);
+  bool attribute2_successfully_removed = meta_data.remove_attribute(field, attribute2_name);
   ASSERT_TRUE(attribute2_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<double>(field), nullptr);
-  EXPECT_EQ(meta_data.get_attribute<std::string>(field), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(field, attribute1_name), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(field, attribute2_name), nullptr);
 }
 
 TEST(MetaDataAttributes, DeclareFetchAndRemovePartAttribute) {
@@ -99,28 +102,31 @@ TEST(MetaDataAttributes, DeclareFetchAndRemovePartAttribute) {
   stk::mesh::Part &part = meta_data.declare_part(part_name, stk::topology::NODE_RANK);
 
   // Create an attribute.
+  std::string attribute1_name = "attribute1";
+  std::string attribute2_name = "attribute2";
   std::any attribute1 = 3.14159265358979323846;
   std::any attribute2 = std::string("Hello world!");
 
   // Declare the attribute.
-  meta_data.declare_attribute(part, attribute1);
-  meta_data.declare_attribute(part, attribute2);
+  meta_data.declare_attribute(part, attribute1_name, attribute1);
+  meta_data.declare_attribute(part, attribute2_name, attribute2);
 
   // Fetch the attribute and check that it is correct.
-  ASSERT_NE(meta_data.get_attribute<double>(part), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<double>(part), std::any_cast<double>(attribute1));
-  ASSERT_NE(meta_data.get_attribute<double>(part), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<std::string>(part), std::any_cast<std::string>(attribute2));
+  ASSERT_NE(meta_data.get_attribute(part, attribute1_name), nullptr);
+  EXPECT_EQ(std::any_cast<double>(*meta_data.get_attribute(part, attribute1_name)), std::any_cast<double>(attribute1));
+  ASSERT_NE(meta_data.get_attribute(part, attribute2_name), nullptr);
+  EXPECT_EQ(std::any_cast<std::string>(*meta_data.get_attribute(part, attribute2_name)),
+            std::any_cast<std::string>(attribute2));
 
   // Remove the attribute.
-  bool attribute1_successfully_removed = meta_data.remove_attribute<double>(part);
+  bool attribute1_successfully_removed = meta_data.remove_attribute(part, attribute1_name);
   ASSERT_TRUE(attribute1_successfully_removed);
-  bool attribute2_successfully_removed = meta_data.remove_attribute<std::string>(part);
+  bool attribute2_successfully_removed = meta_data.remove_attribute(part, attribute2_name);
   ASSERT_TRUE(attribute2_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<double>(part), nullptr);
-  EXPECT_EQ(meta_data.get_attribute<std::string>(part), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(part, attribute1_name), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(part, attribute2_name), nullptr);
 }
 
 TEST(MetaDataAttributes, DeclareFetchAndRemoveMeshAttribute) {
@@ -130,28 +136,31 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveMeshAttribute) {
   MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create an attribute.
+  std::string attribute1_name = "attribute1";
+  std::string attribute2_name = "attribute2";
   std::any attribute1 = 3.14159265358979323846;
   std::any attribute2 = std::string("Hello world!");
 
   // Declare the attribute.
-  meta_data.declare_attribute(attribute1);
-  meta_data.declare_attribute(attribute2);
+  meta_data.declare_attribute(attribute1_name, attribute1);
+  meta_data.declare_attribute(attribute2_name, attribute2);
 
   // Fetch the attribute and check that it is correct.
-  ASSERT_NE(meta_data.get_attribute<double>(), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<double>(), std::any_cast<double>(attribute1));
-  ASSERT_NE(meta_data.get_attribute<double>(), nullptr);
-  EXPECT_EQ(*meta_data.get_attribute<std::string>(), std::any_cast<std::string>(attribute2));
+  ASSERT_NE(meta_data.get_attribute(attribute1_name), nullptr);
+  EXPECT_EQ(std::any_cast<double>(*meta_data.get_attribute(attribute1_name)), std::any_cast<double>(attribute1));
+  ASSERT_NE(meta_data.get_attribute(attribute2_name), nullptr);
+  EXPECT_EQ(std::any_cast<std::string>(*meta_data.get_attribute(attribute2_name)),
+            std::any_cast<std::string>(attribute2));
 
   // Remove the attribute.
-  bool attribute1_successfully_removed = meta_data.remove_attribute<double>();
+  bool attribute1_successfully_removed = meta_data.remove_attribute(attribute1_name);
   ASSERT_TRUE(attribute1_successfully_removed);
-  bool attribute2_successfully_removed = meta_data.remove_attribute<std::string>();
+  bool attribute2_successfully_removed = meta_data.remove_attribute(attribute2_name);
   ASSERT_TRUE(attribute2_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<double>(), nullptr);
-  EXPECT_EQ(meta_data.get_attribute<std::string>(), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(attribute1_name), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(attribute2_name), nullptr);
 }
 
 struct CountCopiesStruct {
@@ -189,24 +198,25 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveUncopiableFieldAttribute) {
   std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Declare the attribute with move symantics.
-  meta_data.declare_attribute(field, std::move(uncopiable_attribute));
+  std::string attribute_name = "attribute";
+  meta_data.declare_attribute(field, attribute_name, std::move(uncopiable_attribute));
 
   // Fetch the attribute and check that it is correct.
   // Note, we can't use EXPECT_EQ because we are trying to avoid copies.
   // Instead, we use EXPECT_TRUE to check that the attribute is not null and that it has the correct value.
   // Note, meta_data.get_attribute returns a pointer to our attribute. So, we must dereference it to get the
   // underlying shared_ptr before fetching the value.
-  ASSERT_NE(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(field), nullptr);
+  ASSERT_NE(meta_data.get_attribute(field, attribute_name), nullptr);
   std::shared_ptr<CountCopiesStruct> fetched_attribute =
-      *meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(field);
+      std::any_cast<std::shared_ptr<CountCopiesStruct>>(*meta_data.get_attribute(field, attribute_name));
   EXPECT_EQ(fetched_attribute->value, 1);
 
   // Remove the attribute.
-  bool attribute_successfully_removed = meta_data.remove_attribute<std::shared_ptr<CountCopiesStruct>>(field);
+  bool attribute_successfully_removed = meta_data.remove_attribute(field, attribute_name);
   ASSERT_TRUE(attribute_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(field), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(field, attribute_name), nullptr);
 
   // Check that the attribute was never copied.
   EXPECT_EQ(CountCopiesStruct::num_copies, 0);
@@ -231,24 +241,25 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveUncopiablePartAttribute) {
   std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Declare the attribute with move symantics.
-  meta_data.declare_attribute(part, std::move(uncopiable_attribute));
+  std::string attribute_name = "attribute";
+  meta_data.declare_attribute(part, attribute_name, std::move(uncopiable_attribute));
 
   // Fetch the attribute and check that it is correct.
   // Note, we can't use EXPECT_EQ because we are trying to avoid copies.
   // Instead, we use EXPECT_TRUE to check that the attribute is not null and that it has the correct value.
   // Note, meta_data.get_attribute returns a pointer to our attribute. So, we must dereference it to get the
   // underlying shared_ptr before fetching the value.
-  ASSERT_NE(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(part), nullptr);
+  ASSERT_NE(meta_data.get_attribute(part, attribute_name), nullptr);
   std::shared_ptr<CountCopiesStruct> fetched_attribute =
-      *meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(part);
+      std::any_cast<std::shared_ptr<CountCopiesStruct>>(*meta_data.get_attribute(part, attribute_name));
   EXPECT_EQ(fetched_attribute->value, 1);
 
   // Remove the attribute.
-  bool attribute_successfully_removed = meta_data.remove_attribute<std::shared_ptr<CountCopiesStruct>>(part);
+  bool attribute_successfully_removed = meta_data.remove_attribute(part, attribute_name);
   ASSERT_TRUE(attribute_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(part), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(part, attribute_name), nullptr);
 
   // Check that the attribute was never copied.
   EXPECT_EQ(CountCopiesStruct::num_copies, 0);
@@ -267,23 +278,25 @@ TEST(MetaDataAttributes, DeclareFetchAndRemoveUncopiableMeshAttribute) {
   std::any uncopiable_attribute = std::make_shared<CountCopiesStruct>();
 
   // Declare the attribute with move symantics.
-  meta_data.declare_attribute(std::move(uncopiable_attribute));
+  std::string attribute_name = "attribute";
+  meta_data.declare_attribute(attribute_name, std::move(uncopiable_attribute));
 
   // Fetch the attribute and check that it is correct.
   // Note, we can't use EXPECT_EQ because we are trying to avoid copies.
   // Instead, we use EXPECT_TRUE to check that the attribute is not null and that it has the correct value.
   // Note, meta_data.get_attribute returns a pointer to our attribute. So, we must dereference it to get the
   // underlying shared_ptr before fetching the value.
-  ASSERT_NE(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(), nullptr);
-  std::shared_ptr<CountCopiesStruct> fetched_attribute = *meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>();
+  ASSERT_NE(meta_data.get_attribute(attribute_name), nullptr);
+  std::shared_ptr<CountCopiesStruct> fetched_attribute =
+      std::any_cast<std::shared_ptr<CountCopiesStruct>>(*meta_data.get_attribute(attribute_name));
   EXPECT_EQ(fetched_attribute->value, 1);
 
   // Remove the attribute.
-  bool attribute_successfully_removed = meta_data.remove_attribute<std::shared_ptr<CountCopiesStruct>>();
+  bool attribute_successfully_removed = meta_data.remove_attribute(attribute_name);
   ASSERT_TRUE(attribute_successfully_removed);
 
   // Check that the attribute is gone.
-  EXPECT_EQ(meta_data.get_attribute<std::shared_ptr<CountCopiesStruct>>(), nullptr);
+  EXPECT_EQ(meta_data.get_attribute(attribute_name), nullptr);
 
   // Check that the attribute was never copied.
   EXPECT_EQ(CountCopiesStruct::num_copies, 0);

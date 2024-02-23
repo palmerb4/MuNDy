@@ -84,7 +84,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+    valid_fixed_params.validateParametersAndSetDefaults(Spherocylinder::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
@@ -100,7 +100,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
-      
+
       if (part_name == "SPHEROCYLINDERS") {
         // Add the requirements directly to spherocylinders part.
         const std::string parent_part_name = "SHAPES";
@@ -116,32 +116,24 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
     return mesh_reqs_ptr;
   }
 
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
-    mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr, mundy::meta::ParamConfig<Teuchos::Array<std::string>>{
-                              .name = "input_part_names",
-                              .default_value = Teuchos::tuple<std::string>(std::string(default_part_name_)),
-                              .doc_string = "Name of the parts associated with this kernel."});
-
-    mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr,
-        mundy::meta::ParamConfig<std::string>{
-            .name = "element_aabb_field_name",
-            .default_value = std::string(default_element_aabb_field_name_),
-            .doc_string =
-                "Name of the element field within which the output axis-aligned boundary boxes will be written."});
+  /// \brief Get the valid fixed parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "input_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "Name of the parts associated with this kernel.");
+    default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
+                               "Name of the element field within which the output axis-aligned boundary "
+                               "boxes will be written.");
+    return default_parameter_list;
   }
 
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(
-      [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-    mundy::meta::check_parameter_and_set_default(
-        mutable_params_ptr,
-        mundy::meta::ParamConfig<double>{.name = "buffer_distance",
-                            .default_value = default_buffer_distance_,
-                            .doc_string = "Buffer distance to be added to the axis-aligned boundary box."});
+  /// \brief Get the valid mutable parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("buffer_distance", default_buffer_distance_,
+                               "Buffer distance to be added to the axis-aligned boundary box.");
+    return default_parameter_list;
   }
 
   /// \brief Get the unique string identifier for this class.

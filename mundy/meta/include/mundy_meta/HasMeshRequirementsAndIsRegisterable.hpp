@@ -68,39 +68,37 @@ struct HasMeshRequirementsAndIsRegisterable {
   template <typename>
   static auto check_get_mesh_requirements(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c validate_fixed_parameters_and_set_defaults function.
+  /// \brief Helper for checking if \c U has a \c get_valid_fixed_params function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c validate_fixed_parameters_and_set_defaults function, \c std::false_type
+  /// \return \c std::true_type if \c U has a \c get_valid_fixed_params function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_validate_fixed_parameters_and_set_defaults([[maybe_unused]] int unused)
-      -> decltype(U::validate_fixed_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>()),
-                  std::true_type{});
+  static auto check_get_valid_fixed_params([[maybe_unused]] int unused)
+      -> decltype(U::get_valid_fixed_params(), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c validate_fixed_parameters_and_set_defaults function.
+  /// \brief Helper for checking if \c U has a \c get_valid_fixed_params function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c validate_fixed_parameters_and_set_defaults function.
+  /// \return \c std::false_type if \c U does not have a \c get_valid_fixed_params function.
   template <typename>
-  static auto check_validate_fixed_parameters_and_set_defaults(...) -> std::false_type;
+  static auto check_get_valid_fixed_params(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c validate_mutable_parameters_and_set_defaults function.
+  /// \brief Helper for checking if \c U has a \c get_valid_mutable_params function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c validate_mutable_parameters_and_set_defaults function, \c
+  /// \return \c std::true_type if \c U has a \c get_valid_mutable_params function, \c
   /// std::false_type otherwise.
   template <typename U>
-  static auto check_validate_mutable_parameters_and_set_defaults([[maybe_unused]] int unused)
-      -> decltype(U::validate_mutable_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>()),
-                  std::true_type{});
+  static auto check_get_valid_mutable_params([[maybe_unused]] int unused)
+      -> decltype(U::get_valid_mutable_params(), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c validate_mutable_parameters_and_set_defaults function.
+  /// \brief Helper for checking if \c U has a \c get_valid_mutable_params function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c validate_mutable_parameters_and_set_defaults function.
+  /// \return \c std::false_type if \c U does not have a \c get_valid_mutable_params function.
   template <typename>
-  static auto check_validate_mutable_parameters_and_set_defaults(...) -> std::false_type;
+  static auto check_get_valid_mutable_params(...) -> std::false_type;
 
   /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
   /// \tparam U The type to check.
@@ -182,29 +180,27 @@ struct HasMeshRequirementsAndIsRegisterable {
       std::is_same_v<decltype(T::get_mesh_requirements(std::declval<Teuchos::ParameterList>())),
                      std::shared_ptr<mundy::meta::MeshRequirements>>;
 
-  /// \brief Check for the existence of a \c validate_fixed_parameters_and_set_defaults function.
-  /// \return \c true if \c T has a \c validate_fixed_parameters_and_set_defaults function, \c false otherwise.
+  /// \brief Check for the existence of a \c get_valid_fixed_params function.
+  /// \return \c true if \c T has a \c get_valid_fixed_params function, \c false otherwise.
   ///
-  /// The specific signature of the \c validate_fixed_parameters_and_set_defaults function is:
+  /// The specific signature of the \c get_valid_fixed_params function is:
   /// \code
-  /// static void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr);
+  /// static Teuchos::ParameterList get_valid_fixed_params();
   /// \endcode
-  static constexpr bool has_validate_fixed_parameters_and_set_defaults =
-      decltype(check_validate_fixed_parameters_and_set_defaults<T>(0))::value &&
-      std::is_same_v<decltype(T::validate_fixed_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>())),
-                     void>;
+  static constexpr bool has_get_valid_fixed_params =
+      decltype(check_get_valid_fixed_params<T>(0))::value &&
+      std::is_same_v<decltype(T::get_valid_fixed_params()), Teuchos::ParameterList>;
 
-  /// \brief Check for the existence of a \c validate_mutable_parameters_and_set_defaults function.
-  /// \return \c true if \c T has a \c validate_mutable_parameters_and_set_defaults function, \c false otherwise.
+  /// \brief Check for the existence of a \c get_valid_mutable_params function.
+  /// \return \c true if \c T has a \c get_valid_mutable_params function, \c false otherwise.
   ///
-  /// The specific signature of the \c validate_mutable_parameters_and_set_defaults function is:
+  /// The specific signature of the \c get_valid_mutable_params function is:
   /// \code
-  /// static void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr);
+  /// static Teuchos::ParameterList get_valid_mutable_params();
   /// \endcode
-  static constexpr bool has_validate_mutable_parameters_and_set_defaults =
-      decltype(check_validate_mutable_parameters_and_set_defaults<T>(0))::value &&
-      std::is_same_v<
-          decltype(T::validate_mutable_parameters_and_set_defaults(std::declval<Teuchos::ParameterList *>())), void>;
+  static constexpr bool has_get_valid_mutable_params =
+      decltype(check_get_valid_mutable_params<T>(0))::value &&
+      std::is_same_v<decltype(T::get_valid_mutable_params()), Teuchos::ParameterList>;
 
   /// \brief Check for the existence of a \c RegistrationType type alias.
   /// \return \c true if \c T has a \c RegistrationType type alias, \c false otherwise.
@@ -251,9 +247,9 @@ struct HasMeshRequirementsAndIsRegisterable {
   /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
   /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
   /// false otherwise.
-  static constexpr bool value = has_get_mesh_requirements && has_validate_fixed_parameters_and_set_defaults &&
-                                has_validate_mutable_parameters_and_set_defaults && has_registration_type &&
-                                has_get_registration_id && has_polymorphic_base_type && has_create_new_instance;
+  static constexpr bool value = has_get_mesh_requirements && has_get_valid_fixed_params &&
+                                has_get_valid_mutable_params && has_registration_type && has_get_registration_id &&
+                                has_polymorphic_base_type && has_create_new_instance;
 };  // HasMeshRequirementsAndIsRegisterable
 
 }  // namespace meta

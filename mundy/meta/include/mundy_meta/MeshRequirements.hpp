@@ -32,7 +32,7 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
+#include <Teuchos_Array.hpp>               // for Teuchos::Array
 #include <stk_mesh/base/Bucket.hpp>        // for stk::mesh::get_default_bucket_capacity
 #include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
 #include <stk_topology/topology.hpp>       // for stk::topology
@@ -62,12 +62,6 @@ class MeshRequirements {
   ///
   /// \param comm [in] The MPI communicator.
   explicit MeshRequirements(const stk::ParallelMachine &comm);
-
-  /// \brief Construct from a parameter list.
-  ///
-  /// \param parameter_list [in] Optional list of parameters for specifying the mesh requirements. The set of valid
-  /// parameters is accessible via \c get_valid_params.
-  explicit MeshRequirements(const Teuchos::ParameterList &parameter_list);
   //@}
 
   //! \name Setters
@@ -137,29 +131,10 @@ class MeshRequirements {
   /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
   void add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
-  /// \brief Store a copy of an attribute on the mesh.
+  /// \brief Require that an attribute with the given name be present on the mesh.
   ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(const std::any &some_attribute);
-
-  /// \brief Store an attribute on the mesh.
-  ///
-  /// Attributes are fetched from an mundy::mesh::MetaData via the get_attribute<T> routine. As a result, the
-  /// identifying feature of an attribute is its type. If you attempt to add a new attribute requirement when an
-  /// attribute of that type already exists, then the contents of the two attributes must match.
-  ///
-  /// Note, in all-too-common case where one knows the type of the desired attribute but wants to specify the value
-  /// post-mesh construction, we suggest that you set store a void shared or unique pointer inside of some_attribute.
-  ///
-  /// \param some_attribute Any attribute that you wish to store on the mesh.
-  void add_mesh_attribute(std::any &&some_attribute);
+  /// \param attribute_name [in] The name of the attribute that must be present on the mesh.
+  void add_mesh_attribute(const std::string &attribute_name);
   //@}
 
   //! \name Getters
@@ -217,103 +192,8 @@ class MeshRequirements {
   /// \brief Return the mesh part map.
   std::map<std::string, std::shared_ptr<PartRequirements>> get_mesh_part_map();
 
-  /// \brief Return the mesh attribute map.
-  std::map<std::type_index, std::any> get_mesh_attributes_map();
-
-  /// \brief Validate the given parameters and set the default values if not provided.
-  static void validate_parameters_and_set_defaults(Teuchos::ParameterList *parameter_list_ptr) {
-    if (parameter_list_ptr->isParameter("spatial_dimension")) {
-      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("spatial_dimension");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MeshRequirements: Type error. Given a parameter with name 'spatial_dimension' but "
-                         "with a type other than unsigned.");
-    } else {
-      parameter_list_ptr->set("spatial_dimension", default_spatial_dimension_,
-                              "Dimension of the space within which the parts and entities reside.");
-    }
-
-    if (parameter_list_ptr->isParameter("entity_rank_names")) {
-      const bool valid_type =
-          parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<Teuchos::Array<std::string>>("entity_rank_names");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MeshRequirements: Type error. Given a parameter with name 'entity_rank_names' but "
-                         "with a type other than Teuchos::Array<std::string>.");
-    } else {
-      parameter_list_ptr->set("entity_rank_names", default_entity_rank_names_,
-                              "Vector of names assigned to each rank.");
-    }
-
-    // if (parameter_list_ptr->isParameter("communicator")) {
-    //   const bool valid_type =
-    //       parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::ParallelMachine>("communicator");
-    //   MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-    //                              "MeshRequirements: Type error. Given a parameter with name 'communicator' but with a
-    //                              " "type other than stk::ParallelMachine");
-    // } else {
-    //   parameter_list_ptr->set("communicator", default_communicator_, "MPI communicator to be used by STK.");
-    // }
-
-    if (parameter_list_ptr->isParameter("aura_option")) {
-      const bool valid_type =
-          parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<mundy::mesh::BulkData::AutomaticAuraOption>(
-              "aura_option");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MeshRequirements: Type error. Given a parameter with name 'aura_option' but with a "
-                         "type other than mundy::mesh::BulkData::AutomaticAuraOption.");
-    } else {
-      parameter_list_ptr->set("aura_option", default_aura_option_, "The chosen Aura option.");
-    }
-
-    if (parameter_list_ptr->isParameter("field_data_manager_ptr")) {
-      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<stk::mesh::FieldDataManager *>(
-          "field_data_manager_ptr");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MeshRequirements: Type error. Given a parameter with name 'field_data_manager_ptr' "
-                         "but with a type other than stk::mesh::FieldDataManager *.");
-    } else {
-      parameter_list_ptr->set("field_data_manager_ptr", default_field_data_manager_ptr_,
-                              "A pointer to a preexisting field data manager.");
-    }
-
-    if (parameter_list_ptr->isParameter("bucket_capacity")) {
-      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<unsigned>("bucket_capacity");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MeshRequirements: Type error. Given a parameter with name 'bucket_capacity' but with "
-                             << "a type other than unsigned.");
-    } else {
-      parameter_list_ptr->set(
-          "bucket_capacity", default_bucket_capacity_,
-          "Upper bound on the number of mesh entities that may be associated with a single bucket.");
-    }
-
-    if (parameter_list_ptr->isParameter("upward_connectivity_flag")) {
-      const bool valid_type = parameter_list_ptr->INVALID_TEMPLATE_QUALIFIER isType<bool>("upward_connectivity_flag");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "MeshRequirements: Type error. Given a parameter with name 'upward_connectivity_flag' "
-                         "but with a type other than bool.");
-    } else {
-      parameter_list_ptr->set("upward_connectivity_flag", default_upward_connectivity_flag_,
-                              "Flag specifying if upward connectivity will be enabled or not.");
-    }
-
-    if (parameter_list_ptr->isSublist("fields")) {
-      Teuchos::ParameterList &fields_sublist = parameter_list_ptr->sublist("fields");
-      const unsigned num_fields = fields_sublist.get<int>("count");
-      for (unsigned i = 0; i < num_fields; i++) {
-        Teuchos::ParameterList &field_i_sublist = parameter_list_ptr->sublist("field_" + std::to_string(i));
-        FieldRequirementsBase::validate_parameters_and_set_defaults(&field_i_sublist);
-      }
-    }
-
-    if (parameter_list_ptr->isSublist("parts")) {
-      Teuchos::ParameterList &fields_sublist = parameter_list_ptr->sublist("parts");
-      const unsigned num_fields = fields_sublist.get<int>("count");
-      for (unsigned i = 0; i < num_fields; i++) {
-        Teuchos::ParameterList &part_i_sublist = parameter_list_ptr->sublist("parts_" + std::to_string(i));
-        PartRequirements::validate_parameters_and_set_defaults(&part_i_sublist);
-      }
-    }
-  }
+  /// \brief Return the required mesh attribute names.
+  std::vector<std::string> get_mesh_attribute_names();
   //@}
 
   //! \name Actions
@@ -356,7 +236,7 @@ class MeshRequirements {
 
   static constexpr unsigned default_spatial_dimension_ = 3;
   static const inline Teuchos::Array<std::string> default_entity_rank_names_ = Teuchos::Array<std::string>();
-  static constexpr stk::ParallelMachine default_communicator_ = MPI_COMM_NULL;
+  static const inline stk::ParallelMachine default_communicator_ = stk::parallel_machine_null();
   static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
   static constexpr stk::mesh::FieldDataManager *default_field_data_manager_ptr_ = nullptr;
   static const unsigned default_bucket_capacity_;  // Unlike the others, this parameter cannot be filled inline.
@@ -412,8 +292,8 @@ class MeshRequirements {
   /// \brief A map from part name to the part params for that part.
   std::map<std::string, std::shared_ptr<PartRequirements>> mesh_part_map_;
 
-  /// \brief A map from attribute type to this field's attributes.
-  std::map<std::type_index, std::any> mesh_attributes_map_;
+  /// \brief A vector of required mesh attribute names.
+  std::vector<std::string> required_mesh_attribute_names_;
 };  // MeshRequirements
 
 }  // namespace meta

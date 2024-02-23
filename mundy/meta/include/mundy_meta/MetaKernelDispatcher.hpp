@@ -23,10 +23,11 @@
 /// \file FieldRequirements.hpp
 /// \brief Declaration of the FieldRequirements class
 
-// C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+// C++ core lib
+#include <algorithm>  // for std::transform
+#include <memory>     // for std::shared_ptr, std::unique_ptr
+#include <string>     // for std::string
+#include <vector>     // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
@@ -60,11 +61,11 @@ namespace meta {
 /// AND (importantly) to guarantee that a kernel only acts on an entity once even if that entity is in multiple valid
 /// parts.
 ///
-/// \note All kernels within a MetaKernelDispatcher must act on entities of the same rank. Otherwise, it's not clear how to
-/// properly dispatch the kernels in a way that guarantees that each entity is only acted upon once. For example, a user
-/// might erroneously create a kernel that acts on a ELEMENT_RANKED entities in a PARTICLE topology part and another
-/// that acts on NODE_RANK entities in the same part. If the NODE_RANK entity kernel changes the state of the elements, then
-/// the order of the kernels will matter.
+/// \note All kernels within a MetaKernelDispatcher must act on entities of the same rank. Otherwise, it's not clear how
+/// to properly dispatch the kernels in a way that guarantees that each entity is only acted upon once. For example, a
+/// user might erroneously create a kernel that acts on a ELEMENT_RANKED entities in a PARTICLE topology part and
+/// another that acts on NODE_RANK entities in the same part. If the NODE_RANK entity kernel changes the state of the
+/// elements, then the order of the kernels will matter.
 template <typename RegistryIdentifier>
 class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
  public:
@@ -100,80 +101,32 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
       const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
-    Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels");
-    const int num_specified_kernels = kernels_sublist.get<int>("count");
+    valid_fixed_params.validateParametersAndSetDefaults(
+        MetaKernelDispatcher<RegistryIdentifier>::get_valid_fixed_params());
 
+    Teuchos::Array<std::string> enabled_kernels =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernels");
     auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-    for (int i = 0; i < num_specified_kernels; i++) {
-      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
-      const std::string kernel_name = kernel_params.get<std::string>("name");
+    for (const std::string &kernel_name : enabled_kernels) {
+      Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
       mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
     }
 
     return mesh_requirements_ptr;
   }
 
-  /// \brief Validate the fixed parameters and use defaults for unset parameters.
-  static void validate_fixed_parameters_and_set_defaults(Teuchos::ParameterList *const fixed_params_ptr) {
-    if (fixed_params_ptr->isSublist("kernels")) {
-      // Only validate and fill parameters for the given kernels.
-      Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", true);
-      const int num_specified_kernels = kernels_sublist.get<int>("count");
-      for (int i = 0; i < num_specified_kernels; i++) {
-        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
-
-        // Ensure that each kernel has a name.
-        mundy::meta::check_required_parameter<std::string>(&kernel_params, "name");
-
-        // Validate and fill parameters for this kernel.
-        const std::string kernel_name = kernel_params.get<std::string>("name");
-        OurKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, &kernel_params);
-      }
-    } else {
-      // Validate and fill parameters for any kernel in our registry.
-      Teuchos::ParameterList &kernels_sublist = fixed_params_ptr->sublist("kernels", false);
-      const unsigned num_specified_kernels = OurKernelFactory::num_registered_classes();
-      kernels_sublist.set("count", num_specified_kernels);
-      int i = 0;
-      for (auto &key : OurKernelFactory::get_keys()) {
-        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", std::string(key));
-        OurKernelFactory::validate_fixed_parameters_and_set_defaults(key, &kernel_params);
-        i++;
-      }
-    }
+  /// \brief Get the valid fixed parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_fixed_params() {
+    return get_valid_enabled_kernels_and_kernel_params([](const std::string &name) -> Teuchos::ParameterList {
+      return OurKernelFactory::get_valid_fixed_params(name);
+    });
   }
 
-  /// \brief Validate the mutable parameters and use defaults for unset parameters.
-  static void validate_mutable_parameters_and_set_defaults(Teuchos::ParameterList *const mutable_params_ptr) {
-    if (mutable_params_ptr->isSublist("kernels")) {
-      // Only validate and fill parameters for the given kernels.
-      Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", true);
-      const int num_specified_kernels = kernels_sublist.get<int>("count");
-      for (int i = 0; i < num_specified_kernels; i++) {
-        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
-
-        // Ensure that each kernel has a name.
-        mundy::meta::check_required_parameter<std::string>(&kernel_params, "name");
-
-        // Validate and fill parameters for this kernel.
-        const std::string kernel_name = kernel_params.get<std::string>("name");
-        OurKernelFactory::validate_mutable_parameters_and_set_defaults(kernel_name, &kernel_params);
-      }
-    } else {
-      // Validate and fill parameters for any kernel in our registry.
-      Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("kernels", false);
-      const int num_specified_kernels = OurKernelFactory::num_registered_classes();
-      kernels_sublist.set("count", num_specified_kernels);
-      int i = 0;
-      for (auto &key : OurKernelFactory::get_keys()) {
-        Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), false);
-        kernel_params.set("name", std::string(key));
-        OurKernelFactory::validate_mutable_parameters_and_set_defaults(key, &kernel_params);
-        i++;
-      }
-    }
+  /// \brief Get the valid mutable parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_mutable_params() {
+    return get_valid_enabled_kernels_and_kernel_params([](const std::string &name) -> Teuchos::ParameterList {
+      return OurKernelFactory::get_valid_mutable_params(name);
+    });
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
@@ -240,6 +193,39 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
   /// \brief Vector of kernels, one for each active kernel.
   std::vector<std::shared_ptr<mundy::meta::MetaKernel<void>>> kernel_ptrs_;
   //@}
+
+  //! \name Internal methods
+  //@{
+
+  /// @brief Get the valid enabled kernels and their parameters.
+  /// @param get_kernel_params_func [in] A function that returns the valid parameters for a kernel given its name
+  static Teuchos::ParameterList get_valid_enabled_kernels_and_kernel_params(
+      const std::function<Teuchos::ParameterList(const std::string &)> &get_kernel_params_func) {
+    Teuchos::ParameterList default_parameter_list;
+
+    // Teuchos expects an array of strings for the enabled_kernels parameter.
+    std::vector<std::string> default_vector_of_kernel_names;
+    default_vector_of_kernel_names.reserve(OurKernelFactory::num_registered_classes());
+    std::transform(OurKernelFactory::get_keys().begin(), OurKernelFactory::get_keys().end(),
+                   std::back_inserter(default_vector_of_kernel_names), [](const std::string_view &key) {
+                     return std::string(key);
+                   });
+    Teuchos::Array<std::string> default_array_of_kernel_names(default_vector_of_kernel_names);
+    std::string valid_kernel_names = OurKernelFactory::get_keys_as_string();
+    default_parameter_list.set("enabled_kernels", default_array_of_kernel_names,
+                               "The names of all kernels to enable. Valid kernel names are: " + valid_kernel_names);
+
+    // Because this is the valid params we list ALL possible parameters. We expect the parameters for
+    // each kernel to be a sublist of this list with the same name as the kernel.
+    for (auto &key : OurKernelFactory::get_keys()) {
+      std::string valid_kernel_name = std::string(key);
+      Teuchos::ParameterList &kernel_params = default_parameter_list.sublist(valid_kernel_name);
+      kernel_params.setParameters(get_kernel_params_func(valid_kernel_name));
+    }
+
+    return default_parameter_list;
+  }
+  //@}
 };  // MetaKernelDispatcher
 
 //! \name Template specializations
@@ -258,18 +244,19 @@ MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::Bulk
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  valid_fixed_params.validateParametersAndSetDefaults(
+      MetaKernelDispatcher<RegistryIdentifier>::get_valid_fixed_params());
 
   // Populate our internal members.
-  Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
-  num_active_kernels_ = kernels_sublist.get<int>("count");
+  Teuchos::Array<std::string> enabled_kernels = valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernels");
+  num_active_kernels_ = static_cast<int>(enabled_kernels.size());
   if (num_active_kernels_ > 0) {
     kernel_ptrs_.reserve(num_active_kernels_);
     valid_entity_parts_.reserve(num_active_kernels_);
     for (int i = 0; i < num_active_kernels_; i++) {
       // Create the kernel and store it in the kernel_ptrs_ vector.
-      Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
-      const std::string kernel_name = kernel_params.get<std::string>("name");
+      const std::string kernel_name = enabled_kernels[i];
+      Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
       kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
 
       // Store the entity rank and ensure that it is the same for all kernels.
@@ -277,7 +264,7 @@ MetaKernelDispatcher<RegistryIdentifier>::MetaKernelDispatcher(mundy::mesh::Bulk
         kernel_entity_rank_ = kernel_ptrs_[0]->get_entity_rank();
       } else {
         MUNDY_THROW_ASSERT(kernel_ptrs_[i]->get_entity_rank() == kernel_entity_rank_, std::invalid_argument,
-                          "MetaKernelDispatcher: All kernels in a dispatcher must act on entities of the same rank.");
+                           "MetaKernelDispatcher: All kernels in a dispatcher must act on entities of the same rank.");
       }
 
       // Get the valid entity parts for the kernel.
@@ -295,16 +282,18 @@ template <typename RegistryIdentifier>
 void MetaKernelDispatcher<RegistryIdentifier>::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+  valid_mutable_params.validateParametersAndSetDefaults(
+      MetaKernelDispatcher<RegistryIdentifier>::get_valid_mutable_params());
 
   // Parse the parameters
-  Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  MUNDY_THROW_ASSERT(num_active_kernels_ == kernels_sublist.get<int>("count"), std::invalid_argument,
+  Teuchos::Array<std::string> enabled_kernels =
+      valid_mutable_params.get<Teuchos::Array<std::string>>("enabled_kernels");
+  MUNDY_THROW_ASSERT(num_active_kernels_ == enabled_kernels.size(), std::invalid_argument,
                      "MetaKernelDispatcher: Internal error. Mismatch between the stored kernel count\n"
                          << "and the parameter list kernel count. This should not happen.\n"
                          << "Please contact the development team.");
   for (int i = 0; i < num_active_kernels_; i++) {
-    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
+    Teuchos::ParameterList &kernel_params = valid_mutable_params.sublist(enabled_kernels[i]);
     kernel_ptrs_[i]->set_mutable_params(kernel_params);
   }
 }
