@@ -41,7 +41,7 @@
 #include <mundy_mesh/MetaData.hpp>              // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>            // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>      // for mundy::meta::PartRequirements
 
@@ -101,13 +101,13 @@ namespace techniques {
 /// At runtime, the \c execute function should be passed a vector of source-target pairs containing subsets of the
 /// desired parts. In the above example, the vector should contain three pairs of subsets (subA1-subA2, subB1-subB2, and
 /// subA3-subB3).
-class PairwisePotential : public mundy::meta::MetaMethod<void> {
+class PairwisePotential : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
   using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurTwoWayKernelFactory = mundy::meta::MetaTwoWayKernelFactory<void, PairwisePotential>;
   //@}
 
@@ -201,7 +201,7 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<PairwisePotential>(bulk_data_ptr, fixed_params);
   }
@@ -238,7 +238,7 @@ class PairwisePotential : public mundy::meta::MetaMethod<void> {
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Method for computing the actual pairwise potential.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> compute_pairwise_potential_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_pairwise_potential_method_ptr_;
   //@}
 };  // PairwisePotential
 

@@ -86,7 +86,7 @@ mundy::
     MetaTwoWayKernel
     MetaTwoWayKernelFactory
     MetaTwoWayKernelRegistry
-    MetaMethod
+    MetaMethodSubsetExecutionInterface
     MetaMethodFactory
     MetaMethodRegistry
     PartRequirements      
@@ -239,7 +239,7 @@ mundy::
     (D) MetaFactory
     (D) MetaKernel
     (D) MetaKWayKernel
-    (D) MetaMethod
+    (D) MetaMethodSubsetExecutionInterface
     (D) MetaRegistry
     (D) PartRequirements      
   methods:: 
@@ -592,7 +592,7 @@ mundy::
     Sphere
     Collision
 
-Now, we do the same thing as MetaMethod, we use a string to register each multibody type (Sphere, Collision, Spring) and sequentially assign them an integer ID. 
+Now, we do the same thing as MetaMethodSubsetExecutionInterface, we use a string to register each multibody type (Sphere, Collision, Spring) and sequentially assign them an integer ID. 
 The problem I have is that there's no need to output shared pointers to MultibodyBase everywhere; I want to directly interface with mundy::Multibody
 
 I cannot force the children to implement a set static interface without using CRTP. Is that a bad thing? 
@@ -613,7 +613,7 @@ class mundy::Multibody:
 Just like topology_data, we can use the following to convert our integer id to compile-time information like name, type, topology. 
 mundy::multibody::multibody_data<mundy::multibody::multibody_t>
 
-Unlike MetaMethod or MetaKernel, each multibody_data contains the same amount of information as all the others and they are entirely static entities. 
+Unlike MetaMethodSubsetExecutionInterface or MetaKernel, each multibody_data contains the same amount of information as all the others and they are entirely static entities. 
 
 
 
@@ -673,6 +673,6 @@ Unit tests:
 Switching to a Masala-esk design.
   HasMeshRequirementsAndIsRegisterable is now a type attribute class that uses SFINAE to check if the given type has the desired interface. 
   With this change, we no longer use CRTP to enforce the static interface; rather, the interface is enforced via static_asserts whenever someone tries to 
-  register a class with the MetaFactory. This significantly reduced the complexity of the interaction between HasMeshRequirementsAndIsRegisterable, MetaMethod, and MetaKernel.
-  Now, MetaMethod and MetaKernel are pure virtual interfaces and it's much easier for users (and us) to make their own custom interfaces.
+  register a class with the MetaFactory. This significantly reduced the complexity of the interaction between HasMeshRequirementsAndIsRegisterable, MetaMethodSubsetExecutionInterface, and MetaKernel.
+  Now, MetaMethodSubsetExecutionInterface and MetaKernel are pure virtual interfaces and it's much easier for users (and us) to make their own custom interfaces.
 

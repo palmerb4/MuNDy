@@ -41,7 +41,7 @@
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>         // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>         // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapRigidBodyForceToRigidBodyVelocity.hpp>  // for mundy::motion::...::MapRigidBodyForceToRigidBodyVelocity
@@ -58,14 +58,14 @@ namespace techniques {
 
 /// \class RigidBodyMotion
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
+class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
   // TODO(palmerb4): OurMethodFactory needs to be broken into a different factory for each group of methods.
   using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, RigidBodyMotion>;
   //@}
 
@@ -218,7 +218,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -227,7 +227,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<RigidBodyMotion>(bulk_data_ptr, fixed_params);
   }
@@ -266,13 +266,13 @@ class RigidBodyMotion : public mundy::meta::MetaMethod<void> {
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Method for mapping from rigid body force to rigid body velocity.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> map_rigid_body_force_to_rigid_body_velocity_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> map_rigid_body_force_to_rigid_body_velocity_method_ptr_;
 
   /// \brief Method for mapping from rigid body velocity to surface velocity.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> map_rigid_body_velocity_to_surface_velocity_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> map_rigid_body_velocity_to_surface_velocity_method_ptr_;
 
   /// \brief Method for mapping from surface force to rigid body force.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> map_surface_force_to_rigid_body_force_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> map_surface_force_to_rigid_body_force_method_ptr_;
   //@}
 };  // RigidBodyMotion
 

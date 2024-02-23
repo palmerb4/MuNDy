@@ -39,7 +39,7 @@
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_motion/resolve_constraints/techniques/PairwisePotential.hpp>  // for mundy::methods::...::PairwisePotential
 
@@ -76,7 +76,7 @@ PairwisePotential::PairwisePotential(mundy::mesh::BulkData *const bulk_data_ptr,
 }
 //}
 
-// \name MetaMethod interface implementation
+// \name MetaMethodSubsetExecutionInterface interface implementation
 //{
 
 void PairwisePotential::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
@@ -112,7 +112,7 @@ void PairwisePotential::execute(const stk::mesh::Selector &input_selector) {
   Users enable multiple kernels just like ComputeAABB. In this case, we have two sets of kernels:
 
   Users enable multiple potential drivers
-  Potential MetaMethod/Driver (Sphere-sphere)
+  Potential MetaMethodSubsetExecutionInterface/Driver (Sphere-sphere)
     (mutable) Neighbor list
     (computed and passed into the potentials as mutable parameters) Some invariant
 

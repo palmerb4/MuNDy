@@ -44,7 +44,7 @@
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_constraint/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::constraint::...::CollisionSphereSphere
 
@@ -62,13 +62,13 @@ using IdentProcPairVector = std::vector<std::pair<SearchIdentProc, SearchIdentPr
 /// Possible types of generation routines include, minimum separation distance, surface tesselation, multiblob, and
 /// recursive generation to name a few. For now, we only implement minimum separation distance.
 /// TODO(palmerb4): Break this class into techniques and make sure it generalizes.
-class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
+class GenerateCollisionConstraints : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
   using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurThreeWayKernelFactory = mundy::meta::MetaKWayKernelFactory<3, void, GenerateCollisionConstraints>;
   //@}
 
@@ -167,7 +167,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -176,7 +176,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethod<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<GenerateCollisionConstraints>(bulk_data_ptr, fixed_params);
   }

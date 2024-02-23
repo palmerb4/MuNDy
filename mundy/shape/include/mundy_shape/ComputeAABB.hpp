@@ -60,7 +60,7 @@ class ComputeAABB : public mundy::meta::MetaKernelDispatcher<ComputeAABB> {
   //@{
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -69,7 +69,7 @@ class ComputeAABB : public mundy::meta::MetaKernelDispatcher<ComputeAABB> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<ComputeAABB>(bulk_data_ptr, fixed_params);
   }

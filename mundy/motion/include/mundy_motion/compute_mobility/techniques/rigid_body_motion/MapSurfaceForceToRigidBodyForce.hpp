@@ -66,7 +66,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaKernelDispatcher
   //@{
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -75,7 +75,7 @@ class MapSurfaceForceToRigidBodyForce : public mundy::meta::MetaKernelDispatcher
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &parameter_list) {
     return std::make_shared<MapSurfaceForceToRigidBodyForce>(bulk_data_ptr, parameter_list);
   }

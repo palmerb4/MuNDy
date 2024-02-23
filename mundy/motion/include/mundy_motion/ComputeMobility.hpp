@@ -33,7 +33,7 @@
 // Mundy libs
 #include <mundy_core/StringLiteral.hpp>                 // for mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_meta/MetaMethod.hpp>               // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>               // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
 #include <mundy_motion/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::motion::compute_mobility::techniques::RigidBodyMotion
@@ -61,7 +61,7 @@ class ComputeMobility
   //@{
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static std::string_view get_registration_id() {
     return registration_id_;
   }
@@ -70,7 +70,7 @@ class ComputeMobility
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<ComputeMobility>(bulk_data_ptr, fixed_params);
   }

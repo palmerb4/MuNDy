@@ -42,7 +42,7 @@
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 
 namespace mundy {
@@ -51,13 +51,13 @@ namespace constraint {
 
 /// \class DeleteCollisionConstraints
 /// \brief Method for deleting unnecessary collision constraints.
-class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void> {
+class DeleteCollisionConstraints : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
   using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, DeleteCollisionConstraints>;
   //@}
 
@@ -156,7 +156,7 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -165,7 +165,7 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethod<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<DeleteCollisionConstraints>(bulk_data_ptr, fixed_params);
   }

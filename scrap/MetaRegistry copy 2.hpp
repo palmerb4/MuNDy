@@ -31,7 +31,7 @@
 // Mundy libs
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>   // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>   // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>   // for mundy::meta::MetaMethodSubsetExecutionInterface
 
 /// @brief Register \c ClassToRegister with the \c MetaMethodFactory.
 #define MUNDY_REGISTER_TYPE(ClassToRegister, ... /* FactoryToRegisterWith */) \
@@ -50,7 +50,7 @@ namespace meta {
 /// Most users shouldn't directly interface with this registry; instead, registration is performed using the provided
 /// MUNDY_REGISTER_METACLASS macro. See the documentation for that macro for more information.
 ///
-/// \tparam ClassToRegister A class derived from \c MetaMethod that we wish to register.
+/// \tparam ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
 template <class ClassToRegister, class FactoryToRegisterWith>
 struct MetaRegistry {
@@ -66,9 +66,9 @@ struct MetaRegistry {
 
 }  // namespace mundy
 
-/// @brief A helper macro for registering a \c MetaMethod with the \c MetaMethodFactory.
+/// @brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
 ///
-/// This macro is used to register a \c MetaMethod with the \c MetaMethodFactory. The macro should be
+/// This macro is used to register a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory. The macro should be
 /// used in the following way:
 ///
 /// \code{.cpp}
@@ -112,7 +112,7 @@ struct MetaRegistry {
 /// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
 /// together into the desired \c FactoryToRegisterWith using \c __VA_ARGS__.
 ///
-/// \param ClassToRegister A class derived from \c MetaMethod that we wish to register.
+/// \param ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
 #define MUNDY_REGISTER_METACLASS(ClassToRegister, ... /* FactoryToRegisterWith */) \
   namespace mundy {                                                                \
@@ -126,9 +126,9 @@ struct MetaRegistry {
   }                                                                                \
   }
 
-/// \brief A helper macro for checking if a \c MetaMethod has been registered with the \c MetaMethodFactory.
+/// \brief A helper macro for checking if a \c MetaMethodSubsetExecutionInterface has been registered with the \c MetaMethodFactory.
 ///
-/// This macro is used to check if a \c MetaMethod has been registered with the \c MetaMethodFactory. The macro should
+/// This macro is used to check if a \c MetaMethodSubsetExecutionInterface has been registered with the \c MetaMethodFactory. The macro should
 /// be used in the following way:
 ///
 /// \code{.cpp}
@@ -146,7 +146,7 @@ struct MetaRegistry {
 /// \c MUNDY_IS_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple definition
 /// errors.
 ///
-/// \param ClassToCheck A class derived from \c MetaMethod that we wish to check if it has been registered.
+/// \param ClassToCheck A class derived from \c MetaMethodSubsetExecutionInterface that we wish to check if it has been registered.
 /// \param FactoryToCheckWith The \c MetaMethodFactory to check if the class has been registered with.
 #define MUNDY_IS_REGISTERED(ClassToCheck, ... /* FactoryToCheckWith */)         \
   ([]() -> bool {                                                               \

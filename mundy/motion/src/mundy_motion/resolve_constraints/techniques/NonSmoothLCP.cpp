@@ -39,7 +39,7 @@
 #include <mundy_meta/MeshRequirements.hpp>      // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>            // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 #include <mundy_motion/ResolveConstraints.hpp>  // for mundy::motion::ResolveConstraints
 #include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP

@@ -44,7 +44,7 @@
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>      // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 
@@ -54,7 +54,7 @@ namespace meta {
 
 /// \brief A class that dispatches the execution of multiple kernels.
 ///
-/// This class is a concrete implementation of the \c MetaMethod interface. It provides a means of dispatching a
+/// This class is a concrete implementation of the \c MetaMethodSubsetExecutionInterface interface. It provides a means of dispatching a
 /// collection of kernels (each associated with potentially different parts) on a subset of the entities in the mesh. In
 /// a sense, it's role is to streamline the registration of collections of kernels and to provide a means of executing
 /// them in a single call. It uses subsetting and part unions to properly dispatch the kernels on the correct entities
@@ -67,13 +67,13 @@ namespace meta {
 /// another that acts on NODE_RANK entities in the same part. If the NODE_RANK entity kernel changes the state of the
 /// elements, then the order of the kernels will matter.
 template <typename RegistryIdentifier>
-class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
+class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
   using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, RegistryIdentifier>;
   //@}
 
@@ -130,7 +130,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -139,7 +139,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethod<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<MetaKernelDispatcher<RegistryIdentifier>>(bulk_data_ptr, fixed_params);
   }

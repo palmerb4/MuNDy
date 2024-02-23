@@ -58,13 +58,13 @@ namespace utils {
 /// \tparam some_integer [in] An integer to differentiate this class from a different example meta method class with the
 /// same id.
 template <int registration_id, int some_integer = 0>
-class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
+class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
   using RegistrationType = int;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ExampleMetaMethod<registration_id, some_integer>>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ExampleMetaMethod<registration_id, some_integer>>;
   //@}
@@ -165,7 +165,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
   }
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static int get_registration_id() {
     get_registration_id_counter_++;
     return registration_id_;
@@ -175,7 +175,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethod<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     create_new_instance_counter_++;
     return std::make_shared<ExampleMetaMethod<registration_id, some_integer>>(bulk_data_ptr, fixed_params);

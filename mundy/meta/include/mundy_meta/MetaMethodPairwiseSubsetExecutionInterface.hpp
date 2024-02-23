@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_METAMETHOD_HPP_
-#define MUNDY_META_METAMETHOD_HPP_
+#ifndef MUNDY_META_METAMETHODPAIRWISESUBSETEXECUTIONINTERFACE_HPP_
+#define MUNDY_META_METAMETHODPAIRWISESUBSETEXECUTIONINTERFACE_HPP_
 
-/// \file MetaMethod.hpp
-/// \brief Declaration of the MetaMethod class
+/// \file MetaMethodPairwiseSubsetExecutionInterface.hpp
+/// \brief Declaration of the MetaMethodPairwiseSubsetExecutionInterface class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::unique_ptr
@@ -42,14 +42,21 @@ namespace mundy {
 
 namespace meta {
 
-/// \class MetaMethod
-/// \brief A virtual interface that defines the core functionality of a method--a class that acts on a subset of
-/// entities.
+/// \class MetaMethodPairwiseSubsetExecutionInterface
+/// \brief The execute interface for a meta method that acts on a subset of entities. The entities must reside within a
+/// valid part or parts and are passed into the method as a selector.
+///
+/// The design of all MetaMethods was chosen such that we could easily (and at runtime) switch between different
+/// techniques for implementing the core functionality of a method while allowing users to make their own custom
+/// implementations. This is why we use a virtual interface where all mutable and valid parameters are passed in via
+/// parameter lists. As such, while we allow MetaMethods to have any number of additional args passed to their execute
+/// function, this should be used sparingly. The primary way to pass in additional arguments is through the mutable and
+/// fixed parameter lists. Currently, the only difference between the API of meta methods is their execute interface.
 ///
 /// \tparam ReturnType The return type of the execute function.
 /// \tparam Args The types of the arguments to the execute function.
 template <typename ReturnType_t, typename... Args>
-class MetaMethod {
+class MetaMethodPairwiseSubsetExecutionInterface {
  public:
   //! \name Typedefs
   //@{
@@ -77,15 +84,17 @@ class MetaMethod {
   //@{
 
   /// \brief Run the method's core calculation.
-  /// For example, calculate the force on each entity in the given selector.
-  /// \param input_selector The selector that defines the entities to act on.
-  /// \param args The additional arguments to the kernel's core calculation.
-  virtual ReturnType execute(const stk::mesh::Selector &input_selector, Args... args) = 0;
+  /// For example, calculate the first that entities in the first selector exert on entities in the second selector.
+  /// \param first_input_selector The first selector that defines the entities to act on.
+  /// \param second_input_selector The second selector that defines the entities to act on.
+  /// \param args The additional arguments to the methods's core calculation.
+  virtual ReturnType execute(const stk::mesh::Selector &first_input_selector,
+                             const stk::mesh::Selector &second_input_selector, Args... args) = 0;
   //@}
-};  // MetaMethod
+};  // MetaMethodPairwiseSubsetExecutionInterface
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_METAMETHOD_HPP_
+#endif  // MUNDY_META_METAMETHODPAIRWISESUBSETEXECUTIONINTERFACE_HPP_

@@ -16,7 +16,7 @@ Functions will take in Teuchos::ParameterList to specify their fields.
 This is the namespace/class/function hierarchy:
 mundy::
   meta::  (meta programming methods and pre-commit routines) 
-    MetaMethod  (interface that forces all mundy methods to output their required fields/part parameters. most of these params will come from the standardized defaults that we produce.) 
+    MetaMethodSubsetExecutionInterface  (interface that forces all mundy methods to output their required fields/part parameters. most of these params will come from the standardized defaults that we produce.) 
     MetaFieldRequirements  (contains the necessary information to build a field)
     MetaPartRequirements  (contains the necessary information to build a part with known fields)
     MetaHierarchyParams  (contains the necessary information to build a hierarchy of parts and fields)
@@ -61,7 +61,7 @@ mundy::
 All of Mundy + strategy implementations    
 mundy::
   meta::
-    MetaMethod
+    MetaMethodSubsetExecutionInterface
     FieldRequirements
     PartRequirements
     HierarchyParams

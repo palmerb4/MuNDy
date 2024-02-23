@@ -45,7 +45,7 @@
 #include <mundy_mesh/MetaData.hpp>                           // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>                        // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>                         // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>                         // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                       // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>                   // for mundy::meta::PartRequirements
 
@@ -59,7 +59,7 @@ namespace techniques {
 
 /// \class NonSmoothLCP
 /// \brief Method for resolving constraints using a non-smooth linear complementarity problem (LCP) formulation.
-class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
+class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
@@ -70,7 +70,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
   // compile-time strings via mundy::core::Stringliteral.
 
   using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurConstraintForcingMethodFactory = mundy::meta::MetaMethodFactory<void, NonSmoothLCP>;
   using OurConstraintProjectionMethodFactory = mundy::meta::MetaMethodFactory<void, NonSmoothLCP>;
   using OurConstraintResidualMethodFactory = mundy::meta::MetaMethodFactory<double, NonSmoothLCP>;
@@ -337,7 +337,7 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<NonSmoothLCP>(bulk_data_ptr, fixed_params);
   }
@@ -392,16 +392,16 @@ class NonSmoothLCP : public mundy::meta::MetaMethod<void> {
   stk::mesh::Field<double> *element_constraint_violation_field_ptr_ = nullptr;
 
   /// \brief Method for computing the force induced by the constraints on their nodes.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> compute_constraint_forcing_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_constraint_forcing_method_ptr_;
 
   /// \brief Method for projecting the constraints onto the feasible solution space.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> compute_constraint_projection_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_constraint_projection_method_ptr_;
 
   /// \brief Method for computing the global residual quantifying the constraint violation.
-  std::shared_ptr<mundy::meta::MetaMethod<double>> compute_constraint_residual_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<double>> compute_constraint_residual_method_ptr_;
 
   /// \brief Method for computing the amount of violation of all constraints.
-  std::shared_ptr<mundy::meta::MetaMethod<void>> compute_constraint_violation_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_constraint_violation_method_ptr_;
   //@}
 };  // NonSmoothLCP
 

@@ -127,7 +127,7 @@ mundy::meta
   HasRequirementsAndIsRegisterable
   MetaFactory
   MetaRegistry
-  MetaMethod
+  MetaMethodSubsetExecutionInterface
   MetaMethodDispatcher
   MetaKernel
   MetaKWayKernel
@@ -154,8 +154,8 @@ Methodology: TLDR We're using a data-centric command design patter to achieve a 
     Mundy encode its requirements for the structure of the mesh. For example, the ComputeAABB method for a Sphere requires that the mesh have a part named SPHERE with a position, radius, and aabb field. With this 
     design, you only pay for what you use; if ComputeAABB isn't enabled then there is likely no reason to store aabb on the sphere, but the second you enable ComputeAABB, the aabb field is automatically added to the
     sphere part during mesh construction. In this regard, Mundy used a method-centric functional programming design.
-  - When we refer to a "method" we typically mean a MetaMethod or a MetaKernel with a district static interface that encodes that method or kernel's requirements. A MetaMethod acts on a subset of the mesh, whereas a 
-    MetaKernel acts on a fixed number of entities in the mesh. For example, ComputeAABB is a MetaMethod that can act on a group of spheres or ellipsoids, whereas ComputeAABB::kernels::Sphere is a MetaKernel that acts 
+  - When we refer to a "method" we typically mean a MetaMethodSubsetExecutionInterface or a MetaKernel with a district static interface that encodes that method or kernel's requirements. A MetaMethodSubsetExecutionInterface acts on a subset of the mesh, whereas a 
+    MetaKernel acts on a fixed number of entities in the mesh. For example, ComputeAABB is a MetaMethodSubsetExecutionInterface that can act on a group of spheres or ellipsoids, whereas ComputeAABB::kernels::Sphere is a MetaKernel that acts 
     on a single sphere within the SPHERE part. We make this distinction to allow for efficient GPU operations where we can launch a single kernel to act on a group of entities and have different teams act on 
     contiguous subsets of those entities. 
   - Unlike object oriented programming, we avoid performance losses caused by dynamic dispatch or non-coherent memory access as much as possible. Instead, to perform operations like ComputeAABB, which differ from 
@@ -165,7 +165,7 @@ Methodology: TLDR We're using a data-centric command design patter to achieve a 
     blocks of entities within the intersection. This is ideal for SIMD optimized operations on the CPU and GPU.
   - To achieve flexibility and extensibility with respect to the creation of MetaMethods and MetaKernels, Mundy uses a hierarchical static factory design where each level of the hierarchy represents a set of methods,
     techniques, or computational operations. For example, we may eventually decide that ComputeAABB should offer two techniques: one where users can add a fixed buffer distance to their bounding box and another 
-    where the buffer distance is computed based on the velocity of the particles. To achieve this, we would can give ComputeAABB a static factory and register with that factory a MetaMethod for each technique. Users 
+    where the buffer distance is computed based on the velocity of the particles. To achieve this, we would can give ComputeAABB a static factory and register with that factory a MetaMethodSubsetExecutionInterface for each technique. Users 
     can then use a runtime flag to choose which method to use. ComputeAABB won't directly know about the methods, but will instead call the factory to interact with the method that it should use. This allows us 
     to add new methods without modifying the existing code base. If a user wants to add their own technique, they need only register it with ComputeAABB's static factory. Mundy consists of a hierarchy of such factories, 
     each of which is responsible for a set of methods, techniques, or computational operations.

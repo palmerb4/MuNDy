@@ -53,7 +53,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaMethod.hpp>            // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>            // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
@@ -80,7 +80,7 @@ class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler> {
   //@{
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -89,7 +89,7 @@ class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr,
       const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     return std::make_shared<NodeEuler>(bulk_data_ptr, fixed_params);
@@ -338,7 +338,7 @@ class ComputeBrownianVelocity : public mundy::meta::MetaKernelDispatcher<Compute
   //@{
 
   /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
+  /// MetaMethodSubsetExecutionInterface.
   static RegistrationType get_registration_id() {
     return registration_id_;
   }
@@ -347,7 +347,7 @@ class ComputeBrownianVelocity : public mundy::meta::MetaKernelDispatcher<Compute
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr,
       const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     return std::make_shared<ComputeBrownianVelocity>(bulk_data_ptr, fixed_params);

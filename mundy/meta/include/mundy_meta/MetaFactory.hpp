@@ -45,7 +45,7 @@
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/MeshRequirements.hpp>                      // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaKernel.hpp>                            // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>                            // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>                            // for mundy::meta::MetaMethodSubsetExecutionInterface
 
 namespace mundy {
 
@@ -338,7 +338,7 @@ class MetaFactory {
 
 /// \brief Partial specialization for \c MetaMethods.
 template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaMethodFactory = MetaFactory<MetaMethod<ReturnType>, RegistryIdentifier, RegistrationType>;
+using MetaMethodFactory = MetaFactory<MetaMethodSubsetExecutionInterface<ReturnType>, RegistryIdentifier, RegistrationType>;
 
 /// \brief Partial specialization for global \c MetaMethods.
 template <typename ReturnType, typename RegistrationType = std::string_view>
