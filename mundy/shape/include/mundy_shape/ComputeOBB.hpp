@@ -31,11 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::GlobalMetaMethodFactory
-#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
+#include <mundy_mesh/BulkData.hpp>                     // for mundy::mesh::BulkData
+#include <mundy_meta/MetaFactory.hpp>                  // for mundy::meta::GlobalMetaMethodFactory
+#include <mundy_meta/MetaKernelDispatcher.hpp>         // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>                 // for MUNDY_REGISTER_METACLASS
 #include <mundy_shape/compute_obb/kernels/Sphere.hpp>  // for mundy::shape::compute_obb::kernels::Sphere
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 
@@ -43,7 +44,8 @@ namespace shape {
 
 /// \class ComputeOBB
 /// \brief Method for computing the object aligned boundary box of different parts.
-class ComputeOBB : public mundy::meta::MetaKernelDispatcher<ComputeOBB> {
+class ComputeOBB
+    : public mundy::meta::MetaKernelDispatcher<ComputeOBB, mundy::core::make_string_literal("COMPUTE_OBB")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -52,35 +54,38 @@ class ComputeOBB : public mundy::meta::MetaKernelDispatcher<ComputeOBB> {
   ComputeOBB() = delete;
 
   /// \brief Constructor
-  ComputeOBB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  ComputeOBB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaKernelDispatcher<ComputeOBB, mundy::core::make_string_literal("COMPUTE_OBB")>(bulk_data_ptr,
+                                                                                                       fixed_params) {
+  }
   //@}
 
-  //! \name MetaFactory static interface implementation
+  //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
+  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("element_obb_field_name", std::string(default_element_obb_field_name_),
+                               "Element field within which the output object-aligned boundary boxes will be written.");
+    return default_parameter_list;
   }
 
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<ComputeOBB>(bulk_data_ptr, fixed_params);
+  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("buffer_distance", default_buffer_distance_,
+                               "Buffer distance to be added to the object-aligned boundary box.");
+    return default_parameter_list;
   }
   //@}
 
  private:
-  //! \name Internal members
+  //! \name Default parameters
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "COMPUTE_OBB";
+  static constexpr double default_buffer_distance_ = 0.0;
+  static constexpr std::string_view default_element_obb_field_name_ = "ELEMENT_OBB";
   //@}
 };  // ComputeOBB
 

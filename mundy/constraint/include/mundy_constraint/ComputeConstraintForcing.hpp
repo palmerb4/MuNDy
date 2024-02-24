@@ -31,10 +31,11 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                                       // for mundy::mesh::BulkData
-#include <mundy_meta/MetaKernelDispatcher.hpp>                           // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_constraint/compute_constraint_forcing/kernels/Collision.hpp>
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 
@@ -42,7 +43,9 @@ namespace constraint {
 
 /// \class ComputeConstraintForcing
 /// \brief Method for computing the force exerted by a constraint onto its nodes.
-class ComputeConstraintForcing : public mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing> {
+class ComputeConstraintForcing
+    : public mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
+                                               mundy::core::make_string_literal("COMPUTE_CONSTRAINT_FORCING")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -51,42 +54,43 @@ class ComputeConstraintForcing : public mundy::meta::MetaKernelDispatcher<Comput
   ComputeConstraintForcing() = delete;
 
   /// \brief Constructor
-  ComputeConstraintForcing(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  ComputeConstraintForcing(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
+                                          mundy::core::make_string_literal("COMPUTE_CONSTRAINT_FORCING")>(
+            bulk_data_ptr, fixed_params) {
+  }
   //@}
 
-  //! \name MetaFactory static interface implementation
+  //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
+  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("node_constraint_force_field_name",
+                               std::string(default_constraint_node_force_field_name_),
+                               "Name of the node field containing the constraint force.");
+    return default_parameter_list;
   }
 
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<ComputeConstraintForcing>(bulk_data_ptr, fixed_params);
+  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
   }
   //@}
 
  private:
-  //! \name Internal members
+  //! \name Default parameters
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "COMPUTE_CONSTRAINT_FORCING";
+  static constexpr std::string_view default_constraint_node_force_field_name_ = "NODE_CONSTRAINT_FORCE";
   //@}
 };  // ComputeConstraintForcing
 
 }  // namespace constraint
 
 }  // namespace mundy
-
 
 //! \name Registration
 //@{
@@ -95,6 +99,5 @@ class ComputeConstraintForcing : public mundy::meta::MetaKernelDispatcher<Comput
 MUNDY_REGISTER_METACLASS(mundy::constraint::compute_constraint_forcing::kernels::Collision,
                          mundy::constraint::ComputeConstraintForcing::OurKernelFactory)
 //@}
-
 
 #endif  // MUNDY_CONSTRAINT_COMPUTECONSTRAINTFORCING_HPP_

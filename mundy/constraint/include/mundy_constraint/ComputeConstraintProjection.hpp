@@ -31,10 +31,11 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                                       // for mundy::mesh::BulkData
-#include <mundy_meta/MetaKernelDispatcher.hpp>                           // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
 #include <mundy_constraint/compute_constraint_projection/kernels/Collision.hpp>  // for mundy::constraint::...::Collision
+#include <mundy_mesh/BulkData.hpp>                                               // for mundy::mesh::BulkData
+#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 
@@ -42,7 +43,9 @@ namespace constraint {
 
 /// \class ComputeConstraintProjection
 /// \brief Method for computing the projection of the constraint Lagrange multiplier onto its feasible set.
-class ComputeConstraintProjection : public mundy::meta::MetaKernelDispatcher<ComputeConstraintProjection> {
+class ComputeConstraintProjection
+    : public mundy::meta::MetaKernelDispatcher<ComputeConstraintProjection,
+                                               mundy::core::make_string_literal("COMPUTE_CONSTRAINT_PROJECTION")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -51,35 +54,27 @@ class ComputeConstraintProjection : public mundy::meta::MetaKernelDispatcher<Com
   ComputeConstraintProjection() = delete;
 
   /// \brief Constructor
-  ComputeConstraintProjection(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
-  //@}
-
-  //! \name MetaFactory static interface implementation
-  //@{
-
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
-
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<ComputeConstraintProjection>(bulk_data_ptr, fixed_params);
+  ComputeConstraintProjection(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaKernelDispatcher<ComputeConstraintProjection,
+                                          mundy::core::make_string_literal("COMPUTE_CONSTRAINT_PROJECTION")>(
+            bulk_data_ptr, fixed_params) {
   }
   //@}
 
- private:
-  //! \name Internal members
+  //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "COMPUTE_CONSTRAINT_PROJECTION";
+  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
   //@}
 };  // ComputeConstraintProjection
 

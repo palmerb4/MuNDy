@@ -47,21 +47,22 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 
 // Mundy libs
 #include <mundy_agent/AgentHierarchy.hpp>       // for mundy::agent::AgentHierarchy
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>          // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>              // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>            // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shape/PerformRegistration.hpp>  // for mundy::shape::perform_registration
 #include <mundy_shape/shapes/Spheres.hpp>       // for mundy::shape::shapes::Spheres
 
-class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler> {
+class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::core::make_string_literal("NODE_EULER")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -72,37 +73,37 @@ class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler> {
   /// \brief Constructor
   NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr,
             const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
-      : mundy::meta::MetaKernelDispatcher<NodeEuler>(bulk_data_ptr, fixed_params) {
+      : mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::core::make_string_literal("NODE_EULER")>(bulk_data_ptr,
+                                                                                                     fixed_params) {
   }
   //@}
 
-  //! \name MetaFactory static interface implementation
+  //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
+  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set(
+        "node_velocity_field_name", std::string(default_node_velocity_field_name_),
+        "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
+    return default_parameter_list;
   }
 
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr,
-      const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
-    return std::make_shared<NodeEuler>(bulk_data_ptr, fixed_params);
+  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    return default_parameter_list;
   }
   //@}
 
  private:
-  //! \name Internal members
+  //! \name Default parameters
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "NODE_EULER";
+  static inline double default_time_step_size_ = 0.0;
+  static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   //@}
 };  // NodeEuler
 
@@ -319,7 +320,9 @@ MUNDY_REGISTER_METACLASS(NodeEulerSphere, NodeEuler::OurKernelFactory)
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
 
-class ComputeBrownianVelocity : public mundy::meta::MetaKernelDispatcher<ComputeBrownianVelocity> {
+class ComputeBrownianVelocity
+    : public mundy::meta::MetaKernelDispatcher<ComputeBrownianVelocity,
+                                               mundy::core::make_string_literal("COMPUTE_BROWNIAN_VELOCITY")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -330,37 +333,47 @@ class ComputeBrownianVelocity : public mundy::meta::MetaKernelDispatcher<Compute
   /// \brief Constructor
   ComputeBrownianVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
                           const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
-      : mundy::meta::MetaKernelDispatcher<ComputeBrownianVelocity>(bulk_data_ptr, fixed_params) {
+      : mundy::meta::MetaKernelDispatcher<ComputeBrownianVelocity,
+                                          mundy::core::make_string_literal("COMPUTE_BROWNIAN_VELOCITY")>(bulk_data_ptr,
+                                                                                                         fixed_params) {
   }
   //@}
 
-  //! \name MetaFactory static interface implementation
+  //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
+  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("node_brownian_velocity_field_name",
+                               std::string(default_node_brownian_velocity_field_name_),
+                               "Name of the node broenian velocity field.");
+    default_parameter_list.set("node_rng_counter_field_name", std::string(default_node_rng_counter_field_name_),
+                               "Name of the node rng counter for generating new parallel streams.");
+    return default_parameter_list;
   }
 
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr,
-      const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
-    return std::make_shared<ComputeBrownianVelocity>(bulk_data_ptr, fixed_params);
+  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    default_parameter_list.set("alpha", default_alpha_,
+                               "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
+    default_parameter_list.set("beta", default_beta_,
+                               "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
+    return default_parameter_list;
   }
   //@}
 
  private:
-  //! \name Internal members
+  //! \name Default parameters
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "COMPUTE_BROWNIAN_VELOCITY";
+  static inline double default_time_step_size_ = 0.0;
+  static constexpr double default_alpha_ = 1.0;
+  static constexpr double default_beta_ = 0.0;
+  static constexpr std::string_view default_node_brownian_velocity_field_name_ = "NODE_BROWNIAN_VELOCITY";
+  static constexpr std::string_view default_node_rng_counter_field_name_ = "NODE_RNG_COUNTER";
   //@}
 };  // ComputeBrownianVelocity
 
