@@ -136,7 +136,7 @@ class MetaFactory {
   }
 
   /// \brief Get the set of all registered keys.
-  static std::set<RegistrationType> get_keys() {
+  static std::vector<RegistrationType> get_keys() {
     return get_internal_keys();
   }
 
@@ -254,7 +254,7 @@ class MetaFactory {
 
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " already exists.");
-    get_internal_keys().insert(key);
+    get_internal_keys().push_back(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::get_mesh_requirements));
     get_valid_fixed_params_generator_map().insert(
@@ -287,7 +287,7 @@ class MetaFactory {
   //@{
 
   /// \brief A set of keys.
-  using SetOfKeys = std::set<RegistrationType>;
+  using SetOfKeys = std::vector<RegistrationType>;
 
   /// \brief A map from key to a function for generating a new class.
   using InstanceGeneratorMap = std::map<RegistrationType, NewClassGenerator>;

@@ -87,7 +87,7 @@ concept HasGetValidForwardedKernelMutableParams = requires(T t) {
 /// the method will accept and forward to all kernels. As such, we throw if the kernels don't have these parameters in
 /// their valid fixed/mutable params.
 template <typename DerivedType, mundy::core::StringLiteral registration_id_wrapper>
-  requires HasGetValidForwardedKernelFixedParams<DerivedType> && HasGetValidForwardedKernelMutableParams<DerivedType>
+  // requires HasGetValidForwardedKernelFixedParams<DerivedType> && HasGetValidForwardedKernelMutableParams<DerivedType>
 class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
@@ -95,7 +95,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
 
   using RegistrationType = std::string_view;
   using PolymorphicBaseType = DerivedType;
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, registration_id_wrapper>;
+  using OurKernelFactory = mundy::meta::MetaKernelFactory<
+      void, MetaKernelDispatcher<DerivedType, registration_id_wrapper>>;  // TODO(palmerb4): Pass in the
+                                                                          // registration_id_wrapper as the registration id.
   //@}
 
   //! \name Constructors and destructor
@@ -129,12 +131,13 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
     // params within the kernel sublists. We'll loop over all parameters that aren't in the kernel sublists and forward
     // them to the kernels.
     for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
-      const std::string &name = valid_fixed_params.name(i);
-      if (!valid_fixed_params.isSublist(name)) {
+      const std::string &param_name = valid_fixed_params.name(i);
+      const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
+      if (!valid_fixed_params.isSublist(param_name)) {
         for (int j = 0; j < OurKernelFactory::num_registered_classes(); j++) {
-          const std::string kernel_name = OurKernelFactory::get_keys()[j];
+          const std::string kernel_name = std::string(OurKernelFactory::get_keys()[j]);
           Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
-          kernel_params.set(name, valid_fixed_params.getAny(name));
+          kernel_params.setEntry(param_name, param_entry);
         }
       }
     }
@@ -154,7 +157,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     const Teuchos::ParameterList valid_forwarded_kernel_fixed_params =
-        OurKernelFactory::get_valid_forwarded_kernel_fixed_params();
+        DerivedType::get_valid_forwarded_kernel_fixed_params();
     return get_valid_enabled_kernels_and_kernel_params(
         [&valid_forwarded_kernel_fixed_params](const std::string &kernel_name) {
           Teuchos::ParameterList kernel_params = OurKernelFactory::get_valid_fixed_params(kernel_name);
@@ -175,7 +178,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
     const Teuchos::ParameterList valid_forwarded_kernel_mutable_params =
-        OurKernelFactory::get_valid_forwarded_kernel_mutable_params();
+        DerivedType::get_valid_forwarded_kernel_mutable_params();
     return get_valid_enabled_kernels_and_kernel_params(
         [&valid_forwarded_kernel_mutable_params](const std::string &kernel_name) {
           Teuchos::ParameterList kernel_params = OurKernelFactory::get_valid_mutable_params(kernel_name);
