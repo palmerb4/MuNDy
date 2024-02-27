@@ -59,7 +59,6 @@ class Collision : public mundy::meta::MetaKernel<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
 
@@ -142,12 +141,6 @@ class Collision : public mundy::meta::MetaKernel<void> {
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-  }
-
-  /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaTwoWayKernelRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.

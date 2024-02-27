@@ -32,10 +32,10 @@
 
 // Mundy libs
 #include <mundy_constraint/compute_constraint_forcing/kernels/Collision.hpp>
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
-#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 
@@ -45,7 +45,7 @@ namespace constraint {
 /// \brief Method for computing the force exerted by a constraint onto its nodes.
 class ComputeConstraintForcing
     : public mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
-                                               mundy::core::make_string_literal("COMPUTE_CONSTRAINT_FORCING")> {
+                                               mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCING")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -56,7 +56,7 @@ class ComputeConstraintForcing
   /// \brief Constructor
   ComputeConstraintForcing(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
       : mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
-                                          mundy::core::make_string_literal("COMPUTE_CONSTRAINT_FORCING")>(
+                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCING")>(
             bulk_data_ptr, fixed_params) {
   }
   //@}
@@ -96,7 +96,8 @@ class ComputeConstraintForcing
 //@{
 
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS(mundy::constraint::compute_constraint_forcing::kernels::Collision,
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_FORCING",
+                         mundy::constraint::compute_constraint_forcing::kernels::Collision,
                          mundy::constraint::ComputeConstraintForcing::OurKernelFactory)
 //@}
 

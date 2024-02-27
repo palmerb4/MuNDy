@@ -60,7 +60,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
 
@@ -133,12 +132,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     default_parameter_list.set("buffer_distance", default_buffer_distance_,
                                "Buffer distance to be added to the bounding radius.");
     return default_parameter_list;
-  }
-
-  /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.

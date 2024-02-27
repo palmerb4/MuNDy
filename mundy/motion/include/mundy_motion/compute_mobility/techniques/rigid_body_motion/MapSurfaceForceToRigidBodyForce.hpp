@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::GlobalMetaMethodFactory
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_surface_force_to_rigid_body_force/kernels/Sphere.hpp>  // for mundy::motion::...::kernels::Sphere
@@ -52,7 +51,7 @@ namespace rigid_body_motion {
 /// \brief Method for mapping the surface forces on a rigid body to get the total force and torque at a known location.
 class MapSurfaceForceToRigidBodyForce
     : public mundy::meta::MetaKernelDispatcher<
-          MapSurfaceForceToRigidBodyForce, mundy::core::make_string_literal("MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE")> {
+          MapSurfaceForceToRigidBodyForce, mundy::meta::make_registration_string("MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -64,7 +63,7 @@ class MapSurfaceForceToRigidBodyForce
   MapSurfaceForceToRigidBodyForce(mundy::mesh::BulkData *const bulk_data_ptr,
                                   const Teuchos::ParameterList &fixed_params)
       : mundy::meta::MetaKernelDispatcher<MapSurfaceForceToRigidBodyForce,
-                                          mundy::core::make_string_literal("MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE")>(
+                                          mundy::meta::make_registration_string("MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE")>(
             bulk_data_ptr, fixed_params) {
   }
   //@}
@@ -112,7 +111,7 @@ class MapSurfaceForceToRigidBodyForce
 //@{
 
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS(
+MUNDY_REGISTER_METACLASS("SPHERE",
     mundy::motion::compute_mobility::techniques::rigid_body_motion::map_surface_force_to_rigid_body_force::kernels::
         Sphere,
     mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce::OurKernelFactory)

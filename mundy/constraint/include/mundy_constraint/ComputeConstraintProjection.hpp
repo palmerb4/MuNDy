@@ -45,7 +45,7 @@ namespace constraint {
 /// \brief Method for computing the projection of the constraint Lagrange multiplier onto its feasible set.
 class ComputeConstraintProjection
     : public mundy::meta::MetaKernelDispatcher<ComputeConstraintProjection,
-                                               mundy::core::make_string_literal("COMPUTE_CONSTRAINT_PROJECTION")> {
+                                               mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_PROJECTION")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -56,7 +56,7 @@ class ComputeConstraintProjection
   /// \brief Constructor
   ComputeConstraintProjection(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
       : mundy::meta::MetaKernelDispatcher<ComputeConstraintProjection,
-                                          mundy::core::make_string_literal("COMPUTE_CONSTRAINT_PROJECTION")>(
+                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_PROJECTION")>(
             bulk_data_ptr, fixed_params) {
   }
   //@}
@@ -85,7 +85,7 @@ class ComputeConstraintProjection
 //! \name Registration
 //@{
 
-MUNDY_REGISTER_METACLASS(mundy::constraint::compute_constraint_projection::kernels::Collision,
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_PROJECTION", mundy::constraint::compute_constraint_projection::kernels::Collision,
                          mundy::constraint::ComputeConstraintProjection::OurKernelFactory)
 //@}
 

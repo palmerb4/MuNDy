@@ -100,36 +100,6 @@ struct HasMeshRequirementsAndIsRegisterable {
   template <typename>
   static auto check_get_valid_mutable_params(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c RegistrationType type alias, \c std::false_type otherwise.
-  template <typename U>
-  static auto check_registration_type([[maybe_unused]] int unused)
-      -> decltype(std::declval<typename U::RegistrationType>(), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c RegistrationType type alias.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c RegistrationType type alias.
-  template <typename>
-  static auto check_registration_type(...) -> std::false_type;
-
-  /// \brief Helper for checking if \c U has a \c get_registration_id function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c get_registration_id function, \c std::false_type otherwise.
-  template <typename U>
-  static auto check_get_registration_id([[maybe_unused]] int unused)
-      -> decltype(U::get_registration_id(), std::true_type{});
-
-  /// \brief Helper for checking if \c U has a \c get_registration_id function.
-  /// \tparam U The type to check.
-  /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c get_registration_id function.
-  template <typename>
-  static auto check_get_registration_id(...) -> std::false_type;
-
   /// \brief Helper for checking if \c U has a \c PolymorphicBaseType type alias.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
@@ -202,26 +172,6 @@ struct HasMeshRequirementsAndIsRegisterable {
       decltype(check_get_valid_mutable_params<T>(0))::value &&
       std::is_same_v<decltype(T::get_valid_mutable_params()), Teuchos::ParameterList>;
 
-  /// \brief Check for the existence of a \c RegistrationType type alias.
-  /// \return \c true if \c T has a \c RegistrationType type alias, \c false otherwise.
-  ///
-  /// The specific signature of the \c RegistrationType type alias is:
-  /// \code
-  /// T::RegistrationType
-  /// \endcode
-  static constexpr bool has_registration_type = decltype(check_registration_type<T>(0))::value;
-
-  /// \brief Check for the existence of a \c get_registration_id function.
-  /// \return \c true if \c T has a \c get_registration_id function, \c false otherwise.
-  ///
-  /// The specific signature of the \c get_registration_id function is:
-  /// \code
-  /// static RegistrationType get_registration_id();
-  /// \endcode
-  static constexpr bool has_get_registration_id =
-      decltype(check_get_registration_id<T>(0))::value && decltype(check_registration_type<T>(0))::value &&
-      std::is_same_v<decltype(T::get_registration_id()), typename T::RegistrationType>;
-
   /// \brief Check for the existence of a \c PolymorphicBaseType type alias.
   /// \return \c true if \c T has a \c PolymorphicBaseType type alias, \c false otherwise.
   ///
@@ -248,8 +198,7 @@ struct HasMeshRequirementsAndIsRegisterable {
   /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
   /// false otherwise.
   static constexpr bool value = has_get_mesh_requirements && has_get_valid_fixed_params &&
-                                has_get_valid_mutable_params && has_registration_type && has_get_registration_id &&
-                                has_polymorphic_base_type && has_create_new_instance;
+                                has_get_valid_mutable_params && has_polymorphic_base_type && has_create_new_instance;
 };  // HasMeshRequirementsAndIsRegisterable
 
 }  // namespace meta

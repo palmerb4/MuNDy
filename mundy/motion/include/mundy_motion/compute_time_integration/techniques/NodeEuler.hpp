@@ -60,7 +60,6 @@ class NodeEuler : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   //@}
 
@@ -162,12 +161,6 @@ class NodeEuler : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
     } else {
       mutable_params_ptr->set("time_step_size", default_time_step_size_, "The numerical timestep size.");
     }
-  }
-
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.

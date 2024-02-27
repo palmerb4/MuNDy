@@ -29,11 +29,11 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
-#include <mundy_core/attribute_unused.hpp>  // for MUNDY_ATTRIBUTE_UNUSED
-#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
-#include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory
-#include <mundy_meta/MetaKernel.hpp>   // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>   // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_core/attribute_unused.hpp>                    // for MUNDY_ATTRIBUTE_UNUSED
+#include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaMethodFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 
 namespace mundy {
 
@@ -61,10 +61,11 @@ struct MetaRegistry {
 
 }  // namespace mundy
 
-/// \brief A helper macro for checking if a \c MetaMethodSubsetExecutionInterface has been registered with the \c MetaMethodFactory.
+/// \brief A helper macro for checking if a \c MetaMethodSubsetExecutionInterface has been registered with the \c
+/// MetaMethodFactory.
 ///
-/// This macro is used to check if a \c MetaMethodSubsetExecutionInterface has been registered with the \c MetaMethodFactory. The macro should
-/// be used in the following way:
+/// This macro is used to check if a \c MetaMethodSubsetExecutionInterface has been registered with the \c
+/// MetaMethodFactory. The macro should be used in the following way:
 ///
 /// \code{.cpp}
 /// MUNDY_IS_REGISTERED(ClassToCheck, FactoryToCheckWith)
@@ -81,8 +82,8 @@ struct MetaRegistry {
 /// \c MUNDY_IS_REGISTERED does not create a new definition of \c is_registered, thereby avoiding multiple definition
 /// errors.
 ///
-/// \param ClassToCheck A class derived from \c MetaMethodSubsetExecutionInterface that we wish to check if it has been registered.
-/// \param FactoryToCheckWith The \c MetaMethodFactory to check if the class has been registered with.
+/// \param ClassToCheck A class derived from \c MetaMethodSubsetExecutionInterface that we wish to check if it has been
+/// registered. \param FactoryToCheckWith The \c MetaMethodFactory to check if the class has been registered with.
 #define MUNDY_IS_REGISTERED(ClassToCheck, ... /* FactoryToCheckWith */)         \
   ([]() -> bool {                                                               \
     return mundy::meta::MetaRegistry<ClassToCheck, __VA_ARGS__>::is_registered; \
@@ -90,11 +91,11 @@ struct MetaRegistry {
 
 /// @brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
 ///
-/// This macro is used to register a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory. The macro should be
-/// used in the following way:
+/// This macro is used to register a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory. The macro
+/// should be used in the following way:
 ///
 /// \code{.cpp}
-/// MUNDY_REGISTER_METACLASS(ClassToRegister, FactoryToRegisterWith)
+/// MUNDY_REGISTER_METACLASS(Key, ClassToRegister, FactoryToRegisterWith)
 /// \endcode
 ///
 /// There are some important notes about proper use of this macro:
@@ -121,29 +122,28 @@ struct MetaRegistry {
 /// that if two classes are registered with the same identifier, it is not guaranteed which one will be registered
 /// first.
 ///
-/// As long as these points are followed, the registration of MetaClass subclasses should occur before main() starts.
+/// - No commas within the key: The key should not contain any commas, as this will cause the macro to interpret the
+/// key as multiple arguments. I see absolutely no reason why a key would need to contain a comma, so this should not be
+/// an issue.
 ///
-/// \note To anyone reading this code, it may seem like the is_registered variable is unused. However, this is not the
-/// case. When the program is started, one of the first steps is to initialize static objects. Even if is_registered
-/// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
-///
-/// \note The second argument to this macro is supposed to be the \c MetaMethodFactory that the class should be
+/// \note The third argument to this macro is supposed to be the \c MetaMethodFactory that the class should be
 /// registered with. The reason we use the weird "... /* FactoryToRegisterWith */" syntax is because we want to allow
 /// FactoryToRegisterWith to potentially be a templated class with multiple template arguments. In this case, the C++
 /// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
 /// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
 /// together into the desired \c FactoryToRegisterWith using \c __VA_ARGS__.
 ///
+/// \param Key The key to register the class with. This key should be unique within the \c MetaMethodFactory.
 /// \param ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
-#define MUNDY_REGISTER_METACLASS(ClassToRegister, ... /* FactoryToRegisterWith */)                                 \
-  namespace mundy {                                                                                                \
-  namespace meta {                                                                                                 \
-  template <>                                                                                                      \
-  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                              \
-    static inline volatile const bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(); \
-  };                                                                                                               \
-  }                                                                                                                \
+#define MUNDY_REGISTER_METACLASS(Key, ClassToRegister, ... /* FactoryToRegisterWith */)                               \
+  namespace mundy {                                                                                                   \
+  namespace meta {                                                                                                    \
+  template <>                                                                                                         \
+  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                                 \
+    static inline volatile const bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(Key); \
+  };                                                                                                                  \
+  }                                                                                                                   \
   }
 
 #endif  // MUNDY_META_METAREGISTRY_HPP_

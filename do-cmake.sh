@@ -21,7 +21,7 @@ cmake \
 -DMundy_ENABLE_MundyConstraint=OFF \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyIo=OFF \
--DMundy_ENABLE_MundyLinker=OFF \
+-DMundy_ENABLE_MundyLinker=ON \
 -DMundy_ENABLE_MundyMath=ON \
 -DMundy_ENABLE_MundyMesh=ON \
 -DMundy_ENABLE_MundyMeta=ON \

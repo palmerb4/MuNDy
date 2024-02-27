@@ -57,7 +57,6 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethodSubsetExecutionI
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<double>;
   //@}
 
@@ -118,12 +117,6 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethodSubsetExecutionI
   /// \brief Validate the mutable parameters and use defaults for unset parameters.
   static void validate_mutable_parameters_and_set_defaults(
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
-  }
-
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.

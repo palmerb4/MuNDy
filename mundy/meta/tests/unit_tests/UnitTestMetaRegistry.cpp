@@ -53,24 +53,19 @@ namespace meta {
 
 namespace {
 
-// MetaRegistry has a fascinating, albeit odd design. It is designed to automatically register classes derived from
-// \c HasMeshRequirementsAndIsRegisterable with some \c MetaFactory. To do so, one simply inherits from MetaRegistry
-// with the appropriate template parameters. This class is rather abstract but allows us to use partial specialization
-// to generate many different registries without duplicating code. Here, we directly test MetaRegistry's functionality
-// and some of its partial specializations.
-
 //! \name MetaRegistry automatic registration tests
 //@{
-
-struct DummyRegistrationIdentifier {};  // Dummy registration identifier;
 
 TEST(MetaRegistry, AutoRegistration) {
   // Test that the MUNDY_REGISTER_METACLASS macro performed the registration with the MetaMethodFactory with a given
   // RegistrationIdentifier
-  using OurMetaMethodFactory = MetaMethodFactory<void, DummyRegistrationIdentifier, int>;
-  EXPECT_EQ(OurMetaMethodFactory::num_registered_classes(), 2);
-  EXPECT_TRUE(OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<1>::get_registration_id()));
-  EXPECT_TRUE(OurMetaMethodFactory::is_valid_key(mundy::meta::utils::ExampleMetaMethod<2>::get_registration_id()));
+  using OurTestMetaMethodFactory =
+      mundy::meta::MetaFactory<mundy::meta::utils::ExampleMetaMethod<>::PolymorphicBaseType,
+                              decltype(mundy::meta::make_registration_string("TEST_FACTORY")),
+                              mundy::meta::make_registration_string("TEST_FACTORY")>;
+  EXPECT_EQ(OurTestMetaMethodFactory::num_registered_classes(), 2);
+  EXPECT_TRUE(OurTestMetaMethodFactory::is_valid_key("KEY1"));
+  EXPECT_TRUE(OurTestMetaMethodFactory::is_valid_key("KEY2"));
 }
 //@}
 
@@ -80,12 +75,14 @@ TEST(MetaRegistry, AutoRegistration) {
 
 }  // namespace mundy
 
-// Registration shouldn't need to explicitly come before TEST, since it will be registered at compile time.
-
 // Register a class with the MetaMethodFactory with a given RegistrationIdentifier.
-MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<1>,
-                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);
+MUNDY_REGISTER_METACLASS("KEY1", mundy::meta::utils::ExampleMetaMethod<mundy::meta::make_registration_string("CLASS1")>,
+                         mundy::meta::MetaFactory<mundy::meta::utils::ExampleMetaMethod<>::PolymorphicBaseType,
+                              decltype(mundy::meta::make_registration_string("TEST_FACTORY")),
+                              mundy::meta::make_registration_string("TEST_FACTORY")>)
 
 // Register a different class with the same MetaMethodFactory with a given RegistrationIdentifier.
-MUNDY_REGISTER_METACLASS(mundy::meta::utils::ExampleMetaMethod<2>,
-                         mundy::meta::MetaMethodFactory<void, DummyRegistrationIdentifier, int>);
+MUNDY_REGISTER_METACLASS("KEY2", mundy::meta::utils::ExampleMetaMethod<mundy::meta::make_registration_string("CLASS2")>,
+                         mundy::meta::MetaFactory<mundy::meta::utils::ExampleMetaMethod<>::PolymorphicBaseType,
+                              decltype(mundy::meta::make_registration_string("TEST_FACTORY")),
+                              mundy::meta::make_registration_string("TEST_FACTORY")>)

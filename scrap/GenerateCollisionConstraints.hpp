@@ -67,7 +67,6 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethodSubsetExecuti
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurThreeWayKernelFactory = mundy::meta::MetaKWayKernelFactory<3, void, GenerateCollisionConstraints>;
   //@}
@@ -164,12 +163,6 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethodSubsetExecuti
         i++;
       }
     }
-  }
-
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.
@@ -297,11 +290,8 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethodSubsetExecuti
 //! \name Registration
 //@{
 
-/// @brief Register GenerateCollisionConstraints with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::GenerateCollisionConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
-
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS(mundy::constraint::generate_collision_constraints::kernels::CollisionSphereSphere,
+MUNDY_REGISTER_METACLASS("SPHERE_SPHERE", mundy::constraint::generate_collision_constraints::kernels::CollisionSphereSphere,
                          mundy::constraint::GenerateCollisionConstraints::OurThreeWayKernelFactory)
 //@}
 

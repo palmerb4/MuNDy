@@ -51,7 +51,7 @@ namespace rigid_body_motion {
 /// \brief Method for using rigid body motion about a known body point to compute the velocity at all surface points.
 class MapRigidBodyVelocityToSurfaceVelocity
     : public mundy::meta::MetaKernelDispatcher<MapRigidBodyVelocityToSurfaceVelocity,
-                                               mundy::core::make_string_literal(
+                                               mundy::meta::make_registration_string(
                                                    "MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY")> {
  public:
   //! \name Constructors and destructor
@@ -64,7 +64,7 @@ class MapRigidBodyVelocityToSurfaceVelocity
   MapRigidBodyVelocityToSurfaceVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
                                         const Teuchos::ParameterList &fixed_params)
       : mundy::meta::MetaKernelDispatcher<MapRigidBodyVelocityToSurfaceVelocity,
-                                          mundy::core::make_string_literal(
+                                          mundy::meta::make_registration_string(
                                               "MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY")>(bulk_data_ptr,
                                                                                               fixed_params) {
   }
@@ -113,7 +113,8 @@ class MapRigidBodyVelocityToSurfaceVelocity
 //@{
 
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::
+MUNDY_REGISTER_METACLASS("SPHERE",
+  mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_velocity_to_surface_velocity::kernels::Sphere,
                          mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              MapRigidBodyVelocityToSurfaceVelocity::OurKernelFactory)

@@ -64,7 +64,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
 
@@ -183,12 +182,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
       mutable_params_ptr->set("beta", default_beta_,
                               "Scale for the force and torque such that F = beta * F0 + alpha * Fnew.");
     }
-  }
-
-  /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.

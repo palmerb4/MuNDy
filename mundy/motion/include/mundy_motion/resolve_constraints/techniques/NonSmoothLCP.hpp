@@ -69,7 +69,6 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
   // three of them are actually the same type. To me, this tells me that RegistryIdentifier_t should be replaced with
   // compile-time strings via mundy::core::Stringliteral.
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurConstraintForcingMethodFactory = mundy::meta::MetaMethodFactory<void, NonSmoothLCP>;
   using OurConstraintProjectionMethodFactory = mundy::meta::MetaMethodFactory<void, NonSmoothLCP>;
@@ -327,12 +326,6 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
     }
   }
 
-  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
-  /// MetaMethodRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
@@ -417,22 +410,22 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
 //@{
 
 /// @brief Register our default constraint forcing method with our method factory.
-MUNDY_REGISTER_METACLASS(
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_FORCING",
     mundy::constraint::ComputeConstraintForcing,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintForcingMethodFactory)
 
 /// @brief Register our default constraint projection method with our method factory.
-MUNDY_REGISTER_METACLASS(
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_PROJECTION",
     mundy::constraint::ComputeConstraintProjection,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintProjectionMethodFactory)
 
 /// @brief Register our default constraint residual method with our method factory.
-MUNDY_REGISTER_METACLASS(
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_RESIDUAL",
     mundy::constraint::ComputeConstraintResidual,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintResidualMethodFactory)
 
 /// @brief Register our default constraint violation method with our method factory.
-MUNDY_REGISTER_METACLASS(
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_VIOLATION",
     mundy::constraint::ComputeConstraintViolation,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintViolationMethodFactory)
 //}

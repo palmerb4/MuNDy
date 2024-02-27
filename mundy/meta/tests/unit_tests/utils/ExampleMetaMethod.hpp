@@ -36,7 +36,7 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
@@ -53,20 +53,20 @@ namespace utils {
 /// \class ExampleMetaMethod
 /// \brief Method for computing the axis aligned boundary box of different parts.
 ///
-/// \tparam registration_id [in] A unique identifier for this class. This is used to register this class with
-/// \c MetaRegistry.
-/// \tparam some_integer [in] An integer to differentiate this class from a different example meta method class with the
-/// same id.
-template <int registration_id, int some_integer = 0>
+/// \tparam registration_string_wrapper [in] A unique registration identifier associated with our kernel and method
+/// factories.
+template <mundy::meta::RegistrationStringValueWrapper registration_string_wrapper =
+              mundy::meta::make_registration_string("DEFAULT")>
 class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
-  using RegistrationType = int;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<void, ExampleMetaMethod<registration_id, some_integer>>;
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, ExampleMetaMethod<registration_id, some_integer>>;
+  using OurKernelFactory =
+      mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<void>, registration_string_wrapper>;
+  using OurMethodFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>,
+                                                               registration_string_wrapper>;
   //@}
 
   //! \name Constructors and destructor
@@ -102,11 +102,6 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
     return get_valid_mutable_params_counter_;
   }
 
-  /// \brief Get the number of times that \c get_registration_id has been called.
-  static int num_get_registration_id_calls() {
-    return get_registration_id_counter_;
-  }
-
   /// \brief Get the number of times that \c create_new_instance has been called.
   static int num_create_new_instance_calls() {
     return create_new_instance_counter_;
@@ -127,7 +122,6 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
     get_mesh_requirements_counter_ = 0;
     get_valid_fixed_params_counter_ = 0;
     get_valid_mutable_params_counter_ = 0;
-    get_registration_id_counter_ = 0;
     create_new_instance_counter_ = 0;
     set_mutable_params_counter_ = 0;
     execute_counter_ = 0;
@@ -164,13 +158,6 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
     return Teuchos::ParameterList();
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static int get_registration_id() {
-    get_registration_id_counter_++;
-    return registration_id_;
-  }
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
@@ -178,9 +165,8 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
   static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     create_new_instance_counter_++;
-    return std::make_shared<ExampleMetaMethod<registration_id, some_integer>>(bulk_data_ptr, fixed_params);
+    return std::make_shared<ExampleMetaMethod<registration_string_wrapper>>(bulk_data_ptr, fixed_params);
   }
-
 
   //! \name Setters
   //@{
@@ -223,9 +209,6 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
   /// \brief The number of times \c get_valid_mutable_params has been called.
   static inline int get_valid_mutable_params_counter_ = 0;
 
-  /// \brief The number of times \c get_registration_id has been called.
-  static inline int get_registration_id_counter_ = 0;
-
   /// \brief The number of times \c create_new_instance has been called.
   static inline int create_new_instance_counter_ = 0;
 
@@ -237,10 +220,6 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
 
   /// \brief The valid entity parts for the kernel.
   std::vector<stk::mesh::Part *> valid_entity_parts_;
-
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr int registration_id_ = registration_id;
   //@}
 };  // ExampleMetaMethod
 

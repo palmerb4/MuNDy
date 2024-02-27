@@ -20,8 +20,8 @@
 #ifndef MUNDY_META_KERNELDISPATCHER_HPP_
 #define MUNDY_META_KERNELDISPATCHER_HPP_
 
-/// \file FieldRequirements.hpp
-/// \brief Declaration of the FieldRequirements class
+/// \file MetaKernelDispatcher.hpp
+/// \brief Declaration of the MetaKernelDispatcher class
 
 // C++ core lib
 #include <algorithm>  // for std::transform
@@ -44,7 +44,7 @@
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
@@ -86,18 +86,17 @@ concept HasGetValidForwardedKernelMutableParams = requires(T t) {
 /// get_valid_forwarded_kernel_mutable_params() method. These methods will specify the fixed and mutable parameters that
 /// the method will accept and forward to all kernels. As such, we throw if the kernels don't have these parameters in
 /// their valid fixed/mutable params.
-template <typename DerivedType, mundy::core::StringLiteral registration_id_wrapper>
-  // requires HasGetValidForwardedKernelFixedParams<DerivedType> && HasGetValidForwardedKernelMutableParams<DerivedType>
+template <typename DerivedType,
+          mundy::meta::RegistrationStringValueWrapper kernel_factory_registration_string_value_wrapper>
+// requires HasGetValidForwardedKernelFixedParams<DerivedType> && HasGetValidForwardedKernelMutableParams<DerivedType>
 class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = DerivedType;
-  using OurKernelFactory = mundy::meta::MetaKernelFactory<
-      void, MetaKernelDispatcher<DerivedType, registration_id_wrapper>>;  // TODO(palmerb4): Pass in the
-                                                                          // registration_id_wrapper as the registration id.
+  using OurKernelFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<void>,
+                                                               kernel_factory_registration_string_value_wrapper>;
   //@}
 
   //! \name Constructors and destructor
@@ -125,7 +124,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(
-        MetaKernelDispatcher<DerivedType, registration_id_wrapper>::get_valid_fixed_params());
+        MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_fixed_params());
 
     // At this point, the only parameters are the forwarded parameters for the kernels and the non-forwarded kernel
     // params within the kernel sublists. We'll loop over all parameters that aren't in the kernel sublists and forward
@@ -196,10 +195,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
         });
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static std::string get_registration_id() {
-    return registration_id_wrapper.to_string();
+  /// \brief Get the unique registration identifier associated with our kernel factory.
+  static std::string get_kernel_factory_registration_id() {
+    return kernel_factory_registration_string_value_wrapper.to_string();
   }
 
   /// \brief Generate a new instance of this class.
@@ -297,8 +295,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
 // \name Constructors and destructor
 //{
 
-template <typename DerivedType, mundy::core::StringLiteral registration_id_wrapper>
-MetaKernelDispatcher<DerivedType, registration_id_wrapper>::MetaKernelDispatcher(
+template <typename DerivedType,
+          mundy::meta::RegistrationStringValueWrapper kernel_factory_registration_string_value_wrapper>
+MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::MetaKernelDispatcher(
     mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
@@ -308,7 +307,7 @@ MetaKernelDispatcher<DerivedType, registration_id_wrapper>::MetaKernelDispatcher
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   valid_fixed_params.validateParametersAndSetDefaults(
-      MetaKernelDispatcher<DerivedType, registration_id_wrapper>::get_valid_fixed_params());
+      MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_fixed_params());
 
   // Populate our internal members.
   Teuchos::Array<std::string> enabled_kernels = valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernels");
@@ -341,13 +340,14 @@ MetaKernelDispatcher<DerivedType, registration_id_wrapper>::MetaKernelDispatcher
 // \name MetaFactory static interface implementation
 //{
 
-template <typename DerivedType, mundy::core::StringLiteral registration_id_wrapper>
-void MetaKernelDispatcher<DerivedType, registration_id_wrapper>::set_mutable_params(
+template <typename DerivedType,
+          mundy::meta::RegistrationStringValueWrapper kernel_factory_registration_string_value_wrapper>
+void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::set_mutable_params(
     const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   valid_mutable_params.validateParametersAndSetDefaults(
-      MetaKernelDispatcher<DerivedType, registration_id_wrapper>::get_valid_mutable_params());
+      MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_mutable_params());
 
   // Parse the parameters
   Teuchos::Array<std::string> enabled_kernels =
@@ -366,9 +366,10 @@ void MetaKernelDispatcher<DerivedType, registration_id_wrapper>::set_mutable_par
 // \name Getters
 //{
 
-template <typename DerivedType, mundy::core::StringLiteral registration_id_wrapper>
-std::vector<stk::mesh::Part *> MetaKernelDispatcher<DerivedType, registration_id_wrapper>::get_valid_entity_parts()
-    const {
+template <typename DerivedType,
+          mundy::meta::RegistrationStringValueWrapper kernel_factory_registration_string_value_wrapper>
+std::vector<stk::mesh::Part *>
+MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_entity_parts() const {
   return valid_entity_parts_;
 }
 //}
@@ -376,8 +377,10 @@ std::vector<stk::mesh::Part *> MetaKernelDispatcher<DerivedType, registration_id
 // \name Actions
 //{
 
-template <typename DerivedType, mundy::core::StringLiteral registration_id_wrapper>
-void MetaKernelDispatcher<DerivedType, registration_id_wrapper>::execute(const stk::mesh::Selector &input_selector) {
+template <typename DerivedType,
+          mundy::meta::RegistrationStringValueWrapper kernel_factory_registration_string_value_wrapper>
+void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::execute(
+    const stk::mesh::Selector &input_selector) {
   for (int i = 0; i < num_active_kernels_; i++) {
     kernel_ptrs_[i]->setup();
   }

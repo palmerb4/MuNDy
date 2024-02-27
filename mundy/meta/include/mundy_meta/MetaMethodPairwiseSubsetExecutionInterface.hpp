@@ -75,9 +75,13 @@ class MetaMethodPairwiseSubsetExecutionInterface {
   //! \name Getters
   //@{
 
-  /// \brief Get valid entity parts for the method.
-  /// By "valid entity parts," we mean the parts whose entities this method can act on.
-  virtual std::vector<stk::mesh::Part *> get_valid_entity_parts() const = 0;
+  /// \brief Get valid source entity parts for the method.
+  /// By "valid source entity parts," we mean the parts whose entities this method can act on as source entities.
+  virtual std::vector<stk::mesh::Part *> get_valid_source_entity_parts() const = 0;
+
+  /// \brief Get valid target entity parts for the method.
+  /// By "valid target entity parts," we mean the parts whose entities this method can act on as target entities.
+  virtual std::vector<stk::mesh::Part *> get_valid_target_entity_parts() const = 0;
   //@}
 
   //! \name Actions
@@ -85,11 +89,15 @@ class MetaMethodPairwiseSubsetExecutionInterface {
 
   /// \brief Run the method's core calculation.
   /// For example, calculate the first that entities in the first selector exert on entities in the second selector.
-  /// \param first_input_selector The first selector that defines the entities to act on.
-  /// \param second_input_selector The second selector that defines the entities to act on.
+  ///
+  /// \note We use the terms source and target to refer to the first and second selectors, respectively. However, they
+  /// need not assume this role. Calling them first and second simply got confusing.
+  /// \param source_input_selector The first selector that defines the entities to act on.
+  /// \param target_input_selector The second selector that defines the
+  /// entities to act on. 
   /// \param args The additional arguments to the methods's core calculation.
-  virtual ReturnType execute(const stk::mesh::Selector &first_input_selector,
-                             const stk::mesh::Selector &second_input_selector, Args... args) = 0;
+  virtual ReturnType execute(const stk::mesh::Selector &source_input_selector,
+                             const stk::mesh::Selector &target_input_selector, Args... args) = 0;
   //@}
 };  // MetaMethodPairwiseSubsetExecutionInterface
 

@@ -64,7 +64,6 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
   //@{
 
   // TODO(palmerb4): OurMethodFactory needs to be broken into a different factory for each group of methods.
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurMethodFactory = mundy::meta::MetaMethodFactory<void, RigidBodyMotion>;
   //@}
@@ -217,12 +216,6 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
     OurMethodFactory::validate_mutable_parameters_and_set_defaults(sf_to_rbf_name, &map_sf_to_rbf_params);
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
@@ -288,13 +281,14 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 //@{
 
 /// @brief Register our default method with our method factory.
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity,
+MUNDY_REGISTER_METACLASS("MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY",
+                         mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity,
                          mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
-
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyVelocityToSurfaceVelocity,
+MUNDY_REGISTER_METACLASS("MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY",
+                         mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyVelocityToSurfaceVelocity,
                          mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
-
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce,
+MUNDY_REGISTER_METACLASS("MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE",
+  mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce,
                           mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
 //}
 

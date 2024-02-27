@@ -56,7 +56,6 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethodSubsetExecution
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, DeleteCollisionConstraints>;
   //@}
@@ -155,12 +154,6 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethodSubsetExecution
     }
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
@@ -215,12 +208,5 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethodSubsetExecution
 }  // namespace constraint
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register DeleteCollisionConstraints with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::DeleteCollisionConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
-//@}
 
 #endif  // MUNDY_CONSTRAINT_DELETECOLLISIONCONSTRAINTS_HPP_

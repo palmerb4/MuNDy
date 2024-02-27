@@ -37,30 +37,33 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral
-#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaMethodFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>      // for MUNDY_REGISTER_METACLASS
+#include <mundy_core/StringLiteral.hpp>                       // for mundy::core::StringLiteral
+#include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>                    // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaMethodFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 
 namespace mundy {
 
 namespace meta {
 
-template <typename RegistryIdentifier, mundy::core::StringLiteral DefaultMethodStringLiteral>
-class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
+// TODO(palmerb4): If string lookups turn egregiously slow, we need to modify this class to allow for arbitrary
+// registration types, just like MetaFactory. For now, we'll default to using strings as the registration type.
+template <typename TechniquePolymorphicBaseType,
+          mundy::meta::RegistrationStringValueWrapper technique_factory_registration_string_value_wrapper,
+          mundy::meta::RegistrationStringValueWrapper default_technique_name_wrapper>
+class MetaTechniqueDispatcher {
  public:
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
-  using OurMethodFactory = mundy::meta::MetaMethodFactory<void, RegistryIdentifier>;
+  using OurMethodFactory = mundy::meta::StringBasedMetaFactory<TechniquePolymorphicBaseType,
+                                                               technique_factory_registration_string_value_wrapper>;
   //@}
 
   //! \name Constructors and destructor
@@ -73,8 +76,9 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
   MetaTechniqueDispatcher(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_fixed_params());
-    
+    valid_fixed_params.validateParametersAndSetDefaults(
+        MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_fixed_params());
+
     // Forward the inputs to the technique.
     const std::string technique_name = valid_fixed_params.get<std::string>("technique_name");
     Teuchos::ParameterList technique_params = valid_fixed_params.sublist(technique_name);
@@ -96,7 +100,8 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_fixed_params());
+    valid_fixed_params.validateParametersAndSetDefaults(
+        MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_fixed_params());
 
     // Fetch the technique sublist and return its parameters.
     const std::string technique_name = valid_fixed_params.get<std::string>("technique_name");
@@ -122,10 +127,9 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
                                                        });
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
+  /// \brief Get the unique registration identifier associated with our technique factory.
+  static std::string get_technique_factory_registration_id() {
+    return technique_factory_registration_string_value_wrapper.to_string();
   }
 
   /// \brief Generate a new instance of this class.
@@ -134,8 +138,7 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>>(bulk_data_ptr,
-                                                                                                     fixed_params);
+    return std::make_shared<DerivedType>(bulk_data_ptr, fixed_params);
   }
   //@}
 
@@ -146,7 +149,8 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_mutable_params = mutable_params;
-    valid_mutable_params.validateParametersAndSetDefaults(MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_mutable_params());
+    valid_mutable_params.validateParametersAndSetDefaults(
+        MetaTechniqueDispatcher<RegistryIdentifier, DefaultMethodStringLiteral>::get_valid_mutable_params());
 
     // Forward the inputs to the technique.
     const std::string technique_name = valid_fixed_params.get<std::string>("technique_name");
@@ -155,42 +159,12 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
   }
   //@}
 
-  //! \name Getters
-  //@{
-
-  /// \brief Get valid entity parts for the method.
-  /// By "valid entity parts," we mean the parts whose entities this method can act on.
-  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
-    return technique_ptr_->get_valid_entity_parts();
-  }
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Run the method's core calculation.
-  void execute(const stk::mesh::Selector &input_selector) override {
-    // Forward the inputs to the technique.
-    technique_ptr_->execute(input_selector);
-  }
-  //@}
-
  private:
-  //! \name Default parameters
-  //@{
-
-  static constexpr std::string_view default_technique_name_ = DefaultMethodStringLiteral.value;
-  //@}
-
   //! \name Internal members
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "META_TECHNIQUE_DISPATCHER";
-
   /// \brief Method corresponding to the specified technique.
-  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> technique_ptr_;
+  std::shared_ptr<TechniquePolymorphicBaseType> technique_ptr_;
   //@}
 
   //! \name Internal methods
@@ -203,7 +177,7 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
     Teuchos::ParameterList default_parameter_list;
 
     std::string valid_names = OurMethodFactory::get_keys_as_string();
-    default_parameter_list.set("technique_name", std::string(default_technique_name_),
+    default_parameter_list.set("technique_name", default_technique_name_wrapper.value,
                                "The name of the technique to use. Valid names are: " + valid_names);
 
     // Because this is the valid params we list ALL possible parameters. We expect the parameters for
@@ -219,6 +193,66 @@ class MetaTechniqueDispatcher : public mundy::meta::MetaMethodSubsetExecutionInt
   //@}
 
 };  // MetaTechniqueDispatcher
+
+//! \brief Type specializations for different polymorphic base types.
+//@{
+
+template <mundy::meta::RegistrationStringValueWrapper registration_string_value_wrapper,
+          mundy::core::StringLiteral default_technique_name_wrapper>
+struct MetaMethodSubsetExecutionDispatcher
+    : public mundy::meta::MetaMethodSubsetExecutionInterface<void>,
+      public MetaTechniqueDispatcher<mundy::meta::MetaMethodSubsetExecutionInterface<void>,
+                                     registration_string_value_wrapper, default_technique_name_wrapper> {
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
+
+  //! \name MetaMethodSubsetExecutionInterface's interface implementation
+  //@{
+
+  /// \brief Get valid entity parts for the method.
+  /// By "valid entity parts," we mean the parts whose entities this method can act on.
+  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
+    return technique_ptr_->get_valid_entity_parts();
+  }
+
+  /// \brief Run the method's core calculation.
+  void execute(const stk::mesh::Selector &input_selector) override {
+    // Forward the inputs to the technique.
+    technique_ptr_->execute(input_selector);
+  }
+  //@}
+};  // MetaMethodSubsetExecutionDispatcher
+
+template <mundy::meta::RegistrationStringValueWrapper registration_string_value_wrapper,
+          mundy::core::StringLiteral default_technique_name_wrapper>
+struct MetaMethodPairwiseSubsetExecutionDispatcher
+    : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>,
+      public MetaTechniqueDispatcher<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>,
+                                     registration_string_value_wrapper, default_technique_name_wrapper> {
+  using PolymorphicBaseType = mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>;
+
+  //! \name MetaMethodPairwiseSubsetExecutionInterface's interface implementation
+  //@{
+
+  /// \brief Get valid source entity parts for the method.
+  /// By "valid source entity parts," we mean the parts whose entities this method can act on as source entities.
+  std::vector<stk::mesh::Part *> get_valid_source_entity_parts() const override {
+    return technique_ptr_->get_valid_source_entity_parts();
+  }
+
+  /// \brief Get valid target entity parts for the method.
+  /// By "valid target entity parts," we mean the parts whose entities this method can act on as target entities.
+  std::vector<stk::mesh::Part *> get_valid_target_entity_parts() const override {
+    return technique_ptr_->get_valid_target_entity_parts();
+  }
+
+  /// \brief Run the method's core calculation.
+  void execute(const stk::mesh::Selector &source_selector, const stk::mesh::Selector &target_selector) override {
+    // Forward the inputs to the technique.
+    technique_ptr_->execute(source_selector, target_selector);
+  }
+  //@}
+};  // MetaMethodSubsetExecutionDispatcher
+//@}
 
 }  // namespace meta
 

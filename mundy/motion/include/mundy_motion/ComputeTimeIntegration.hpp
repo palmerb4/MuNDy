@@ -45,7 +45,7 @@ namespace motion {
 /// \class ComputeTimeIntegration
 /// \brief Method for moving particles forward in time (unconstrained).
 class ComputeTimeIntegration
-    : public mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::core::make_string_literal("NODE_EULER")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::meta::make_registration_string("COMPUTE_TIME_INTEGRATION")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -59,12 +59,6 @@ class ComputeTimeIntegration
 
   //! \name MetaFactory static interface implementation
   //@{
-
-  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
-  /// MetaMethodRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
 
   /// \brief Generate a new instance of this class.
   ///
@@ -93,11 +87,8 @@ class ComputeTimeIntegration
 //! \name Registration
 //@{
 
-/// @brief Register ComputeTimeIntegration with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::motion::ComputeTimeIntegration, mundy::meta::GlobalMetaMethodFactory<void>)
-
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_time_integration::techniques::NodeEuler,
+MUNDY_REGISTER_METACLASS("COMPUTE_TIME_INTEGRATION", mundy::motion::compute_time_integration::techniques::NodeEuler,
                          mundy::motion::ComputeTimeIntegration::OurMethodFactory)
 
 //@}

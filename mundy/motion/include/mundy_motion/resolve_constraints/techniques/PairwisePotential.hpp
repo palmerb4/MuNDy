@@ -106,7 +106,6 @@ class PairwisePotential : public mundy::meta::MetaMethodSubsetExecutionInterface
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurTwoWayKernelFactory = mundy::meta::MetaTwoWayKernelFactory<void, PairwisePotential>;
   //@}
@@ -192,11 +191,6 @@ class PairwisePotential : public mundy::meta::MetaMethodSubsetExecutionInterface
                                                                          &compute_pairwise_potential_params);
   }
 
-  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
-  /// MetaMethodRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A

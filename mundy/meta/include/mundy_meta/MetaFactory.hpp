@@ -40,19 +40,26 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                               // for MUNDY_THROW_ASSERT
+#include <mundy_core/StringLiteral.hpp>                         // for mundy::core::StringLiteral
+#include <mundy_core/throw_assert.hpp>                          // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
 #include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/MeshRequirements.hpp>                      // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaKernel.hpp>                            // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>                            // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>    // for mundy::meta::MetaMethodSubsetExecutionInterface
 
 namespace mundy {
 
 namespace meta {
 
-/// \brief An empty struct used to define a global MetaFactory.
-struct GlobalIdentifier {};  // GlobalIdentifier
+/// \brief Concepts for checking if a class has the desired registration value wrapper interface: defines a type alias
+/// \c T::Type and a function \c registration_value_wrapper.value(). \c T::Type must be the return type of \c
+/// registration_value_wrapper.value().
+template <typename T>
+concept IsValidRegistrationValueWrapper = requires(T registration_value_wrapper) {
+  typename T::Type;
+  { registration_value_wrapper.value() } -> std::same_as<typename T::Type>;
+};  // IsValidRegistrationValueWrapper
 
 /// \class MetaFactory
 /// \brief A factory containing generation routines for classes that have mesh requirements and are registerable.
@@ -74,14 +81,11 @@ struct GlobalIdentifier {};  // GlobalIdentifier
 /// given below.
 ///
 /// \code{.cpp}
-/// // The type of this class's registration id (e.g. std::string_view).
-/// using RegistrationType = ...;
-///
 /// // The type of this class's polymorphic base type (e.g. MetaKernel).
 /// using PolymorphicBaseType = ...;
 ///
 /// // Get the requirements generator for this class. May be nullptr.
-/// static std::shared_ptr<std::shared_ptr<MeshRequirements>> get_mesh_requirements();
+/// static std::shared_ptr<MeshRequirements> get_mesh_requirements();
 ///
 /// // Get the valid fixed parameters for this class and their defaults.
 /// static Teuchos::ParameterList get_valid_fixed_params();
@@ -92,9 +96,6 @@ struct GlobalIdentifier {};  // GlobalIdentifier
 /// // Get the new class generator for this class. May be nullptr.
 /// static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData* const bulk_data_ptr, const
 ///                                                                 Teuchos::ParameterList& fixed_params);
-///
-/// // Get the registration id for this class.
-/// static RegistrationType get_registration_id();
 /// \endcode
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
@@ -102,17 +103,19 @@ struct GlobalIdentifier {};  // GlobalIdentifier
 /// https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
 ///
 /// \tparam PolymorphicBaseType_t A polymorphic base type shared by each registered class.
-/// \tparam RegistrationType_t The type to register each class with (defaults to std::string_view).
-/// \tparam RegistryIdentifier_t A template type used to create different independent instances of \c MetaFactory.
-template <typename PolymorphicBaseType_t, typename RegistryIdentifier_t, typename RegistrationType_t = std::string_view>
+/// \tparam RegistrationValueWrapperType_t A wrapper type for the registration value.
+/// \tparam registration_value_wrapper A wrapper for the registration value. \c registration_value_wrapper::Type must be
+/// the return type of \c registration_value_wrapper.value().
+template <typename PolymorphicBaseType_t, typename RegistrationValueWrapperType_t,
+          RegistrationValueWrapperType_t registration_value_wrapper>
+  // requires IsValidRegistrationValueWrapper<RegistrationValueWrapperType_t>
 class MetaFactory {
  public:
   //! \name Typedefs
   //@{
 
   using PolymorphicBaseType = PolymorphicBaseType_t;
-  using RegistryIdentifier = RegistryIdentifier_t;
-  using RegistrationType = RegistrationType_t;
+  using RegistrationType = typename RegistrationValueWrapperType_t::Type;
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// class.
@@ -129,6 +132,12 @@ class MetaFactory {
 
   //! \name Getters
   //@{
+
+  /// \brief Get the registration id for this factory. If two factories have the same registration id, they will share
+  /// the same set of registered classes.
+  static RegistrationType get_registration_id() {
+    return registration_value_wrapper.value();
+  }
 
   /// \brief Get the number of classes this factory recognizes.
   static int num_registered_classes() {
@@ -217,7 +226,7 @@ class MetaFactory {
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
   template <typename ClassToRegister>
-  static inline bool register_new_class() {
+  static inline bool register_new_class(const RegistrationType& key) {
     // Check that the ClassToRegister has the desired interface.
     using Checker = HasMeshRequirementsAndIsRegisterable<ClassToRegister>;
     static_assert(Checker::has_get_mesh_requirements,
@@ -231,36 +240,22 @@ class MetaFactory {
                   "MetaFactory: The class to register doesn't have the correct "
                   "get_valid_mutable_params function.\n"
                   "See the documentation of MetaFactory for more information about the expected interface.");
-    static_assert(Checker::has_registration_type,
-                  "MetaFactory: The class to register doesn't have the correct RegistrationType type alias.\n"
-                  "See the documentation of MetaFactory for more information about the expected interface.");
-    static_assert(Checker::has_get_registration_id,
-                  "MetaFactory: The class to register doesn't have the correct get_registration_id function.\n"
-                  "See the documentation of MetaFactory for more information about the expected interface.");
     static_assert(Checker::has_polymorphic_base_type,
                   "MetaFactory: The class to register doesn't have a PolymorphicBaseType type alias .\n"
                   "See the documentation of MetaFactory for more information about the expected interface.");
     static_assert(Checker::has_create_new_instance,
                   "MetaFactory: The class to register doesn't have the correct create_new_instance function.\n"
                   "See the documentation of MetaFactory for more information about the expected interface.");
-    static_assert(std::is_same_v<typename ClassToRegister::RegistrationType, RegistrationType>,
-                  "MetaFactory: The class to register has a different RegistrationType type alias\n "
-                  "than the RegistrationType of this factory.");
 
     // Register the class.
-    const RegistrationType key = ClassToRegister::get_registration_id();
-
     std::cout << "MetaFactory: Registering class " << key << std::endl;
-
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().push_back(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::get_mesh_requirements));
-    get_valid_fixed_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::get_valid_fixed_params));
-    get_valid_mutable_params_generator_map().insert(
-        std::make_pair(key, ClassToRegister::get_valid_mutable_params));
+    get_valid_fixed_params_generator_map().insert(std::make_pair(key, ClassToRegister::get_valid_fixed_params));
+    get_valid_mutable_params_generator_map().insert(std::make_pair(key, ClassToRegister::get_valid_mutable_params));
 
     return true;
   }
@@ -333,65 +328,56 @@ class MetaFactory {
   //@}
 };  // MetaFactory
 
-/// \name Type specializations for generating \c MetaMethods.
+//! \name Type specializations for a MetaFactory with string registration types
 //@{
 
-/// \brief Partial specialization for \c MetaMethods.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaMethodFactory = MetaFactory<MetaMethodSubsetExecutionInterface<ReturnType>, RegistryIdentifier, RegistrationType>;
+/// @brief A class that providers a non-template type-compatable wrapper for strings.
+///
+/// Designed to satisfy the requirements of \c MetaFactory's IsValidRegistrationValueWrapper concept.
+/// @tparam StrSize
+template <size_t StrSize>
+struct RegistrationStringValueWrapper : public mundy::core::StringLiteral<StrSize> {
+  using Type = std::string;
 
-/// \brief Partial specialization for global \c MetaMethods.
-template <typename ReturnType, typename RegistrationType = std::string_view>
-using GlobalMetaMethodFactory = MetaMethodFactory<ReturnType, GlobalIdentifier, RegistrationType>;
+  /// @brief Constructor that forwards the string literal to the base class.
+  /// @param str The string literal to forward.
+  constexpr explicit RegistrationStringValueWrapper(const char (&str)[StrSize])
+      : mundy::core::StringLiteral<StrSize>(str) {
+  }
+
+  Type value() {
+    return this->to_string();
+  }
+};  // RegistrationStringValueWrapper
+
+/// @brief A helper function for generating a \c RegistrationStringValueWrapper from a string.
+/// @tparam StrSize
+/// @param str The string to wrap.
+///
+/// Usage example (also works inside of a template):
+/// \code{.cpp}
+/// auto registration_string = make_registration_string("MY_REGISTRATION_STRING");
+/// \endcode
+template <size_t StrSize>
+constexpr RegistrationStringValueWrapper<StrSize> make_registration_string(const char (&str)[StrSize]) {
+  return RegistrationStringValueWrapper<StrSize>(str);
+}
+
+/// @brief A type specialization of \c MetaFactory that uses a string as the registration identifier. See \c MetaFactory
+/// for details.
+/// @tparam PolymorphicBaseType
+/// @tparam registration_string_value_wrapper
+///
+/// To generate a \c MetaFactory that uses a string as the registration identifier, use the following syntax:
+/// \code{.cpp}
+/// using MyMetaFactory = StringBasedMetaFactory<MyPolymorphicBaseType,
+/// make_registration_string("MY_REGISTRATION_STRING")>;
+/// \endcode
+template <typename PolymorphicBaseType, RegistrationStringValueWrapper registration_string_value_wrapper>
+using StringBasedMetaFactory =
+    MetaFactory<PolymorphicBaseType, decltype(registration_string_value_wrapper), registration_string_value_wrapper>;
 //@}
 
-/// \name Type specializations for generating \c MetaKernels.
-//@{
-
-/// \brief Partial specialization for \c MetaKernels.
-template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-using MetaKernelFactory = MetaFactory<MetaKernel<ReturnType>, RegistryIdentifier, RegistrationType>;
-
-/// \brief Partial specialization for global \c MetaKernels.
-template <typename ReturnType, typename RegistrationType = std::string_view>
-using GlobalMetaKernelFactory = MetaKernelFactory<ReturnType, GlobalIdentifier, RegistrationType>;
-//@}
-
-// /// \name Type specializations for generating \c MetaKWayKernels.
-// //@{
-
-// /// \brief Partial specialization for \c MetaKWayKernels.
-// template <std::size_t K, typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-// using MetaKWayKernelFactory = MetaFactory<MetaKWayKernel<K, ReturnType>, RegistryIdentifier, RegistrationType>;
-
-// /// \brief Partial specialization for global \c MetaKWayKernels.
-// template <std::size_t K, typename ReturnType, typename RegistrationType = std::string_view>
-// using GlobalMetaKWayKernelFactory = MetaKWayKernelFactory<K, ReturnType, GlobalIdentifier, RegistrationType>;
-// //@}
-
-// /// \name Type specializations for generating \c MetaTwoWayKernels.
-// //@{
-
-// /// \brief Partial specialization for \c MetaTwoWayKernels.
-// template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-// using MetaTwoWayKernelFactory = MetaKWayKernelFactory<2, ReturnType, RegistryIdentifier, RegistrationType>;
-
-// /// \brief Partial specialization for global \c MetaTwoWayKernels.
-// template <typename ReturnType, typename RegistrationType = std::string_view>
-// using GlobalMetaTwoWayKernelFactory = GlobalMetaKWayKernelFactory<2, ReturnType, RegistrationType>;
-// //@}
-
-// /// \name Type specializations for generating \c MetaThreeWayKernels.
-// //@{
-
-// /// \brief Partial specialization for \c MetaThreeWayKernels.
-// template <typename ReturnType, typename RegistryIdentifier, typename RegistrationType = std::string_view>
-// using MetaThreeWayKernelFactory = MetaKWayKernelFactory<3, ReturnType, RegistryIdentifier, RegistrationType>;
-
-// /// \brief Partial specialization for global \c MetaThreeWayKernels.
-// template <typename ReturnType, typename RegistrationType = std::string_view>
-// using GlobalMetaThreeWayKernelFactory = GlobalMetaKWayKernelFactory<3, ReturnType, RegistrationType>;
-// //@}
 }  // namespace meta
 
 }  // namespace mundy

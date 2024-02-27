@@ -31,11 +31,11 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                 // for mundy::core::make_string_literal
-#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>               // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
+#include <mundy_core/StringLiteral.hpp>                       // for mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaTechniqueDispatcher
 #include <mundy_motion/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::motion::compute_mobility::techniques::RigidBodyMotion
 
 namespace mundy {
@@ -44,8 +44,8 @@ namespace motion {
 
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class ComputeMobility
-    : public mundy::meta::MetaTechniqueDispatcher<ComputeMobility, mundy::core::make_string_literal("RIGID_BODY_MOTION")> {
+class ComputeMobility : public mundy::meta::MetaTechniqueDispatcher<ComputeMobility, mundy::meta::make_registration_string(
+                                                                                         "RIGID_BODY_MOTION")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -59,12 +59,6 @@ class ComputeMobility
 
   //! \name MetaFactory static interface implementation
   //@{
-
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static std::string_view get_registration_id() {
-    return registration_id_;
-  }
 
   /// \brief Generate a new instance of this class.
   ///
@@ -93,11 +87,8 @@ class ComputeMobility
 //! \name Registration
 //@{
 
-/// @brief Register ComputeMobility with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::motion::ComputeMobility, mundy::meta::GlobalMetaMethodFactory<void>)
-
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS(mundy::motion::compute_mobility::techniques::RigidBodyMotion,
+MUNDY_REGISTER_METACLASS("RIGID_BODY_MOTION", mundy::motion::compute_mobility::techniques::RigidBodyMotion,
                          mundy::motion::ComputeMobility::OurMethodFactory)
 
 //@}

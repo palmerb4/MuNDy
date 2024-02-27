@@ -46,7 +46,7 @@ namespace shape {
 /// \brief Method for computing the axis aligned boundary box of different parts.
 class ComputeBoundingRadius
     : public mundy::meta::MetaKernelDispatcher<ComputeBoundingRadius,
-                                               mundy::core::make_string_literal("COMPUTE_BOUNDING_SPHERE")> {
+                                               mundy::meta::make_registration_string("COMPUTE_BOUNDING_SPHERE")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -57,7 +57,7 @@ class ComputeBoundingRadius
   /// \brief Constructor
   ComputeBoundingRadius(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
       : mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
-                                          mundy::core::make_string_literal("COMPUTE_CONSTRAINT_FORCING")>(
+                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCING")>(
             bulk_data_ptr, fixed_params) {
   }
   //@}
@@ -99,11 +99,8 @@ class ComputeBoundingRadius
 //! \name Registration
 //@{
 
-/// @brief Register ComputeBoundingRadius with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::shape::ComputeBoundingRadius, mundy::meta::GlobalMetaMethodFactory<void>)
-
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS(mundy::shape::compute_bounding_radius::kernels::Sphere,
+MUNDY_REGISTER_METACLASS("SPHERE", mundy::shape::compute_bounding_radius::kernels::Sphere,
                          mundy::shape::ComputeBoundingRadius::OurKernelFactory)
 //@}
 

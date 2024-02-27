@@ -46,7 +46,7 @@ namespace motion {
 /// \class ResolveConstraints
 /// \brief Method for resolving constraints between N bodies
 class ResolveConstraints
-    : public mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::core::make_string_literal("NON_SMOOTH_LCP")> {
+    : public mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::meta::make_registration_string("RESOLVE_CONSTRAINTS")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -60,12 +60,6 @@ class ResolveConstraints
 
   //! \name MetaFactory static interface implementation
   //@{
-
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
 
   /// \brief Generate a new instance of this class.
   ///
@@ -94,14 +88,11 @@ class ResolveConstraints
 //! \name Registration
 //@{
 
-/// @brief Register ResolveConstraints with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::motion::ResolveConstraints, mundy::meta::GlobalMetaMethodFactory<void>)
-
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS(mundy::motion::resolve_constraints::techniques::NonSmoothLCP,
+MUNDY_REGISTER_METACLASS("NONSMOOTH_LCP", mundy::motion::resolve_constraints::techniques::NonSmoothLCP,
                          mundy::motion::ResolveConstraints::OurMethodFactory)
 
-MUNDY_REGISTER_METACLASS(mundy::motion::resolve_constraints::techniques::PairwisePotential,
+MUNDY_REGISTER_METACLASS("PAIRWISE_POTENTIAL", mundy::motion::resolve_constraints::techniques::PairwisePotential,
                           mundy::motion::ResolveConstraints::OurMethodFactory)
 //@}
 

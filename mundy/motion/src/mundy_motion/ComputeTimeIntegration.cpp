@@ -38,7 +38,7 @@ namespace motion {
 
 ComputeTimeIntegration::ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr,
                                                const Teuchos::ParameterList &fixed_params)
-    : mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::core::make_string_literal("NODE_EULER")>(
+    : mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::meta::make_registration_string("NODE_EULER")>(
           bulk_data_ptr, fixed_params) {
 }
 //}

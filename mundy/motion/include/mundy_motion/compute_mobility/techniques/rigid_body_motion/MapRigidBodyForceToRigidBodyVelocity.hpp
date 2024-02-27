@@ -52,7 +52,7 @@ namespace rigid_body_motion {
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class MapRigidBodyForceToRigidBodyVelocity
     : public mundy::meta::MetaTechniqueDispatcher<MapRigidBodyForceToRigidBodyVelocity,
-                                                  mundy::core::make_string_literal("LOCAL_DRAG")> {
+                                                  mundy::core::make_string_literal("MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -67,12 +67,6 @@ class MapRigidBodyForceToRigidBodyVelocity
 
   //! \name MetaFactory static interface implementation
   //@{
-
-  /// \brief Get the unique registration identifier. By unique, we mean with respect to other methods in our \c
-  /// MetaMethodRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
 
   /// \brief Generate a new instance of this class.
   ///
@@ -108,7 +102,7 @@ class MapRigidBodyForceToRigidBodyVelocity
 //@{
 
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS(
+MUNDY_REGISTER_METACLASS("LOCAL_DRAG",
     mundy::motion::compute_mobility::techniques::rigid_body_motion::map_rigid_body_force_to_rigid_body_velocity::
         techniques::LocalDrag,
     mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity::OurMethodFactory)

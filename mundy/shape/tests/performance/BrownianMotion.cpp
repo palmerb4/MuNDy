@@ -62,7 +62,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_shape/PerformRegistration.hpp>  // for mundy::shape::perform_registration
 #include <mundy_shape/shapes/Spheres.hpp>       // for mundy::shape::shapes::Spheres
 
-class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::core::make_string_literal("NODE_EULER")> {
+class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -73,7 +73,7 @@ class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::cor
   /// \brief Constructor
   NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr,
             const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
-      : mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::core::make_string_literal("NODE_EULER")>(bulk_data_ptr,
+      : mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")>(bulk_data_ptr,
                                                                                                      fixed_params) {
   }
   //@}
@@ -114,7 +114,6 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
 
@@ -214,12 +213,6 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     return default_parameter_list;
   }
 
-  /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
@@ -314,7 +307,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
 };  // NodeEulerSphere
 
 /// @brief Register NodeEulerSphere with NodeEuler default kernels
-MUNDY_REGISTER_METACLASS(NodeEulerSphere, NodeEuler::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHERE", NodeEulerSphere, NodeEuler::OurKernelFactory)
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +315,7 @@ MUNDY_REGISTER_METACLASS(NodeEulerSphere, NodeEuler::OurKernelFactory)
 
 class ComputeBrownianVelocity
     : public mundy::meta::MetaKernelDispatcher<ComputeBrownianVelocity,
-                                               mundy::core::make_string_literal("COMPUTE_BROWNIAN_VELOCITY")> {
+                                               mundy::meta::make_registration_string("COMPUTE_BROWNIAN_VELOCITY")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -334,7 +327,7 @@ class ComputeBrownianVelocity
   ComputeBrownianVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
                           const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : mundy::meta::MetaKernelDispatcher<ComputeBrownianVelocity,
-                                          mundy::core::make_string_literal("COMPUTE_BROWNIAN_VELOCITY")>(bulk_data_ptr,
+                                          mundy::meta::make_registration_string("COMPUTE_BROWNIAN_VELOCITY")>(bulk_data_ptr,
                                                                                                          fixed_params) {
   }
   //@}
@@ -384,7 +377,6 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
 
@@ -497,12 +489,6 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
     default_parameter_list.set("beta", default_beta_,
                                "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
     return default_parameter_list;
-  }
-
-  /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.
@@ -636,7 +622,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
 };  // ComputeBrownianVelocitySphere
 
 /// @brief Register ComputeBrownianVelocitySphere with ComputeBrownianVelocity default kernels
-MUNDY_REGISTER_METACLASS(ComputeBrownianVelocitySphere, ComputeBrownianVelocity::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHERE", ComputeBrownianVelocitySphere, ComputeBrownianVelocity::OurKernelFactory)
 
 int main(int argc, char **argv) {
   // Initialize MPI

@@ -45,7 +45,7 @@ namespace rigid_body_motion {
 MapRigidBodyForceToRigidBodyVelocity::MapRigidBodyForceToRigidBodyVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                            const Teuchos::ParameterList &fixed_params)
     : mundy::meta::MetaTechniqueDispatcher<MapRigidBodyForceToRigidBodyVelocity,
-                                           mundy::core::make_string_literal("LOCAL_DRAG")>(bulk_data_ptr, fixed_params) {
+                                           mundy::meta::make_registration_string("LOCAL_DRAG")>(bulk_data_ptr, fixed_params) {
 }
 //}
 

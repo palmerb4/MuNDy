@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                     // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>                  // for mundy::meta::GlobalMetaMethodFactory
 #include <mundy_meta/MetaKernelDispatcher.hpp>         // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>                 // for MUNDY_REGISTER_METACLASS
 #include <mundy_shape/compute_obb/kernels/Sphere.hpp>  // for mundy::shape::compute_obb::kernels::Sphere
@@ -45,7 +44,7 @@ namespace shape {
 /// \class ComputeOBB
 /// \brief Method for computing the object aligned boundary box of different parts.
 class ComputeOBB
-    : public mundy::meta::MetaKernelDispatcher<ComputeOBB, mundy::core::make_string_literal("COMPUTE_OBB")> {
+    : public mundy::meta::MetaKernelDispatcher<ComputeOBB, mundy::meta::make_registration_string("COMPUTE_OBB")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -55,7 +54,7 @@ class ComputeOBB
 
   /// \brief Constructor
   ComputeOBB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaKernelDispatcher<ComputeOBB, mundy::core::make_string_literal("COMPUTE_OBB")>(bulk_data_ptr,
+      : mundy::meta::MetaKernelDispatcher<ComputeOBB, mundy::meta::make_registration_string("COMPUTE_OBB")>(bulk_data_ptr,
                                                                                                        fixed_params) {
   }
   //@}
@@ -96,11 +95,8 @@ class ComputeOBB
 //! \name Registration
 //@{
 
-/// @brief Register ComputeOBB with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::shape::ComputeOBB, mundy::meta::GlobalMetaMethodFactory<void>)
-
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS(mundy::shape::compute_obb::kernels::Sphere, mundy::shape::ComputeOBB::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHERE", mundy::shape::compute_obb::kernels::Sphere, mundy::shape::ComputeOBB::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_SHAPE_COMPUTEOBB_HPP_

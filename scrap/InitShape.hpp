@@ -61,7 +61,6 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = ShapeType::RegistrationType;
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, InitShape>;
   //@}
@@ -189,12 +188,6 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
     }
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethodSubsetExecutionInterface.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
@@ -263,12 +256,5 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
 }  // namespace constraint
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register InitShape with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::InitShape, mundy::meta::GlobalMetaMethodFactory<void>)
-//@}
 
 #endif  // MUNDY_SHAPES_INITSHAPES_HPP_

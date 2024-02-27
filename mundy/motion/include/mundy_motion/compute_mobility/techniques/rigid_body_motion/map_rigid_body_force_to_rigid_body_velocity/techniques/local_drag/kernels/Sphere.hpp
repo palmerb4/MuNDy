@@ -68,7 +68,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
   using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
   //@}
 
@@ -205,12 +204,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     } else {
       mutable_params_ptr->set("viscosity", default_viscosity_, "The viscosity of the suspending fluid.");
     }
-  }
-
-  /// \brief Get the unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
   }
 
   /// \brief Generate a new instance of this class.

@@ -38,7 +38,7 @@ namespace motion {
 
 ResolveConstraints::ResolveConstraints(mundy::mesh::BulkData *const bulk_data_ptr,
                                        const Teuchos::ParameterList &fixed_params)
-    : mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::core::make_string_literal("NON_SMOOTH_LCP")>(
+    : mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::meta::make_registration_string("NON_SMOOTH_LCP")>(
           bulk_data_ptr, fixed_params) {
 }
 //}

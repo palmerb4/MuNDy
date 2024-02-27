@@ -45,7 +45,7 @@ namespace constraint {
 /// \brief Method for computing the current constraint violation.
 class ComputeConstraintViolation
     : public mundy::meta::MetaKernelDispatcher<ComputeConstraintViolation,
-                                               mundy::core::make_string_literal("COMPUTE_CONSTRAINT_VIOLATION")> {
+                                               mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_VIOLATION")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -56,7 +56,7 @@ class ComputeConstraintViolation
   /// \brief Constructor
   ComputeConstraintViolation(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
       : mundy::meta::MetaKernelDispatcher<ComputeConstraintViolation,
-                                          mundy::core::make_string_literal("COMPUTE_CONSTRAINT_VIOLATION")>(
+                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_VIOLATION")>(
             bulk_data_ptr, fixed_params) {
   }
   //@}
@@ -98,7 +98,7 @@ class ComputeConstraintViolation
 /// @brief Register our default kernels
 //@{
 
-MUNDY_REGISTER_METACLASS(mundy::constraint::compute_constraint_violation::kernels::Collision,
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_VIOLATION", mundy::constraint::compute_constraint_violation::kernels::Collision,
                          mundy::constraint::ComputeConstraintViolation::OurKernelFactory)
 //@}
 
