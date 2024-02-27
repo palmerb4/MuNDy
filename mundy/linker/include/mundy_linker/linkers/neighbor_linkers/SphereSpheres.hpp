@@ -50,13 +50,15 @@ namespace neighbor_linkers {
 ///
 /// The design of this class is in accordance with the static interface requirements of mundy::agent::AgentFactory.
 ///
-/// \note This class is a constraint rank assembly part containing neighbor linkers between spheres. It is a subset of the NEIGHBOR_LINKERS part.
+/// \note This class is a constraint rank assembly part containing neighbor linkers between spheres. It is a subset of
+/// the NEIGHBOR_LINKERS part.
 class SphereSpheres
-    : public mundy::agent::RankedAssembly<mundy::core::make_string_literal("SPHERE_SPHERES"), stk::topology::CONSTRAINT_RANK,
-                                          mundy::core::make_string_literal("NEIGHBOR_LINKERS"),
-                                          mundy::core::make_string_literal("LINKERS")> {};  // SphereSpheres
+    : public mundy::agent::RankedAssembly<
+          mundy::core::make_string_literal("SPHERE_SPHERES"), stk::topology::CONSTRAINT_RANK,
+          mundy::core::make_string_literal("NEIGHBOR_LINKERS"), mundy::core::make_string_literal("LINKERS")> {
+};  // SphereSpheres
 
-} // namespace neighbor_linkers
+}  // namespace neighbor_linkers
 
 }  // namespace linkers
 

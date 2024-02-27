@@ -31,12 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                 // for mundy::core::make_string_literal
-#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>               // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
-#include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>  // for mundy::motion::...::NonSmoothLCP
+#include <mundy_core/StringLiteral.hpp>                       // for mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodSubsetExecutionDispatcher
+#include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>       // for mundy::motion::...::NonSmoothLCP
 #include <mundy_motion/resolve_constraints/techniques/PairwisePotential.hpp>  // for mundy::motion::...::PairwisePotential
 
 namespace mundy {
@@ -46,7 +46,8 @@ namespace motion {
 /// \class ResolveConstraints
 /// \brief Method for resolving constraints between N bodies
 class ResolveConstraints
-    : public mundy::meta::MetaTechniqueDispatcher<ResolveConstraints, mundy::meta::make_registration_string("RESOLVE_CONSTRAINTS")> {
+    : public mundy::meta::MetaMethodSubsetExecutionDispatcher<ResolveConstraints, mundy::meta::make_registration_string(
+                                                                                      "RESOLVE_CONSTRAINTS")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -93,7 +94,7 @@ MUNDY_REGISTER_METACLASS("NONSMOOTH_LCP", mundy::motion::resolve_constraints::te
                          mundy::motion::ResolveConstraints::OurMethodFactory)
 
 MUNDY_REGISTER_METACLASS("PAIRWISE_POTENTIAL", mundy::motion::resolve_constraints::techniques::PairwisePotential,
-                          mundy::motion::ResolveConstraints::OurMethodFactory)
+                         mundy::motion::ResolveConstraints::OurMethodFactory)
 //@}
 
 #endif  // MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_

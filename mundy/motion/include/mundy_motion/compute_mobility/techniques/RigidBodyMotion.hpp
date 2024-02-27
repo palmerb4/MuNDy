@@ -36,17 +36,17 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>         // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapRigidBodyForceToRigidBodyVelocity.hpp>  // for mundy::motion::...::MapRigidBodyForceToRigidBodyVelocity
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapRigidBodyVelocityToSurfaceVelocity.hpp>  // for mundy::motion::...::MapRigidBodyVelocityToSurfaceVelocity
-#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp>        // for mundy::motion::...::MapSurfaceForceToRigidBodyForce
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp>  // for mundy::motion::...::MapSurfaceForceToRigidBodyForce
 
 namespace mundy {
 
@@ -259,13 +259,16 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief Method for mapping from rigid body force to rigid body velocity.
-  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> map_rigid_body_force_to_rigid_body_velocity_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>>
+      map_rigid_body_force_to_rigid_body_velocity_method_ptr_;
 
   /// \brief Method for mapping from rigid body velocity to surface velocity.
-  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> map_rigid_body_velocity_to_surface_velocity_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>>
+      map_rigid_body_velocity_to_surface_velocity_method_ptr_;
 
   /// \brief Method for mapping from surface force to rigid body force.
-  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> map_surface_force_to_rigid_body_force_method_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>>
+      map_surface_force_to_rigid_body_force_method_ptr_;
   //@}
 };  // RigidBodyMotion
 
@@ -281,15 +284,18 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 //@{
 
 /// @brief Register our default method with our method factory.
-MUNDY_REGISTER_METACLASS("MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY",
-                         mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity,
-                         mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
-MUNDY_REGISTER_METACLASS("MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY",
-                         mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyVelocityToSurfaceVelocity,
-                         mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
-MUNDY_REGISTER_METACLASS("MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE",
-  mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce,
-                          mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
+MUNDY_REGISTER_METACLASS(
+    "MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY",
+    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity,
+    mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
+MUNDY_REGISTER_METACLASS(
+    "MAP_RIGID_BODY_VELOCITY_TO_SURFACE_VELOCITY",
+    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyVelocityToSurfaceVelocity,
+    mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
+MUNDY_REGISTER_METACLASS(
+    "MAP_SURFACE_FORCE_TO_RIGID_BODY_FORCE",
+    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapSurfaceForceToRigidBodyForce,
+    mundy::motion::compute_mobility::techniques::RigidBodyMotion::OurMethodFactory)
 //}
 
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGIDBODYMOTION_HPP_

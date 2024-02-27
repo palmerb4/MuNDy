@@ -55,8 +55,8 @@ namespace {
 //! \name MetaFactory object registration tests
 //@{
 
-// To avoid contaminating other tests and mundy itself, we'll use a unique registration identifier for all test factories and reset the
-// factory before and after each test.
+// To avoid contaminating other tests and mundy itself, we'll use a unique registration identifier for all test
+// factories and reset the factory before and after each test.
 TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   // Registration of a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory should store the
   // class's identifier, instance generator, requirements generator, fixed parameters validator, and mutable parameters
@@ -71,8 +71,8 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
 
   // Create our example meta factory.
   constexpr auto factory_registration_string_wrapper = mundy::meta::make_registration_string("TEST_FACTORY");
-  using ExampleMetaFactory =
-      MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper), factory_registration_string_wrapper>;
+  using ExampleMetaFactory = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper),
+                                         factory_registration_string_wrapper>;
   ExampleMetaFactory::reset();
 
   // Perform the registration.
@@ -124,8 +124,8 @@ TEST(MetaFactoryRegistration, Reregistration) {
 
   // Create our example meta factory.
   constexpr auto factory_registration_string_wrapper = mundy::meta::make_registration_string("TEST_FACTORY");
-  using ExampleMetaFactory =
-      MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper), factory_registration_string_wrapper>;
+  using ExampleMetaFactory = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper),
+                                         factory_registration_string_wrapper>;
   ExampleMetaFactory::reset();
 
   // Register the first class.
@@ -135,8 +135,10 @@ TEST(MetaFactoryRegistration, Reregistration) {
   ASSERT_EQ(ExampleMetaFactory::num_registered_classes(), 1);
 
   // Attempting to register a class with a key that already exists should throw an exception
-  EXPECT_THROW(ExampleMetaFactory::register_new_class<ClassToRegister1>(shared_class_registration_string), std::logic_error);
-  EXPECT_THROW(ExampleMetaFactory::register_new_class<ClassToRegister2>(shared_class_registration_string), std::logic_error);
+  EXPECT_THROW(ExampleMetaFactory::register_new_class<ClassToRegister1>(shared_class_registration_string),
+               std::logic_error);
+  EXPECT_THROW(ExampleMetaFactory::register_new_class<ClassToRegister2>(shared_class_registration_string),
+               std::logic_error);
 
   ExampleMetaFactory::reset();
 }
@@ -158,10 +160,10 @@ TEST(MetaFactoryRegistration, RegistrationWithDifferentRegistrationIdentifier) {
   // Create our example meta factories.
   constexpr auto factory_registration_string_wrapper1 = mundy::meta::make_registration_string("TEST_FACTORY1");
   constexpr auto factory_registration_string_wrapper2 = mundy::meta::make_registration_string("TEST_FACTORY2");
-  using ExampleMetaFactory1 =
-      MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper1), factory_registration_string_wrapper1>;
-  using ExampleMetaFactory2 =
-      MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper2), factory_registration_string_wrapper2>;
+  using ExampleMetaFactory1 = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper1),
+                                          factory_registration_string_wrapper1>;
+  using ExampleMetaFactory2 = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper2),
+                                          factory_registration_string_wrapper2>;
   ExampleMetaFactory1::reset();
 
   // Register with the first factory.

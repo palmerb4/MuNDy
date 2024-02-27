@@ -32,10 +32,10 @@
 
 // Mundy libs
 #include <mundy_constraint/compute_constraint_projection/kernels/Collision.hpp>  // for mundy::constraint::...::Collision
-#include <mundy_mesh/BulkData.hpp>                                               // for mundy::mesh::BulkData
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
-#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 
@@ -85,7 +85,8 @@ class ComputeConstraintProjection
 //! \name Registration
 //@{
 
-MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_PROJECTION", mundy::constraint::compute_constraint_projection::kernels::Collision,
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_PROJECTION",
+                         mundy::constraint::compute_constraint_projection::kernels::Collision,
                          mundy::constraint::ComputeConstraintProjection::OurKernelFactory)
 //@}
 

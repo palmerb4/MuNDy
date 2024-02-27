@@ -62,7 +62,8 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_shape/PerformRegistration.hpp>  // for mundy::shape::perform_registration
 #include <mundy_shape/shapes/Spheres.hpp>       // for mundy::shape::shapes::Spheres
 
-class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")> {
+class NodeEuler
+    : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -73,8 +74,8 @@ class NodeEuler : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::met
   /// \brief Constructor
   NodeEuler(mundy::mesh::BulkData *const bulk_data_ptr,
             const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
-      : mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")>(bulk_data_ptr,
-                                                                                                     fixed_params) {
+      : mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")>(
+            bulk_data_ptr, fixed_params) {
   }
   //@}
 
@@ -327,8 +328,8 @@ class ComputeBrownianVelocity
   ComputeBrownianVelocity(mundy::mesh::BulkData *const bulk_data_ptr,
                           const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : mundy::meta::MetaKernelDispatcher<ComputeBrownianVelocity,
-                                          mundy::meta::make_registration_string("COMPUTE_BROWNIAN_VELOCITY")>(bulk_data_ptr,
-                                                                                                         fixed_params) {
+                                          mundy::meta::make_registration_string("COMPUTE_BROWNIAN_VELOCITY")>(
+            bulk_data_ptr, fixed_params) {
   }
   //@}
 

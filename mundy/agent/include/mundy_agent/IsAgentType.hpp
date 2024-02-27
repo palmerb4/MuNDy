@@ -33,8 +33,8 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 

@@ -35,7 +35,7 @@
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaTechniqueDispatcher
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodSubsetExecutionDispatcher
 #include <mundy_motion/compute_mobility/techniques/RigidBodyMotion.hpp>  // for mundy::motion::compute_mobility::techniques::RigidBodyMotion
 
 namespace mundy {
@@ -44,8 +44,9 @@ namespace motion {
 
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class ComputeMobility : public mundy::meta::MetaTechniqueDispatcher<ComputeMobility, mundy::meta::make_registration_string(
-                                                                                         "RIGID_BODY_MOTION")> {
+class ComputeMobility
+    : public mundy::meta::MetaMethodSubsetExecutionDispatcher<ComputeMobility, mundy::meta::make_registration_string(
+                                                                                   "RIGID_BODY_MOTION")> {
  public:
   //! \name Constructors and destructor
   //@{

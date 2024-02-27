@@ -22,10 +22,10 @@
 
 // Mundy libs
 #include <mundy_agent/AgentHierarchy.hpp>          // for mundy::agent::AgentHierarchy
+#include <mundy_agent/PerformRegistration.hpp>     // for mundy::agent::perform_registration
 #include <mundy_shape/Shapes.hpp>                  // for mundy::shape::Shapes
 #include <mundy_shape/shapes/Spheres.hpp>          // for mundy::shape::shapes::Spheres
 #include <mundy_shape/shapes/Spherocylinders.hpp>  // for mundy::shape::shapes::Spherocylinders
-#include <mundy_agent/PerformRegistration.hpp>     // for mundy::agent::perform_registration
 
 namespace mundy {
 

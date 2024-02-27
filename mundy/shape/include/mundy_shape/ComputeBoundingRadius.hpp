@@ -31,12 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                                 // for mundy::mesh::BulkData
-#include <mundy_meta/MetaFactory.hpp>                              // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernelDispatcher.hpp>                     // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>                             // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_shape/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::shape::compute_bounding_radius::kernels::Sphere
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_shape/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::shape::compute_bounding_radius::kernels::Sphere
 
 namespace mundy {
 

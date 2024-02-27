@@ -84,9 +84,7 @@ concept HasNonConstAccessOperator = requires(Accessor a, unsigned idx) {
 
 /// \brief A concept that checks if an Accessor is copyable and has a const [] operator
 template <typename Accessor, typename T>
-concept ValidAccessor =
-    HasConstAccessOperator<Accessor, T> &&
-    std::copyable<Accessor>;
+concept ValidAccessor = HasConstAccessOperator<Accessor, T> && std::copyable<Accessor>;
 
 /// \brief A concept that checks if an Accessor is default constructable
 template <typename Accessor>

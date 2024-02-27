@@ -402,12 +402,9 @@ TEST(PartRequirementsMerge, ArePartAttributesMergable) {
   ASSERT_EQ(part_reqs1_ptr->get_part_attribute_names().size(), 3);
 
   const auto attribute_names = part_reqs1_ptr->get_part_attribute_names();
-  const bool attribute1_exists =
-      std::count(attribute_names.begin(), attribute_names.end(), attribute1_name) > 0;
-  const bool attribute23_exists =
-      std::count(attribute_names.begin(), attribute_names.end(), attribute2_name) > 0;
-  const bool attribute4_exists =
-      std::count(attribute_names.begin(), attribute_names.end(), attribute4_name) > 0;
+  const bool attribute1_exists = std::count(attribute_names.begin(), attribute_names.end(), attribute1_name) > 0;
+  const bool attribute23_exists = std::count(attribute_names.begin(), attribute_names.end(), attribute2_name) > 0;
+  const bool attribute4_exists = std::count(attribute_names.begin(), attribute_names.end(), attribute4_name) > 0;
   EXPECT_TRUE(attribute1_exists);
   EXPECT_TRUE(attribute23_exists);
   EXPECT_TRUE(attribute4_exists);
@@ -545,7 +542,7 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   const auto merged_subpart1_ptr = subpart_map.find("A")->second;
   const auto merged_subpart2_ptr = subpart_map.find("B")->second;
   const auto merged_subpart3_ptr = subpart_map.find("C")->second;
-  
+
   EXPECT_EQ(merged_subpart1_ptr->get_part_attribute_names().size(), 1);
   EXPECT_EQ(merged_subpart2_ptr->get_part_attribute_names().size(), 3);
   EXPECT_EQ(merged_subpart3_ptr->get_part_attribute_names().size(), 1);
@@ -553,11 +550,11 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   const auto subpart1_attribute_names = merged_subpart1_ptr->get_part_attribute_names();
   const auto subpart2_attribute_names = merged_subpart2_ptr->get_part_attribute_names();
   const auto subpart3_attribute_names = merged_subpart3_ptr->get_part_attribute_names();
-  
+
   EXPECT_EQ(subpart1_attribute_names[0], attribute1_name);
 
   const bool attribute2_exists =
-      std::count(subpart2_attribute_names.begin(), subpart2_attribute_names.end(), attribute2_name) > 0;  
+      std::count(subpart2_attribute_names.begin(), subpart2_attribute_names.end(), attribute2_name) > 0;
   const bool attribute3_exists =
       std::count(subpart2_attribute_names.begin(), subpart2_attribute_names.end(), attribute3_name) > 0;
   const bool attribute5_exists =

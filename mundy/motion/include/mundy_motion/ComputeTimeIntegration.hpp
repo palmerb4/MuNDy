@@ -31,11 +31,11 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                 // for mundy::core::make_string_literal
-#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>               // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
+#include <mundy_core/StringLiteral.hpp>                       // for mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodSubsetExecutionDispatcher
 #include <mundy_motion/compute_time_integration/techniques/NodeEuler.hpp>  // for mundy::motion::...::NodeEuler
 
 namespace mundy {
@@ -45,7 +45,8 @@ namespace motion {
 /// \class ComputeTimeIntegration
 /// \brief Method for moving particles forward in time (unconstrained).
 class ComputeTimeIntegration
-    : public mundy::meta::MetaTechniqueDispatcher<ComputeTimeIntegration, mundy::meta::make_registration_string("COMPUTE_TIME_INTEGRATION")> {
+    : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
+          ComputeTimeIntegration, mundy::meta::make_registration_string("COMPUTE_TIME_INTEGRATION")> {
  public:
   //! \name Constructors and destructor
   //@{

@@ -64,7 +64,8 @@ namespace techniques {
 
 /// \class LocalDrag
 /// \brief Method for computing the rigid body force to rigid body velocity using the local drag of different parts.
-class LocalDrag : public mundy::meta::MetaKernelDispatcher<LocalDrag, mundy::meta::make_registration_string("LOCAL_DRAG")> {
+class LocalDrag
+    : public mundy::meta::MetaKernelDispatcher<LocalDrag, mundy::meta::make_registration_string("LOCAL_DRAG")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -74,8 +75,8 @@ class LocalDrag : public mundy::meta::MetaKernelDispatcher<LocalDrag, mundy::met
 
   /// \brief Constructor
   LocalDrag(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaKernelDispatcher<LocalDrag, mundy::meta::make_registration_string("LOCAL_DRAG")>(bulk_data_ptr,
-                                                                                                     fixed_params) {
+      : mundy::meta::MetaKernelDispatcher<LocalDrag, mundy::meta::make_registration_string("LOCAL_DRAG")>(
+            bulk_data_ptr, fixed_params) {
   }
   //@}
 
@@ -134,7 +135,7 @@ class LocalDrag : public mundy::meta::MetaKernelDispatcher<LocalDrag, mundy::met
 
 /// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE",
-  mundy::motion::compute_mobility::techniques::rigid_body_motion::
+                         mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_force_to_rigid_body_velocity::techniques::local_drag::kernels::Sphere,
                          mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag::OurKernelFactory)

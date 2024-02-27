@@ -3,4 +3,4 @@
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
-#endif // MUNDYCORE_CONFIG_H
+#endif  // MUNDYCORE_CONFIG_H

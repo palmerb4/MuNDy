@@ -3,4 +3,4 @@
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
-#endif // MUNDYMESH_CONFIG_H
+#endif  // MUNDYMESH_CONFIG_H

@@ -27,7 +27,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/StringToTopology.hpp>  // for mundy::mesh::map_string_to_rank and mundy::mesh::map_string_to_topology
 
 namespace mundy {
@@ -51,7 +51,6 @@ stk::topology::rank_t map_string_to_rank(const std::string &rank_string) {
     MUNDY_THROW_ASSERT(false, std::invalid_argument, "The provided rank string " << rank_string << " is not valid.");
   }
 }
-
 
 stk::topology map_string_to_topology(const std::string &topology_string) {
   if (topology_string == "INVALID_TOPOLOGY") {

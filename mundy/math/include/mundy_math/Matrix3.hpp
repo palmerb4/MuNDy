@@ -1001,15 +1001,24 @@ KOKKOS_FUNCTION OutputType mean_f(const Matrix3<T, Accessor>& mat) {
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
 KOKKOS_FUNCTION OutputType variance(const Matrix3<T, Accessor>& mat) {
   auto mat_mean = mean<T, Accessor, OutputType>(mat);
-  return ((static_cast<OutputType>(mat(0)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(0)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(1)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(1)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(2)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(2)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(3)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(3)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(4)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(4)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(5)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(5)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(6)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(6)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(7)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(7)) -static_cast<OutputType>(mat_mean)) +
-          (static_cast<OutputType>(mat(8)) -static_cast<OutputType>(mat_mean)) * (static_cast<OutputType>(mat(8)) -static_cast<OutputType>(mat_mean))) /
+  return ((static_cast<OutputType>(mat(0)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(0)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(1)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(1)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(2)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(2)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(3)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(3)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(4)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(4)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(5)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(5)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(6)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(6)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(7)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(7)) - static_cast<OutputType>(mat_mean)) +
+          (static_cast<OutputType>(mat(8)) - static_cast<OutputType>(mat_mean)) *
+              (static_cast<OutputType>(mat(8)) - static_cast<OutputType>(mat_mean))) /
          OutputType(9);
 }
 
@@ -1058,8 +1067,10 @@ KOKKOS_FUNCTION Matrix3<std::remove_const_t<T>> transpose(const Matrix3<T, Acces
 /// \brief Matrix inverse (returns a double if T is an integral type, otherwise returns T)
 /// \tparam T The input matrix element type.
 /// \tparam Accessor The accessor for the Matrix3, assuming this is part of your implementation.
-/// \tparam OutputElementType The output matrix element type, defaults T if T is an integral type (e.g., float or double) and double otherwise.
-template <typename T, typename Accessor, typename OutputElementType = std::conditional_t<std::is_integral_v<T>, double, T>>
+/// \tparam OutputElementType The output matrix element type, defaults T if T is an integral type (e.g., float or
+/// double) and double otherwise.
+template <typename T, typename Accessor,
+          typename OutputElementType = std::conditional_t<std::is_integral_v<T>, double, T>>
 KOKKOS_FUNCTION Matrix3<OutputElementType> inverse(const Matrix3<T, Accessor>& mat) {
   const auto det = determinant(mat);
   MUNDY_THROW_ASSERT(det != T(0), std::runtime_error, "Matrix3<T>: matrix is singular.");
@@ -1089,8 +1100,10 @@ KOKKOS_FUNCTION Matrix3<OutputElementType> inverse(const Matrix3<T, Accessor>& m
 /// \brief Matrix inverse (returns a float if T is an integral type, otherwise returns T)
 /// \tparam T The input matrix element type.
 /// \tparam Accessor The accessor for the Matrix3, assuming this is part of your implementation.
-/// \tparam OutputElementType The output matrix element type, defaults T if T is an integral type (e.g., float or double) and float otherwise.
-template <typename T, typename Accessor, typename OutputElementType = std::conditional_t<std::is_integral_v<T>, float, T>>
+/// \tparam OutputElementType The output matrix element type, defaults T if T is an integral type (e.g., float or
+/// double) and float otherwise.
+template <typename T, typename Accessor,
+          typename OutputElementType = std::conditional_t<std::is_integral_v<T>, float, T>>
 KOKKOS_FUNCTION auto inverse_f(const Matrix3<T, Accessor>& mat) {
   return inverse<T, Accessor, OutputElementType>(mat);
 }

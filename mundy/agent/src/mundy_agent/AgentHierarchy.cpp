@@ -34,8 +34,8 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
 #include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
+#include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -246,17 +246,17 @@ std::shared_ptr<AgentHierarchy::StringTreeNode> AgentHierarchy::StringTreeManage
   }
 
   // Check if the orphaned nodes can be linked to the new node.
-for (auto orphaned_node_iter = orphaned_node_map_.begin(); orphaned_node_iter != orphaned_node_map_.end(); ) {
+  for (auto orphaned_node_iter = orphaned_node_map_.begin(); orphaned_node_iter != orphaned_node_map_.end();) {
     std::shared_ptr<StringTreeNode> orphaned_node = orphaned_node_iter->second;
     if (orphaned_node->get_parent_name() == name) {
-        // This orphaned node is a child of the new node.
-        node->add_child(orphaned_node);
-        orphaned_node_iter = orphaned_node_map_.erase(orphaned_node_iter);
+      // This orphaned node is a child of the new node.
+      node->add_child(orphaned_node);
+      orphaned_node_iter = orphaned_node_map_.erase(orphaned_node_iter);
     } else {
-        // This orphaned node is not a child of the new node.
-        ++orphaned_node_iter;
+      // This orphaned node is not a child of the new node.
+      ++orphaned_node_iter;
     }
-}
+  }
 
   return node;
 }

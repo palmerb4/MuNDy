@@ -34,7 +34,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>            // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>       // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
 #include <mundy_meta/FieldRequirementsFactory.hpp>  // for mundy::meta::FieldRequirementsFactory
@@ -77,8 +77,8 @@ void PartRequirements::set_part_topology(const stk::topology::topology_t &part_t
       !part_rank_already_set, std::logic_error,
       "PartRequirements: Parts are designed to fall into three catagories: name set, name and topology set, "
           << "name and rank set. \n This part already sets the rank, so it's invalid to also set the topology.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+          << "The current set of requirements is:\n"
+          << get_reqs_as_a_string());
   part_topology_ = part_topology;
   part_topology_is_set_ = true;
   this->check_if_valid();
@@ -90,8 +90,8 @@ void PartRequirements::set_part_rank(const stk::topology::rank_t &part_rank) {
       !part_topology_already_set, std::logic_error,
       "PartRequirements: Parts are designed to fall into three catagories: name set, name and topology set, "
           << "name and rank set. \n This part already sets the topology, so it's invalid to also set the rank.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+          << "The current set of requirements is:\n"
+          << get_reqs_as_a_string());
   part_rank_ = part_rank;
   part_rank_is_set_ = true;
   this->check_if_valid();
@@ -112,8 +112,8 @@ void PartRequirements::delete_part_rank() {
 void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
   MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
                      "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   // Check if the provided parameters are valid.
   field_req_ptr->check_if_valid();
@@ -135,8 +135,8 @@ void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> fie
 void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
   MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
                      "MeshRequirements: The pointer passed to add_subpart_reqs cannot be a nullptr.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   // Check if the provided parameters are valid.
   part_req_ptr->check_if_valid();
@@ -185,8 +185,8 @@ std::string PartRequirements::get_part_name() const {
   MUNDY_THROW_ASSERT(
       this->constrains_part_name(), std::logic_error,
       "PartRequirements: Attempting to access the part name requirement even though part name is unconstrained.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+          << "The current set of requirements is:\n"
+          << get_reqs_as_a_string());
 
   return part_name_;
 }
@@ -195,8 +195,8 @@ stk::topology::topology_t PartRequirements::get_part_topology() const {
   MUNDY_THROW_ASSERT(this->constrains_part_topology(), std::logic_error,
                      "PartRequirements: Attempting to access the part topology requirement even though part "
                      "topology is unconstrained.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   return part_topology_;
 }
@@ -205,8 +205,8 @@ stk::topology::rank_t PartRequirements::get_part_rank() const {
   MUNDY_THROW_ASSERT(
       this->constrains_part_rank(), std::logic_error,
       "PartRequirements: Attempting to access the part rank requirement even though part rank is unconstrained.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+          << "The current set of requirements is:\n"
+          << get_reqs_as_a_string());
 
   return part_rank_;
 }
@@ -233,8 +233,8 @@ stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *c
                      "PartRequirements: MetaData pointer cannot be null).");
   MUNDY_THROW_ASSERT(this->constrains_part_name(), std::logic_error,
                      "PartRequirements: Part name must be set before calling declare_part.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   // Declare the Part.
   stk::mesh::Part *part_ptr;
@@ -251,8 +251,8 @@ stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *c
                          << "This should never happen. Please report this bug to the developers.\n"
                          << "  Desired part name: " << this->get_part_name() << "\n"
                          << "  Actual part name: " << part_ptr->name() << ".\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
 
   // Declare the Part's fields and associate them with the Part.
   // Loop over each rank's field map.
@@ -299,9 +299,9 @@ void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_p
   // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
   if (part_req_ptr->constrains_part_name()) {
     if (this->constrains_part_name()) {
-      MUNDY_THROW_ASSERT(
-          this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
-          "PartRequirements: One of the inputs has incompatible name (" << part_req_ptr->get_part_name() << ").\n"
+      MUNDY_THROW_ASSERT(this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
+                         "PartRequirements: One of the inputs has incompatible name ("
+                             << part_req_ptr->get_part_name() << ").\n"
                              << "The current set of requirements is:\n"
                              << get_reqs_as_a_string());
     } else {
@@ -311,9 +311,9 @@ void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_p
 
   if (part_req_ptr->constrains_part_rank()) {
     if (this->constrains_part_rank()) {
-      MUNDY_THROW_ASSERT(
-          this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
-          "PartRequirements: One of the inputs has incompatible rank (" << part_req_ptr->get_part_rank() << ").\n"
+      MUNDY_THROW_ASSERT(this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
+                         "PartRequirements: One of the inputs has incompatible rank ("
+                             << part_req_ptr->get_part_rank() << ").\n"
                              << "The current set of requirements is:\n"
                              << get_reqs_as_a_string());
     } else {
@@ -358,7 +358,7 @@ void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>
   }
 }
 
-void PartRequirements::print_reqs(std::ostream& os, int indent_level) const {
+void PartRequirements::print_reqs(std::ostream &os, int indent_level) const {
   std::string indent(indent_level * 2, ' ');
 
   os << indent << "PartRequirements: " << std::endl;
@@ -390,7 +390,7 @@ void PartRequirements::print_reqs(std::ostream& os, int indent_level) const {
   for (auto const &part_field_map : part_ranked_field_maps_) {
     for (auto const &[field_name, field_req_ptr] : part_field_map) {
       os << indent << "  Part field " << field_count << " has name (" << field_name << "), rank (" << rank
-                << "), and requirements" << std::endl;
+         << "), and requirements" << std::endl;
       field_req_ptr->print_reqs(os, indent_level + 1);
       field_count++;
     }
@@ -402,7 +402,7 @@ void PartRequirements::print_reqs(std::ostream& os, int indent_level) const {
   int subpart_count = 0;
   for (auto const &[subpart_name, subpart_req_ptr] : part_subpart_map_) {
     os << indent << "  Part subpart " << subpart_count << " has name (" << subpart_name << ") and requirements"
-              << std::endl;
+       << std::endl;
     subpart_req_ptr->print_reqs(os, indent_level + 1);
     subpart_count++;
   }
@@ -410,8 +410,7 @@ void PartRequirements::print_reqs(std::ostream& os, int indent_level) const {
   os << indent << "  Part attributes: " << std::endl;
   int attribute_count = 0;
   for (const std::string &attribute_name : required_part_attribute_names_) {
-    os << indent << "  Part attribute " << attribute_count << " has name (" << attribute_name << ")"
-       << std::endl;
+    os << indent << "  Part attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
     attribute_count++;
   }
 

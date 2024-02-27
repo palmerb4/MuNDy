@@ -759,15 +759,18 @@ KOKKOS_FUNCTION auto norm_squared(const Vector3<T, Accessor>& vec) {
 /// \brief Minor angle between two vectors (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
-template <typename U, typename OtherAccessor, typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+template <typename U, typename OtherAccessor, typename T, typename Accessor,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
 KOKKOS_FUNCTION OutputType minor_angle(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
-  return std::acos(static_cast<OutputType>(dot(a, b)) / (static_cast<OutputType>(two_norm(a)) * static_cast<OutputType>(two_norm(b))));
+  return std::acos(static_cast<OutputType>(dot(a, b)) /
+                   (static_cast<OutputType>(two_norm(a)) * static_cast<OutputType>(two_norm(b))));
 }
 
 /// \brief Minor angle between two vectors (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
-template <typename U, typename OtherAccessor, typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+template <typename U, typename OtherAccessor, typename T, typename Accessor,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
 KOKKOS_FUNCTION OutputType minor_angle_f(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
   return minor_angle<U, OtherAccessor, T, Accessor, OutputType>(a, b);
 }
@@ -775,7 +778,8 @@ KOKKOS_FUNCTION OutputType minor_angle_f(const Vector3<U, OtherAccessor>& a, con
 /// \brief Major angle between two vectors (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
-template <typename U, typename OtherAccessor, typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+template <typename U, typename OtherAccessor, typename T, typename Accessor,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
 KOKKOS_FUNCTION OutputType major_angle(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
   return OutputType(M_PI) - minor_angle<U, OtherAccessor, T, Accessor, OutputType>(a, b);
 }
@@ -783,7 +787,8 @@ KOKKOS_FUNCTION OutputType major_angle(const Vector3<U, OtherAccessor>& a, const
 /// \brief Major angle between two vectors (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
-template <typename U, typename OtherAccessor, typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+template <typename U, typename OtherAccessor, typename T, typename Accessor,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
 KOKKOS_FUNCTION OutputType major_angle_f(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
   return major_angle<U, OtherAccessor, T, Accessor, OutputType>(a, b);
 }

@@ -35,14 +35,14 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                           // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>                  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>                        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>                       // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>                   // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -106,14 +106,15 @@ class Collision : public mundy::meta::MetaKernel<void> {
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
         mundy::meta::ParamConfig<std::string>{.name = "part_name",
-                                 .default_value = std::string(default_part_name_),
-                                 .doc_string = "Name of the part associated with this kernel."});
+                                              .default_value = std::string(default_part_name_),
+                                              .doc_string = "Name of the part associated with this kernel."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
-        mundy::meta::ParamConfig<std::string>{.name = "element_lagrange_multiplier_field_name",
-                                 .default_value = std::string(default_element_lagrange_multiplier_field_name_),
-                                 .doc_string = "Name of the element field containing the constraint's Lagrange multiplier."});
+        mundy::meta::ParamConfig<std::string>{
+            .name = "element_lagrange_multiplier_field_name",
+            .default_value = std::string(default_element_lagrange_multiplier_field_name_),
+            .doc_string = "Name of the element field containing the constraint's Lagrange multiplier."});
   }
 
   /// \brief Validate the mutable parameters and use defaults for unset parameters.

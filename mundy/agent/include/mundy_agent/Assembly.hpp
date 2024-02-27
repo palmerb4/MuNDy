@@ -33,10 +33,10 @@
 
 // Mundy includes
 #include <mundy_agent/AgentHierarchy.hpp>    // for mundy::agent::AgentHierarchy
+#include <mundy_core/StringLiteral.hpp>      // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_core/StringLiteral.hpp>      // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 

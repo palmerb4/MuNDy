@@ -91,12 +91,12 @@ struct StringLiteral {
 /// @param rhs The right-hand side of the comparison
 template <size_t N>
 constexpr bool operator==(const StringLiteral<N>& lhs, const StringLiteral<N>& rhs) {
-    for (size_t i = 0; i < N; ++i) {
-        if (lhs.value[i] != rhs.value[i]) {
-            return false;
-        }
+  for (size_t i = 0; i < N; ++i) {
+    if (lhs.value[i] != rhs.value[i]) {
+      return false;
     }
-    return true;
+  }
+  return true;
 }
 
 /// \brief Helper function for creating a StringLiteral.

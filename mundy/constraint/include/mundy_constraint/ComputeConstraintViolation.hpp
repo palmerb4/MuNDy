@@ -32,10 +32,10 @@
 
 // Mundy libs
 #include <mundy_constraint/compute_constraint_violation/kernels/Collision.hpp>  // for mundy::constraint::...::kernels::Collision
-#include <mundy_mesh/BulkData.hpp>                                              // for mundy::mesh::BulkData
-#include <mundy_meta/MetaKernelDispatcher.hpp>                                  // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>                                          // for mundy::meta::MetaMethodRegistry
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::MetaMethodRegistry
 
 namespace mundy {
 
@@ -98,7 +98,8 @@ class ComputeConstraintViolation
 /// @brief Register our default kernels
 //@{
 
-MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_VIOLATION", mundy::constraint::compute_constraint_violation::kernels::Collision,
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_VIOLATION",
+                         mundy::constraint::compute_constraint_violation::kernels::Collision,
                          mundy::constraint::ComputeConstraintViolation::OurKernelFactory)
 //@}
 

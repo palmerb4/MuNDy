@@ -27,9 +27,8 @@
 #include <stdexcept>  // for std::invalid_argument
 #include <string>     // for std::string
 
-
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 namespace mundy {
 
@@ -39,19 +38,18 @@ namespace meta {
 /// @tparam ValueType The type of the parameter's value.
 template <typename ValueType>
 struct ParamConfig {
-
-    /// @brief The name of the parameter.
+  /// @brief The name of the parameter.
   std::string name;
 
-    /// @brief The default value of the parameter.
+  /// @brief The default value of the parameter.
   ValueType default_value;
 
-    /// @brief The documentation string of the parameter.
+  /// @brief The documentation string of the parameter.
   std::string doc_string = "";
 };  // struct ParamConfig
 
-
-/// @brief A function that checks if a parameter is in the parameter list (with the correct type) and sets its default value if it is not.
+/// @brief A function that checks if a parameter is in the parameter list (with the correct type) and sets its default
+/// value if it is not.
 /// @tparam ValueType The type of the parameter's value.
 /// @param params_ptr The pointer to the parameter list.
 /// @param config The configuration of the parameter.
@@ -69,7 +67,8 @@ void check_parameter_and_set_default(Teuchos::ParameterList *const params_ptr, c
   }
 }
 
-/// @brief A function that checks if a parameter is in the parameter list and has the correct type. Throws an exception if it is not.
+/// @brief A function that checks if a parameter is in the parameter list and has the correct type. Throws an exception
+/// if it is not.
 /// @tparam ValueType The type of the parameter's value.
 /// @param params_ptr The pointer to the parameter list.
 /// @param name The name of the parameter.

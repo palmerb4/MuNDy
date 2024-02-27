@@ -143,10 +143,10 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
                 "Name of the node field containing the normal at the attachment point to each sphere's surface."});
 
     mundy::meta::check_parameter_and_set_default(
-        fixed_params_ptr,
-        mundy::meta::ParamConfig<std::string>{.name = "element_radius_field_name",
-                                 .default_value = std::string(default_element_radius_field_name_),
-                                 .doc_string = "Name of the element field containing the radius of each sphere."});
+        fixed_params_ptr, mundy::meta::ParamConfig<std::string>{
+                              .name = "element_radius_field_name",
+                              .default_value = std::string(default_element_radius_field_name_),
+                              .doc_string = "Name of the element field containing the radius of each sphere."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,

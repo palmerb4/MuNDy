@@ -36,18 +36,18 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_constraint/ComputeConstraintForcing.hpp>     // for mundy::constraint::ComputeConstraintForcing
-#include <mundy_constraint/ComputeConstraintProjection.hpp>  // for mundy::constraint::ComputeConstraintProjection
-#include <mundy_constraint/ComputeConstraintResidual.hpp>    // for mundy::constraint::ComputeConstraintResidual
-#include <mundy_constraint/ComputeConstraintViolation.hpp>   // for mundy::constraint::ComputeConstraintViolation
-#include <mundy_core/throw_assert.hpp>                       // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>                           // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                           // for mundy::mesh::MetaData
-#include <mundy_meta/MetaFactory.hpp>                        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>                         // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>                       // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>                   // for mundy::meta::PartRequirements
+#include <mundy_constraint/ComputeConstraintForcing.hpp>      // for mundy::constraint::ComputeConstraintForcing
+#include <mundy_constraint/ComputeConstraintProjection.hpp>   // for mundy::constraint::ComputeConstraintProjection
+#include <mundy_constraint/ComputeConstraintResidual.hpp>     // for mundy::constraint::ComputeConstraintResidual
+#include <mundy_constraint/ComputeConstraintViolation.hpp>    // for mundy::constraint::ComputeConstraintViolation
+#include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -410,23 +410,23 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
 //@{
 
 /// @brief Register our default constraint forcing method with our method factory.
-MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_FORCING",
-    mundy::constraint::ComputeConstraintForcing,
+MUNDY_REGISTER_METACLASS(
+    "COMPUTE_CONSTRAINT_FORCING", mundy::constraint::ComputeConstraintForcing,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintForcingMethodFactory)
 
 /// @brief Register our default constraint projection method with our method factory.
-MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_PROJECTION",
-    mundy::constraint::ComputeConstraintProjection,
+MUNDY_REGISTER_METACLASS(
+    "COMPUTE_CONSTRAINT_PROJECTION", mundy::constraint::ComputeConstraintProjection,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintProjectionMethodFactory)
 
 /// @brief Register our default constraint residual method with our method factory.
-MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_RESIDUAL",
-    mundy::constraint::ComputeConstraintResidual,
+MUNDY_REGISTER_METACLASS(
+    "COMPUTE_CONSTRAINT_RESIDUAL", mundy::constraint::ComputeConstraintResidual,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintResidualMethodFactory)
 
 /// @brief Register our default constraint violation method with our method factory.
-MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_VIOLATION",
-    mundy::constraint::ComputeConstraintViolation,
+MUNDY_REGISTER_METACLASS(
+    "COMPUTE_CONSTRAINT_VIOLATION", mundy::constraint::ComputeConstraintViolation,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintViolationMethodFactory)
 //}
 

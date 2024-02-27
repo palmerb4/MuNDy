@@ -108,7 +108,7 @@ concept IsValidRegistrationValueWrapper = requires(T registration_value_wrapper)
 /// the return type of \c registration_value_wrapper.value().
 template <typename PolymorphicBaseType_t, typename RegistrationValueWrapperType_t,
           RegistrationValueWrapperType_t registration_value_wrapper>
-  // requires IsValidRegistrationValueWrapper<RegistrationValueWrapperType_t>
+// requires IsValidRegistrationValueWrapper<RegistrationValueWrapperType_t>
 class MetaFactory {
  public:
   //! \name Typedefs

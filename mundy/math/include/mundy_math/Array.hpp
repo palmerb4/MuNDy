@@ -31,8 +31,8 @@
 #include <type_traits>
 
 // Our libs
-#include <mundy_core/throw_assert.hpp>    // for MUNDY_THROW_ASSERT
-#include <mundy_math/Tolerance.hpp>  // for mundy::math::get_default_tolerance
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
 
 namespace mundy {
 
@@ -57,7 +57,8 @@ class Array {
   Array() {
   }
 
-  // Constructor to initialize all elements explicitly. Requires the number of arguments to be N and the type of each to be T.
+  // Constructor to initialize all elements explicitly. Requires the number of arguments to be N and the type of each to
+  // be T.
   template <typename... Args>
     requires(sizeof...(Args) == N) && (std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, T> && ...)
   KOKKOS_FUNCTION explicit Array(Args&&... args) : data_{std::forward<Args>(args)...} {

@@ -31,12 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>            // for mundy::core::make_string_literal
-#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>               // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>             // for MUNDY_REGISTER_METACLASS
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaTechniqueDispatcher
-#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp> // for mundy::motion::...::techniques::LocalDrag
+#include <mundy_core/StringLiteral.hpp>                       // for mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodSubsetExecutionDispatcher
+#include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/LocalDrag.hpp>  // for mundy::motion::...::techniques::LocalDrag
 
 namespace mundy {
 
@@ -51,8 +51,9 @@ namespace rigid_body_motion {
 /// \class MapRigidBodyForceToRigidBodyVelocity
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
 class MapRigidBodyForceToRigidBodyVelocity
-    : public mundy::meta::MetaTechniqueDispatcher<MapRigidBodyForceToRigidBodyVelocity,
-                                                  mundy::core::make_string_literal("MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY")> {
+    : public mundy::meta::MetaMethodSubsetExecutionDispatcher<MapRigidBodyForceToRigidBodyVelocity,
+                                                              mundy::core::make_string_literal(
+                                                                  "MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -103,9 +104,10 @@ class MapRigidBodyForceToRigidBodyVelocity
 
 /// @brief Register our default techniques
 MUNDY_REGISTER_METACLASS("LOCAL_DRAG",
-    mundy::motion::compute_mobility::techniques::rigid_body_motion::map_rigid_body_force_to_rigid_body_velocity::
-        techniques::LocalDrag,
-    mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity::OurMethodFactory)
+                         mundy::motion::compute_mobility::techniques::rigid_body_motion::
+                             map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag,
+                         mundy::motion::compute_mobility::techniques::rigid_body_motion::
+                             MapRigidBodyForceToRigidBodyVelocity::OurMethodFactory)
 //}
 
 #endif  // MUNDY_MOTION_COMPUTE_MOBILITY_TECHNIQUES_RIGID_BODY_MOTION_MAPRIGIDBODYFORCETORIGIDBODYVELOCITY_HPP_

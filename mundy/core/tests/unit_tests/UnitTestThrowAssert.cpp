@@ -102,8 +102,8 @@ TEST(ThrowAssert, ThrowsCorrectMessage) {
 }
 //@}
 
-} // namespace 
-  
+}  // namespace
+
 }  // namespace core
 
 }  // namespace mundy

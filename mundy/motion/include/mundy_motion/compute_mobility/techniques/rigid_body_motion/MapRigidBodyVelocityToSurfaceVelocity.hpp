@@ -31,11 +31,11 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_velocity_to_surface_velocity/kernels/Sphere.hpp>  // for mundy::motion::...::kernels::Sphere
-#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 
@@ -114,7 +114,7 @@ class MapRigidBodyVelocityToSurfaceVelocity
 
 /// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE",
-  mundy::motion::compute_mobility::techniques::rigid_body_motion::
+                         mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_velocity_to_surface_velocity::kernels::Sphere,
                          mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              MapRigidBodyVelocityToSurfaceVelocity::OurKernelFactory)

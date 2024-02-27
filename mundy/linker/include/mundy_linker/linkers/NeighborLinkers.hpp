@@ -48,10 +48,11 @@ namespace linkers {
 ///
 /// The design of this class is in accordance with the static interface requirements of mundy::agent::AgentFactory.
 ///
-/// \note This class is a constraint rank assembly part containing all neighbor linkers. It is a subset of the LINKERS part.
+/// \note This class is a constraint rank assembly part containing all neighbor linkers. It is a subset of the LINKERS
+/// part.
 class NeighborLinkers
-    : public mundy::agent::RankedAssembly<mundy::core::make_string_literal("NEIGHBOR_LINKERS"), stk::topology::CONSTRAINT_RANK,
-                                          mundy::core::make_string_literal("LINKERS"),
+    : public mundy::agent::RankedAssembly<mundy::core::make_string_literal("NEIGHBOR_LINKERS"),
+                                          stk::topology::CONSTRAINT_RANK, mundy::core::make_string_literal("LINKERS"),
                                           mundy::core::make_string_literal("AGENTS")> {};  // NeighborLinkers
 
 }  // namespace linkers

@@ -31,8 +31,8 @@
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                                             // for MUNDY_THROW_ASSERT
 #include <mundy_constraint/compute_constraint_forcing/kernels/Collision.hpp>  // for mundy::constraint::...::kernels::Collision
+#include <mundy_core/throw_assert.hpp>                                        // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                                            // for mundy::mesh::BulkData
 
 namespace mundy {
@@ -82,8 +82,9 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
                      "Collision: node_normal_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(node_force_field_ptr_ != nullptr, std::invalid_argument,
                      "Collision: node_force_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_lagrange_multiplier_field_ptr_ != nullptr, std::invalid_argument,
-                     "Collision: element_lagrange_multiplier_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(
+      element_lagrange_multiplier_field_ptr_ != nullptr, std::invalid_argument,
+      "Collision: element_lagrange_multiplier_field_ptr cannot be a nullptr. Check that the field exists.");
 }
 //}
 

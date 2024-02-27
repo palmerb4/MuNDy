@@ -35,12 +35,12 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
 #include <mundy_constraint/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
+#include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>                          // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
 
@@ -167,12 +167,11 @@ void GenerateCollisionConstraints::execute([[maybe_unused]] const stk::mesh::Sel
   //     we store the old neighbor list and take their set difference, then we can easily see the elements whose current
   //     collision constraints should be deleted and the elements which need collision constraints!!!!
 
-  // What's the point in having this as a MetaMethodSubsetExecutionInterface? Well, the actual requirements are in how we populate the
-  // constraints. Otherwise, we simply act on the neighbor list, not the parts.
-  // I changed the name to Update collision constraints. This makes it more clear that the neighbor list is a mutable
-  // parameter. Users may leave the lists the same and simply wish to repopulate the  existing collision constraints
-  // using the given neighbor list. Users may even keep the neighbor list fixed for a couple execute calls and then
-  // update it later on.
+  // What's the point in having this as a MetaMethodSubsetExecutionInterface? Well, the actual requirements are in how
+  // we populate the constraints. Otherwise, we simply act on the neighbor list, not the parts. I changed the name to
+  // Update collision constraints. This makes it more clear that the neighbor list is a mutable parameter. Users may
+  // leave the lists the same and simply wish to repopulate the  existing collision constraints using the given neighbor
+  // list. Users may even keep the neighbor list fixed for a couple execute calls and then update it later on.
 
   // Find the set of neighbors that need collision constraints and ghost them and their connectivity.
   bulk_data_ptr_->modification_begin();

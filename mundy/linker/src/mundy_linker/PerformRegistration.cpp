@@ -39,14 +39,14 @@ namespace linker {
 
 void perform_registration() {
   mundy::agent::perform_registration();
-  
-  #ifdef HAVE_MUNDYLINKER_MUNDYSHAPE
-  mundy::shape::perform_registration();
-  #endif
 
-  #ifdef HAVE_MUNDYLINKER_MUNDYCONSTRAINT
+#ifdef HAVE_MUNDYLINKER_MUNDYSHAPE
+  mundy::shape::perform_registration();
+#endif
+
+#ifdef HAVE_MUNDYLINKER_MUNDYCONSTRAINT
   mundy::constraint::perform_registration();
-  #endif
+#endif
 
   mundy::agent::AgentHierarchy::register_new_class<Linkers>();
 }

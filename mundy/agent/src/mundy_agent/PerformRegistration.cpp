@@ -21,8 +21,8 @@
 /// \brief Perform all registrations within MundyAgent.
 
 // Mundy libs
-#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
-#include <mundy_agent/Agents.hpp>           // for mundy::agent::Agents
+#include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
+#include <mundy_agent/Agents.hpp>          // for mundy::agent::Agents
 
 namespace mundy {
 

@@ -98,10 +98,10 @@ class Collision : public mundy::meta::MetaKernel<void> {
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
       part_reqs->set_part_topology(stk::topology::BEAM_2);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_normal_field_name,
-                                                                                        stk::topology::NODE_RANK, 3, 1));
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_force_field_name,
-                                                                                        stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          node_normal_field_name, stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          node_force_field_name, stk::topology::NODE_RANK, 3, 1));
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
       mesh_reqs_ptr->add_part_reqs(part_reqs);
@@ -115,8 +115,8 @@ class Collision : public mundy::meta::MetaKernel<void> {
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr,
         mundy::meta::ParamConfig<std::string>{.name = "node_normal_field_name",
-                                 .default_value = std::string(default_node_normal_field_name_),
-                                 .doc_string = "Name of the node field containing the node's normal."});
+                                              .default_value = std::string(default_node_normal_field_name_),
+                                              .doc_string = "Name of the node field containing the node's normal."});
 
     mundy::meta::check_parameter_and_set_default(
         fixed_params_ptr, mundy::meta::ParamConfig<std::string>{

@@ -31,12 +31,12 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
-#include <mundy_meta/MetaKernelDispatcher.hpp>                  // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaRegistry.hpp>                          // for MUNDY_REGISTER_METACLASS
+#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
+#include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
 #include <mundy_shape/compute_aabb/kernels/Sphere.hpp>          // for mundy::shape::compute_aabb::kernels::Sphere
 #include <mundy_shape/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::shape::compute_aabb::kernels::Spherocylinder
-#include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 
 namespace mundy {
 
@@ -55,8 +55,8 @@ class ComputeAABB
 
   /// \brief Constructor
   ComputeAABB(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaKernelDispatcher<ComputeAABB, mundy::meta::make_registration_string("COMPUTE_AABB")>(bulk_data_ptr,
-                                                                                                         fixed_params) {
+      : mundy::meta::MetaKernelDispatcher<ComputeAABB, mundy::meta::make_registration_string("COMPUTE_AABB")>(
+            bulk_data_ptr, fixed_params) {
   }
   //@}
 
@@ -97,10 +97,10 @@ class ComputeAABB
 //! \name Registration
 //@{
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS("SPHERE",
-                         mundy::shape::compute_aabb::kernels::Sphere, mundy::shape::ComputeAABB::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER",
-                          mundy::shape::compute_aabb::kernels::Spherocylinder, mundy::shape::ComputeAABB::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHERE", mundy::shape::compute_aabb::kernels::Sphere,
+                         mundy::shape::ComputeAABB::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shape::compute_aabb::kernels::Spherocylinder,
+                         mundy::shape::ComputeAABB::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_SHAPE_COMPUTEAABB_HPP_

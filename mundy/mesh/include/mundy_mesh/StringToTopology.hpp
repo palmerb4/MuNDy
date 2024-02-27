@@ -23,7 +23,6 @@
 /// \file StringToTopology.hpp
 /// \brief Declaration of the StringToTopology class
 
-
 // C++ core libs
 #include <string>  // for std::string
 
@@ -37,7 +36,7 @@ namespace mundy {
 
 namespace mesh {
 
- /// \brief Map a string with a valid rank name to the corresponding rank.
+/// \brief Map a string with a valid rank name to the corresponding rank.
 ///
 /// The set of valid rank names and their corresponding type is
 ///  - NODE_RANK        -> stk::topology::NODE_RANK

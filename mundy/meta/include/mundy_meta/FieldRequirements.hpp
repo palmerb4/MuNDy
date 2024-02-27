@@ -593,8 +593,7 @@ void FieldRequirements<FieldType>::print_reqs(std::ostream &os, int indent_level
   os << indent << "  Field attributes: " << std::endl;
   int attribute_count = 0;
   for (const std::string &attribute_name : required_field_attribute_names_) {
-    os << indent << "  Field attribute " << attribute_count << " has name (" << attribute_name << ")"
-       << std::endl;
+    os << indent << "  Field attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
     attribute_count++;
   }
 

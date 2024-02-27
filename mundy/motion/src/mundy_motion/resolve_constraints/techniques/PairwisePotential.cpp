@@ -34,13 +34,13 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_motion/resolve_constraints/techniques/PairwisePotential.hpp>  // for mundy::methods::...::PairwisePotential
 
 namespace mundy {
@@ -146,6 +146,6 @@ void PairwisePotential::execute(const stk::mesh::Selector &input_selector) {
 
 }  // namespace resolve_constraints
 
-}  // namespace methods
+}  // namespace motion
 
 }  // namespace mundy

@@ -30,16 +30,16 @@
 #include <memory>         // for std::shared_ptr
 #include <stdexcept>      // for std::invalid_argument
 #include <string>         // for std::string
+#include <unordered_map>  // for std::unordered_map
 #include <utility>        // for std::make_pair
 #include <vector>         // for std::vector
-#include <unordered_map>  // for std::unordered_map
 
 // Trilinos libs
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>       // for MUNDY_THROW_ASSERT
 #include <mundy_agent/IsAgentType.hpp>  // for mundy::agent::IsAgentType
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -171,8 +171,7 @@ class AgentHierarchy {
   /// \brief Get the topology corresponding to a registered class with the given agent_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static stk::topology::topology_t get_topology(const std::string& name,
-                                                const std::string& parent_name);
+  static stk::topology::topology_t get_topology(const std::string& name, const std::string& parent_name);
 
   /// \brief Get the topology corresponding to a registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -205,8 +204,8 @@ class AgentHierarchy {
   /// \param name [in] A string name that correspond to a registered class.
   /// \param subpart_reqs_ptr [in] A pointer to the sub-part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
-                               const std::string& name, const std::string& parent_name);
+  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr, const std::string& name,
+                               const std::string& parent_name);
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -217,8 +216,8 @@ class AgentHierarchy {
   /// \brief Get the mesh requirements for the specified agent.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
-      const std::string& name, const std::string& parent_name);
+  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(const std::string& name,
+                                                                              const std::string& parent_name);
 
   /// \brief Get the mesh requirements for the specified agent.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -270,7 +269,7 @@ class AgentHierarchy {
     if (already_registered) {
       std::cout << "AgentHierarchy: Skipping registration for class " << ClassToRegister::get_name() << " with parent "
                 << parent_name << " because it is already registered." << std::endl;
-      return true;     
+      return true;
     }
 
     // Get the agent type for this class.
@@ -291,7 +290,7 @@ class AgentHierarchy {
     get_add_part_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_part_reqs));
     get_add_subpart_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_subpart_reqs));
     get_mesh_requirements_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_mesh_requirements));
-    
+
     std::cout << "AgentHierarchy: Class " << ClassToRegister::get_name() << " registered with id "
               << number_of_registered_types_ - 1 << " and parent " << parent_name << std::endl;
     return true;
