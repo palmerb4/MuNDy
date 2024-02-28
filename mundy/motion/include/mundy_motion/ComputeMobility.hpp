@@ -44,9 +44,9 @@ namespace motion {
 
 /// \class ComputeMobility
 /// \brief Method for mapping the body force on a rigid body to the rigid body velocity.
-class ComputeMobility
-    : public mundy::meta::MetaMethodSubsetExecutionDispatcher<ComputeMobility, mundy::meta::make_registration_string(
-                                                                                   "RIGID_BODY_MOTION")> {
+class ComputeMobility : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
+                            ComputeMobility, void, mundy::meta::make_registration_string("COMPUTE_MOBILITY"),
+                            mundy::meta::make_registration_string("RIGID_BODY_MOTION")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -55,29 +55,37 @@ class ComputeMobility
   ComputeMobility() = delete;
 
   /// \brief Constructor
-  ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaMethodSubsetExecutionDispatcher<ComputeMobility, void,
+                                                         mundy::meta::make_registration_string("COMPUTE_MOBILITY"),
+                                                         mundy::meta::make_registration_string("RIGID_BODY_MOTION")>(
+            bulk_data_ptr, fixed_params) {
+  }
   //@}
 
-  //! \name MetaFactory static interface implementation
+  //! \name MetaMethodSubsetExecutionDispatcher static interface implementation
   //@{
 
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<ComputeMobility>(bulk_data_ptr, fixed_params);
+  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    // TODO(palmerb4): Add fixed parameters here
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    // TODO(palmerb4): Add fixed parameters here
+    return default_parameter_list;
   }
   //@}
 
  private:
-  //! \name Internal members
+  //! \name Default parameters
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "COMPUTE_MOBILITY";
+  // TODO(palmerb4): Add default parameters here
   //@}
 };  // ComputeMobility
 

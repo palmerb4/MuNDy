@@ -54,35 +54,58 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
 
-  // Fill the internal members using the given parameter list.
+  // Get the field pointers.
   const std::string node_coord_field_name = mundy::shape::shapes::Spheres::get_node_coord_field_name();
   const std::string element_radius_field_name = mundy::shape::shapes::Spheres::get_element_radius_field_name();
   const std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
 
-  // Get the field pointers.
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
   element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name);
 
-  // Check that the fields exist.
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: radius_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
                      "Sphere: aabb_field_ptr cannot be a nullptr. Check that the field exists.");
+
+  // Get the part pointers.
+  Teuchos::Array<std::string> valid_entity_part_names =
+      valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+
+  auto parts_from_names = [](mundy::mesh::MetaData &meta_data, const Teuchos::Array<std::string> &part_names) {
+    std::vector<stk::mesh::Part *> parts;
+    for (const std::string &part_name : part_names) {
+      stk::mesh::Part *part = meta_data.get_part(part_name);
+      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
+                         "Sphere: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+      parts.push_back(part);
+    }
+    return parts;
+  };
+
+  valid_entity_parts_ = parts_from_names(*meta_data_ptr_, valid_entity_part_names);
 }
 //}
 
 // \name MetaKernel interface implementation
 //{
 
+std::vector<stk::mesh::Part *> Sphere::get_valid_entity_parts() const {
+  return valid_entity_parts_;
+}
+
+stk::topology::rank_t Sphere::get_entity_rank() const {
+  return stk::topology::ELEMENT_RANK;
+}
+
 void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  validate_mutable_parameters_and_set_defaults(&valid_mutable_params);
+  valid_mutable_params.validateParametersAndSetDefaults(Sphere::get_valid_mutable_params());
 
   // Fill the internal members using the given parameter list.
   buffer_distance_ = valid_mutable_params.get<double>("buffer_distance");

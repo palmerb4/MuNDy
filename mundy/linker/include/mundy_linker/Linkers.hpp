@@ -150,7 +150,7 @@ void declare_constraint_relations_to_family_tree_with_sharing(mundy::mesh::BulkD
   // FACE-rank entities that we connect to. If the constraint is not locally owned, then we need to declare sharing with
   // the locally owned NODE, EDGE, and FACE-rank entities that we connect to.
   //
-  // TODO(palmerb4): Test if having a non-locally owned constraint connects to non-locally owned entities is valid or
+  // TODO(palmerb4): Test if having a non-locally owned constraint connect to a non-locally owned entities is valid or
   // not.
   MUNDY_THROW_ASSERT(bulk_data_ptr->in_modifiable_state(), std::logic_error,
                      "declare_relation: The mesh must be in a modification cycle.");

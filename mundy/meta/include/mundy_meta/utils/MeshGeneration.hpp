@@ -54,7 +54,7 @@ generate_class_instance_and_mesh_from_meta_class_requirements(
 
   // Validate the fixed parameters and set defaults.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  MetaClass::validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
+  valid_fixed_params.validateParametersAndSetDefaults(MetaClass::get_valid_fixed_params());
 
   // Create a mesh that meets the requirements for MetaClass.
   auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);

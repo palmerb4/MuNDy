@@ -56,8 +56,8 @@ class ComputeBoundingRadius
 
   /// \brief Constructor
   ComputeBoundingRadius(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
-                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCING")>(
+      : mundy::meta::MetaKernelDispatcher<ComputeBoundingRadius,
+                                          mundy::meta::make_registration_string("COMPUTE_BOUNDING_SPHERE")>(
             bulk_data_ptr, fixed_params) {
   }
   //@}
@@ -88,7 +88,7 @@ class ComputeBoundingRadius
   //@{
 
   static constexpr double default_buffer_distance_ = 0.0;
-  static constexpr std::string_view default_bounding_radius_field_name_ = "ELEMENT_BOUNDING_RADIUS";
+  static constexpr std::string_view default_element_bounding_radius_field_name_ = "ELEMENT_BOUNDING_RADIUS";
   //@}
 };  // ComputeBoundingRadius
 

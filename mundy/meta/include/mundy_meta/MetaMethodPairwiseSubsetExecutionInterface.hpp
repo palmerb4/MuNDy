@@ -93,8 +93,7 @@ class MetaMethodPairwiseSubsetExecutionInterface {
   /// \note We use the terms source and target to refer to the first and second selectors, respectively. However, they
   /// need not assume this role. Calling them first and second simply got confusing.
   /// \param source_input_selector The first selector that defines the entities to act on.
-  /// \param target_input_selector The second selector that defines the
-  /// entities to act on.
+  /// \param target_input_selector The second selector that defines the entities to act on.
   /// \param args The additional arguments to the methods's core calculation.
   virtual ReturnType execute(const stk::mesh::Selector &source_input_selector,
                              const stk::mesh::Selector &target_input_selector, Args... args) = 0;

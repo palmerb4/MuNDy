@@ -46,7 +46,8 @@ namespace motion {
 /// \brief Method for moving particles forward in time (unconstrained).
 class ComputeTimeIntegration
     : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
-          ComputeTimeIntegration, mundy::meta::make_registration_string("COMPUTE_TIME_INTEGRATION")> {
+          ComputeTimeIntegration, void, mundy::meta::make_registration_string("COMPUTE_TIME_INTEGRATION"),
+          mundy::meta::make_registration_string("NODE_EULER")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -55,29 +56,36 @@ class ComputeTimeIntegration
   ComputeTimeIntegration() = delete;
 
   /// \brief Constructor
-  ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  ComputeTimeIntegration(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaMethodSubsetExecutionDispatcher<
+            ComputeTimeIntegration, void, mundy::meta::make_registration_string("COMPUTE_TIME_INTEGRATION"),
+            mundy::meta::make_registration_string("NODE_EULER")>(bulk_data_ptr, fixed_params) {
+  }
   //@}
 
-  //! \name MetaFactory static interface implementation
+  //! \name MetaMethodSubsetExecutionDispatcher static interface implementation
   //@{
 
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<ComputeTimeIntegration>(bulk_data_ptr, fixed_params);
+  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    // TODO(palmerb4): Add fixed parameters here
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    // TODO(palmerb4): Add fixed parameters here
+    return default_parameter_list;
   }
   //@}
 
  private:
-  //! \name Internal members
+  //! \name Default parameters
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other methods in our MetaMethodRegistry.
-  static constexpr std::string_view registration_id_ = "COMPUTE_TIME_INTEGRATION";
+  // TODO(palmerb4): Add default parameters here
   //@}
 };  // ComputeTimeIntegration
 
@@ -89,7 +97,7 @@ class ComputeTimeIntegration
 //@{
 
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS("COMPUTE_TIME_INTEGRATION", mundy::motion::compute_time_integration::techniques::NodeEuler,
+MUNDY_REGISTER_METACLASS("NODE_EULER", mundy::motion::compute_time_integration::techniques::NodeEuler,
                          mundy::motion::ComputeTimeIntegration::OurMethodFactory)
 
 //@}

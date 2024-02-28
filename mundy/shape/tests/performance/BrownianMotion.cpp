@@ -52,7 +52,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>              // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>           // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernel.hpp>            // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
@@ -134,13 +134,13 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     valid_fixed_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_fixed_params());
 
     // Store the valid entity parts for the kernel.
-    Teuchos::Array<std::string> input_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-    for (const std::string &part_name : input_part_names) {
+    Teuchos::Array<std::string> valid_entity_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_ASSERT(
           valid_entity_parts_.back() != nullptr, std::invalid_argument,
-          "NodeEulerSphere: Part '" << part_name << "' from the input_part_names does not exist in the meta data.");
+          "NodeEulerSphere: Part '" << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -170,11 +170,11 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     // Fill the requirements using the given parameter list.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
-    Teuchos::Array<std::string> input_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-    const int num_parts = static_cast<int>(input_part_names.size());
+    Teuchos::Array<std::string> valid_entity_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
-      const std::string part_name = input_part_names[i];
+      const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -199,7 +199,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<Teuchos::Array<std::string>>(
-        "input_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
         "Name of the parts associated with this kernel.");
     default_parameter_list.set(
         "node_velocity_field_name", std::string(default_node_velocity_field_name_),
@@ -397,13 +397,13 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
     valid_fixed_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_fixed_params());
 
     // Store the valid entity parts for the kernel.
-    Teuchos::Array<std::string> input_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-    for (const std::string &part_name : input_part_names) {
+    Teuchos::Array<std::string> valid_entity_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
                          "ComputeBrownianVelocitySphere: Part '"
-                             << part_name << "' from the input_part_names does not exist in the meta data.");
+                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -438,11 +438,11 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
     std::string node_brownian_velocity_field_name =
         valid_fixed_params.get<std::string>("node_brownian_velocity_field_name");
     std::string node_rng_counter_field_name = valid_fixed_params.get<std::string>("node_rng_counter_field_name");
-    Teuchos::Array<std::string> input_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-    const int num_parts = static_cast<int>(input_part_names.size());
+    Teuchos::Array<std::string> valid_entity_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
-      const std::string part_name = input_part_names[i];
+      const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -469,7 +469,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<Teuchos::Array<std::string>>(
-        "input_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
         "Name of the parts associated with this kernel.");
     default_parameter_list.set(
         "node_brownian_velocity_field_name", std::string(default_node_brownian_velocity_field_name_),
@@ -659,7 +659,7 @@ int main(int argc, char **argv) {
   compute_brownian_velocity_fixed_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
   compute_brownian_velocity_fixed_params.sublist("kernels")
       .sublist("kernel_0")
-      .set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
+      .set("valid_entity_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
   compute_brownian_velocity_fixed_params.sublist("kernels")
       .sublist("kernel_0")
       .set("node_rng_counter_field_name", "NODE_RNG_COUNTER");
@@ -673,7 +673,7 @@ int main(int argc, char **argv) {
   node_euler_fixed_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
   node_euler_fixed_params.sublist("kernels")
       .sublist("kernel_0")
-      .set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
+      .set("valid_entity_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
   node_euler_fixed_params.sublist("kernels").sublist("kernel_0").set("node_velocity_field_name", "NODE_VELOCITY");
   mesh_reqs_ptr->merge(NodeEuler::get_mesh_requirements(node_euler_fixed_params));
 
@@ -691,7 +691,7 @@ int main(int argc, char **argv) {
   compute_brownian_velocity_mutable_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
   compute_brownian_velocity_mutable_params.sublist("kernels")
       .sublist("kernel_0")
-      .set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
+      .set("valid_entity_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
   compute_brownian_velocity_mutable_params.sublist("kernels")
       .sublist("kernel_0")
       .set("diffusion_coeff", diffusion_coeff);
@@ -704,7 +704,7 @@ int main(int argc, char **argv) {
   node_euler_mutable_params.sublist("kernels").sublist("kernel_0").set("name", "SPHERES");
   node_euler_mutable_params.sublist("kernels")
       .sublist("kernel_0")
-      .set("input_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
+      .set("valid_entity_part_names", Teuchos::Array<std::string>(1, "SPHERES"));
   node_euler_mutable_params.sublist("kernels").sublist("kernel_0").set("time_step_size", time_step_size);
   node_euler_ptr->set_mutable_params(node_euler_mutable_params);
 

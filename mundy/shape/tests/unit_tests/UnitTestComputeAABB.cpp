@@ -69,19 +69,23 @@ TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
 
   // Check the expected default values.
   Teuchos::ParameterList fixed_params;
-  ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
-  ASSERT_TRUE(fixed_params.isSublist("kernels"));
-  Teuchos::ParameterList &kernels_sublist = fixed_params.sublist("kernels", true);
-  ASSERT_TRUE(kernels_sublist.isParameter("count"));
-  ASSERT_EQ(kernels_sublist.get<int>("count"), ComputeAABB::OurKernelFactory::num_registered_classes());
-  ASSERT_TRUE(kernels_sublist.get<int>("count") > 0);
-  int i = 0;
-  for (auto &key : ComputeAABB::OurKernelFactory::get_keys()) {
-    ASSERT_TRUE(kernels_sublist.isSublist("kernel_" + std::to_string(i)));
-    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), true);
-    ASSERT_TRUE(kernel_params.isParameter("name"));
-    ASSERT_EQ(kernel_params.get<std::string>("name"), key);
-    i++;
+  fixed_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_fixed_params());
+
+  // Check that all the enabled kernels are in the list of registered kernels.
+  ASSERT_TRUE(fixed_params.isParameter("enabled_kernel_names"));
+  Teuchos::Array<std::string> enabled_kernel_names =
+      fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
+  ASSERT_EQ(enabled_kernel_names.size(), ComputeAABB::OurKernelFactory::num_registered_classes());  
+  for (const std::string &key : ComputeAABB::OurKernelFactory::get_keys()) {
+    ASSERT_TRUE(std::find(enabled_kernel_names.begin(), enabled_kernel_names.end(), key) != enabled_kernel_names.end());
+  }
+
+  // Check that the fixed parameters for each kernel are present.
+  for (const std::string &kernel_name : enabled_kernel_names) {
+    ASSERT_TRUE(fixed_params.isSublist(kernel_name));
+    Teuchos::ParameterList &kernel_params = fixed_params.sublist(kernel_name, true);
+    ASSERT_TRUE(kernel_params.isParameter("valid_entity_part_names"));
+    ASSERT_TRUE(kernel_params.get<Teuchos::Array<std::string>>("valid_entity_part_names").size() > 0);
   }
 }
 
@@ -90,19 +94,20 @@ TEST(ComputeAABBStaticInterface, MutableParameterDefaults) {
 
   // Check the expected default values.
   Teuchos::ParameterList mutable_params;
-  ComputeAABB::validate_mutable_parameters_and_set_defaults(&mutable_params);
-  ASSERT_TRUE(mutable_params.isSublist("kernels"));
-  Teuchos::ParameterList &kernels_sublist = mutable_params.sublist("kernels", true);
-  ASSERT_TRUE(kernels_sublist.isParameter("count"));
-  ASSERT_EQ(kernels_sublist.get<int>("count"), ComputeAABB::OurKernelFactory::num_registered_classes());
-  ASSERT_TRUE(kernels_sublist.get<int>("count") > 0);
-  int i = 0;
-  for (auto &key : ComputeAABB::OurKernelFactory::get_keys()) {
-    ASSERT_TRUE(kernels_sublist.isSublist("kernel_" + std::to_string(i)));
-    Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i), true);
-    ASSERT_TRUE(kernel_params.isParameter("name"));
-    ASSERT_EQ(kernel_params.get<std::string>("name"), key);
-    i++;
+  mutable_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_mutable_params());
+
+  // Check that all the enabled kernels are in the list of registered kernels.
+  ASSERT_TRUE(mutable_params.isParameter("enabled_kernel_names"));
+  Teuchos::Array<std::string> enabled_kernel_names =
+      mutable_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
+  ASSERT_EQ(enabled_kernel_names.size(), ComputeAABB::OurKernelFactory::num_registered_classes());  
+  for (const std::string &key : ComputeAABB::OurKernelFactory::get_keys()) {
+    ASSERT_TRUE(std::find(enabled_kernel_names.begin(), enabled_kernel_names.end(), key) != enabled_kernel_names.end());
+  }
+
+  // Check that the mutable parameters for each kernel are present.
+  for (const std::string &kernel_name : enabled_kernel_names) {
+    ASSERT_TRUE(mutable_params.isSublist(kernel_name));
   }
 }
 
@@ -121,7 +126,7 @@ TEST(ComputeAABBStaticInterface, GetMeshRequirementsFromDefaultParameters) {
 
   // Attempt to get the mesh requirements using the default parameters.
   Teuchos::ParameterList fixed_params;
-  ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
+  fixed_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_fixed_params());
   ASSERT_NO_THROW(ComputeAABB::get_mesh_requirements(fixed_params));
 }
 
@@ -134,7 +139,7 @@ TEST(ComputeAABBStaticInterface, CreateNewInstanceFromDefaultParameters) {
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   Teuchos::ParameterList fixed_params;
-  ComputeAABB::validate_fixed_parameters_and_set_defaults(&fixed_params);
+  fixed_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_fixed_params());
   mesh_reqs_ptr->merge(ComputeAABB::get_mesh_requirements(fixed_params));
 
   // Create a new instance of ComputeAABB using the default parameters and the mesh generated from the mesh

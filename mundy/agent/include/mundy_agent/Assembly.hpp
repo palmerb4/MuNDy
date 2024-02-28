@@ -107,15 +107,25 @@ class Assembly {
 
   /// \brief Get our mesh requirements.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
-    // Declare our part as a subpart of our parent part.
-    mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, parents_name.to_string(),
-                                                   grandparents_name.to_string());
+    static std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr;
 
-    // Fetch our parent's requirements.
-    // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
-    // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
-    // combined requirements for all parts touched in this traversal are then returned here.
-    return mundy::agent::AgentHierarchy::get_mesh_requirements(parents_name.to_string(), grandparents_name.to_string());
+    if (parents_name.to_string() != "") {
+      // If we have a parent, declare our part as a subpart of our parent part.
+      mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, name.to_string(), parents_name.to_string());
+
+      // Fetch our parent's requirements.
+      // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
+      // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
+      // combined requirements for all parts touched in this traversal are then returned here.
+      mesh_reqs_ptr =
+          mundy::agent::AgentHierarchy::get_mesh_requirements(parents_name.to_string(), grandparents_name.to_string());
+    } else {
+      // If we do not have a parent, we are a root node. Create a new mesh requirements and add our part requirements to
+      // it.
+      mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+      mesh_reqs_ptr->add_part_reqs(part_reqs_ptr_);
+    }
+    return mesh_reqs_ptr;
   }
   //@}
 

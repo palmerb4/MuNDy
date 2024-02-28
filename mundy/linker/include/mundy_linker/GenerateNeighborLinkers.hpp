@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_
-#define MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_
+#ifndef MUNDY_LINKERS_GENERATENEIGHBORLINKERS_HPP_
+#define MUNDY_LINKERS_GENERATENEIGHBORLINKERS_HPP_
 
-/// \file ResolveConstraints.hpp
-/// \brief Declaration of the ResolveConstraints class
+/// \file GenerateNeighborLinkers.hpp
+/// \brief Declaration of the GenerateNeighborLinkers class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -31,66 +31,56 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                       // for mundy::core::make_string_literal
-#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_core/StringLiteral.hpp>                                      // for mundy::core::make_string_literal
+#include <mundy_linkers/generate_neighbor_linkers/techniques/STKSearch.hpp>  // for mundy::linkers::generate_neighbor_linkers::techniques::STKSearch
+#include <mundy_mesh/BulkData.hpp>                                           // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodSubsetExecutionDispatcher
-#include <mundy_motion/resolve_constraints/techniques/NonSmoothLCP.hpp>       // for mundy::motion::...::NonSmoothLCP
-#include <mundy_motion/resolve_constraints/techniques/PairwisePotential.hpp>  // for mundy::motion::...::PairwisePotential
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaMethodPairwiseSubsetExecutionDispatcher
 
 namespace mundy {
 
-namespace motion {
+namespace linkers {
 
-/// \class ResolveConstraints
-/// \brief Method for resolving constraints between N bodies
-class ResolveConstraints : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
-                               ResolveConstraints, void, mundy::meta::make_registration_string("RESOLVE_CONSTRAINTS"),
-                               mundy::meta::make_registration_string("NONSMOOTH_LCP")> {
+/// \class GenerateNeighborLinkers
+/// \brief Method for generating neighbor linkers between source-target entity pairs.
+class GenerateNeighborLinkers
+    : public mundy::meta::MetaMethodPairwiseSubsetExecutionDispatcher<
+          GenerateNeighborLinkers, void, mundy::meta::make_registration_string("GENERATE_NEIGHBOR_LINKERS"),
+          mundy::meta::make_registration_string("STK_SEARCH")> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ResolveConstraints() = delete;
+  GenerateNeighborLinkers() = delete;
 
   /// \brief Constructor
-  ResolveConstraints(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaMethodSubsetExecutionDispatcher<ResolveConstraints, void,
-                                                         mundy::meta::make_registration_string("RESOLVE_CONSTRAINTS"),
-                                                         mundy::meta::make_registration_string("NONSMOOTH_LCP")>(
-            bulk_data_ptr, fixed_params) {
+  GenerateNeighborLinkers(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaMethodPairwiseSubsetExecutionDispatcher<
+            GenerateNeighborLinkers, void, mundy::meta::make_registration_string("GENERATE_NEIGHBOR_LINKERS"),
+            mundy::meta::make_registration_string("STK_SEARCH")>(bulk_data_ptr, fixed_params) {
   }
   //@}
 
-  //! \name MetaMethodSubsetExecutionDispatcher static interface implementation
+  //! \name MetaMethodPairwiseSubsetExecutionDispatcher static interface implementation
   //@{
 
   /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    // TODO(palmerb4): Add fixed parameters here
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
-    // TODO(palmerb4): Add fixed parameters here
     return default_parameter_list;
   }
   //@}
+};  // GenerateNeighborLinkers
 
- private:
-  //! \name Default parameters
-  //@{
-
-  // TODO(palmerb4): Add default parameters here
-  //@}
-};  // ResolveConstraints
-
-}  // namespace motion
+}  // namespace linkers
 
 }  // namespace mundy
 
@@ -98,11 +88,9 @@ class ResolveConstraints : public mundy::meta::MetaMethodSubsetExecutionDispatch
 //@{
 
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS("NONSMOOTH_LCP", mundy::motion::resolve_constraints::techniques::NonSmoothLCP,
-                         mundy::motion::ResolveConstraints::OurMethodFactory)
+MUNDY_REGISTER_METACLASS("STK_SEARCH", mundy::linkers::generate_neighbor_linkers::techniques::STKSearch,
+                         mundy::motion::GenerateNeighborLinkers::OurMethodFactory)
 
-MUNDY_REGISTER_METACLASS("PAIRWISE_POTENTIAL", mundy::motion::resolve_constraints::techniques::PairwisePotential,
-                         mundy::motion::ResolveConstraints::OurMethodFactory)
 //@}
 
-#endif  // MUNDY_METHODS_RESOLVECONSTRAINTS_HPP_
+#endif  // MUNDY_LINKERS_GENERATENEIGHBORLINKERS_HPP_

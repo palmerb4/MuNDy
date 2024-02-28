@@ -22,6 +22,8 @@ SET(HEADERS
   include/mundy_meta/MetaFactory.hpp
   include/mundy_meta/MetaKernelDispatcher.hpp
   include/mundy_meta/MetaKernel.hpp
+  include/mundy_meta/MetaMethodExecutionInterface.hpp
+  include/mundy_meta/MetaMethodPairwiseSubsetExecutionInterface.hpp
   include/mundy_meta/MetaMethodSubsetExecutionInterface.hpp
   include/mundy_meta/MetaRegistry.hpp
   include/mundy_meta/MetaTechniqueDispatcher.hpp

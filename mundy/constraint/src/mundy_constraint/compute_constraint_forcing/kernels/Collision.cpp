@@ -56,13 +56,13 @@ Collision::Collision(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
   // Store the valid entity parts for the kernel.
-  Teuchos::Array<std::string> input_part_names =
-      valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-  for (const std::string &part_name : input_part_names) {
+  Teuchos::Array<std::string> valid_entity_part_names =
+      valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+  for (const std::string &part_name : valid_entity_part_names) {
     valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
     MUNDY_THROW_ASSERT(
         valid_entity_parts_.back() != nullptr, std::invalid_argument,
-        "Collision: Part '" << part_name << "' from the input_part_names does not exist in the meta data.");
+        "Collision: Part '" << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
   }
 
   // Fetch the fields.

@@ -40,7 +40,7 @@
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
@@ -89,11 +89,11 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string element_bounding_radius_field_name =
         valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
-    Teuchos::Array<std::string> input_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("input_part_names");
-    const int num_parts = input_part_names.size();
+    Teuchos::Array<std::string> valid_entity_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
-      const std::string part_name = input_part_names[i];
+      const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -118,7 +118,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<Teuchos::Array<std::string>>(
-        "input_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
         "Name of the parts associated with this kernel.");
     default_parameter_list.set("element_bounding_radius_field_name",
                                std::string(default_element_bounding_radius_field_name_),
@@ -134,6 +134,16 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     return default_parameter_list;
   }
 
+  /// \brief Get valid entity parts for the kernel.
+  /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
+  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override;
+
+  /// \brief Get the entity rank that the kernel acts on.
+  stk::topology::rank_t get_entity_rank() const override;
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
+
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
@@ -142,9 +152,6 @@ class Sphere : public mundy::meta::MetaKernel<void> {
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<Sphere>(bulk_data_ptr, fixed_params);
   }
-
-  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
   //@}
 
   //! \name Actions
@@ -169,7 +176,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
   static constexpr double default_buffer_distance_ = 0.0;
   static constexpr std::string_view default_part_name_ = "SPHERES";
-  static constexpr std::string_view default_bounding_radius_field_name_ = "ELEMENT_BOUNDING_RADIUS";
+  static constexpr std::string_view default_element_bounding_radius_field_name_ = "ELEMENT_BOUNDING_RADIUS";
   //@}
 
   //! \name Internal members
@@ -183,6 +190,9 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
+
+  /// \brief The valid entity parts.
+  std::vector<stk::mesh::Part *> valid_entity_parts_;
 
   /// \brief Buffer distance to be added to the axis-aligned boundary box.
   ///
