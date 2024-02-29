@@ -94,7 +94,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   //! \name Typedefs
   //@{
 
-  using PolymorphicBaseType = DerivedType;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurKernelFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<void>,
                                                                kernel_factory_registration_string_value_wrapper>;
   //@}
@@ -207,8 +207,8 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<DerivedType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                          const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<DerivedType>(bulk_data_ptr, fixed_params);
   }
   //@}
@@ -308,7 +308,8 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_fixed_params());
 
   // Populate our internal members.
-  Teuchos::Array<std::string> enabled_kernel_names = valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
+  Teuchos::Array<std::string> enabled_kernel_names =
+      valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
   num_active_kernels_ = static_cast<int>(enabled_kernel_names.size());
   if (num_active_kernels_ > 0) {
     kernel_ptrs_.reserve(num_active_kernels_);

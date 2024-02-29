@@ -26,15 +26,19 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>      // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>       // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>        // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_mesh/base/GetEntities.hpp>  // for stk::mesh::count_entities
+#include <stk_search/BoundingBox.hpp>     // for stk::search::Box
+#include <stk_search/CoarseSearch.hpp>    // for stk::search::coarse_search
+#include <stk_search/SearchMethod.hpp>    // for stk::search::KDTREE
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
-#include <mundy_shape/compute_aabb/kernels/Sphere.hpp>  // for mundy::shape::compute_aabb::kernels::Sphere
-#include <mundy_shape/shapes/Spheres.hpp>               // for mundy::shape::shapes::Spheres
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_linker/Linkers.hpp>     // for mundy::linker::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_linker/generate_neighbor_linkers/techniques/STKSearch.hpp>  // for mundy::linker::...::STKSearch
+#include <mundy_mesh/BulkData.hpp>                                          // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -68,10 +72,11 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   const Teuchos::Array<std::string> valid_target_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_target_entity_part_names");
 
-  auto parts_from_names = [&meta_data_ptr_](const Teuchos::Array<std::string> &part_names) {
+  auto parts_from_names = [](mundy::mesh::MetaData &meta_data,
+                             const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
-      stk::mesh::Part *part = meta_data_ptr_->get_part(part_name);
+      stk::mesh::Part *part = meta_data.get_part(part_name);
       MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
                          "STKSearch: part " << part_name << " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
@@ -79,8 +84,8 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     return parts;
   };
 
-  valid_source_entity_parts_ = parts_from_names(valid_source_entity_part_names);
-  valid_target_entity_parts_ = parts_from_names(valid_target_entity_part_names);
+  valid_source_entity_parts_ = parts_from_names(*meta_data_ptr_, valid_source_entity_part_names);
+  valid_target_entity_parts_ = parts_from_names(*meta_data_ptr_, valid_target_entity_part_names);
 }
 //}
 
@@ -94,11 +99,11 @@ void STKSearch::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList
 // \name Getters
 //{
 
-std::vector<stk::mesh::Part *> get_valid_source_entity_parts() const {
+std::vector<stk::mesh::Part *> STKSearch::get_valid_source_entity_parts() const {
   return valid_source_entity_parts_;
 }
 
-std::vector<stk::mesh::Part *> get_valid_target_entity_parts() const {
+std::vector<stk::mesh::Part *> STKSearch::get_valid_target_entity_parts() const {
   return valid_target_entity_parts_;
 }
 //}
@@ -111,33 +116,33 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   // Step 1: Copy the AABBs, owning procs, and entity keys into a separate contiguous vector for the sources and
   // targets.
   using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
-  using SphereIdVector = std::vector<std::pair<stk::search::Sphere<double>, SearchIdentProc>>;
   using BoxIdVector = std::vector<std::pair<stk::search::Box<double>, SearchIdentProc>>;
   using SearchIdPairVector = std::vector<std::pair<SearchIdentProc, SearchIdentProc>>;
 
   BoxIdVector source_boxes;
   BoxIdVector target_boxes;
 
-  auto fill_box_id_vector = [&bulk_data_ptr_, &meta_data_ptr_, &element_aabb_field_ptr_](
-                                const stk::mesh::Selector &selector, BoxIdVector &boxes) {
-    const int rank = bulk_data_ptr_->parallel_rank();
+  auto fill_box_id_vector = [](mundy::mesh::BulkData &bulk_data, mundy::mesh::MetaData &meta_data,
+                               const stk::mesh::Field<double> &element_aabb_field, const stk::mesh::Selector &selector,
+                               BoxIdVector &boxes) {
+    const int rank = bulk_data.parallel_rank();
     const size_t num_local_elements =
-        stk::mesh::count_entities(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, meta_data.locally_owned_part());
+        stk::mesh::count_entities(bulk_data, stk::topology::ELEMENT_RANK, meta_data.locally_owned_part());
     boxes.reserve(num_local_elements);
 
-    const stk::mesh::BucketVector &element_buckets = bulk_data_ptr_->get_buckets(
+    const stk::mesh::BucketVector &element_buckets = bulk_data.get_buckets(
         stk::topology::ELEMENT_RANK, stk::mesh::Selector(meta_data.locally_owned_part()) & selector);
     for (size_t bucket_idx = 0; bucket_idx < element_buckets.size(); ++bucket_idx) {
       stk::mesh::Bucket &element_bucket = *element_buckets[bucket_idx];
       for (size_t elem_idx = 0; elem_idx < element_bucket.size(); ++elem_idx) {
         // Skip invalid entities.
-        if (bulk_data_ptr_->is_valid(element_bucket[elem_idx])) {
+        if (bulk_data.is_valid(element_bucket[elem_idx])) {
           stk::mesh::Entity const &element = element_bucket[elem_idx];
 
           const double *aabb = stk::mesh::field_data(element_aabb_field, element);
           stk::search::Box<double> box(aabb[0], aabb[1], aabb[2], aabb[3], aabb[4], aabb[5]);
 
-          SearchIdentProc search_id(bulk_data_ptr_->entity_key(element), rank);
+          SearchIdentProc search_id(bulk_data.entity_key(element), rank);
 
           boxes.emplace_back(box, search_id);
         }
@@ -145,8 +150,8 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     }
   };
 
-  fill_box_id_vector(domain_input_selector, source_boxes);
-  fill_box_id_vector(range_input_selector, target_boxes);
+  fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, domain_input_selector, source_boxes);
+  fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, range_input_selector, target_boxes);
 
   // Step 2: Perform the search.
   SearchIdPairVector search_id_pairs;
@@ -160,13 +165,14 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     stk::mesh::EntityKey source_entity_key = search_id_pair.first.id();
     stk::mesh::EntityKey target_entity_key = search_id_pair.second.id();
 
+    int source_proc = search_id_pair.first.proc();
+    int target_proc = search_id_pair.second.proc();
+
     stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
     stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
 
     bool is_source_owned = bulk_data_ptr_->bucket(source_entity).owned();
     bool is_target_owned = bulk_data_ptr_->bucket(target_entity).owned();
-    int source_proc = searchResults[i].first.proc();
-    int target_proc = searchResults[i].second.proc();
     if (is_source_owned && !is_target_owned) {
       // Sent the source entity to the target proc.
       send_entities.push_back(std::make_pair(source_entity, target_proc));
@@ -189,13 +195,14 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   bulk_data_ptr_->generate_new_entities(requests, requested_entities);
 
   for (size_t i = 0; i < num_linker_to_create; ++i) {
-    stk::mesh::EntityKey source_entity_key = search_id_pair[i].first.id();
-    stk::mesh::EntityKey target_entity_key = search_id_pair[i].second.id();
+    stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
+    stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
 
     stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
     stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
     stk::mesh::Entity linker = requested_entities[i];
-    declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker, source_entity, target_entity);
+    mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker, source_entity,
+                                                                            target_entity);
   }
   bulk_data_ptr_->modification_end();
 }

@@ -13,6 +13,8 @@ tribits_subpackage(Agent)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(HEADERS
+  include/mundy_linker/GenerateNeighborLinkers.hpp
+  include/mundy_linker/generate_neighbor_linkers/techniques/STKSearch.hpp
   include/mundy_linker/Linkers.hpp
   include/mundy_linker/linkers/NeighborLinkers.hpp
   include/mundy_linker/linkers/neighbor_linkers/SphereSpheres.hpp
@@ -20,6 +22,7 @@ SET(HEADERS
   )
 
 SET(SOURCES 
+  src/mundy_linker/generate_neighbor_linkers/STKSearch.cpp
   src/mundy_linker/PerformRegistration.cpp
 )
 

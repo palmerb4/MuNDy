@@ -185,15 +185,6 @@ class MetaTechniqueDispatcher {
   static std::string get_technique_factory_registration_id() {
     return technique_factory_registration_string_value_wrapper.to_string();
   }
-
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<DerivedType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                          const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<DerivedType>(bulk_data_ptr, fixed_params);
-  }
   //@}
 
   //! \name Setters
@@ -253,13 +244,23 @@ class MetaTechniqueDispatcher {
 //! \brief Type specializations for different polymorphic base types.
 //@{
 
-template <typename DerivedType, typename ReturnType, mundy::meta::RegistrationStringValueWrapper registration_string_value_wrapper,
+template <typename DerivedType, typename ReturnType,
+          mundy::meta::RegistrationStringValueWrapper registration_string_value_wrapper,
           mundy::core::StringLiteral default_technique_name_wrapper>
 struct MetaMethodSubsetExecutionDispatcher
     : public mundy::meta::MetaMethodSubsetExecutionInterface<ReturnType>,
       public MetaTechniqueDispatcher<DerivedType, mundy::meta::MetaMethodSubsetExecutionInterface<ReturnType>,
                                      registration_string_value_wrapper, default_technique_name_wrapper> {
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<ReturnType>;
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                  const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<DerivedType>(bulk_data_ptr, fixed_params);
+  }
 
   //! \name MetaMethodSubsetExecutionInterface's interface implementation
   //@{
@@ -278,13 +279,23 @@ struct MetaMethodSubsetExecutionDispatcher
   //@}
 };  // MetaMethodSubsetExecutionDispatcher
 
-template <typename DerivedType, typename ReturnType, mundy::meta::RegistrationStringValueWrapper registration_string_value_wrapper,
+template <typename DerivedType, typename ReturnType,
+          mundy::meta::RegistrationStringValueWrapper registration_string_value_wrapper,
           mundy::core::StringLiteral default_technique_name_wrapper>
 struct MetaMethodPairwiseSubsetExecutionDispatcher
     : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<ReturnType>,
       public MetaTechniqueDispatcher<DerivedType, mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<ReturnType>,
                                      registration_string_value_wrapper, default_technique_name_wrapper> {
   using PolymorphicBaseType = mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<ReturnType>;
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                  const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<DerivedType>(bulk_data_ptr, fixed_params);
+  }
 
   //! \name MetaMethodPairwiseSubsetExecutionInterface's interface implementation
   //@{

@@ -37,13 +37,13 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral
-#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaMethodFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
+#include <mundy_core/StringLiteral.hpp>                               // for mundy::core::StringLiteral
+#include <mundy_core/throw_assert.hpp>                                // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                                    // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                                    // for mundy::mesh::MetaData
+#include <mundy_meta/MeshRequirements.hpp>                            // for mundy::meta::MeshRequirements
+#include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::MetaMethodFactory
+#include <mundy_meta/MetaKernel.hpp>                                  // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodPairwiseSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                                // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
@@ -74,7 +74,7 @@ each element in the source and target selectors).
 
 The choice of having the user compute the aabb field gives them the liberty to apply buffer/skin distances to the aabbs.
 */
-class STKSearch : mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> {
+class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
@@ -105,7 +105,7 @@ class STKSearch : mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> 
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
+    valid_fixed_params.validateParametersAndSetDefaults(STKSearch::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
@@ -116,18 +116,18 @@ class STKSearch : mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> 
     Teuchos::Array<std::string> valid_target_entity_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_target_entity_part_names");
 
-    auto fetch_and_add_part_reqs = [&mesh_reqs_ptr,
-                                    &element_aabb_field_name](const Teuchos::Array<std::string> &valid_entity_part_names) {
-      const int num_parts = static_cast<int>(valid_entity_part_names.size());
-      for (int i = 0; i < num_parts; i++) {
-        const std::string part_name = valid_entity_part_names[i];
-        auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-        part_reqs->set_part_name(part_name);
-        part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-            element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
-        mesh_reqs_ptr->add_part_reqs(part_reqs);
-      }
-    };  // fetch_and_add_part_reqs
+    auto fetch_and_add_part_reqs =
+        [&mesh_reqs_ptr, &element_aabb_field_name](const Teuchos::Array<std::string> &valid_entity_part_names) {
+          const int num_parts = static_cast<int>(valid_entity_part_names.size());
+          for (int i = 0; i < num_parts; i++) {
+            const std::string part_name = valid_entity_part_names[i];
+            auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+            part_reqs->set_part_name(part_name);
+            part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+                element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
+            mesh_reqs_ptr->add_part_reqs(part_reqs);
+          }
+        };  // fetch_and_add_part_reqs
 
     fetch_and_add_part_reqs(valid_source_entity_part_names);
     fetch_and_add_part_reqs(valid_target_entity_part_names);
@@ -140,10 +140,9 @@ class STKSearch : mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> 
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "valid_source_entity_part_names", Teuchos::tuple<std::string>(std::string(universal_part_name_)),
         "Name of the source parts associated with this pairwise meta method.");
-    default_parameter_list.set <
-        Teuchos::Array<std::string>("valid_target_entity_part_names",
-                                    Teuchos::tuple<std::string>(std::string(universal_part_name_)),
-                                    "Name of the target parts associated with this pairwise meta method.");
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "valid_target_entity_part_names", Teuchos::tuple<std::string>(std::string(universal_part_name_)),
+        "Name of the target parts associated with this pairwise meta method.");
     default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
                                "Name of the element field containing the output axis-aligned boundary boxes.");
     return default_parameter_list;
@@ -151,20 +150,17 @@ class STKSearch : mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> 
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
-  }
-
-  /// \brief Get the unique registration identifier associated with our kernel factory.
-  static std::string get_kernel_factory_registration_id() {
-    return kernel_factory_registration_string_value_wrapper.to_string();
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
   }
 
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<DerivedType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                          const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<DerivedType>(bulk_data_ptr, fixed_params);
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                  const Teuchos::ParameterList &fixed_params) {
+    return std::make_shared<STKSearch>(bulk_data_ptr, fixed_params);
   }
   //@}
 
@@ -193,15 +189,15 @@ class STKSearch : mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> 
   /// \brief Run the method's core calculation.
   /// \param source_input_selector The selector that defines the source entities to act on.
   /// \param target_input_selector The selector that defines the target entities to act on.
-  void execute(const stk::mesh::Selector &source_input_selector, const stk::mesh::Selector &target_input_selector);
-  //@}
+  void execute(const stk::mesh::Selector &source_input_selector, const stk::mesh::Selector &target_input_selector) override;
 
  private:
   //! \name Default parameters
   //@{
 
   /// \brief The default universal part name. This is an implementation detail hidden by STK and is subject to change.
-  static inline std::string universal_part_name_ = "{UNIVERSAL}";
+  static constexpr std::string_view universal_part_name_ = "{UNIVERSAL}";
+  static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
   //@}
 
   //! \name Internal members
