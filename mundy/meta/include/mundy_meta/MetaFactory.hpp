@@ -345,7 +345,7 @@ struct RegistrationStringValueWrapper : public mundy::core::StringLiteral<StrSiz
       : mundy::core::StringLiteral<StrSize>(str) {
   }
 
-  Type value() {
+  Type value() const {
     return this->to_string();
   }
 };  // RegistrationStringValueWrapper

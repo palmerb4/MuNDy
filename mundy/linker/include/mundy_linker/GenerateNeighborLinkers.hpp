@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_LINKERS_GENERATENEIGHBORLINKERS_HPP_
-#define MUNDY_LINKERS_GENERATENEIGHBORLINKERS_HPP_
+#ifndef MUNDY_LINKER_GENERATENEIGHBORLINKERS_HPP_
+#define MUNDY_LINKER_GENERATENEIGHBORLINKERS_HPP_
 
 /// \file GenerateNeighborLinkers.hpp
 /// \brief Declaration of the GenerateNeighborLinkers class
@@ -31,16 +31,16 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                                      // for mundy::core::make_string_literal
-#include <mundy_linkers/generate_neighbor_linkers/techniques/STKSearch.hpp>  // for mundy::linkers::generate_neighbor_linkers::techniques::STKSearch
-#include <mundy_mesh/BulkData.hpp>                                           // for mundy::mesh::BulkData
+#include <mundy_core/StringLiteral.hpp>                                     // for mundy::core::make_string_literal
+#include <mundy_linker/generate_neighbor_linkers/techniques/STKSearch.hpp>  // for mundy::linker::generate_neighbor_linkers::techniques::STKSearch
+#include <mundy_mesh/BulkData.hpp>                                          // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaMethodPairwiseSubsetExecutionDispatcher
 
 namespace mundy {
 
-namespace linkers {
+namespace linker {
 
 /// \class GenerateNeighborLinkers
 /// \brief Method for generating neighbor linkers between source-target entity pairs.
@@ -66,21 +66,23 @@ class GenerateNeighborLinkers
   //! \name MetaMethodPairwiseSubsetExecutionDispatcher static interface implementation
   //@{
 
-  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
-  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+  /// \brief Get the valid fixed parameters that we require all techniques registered with our technique factory to
+  /// have.
+  static Teuchos::ParameterList get_valid_forwarded_technique_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
 
-  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
-  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+  /// \brief Get the valid mutable parameters that we require all techniques registered with our technique factory to
+  /// have.
+  static Teuchos::ParameterList get_valid_forwarded_technique_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
   //@}
 };  // GenerateNeighborLinkers
 
-}  // namespace linkers
+}  // namespace linker
 
 }  // namespace mundy
 
@@ -88,9 +90,9 @@ class GenerateNeighborLinkers
 //@{
 
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS("STK_SEARCH", mundy::linkers::generate_neighbor_linkers::techniques::STKSearch,
-                         mundy::motion::GenerateNeighborLinkers::OurMethodFactory)
+MUNDY_REGISTER_METACLASS("STK_SEARCH", mundy::linker::generate_neighbor_linkers::techniques::STKSearch,
+                         mundy::linker::GenerateNeighborLinkers::OurTechniqueFactory)
 
 //@}
 
-#endif  // MUNDY_LINKERS_GENERATENEIGHBORLINKERS_HPP_
+#endif  // MUNDY_LINKER_GENERATENEIGHBORLINKERS_HPP_

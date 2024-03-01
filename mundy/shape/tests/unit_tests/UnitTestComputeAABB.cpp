@@ -81,12 +81,14 @@ TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
   }
 
   // Check that the fixed parameters for each kernel are present.
-  for (const std::string &kernel_name : enabled_kernel_names) {
-    ASSERT_TRUE(fixed_params.isSublist(kernel_name));
-    Teuchos::ParameterList &kernel_params = fixed_params.sublist(kernel_name, true);
+  for (const std::string &key : ComputeAABB::OurKernelFactory::get_keys()) {
+    ASSERT_TRUE(fixed_params.isSublist(key));
+    Teuchos::ParameterList &kernel_params = fixed_params.sublist(key, true);
     ASSERT_TRUE(kernel_params.isParameter("valid_entity_part_names"));
     ASSERT_TRUE(kernel_params.get<Teuchos::Array<std::string>>("valid_entity_part_names").size() > 0);
   }
+
+  // TODO(palmerb4): Check that the parameters are forwarded correctly.
 }
 
 TEST(ComputeAABBStaticInterface, MutableParameterDefaults) {
@@ -106,8 +108,8 @@ TEST(ComputeAABBStaticInterface, MutableParameterDefaults) {
   }
 
   // Check that the mutable parameters for each kernel are present.
-  for (const std::string &kernel_name : enabled_kernel_names) {
-    ASSERT_TRUE(mutable_params.isSublist(kernel_name));
+  for (const std::string &key : ComputeAABB::OurKernelFactory::get_keys()) {
+    ASSERT_TRUE(mutable_params.isSublist(key));
   }
 }
 
