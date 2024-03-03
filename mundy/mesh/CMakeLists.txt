@@ -3,6 +3,9 @@
 #
 tribits_subpackage(Mesh)
 
+# By default we enable all optional packages. They can be disabled by the user if they are not needed.
+GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
+
 #
 # B) Define the header and source files
 #

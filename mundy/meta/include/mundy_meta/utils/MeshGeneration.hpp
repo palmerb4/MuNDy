@@ -25,7 +25,9 @@
 
 // C++ core libs
 #include <memory>   // for std::shared_ptr, std::unique_ptr
+#include <tuple>    // for std::tuple, std::make_tuple
 #include <utility>  // for std::pair, std::make_pair
+#include <vector>   // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
@@ -43,11 +45,8 @@ namespace meta {
 
 namespace utils {
 
-/// \brief Helper function for generating a mesh that satisfies the requirements of a given meta class and
 template <typename MetaClass>
-std::pair<std::shared_ptr<typename MetaClass::PolymorphicBaseType>, std::shared_ptr<mundy::mesh::BulkData>>
-generate_class_instance_and_mesh_from_meta_class_requirements(
-    const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
+Teuchos::ParameterList get_validated_and_default_set_fixed_params(const Teuchos::ParameterList &fixed_params) {
   // Ensure that the given type has the correct static interface.
   using Checker = HasMeshRequirementsAndIsRegisterable<MetaClass>;
   static_assert(Checker::value, "The given type does not have the correct static interface for encoding requirements.");
@@ -55,23 +54,68 @@ generate_class_instance_and_mesh_from_meta_class_requirements(
   // Validate the fixed parameters and set defaults.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   valid_fixed_params.validateParametersAndSetDefaults(MetaClass::get_valid_fixed_params());
+  return valid_fixed_params;
+}
 
-  // Create a mesh that meets the requirements for MetaClass.
+template <typename... MetaClasses, std::size_t... Is>
+std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> get_vector_of_validated_and_default_set_fixed_params(
+    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &vector_of_fixed_params,
+    std::index_sequence<Is...>) {
+  return {get_validated_and_default_set_fixed_params<MetaClasses>(vector_of_fixed_params[Is])...};
+}
+
+template <typename... MetaClasses, std::size_t... Is>
+void merge_mesh_requirements_from_valid_params(
+    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &array_of_validated_fixed_params,
+    std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr, std::index_sequence<Is...>) {
+  // Merge the mesh requirements for MetaClass.
+  (mesh_reqs_ptr->merge(MetaClasses::get_mesh_requirements(array_of_validated_fixed_params[Is])), ...);
+}
+
+template <typename... MetaClasses, std::size_t... Is>
+std::tuple<std::shared_ptr<typename MetaClasses::PolymorphicBaseType>...> create_new_instances_from_valid_params(
+    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &array_of_validated_fixed_params,
+    std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr, std::index_sequence<Is...>) {
+  // Using a fold expression with a lambda to construct each type
+  return std::tuple{(MetaClasses::create_new_instance(bulk_data_ptr.get(), array_of_validated_fixed_params[Is]))...};
+}
+
+/// \brief Helper function for generating a mesh that satisfies the requirements of a given meta class and returning an
+/// instance of the class.
+template <typename... MetaClasses>
+std::tuple<std::shared_ptr<typename MetaClasses::PolymorphicBaseType>..., std::shared_ptr<mundy::mesh::BulkData>>
+generate_class_instance_and_mesh_from_meta_class_requirements(
+    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &vector_of_fixed_params = {
+        Teuchos::ParameterList()}) {
+  constexpr size_t num_meta_classes = sizeof...(MetaClasses);
+
+  // Setup the mesh requirements.
   auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
-  mesh_reqs_ptr->merge(MetaClass::get_mesh_requirements(valid_fixed_params));
+
+  // Create an index sequence for the number of MetaClasses, so that we can loop over the MetaClass types and their
+  // corresponding fixed params.
+  auto index_sequence = std::make_index_sequence<num_meta_classes>();
+
+  // For each MetaClass, get validate and set their default fixed parameters.
+  auto array_of_validated_fixed_params =
+      get_vector_of_validated_and_default_set_fixed_params<MetaClasses...>(vector_of_fixed_params, index_sequence);
+
+  // Merge the mesh requirements for each MetaClass
+  merge_mesh_requirements_from_valid_params<MetaClasses...>(array_of_validated_fixed_params, mesh_reqs_ptr,
+                                                            index_sequence);
+
+  // At this point, we solidify the mesh structure.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-
-  // At this point, we solidify the mesh structure by calling commit.
   meta_data_ptr->commit();
 
-  // Create a new instance of MetaClass with the valid fixed params.
-  // Note, we do not specify the mutable params, so the default values will be used.
-  auto class_ptr = MetaClass::create_new_instance(bulk_data_ptr.get(), valid_fixed_params);
+  // Create a new instance of each MetaClass using their validated fixed parameters and the newly constructed mesh.
+  auto class_ptrs = create_new_instances_from_valid_params<MetaClasses...>(array_of_validated_fixed_params,
+                                                                           bulk_data_ptr, index_sequence);
 
-  return std::make_pair(class_ptr, bulk_data_ptr);
+  return std::tuple_cat(class_ptrs, std::make_tuple(bulk_data_ptr));
 }
 
 }  // namespace utils

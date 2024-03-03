@@ -21,6 +21,7 @@
 /// \brief Perform all registrations within MundyLinker.
 
 // Mundy libs
+#include <MundyLinker_config.hpp>               // for HAVE_MUNDYLINKER_MUNDYSHAPE
 #include <mundy_agent/AgentHierarchy.hpp>       // for mundy::agent::AgentHierarchy
 #include <mundy_agent/PerformRegistration.hpp>  // for mundy::agent::perform_registration
 #include <mundy_linker/Linkers.hpp>             // for mundy::linker::Linkers

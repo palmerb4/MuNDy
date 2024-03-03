@@ -66,19 +66,24 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
   MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: element_aabb_field_ptr_ cannot be a nullptr. Check that the field exists.");
 
-  // Get the valid source and target entity parts.
+  // Get the part pointers.
+  const std::string neighbor_linkers_part_name = valid_fixed_params.get<std::string>("neighbor_linkers_part_name");
+  neighbor_linkers_part_ptr_ = meta_data_ptr_->get_part(neighbor_linkers_part_name);
+  MUNDY_THROW_ASSERT(
+      neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
+      "STKSearch: Expected a part with name '" << neighbor_linkers_part_name << "' but part does not exist.");
+
   const Teuchos::Array<std::string> valid_source_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_source_entity_part_names");
   const Teuchos::Array<std::string> valid_target_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_target_entity_part_names");
-
   auto parts_from_names = [](mundy::mesh::MetaData &meta_data,
                              const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
       MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "STKSearch: part " << part_name << " cannot be a nullptr. Check that the part exists.");
+                         "STKSearch: Expected a part with name '" << part_name << "' but part does not exist.");
       parts.push_back(part);
     }
     return parts;
@@ -113,6 +118,8 @@ std::vector<stk::mesh::Part *> STKSearch::get_valid_target_entity_parts() const 
 
 void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                         const stk::mesh::Selector &range_input_selector) {
+  std::cout << "STKSearch executing" << std::endl;
+
   // Step 1: Copy the AABBs, owning procs, and entity keys into a separate contiguous vector for the sources and
   // targets.
   using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
@@ -148,31 +155,34 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
         }
       }
     }
-  };
+  };  // fill_box_id_vector
 
+  std::cout << "Filling source and target boxes" << std::endl;
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, domain_input_selector, source_boxes);
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, range_input_selector, target_boxes);
 
   // Step 2: Perform the search.
+  std::cout << "Performing search" << std::endl;
   SearchIdPairVector search_id_pairs;
   stk::search::coarse_search(source_boxes, target_boxes, stk::search::KDTREE, bulk_data_ptr_->parallel(),
                              search_id_pairs);
 
   // Step 3: Ghost our search results.
+  std::cout << "Ghosting search results (this might not be necessary)" << std::endl;
   bulk_data_ptr_->modification_begin();
   std::vector<stk::mesh::EntityProc> send_entities;
   for (const auto &search_id_pair : search_id_pairs) {
-    stk::mesh::EntityKey source_entity_key = search_id_pair.first.id();
-    stk::mesh::EntityKey target_entity_key = search_id_pair.second.id();
-
     int source_proc = search_id_pair.first.proc();
     int target_proc = search_id_pair.second.proc();
 
+    stk::mesh::EntityKey source_entity_key = search_id_pair.first.id();
+    stk::mesh::EntityKey target_entity_key = search_id_pair.second.id();
+    
     stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
     stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
 
-    bool is_source_owned = bulk_data_ptr_->bucket(source_entity).owned();
-    bool is_target_owned = bulk_data_ptr_->bucket(target_entity).owned();
+    bool is_source_owned = bulk_data_ptr_->is_valid(source_entity) ? bulk_data_ptr_->bucket(source_entity).owned() : false;
+    bool is_target_owned = bulk_data_ptr_->is_valid(target_entity) ? bulk_data_ptr_->bucket(target_entity).owned() : false;
     if (is_source_owned && !is_target_owned) {
       // Sent the source entity to the target proc.
       send_entities.push_back(std::make_pair(source_entity, target_proc));
@@ -182,11 +192,13 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     }
   }
 
+  std::cout << "Creating ghosting" << std::endl;
   stk::mesh::Ghosting &ghosting = bulk_data_ptr_->create_ghosting("STKSearchGhosting");
   bulk_data_ptr_->change_ghosting(ghosting, send_entities);
   bulk_data_ptr_->modification_end();
 
   // Step 4: Create the neighbor linkers.
+  std::cout << "Creating neighbor linkers" << std::endl;
   bulk_data_ptr_->modification_begin();
   size_t num_linker_to_create = search_id_pairs.size();
   std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
@@ -200,11 +212,16 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
 
     stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
     stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
-    stk::mesh::Entity linker = requested_entities[i];
-    mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker, source_entity,
+    stk::mesh::Entity linker_i = requested_entities[i];
+
+    // Convert the entity to a linker and connect it to the source and target entities.
+    bulk_data_ptr_->change_entity_parts(linker_i, stk::mesh::ConstPartVector{neighbor_linkers_part_ptr_});
+    mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker_i, source_entity,
                                                                             target_entity);
   }
   bulk_data_ptr_->modification_end();
+
+  std::cout << "STKSearch complete" << std::endl;
 }
 //}
 

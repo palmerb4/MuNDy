@@ -68,17 +68,27 @@ class GenerateNeighborLinkers
 
   /// \brief Get the valid fixed parameters that we require all techniques registered with our technique factory to
   /// have.
-  static Teuchos::ParameterList get_valid_forwarded_technique_fixed_params() {
+  static Teuchos::ParameterList get_valid_required_technique_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
+
+    default_parameter_list.set("neighbor_linkers_part_name", default_neighbor_linkers_part_name_,
+                               "The part name to which we will add the neighbor linkers.");
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters that we require all techniques registered with our technique factory to
   /// have.
-  static Teuchos::ParameterList get_valid_forwarded_technique_mutable_params() {
+  static Teuchos::ParameterList get_valid_required_technique_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
+  //@}
+
+ private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
   //@}
 };  // GenerateNeighborLinkers
 

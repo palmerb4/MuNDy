@@ -115,6 +115,7 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_source_entity_part_names");
     Teuchos::Array<std::string> valid_target_entity_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_target_entity_part_names");
+    std::string neighbor_linkers_part_name = valid_fixed_params.get<std::string>("neighbor_linkers_part_name");
 
     auto fetch_and_add_part_reqs =
         [&mesh_reqs_ptr, &element_aabb_field_name](const Teuchos::Array<std::string> &valid_entity_part_names) {
@@ -131,6 +132,7 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
     fetch_and_add_part_reqs(valid_source_entity_part_names);
     fetch_and_add_part_reqs(valid_target_entity_part_names);
+    fetch_and_add_part_reqs(Teuchos::tuple<std::string>(neighbor_linkers_part_name));
     return mesh_reqs_ptr;
   }
 
@@ -143,6 +145,8 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "valid_target_entity_part_names", Teuchos::tuple<std::string>(std::string(universal_part_name_)),
         "Name of the target parts associated with this pairwise meta method.");
+    default_parameter_list.set("neighbor_linkers_part_name", std::string(default_neighbor_linkers_part_name_),
+                               "The part name to which we will add the neighbor linkers.");
     default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
                                "Name of the element field containing the output axis-aligned boundary boxes.");
     return default_parameter_list;
@@ -189,7 +193,8 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
   /// \brief Run the method's core calculation.
   /// \param source_input_selector The selector that defines the source entities to act on.
   /// \param target_input_selector The selector that defines the target entities to act on.
-  void execute(const stk::mesh::Selector &source_input_selector, const stk::mesh::Selector &target_input_selector) override;
+  void execute(const stk::mesh::Selector &source_input_selector,
+               const stk::mesh::Selector &target_input_selector) override;
 
  private:
   //! \name Default parameters
@@ -197,6 +202,7 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
   /// \brief The default universal part name. This is an implementation detail hidden by STK and is subject to change.
   static constexpr std::string_view universal_part_name_ = "{UNIVERSAL}";
+  static constexpr std::string_view default_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
   static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
   //@}
 
@@ -214,6 +220,9 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
   /// \brief The valid target entity parts.
   std::vector<stk::mesh::Part *> valid_target_entity_parts_;
+
+  /// \brief The neighbor linkers part.
+  stk::mesh::Part *neighbor_linkers_part_ptr_ = nullptr;
 
   /// \brief The element aabb field pointer.
   stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
