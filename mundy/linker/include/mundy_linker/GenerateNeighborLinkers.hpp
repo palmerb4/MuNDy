@@ -70,9 +70,11 @@ class GenerateNeighborLinkers
   /// have.
   static Teuchos::ParameterList get_valid_required_technique_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-
-    default_parameter_list.set("neighbor_linkers_part_name", default_neighbor_linkers_part_name_,
-                               "The part name to which we will add the neighbor linkers.");
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "specialized_neighbor_linkers_part_names",
+        Teuchos::tuple<std::string>(std::string(default_specialized_neighbor_linkers_part_name_)),
+        "The part names to which we will add the generated neighbor linkers. This should be a specialization of the "
+        "neighbor linkers part or the neighbor linkers part itself.");
     return default_parameter_list;
   }
 
@@ -88,7 +90,7 @@ class GenerateNeighborLinkers
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
+  static constexpr std::string_view default_specialized_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
   //@}
 };  // GenerateNeighborLinkers
 

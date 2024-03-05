@@ -259,6 +259,19 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   // Compute the neighbor linkers. Between neighboring spheres.
   generate_neighbor_linkers_ptr->execute(*spheres_part_ptr, *spheres_part_ptr);
 
+  // Ghost all particles with process rank 0.
+  bulk_data_ptr->modification_begin();
+  std::vector<stk::mesh::EntityProc> send_all_entities;
+  if (bulk_data_ptr->parallel_rank() != 0) {
+    for (int i = 0; i < num_spheres_per_process; i++) {
+      stk::mesh::Entity sphere_i = requested_entities[num_spheres_per_process + i];
+      send_all_entities.push_back(std::make_pair(sphere_i, 0));
+    }
+  }
+  stk::mesh::Ghosting &ghosting = bulk_data_ptr->create_ghosting("GHOST_SPHERES_TO_RANK0");
+  bulk_data_ptr->change_ghosting(ghosting, send_all_entities);
+  bulk_data_ptr->modification_end();
+
   // Get the total number of spheres. Must be called parallel synchronously.
   std::vector<size_t> entity_counts;
   stk::mesh::comm_mesh_counts(*bulk_data_ptr, entity_counts);
@@ -288,6 +301,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       for (size_t sphere_idx_i = 0; sphere_idx_i < sphere_bucket_i.size(); ++sphere_idx_i) {
         stk::mesh::Entity const &sphere_i = sphere_bucket_i[sphere_idx_i];
         const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(sphere_i);
+        std::cout << "sphere_i_gid: " << sphere_i_gid << std::endl;
         ASSERT_LT(sphere_i_gid - 1, total_num_spheres);
 
         double *aabb_i = stk::mesh::field_data(*element_aabb_field_ptr, sphere_i);
@@ -296,6 +310,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
           for (size_t sphere_idx_j = 0; sphere_idx_j < sphere_bucket_j.size(); ++sphere_idx_j) {
             stk::mesh::Entity const &sphere_j = sphere_bucket_j[sphere_idx_j];
             const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(sphere_j);
+            std::cout << "sphere_j_gid: " << sphere_j_gid << std::endl;
             ASSERT_LT(sphere_j_gid - 1, total_num_spheres);
 
             double *aabb_j = stk::mesh::field_data(*element_aabb_field_ptr, sphere_j);

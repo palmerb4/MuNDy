@@ -67,12 +67,12 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
                      "STKSearch: element_aabb_field_ptr_ cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
-  const std::string neighbor_linkers_part_name = valid_fixed_params.get<std::string>("neighbor_linkers_part_name");
-  neighbor_linkers_part_ptr_ = meta_data_ptr_->get_part(neighbor_linkers_part_name);
-  MUNDY_THROW_ASSERT(
-      neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
-      "STKSearch: Expected a part with name '" << neighbor_linkers_part_name << "' but part does not exist.");
+  neighbor_linkers_part_ptr_ = meta_data_ptr_->get_part("NEIGHBOR_LINKERS");
+  MUNDY_THROW_ASSERT(neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
+                     "STKSearch: Expected a part with name 'NEIGHBOR_LINKERS' but part does not exist.");
 
+  const Teuchos::Array<std::string> specialized_neighbor_linkers_part_names =
+      valid_fixed_params.get<Teuchos::Array<std::string>>("specialized_neighbor_linkers_part_names");
   const Teuchos::Array<std::string> valid_source_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_source_entity_part_names");
   const Teuchos::Array<std::string> valid_target_entity_part_names =
@@ -89,8 +89,9 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     return parts;
   };
 
-  valid_source_entity_parts_ = parts_from_names(*meta_data_ptr_, valid_source_entity_part_names);
-  valid_target_entity_parts_ = parts_from_names(*meta_data_ptr_, valid_target_entity_part_names);
+  specialized_neighbor_linkers_part_ptrs_ = parts_from_names(*meta_data_ptr_, specialized_neighbor_linkers_part_names);
+  valid_source_entity_part_ptrs_ = parts_from_names(*meta_data_ptr_, valid_source_entity_part_names);
+  valid_target_entity_part_ptrs_ = parts_from_names(*meta_data_ptr_, valid_target_entity_part_names);
 }
 //}
 
@@ -105,11 +106,11 @@ void STKSearch::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList
 //{
 
 std::vector<stk::mesh::Part *> STKSearch::get_valid_source_entity_parts() const {
-  return valid_source_entity_parts_;
+  return valid_source_entity_part_ptrs_;
 }
 
 std::vector<stk::mesh::Part *> STKSearch::get_valid_target_entity_parts() const {
-  return valid_target_entity_parts_;
+  return valid_target_entity_part_ptrs_;
 }
 //}
 
@@ -177,12 +178,14 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
 
     stk::mesh::EntityKey source_entity_key = search_id_pair.first.id();
     stk::mesh::EntityKey target_entity_key = search_id_pair.second.id();
-    
+
     stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
     stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
 
-    bool is_source_owned = bulk_data_ptr_->is_valid(source_entity) ? bulk_data_ptr_->bucket(source_entity).owned() : false;
-    bool is_target_owned = bulk_data_ptr_->is_valid(target_entity) ? bulk_data_ptr_->bucket(target_entity).owned() : false;
+    bool is_source_owned =
+        bulk_data_ptr_->is_valid(source_entity) ? bulk_data_ptr_->bucket(source_entity).owned() : false;
+    bool is_target_owned =
+        bulk_data_ptr_->is_valid(target_entity) ? bulk_data_ptr_->bucket(target_entity).owned() : false;
     if (is_source_owned && !is_target_owned) {
       // Sent the source entity to the target proc.
       send_entities.push_back(std::make_pair(source_entity, target_proc));
@@ -192,30 +195,89 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     }
   }
 
-  std::cout << "Creating ghosting" << std::endl;
+  std::cout << "Creating ghosting (this might not be necessary)" << std::endl;
   stk::mesh::Ghosting &ghosting = bulk_data_ptr_->create_ghosting("STKSearchGhosting");
   bulk_data_ptr_->change_ghosting(ghosting, send_entities);
   bulk_data_ptr_->modification_end();
 
-  // Step 4: Create the neighbor linkers.
-  std::cout << "Creating neighbor linkers" << std::endl;
-  bulk_data_ptr_->modification_begin();
-  size_t num_linker_to_create = search_id_pairs.size();
-  std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
-  requests[stk::topology::CONSTRAINT_RANK] = num_linker_to_create;
-  std::vector<stk::mesh::Entity> requested_entities;
-  bulk_data_ptr_->generate_new_entities(requests, requested_entities);
-
-  for (size_t i = 0; i < num_linker_to_create; ++i) {
+  // Step 4: Check if a linker already exists between the source and target entities. If it does, add it to the
+  // specified neighbor linker parts instead of creating a new linker.
+  std::cout << "Checking if linkers already exist" << std::endl;
+  std::vector<bool> linker_exists(search_id_pairs.size(), false);
+  for (size_t i = 0; i < search_id_pairs.size(); ++i) {
     stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
     stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
 
     stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
     stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
-    stk::mesh::Entity linker_i = requested_entities[i];
 
-    // Convert the entity to a linker and connect it to the source and target entities.
-    bulk_data_ptr_->change_entity_parts(linker_i, stk::mesh::ConstPartVector{neighbor_linkers_part_ptr_});
+    const auto num_connected_constraint_rank_entities_source =
+        bulk_data_ptr_->num_connectivity(source_entity, stk::topology::CONSTRAINT_RANK);
+    const auto num_connected_constraint_rank_entities_target =
+        bulk_data_ptr_->num_connectivity(target_entity, stk::topology::CONSTRAINT_RANK);
+
+    // If either the source or target entity has no constraint-rank entities, then no linkers can exist between them.
+    if (num_connected_constraint_rank_entities_source == 0 || num_connected_constraint_rank_entities_target == 0) {
+      continue;
+    }
+
+    const stk::mesh::Entity *source_constraint_entities =
+        bulk_data_ptr_->begin(source_entity, stk::topology::CONSTRAINT_RANK);
+    for (size_t j = 0; j < num_connected_constraint_rank_entities_source; ++j) {
+      const stk::mesh::Entity &source_constraint_entity = source_constraint_entities[j];
+      const bool is_source_constraint_entity_a_valid_linker =
+          bulk_data_ptr_->is_valid(source_constraint_entity) &&
+          bulk_data_ptr_->bucket(source_constraint_entity).member(*neighbor_linkers_part_ptr_);
+
+      if (is_source_constraint_entity_a_valid_linker) {
+        // The connected constraint-rank entity is a valid linker, is it connected to the target entity?
+        const auto num_connected_entities_linker =
+            bulk_data_ptr_->num_connectivity(source_constraint_entity, stk::topology::ELEMENT_RANK);
+        const stk::mesh::Entity *connected_elements_linker =
+            bulk_data_ptr_->begin(source_constraint_entity, stk::topology::ELEMENT_RANK);
+        for (size_t k = 0; k < num_connected_entities_linker; ++k) {
+          if (connected_elements_linker[k] == target_entity) {
+            // Found the linker that connects the source and target entities.
+            // Move it into the specialized neighbor linkers parts.
+            bulk_data_ptr_->change_entity_parts(source_constraint_entity, specialized_neighbor_linkers_part_ptrs_);
+            linker_exists[i] = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Step 5: Create the neighbor linkers.
+  // The total number of linkers to create is the sum of the linker_exists vector.
+  // Because the total number of linkers does not match the number of search_id_pairs, we use an offset vector to allow
+  // each pair to know its index in the requested_entities vector. This is just the cumulative sum of the linker_exists
+  // boolean vector minus 1.
+  std::cout << "Creating neighbor linkers" << std::endl;
+  size_t num_linker_to_create = std::reduce(linker_exists.begin(), linker_exists.end(), 0);
+  std::vector<size_t> linker_offset(linker_exists.size(), -1);
+  std::partial_sum(linker_exists.begin(), linker_exists.end(), linker_offset.begin());
+
+  bulk_data_ptr_->modification_begin();
+  std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
+  requests[stk::topology::CONSTRAINT_RANK] = num_linker_to_create;
+  std::vector<stk::mesh::Entity> requested_entities;
+  bulk_data_ptr_->generate_new_entities(requests, requested_entities);
+  for (size_t i = 0; i < requested_entities.size(); ++i) {
+    bulk_data_ptr_->change_entity_parts(requested_entities[i], specialized_neighbor_linkers_part_ptrs_);
+  }
+
+  for (size_t i = 0; i < search_id_pairs.size(); ++i) {
+    if (!linker_exists[i]) {
+      continue;
+    }
+    stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
+    stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
+    stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
+    stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
+    stk::mesh::Entity linker_i = requested_entities[linker_offset[i]];
+
+    // Connect the linker to the source and target entities.
     mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker_i, source_entity,
                                                                             target_entity);
   }

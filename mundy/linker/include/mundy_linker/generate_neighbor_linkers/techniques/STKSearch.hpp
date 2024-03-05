@@ -37,6 +37,7 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
+#include <mundy_agent/AgentHierarchy.hpp>                             // for mundy::agent::AgentHierarchy
 #include <mundy_core/StringLiteral.hpp>                               // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                                // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                                    // for mundy::mesh::BulkData
@@ -73,6 +74,39 @@ Our only fixed parameter is the element_aabb_field_name (which should direct us 
 each element in the source and target selectors).
 
 The choice of having the user compute the aabb field gives them the liberty to apply buffer/skin distances to the aabbs.
+
+Users will often want to generate specialized neighbor linkers for a specific source-target part pair, such as a
+SphereRodNeighborLinker meant to connect spheres and rods. If this is the case, they should set the neighbor linker
+part name to the specialization's part name. When doing so, we will not create duplicate linkers between source and
+target pairs. Instead, if a linker already exists between a pair, it will be added to the specified neighbor linker
+part.
+
+We emphasize, we will NOT allow duplicate linkers between pairs. If, for example, someone wants linkers for a short
+and long range potential. They would need to create two different linker parts and call GenerateNeighborLinkers twice.
+Consider the following, three level deep hierarchy:
+
+                      NeighborLinkers
+                            |
+                    SphereSphereLinkers
+              |                             |
+ShortRangeSphereSphereLinkers  LongRangeSphereSphereLinkers
+
+If someone calls GenerateNeighborLinkers once for ShortRangeSphereSphereLinkers and again for
+LongRangeSphereSphereLinkers, a pair of particles that falls within both the short and long ranged potential will have
+their linker reside within both the ShortRangeSphereSphereLinkers and LongRangeSphereSphereLinkers parts. Care should
+be taken to ensure that linker technique are compatable with this behavior. For example, if a method that acts on
+ShortRangeSphereSphereLinkers and another that acts on LongRangeSphereSphereLinkers both write to a force field, then
+the correct behavior is likely to sum into the existing field rather than overwrite it.
+
+For each entity of the source part, loop over their connected constraint-rank entities. If they are connected to a
+linker, then check if the second entity of that linker is the target entity. If it is, we'll add that linker to the
+specified neighbor linker part instead of creating a new linker. For each pair, store a bool for if the pair gets a
+linker or not. The sum of this vector of bools is the number of linkers to be created. Then, in the following loop, we
+would only generate a linker if the bool for the pair was true. Notice that this requires an up-then-down connection
+tree traversal. Typically this is invalid, but we already ghost our neighbors, so it is valid.
+
+Add a flag that deletes linkers that no longer link neighbors with intersection AABBs... No. Bad idea. Separation of
+concerns is important. We should have a separate class that does this.
 */
 class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void> {
  public:
@@ -115,7 +149,6 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_source_entity_part_names");
     Teuchos::Array<std::string> valid_target_entity_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_target_entity_part_names");
-    std::string neighbor_linkers_part_name = valid_fixed_params.get<std::string>("neighbor_linkers_part_name");
 
     auto fetch_and_add_part_reqs =
         [&mesh_reqs_ptr, &element_aabb_field_name](const Teuchos::Array<std::string> &valid_entity_part_names) {
@@ -132,7 +165,24 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
     fetch_and_add_part_reqs(valid_source_entity_part_names);
     fetch_and_add_part_reqs(valid_target_entity_part_names);
-    fetch_and_add_part_reqs(Teuchos::tuple<std::string>(neighbor_linkers_part_name));
+
+    // Add the specialized neighbor linkers part requirements.
+    const auto specialized_neighbor_linkers_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("specialized_neighbor_linkers_part_names");
+    for (int i = 0; i < specialized_neighbor_linkers_part_names.size(); i++) {
+      const std::string part_name = specialized_neighbor_linkers_part_names[i];
+      if (part_name == "NEIGHBOR_LINKERS") {
+        // No specialization is required.
+        mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements("NEIGHBOR_LINKERS", "LINKERS"));
+      } else {
+        // The specialized part must be a subset of the neighbor linkers part.
+        auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+        part_reqs->set_part_name(part_name);
+        mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, part_name, "NEIGHBOR_LINKERS");
+        mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, "NEIGHBOR_LINKERS"));
+      }
+    }
+
     return mesh_reqs_ptr;
   }
 
@@ -145,8 +195,11 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "valid_target_entity_part_names", Teuchos::tuple<std::string>(std::string(universal_part_name_)),
         "Name of the target parts associated with this pairwise meta method.");
-    default_parameter_list.set("neighbor_linkers_part_name", std::string(default_neighbor_linkers_part_name_),
-                               "The part name to which we will add the neighbor linkers.");
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "specialized_neighbor_linkers_part_names",
+        Teuchos::tuple<std::string>(std::string(default_specialized_neighbor_linkers_part_name_)),
+        "The part names to which we will add the generated neighbor linkers. This should be a specialization of the "
+        "neighbor linkers part or the neighbor linkers part itself.");
     default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
                                "Name of the element field containing the output axis-aligned boundary boxes.");
     return default_parameter_list;
@@ -202,7 +255,7 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
   /// \brief The default universal part name. This is an implementation detail hidden by STK and is subject to change.
   static constexpr std::string_view universal_part_name_ = "{UNIVERSAL}";
-  static constexpr std::string_view default_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
+  static constexpr std::string_view default_specialized_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
   static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
   //@}
 
@@ -216,13 +269,16 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief The valid source entity parts.
-  std::vector<stk::mesh::Part *> valid_source_entity_parts_;
+  std::vector<stk::mesh::Part *> valid_source_entity_part_ptrs_;
 
   /// \brief The valid target entity parts.
-  std::vector<stk::mesh::Part *> valid_target_entity_parts_;
+  std::vector<stk::mesh::Part *> valid_target_entity_part_ptrs_;
 
   /// \brief The neighbor linkers part.
   stk::mesh::Part *neighbor_linkers_part_ptr_ = nullptr;
+
+  /// \brief The specialized neighbor linkers parts.
+  std::vector<stk::mesh::Part *> specialized_neighbor_linkers_part_ptrs_;
 
   /// \brief The element aabb field pointer.
   stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
