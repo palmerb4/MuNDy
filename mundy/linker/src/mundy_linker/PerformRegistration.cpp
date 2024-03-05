@@ -21,11 +21,12 @@
 /// \brief Perform all registrations within MundyLinker.
 
 // Mundy libs
-#include <MundyLinker_config.hpp>                    // for HAVE_MUNDYLINKER_MUNDYSHAPE
-#include <mundy_agent/AgentHierarchy.hpp>            // for mundy::agent::AgentHierarchy
-#include <mundy_agent/PerformRegistration.hpp>       // for mundy::agent::perform_registration
-#include <mundy_linker/Linkers.hpp>                  // for mundy::linker::Linkers
-#include <mundy_linker/linkers/NeighborLinkers.hpp>  // for mundy::linker::linkers::NeighborLinkers
+#include <MundyLinker_config.hpp>                                   // for HAVE_MUNDYLINKER_MUNDYSHAPE
+#include <mundy_agent/AgentHierarchy.hpp>                           // for mundy::agent::AgentHierarchy
+#include <mundy_agent/PerformRegistration.hpp>                      // for mundy::agent::perform_registration
+#include <mundy_linker/Linkers.hpp>                                 // for mundy::linker::Linkers
+#include <mundy_linker/linkers/NeighborLinkers.hpp>                 // for mundy::linker::linkers::NeighborLinkers
+#include <mundy_linker/linkers/neighbor_linkers/SphereSpheres.hpp>  // for mundy::linker::linkers::neighbor_linkers::SphereSpheres
 
 #ifdef HAVE_MUNDYLINKER_MUNDYSHAPE
 #include <mundy_shape/PerformRegistration.hpp>  // for mundy::shape::perform_registration
@@ -52,6 +53,7 @@ void perform_registration() {
 
   mundy::agent::AgentHierarchy::register_new_class<Linkers>();
   mundy::agent::AgentHierarchy::register_new_class<linkers::NeighborLinkers>();
+  mundy::agent::AgentHierarchy::register_new_class<linkers::neighbor_linkers::SphereSpheres>();
 }
 
 }  // namespace linker

@@ -61,10 +61,12 @@ namespace meta {
 /// Use this class to create a collection of techniques (each with their own specialized fixed/mutable params and mesh
 /// requirements), constrain the fixed/mutable params of those techniques, and then execute the desired technique.
 ///
-/// The DerivedType only has one requirement: it must contain a get_valid_required_technique_fixed_params() and a
-/// get_valid_required_technique_mutable_params() method. These methods specify the fixed and mutable parameters
-/// that each technique is required to have. As such, we throw if any of the registered techniques don't have these
-/// parameters in their valid fixed/mutable params.
+/// The DerivedType has four required methods. It must contain a get_valid_forwarded_technique_fixed_params() and a
+/// get_valid_required_forwarded_technique_mutable_params() method; these methods specify the fixed and mutable
+/// parameters that the method will accept and forward to all techniques. It must also contain a
+/// get_valid_required_technique_fixed_params() and a get_valid_required_technique_mutable_params() method; these
+/// methods specify the fixed and mutable parameters that the method will require for each technique. As such, we throw
+/// if the technique don't have a forwarded or required parameter in its valid params
 template <typename DerivedType, typename DerivedTypePolymorphicBaseType, typename TechniquePolymorphicBaseType,
           mundy::meta::RegistrationStringValueWrapper technique_factory_registration_string_value_wrapper,
           mundy::meta::RegistrationStringValueWrapper default_technique_name_wrapper>
@@ -116,43 +118,38 @@ class MetaTechniqueDispatcher {
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
-    const Teuchos::ParameterList valid_required_technique_fixed_params =
-        DerivedType::get_valid_required_technique_fixed_params();
-    return get_valid_enabled_techniques_and_technique_params(
-        [&valid_required_technique_fixed_params](const std::string &technique_name) {
-          Teuchos::ParameterList technique_params = OurTechniqueFactory::get_valid_fixed_params(technique_name);
-          for (Teuchos::ParameterList::ConstIterator i = valid_required_technique_fixed_params.begin();
-               i != valid_required_technique_fixed_params.end(); i++) {
-            const std::string &parameter_name = valid_required_technique_fixed_params.name(i);
+    static Teuchos::ParameterList parameter_list;
+    parameter_list.set(
+        "enabled_technique_name", default_technique_name_wrapper.value(),
+        "The name of the technique to use. Valid names are: " + OurTechniqueFactory::get_keys_as_string());
 
-            MUNDY_THROW_ASSERT(technique_params.isParameter(parameter_name), std::logic_error,
-                               "MetaTechniqueDispatcher: The technique "
-                                   << technique_name << " does not have the required (required) parameter "
-                                   << parameter_name << " in its valid fixed params.");
-            technique_params.remove(parameter_name);
-          }
-          return technique_params;
+    static const Teuchos::ParameterList valid_required_technique_fixed_params =
+        DerivedType::get_valid_required_technique_fixed_params();
+
+    static const Teuchos::ParameterList valid_forwarded_technique_fixed_params =
+        DerivedType::get_valid_forwarded_technique_fixed_params();
+
+    return add_valid_enabled_techniques_and_technique_params_to_parameter_list(
+        "fixed", parameter_list, valid_required_technique_fixed_params, valid_forwarded_technique_fixed_params,
+        [](const std::string &technique_name) {
+          return OurTechniqueFactory::get_valid_fixed_params(technique_name);
         });
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
-    const Teuchos::ParameterList valid_required_technique_mutable_params =
-        DerivedType::get_valid_required_technique_mutable_params();
-    return get_valid_enabled_techniques_and_technique_params(
-        [&valid_required_technique_mutable_params](const std::string &technique_name) {
-          Teuchos::ParameterList technique_params = OurTechniqueFactory::get_valid_mutable_params(technique_name);
-          for (Teuchos::ParameterList::ConstIterator i = valid_required_technique_mutable_params.begin();
-               i != valid_required_technique_mutable_params.end(); i++) {
-            const std::string &parameter_name = valid_required_technique_mutable_params.name(i);
+    static Teuchos::ParameterList parameter_list;
 
-            MUNDY_THROW_ASSERT(technique_params.isParameter(parameter_name), std::logic_error,
-                               "MetaTechniqueDispatcher: The technique "
-                                   << technique_name << " does not have the required (required) parameter "
-                                   << parameter_name << " in its valid mutable params.");
-            technique_params.remove(parameter_name);
-          }
-          return technique_params;
+    static const Teuchos::ParameterList valid_required_technique_mutable_params =
+        DerivedType::get_valid_required_technique_mutable_params();
+
+    static const Teuchos::ParameterList valid_forwarded_technique_mutable_params =
+        DerivedType::get_valid_forwarded_technique_mutable_params();
+
+    return add_valid_enabled_techniques_and_technique_params_to_parameter_list(
+        "mutable", parameter_list, valid_required_technique_mutable_params, valid_forwarded_technique_mutable_params,
+        [](const std::string &technique_name) {
+          return OurTechniqueFactory::get_valid_mutable_params(technique_name);
         });
   }
 
@@ -176,24 +173,51 @@ class MetaTechniqueDispatcher {
   //@{
 
   /// @brief Get the valid enabled techniques and their parameters.
+  /// @param parameter_list_name [in] The name of the parameter list
+  /// @param parameter_list_to_add_to [in/out] The parameter list to add the valid enabled techniques and their
+  /// parameters to
+  /// @param required_parameter_list [in] The required parameters for the techniques
+  /// @param forwarded_parameter_list [in] The parameters that are forwarded to the techniques
   /// @param get_technique_params_func [in] A function that returns the valid parameters for a technique given its name
-  static Teuchos::ParameterList get_valid_enabled_techniques_and_technique_params(
+  static Teuchos::ParameterList add_valid_enabled_techniques_and_technique_params_to_parameter_list(
+      const std::string &parameter_list_name, Teuchos::ParameterList &parameter_list_to_add_to,
+      const Teuchos::ParameterList &required_parameter_list, const Teuchos::ParameterList &forwarded_parameter_list,
       const std::function<Teuchos::ParameterList(const std::string &)> &get_technique_params_func) {
-    Teuchos::ParameterList default_parameter_list;
-
-    std::string valid_names = OurTechniqueFactory::get_keys_as_string();
-    default_parameter_list.set("enabled_technique_name", default_technique_name_wrapper.value(),
-                               "The name of the technique to use. Valid names are: " + valid_names);
+    parameter_list_to_add_to.setParameters(forwarded_parameter_list);
 
     // Because this is the valid params we list ALL possible parameters. We expect the parameters for
     // each technique to be a sublist of this list with the same name as the technique.
     for (auto &key : OurTechniqueFactory::get_keys()) {
       std::string valid_technique_name = key;
-      Teuchos::ParameterList &technique_params = default_parameter_list.sublist(valid_technique_name);
+      Teuchos::ParameterList &technique_params = parameter_list_to_add_to.sublist(valid_technique_name);
       technique_params.setParameters(get_technique_params_func(valid_technique_name));
+
+      // Check that the forwarded params exist and then remove them from the valid params since the
+      // user isn't responsible for setting them.
+      for (Teuchos::ParameterList::ConstIterator i = forwarded_parameter_list.begin();
+           i != forwarded_parameter_list.end(); i++) {
+        const std::string &forwarded_parameter_name = forwarded_parameter_list.name(i);
+
+        MUNDY_THROW_ASSERT(technique_params.isParameter(forwarded_parameter_name), std::logic_error,
+                           "MetaTechniqueDispatcher: The technique "
+                               << valid_technique_name << " does not have the required (forwarded) parameter '"
+                               << forwarded_parameter_name << "' in its " << parameter_list_name << "params.");
+        technique_params.remove(forwarded_parameter_name);
+      }
+
+      // Check that the required params exist but do not remove them, as the user is responsible for setting them.
+      for (Teuchos::ParameterList::ConstIterator i = required_parameter_list.begin();
+           i != required_parameter_list.end(); i++) {
+        const std::string &required_parameter_name = required_parameter_list.name(i);
+
+        MUNDY_THROW_ASSERT(technique_params.isParameter(required_parameter_name), std::logic_error,
+                           "MetaTechniqueDispatcher: The technique "
+                               << valid_technique_name << " does not have the required (required) parameter '"
+                               << required_parameter_name << "' in its " << parameter_list_name << "params.");
+      }
     }
 
-    return default_parameter_list;
+    return parameter_list_to_add_to;
   }
   //@}
 

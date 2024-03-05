@@ -79,10 +79,23 @@ class NodeEuler
   }
   //@}
 
+
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  /// \brief Get the valid fixed parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set(
@@ -91,7 +104,7 @@ class NodeEuler
     return default_parameter_list;
   }
 
-  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
@@ -333,10 +346,23 @@ class ComputeBrownianVelocity
   }
   //@}
 
+
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  /// \brief Get the valid fixed parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("node_brownian_velocity_field_name",
@@ -347,7 +373,7 @@ class ComputeBrownianVelocity
     return default_parameter_list;
   }
 
-  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");

@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_LINKER_LINKERS_NEIGHBORLINKERS_HPP_
-#define MUNDY_LINKER_LINKERS_NEIGHBORLINKERS_HPP_
+#ifndef MUNDY_LINKER_LINKERS_NEIGHBOR_LINKERS_SPHERESPHERES_HPP_
+#define MUNDY_LINKER_LINKERS_NEIGHBOR_LINKERS_SPHERESPHERES_HPP_
 
 /// \file NeighborLinkers.hpp
 /// \brief Declaration of the NeighborLinkers part class
@@ -66,4 +66,4 @@ class SphereSpheres
 
 }  // namespace mundy
 
-#endif  // MUNDY_LINKER_LINKERS_NEIGHBORLINKERS_HPP_
+#endif  // MUNDY_LINKER_LINKERS_NEIGHBOR_LINKERS_SPHERESPHERES_HPP_

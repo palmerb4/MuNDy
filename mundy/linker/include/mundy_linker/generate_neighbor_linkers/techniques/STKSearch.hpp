@@ -178,7 +178,7 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
         // The specialized part must be a subset of the neighbor linkers part.
         auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
         part_reqs->set_part_name(part_name);
-        mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, part_name, "NEIGHBOR_LINKERS");
+        mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, "NEIGHBOR_LINKERS", "LINKERS");
         mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, "NEIGHBOR_LINKERS"));
       }
     }

@@ -75,7 +75,7 @@ TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
   ASSERT_TRUE(fixed_params.isParameter("enabled_kernel_names"));
   Teuchos::Array<std::string> enabled_kernel_names =
       fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
-  ASSERT_EQ(enabled_kernel_names.size(), ComputeAABB::OurKernelFactory::num_registered_classes());  
+  ASSERT_EQ(enabled_kernel_names.size(), ComputeAABB::OurKernelFactory::num_registered_classes());
   for (const std::string &key : ComputeAABB::OurKernelFactory::get_keys()) {
     ASSERT_TRUE(std::find(enabled_kernel_names.begin(), enabled_kernel_names.end(), key) != enabled_kernel_names.end());
   }
@@ -97,15 +97,6 @@ TEST(ComputeAABBStaticInterface, MutableParameterDefaults) {
   // Check the expected default values.
   Teuchos::ParameterList mutable_params;
   mutable_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_mutable_params());
-
-  // Check that all the enabled kernels are in the list of registered kernels.
-  ASSERT_TRUE(mutable_params.isParameter("enabled_kernel_names"));
-  Teuchos::Array<std::string> enabled_kernel_names =
-      mutable_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
-  ASSERT_EQ(enabled_kernel_names.size(), ComputeAABB::OurKernelFactory::num_registered_classes());  
-  for (const std::string &key : ComputeAABB::OurKernelFactory::get_keys()) {
-    ASSERT_TRUE(std::find(enabled_kernel_names.begin(), enabled_kernel_names.end(), key) != enabled_kernel_names.end());
-  }
 
   // Check that the mutable parameters for each kernel are present.
   for (const std::string &key : ComputeAABB::OurKernelFactory::get_keys()) {

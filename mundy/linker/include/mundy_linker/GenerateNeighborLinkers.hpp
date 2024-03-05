@@ -66,15 +66,27 @@ class GenerateNeighborLinkers
   //! \name MetaMethodPairwiseSubsetExecutionDispatcher static interface implementation
   //@{
 
-  /// \brief Get the valid fixed parameters that we require all techniques registered with our technique factory to
-  /// have.
-  static Teuchos::ParameterList get_valid_required_technique_fixed_params() {
+  /// \brief Get the valid fixed parameters that we will forward to the techniques.
+  static Teuchos::ParameterList get_valid_forwarded_technique_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "specialized_neighbor_linkers_part_names",
         Teuchos::tuple<std::string>(std::string(default_specialized_neighbor_linkers_part_name_)),
         "The part names to which we will add the generated neighbor linkers. This should be a specialization of the "
         "neighbor linkers part or the neighbor linkers part itself.");
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we will forward to the techniques.
+  static Teuchos::ParameterList get_valid_forwarded_technique_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid fixed parameters that we require all techniques registered with our technique factory to
+  /// have.
+  static Teuchos::ParameterList get_valid_required_technique_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
 

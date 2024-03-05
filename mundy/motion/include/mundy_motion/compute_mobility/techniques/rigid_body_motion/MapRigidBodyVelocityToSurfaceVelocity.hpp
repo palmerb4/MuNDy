@@ -70,10 +70,23 @@ class MapRigidBodyVelocityToSurfaceVelocity
   }
   //@}
 
+
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 
-  /// \brief Get the valid fixed parameters that we require all kernels registered with our kernel factory to have.
+  /// \brief Get the valid fixed parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
@@ -83,7 +96,7 @@ class MapRigidBodyVelocityToSurfaceVelocity
     return default_parameter_list;
   }
 
-  /// \brief Get the valid mutable parameters that we require all kernels registered with our kernel factory to have.
+  /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;

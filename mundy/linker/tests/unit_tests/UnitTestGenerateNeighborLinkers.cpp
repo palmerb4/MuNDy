@@ -112,17 +112,8 @@ TEST(GenerateNeighborLinkersStaticInterface, MutableParameterDefaults) {
   Teuchos::ParameterList mutable_params;
   mutable_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_mutable_params());
 
-  // Check that all the enabled technique is in the list of registered techniques.
-  ASSERT_TRUE(mutable_params.isParameter("enabled_technique_name"));
-  ASSERT_TRUE(GenerateNeighborLinkers::OurTechniqueFactory::num_registered_classes() > 0);
-
-  std::string enabled_technique_name = mutable_params.get<std::string>("enabled_technique_name");
-  const auto valid_technique_names = GenerateNeighborLinkers::OurTechniqueFactory::get_keys();
-  ASSERT_TRUE(std::find(valid_technique_names.begin(), valid_technique_names.end(), enabled_technique_name) !=
-              valid_technique_names.end());
-
   // Check that the mutable parameters for the technique are present.
-  for (const std::string &valid_technique_name : valid_technique_names) {
+  for (const std::string &valid_technique_name : GenerateNeighborLinkers::OurTechniqueFactory::get_keys()) {
     ASSERT_TRUE(mutable_params.isSublist(valid_technique_name));
     mutable_params.sublist(valid_technique_name, true);
   }
@@ -178,10 +169,11 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
     processes, compute their AABBs, and generate their neighbor linkers. We then communicate all spheres to process 0
     and use a direct N^2 neighbor search to create a matrix of booleans (adjacency list) stating if particle (i,j) are
     neighbors or not. We use this matrix to validate the neighbor linkers. The sum of the matrix should be equal to the
-    number of neighbor linkers and for each linker connecting particles i and j, the matrix should be true at (i,j) and
+    number of neighbor linkers and, for each linker connecting particles i and j, the matrix should be true at (i,j) and
     (j,i).
 
-    We let the density of spheres be large enough to guarantee that some neighbor linkers span multiple processes.
+    We let the volume fraction of spheres be large enough to guarantee that some neighbor linkers span multiple
+    processes.
   */
   perform_registration();
 
@@ -194,13 +186,17 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
 
   // Create an instance of GenerateNeighborLinkers and ComputeAABB based on committed mesh that meets both of their
   // default requirements.
+  Teuchos::ParameterList compute_aabb_fixed_params = Teuchos::ParameterList();  // Use default parameters.
+  Teuchos::ParameterList neighbor_linkers_fixed_params = Teuchos::ParameterList().set<Teuchos::Array<std::string>>(
+      "specialized_neighbor_linkers_part_names", Teuchos::tuple<std::string>(std::string("SPHERE_SPHERES")));
   auto [compute_aabb_ptr, generate_neighbor_linkers_ptr, bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<mundy::shape::ComputeAABB,
-                                                                                        GenerateNeighborLinkers>();
+                                                                                        GenerateNeighborLinkers>(
+          std::array{compute_aabb_fixed_params, neighbor_linkers_fixed_params});
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
-  GenerateNeighborLinkers::get_mesh_requirements(Teuchos::ParameterList())->print_reqs();
-  mundy::shape::ComputeAABB::get_mesh_requirements(Teuchos::ParameterList())->print_reqs();
+  GenerateNeighborLinkers::get_mesh_requirements(neighbor_linkers_fixed_params)->print_reqs();
+  mundy::shape::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params)->print_reqs();
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
