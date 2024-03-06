@@ -119,8 +119,6 @@ std::vector<stk::mesh::Part *> STKSearch::get_valid_target_entity_parts() const 
 
 void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                         const stk::mesh::Selector &range_input_selector) {
-  std::cout << "STKSearch executing" << std::endl;
-
   // Step 1: Copy the AABBs, owning procs, and entity keys into a separate contiguous vector for the sources and
   // targets.
   using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
@@ -134,9 +132,9 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                                const stk::mesh::Field<double> &element_aabb_field, const stk::mesh::Selector &selector,
                                BoxIdVector &boxes) {
     const int rank = bulk_data.parallel_rank();
-    const size_t num_local_elements =
-        stk::mesh::count_entities(bulk_data, stk::topology::ELEMENT_RANK, meta_data.locally_owned_part());
-    boxes.reserve(num_local_elements);
+    const size_t num_local_elements_in_selector = stk::mesh::count_selected_entities(
+        meta_data.locally_owned_part() & selector, bulk_data.buckets(stk::topology::ELEMENT_RANK));
+    boxes.reserve(num_local_elements_in_selector);
 
     const stk::mesh::BucketVector &element_buckets = bulk_data.get_buckets(
         stk::topology::ELEMENT_RANK, stk::mesh::Selector(meta_data.locally_owned_part()) & selector);
@@ -158,18 +156,15 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     }
   };  // fill_box_id_vector
 
-  std::cout << "Filling source and target boxes" << std::endl;
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, domain_input_selector, source_boxes);
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, range_input_selector, target_boxes);
 
   // Step 2: Perform the search.
-  std::cout << "Performing search" << std::endl;
   SearchIdPairVector search_id_pairs;
   stk::search::coarse_search(source_boxes, target_boxes, stk::search::KDTREE, bulk_data_ptr_->parallel(),
                              search_id_pairs);
 
   // Step 3: Ghost our search results.
-  std::cout << "Ghosting search results (this might not be necessary)" << std::endl;
   bulk_data_ptr_->modification_begin();
   std::vector<stk::mesh::EntityProc> send_entities;
   for (const auto &search_id_pair : search_id_pairs) {
@@ -186,6 +181,7 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
         bulk_data_ptr_->is_valid(source_entity) ? bulk_data_ptr_->bucket(source_entity).owned() : false;
     bool is_target_owned =
         bulk_data_ptr_->is_valid(target_entity) ? bulk_data_ptr_->bucket(target_entity).owned() : false;
+
     if (is_source_owned && !is_target_owned) {
       // Sent the source entity to the target proc.
       send_entities.push_back(std::make_pair(source_entity, target_proc));
@@ -200,16 +196,28 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   bulk_data_ptr_->change_ghosting(ghosting, send_entities);
   bulk_data_ptr_->modification_end();
 
-  // Step 4: Check if a linker already exists between the source and target entities. If it does, add it to the
-  // specified neighbor linker parts instead of creating a new linker.
-  std::cout << "Checking if linkers already exist" << std::endl;
-  std::vector<bool> linker_exists(search_id_pairs.size(), false);
+  // Step 4: Check if a new linker should be created between the pair or not. We do not generate a linker if
+  //  1. A linker already exists between the source and target entities. If it does, we add it to the specified neighbor
+  //  linker parts instead of creating a new linker.
+  //  2. The target entity has a GID greater than or equal to that of the source entity. This is to avoid creating
+  //  duplicate linkers and to avoid self-intersections.
+  //  3. The source entity is not owned. This also avoids creating duplicate linkers.
+  std::vector<int> new_linker_required(search_id_pairs.size(), true);  // int required for std::partial_sum
   for (size_t i = 0; i < search_id_pairs.size(); ++i) {
     stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
     stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
 
     stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
     stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
+
+    bool is_source_owned =
+        bulk_data_ptr_->is_valid(source_entity) ? bulk_data_ptr_->bucket(source_entity).owned() : false;
+
+    // Avoid duplicate linkers and self-intersections.
+    if (target_entity_key >= source_entity_key || !is_source_owned) {
+      new_linker_required[i] = false;
+      continue;
+    }
 
     const auto num_connected_constraint_rank_entities_source =
         bulk_data_ptr_->num_connectivity(source_entity, stk::topology::CONSTRAINT_RANK);
@@ -240,7 +248,7 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
             // Found the linker that connects the source and target entities.
             // Move it into the specialized neighbor linkers parts.
             bulk_data_ptr_->change_entity_parts(source_constraint_entity, specialized_neighbor_linkers_part_ptrs_);
-            linker_exists[i] = true;
+            new_linker_required[i] = false;
             break;
           }
         }
@@ -249,18 +257,20 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   }
 
   // Step 5: Create the neighbor linkers.
-  // The total number of linkers to create is the sum of the linker_exists vector.
+  // The total number of linkers to create is the sum of the new_linker_required vector.
   // Because the total number of linkers does not match the number of search_id_pairs, we use an offset vector to allow
-  // each pair to know its index in the requested_entities vector. This is just the cumulative sum of the linker_exists
-  // boolean vector minus 1.
-  std::cout << "Creating neighbor linkers" << std::endl;
-  size_t num_linker_to_create = std::reduce(linker_exists.begin(), linker_exists.end(), 0);
-  std::vector<size_t> linker_offset(linker_exists.size(), -1);
-  std::partial_sum(linker_exists.begin(), linker_exists.end(), linker_offset.begin());
+  // each pair to know its index in the requested_entities vector. This is just the cumulative sum of the
+  // new_linker_required boolean vector minus 1.
+  size_t num_linkers_to_create = std::reduce(new_linker_required.begin(), new_linker_required.end(), 0);
+  std::vector<int> linker_offset(new_linker_required.size());
+  std::partial_sum(new_linker_required.begin(), new_linker_required.end(), linker_offset.begin());
+  std::transform(linker_offset.begin(), linker_offset.end(), linker_offset.begin(), [](int val) {
+    return val - 1;
+  });
 
   bulk_data_ptr_->modification_begin();
   std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
-  requests[stk::topology::CONSTRAINT_RANK] = num_linker_to_create;
+  requests[stk::topology::CONSTRAINT_RANK] = num_linkers_to_create;
   std::vector<stk::mesh::Entity> requested_entities;
   bulk_data_ptr_->generate_new_entities(requests, requested_entities);
   for (size_t i = 0; i < requested_entities.size(); ++i) {
@@ -268,22 +278,19 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   }
 
   for (size_t i = 0; i < search_id_pairs.size(); ++i) {
-    if (!linker_exists[i]) {
-      continue;
-    }
-    stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
-    stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
-    stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
-    stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
-    stk::mesh::Entity linker_i = requested_entities[linker_offset[i]];
+    if (new_linker_required[i]) {
+      stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
+      stk::mesh::EntityKey target_entity_key = search_id_pairs[i].second.id();
+      stk::mesh::Entity source_entity = bulk_data_ptr_->get_entity(source_entity_key);
+      stk::mesh::Entity target_entity = bulk_data_ptr_->get_entity(target_entity_key);
+      stk::mesh::Entity linker_i = requested_entities[linker_offset[i]];
 
-    // Connect the linker to the source and target entities.
-    mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker_i, source_entity,
-                                                                            target_entity);
+      // Connect the linker to the source and target entities.
+      mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker_i, source_entity,
+                                                                              target_entity);
+    }
   }
   bulk_data_ptr_->modification_end();
-
-  std::cout << "STKSearch complete" << std::endl;
 }
 //}
 
