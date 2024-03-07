@@ -347,6 +347,18 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       // Create the kernel and store it in the kernel_ptrs_ vector.
       const std::string kernel_name = enabled_kernel_names[i];
       Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
+
+      // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels, and
+      // the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in the
+      // kernel sublists and forward them to the current kernel.
+      for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
+        const std::string &param_name = valid_fixed_params.name(i);
+        const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
+        if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_kernel_names") {
+          kernel_params.setEntry(param_name, param_entry);
+        }
+      }
+
       kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
 
       // Store the entity rank and ensure that it is the same for all kernels.
