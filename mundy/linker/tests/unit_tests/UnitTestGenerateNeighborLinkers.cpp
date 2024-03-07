@@ -282,8 +282,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
 
       ASSERT_EQ(static_cast<int>(sphere_i_gid), process_rank + 1)
           << "Neighbor linkers should connect neighboring spheres.";
-      ASSERT_EQ(static_cast<int>(sphere_j_gid), process_rank)
-          << "Neighbor linkers should connect neighboring spheres.";
+      ASSERT_EQ(static_cast<int>(sphere_j_gid), process_rank) << "Neighbor linkers should connect neighboring spheres.";
     }
   }
 }
@@ -312,17 +311,14 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   // Create an instance of GenerateNeighborLinkers and ComputeAABB based on committed mesh that meets both of their
   // default requirements.
   Teuchos::ParameterList compute_aabb_fixed_params = Teuchos::ParameterList();  // Use default parameters.
-  Teuchos::ParameterList neighbor_linkers_fixed_params = Teuchos::ParameterList().set<Teuchos::Array<std::string>>(
+  Teuchos::ParameterList neighbor_linkers_fixed_params = Teuchos::ParameterList();
+  neighbor_linkers_fixed_params.set<Teuchos::Array<std::string>>(
       "specialized_neighbor_linkers_part_names", Teuchos::tuple<std::string>(std::string("SPHERE_SPHERES")));
-
   auto [compute_aabb_ptr, generate_neighbor_linkers_ptr, bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<mundy::shape::ComputeAABB,
                                                                                         GenerateNeighborLinkers>(
           std::array{compute_aabb_fixed_params, neighbor_linkers_fixed_params});
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-
-  // GenerateNeighborLinkers::get_mesh_requirements(neighbor_linkers_fixed_params)->print_reqs();
-  // mundy::shape::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params)->print_reqs();
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
@@ -338,8 +334,10 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   // Fetch the requested parts.
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
   stk::mesh::Part *neighbor_linkers_part_ptr = meta_data_ptr->get_part("NEIGHBOR_LINKERS");
+  stk::mesh::Part *sphere_spheres_linkers_part_ptr = meta_data_ptr->get_part("SPHERE_SPHERES");
   ASSERT_TRUE(spheres_part_ptr != nullptr) << "spheres_part_ptr cannot be null";
   ASSERT_TRUE(neighbor_linkers_part_ptr != nullptr) << "neighbor_linkers_part_ptr cannot be null";
+  ASSERT_TRUE(sphere_spheres_linkers_part_ptr != nullptr) << "sphere_spheres_linkers_part_ptr cannot be null";
 
   // Add n spheres to the mesh per process.
   bulk_data_ptr->modification_begin();
@@ -429,7 +427,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       for (size_t sphere_idx_i = 0; sphere_idx_i < sphere_bucket_i.size(); ++sphere_idx_i) {
         stk::mesh::Entity const &sphere_i = sphere_bucket_i[sphere_idx_i];
         const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(sphere_i);
-        ASSERT_LT(sphere_i_gid - 1, total_num_spheres);
+        EXPECT_LT(sphere_i_gid - 1, total_num_spheres);
         local_num_spheres++;
 
         double *aabb_i = stk::mesh::field_data(*element_aabb_field_ptr, sphere_i);
@@ -438,7 +436,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
           for (size_t sphere_idx_j = 0; sphere_idx_j < sphere_bucket_j.size(); ++sphere_idx_j) {
             stk::mesh::Entity const &sphere_j = sphere_bucket_j[sphere_idx_j];
             const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(sphere_j);
-            ASSERT_LT(sphere_j_gid - 1, total_num_spheres);
+            EXPECT_LT(sphere_j_gid - 1, total_num_spheres);
 
             double *aabb_j = stk::mesh::field_data(*element_aabb_field_ptr, sphere_j);
 
@@ -469,15 +467,18 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
         stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
         stk::mesh::Entity const *connected_spheres = bulk_data_ptr->begin_elements(neighbor_linker);
 
+        EXPECT_TRUE(bulk_data_ptr->bucket(neighbor_linker).member(*sphere_spheres_linkers_part_ptr))
+            << "Neighbor linkers should have the sphere-sphere specialization.";
+
         const int num_connected_spheres = bulk_data_ptr->num_elements(neighbor_linker);
-        ASSERT_EQ(num_connected_spheres, 2) << "Neighbor linkers should connect exactly 2 spheres.";
+        EXPECT_EQ(num_connected_spheres, 2) << "Neighbor linkers should connect exactly 2 spheres.";
 
         const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(connected_spheres[0]);
         const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(connected_spheres[1]);
-        ASSERT_TRUE(adjacency_matrix[sphere_i_gid - 1][sphere_j_gid - 1])
+        EXPECT_TRUE(adjacency_matrix[sphere_i_gid - 1][sphere_j_gid - 1])
             << "Neighbor linkers should connect neighboring spheres.";
 
-        ASSERT_TRUE(sphere_i_gid != sphere_j_gid) << "Neighbor linkers should not connect a sphere to itself.";
+        EXPECT_TRUE(sphere_i_gid != sphere_j_gid) << "Neighbor linkers should not connect a sphere to itself.";
 
         local_num_linkers++;
       }

@@ -95,11 +95,15 @@ class MetaTechniqueDispatcher {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(get_valid_fixed_params());
 
-    // At this point, the only parameters are the enabled technique name, the required parameters for the enabled
+    // At this point, the only parameters are the enabled technique name, the forwarded parameters for the enabled
     // technique, and the non-required technique params within the technique sublists. We'll loop over all parameters
     // that aren't in the technique sublists and forward them to the enabled technique.
     for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
       const std::string &param_name = valid_fixed_params.name(i);
+
+      std::cout << "#####################################################################" << std::endl;
+      std::cout << "get_mesh_requirements param_name: " << param_name << std::endl;
+
       const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
       if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_technique_name") {
         for (int j = 0; j < OurTechniqueFactory::num_registered_classes(); j++) {
@@ -257,6 +261,18 @@ class MetaMethodSubsetExecutionDispatcher
     // Forward the inputs to the technique.
     const std::string technique_name = valid_fixed_params.get<std::string>("enabled_technique_name");
     Teuchos::ParameterList technique_params = valid_fixed_params.sublist(technique_name);
+
+    // At this point, the only parameters are the enabled technique name, the forwarded parameters for the enabled
+    // technique, and the non-required technique params within the technique sublists. We'll loop over all parameters
+    // that aren't in the technique sublists and forward them to the enabled technique.
+    for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
+      const std::string &param_name = valid_fixed_params.name(i);
+      const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
+      if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_technique_name") {
+        technique_params.setEntry(param_name, param_entry);
+      }
+    }
+
     technique_ptr_ = OurMetaTechniqueDispatcher::OurTechniqueFactory::create_new_instance(technique_name, bulk_data_ptr,
                                                                                           technique_params);
   }
@@ -329,6 +345,18 @@ class MetaMethodPairwiseSubsetExecutionDispatcher
     // Forward the inputs to the technique.
     const std::string technique_name = valid_fixed_params.get<std::string>("enabled_technique_name");
     Teuchos::ParameterList technique_params = valid_fixed_params.sublist(technique_name);
+
+    // At this point, the only parameters are the enabled technique name, the forwarded parameters for the enabled
+    // technique, and the non-required technique params within the technique sublists. We'll loop over all parameters
+    // that aren't in the technique sublists and forward them to the enabled technique.
+    for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
+      const std::string &param_name = valid_fixed_params.name(i);
+      const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
+      if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_technique_name") {
+        technique_params.setEntry(param_name, param_entry);
+      }
+    }
+   
     technique_ptr_ = OurMetaTechniqueDispatcher::OurTechniqueFactory::create_new_instance(technique_name, bulk_data_ptr,
                                                                                           technique_params);
   }

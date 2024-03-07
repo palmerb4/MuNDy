@@ -59,9 +59,9 @@ Teuchos::ParameterList get_validated_and_default_set_fixed_params(const Teuchos:
 
 template <typename... MetaClasses, std::size_t... Is>
 std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> get_vector_of_validated_and_default_set_fixed_params(
-    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &vector_of_fixed_params,
+    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &array_of_fixed_params,
     std::index_sequence<Is...>) {
-  return {get_validated_and_default_set_fixed_params<MetaClasses>(vector_of_fixed_params[Is])...};
+  return {get_validated_and_default_set_fixed_params<MetaClasses>(array_of_fixed_params[Is])...};
 }
 
 template <typename... MetaClasses, std::size_t... Is>
@@ -85,8 +85,8 @@ std::tuple<std::shared_ptr<typename MetaClasses::PolymorphicBaseType>...> create
 template <typename... MetaClasses>
 std::tuple<std::shared_ptr<typename MetaClasses::PolymorphicBaseType>..., std::shared_ptr<mundy::mesh::BulkData>>
 generate_class_instance_and_mesh_from_meta_class_requirements(
-    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &vector_of_fixed_params = {
-        Teuchos::ParameterList()}) {
+    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &array_of_fixed_params  = {
+      Teuchos::ParameterList()}) {
   constexpr size_t num_meta_classes = sizeof...(MetaClasses);
 
   // Setup the mesh requirements.
@@ -100,7 +100,7 @@ generate_class_instance_and_mesh_from_meta_class_requirements(
 
   // For each MetaClass, get validate and set their default fixed parameters.
   auto array_of_validated_fixed_params =
-      get_vector_of_validated_and_default_set_fixed_params<MetaClasses...>(vector_of_fixed_params, index_sequence);
+      get_vector_of_validated_and_default_set_fixed_params<MetaClasses...>(array_of_fixed_params, index_sequence);
 
   // Merge the mesh requirements for each MetaClass
   merge_mesh_requirements_from_valid_params<MetaClasses...>(array_of_validated_fixed_params, mesh_reqs_ptr,
