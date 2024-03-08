@@ -313,7 +313,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   Teuchos::ParameterList compute_aabb_fixed_params = Teuchos::ParameterList();  // Use default parameters.
   Teuchos::ParameterList neighbor_linkers_fixed_params = Teuchos::ParameterList();
   neighbor_linkers_fixed_params.set<Teuchos::Array<std::string>>(
-      "specialized_neighbor_linkers_part_names", Teuchos::tuple<std::string>(std::string("SPHERE_SPHERES")));
+      "specialized_neighbor_linkers_part_names", Teuchos::tuple<std::string>(std::string("SPHERE_SPHERE_LINKERS")));
   auto [compute_aabb_ptr, generate_neighbor_linkers_ptr, bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<mundy::shape::ComputeAABB,
                                                                                         GenerateNeighborLinkers>(
@@ -334,7 +334,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   // Fetch the requested parts.
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
   stk::mesh::Part *neighbor_linkers_part_ptr = meta_data_ptr->get_part("NEIGHBOR_LINKERS");
-  stk::mesh::Part *sphere_spheres_linkers_part_ptr = meta_data_ptr->get_part("SPHERE_SPHERES");
+  stk::mesh::Part *sphere_spheres_linkers_part_ptr = meta_data_ptr->get_part("SPHERE_SPHERE_LINKERS");
   ASSERT_TRUE(spheres_part_ptr != nullptr) << "spheres_part_ptr cannot be null";
   ASSERT_TRUE(neighbor_linkers_part_ptr != nullptr) << "neighbor_linkers_part_ptr cannot be null";
   ASSERT_TRUE(sphere_spheres_linkers_part_ptr != nullptr) << "sphere_spheres_linkers_part_ptr cannot be null";

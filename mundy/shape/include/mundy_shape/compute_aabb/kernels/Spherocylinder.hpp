@@ -182,10 +182,6 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
   //! \name Internal members
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our \c MetaKernelRegistry.
-  static constexpr std::string_view registration_id_ = "SPHEROCYLINDERS";
-
   /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 

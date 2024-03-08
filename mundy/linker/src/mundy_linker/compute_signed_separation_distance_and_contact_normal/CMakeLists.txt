@@ -17,28 +17,4 @@
 # **********************************************************************************************************************
 # @HEADER
 
-# Here, we attempt to organize unit tests logically by dependencies (not by spelling). Simple classes are tested first 
-# and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
-# as it produces more logical error messages when a test fails.
-tribits_add_executable_and_test(
-    UnitTestLinkers
-    SOURCES
-      UnitTestLinkers.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    NUM_MPI_PROCS 2
-    )
-
-tribits_add_executable_and_test(
-  UnitTestGenerateNeighborLinkers
-  SOURCES
-  UnitTestGenerateNeighborLinkers.cpp
-    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  NUM_MPI_PROCS 2
-  )
-
-tribits_add_executable_and_test(
-  UnitTestComputeSignedSeparationDistanceAndContactNormal
-  SOURCES
-  UnitTestComputeSignedSeparationDistanceAndContactNormal.cpp
-    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  )
+add_subdirectory(kernels)

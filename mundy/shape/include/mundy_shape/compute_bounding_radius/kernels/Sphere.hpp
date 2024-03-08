@@ -182,10 +182,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //! \name Internal members
   //@{
 
-  /// \brief The unique string identifier for this class.
-  /// By unique, we mean with respect to other kernels in our MetaKernelRegistry.
-  static constexpr std::string_view registration_id_ = "SPHERES";
-
+  /// \brief The BulkData object this class acts upon.
   mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
 
   /// \brief The MetaData object this class acts upon.

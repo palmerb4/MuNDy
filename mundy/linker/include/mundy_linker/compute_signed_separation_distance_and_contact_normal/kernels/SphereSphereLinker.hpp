@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPE_COMPUTE_AABB_KERNELS_SPHERE_HPP_
-#define MUNDY_SHAPE_COMPUTE_AABB_KERNELS_SPHERE_HPP_
+#ifndef MUNDY_LINKER_COMPUTE_SIGNED_SEPARATION_DISTANCE_AND_CONTACT_NORMAL_SPHERESPHERELINKER_HPP_
+#define MUNDY_LINKER_COMPUTE_SIGNED_SEPARATION_DISTANCE_AND_CONTACT_NORMAL_SPHERESPHERELINKER_HPP_
 
-/// \file Sphere.hpp
-/// \brief Declaration of the ComputeAABB's Sphere kernel.
+/// \file SphereSphereLinker.hpp
+/// \brief Declaration of the ComputeSignedSeparationDistanceAndContactNormal's SphereSphereLinker kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -47,15 +47,16 @@
 
 namespace mundy {
 
-namespace shape {
+namespace linker {
 
-namespace compute_aabb {
+namespace compute_signed_separation_distance_and_contact_normal {
 
 namespace kernels {
 
-/// \class Sphere
-/// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaKernel<void> {
+/// \class SphereSphereLinker
+/// \brief Concrete implementation of \c MetaKernel for computing the signed separation distance and contact normal
+/// between two spheres.
+class SphereSphereLinker : public mundy::meta::MetaKernel<void> {
  public:
   //! \name Typedefs
   //@{
@@ -67,7 +68,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //@{
 
   /// \brief Constructor
-  explicit Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  explicit SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -83,61 +84,96 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
+    valid_fixed_params.validateParametersAndSetDefaults(SphereSphereLinker::get_valid_fixed_params());
 
-    valid_fixed_params.print(std::cout,
-        Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
+    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
-    // Fill the requirements using the given parameter list.
+    // Add the requirments for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-    std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
+    std::string linker_signed_separation_distance_field_name =
+        valid_fixed_params.get<std::string>("linker_signed_separation_distance_field_name");
+    std::string linker_contact_normal_field_name =
+        valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
 
     Teuchos::Array<std::string> valid_entity_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
-    const int num_parts = static_cast<int>(valid_entity_part_names.size());
-    for (int i = 0; i < num_parts; i++) {
+    const int num_linker_parts = static_cast<int>(valid_entity_part_names.size());
+    for (int i = 0; i < num_linker_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
+          linker_signed_separation_distance_field_name, stk::topology::CONSTRAINT_RANK, 1, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          linker_contact_normal_field_name, stk::topology::CONSTRAINT_RANK, 3, 1));
 
+      if (part_name == "SPHERE_SPHERE_LINKERS") {
+        // Add the requirements directly to sphere sphere linker part.
+        const std::string parent_part_name = "NEIGHBOR_LINKERS";
+        mundy::agent::AgentHierarchy::add_part_reqs(part_reqs, part_name, parent_part_name);
+        mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, parent_part_name));
+      } else {
+        // Add the associated part as a subset of the spheres part.
+        const std::string parent_part_name = "SPHERE_SPHERE_LINKERS";
+        mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, part_name, parent_part_name);
+        mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, parent_part_name));
+      }
+    }
+
+    // Add the requirments for the connected spheres linker.
+    // We don't have any requirments for the connected spheres not already specified by the sphere agent (center
+    // position and radius).
+    Teuchos::Array<std::string> valid_sphere_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_sphere_part_names");
+    const int num_sphere_parts = static_cast<int>(valid_sphere_part_names.size());
+    for (int i = 0; i < num_sphere_parts; i++) {
+      const std::string part_name = valid_sphere_part_names[i];
+      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      part_reqs->set_part_name(part_name);
       if (part_name == "SPHERES") {
-        // Add the requirements directly to spheres part.
+        // Add the requirements directly to sphere sphere linker part.
         const std::string parent_part_name = "SHAPES";
         mundy::agent::AgentHierarchy::add_part_reqs(part_reqs, part_name, parent_part_name);
-
-        std::cout << "Adding part requirements for " << part_name << " with parent " << parent_part_name << std::endl;
         mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, parent_part_name));
       } else {
         // Add the associated part as a subset of the spheres part.
         const std::string parent_part_name = "SPHERES";
         mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs, part_name, parent_part_name);
-
-        std::cout << "Adding subpart requirements for " << part_name << " with parent " << parent_part_name << std::endl;
         mesh_reqs_ptr->merge(mundy::agent::AgentHierarchy::get_mesh_requirements(part_name, parent_part_name));
       }
     }
+
     return mesh_reqs_ptr;
   }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
-        "Name of the parts associated with this kernel.");
-    default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
-                               "Name of the element field within which the output axis-aligned boundary "
-                               "boxes will be written.");
+    default_parameter_list.set<Teuchos::Array<std::string>>("valid_entity_part_names",
+                                                            Teuchos::tuple<std::string>("SPHERE_SPHERE_LINKERS"),
+                                                            "List of valid entity part names for the kernel.");
+
+    // Soap box: Why do we allow the user to specify valid_sphere_part_names rather than simply applying requirements
+    // to the SPHERES part? Well, users might not want to apply the requirements to the SPHERES part. They might want to
+    // apply the requirements to a subset of the SPHERES part. Why apply the requirements of this class to all spheres
+    // if it'll only be used on a subset of them?
+    default_parameter_list.set<Teuchos::Array<std::string>>("valid_sphere_part_names",
+                                                            Teuchos::tuple<std::string>("SPHERES"),
+                                                            "List of valid sphere part names for the kernel.");
+    default_parameter_list.set(
+        "linker_signed_separation_distance_field_name",
+        std::string(default_linker_signed_separation_distance_field_name_),
+        "Name of the constraint-rank field within which the signed separation distance will be written.");
+    default_parameter_list.set("linker_contact_normal_field_name",
+                               std::string(default_linker_contact_normal_field_name_),
+                               "Name of the constraint-rank field within which the contact normal (pointing from left "
+                               "entity to right entity) will be written.");
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("buffer_distance", default_buffer_distance_,
-                               "Buffer distance to be added to the axis-aligned boundary box.");
     return default_parameter_list;
   }
 
@@ -157,7 +193,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<mundy::meta::MetaKernel<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<Sphere>(bulk_data_ptr, fixed_params);
+    return std::make_shared<SphereSphereLinker>(bulk_data_ptr, fixed_params);
   }
   //@}
 
@@ -169,8 +205,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   void setup() override;
 
   /// \brief Run the kernel's core calculation.
-  /// \param sphere_element [in] The sphere element acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_element) override;
+  /// \param sphere_sphere_linker [in] The linker acted on by this kernel.
+  void execute(const stk::mesh::Entity &sphere_sphere_linker) override;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
@@ -181,9 +217,9 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //! \name Default parameters
   //@{
 
-  static constexpr double default_buffer_distance_ = 0.0;
-  static constexpr std::string_view default_part_name_ = "SPHERES";
-  static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
+  static constexpr std::string_view default_linker_signed_separation_distance_field_name_ =
+      "LINKER_SIGNED_SEPARATION_DISTANCE";
+  static constexpr std::string_view default_linker_contact_normal_field_name_ = "LINKER_CONTACT_NORMAL";
   //@}
 
   //! \name Internal members
@@ -198,30 +234,29 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   /// \brief The valid entity parts.
   std::vector<stk::mesh::Part *> valid_entity_parts_;
 
-  /// \brief Buffer distance to be added to the axis-aligned boundary box.
-  ///
-  /// For example, if the original axis-aligned boundary box has left corner at [0,0,0] and right corner at [1,1,1],
-  /// then a buffer distance of 2 will shift the left corner to [-2,-2,-2] and right corner to [3,3,3].
-  double buffer_distance_ = default_buffer_distance_;
+  /// \brief The valid sphere parts.
+  std::vector<stk::mesh::Part *> valid_sphere_parts_;
 
-  /// \brief Node field containing the coordinate of the Sphere's center.
+  /// \brief Node coordinate field.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
 
-  /// \brief Element field within which the output axis-aligned boundary boxes will be written.
-  stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
-
-  /// \brief Element field containing the sphere radius.
+  /// \brief Element radius field.
   stk::mesh::Field<double> *element_radius_field_ptr_ = nullptr;
 
+  /// \brief Linker signed separation distance field.
+  stk::mesh::Field<double> *linker_signed_separation_distance_field_ptr_ = nullptr;
+
+  /// \brief Linker contact normal field.
+  stk::mesh::Field<double> *linker_contact_normal_field_ptr_ = nullptr;
   //@}
-};  // Sphere
+};  // SphereSphereLinker
 
 }  // namespace kernels
 
-}  // namespace compute_aabb
+}  // namespace compute_signed_separation_distance_and_contact_normal
 
-}  // namespace shape
+}  // namespace linker
 
 }  // namespace mundy
 
-#endif  // MUNDY_SHAPE_COMPUTE_AABB_KERNELS_SPHERE_HPP_
+#endif  // MUNDY_LINKER_COMPUTE_SIGNED_SEPARATION_DISTANCE_AND_CONTACT_NORMAL_SPHERESPHERE_HPP_

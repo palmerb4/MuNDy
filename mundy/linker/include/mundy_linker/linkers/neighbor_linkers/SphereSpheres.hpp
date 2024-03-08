@@ -54,7 +54,7 @@ namespace neighbor_linkers {
 /// the NEIGHBOR_LINKERS part.
 class SphereSpheres
     : public mundy::agent::RankedAssembly<
-          mundy::core::make_string_literal("SPHERE_SPHERES"), stk::topology::CONSTRAINT_RANK,
+          mundy::core::make_string_literal("SPHERE_SPHERE_LINKERS"), stk::topology::CONSTRAINT_RANK,
           mundy::core::make_string_literal("NEIGHBOR_LINKERS"), mundy::core::make_string_literal("LINKERS")> {
 };  // SphereSpheres
 
