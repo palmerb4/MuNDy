@@ -37,7 +37,7 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_linker/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linker::ComputeSignedSeparationDistanceAndContactNormal
+#include <mundy_linker/EvaluateLinkerPotentials.hpp>  // for mundy::linker::EvaluateLinkerPotentials
 #include <mundy_linker/Linkers.hpp>  // for mundy::linker::declare_constraint_relations_to_family_tree_with_sharing
 #include <mundy_linker/PerformRegistration.hpp>  // for mundy::linker::perform_registration
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
@@ -55,24 +55,23 @@ namespace linker {
 
 namespace {
 
-//! \name ComputeSignedSeparationDistanceAndContactNormal functionality unit tests
+//! \name EvaluateLinkerPotentials functionality unit tests
 //@{
 
-TEST(ComputeSignedSeparationDistanceAndContactNormal, PerformsCalculationCorrectlyForSphere) {
+TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSpheresSimple) {
   perform_registration();
 
-  /* Check that ComputeSignedSeparationDistanceAndContactNormal works correctly for spheres.
-  The signed separation distance between two spheres is the distance between their centers minus the sum of their radii.
-  The contact normal is the normalized vector pointing from the first sphere to the second sphere. In our case, that
-  vector points from the left sphere to the right sphere.
+  /* Check that EvaluateLinkerPotentials evaluates the Hertzian contact correctly for spheres.
+    For this test, we generate a 2 spheres of different radii and generate sphere-sphere linkers between neighboring
+    spheres. For simplicity, we directly compute the signed separation distances and contact normals. We then pass these
+    fields to the EvaluateLinkerPotentials kernel, compute the potential force, and check it against the expected value.
   */
 
-  // Create an instance of ComputeSignedSeparationDistanceAndContactNormal based on committed mesh that meets the
-  // default requirements for ComputeSignedSeparationDistanceAndContactNormal.
-  auto [compute_ssd_and_cn_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<
-          ComputeSignedSeparationDistanceAndContactNormal>();
-  ASSERT_TRUE(compute_ssd_and_cn_ptr != nullptr);
+  // Create an instance of EvaluateLinkerPotentials based on committed mesh that meets the
+  // default requirements for EvaluateLinkerPotentials.
+  auto [evaluate_linker_potentials_ptr, bulk_data_ptr] =
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<EvaluateLinkerPotentials>();
+  ASSERT_TRUE(evaluate_linker_potentials_ptr != nullptr);
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   ASSERT_TRUE(meta_data_ptr != nullptr);
@@ -103,17 +102,23 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal, PerformsCalculationCorrect
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
-  stk::mesh::Field<double> *radius_field_ptr =
+  stk::mesh::Field<double> *element_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
+  stk::mesh::Field<double> *element_youngs_modulus_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_YOUNGS_MODULUS");
+  stk::mesh::Field<double> *element_poissons_ratio_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_POISSONS_RATIO");
   stk::mesh::Field<double> *linker_signed_separation_distance_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_SIGNED_SEPARATION_DISTANCE");
-  stk::mesh::Field<double> *linker_contact_normal_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
+  stk::mesh::Field<double> *linker_potential_force_magnitude_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
 
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
-  ASSERT_TRUE(radius_field_ptr != nullptr);
+  ASSERT_TRUE(element_radius_field_ptr != nullptr);
+  ASSERT_TRUE(element_youngs_modulus_field_ptr != nullptr);
+  ASSERT_TRUE(element_poissons_ratio_field_ptr != nullptr);
   ASSERT_TRUE(linker_signed_separation_distance_field_ptr != nullptr);
-  ASSERT_TRUE(linker_contact_normal_field_ptr != nullptr);
+  ASSERT_TRUE(linker_potential_force_magnitude_field_ptr != nullptr);
 
   // Set the sphere's position.
   double sphere_positions1[3] = {0.0, 0.0, 0.0};
@@ -130,26 +135,60 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal, PerformsCalculationCorrect
 
   // Set the sphere's radius.
   double sphere_radius1 = 1.5;
-  double *radius1 = stk::mesh::field_data(*radius_field_ptr, sphere_element1);
+  double *radius1 = stk::mesh::field_data(*element_radius_field_ptr, sphere_element1);
   radius1[0] = sphere_radius1;
 
   double sphere_radius2 = 2.0;
-  double *radius2 = stk::mesh::field_data(*radius_field_ptr, sphere_element2);
+  double *radius2 = stk::mesh::field_data(*element_radius_field_ptr, sphere_element2);
   radius2[0] = sphere_radius2;
 
-  // Compute the signed separation distance and contact normal.
-  compute_ssd_and_cn_ptr->execute(*sphere_sphere_linker_part_ptr);
+  // Set the sphere's Young's modulus
+  double sphere_youngs_modulus1 = 1.0e6;
+  double *youngs_modulus1 = stk::mesh::field_data(*element_youngs_modulus_field_ptr, sphere_element1);
+  youngs_modulus1[0] = sphere_youngs_modulus1;
+
+  double sphere_youngs_modulus2 = 1.0e6;
+  double *youngs_modulus2 = stk::mesh::field_data(*element_youngs_modulus_field_ptr, sphere_element2);
+  youngs_modulus2[0] = sphere_youngs_modulus2;
+
+  // Set the sphere's Poisson's ratio
+  double sphere_poissons_ratio1 = 0.3;
+  double *poissons_ratio1 = stk::mesh::field_data(*element_poissons_ratio_field_ptr, sphere_element1);
+  poissons_ratio1[0] = sphere_poissons_ratio1;
+
+  double sphere_poissons_ratio2 = 0.3;
+  double *poissons_ratio2 = stk::mesh::field_data(*element_poissons_ratio_field_ptr, sphere_element2);
+  poissons_ratio2[0] = sphere_poissons_ratio2;
+
+  // Set the linker's signed separation distance.
+  double *ssd = stk::mesh::field_data(*linker_signed_separation_distance_field_ptr, linker_constraint);
+  ssd[0] = -0.5;
+
+  // Compute the potential force.
+  evaluate_linker_potentials_ptr->execute(*sphere_sphere_linker_part_ptr);
 
   // Check that the result is as expected.
-  double *ssd = stk::mesh::field_data(*linker_signed_separation_distance_field_ptr, linker_constraint);
-  double expected_ssd = -0.5;
-  EXPECT_DOUBLE_EQ(ssd[0], expected_ssd);
+  double *potential_force_magnitude =
+      stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr, linker_constraint);
 
-  double *cn = stk::mesh::field_data(*linker_contact_normal_field_ptr, linker_constraint);
-  double expected_cn[3] = {1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0};
-  for (int i = 0; i < 3; i++) {
-    EXPECT_DOUBLE_EQ(cn[i], expected_cn[i]);
-  }
+  // The expected potential force magnitude is computed using the Hertzian contact model.
+  // F = \frac{4}{3} E \sqrt{R} \delta^{3/2}
+  // where:
+  // - F is the contact force,
+  // - E is the effective modulus of elasticity, calculated as
+  //   E = \left( \frac{1 - \nu_1^2}{E_1} + \frac{1 - \nu_2^2}{E_2} \right)^{-1},
+  // - R is the effective radius of contact, defined as
+  //   \frac{1}{R} = \frac{1}{R_1} + \frac{1}{R_2},
+  // - \delta is the deformation at the contact point,
+  // - R_1 and R_2 are the radii of the two spheres,
+  // - E_1 and E_2 are the Young's moduli of the materials,
+  // - \nu_1 and \nu_2 are the Poisson's ratios of the materials.
+  const double E = 1.0 / ((1.0 - sphere_poissons_ratio1 * sphere_poissons_ratio1) / sphere_youngs_modulus1 +
+                          (1.0 - sphere_poissons_ratio2 * sphere_poissons_ratio2) / sphere_youngs_modulus2);
+  const double R = 1.0 / (1.0 / sphere_radius1 + 1.0 / sphere_radius2);
+  const double delta = 0.5;
+  const double expected_potential_force_magnitude = 4.0 / 3.0 * E * std::sqrt(R) * std::pow(delta, 1.5);
+  EXPECT_DOUBLE_EQ(potential_force_magnitude[0], expected_potential_force_magnitude);
 }
 //@}
 

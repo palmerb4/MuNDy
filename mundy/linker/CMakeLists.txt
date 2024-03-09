@@ -18,6 +18,8 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 SET(HEADERS
   include/mundy_linker/ComputeSignedSeparationDistanceAndContactNormal.hpp
   include/mundy_linker/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.hpp
+  include/mundy_linker/EvaluateLinkerPotentials.hpp
+  include/mundy_linker/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.hpp
   include/mundy_linker/GenerateNeighborLinkers.hpp
   include/mundy_linker/generate_neighbor_linkers/techniques/STKSearch.hpp
   include/mundy_linker/Linkers.hpp
@@ -28,7 +30,8 @@ SET(HEADERS
 
 SET(SOURCES 
   src/mundy_linker/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.cpp
-  src/mundy_linker/generate_neighbor_linkers/STKSearch.cpp
+  src/mundy_linker/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.cpp
+  src/mundy_linker/generate_neighbor_linkers/techniques/STKSearch.cpp
   src/mundy_linker/PerformRegistration.cpp
 )
 
