@@ -258,6 +258,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   /// \brief Number of active kernels.
   int num_active_kernels_ = 0;
 
+  /// \brief The names of the enabled kernels.
+  Teuchos::Array<std::string> enabled_kernel_names_;
+
   /// \brief The entity rank that the kernels acts on.
   stk::topology::rank_t kernel_entity_rank_ = stk::topology::INVALID_RANK;
 
@@ -337,15 +340,15 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_fixed_params());
 
   // Populate our internal members.
-  Teuchos::Array<std::string> enabled_kernel_names =
+  enabled_kernel_names_ =
       valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
-  num_active_kernels_ = static_cast<int>(enabled_kernel_names.size());
+  num_active_kernels_ = static_cast<int>(enabled_kernel_names_.size());
   if (num_active_kernels_ > 0) {
     kernel_ptrs_.reserve(num_active_kernels_);
     valid_entity_parts_.reserve(num_active_kernels_);
     for (int i = 0; i < num_active_kernels_; i++) {
       // Create the kernel and store it in the kernel_ptrs_ vector.
-      const std::string kernel_name = enabled_kernel_names[i];
+      const std::string kernel_name = enabled_kernel_names_[i];
       Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
 
       // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels, and
@@ -390,14 +393,8 @@ void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_mutable_params());
 
   // Parse the parameters
-  Teuchos::Array<std::string> enabled_kernel_names =
-      valid_mutable_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
-  MUNDY_THROW_ASSERT(num_active_kernels_ == enabled_kernel_names.size(), std::invalid_argument,
-                     "MetaKernelDispatcher: Internal error. Mismatch between the stored kernel count\n"
-                         << "and the parameter list kernel count. This should not happen.\n"
-                         << "Please contact the development team.");
   for (int i = 0; i < num_active_kernels_; i++) {
-    Teuchos::ParameterList &kernel_params = valid_mutable_params.sublist(enabled_kernel_names[i]);
+    Teuchos::ParameterList &kernel_params = valid_mutable_params.sublist(enabled_kernel_names_[i]);
     kernel_ptrs_[i]->set_mutable_params(kernel_params);
   }
 }
