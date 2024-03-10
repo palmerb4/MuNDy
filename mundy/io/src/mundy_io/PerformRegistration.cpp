@@ -17,5 +17,41 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file a_necessary_empty_file.cpp
-/// \brief A file used to trick TriBITS into compiling header only packages/subpackages
+/// \file PerformRegistration.cpp
+/// \brief Perform all registrations within MundyIo.
+
+// Mundy libs
+#include <MundyIo_config.hpp>                   // for any custom defines
+#include <mundy_agent/AgentHierarchy.hpp>       // for mundy::agent::AgentHierarchy
+#include <mundy_agent/PerformRegistration.hpp>  // for mundy::agent::perform_registration
+#include <mundy_io/IOBroker.hpp>                // for mundy::linker::Linkers
+
+#ifdef HAVE_MUNDYIO_MUNDYSHAPE
+#include <mundy_shape/PerformRegistration.hpp>  // for mundy::shape::perform_registration
+#endif
+
+#ifdef HAVE_MUNDYIO_MUNDYCONSTRAINT
+#include <mundy_constraint/PerformRegistration.hpp>  // for mundy::constraint::perform_registration
+#endif
+
+namespace mundy {
+
+namespace io {
+
+void perform_registration() {
+  mundy::agent::perform_registration();
+
+#ifdef HAVE_MUNDYIO_MUNDYSHAPE
+  mundy::shape::perform_registration();
+#endif
+
+#ifdef HAVE_MUNDYIO_MUNDYCONSTRAINT
+  mundy::constraint::perform_registration();
+#endif
+
+  // mundy::agent::AgentHierarchy::register_new_class<IOBroker>();
+}
+
+}  // namespace io
+
+}  // namespace mundy

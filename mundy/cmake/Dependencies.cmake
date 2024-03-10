@@ -18,7 +18,7 @@ tribits_package_define_dependencies(
     Shape       shape       PT  OPTIONAL
     Linker      linker      PT  OPTIONAL
     # Balance     balance     PT  OPTIONAL
-    # Io          io          PT  OPTIONAL
+    Io          io          PT  OPTIONAL
     # Constraint  constraint  PT  OPTIONAL
     # Motion      motion      PT  OPTIONAL
   REGRESSION_EMAIL_LIST brycepalmer96@gmail.com
