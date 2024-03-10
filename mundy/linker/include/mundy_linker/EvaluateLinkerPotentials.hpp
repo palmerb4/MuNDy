@@ -42,7 +42,7 @@ namespace mundy {
 namespace linker {
 
 /// \class EvaluateLinkerPotentials
-/// \brief Method for computing the axis aligned boundary box of different parts.
+/// \brief Method for compute linker potentials.
 class EvaluateLinkerPotentials
     : public mundy::meta::MetaKernelDispatcher<EvaluateLinkerPotentials,
                                                mundy::meta::make_registration_string("EVALUATE_LINKER_POTENTIALS")> {

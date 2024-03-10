@@ -129,7 +129,7 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<void> {
 
     valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
-    // Add the requirments for the linker.
+    // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string linker_potential_force_magnitude_field_name =
         valid_fixed_params.get<std::string>("linker_potential_force_magnitude_field_name");
@@ -161,9 +161,7 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<void> {
       }
     }
 
-    // Add the requirments for the connected spheres.
-    // We don't have any requirments for the connected spheres not already specified by the sphere agent (center
-    // position and radius).
+    // Add the requirements for the connected spheres.
     std::string element_youngs_modulus_field_name =
         valid_fixed_params.get<std::string>("element_youngs_modulus_field_name");
     std::string element_poissons_ratio_field_name =
@@ -315,4 +313,4 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<void> {
 
 }  // namespace mundy
 
-#endif  // MUNDY_LINKER_evaluate_linker_potentials_SPHERESPHERE_HPP_
+#endif  // MUNDY_LINKER_EVALUATE_LINKER_POTENTIALS_SPHERESPHEREHERTZIANCONTACT_HPP_

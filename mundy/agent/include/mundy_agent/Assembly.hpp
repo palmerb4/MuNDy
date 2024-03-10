@@ -111,7 +111,7 @@ class Assembly {
 
     if (parents_name.to_string() != "") {
       // If we have a parent, declare our part as a subpart of our parent part.
-      mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, name.to_string(), parents_name.to_string());
+      mundy::agent::AgentHierarchy::add_subpart_reqs(part_reqs_ptr_, parents_name.to_string(), grandparents_name.to_string());
 
       // Fetch our parent's requirements.
       // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our

@@ -22,6 +22,8 @@ SET(HEADERS
   include/mundy_linker/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.hpp
   include/mundy_linker/GenerateNeighborLinkers.hpp
   include/mundy_linker/generate_neighbor_linkers/techniques/STKSearch.hpp
+  include/mundy_linker/LinkerPotentialForceMagnitudeReduction.hpp
+  include/mundy_linker/linker_potential_force_magnitude_reduction/kernels/Sphere.hpp
   include/mundy_linker/Linkers.hpp
   include/mundy_linker/linkers/NeighborLinkers.hpp
   include/mundy_linker/linkers/neighbor_linkers/SphereSpheres.hpp
@@ -32,6 +34,7 @@ SET(SOURCES
   src/mundy_linker/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.cpp
   src/mundy_linker/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.cpp
   src/mundy_linker/generate_neighbor_linkers/techniques/STKSearch.cpp
+  src/mundy_linker/linker_potential_force_magnitude_reduction/kernels/Sphere.cpp
   src/mundy_linker/PerformRegistration.cpp
 )
 
