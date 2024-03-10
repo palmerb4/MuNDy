@@ -54,6 +54,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_linker/EvaluateLinkerPotentials.hpp>                // for mundy::linker::EvaluateLinkerPotentials
 #include <mundy_linker/GenerateNeighborLinkers.hpp>                 // for mundy::linker::GenerateNeighborLinkers
 #include <mundy_linker/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linker::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linker/PerformRegistration.hpp>                     // for mundy::linker::perform_registration
 #include <mundy_mesh/BulkData.hpp>                                  // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                  // for mundy::mesh::MetaData
 #include <mundy_meta/MetaFactory.hpp>                               // for mundy::meta::MetaKernelFactory
@@ -64,9 +65,8 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
-#include <mundy_shape/ComputeAABB.hpp>          // for mundy::shape::ComputeAABB
-#include <mundy_shape/PerformRegistration.hpp>  // for mundy::shape::perform_registration
-#include <mundy_shape/shapes/Spheres.hpp>       // for mundy::shape::shapes::Spheres
+#include <mundy_shape/ComputeAABB.hpp>     // for mundy::shape::ComputeAABB
+#include <mundy_shape/shapes/Spheres.hpp>  // for mundy::shape::shapes::Spheres
 
 class NodeEuler
     : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")> {
@@ -679,9 +679,9 @@ class ComputeMobility
   /// \brief Get the valid fixed parameters that we will forward to our techniques.
   static Teuchos::ParameterList get_valid_forwarded_technique_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("node_force_field", std::string(default_node_force_field_name_),
+    default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
                                "Name of the node force field.");
-    default_parameter_list.set("node_velocity_field", std::string(default_node_velocity_field_name_),
+    default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
                                "Name of the node velocity field.");
     return default_parameter_list;
   }
@@ -737,9 +737,9 @@ class LocalDrag
   /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("node_force_field", std::string(default_node_force_field_name_),
+    default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
                                "Name of the node force field.");
-    default_parameter_list.set("node_velocity_field", std::string(default_node_velocity_field_name_),
+    default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
                                "Name of the node velocity field.");
     return default_parameter_list;
   }
@@ -756,6 +756,7 @@ class LocalDrag
   //! \name Default parameters
   //@{
 
+  static inline double default_viscosity_ = 1.0;
   static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   //@}
@@ -800,9 +801,9 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
     // Fetch the fields.
     const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
     const std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
-    const std::string element_radius_field_name = mundy::shape::Sphere::get_element_radius_field_name();
+    const std::string element_radius_field_name = mundy::shape::shapes::Spheres::get_element_radius_field_name();
 
-    node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+    node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
     node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name);
     element_radius_field_ptr_ =
         meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
@@ -919,7 +920,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
   /// \brief Run the kernel's core calculation.
   /// \param sphere_element [in] The sphere element acted on by the kernel.
   void execute(const stk::mesh::Entity &sphere_element) override {
-    const stk::mesh::Entity &node = bulk_data_ptr_->begin_nodes(sphere_element);
+    const stk::mesh::Entity &node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 
     const double *element_radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
     const double *node_force = stk::mesh::field_data(*node_force_field_ptr_, node);
@@ -1000,8 +1001,8 @@ int main(int argc, char **argv) {
   const double youngs_modulus = std::stod(argv[8]);
   const double poissons_ratio = std::stod(argv[9]);
 
-  mundy::shape::perform_registration();  // TODO(palmerb4): I hate this. Mundy should be restructured to not require
-                                         // this. Shapes should be a subpackage of agents.
+  mundy::linker::perform_registration();  // TODO(palmerb4): I hate this. Mundy should be restructured to not require
+                                          // this. Shapes should be a subpackage of agents.
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Setup the fixed parameters and generate the corresponding class instances and mesh //
@@ -1016,7 +1017,7 @@ int main(int argc, char **argv) {
       .set("node_rng_counter_field_name", "NODE_RNG_COUNTER")
       .set("node_brownian_velocity_field_name", "NODE_VELOCITY");
   compute_brownian_velocity_fixed_params.sublist("SPHERE").set<Teuchos::Array<std::string>>(
-      "valid_entity_part_names", Teuchos::tuple<std::string>({std::string("SPHERES")}));
+      "valid_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
 
   // NodeEuler fixed parameters
   Teuchos::ParameterList node_euler_fixed_params;
@@ -1028,7 +1029,7 @@ int main(int argc, char **argv) {
 
   // ComputeMobility fixed parameters
   Teuchos::ParameterList compute_mobility_fixed_params;
-  compute_mobility_fixed_params.set("technique_name", "LOCAL_DRAG")
+  compute_mobility_fixed_params.set("enabled_technique_name", "LOCAL_DRAG")
       .set("node_force_field_name", "NODE_FORCE")
       .set("node_velocity_field_name", "NODE_VELOCITY");
   compute_mobility_fixed_params.sublist("LOCAL_DRAG")
@@ -1046,8 +1047,9 @@ int main(int argc, char **argv) {
       .set("linker_contact_normal_field_name", "LINKER_CONTACT_NORMAL")
       .set("linker_signed_separation_distance_field_name", "LINKER_SIGNED_SEPARATION_DISTANCE");
   compute_ssd_and_cn_fixed_params.sublist("SPHERE_SPHERE_LINKER")
-      .set<Teuchos::Array<std::string>>("valid_entity_part_names", Teuchos::tuple<std::string>(std::string("LINKERS")))
-      .set("valid_sphere_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
+      .set<Teuchos::Array<std::string>>("valid_entity_part_names",
+                                        Teuchos::tuple<std::string>(std::string("SPHERE_SPHERE_LINKERS")))
+      .set<Teuchos::Array<std::string>>("valid_sphere_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
 
   // ComputeAABB fixed parameters
   Teuchos::ParameterList compute_aabb_fixed_params;
@@ -1059,19 +1061,23 @@ int main(int argc, char **argv) {
 
   // GenerateNeighborLinkers fixed parameters
   Teuchos::ParameterList generate_neighbor_linkers_fixed_params;
-  generate_neighbor_linkers_fixed_params.set("technique_name", "STK_SEARCH")
-      .set("specialized_neighbor_linkers_part_names", Teuchos::tuple<std::string>({"SPHERE_SPHERE_LINKER"}));
+  generate_neighbor_linkers_fixed_params.set("enabled_technique_name", "STK_SEARCH")
+      .set<Teuchos::Array<std::string>>("specialized_neighbor_linkers_part_names",
+                                        Teuchos::tuple<std::string>("SPHERE_SPHERE_LINKERS"));
   generate_neighbor_linkers_fixed_params.sublist("STK_SEARCH")
-      .set("valid_source_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")))
-      .set("valid_target_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")))
+      .set<Teuchos::Array<std::string>>("valid_source_entity_part_names",
+                                        Teuchos::tuple<std::string>(std::string("SPHERES")))
+      .set<Teuchos::Array<std::string>>("valid_target_entity_part_names",
+                                        Teuchos::tuple<std::string>(std::string("SPHERES")))
       .set("element_aabb_field_name", std::string("ELEMENT_AABB"));
 
   // EvaluateLinkerPotentials fixed parameters
   Teuchos::ParameterList evaluate_linker_potentials_fixed_params;
-  evaluate_linker_potentials_fixed_params.set("enabled_kernel_names", Teuchos::tuple<std::string>("SPHERE_SPHERE_HERTZIAN_CONTACT");
+  evaluate_linker_potentials_fixed_params.set<Teuchos::Array<std::string>>(
+      "enabled_kernel_names", Teuchos::tuple<std::string>("SPHERE_SPHERE_HERTZIAN_CONTACT"));
   evaluate_linker_potentials_fixed_params.sublist("SPHERE_SPHERE_HERTZIAN_CONTACT")
-      .set("valid_entity_part_names", Teuchos::tuple<std::string>("SPHERE_SPHERE_LINKERS"))
-      .set("valid_sphere_part_names", Teuchos::tuple<std::string>("SPHERES"))
+      .set<Teuchos::Array<std::string>>("valid_entity_part_names", Teuchos::tuple<std::string>("SPHERE_SPHERE_LINKERS"))
+      .set<Teuchos::Array<std::string>>("valid_sphere_part_names", Teuchos::tuple<std::string>("SPHERES"))
       .set("linker_potential_force_magnitude_field_name", "LINKER_POTENTIAL_FORCE_MAGNITUDE")
       .set("linker_signed_separation_distance_field_name", "LINKER_SIGNED_SEPARATION_DISTANCE")
       .set("element_youngs_modulus_field_name", "ELEMENT_YOUNGS_MODULUS")
@@ -1079,37 +1085,43 @@ int main(int argc, char **argv) {
 
   // LinkerPotentialForceMagnitudeReduction fixed parameters
   Teuchos::ParameterList linker_potential_force_magnitude_reduction_fixed_params;
-  linker_potential_force_magnitude_reduction_fixed_params.set("enabled_kernel_names", Teuchos::tuple<std::string>({"SPHERE"}))
-.set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS")
+  linker_potential_force_magnitude_reduction_fixed_params
+      .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>("SPHERE"))
+      .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS")
       .set("linker_potential_force_magnitude_field_name", "LINKER_POTENTIAL_FORCE_MAGNITUDE")
       .set("linker_contact_normal_field_name", "LINKER_CONTACT_NORMAL");
   linker_potential_force_magnitude_reduction_fixed_params.sublist("SPHERE")
-      .set("valid_entity_part_names", Teuchos::tuple<std::string>("SPHERES"))
+      .set<Teuchos::Array<std::string>>("valid_entity_part_names", Teuchos::tuple<std::string>("SPHERES"))
       .set("node_force_field_name", "NODE_FORCE");
 
   // Create the class instances and mesh based on the given fixed requirements.
-  auto [compute_brownian_velocity_ptr, node_euler_ptr, compute_mobility_ptr,
-  compute_ssd_and_cn_ptr, compute_aabb_ptr,
-  generate_neighbor_linkers_ptr,
-        evaluate_linker_potentials_ptr, linker_potential_force_magnitude_reduction_ptr, bulk_data_ptr] =
+  auto [compute_brownian_velocity_ptr, node_euler_ptr, compute_mobility_ptr, compute_ssd_and_cn_ptr, compute_aabb_ptr,
+        generate_neighbor_linkers_ptr, evaluate_linker_potentials_ptr, linker_potential_force_magnitude_reduction_ptr,
+        bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<
-          ComputeBrownianVelocity, NodeEuler, ComputeMobility, ComputeSignedSeparationDistanceAndContactNormal, mundy::shape::ComputeAABB, GenerateNeighborLinkers,
-          EvaluateLinkerPotentials, LinkerPotentialForceMagnitudeReduction>(
+          ComputeBrownianVelocity, NodeEuler, ComputeMobility,
+          mundy::linker::ComputeSignedSeparationDistanceAndContactNormal, mundy::shape::ComputeAABB,
+          mundy::linker::GenerateNeighborLinkers, mundy::linker::EvaluateLinkerPotentials,
+          mundy::linker::LinkerPotentialForceMagnitudeReduction>(
           {compute_brownian_velocity_fixed_params, node_euler_fixed_params, compute_mobility_fixed_params,
-          compute_ssd_and_cn_fixed_params,
-           compute_aabb_fixed_params, generate_neighbor_linkers_fixed_params, evaluate_linker_potentials_fixed_params,
-           linker_potential_force_magnitude_reduction_fixed_params});
-  ASSERT_TRUE(comp_brownian_velocity_ptr != nullptr);
-  ASSERT_TRUE(node_euler_ptr != nullptr);
-  ASSERT_TRUE(compute_mobility_ptr != nullptr);
-  ASSERT_TRUE(compute_ssd_and_cn_ptr != nullptr);
-  ASSERT_TRUE(compute_aabb_ptr != nullptr);
-  ASSERT_TRUE(generate_neighbor_linkers_ptr != nullptr);
-  ASSERT_TRUE(evaluate_linker_potentials_ptr != nullptr);
-  ASSERT_TRUE(linker_potential_force_magnitude_reduction_ptr != nullptr);
-  ASSERT_TRUE(bulk_data_ptr != nullptr);
+           compute_ssd_and_cn_fixed_params, compute_aabb_fixed_params, generate_neighbor_linkers_fixed_params,
+           evaluate_linker_potentials_fixed_params, linker_potential_force_magnitude_reduction_fixed_params});
+
+  MUNDY_THROW_ASSERT(compute_brownian_velocity_ptr != nullptr, std::invalid_argument,
+                     "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(node_euler_ptr != nullptr, std::invalid_argument, "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(compute_mobility_ptr != nullptr, std::invalid_argument, "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(compute_ssd_and_cn_ptr != nullptr, std::invalid_argument, "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(compute_aabb_ptr != nullptr, std::invalid_argument, "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(generate_neighbor_linkers_ptr != nullptr, std::invalid_argument,
+                     "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(evaluate_linker_potentials_ptr != nullptr, std::invalid_argument,
+                     "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(linker_potential_force_magnitude_reduction_ptr != nullptr, std::invalid_argument,
+                     "Failed to create class instance.");
+  MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, std::invalid_argument, "Failed to create class instance.");
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-  ASSERT_TRUE(meta_data_ptr != nullptr);
+  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument, "Meta data pointer cannot be a nullptr.");
 
   ///////////////////////////////////////////////////
   // Set up the mutable parameters for the classes //
@@ -1162,7 +1174,8 @@ int main(int argc, char **argv) {
   stk::mesh::Part &spheres_part = *spheres_part_ptr;
 
   stk::mesh::Part *sphere_sphere_linkers_part_ptr = meta_data_ptr->get_part("SPHERE_SPHERE_LINKERS");
-  MUNDY_THROW_ASSERT(sphere_sphere_linkers_part_ptr != nullptr, std::invalid_argument, "SPHERE_SPHERE_LINKERS part not found.");
+  MUNDY_THROW_ASSERT(sphere_sphere_linkers_part_ptr != nullptr, std::invalid_argument,
+                     "SPHERE_SPHERE_LINKERS part not found.");
   stk::mesh::Part &sphere_sphere_linkers_part = *sphere_sphere_linkers_part_ptr;
 
   bulk_data_ptr->modification_begin();
@@ -1190,7 +1203,7 @@ int main(int argc, char **argv) {
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_VELOCITY");
   auto node_force_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
-  
+
   auto element_radius_field_ptr = meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   auto element_youngs_modulus_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_YOUNGS_MODULUS");

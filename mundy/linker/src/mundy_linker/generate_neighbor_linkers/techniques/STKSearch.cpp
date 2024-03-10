@@ -197,12 +197,14 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   bulk_data_ptr_->change_ghosting(ghosting, send_entities);
   bulk_data_ptr_->modification_end();
 
+
   // Step 4: Check if a new linker should be created between the pair or not. We do not generate a linker if
   //  1. A linker already exists between the source and target entities. If it does, we add it to the specified neighbor
   //  linker parts instead of creating a new linker.
   //  2. The target entity has a GID greater than or equal to that of the source entity. This is to avoid creating
   //  duplicate linkers and to avoid self-intersections.
   //  3. The source entity is not owned. This also avoids creating duplicate linkers.
+  bulk_data_ptr_->modification_begin();
   std::vector<int> new_linker_required(search_id_pairs.size(), true);  // int required for std::partial_sum
   for (size_t i = 0; i < search_id_pairs.size(); ++i) {
     stk::mesh::EntityKey source_entity_key = search_id_pairs[i].first.id();
@@ -269,7 +271,6 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     return val - 1;
   });
 
-  bulk_data_ptr_->modification_begin();
   std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
   requests[stk::topology::CONSTRAINT_RANK] = num_linkers_to_create;
   std::vector<stk::mesh::Entity> requested_entities;

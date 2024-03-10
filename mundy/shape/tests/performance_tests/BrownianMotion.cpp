@@ -760,9 +760,6 @@ int main(int argc, char **argv) {
     node_coords[0] = length_of_domain * rng.rand<double>();
     node_coords[1] = length_of_domain * rng.rand<double>();
     node_coords[2] = length_of_domain * rng.rand<double>();
-    // node_coords[0] = length_of_domain * ((double)rand() / (RAND_MAX));
-    // node_coords[1] = length_of_domain * ((double)rand() / (RAND_MAX));
-    // node_coords[2] = length_of_domain * ((double)rand() / (RAND_MAX));
     node_velocity[0] = 0.0;
     node_velocity[1] = 0.0;
     node_velocity[2] = 0.0;
