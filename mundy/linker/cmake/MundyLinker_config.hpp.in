@@ -1,0 +1,10 @@
+#ifndef MUNDYLINKER_CONFIG_H
+#define MUNDYLINKER_CONFIG_H
+
+// Declare special variables, especially those related to optional features, TPLs, and workarounds.
+
+// Optional packages
+#cmakedefine HAVE_MUNDYLINKER_MUNDYSHAPE
+#cmakedefine HAVE_MUNDYLINKER_MUNDYCONSTRAINT
+
+#endif  // MUNDYLINKER_CONFIG_H

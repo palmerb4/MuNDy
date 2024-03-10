@@ -38,13 +38,13 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>        // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
 
 namespace mundy {
@@ -53,13 +53,12 @@ namespace constraint {
 
 /// \class InitShapes
 /// \brief Method for generating and initializing N shapes in in various configurations
-class InitShapes : public mundy::meta::MetaMethod<void> {
+class InitShapes : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
 
-  using RegistrationType = std::string_view;
-  using PolymorphicBaseType = mundy::meta::MetaMethod<void>;
+  using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
   using OurKernelFactory = mundy::meta::MetaKernelFactory<void, InitShapes>;
   //@}
 
@@ -90,14 +89,14 @@ class InitShapes : public mundy::meta::MetaMethod<void> {
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     Teuchos::ParameterList &shapes_sublist = valid_fixed_params.sublist("shapes");
-    const unsigned num_specified_shapes = shapes_sublist.get<unsigned>("count");
+    const unsigned num_specified_shapes = shapes_sublist.get<int>("count");
     auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-    for (size_t i = 0; i < num_specified_kernels; i++) {
+    for (int i = 0; i < num_specified_kernels; i++) {
       Teuchos::ParameterList &shape_params = shapes_sublist.sublist("shape_" + std::to_string(i));
       const std::string part_name = shape_params.get<std::string>("part_name");
 
       Teuchos::ParameterList &config_sublist = shape_params.sublist("config_kernels");
-      const unsigned num_config_kernels = config_sublist.get<unsigned>("count");
+      const unsigned num_config_kernels = config_sublist.get<int>("count");
       for (size_t i = 0; i < num_config_kernels; i++) {
         Teuchos::ParameterList &kernel_params = config_sublist.sublist("config_kernel_" + std::to_string(i));
         const std::string kernel_name = kernel_params.get<std::string>("name");
@@ -117,8 +116,8 @@ class InitShapes : public mundy::meta::MetaMethod<void> {
     if (params.isSublist("config_kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = params.sublist("config_kernels", true);
-      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
-      for (size_t i = 0; i < num_specified_kernels; i++) {
+      const int num_specified_kernels = kernels_sublist.get<int>("count");
+      for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("config_kernel_" + std::to_string(i));
         const std::string kernel_name = kernel_params.get<std::string>("name");
         OurKernelFactory::validate_fixed_parameters_and_set_defaults(kernel_name, &kernel_params);
@@ -126,14 +125,14 @@ class InitShapes : public mundy::meta::MetaMethod<void> {
 
 
       Teuchos::ParameterList &shapes_sublist = valid_fixed_params.sublist("shapes");
-      const unsigned num_specified_shapes = shapes_sublist.get<unsigned>("count");
+      const unsigned num_specified_shapes = shapes_sublist.get<int>("count");
       auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-      for (size_t i = 0; i < num_specified_kernels; i++) {
+      for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &shape_params = shapes_sublist.sublist("shape_" + std::to_string(i));
         const std::string part_name = shape_params.get<std::string>("part_name");
 
         Teuchos::ParameterList &config_sublist = shape_params.sublist("config_kernels");
-        const unsigned num_config_kernels = config_sublist.get<unsigned>("count");
+        const unsigned num_config_kernels = config_sublist.get<int>("count");
         for (size_t i = 0; i < num_config_kernels; i++) {
           Teuchos::ParameterList &kernel_params = config_sublist.sublist("config_kernel_" + std::to_string(i));
           const std::string kernel_name = kernel_params.get<std::string>("name");
@@ -165,8 +164,8 @@ class InitShapes : public mundy::meta::MetaMethod<void> {
     if (mutable_params_ptr->isSublist("config_kernels")) {
       // Only validate and fill parameters for the given kernels.
       Teuchos::ParameterList &kernels_sublist = mutable_params_ptr->sublist("config_kernels", true);
-      const unsigned num_specified_kernels = kernels_sublist.get<unsigned>("count");
-      for (size_t i = 0; i < num_specified_kernels; i++) {
+      const int num_specified_kernels = kernels_sublist.get<int>("count");
+      for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("config_kernel_" + std::to_string(i));
         const std::string kernel_name = kernel_params.get<std::string>("name");
         OurKernelFactory::validate_mutable_parameters_and_set_defaults(kernel_name, &kernel_params);
@@ -186,17 +185,11 @@ class InitShapes : public mundy::meta::MetaMethod<void> {
     }
   }
 
-  /// \brief Get the unique registration identifier. Ideally, this should be unique and not shared by any other \c
-  /// MetaMethod.
-  static RegistrationType get_registration_id() {
-    return registration_id_;
-  }
-
   /// \brief Generate a new instance of this class.
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaMethod<void>> create_new_instance(
+  static std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<InitShapes>(bulk_data_ptr, fixed_params);
   }
@@ -260,12 +253,5 @@ class InitShapes : public mundy::meta::MetaMethod<void> {
 }  // namespace constraint
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// @brief Register InitShapes with the global MetaMethodFactory.
-MUNDY_REGISTER_METACLASS(mundy::constraint::InitShapes, mundy::meta::GlobalMetaMethodFactory<void>)
-//@}
 
 #endif  // MUNDY_SHAPES_INITSHAPES_HPP_

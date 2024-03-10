@@ -35,12 +35,12 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
-#include <mundy/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
 #include <mundy_constraint/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel, mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethod.hpp>                          // for mundy::meta::MetaMethod
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>                          // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
 
@@ -64,7 +64,7 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_fixed_params.sublist("kernels", true);
-  num_multibody_types_ = kernels_sublist.get<unsigned>("count");
+  num_multibody_types_ = kernels_sublist.get<int>("count");
   multibody_part_ptr_vector_.reserve(num_multibody_types_);
   multibody_kernel_ptrs_.reserve(num_multibody_types_);
   for (size_t i = 0; i < num_multibody_types_; i++) {
@@ -87,7 +87,7 @@ void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teu
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<unsigned>("count"), std::invalid_argument,
+  MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<int>("count"), std::invalid_argument,
                      "GenerateCollisionConstraints: Internal error. Mismatch between the stored kernel count "
                      "and the parameter list kernel count.\n"
                          << "Odd... Please contact the development team.");
@@ -167,7 +167,7 @@ void GenerateCollisionConstraints::execute([[maybe_unused]] const stk::mesh::Sel
   //     we store the old neighbor list and take their set difference, then we can easily see the elements whose current
   //     collision constraints should be deleted and the elements which need collision constraints!!!!
 
-  // What's the point in having this as a MetaMethod? Well, the actual requirements are in how we populate the
+  // What's the point in having this as a MetaMethodSubsetExecutionInterface? Well, the actual requirements are in how we populate the
   // constraints. Otherwise, we simply act on the neighbor list, not the parts.
   // I changed the name to Update collision constraints. This makes it more clear that the neighbor list is a mutable
   // parameter. Users may leave the lists the same and simply wish to repopulate the  existing collision constraints
