@@ -161,7 +161,7 @@ TEST(GenerateNeighborLinkersStaticInterface, IsRegisterable) {
 ////! \name GenerateNeighborLinkers functionality unit tests
 ////@{
 //
-//#ifdef HAVE_MUNDYLINKER_MUNDYSHAPE
+// #ifdef HAVE_MUNDYLINKER_MUNDYSHAPE
 //
 // bool aabbs_overlap(const double *aabb_i, const double *aabb_j) {
 //  // Check overlap in the x dimension
@@ -488,7 +488,7 @@ TEST(GenerateNeighborLinkersStaticInterface, IsRegisterable) {
 //  // Wait for all processes to finish before continuing.
 //  stk::parallel_machine_barrier(bulk_data_ptr->parallel());
 //}
-//#endif  // HAVE_MUNDYLINKER_MUNDYSHAPE
+// #endif  // HAVE_MUNDYLINKER_MUNDYSHAPE
 
 }  // namespace
 
