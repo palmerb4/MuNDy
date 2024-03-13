@@ -23,6 +23,9 @@ SET(HEADERS
   include/mundy_shape/compute_bounding_radius/kernels/Sphere.hpp
   include/mundy_shape/ComputeOBB.hpp
   include/mundy_shape/compute_obb/kernels/Sphere.hpp
+  include/mundy_shape/DeclareAndInitializeShapes.hpp
+  include/mundy_shape/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp
+  include/mundy_shape/declare_and_initialize_shapes/techniques/GridOfSpheres.hpp
   include/mundy_shape/PerformRegistration.hpp
   include/mundy_shape/Shapes.hpp
   include/mundy_shape/shapes/Spheres.hpp
@@ -34,6 +37,7 @@ SET(SOURCES
   src/mundy_shape/compute_aabb/kernels/Spherocylinder.cpp
   src/mundy_shape/compute_bounding_radius/kernels/Sphere.cpp
   src/mundy_shape/compute_obb/kernels/Sphere.cpp
+  src/mundy_shape/declare_and_initialize_shapes/techniques/GridOfSpheres.cpp
   src/mundy_shape/PerformRegistration.cpp
   )
 

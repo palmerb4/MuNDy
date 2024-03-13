@@ -45,6 +45,7 @@
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaMethodExecutionInterface.hpp>        // for mundy::meta::MetaMethodExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 
@@ -229,6 +230,85 @@ class MetaTechniqueDispatcher {
 
 //! \brief Type specializations for different polymorphic base types.
 //@{
+
+template <typename DerivedType, typename ReturnType,
+          mundy::meta::RegistrationStringValueWrapper technique_factory_registration_string_value_wrapper,
+          mundy::meta::RegistrationStringValueWrapper default_technique_name_wrapper>
+class MetaMethodExecutionDispatcher
+    : public mundy::meta::MetaMethodExecutionInterface<ReturnType>,
+      public MetaTechniqueDispatcher<DerivedType, mundy::meta::MetaMethodExecutionInterface<ReturnType>,
+                                     mundy::meta::MetaMethodExecutionInterface<ReturnType>,
+                                     technique_factory_registration_string_value_wrapper,
+                                     default_technique_name_wrapper> {
+ public:
+  using PolymorphicBaseType = mundy::meta::MetaMethodExecutionInterface<ReturnType>;
+  using OurMetaTechniqueDispatcher =
+      MetaTechniqueDispatcher<DerivedType, PolymorphicBaseType, PolymorphicBaseType,
+                              technique_factory_registration_string_value_wrapper, default_technique_name_wrapper>;
+
+  //! \name Constructors and destructor
+  //@{
+
+  /// \brief No default constructor
+  MetaMethodExecutionDispatcher() = delete;
+
+  /// \brief Constructor
+  MetaMethodExecutionDispatcher(mundy::mesh::BulkData *const bulk_data_ptr,
+                                      const Teuchos::ParameterList &fixed_params) {
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(OurMetaTechniqueDispatcher::get_valid_fixed_params());
+
+    // Forward the inputs to the technique.
+    const std::string technique_name = valid_fixed_params.get<std::string>("enabled_technique_name");
+    Teuchos::ParameterList technique_params = valid_fixed_params.sublist(technique_name);
+
+    // At this point, the only parameters are the enabled technique name, the forwarded parameters for the enabled
+    // technique, and the non-required technique params within the technique sublists. We'll loop over all parameters
+    // that aren't in the technique sublists and forward them to the enabled technique.
+    for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
+      const std::string &param_name = valid_fixed_params.name(i);
+      const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
+      if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_technique_name") {
+        technique_params.setEntry(param_name, param_entry);
+      }
+    }
+
+    technique_ptr_ = OurMetaTechniqueDispatcher::OurTechniqueFactory::create_new_instance(technique_name, bulk_data_ptr,
+                                                                                          technique_params);
+  }
+  //@}
+
+  //! \name MetaMethodExecutionInterface's interface implementation
+  //@{
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_mutable_params = mutable_params;
+    valid_mutable_params.validateParametersAndSetDefaults(OurMetaTechniqueDispatcher::get_valid_mutable_params());
+
+    // Forward the inputs to the technique.
+    const std::string technique_name = valid_mutable_params.get<std::string>("enabled_technique_name");
+    Teuchos::ParameterList technique_params = valid_mutable_params.sublist(technique_name);
+    technique_ptr_->set_mutable_params(technique_params);
+  }
+
+  /// \brief Run the method's core calculation.
+  ReturnType execute() override {
+    // Forward the inputs to the technique.
+    technique_ptr_->execute();
+  }
+  //@}
+
+ private:
+  //! \name Internal members
+  //@{
+
+  /// \brief Method corresponding to the specified technique.
+  std::shared_ptr<PolymorphicBaseType> technique_ptr_;
+  //@}
+};  // MetaMethodExecutionDispatcher
 
 template <typename DerivedType, typename ReturnType,
           mundy::meta::RegistrationStringValueWrapper technique_factory_registration_string_value_wrapper,
