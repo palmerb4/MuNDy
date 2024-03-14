@@ -40,18 +40,6 @@ namespace mundy {
 
 namespace io {
 
-// \name Constructors and destructor
-//{
-
-//}
-
-// \name Setters
-//{
-
-void IOBroker::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) {
-}
-// }
-
 // \name Actions
 //{
 

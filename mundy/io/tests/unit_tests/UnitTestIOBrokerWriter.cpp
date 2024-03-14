@@ -28,6 +28,10 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
+#include <Ioss_ElementBlock.h>  // for Ioss::ElementBlock
+#include <Ioss_IOFactory.h>     // for Ioss::IOFactory
+#include <Ioss_NodeBlock.h>     // for Ioss::NodeBlock
+
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/BulkData.hpp>       // for stk::mesh::BulkData
 #include <stk_mesh/base/Comm.hpp>           // for comm_mesh_counts
@@ -64,431 +68,263 @@ IoBroker is the main IO class for mundy, and we want to make sure it works in bo
 as well as for the accuracy of what it is reading and writing. Based loosely off of the BrownianIORestart.cpp
 example, as well as the MundyLinker examples.
 
-Following the pattern of the ComputeAABB unit tests, we'll want to test the following:
-IsRegisterable,
+This class is a priviledged class, as it needs to be able to modify the mesh, and in the RESTART capacity, can
+actually commit the meta data.
 */
 
-//! \name IoBroker static interface implementations unit tests
+//! \name IOBroker static interface implementations unit tests
 //@{
-
-TEST(GenerateNeighborLinkersStaticInterface, IsRegisterable) {
+TEST(IOBroker, FixedParameterDefaults) {
   perform_registration();
 
-  // Check if GenerateNeighborLinkers has the correct static interface to be compatible with MetaFactory.
-  ASSERT_TRUE(mundy::meta::HasMeshRequirementsAndIsRegisterable<IOBroker>::value);
+  // Check the expected default values.
+  Teuchos::ParameterList fixed_params;
+  fixed_params.validateParametersAndSetDefaults(IOBroker::get_valid_fixed_params());
+
+  // Check that all of the default parameter values are present and set correctly
+  ASSERT_TRUE(fixed_params.isParameter("exodus_database_output_filename"));
+  ASSERT_TRUE(fixed_params.isParameter("coordinate_field_name"));
+  ASSERT_TRUE(fixed_params.isParameter("transient_coordinate_field_name"));
+
+  // Check for the enabled parts and fields
+  ASSERT_TRUE(fixed_params.isParameter("enabled_io_parts"));
+}
+//@}
+
+// Check if the field role is what we expect
+bool check_field_role(std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr, const std::string &field_name,
+                      const stk::topology::rank_t &field_rank, const Ioss::Field::RoleType &expected_role) {
+  auto field_ptr = meta_data_ptr->get_field(field_rank, field_name);
+  const Ioss::Field::RoleType *field_role = stk::io::get_field_role(*field_ptr);
+  return (*field_role == expected_role);
 }
 
-// TEST(GenerateNeighborLinkersStaticInterface, FixedParameterDefaults) {
-//   perform_registration();
-//
-//   // Check the expected default values.
-//   Teuchos::ParameterList fixed_params;
-//   fixed_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_fixed_params());
-//
-//   // Check that all the enabled technique is in the list of registered techniques.
-//   ASSERT_TRUE(fixed_params.isParameter("enabled_technique_name"));
-//   ASSERT_TRUE(GenerateNeighborLinkers::OurTechniqueFactory::num_registered_classes() > 0);
-//
-//   std::string enabled_technique_name = fixed_params.get<std::string>("enabled_technique_name");
-//   const auto valid_technique_names = GenerateNeighborLinkers::OurTechniqueFactory::get_keys();
-//   ASSERT_TRUE(std::find(valid_technique_names.begin(), valid_technique_names.end(), enabled_technique_name) !=
-//               valid_technique_names.end());
-//
-//   // Check that the fixed parameters for the technique are present.
-//   for (const std::string &valid_technique_name : valid_technique_names) {
-//     ASSERT_TRUE(fixed_params.isSublist(valid_technique_name));
-//     fixed_params.sublist(valid_technique_name, true);
-//   }
-//
-//   // TODO(palmerb4): Check that the parameters are forwarded correctly.
-// }
-//
-// TEST(GenerateNeighborLinkersStaticInterface, MutableParameterDefaults) {
-//   perform_registration();
-//
-//   // Check the expected default values.
-//   Teuchos::ParameterList mutable_params;
-//   mutable_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_mutable_params());
-//
-//   // Check that the mutable parameters for the technique are present.
-//   for (const std::string &valid_technique_name : GenerateNeighborLinkers::OurTechniqueFactory::get_keys()) {
-//     ASSERT_TRUE(mutable_params.isSublist(valid_technique_name));
-//     mutable_params.sublist(valid_technique_name, true);
-//   }
-//
-//   // TODO(palmerb4): Check that the parameters are forwarded correctly.
-// }
-//
-// TEST(GenerateNeighborLinkersStaticInterface, FixedParameterValidation) {
-//   // TODO(palmerb4): How should we perform validation tests?
-//   perform_registration();
-// }
-//
-// TEST(GenerateNeighborLinkersStaticInterface, MutableParameterValidation) {
-//   // TODO(palmerb4): How should we perform validation tests?
-//   perform_registration();
-// }
-//
-// TEST(GenerateNeighborLinkersStaticInterface, GetMeshRequirementsFromDefaultParameters) {
-//   perform_registration();
-//
-//   // Attempt to get the mesh requirements using the default parameters.
-//   Teuchos::ParameterList fixed_params;
-//   fixed_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_fixed_params());
-//   ASSERT_NO_THROW(GenerateNeighborLinkers::get_mesh_requirements(fixed_params));
-// }
-//
-// TEST(GenerateNeighborLinkersStaticInterface, CreateNewInstanceFromDefaultParameters) {
-//   perform_registration();
-//
-//   // Attempt to get the mesh requirements using the default parameters.
-//   auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
-//   mesh_reqs_ptr->set_spatial_dimension(3);
-//   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
-//
-//   Teuchos::ParameterList fixed_params;
-//   fixed_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_fixed_params());
-//   mesh_reqs_ptr->merge(GenerateNeighborLinkers::get_mesh_requirements(fixed_params));
-//
-//   // Create a new instance of GenerateNeighborLinkers using the default parameters and the mesh generated from the
-//   mesh
-//   // requirements.
-//   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
-//   EXPECT_NO_THROW(GenerateNeighborLinkers::create_new_instance(bulk_data_ptr.get(), fixed_params));
-// }
-////@}
-//
-////! \name GenerateNeighborLinkers functionality unit tests
-////@{
-//
-// #ifdef HAVE_MUNDYLINKER_MUNDYSHAPE
-//
-// bool aabbs_overlap(const double *aabb_i, const double *aabb_j) {
-//  // Check overlap in the x dimension
-//  bool overlap_in_x = aabb_i[3] >= aabb_j[0] && aabb_j[3] >= aabb_i[0];
-//
-//  // Check overlap in the y dimension
-//  bool overlap_in_y = aabb_i[4] >= aabb_j[1] && aabb_j[4] >= aabb_i[1];
-//
-//  // Check overlap in the z dimension
-//  bool overlap_in_z = aabb_i[5] >= aabb_j[2] && aabb_j[5] >= aabb_i[2];
-//
-//  // If there is overlap in all three dimensions, the AABBs overlap
-//  return overlap_in_x && overlap_in_y && overlap_in_z;
-//}
-//
-// TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSpheresSimple) {
-//  /* Outline
-//    For this test, we generate a 1 sphere per process of equal radii along a line with overlap, compute their AABBs,
-//    and generate their neighbor linkers. For example, for 3 processes, we would have 3 spheres along the x-axis.
-//    Process 0 would own sphere 0, process 1 would own sphere 1, and process 2 would own sphere 2. Process 0 would
-//    generate a linker between spheres 0 and 1 and process 1 would generate a linker between spheres 1 and 2.
-//  */
-//  perform_registration();
-//
-//  // Free variables
-//  const double sphere_radius = 1.0;
-//  const double overlap = 0.1;
-//
-//  // Create an instance of GenerateNeighborLinkers and ComputeAABB based on committed mesh that meets both of their
-//  // default requirements.
-//  Teuchos::ParameterList compute_aabb_fixed_params = Teuchos::ParameterList();  // Use default parameters.
-//  Teuchos::ParameterList neighbor_linkers_fixed_params = Teuchos::ParameterList();
-//
-//  auto [compute_aabb_ptr, generate_neighbor_linkers_ptr, bulk_data_ptr] =
-//      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<mundy::shape::ComputeAABB,
-//                                                                                        GenerateNeighborLinkers>(
-//          std::array{compute_aabb_fixed_params, neighbor_linkers_fixed_params});
-//  auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-//
-//  // Fetch the required fields.
-//  stk::mesh::Field<double> *node_coord_field_ptr =
-//      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
-//  stk::mesh::Field<double> *element_radius_field_ptr =
-//      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
-//  stk::mesh::Field<double> *element_aabb_field_ptr =
-//      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_AABB");
-//  ASSERT_TRUE(node_coord_field_ptr != nullptr) << "node_coord_field_ptr cannot be null";
-//  ASSERT_TRUE(element_aabb_field_ptr != nullptr) << "element_aabb_field_ptr cannot be null";
-//  ASSERT_TRUE(element_radius_field_ptr != nullptr) << "element_radius_field_ptr cannot be null";
-//
-//  // Fetch the requested parts.
-//  stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
-//  stk::mesh::Part *neighbor_linkers_part_ptr = meta_data_ptr->get_part("NEIGHBOR_LINKERS");
-//  ASSERT_TRUE(spheres_part_ptr != nullptr) << "spheres_part_ptr cannot be null";
-//  ASSERT_TRUE(neighbor_linkers_part_ptr != nullptr) << "neighbor_linkers_part_ptr cannot be null";
-//
-//  // Add 1 sphere and 1 node to the mesh per process using the process rank + 1 as the sphere and node's ID.
-//  bulk_data_ptr->modification_begin();
-//  const int process_rank = bulk_data_ptr->parallel_rank();
-//  stk::mesh::Entity node = bulk_data_ptr->declare_node(process_rank + 1);
-//  stk::mesh::Entity sphere =
-//      bulk_data_ptr->declare_element(process_rank + 1, stk::mesh::ConstPartVector{spheres_part_ptr});
-//  bulk_data_ptr->declare_relation(sphere, node, 0);
-//  bulk_data_ptr->modification_end();
-//
-//  // Set the sphere's position and radius
-//  double *node_coords = stk::mesh::field_data(*node_coord_field_ptr, node);
-//  double *element_radius = stk::mesh::field_data(*element_radius_field_ptr, sphere);
-//  node_coords[0] = process_rank * (2 * sphere_radius - overlap);
-//  node_coords[1] = 0.0;
-//  node_coords[2] = 0.0;
-//  element_radius[0] = sphere_radius;
-//
-//  // Compute the AABB for all the spheres. By default this writes to the ELEMENT_AABB field.
-//  compute_aabb_ptr->execute(*spheres_part_ptr);
-//
-//  // Compute the neighbor linkers. Between neighboring spheres.
-//  generate_neighbor_linkers_ptr->execute(*spheres_part_ptr, *spheres_part_ptr);
-//
-//  // Get the total number of spheres and linkers. Must be called parallel synchronously.
-//  std::vector<size_t> entity_counts;
-//  stk::mesh::comm_mesh_counts(*bulk_data_ptr, entity_counts);
-//  const size_t total_num_spheres = entity_counts[stk::topology::ELEMENT_RANK];
-//  const size_t total_num_linkers = entity_counts[stk::topology::CONSTRAINT_RANK];
-//  ASSERT_EQ(total_num_spheres, bulk_data_ptr->parallel_size());
-//  EXPECT_EQ(total_num_linkers, bulk_data_ptr->parallel_size() - 1);
-//
-//  // Check the number of neighbor linkers on each process.
-//  // Each process should have 1 neighbor linker except for the last process.
-//  size_t local_num_linkers = 0;
-//  const stk::mesh::BucketVector &locally_owned_neighbor_linker_buckets = bulk_data_ptr->get_buckets(
-//      stk::topology::CONSTRAINT_RANK,
-//      stk::mesh::Selector(*neighbor_linkers_part_ptr) & stk::mesh::Selector(meta_data_ptr->locally_owned_part()));
-//  for (size_t bucket_idx = 0; bucket_idx < locally_owned_neighbor_linker_buckets.size(); ++bucket_idx) {
-//    stk::mesh::Bucket &neighbor_linker_bucket = *locally_owned_neighbor_linker_buckets[bucket_idx];
-//    local_num_linkers += neighbor_linker_bucket.size();
-//  }
-//  if (process_rank == 0) {
-//    EXPECT_EQ(local_num_linkers, 0);
-//  } else {
-//    EXPECT_EQ(local_num_linkers, 1);
-//  }
-//
-//  // Make sure the neighbor linkers connect to the expected spheres.
-//  for (size_t bucket_idx = 0; bucket_idx < locally_owned_neighbor_linker_buckets.size(); ++bucket_idx) {
-//    stk::mesh::Bucket &neighbor_linker_bucket = *locally_owned_neighbor_linker_buckets[bucket_idx];
-//    for (size_t neighbor_linker_idx = 0; neighbor_linker_idx < neighbor_linker_bucket.size(); ++neighbor_linker_idx) {
-//      stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
-//      stk::mesh::Entity const *connected_spheres = bulk_data_ptr->begin_elements(neighbor_linker);
-//
-//      const int num_connected_spheres = bulk_data_ptr->num_elements(neighbor_linker);
-//      ASSERT_EQ(num_connected_spheres, 2) << "Neighbor linkers should connect exactly 2 spheres.";
-//
-//      const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(connected_spheres[0]);
-//      const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(connected_spheres[1]);
-//
-//      ASSERT_EQ(static_cast<int>(sphere_i_gid), process_rank + 1)
-//          << "Neighbor linkers should connect neighboring spheres.";
-//      ASSERT_EQ(static_cast<int>(sphere_j_gid), process_rank) << "Neighbor linkers should connect neighboring
-//      spheres.";
-//    }
-//  }
-//}
-//
-// TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSpheres) {
-//  /* Outline
-//    For this test, we generate a N spheres of equal radii isotropically distributed within a box and split across all
-//    processes, compute their AABBs, and generate their neighbor linkers. We then communicate all spheres to process 0
-//    and use a direct N^2 neighbor search to create a matrix of booleans (adjacency list) stating if particle (i,j) are
-//    neighbors or not. We use this matrix to validate the neighbor linkers. The sum of the matrix should be equal to
-//    the number of neighbor linkers and, for each linker connecting particles i and j, the matrix should be true at
-//    (i,j) and (j,i).
-//
-//    We let the volume fraction of spheres be large enough to guarantee that some neighbor linkers span multiple
-//    processes.
-//  */
-//  perform_registration();
-//
-//  // Free variables
-//  const int num_spheres_per_process = 10;
-//  const double volume_fraction = 0.4;
-//  const double sphere_radius = 1.0;
-//  const double sphere_volume = (4.0 / 3.0) * M_PI * std::pow(sphere_radius, 3);
-//  const double length_of_domain = std::cbrt(num_spheres_per_process * sphere_volume / volume_fraction);
-//
-//  // Create an instance of GenerateNeighborLinkers and ComputeAABB based on committed mesh that meets both of their
-//  // default requirements.
-//  Teuchos::ParameterList compute_aabb_fixed_params = Teuchos::ParameterList();  // Use default parameters.
-//  Teuchos::ParameterList neighbor_linkers_fixed_params = Teuchos::ParameterList().set<Teuchos::Array<std::string>>(
-//      "specialized_neighbor_linkers_part_names", Teuchos::tuple<std::string>(std::string("SPHERE_SPHERES")));
-//
-//  auto [compute_aabb_ptr, generate_neighbor_linkers_ptr, bulk_data_ptr] =
-//      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<mundy::shape::ComputeAABB,
-//                                                                                        GenerateNeighborLinkers>(
-//          std::array{compute_aabb_fixed_params, neighbor_linkers_fixed_params});
-//  auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-//
-//  // GenerateNeighborLinkers::get_mesh_requirements(neighbor_linkers_fixed_params)->print_reqs();
-//  // mundy::shape::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params)->print_reqs();
-//
-//  // Fetch the required fields.
-//  stk::mesh::Field<double> *node_coord_field_ptr =
-//      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
-//  stk::mesh::Field<double> *element_radius_field_ptr =
-//      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
-//  stk::mesh::Field<double> *element_aabb_field_ptr =
-//      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_AABB");
-//  ASSERT_TRUE(node_coord_field_ptr != nullptr) << "node_coord_field_ptr cannot be null";
-//  ASSERT_TRUE(element_aabb_field_ptr != nullptr) << "element_aabb_field_ptr cannot be null";
-//  ASSERT_TRUE(element_radius_field_ptr != nullptr) << "element_radius_field_ptr cannot be null";
-//
-//  // Fetch the requested parts.
-//  stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
-//  stk::mesh::Part *neighbor_linkers_part_ptr = meta_data_ptr->get_part("NEIGHBOR_LINKERS");
-//  ASSERT_TRUE(spheres_part_ptr != nullptr) << "spheres_part_ptr cannot be null";
-//  ASSERT_TRUE(neighbor_linkers_part_ptr != nullptr) << "neighbor_linkers_part_ptr cannot be null";
-//
-//  // Add n spheres to the mesh per process.
-//  bulk_data_ptr->modification_begin();
-//  std::vector<size_t> requests(meta_data_ptr->entity_rank_count(), 0);
-//  requests[stk::topology::NODE_RANK] = num_spheres_per_process;
-//  requests[stk::topology::ELEMENT_RANK] = num_spheres_per_process;
-//
-//  std::vector<stk::mesh::Entity> requested_entities;
-//  bulk_data_ptr->generate_new_entities(requests, requested_entities);
-//
-//  // Associate each segments with the sphere part and connect them to their nodes.
-//  std::vector<stk::mesh::Part *> add_spheres_part = {spheres_part_ptr};
-//  for (int i = 0; i < num_spheres_per_process; i++) {
-//    stk::mesh::Entity sphere_i = requested_entities[num_spheres_per_process + i];
-//    stk::mesh::Entity node_i = requested_entities[i];
-//    bulk_data_ptr->change_entity_parts(sphere_i, add_spheres_part);
-//    bulk_data_ptr->declare_relation(sphere_i, node_i, 0);
-//  }
-//  bulk_data_ptr->modification_end();
-//
-//  // Set the sphere's position and radius
-//  openrand::Philox rng(bulk_data_ptr->parallel_rank(), 0);
-//  for (int i = 0; i < num_spheres_per_process; i++) {
-//    stk::mesh::Entity node_i = requested_entities[i];
-//    stk::mesh::Entity sphere_i = requested_entities[num_spheres_per_process + i];
-//    double *node_coords = stk::mesh::field_data(*node_coord_field_ptr, node_i);
-//    double *element_radius = stk::mesh::field_data(*element_radius_field_ptr, sphere_i);
-//
-//    node_coords[0] = length_of_domain * rng.rand<double>();
-//    node_coords[1] = length_of_domain * rng.rand<double>();
-//    node_coords[2] = length_of_domain * rng.rand<double>();
-//
-//    element_radius[0] = sphere_radius;
-//  }
-//
-//  // Compute the AABB for all the spheres. By default this writes to the ELEMENT_AABB field.
-//  compute_aabb_ptr->execute(*spheres_part_ptr);
-//
-//  // Compute the neighbor linkers. Between neighboring spheres.
-//  generate_neighbor_linkers_ptr->execute(*spheres_part_ptr, *spheres_part_ptr);
-//
-//  // Get the total number of spheres and linkers. Must be called parallel synchronously.
-//  std::vector<size_t> entity_counts;
-//  stk::mesh::comm_mesh_counts(*bulk_data_ptr, entity_counts);
-//  const size_t total_num_spheres = entity_counts[stk::topology::ELEMENT_RANK];
-//  const size_t total_num_linkers = entity_counts[stk::topology::CONSTRAINT_RANK];
-//  ASSERT_EQ(total_num_spheres, bulk_data_ptr->parallel_size() * num_spheres_per_process);
-//
-//  // Ghost all particles and linkers to process rank 0.
-//  bulk_data_ptr->modification_begin();
-//  std::vector<stk::mesh::EntityProc> send_all_entities;
-//  if (bulk_data_ptr->parallel_rank() != 0) {
-//    for (int i = 0; i < num_spheres_per_process; i++) {
-//      stk::mesh::Entity sphere_i = requested_entities[num_spheres_per_process + i];
-//      send_all_entities.push_back(std::make_pair(sphere_i, 0));
-//    }
-//
-//    const stk::mesh::BucketVector &neighbor_linker_buckets = bulk_data_ptr->get_buckets(
-//        stk::topology::CONSTRAINT_RANK,
-//        stk::mesh::Selector(*neighbor_linkers_part_ptr) & stk::mesh::Selector(meta_data_ptr->locally_owned_part()));
-//    for (size_t bucket_idx = 0; bucket_idx < neighbor_linker_buckets.size(); ++bucket_idx) {
-//      stk::mesh::Bucket &neighbor_linker_bucket = *neighbor_linker_buckets[bucket_idx];
-//      for (size_t neighbor_linker_idx = 0; neighbor_linker_idx < neighbor_linker_bucket.size(); ++neighbor_linker_idx)
-//      {
-//        stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
-//        send_all_entities.push_back(std::make_pair(neighbor_linker, 0));
-//      }
-//    }
-//  }
-//  stk::mesh::Ghosting &ghosting = bulk_data_ptr->create_ghosting("GHOST_ALL_TO_RANK0");
-//  bulk_data_ptr->change_ghosting(ghosting, send_all_entities);
-//  bulk_data_ptr->modification_end();
-//
-//  // Communicate the AABB field to process 0. Must be called parallel synchronously.
-//  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()),
-//                                    std::vector<const stk::mesh::FieldBase *>{element_aabb_field_ptr});
-//
-//  // Perform the direct N^2 neighbor comparison on process 0.
-//  if (bulk_data_ptr->parallel_rank() == 0) {
-//    // Construct the adjacency matrix for each sphere in the sphere part.
-//    // NOTE: GIDs are 1-indexed and the aabb field needs communicated to the ghosted spheres.
-//    std::vector<std::vector<int>> adjacency_matrix(total_num_spheres, std::vector<int>(total_num_spheres, false));
-//    const stk::mesh::BucketVector &sphere_buckets =
-//        bulk_data_ptr->get_buckets(stk::topology::ELEMENT_RANK, *spheres_part_ptr);
-//    size_t local_num_spheres = 0;
-//    for (size_t bucket_idx_i = 0; bucket_idx_i < sphere_buckets.size(); ++bucket_idx_i) {
-//      stk::mesh::Bucket &sphere_bucket_i = *sphere_buckets[bucket_idx_i];
-//      for (size_t sphere_idx_i = 0; sphere_idx_i < sphere_bucket_i.size(); ++sphere_idx_i) {
-//        stk::mesh::Entity const &sphere_i = sphere_bucket_i[sphere_idx_i];
-//        const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(sphere_i);
-//        ASSERT_LT(sphere_i_gid - 1, total_num_spheres);
-//        local_num_spheres++;
-//
-//        double *aabb_i = stk::mesh::field_data(*element_aabb_field_ptr, sphere_i);
-//        for (size_t bucket_idx_j = 0; bucket_idx_j < sphere_buckets.size(); ++bucket_idx_j) {
-//          stk::mesh::Bucket &sphere_bucket_j = *sphere_buckets[bucket_idx_j];
-//          for (size_t sphere_idx_j = 0; sphere_idx_j < sphere_bucket_j.size(); ++sphere_idx_j) {
-//            stk::mesh::Entity const &sphere_j = sphere_bucket_j[sphere_idx_j];
-//            const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(sphere_j);
-//            ASSERT_LT(sphere_j_gid - 1, total_num_spheres);
-//
-//            double *aabb_j = stk::mesh::field_data(*element_aabb_field_ptr, sphere_j);
-//
-//            // Check if the AABBs overlap so long as the spheres are not the same.
-//            adjacency_matrix[sphere_i_gid - 1][sphere_j_gid - 1] =
-//                aabbs_overlap(aabb_i, aabb_j) * (sphere_i_gid != sphere_j_gid);
-//          }
-//        }
-//      }
-//    }
-//    EXPECT_EQ(local_num_spheres, total_num_spheres) << "The ghosting should have brought all spheres to process 0.";
-//
-//    // Half the sum of the adjacency matrix should be equal to the number of neighbor linkers.
-//    size_t expected_num_neighbor_linkers = std::accumulate(adjacency_matrix.begin(), adjacency_matrix.end(), 0,
-//                                                           [](int acc, const std::vector<int> &vec) {
-//                                                             return acc + std::accumulate(vec.begin(), vec.end(), 0);
-//                                                           }) /
-//                                           2;
-//    EXPECT_EQ(expected_num_neighbor_linkers, total_num_linkers);
-//
-//    // Loop over each neighbor linker and check if its connected spheres are neighbors.
-//    size_t local_num_linkers = 0;
-//    const stk::mesh::BucketVector &neighbor_linker_buckets =
-//        bulk_data_ptr->get_buckets(stk::topology::CONSTRAINT_RANK, *neighbor_linkers_part_ptr);
-//    for (size_t bucket_idx = 0; bucket_idx < neighbor_linker_buckets.size(); ++bucket_idx) {
-//      stk::mesh::Bucket &neighbor_linker_bucket = *neighbor_linker_buckets[bucket_idx];
-//      for (size_t neighbor_linker_idx = 0; neighbor_linker_idx < neighbor_linker_bucket.size(); ++neighbor_linker_idx)
-//      {
-//        stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
-//        stk::mesh::Entity const *connected_spheres = bulk_data_ptr->begin_elements(neighbor_linker);
-//
-//        const int num_connected_spheres = bulk_data_ptr->num_elements(neighbor_linker);
-//        ASSERT_EQ(num_connected_spheres, 2) << "Neighbor linkers should connect exactly 2 spheres.";
-//
-//        const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(connected_spheres[0]);
-//        const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(connected_spheres[1]);
-//        ASSERT_TRUE(adjacency_matrix[sphere_i_gid - 1][sphere_j_gid - 1])
-//            << "Neighbor linkers should connect neighboring spheres.";
-//
-//        ASSERT_TRUE(sphere_i_gid != sphere_j_gid) << "Neighbor linkers should not connect a sphere to itself.";
-//
-//        local_num_linkers++;
-//      }
-//    }
-//    EXPECT_EQ(expected_num_neighbor_linkers, local_num_linkers);
-//  }
-//
-//  // Wait for all processes to finish before continuing.
-//  stk::parallel_machine_barrier(bulk_data_ptr->parallel());
-//}
-// #endif  // HAVE_MUNDYLINKER_MUNDYSHAPE
+//! \name IOBroker functional tests
+//@{
+
+// Test if we can create a new instance of the IOBroker
+TEST(IOBroker, CreateNewInstanceIOAABB) {
+  perform_registration();
+
+  // Attempt to get the mesh requirements using the default parameters of ComputeAABB
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->set_spatial_dimension(3);
+  mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+
+  // Set up a ComputeAABB function
+  Teuchos::ParameterList fixed_params_sphere;
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+
+  // Add the TRANSIENT node coordinate field to the requirements so that we have it later
+  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+
+  // Get fixed parameters for the IOBroker
+  Teuchos::ParameterList fixed_params_iobroker;
+
+  // Set the IO Parts
+  std::vector<std::string> default_io_part_names{"SPHERES", "SPHEROCYLINDERS"};
+  Teuchos::Array<std::string> default_array_of_io_part_names(default_io_part_names);
+  fixed_params_iobroker.set("enabled_io_parts", default_array_of_io_part_names, "PARTS with enabled IO.");
+
+  // Set the IO fields
+  // Do this for just element rank (for now, each rank is done separately)
+  std::vector<std::string> default_io_field_element_names{"ELEMENT_AABB"};
+  Teuchos::Array<std::string> default_array_of_io_field_element_names(default_io_field_element_names);
+  fixed_params_iobroker.set("enabled_io_fields_element_rank", default_array_of_io_field_element_names,
+                            "ELEMENT_RANK fields with enabled IO.");
+
+  // Set custom values for the ComputeAABB methods to work with IO
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
+
+  // Validate and set
+  fixed_params_iobroker.validateParametersAndSetDefaults(IOBroker::get_valid_fixed_params());
+
+  // Create a new instance of ComputeAABB using the default parameters and the mesh generated from the mesh
+  // requirements.
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
+  auto io_broker_ptr = IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
+
+  // Print the mesh roles
+  io_broker_ptr->print_field_roles();
+
+  // Print out the mesh
+  stk::log_with_time_and_memory(MPI_COMM_WORLD, "Mesh dump");
+  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
+
+  // Check that the ELEMENT_AABB is set to transient, TRANSIENT_NODE_COORDINATES is set to transient, and that
+  // NODE_COORDINATES is set to MESH
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
+  EXPECT_TRUE(check_field_role(meta_data_ptr, "ELEMENT_AABB", stk::topology::ELEMENT_RANK, Ioss::Field::TRANSIENT));
+  EXPECT_TRUE(
+      check_field_role(meta_data_ptr, "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, Ioss::Field::TRANSIENT));
+  EXPECT_TRUE(check_field_role(meta_data_ptr, "NODE_COORDINATES", stk::topology::NODE_RANK, Ioss::Field::MESH));
+}
+
+// Test if we can write some initial configuration with the iobroker based on ComputeAABB
+TEST(IOBroker, WriteInitialConfigAABB) {
+  perform_registration();
+
+  std::string restart_filename = "exodus_mesh_initial.exo";
+
+  // Attempt to get the mesh requirements using the default parameters of ComputeAABB
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->set_spatial_dimension(3);
+  mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+
+  // Set up a ComputeAABB function
+  Teuchos::ParameterList fixed_params_sphere;
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+
+  // Add the TRANSIENT node coordinate field to the requirements so that we have it later
+  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+
+  // Directly set an unsigned field on everybody
+  // mesh_reqs_ptr->add_field_reqs(
+  //     std::make_shared<mundy::meta::FieldRequirements<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1,
+  //     1));
+
+  // Get fixed parameters for the IOBroker
+  Teuchos::ParameterList fixed_params_iobroker;
+
+  // Set the IO Parts
+  std::vector<std::string> default_io_part_names{"SPHERES", "SPHEROCYLINDERS"};
+  Teuchos::Array<std::string> default_array_of_io_part_names(default_io_part_names);
+  fixed_params_iobroker.set("enabled_io_parts", default_array_of_io_part_names, "PARTS with enabled IO.");
+
+  // Set the IO fields
+  // ELEMENT_RANK
+  std::vector<std::string> default_io_field_element_names{"ELEMENT_AABB"};
+  Teuchos::Array<std::string> default_array_of_io_field_element_names(default_io_field_element_names);
+  fixed_params_iobroker.set("enabled_io_fields_element_rank", default_array_of_io_field_element_names,
+                            "ELEMENT_RANK fields with enabled IO.");
+  // NODE_RANK
+  // std::vector<std::string> default_io_field_node_names{"NODE_RNG_COUNTER"};
+  // Teuchos::Array<std::string> default_array_of_io_field_node_names(default_io_field_node_names);
+  // fixed_params_iobroker.set("enabled_io_fields_node_rank", default_array_of_io_field_node_names,
+  //                           "NODE_RANK fields with enabled IO.");
+
+  // Set custom values for the ComputeAABB methods to work with IO
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
+
+  // Set the output filename and file type
+  fixed_params_iobroker.set("exodus_database_output_filename", restart_filename);
+  fixed_params_iobroker.set("parallel_io_mode", "hdf5");
+  fixed_params_iobroker.set("database_purpose", "restart");
+
+  // Validate and set
+  fixed_params_iobroker.validateParametersAndSetDefaults(IOBroker::get_valid_fixed_params());
+
+  // Create a new instance of ComputeAABB using the default parameters and the mesh generated from the mesh
+  // requirements.
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
+  auto io_broker_ptr = IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
+  auto compute_aabb_ptr = mundy::shape::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
+
+  // Hit the button on committing the metadata
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
+  meta_data_ptr->commit();
+
+  // Get the sphere part
+  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
+
+  // Create some fake data (based on UnitTestComputeAABB)
+  bulk_data_ptr->modification_begin();
+  stk::mesh::EntityId sphere_id = 1;
+  stk::mesh::Entity sphere_element =
+      bulk_data_ptr->declare_element(sphere_id, stk::mesh::ConstPartVector{sphere_part_ptr});
+  stk::mesh::Entity sphere_node = bulk_data_ptr->declare_node(sphere_id);
+  bulk_data_ptr->declare_relation(sphere_element, sphere_node, 0);
+  bulk_data_ptr->modification_end();
+
+  // Fetch the required fields to set (note that we are only going to write out some of them)
+  stk::mesh::Field<double> *node_coord_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  stk::mesh::Field<double> *radius_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
+  // stk::mesh::Field<double> *aabb_field_ptr =
+  //     meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_AABB");
+  // stk::mesh::Field<unsigned> *rng_field_ptr =
+  //     meta_data_ptr->get_field<unsigned>(stk::topology::ELEMENT_RANK, "NODE_RNG_COUNTER");
+
+  // Set the sphere's position.
+  double sphere_position[3] = {1.0, 2.0, 3.0};
+  double *node_coords = stk::mesh::field_data(*node_coord_field_ptr, sphere_node);
+  node_coords[0] = sphere_position[0];
+  node_coords[1] = sphere_position[1];
+  node_coords[2] = sphere_position[2];
+
+  // Set the sphere's radius.
+  double sphere_radius = 1.5;
+  double *radius = stk::mesh::field_data(*radius_field_ptr, sphere_element);
+  radius[0] = sphere_radius;
+
+  // Compute the AABB.
+  compute_aabb_ptr->execute(*sphere_part_ptr);
+
+  // Print out the mesh
+  stk::log_with_time_and_memory(MPI_COMM_WORLD, "Mesh dump after ComputeAABB");
+  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
+
+  // Print the entire IOBroker
+  io_broker_ptr->print_io_broker();
+
+  // Setup the output for RESTART
+  io_broker_ptr->setup_io_broker();
+
+  // Write the initial config
+  io_broker_ptr->write_io_broker(0.0);
+
+  // Close up everything
+  io_broker_ptr->finalize_io_broker();
+
+  // Verification of the database contents via direct IOSS access
+  {
+    Ioss::DatabaseIO *resultsDb = Ioss::IOFactory::create("exodus", restart_filename, Ioss::READ_MODEL, MPI_COMM_WORLD);
+    Ioss::Region results(resultsDb);
+    // Should have a single step in the database
+    EXPECT_EQ(results.get_property("state_count").get_int(), 1);
+    // Get the node block (transient coordinates)
+    Ioss::NodeBlock *nb = results.get_node_blocks()[0];
+    EXPECT_EQ(1u, nb->field_count(Ioss::Field::TRANSIENT));
+    EXPECT_TRUE(nb->field_exists("TRANSIENT_NODE_COORDINATES"));
+
+    // Try to grab the data from inside of this
+    for (size_t step = 0; step < 1; step++) {
+      results.begin_state(static_cast<int>(step + 1));
+      std::vector<double> field_data;
+      nb->get_field_data("TRANSIENT_NODE_COORDINATES", field_data);
+      EXPECT_DOUBLE_EQ(field_data[0], 1.0);
+      EXPECT_DOUBLE_EQ(field_data[1], 2.0);
+      EXPECT_DOUBLE_EQ(field_data[2], 3.0);
+    }
+
+    // Get the element_aabb information (element_block)
+    Ioss::ElementBlock *eb = results.get_element_blocks()[0];
+    EXPECT_EQ(1u, nb->field_count(Ioss::Field::TRANSIENT));
+    EXPECT_TRUE(eb->field_exists("ELEMENT_AABB"));
+
+    // Try to grab the data from inside of the elements
+    for (size_t step = 0; step < 1; step++) {
+      results.begin_state(static_cast<int>(step + 1));
+      std::vector<double> field_data;
+      eb->get_field_data("ELEMENT_AABB", field_data);
+      EXPECT_DOUBLE_EQ(field_data[0], -0.5);
+      EXPECT_DOUBLE_EQ(field_data[1], 0.5);
+      EXPECT_DOUBLE_EQ(field_data[2], 1.5);
+      EXPECT_DOUBLE_EQ(field_data[3], 2.5);
+      EXPECT_DOUBLE_EQ(field_data[4], 3.5);
+      EXPECT_DOUBLE_EQ(field_data[5], 4.5);
+    }
+  }
+}
+
+//@}
 
 }  // namespace
 

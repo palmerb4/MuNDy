@@ -24,24 +24,30 @@
 /// \brief Declaration of the IOBroker class
 
 // C++ core lib
-#include <algorithm>  // for std::transform
-#include <memory>     // for std::shared_ptr, std::unique_ptr
-#include <string>     // for std::string
-#include <vector>     // for std::vector
+#include <algorithm>      // for std::transform
+#include <memory>         // for std::shared_ptr, std::unique_ptr
+#include <string>         // for std::string
+#include <unordered_map>  // for std::unordered_map
+#include <vector>         // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
-#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>        // for stk::topology
+#include <Teuchos_ParameterList.hpp>                      // for Teuchos::ParameterList
+#include <stk_io/DatabasePurpose.hpp>                     // for stk::io::DatabasePurpose
+#include <stk_io/StkMeshIoBroker.hpp>                     // for stk::io::StkMeshIoBroker
+#include <stk_mesh/base/DumpMeshInfo.hpp>                 // for stk::mesh::impl::dump_all_mesh_info
+#include <stk_mesh/base/Entity.hpp>                       // for stk::mesh::Entity
+#include <stk_mesh/base/ForEachEntity.hpp>                // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/Part.hpp>                         // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>                     // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>                      // for stk::topology
+#include <stk_util/environment/LogWithTimeAndMemory.hpp>  // for stk::log_with_time_and_memory
 
 // Mundy libs
 #include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_mesh/StringToTopology.hpp>  // for mundy::mesh::map_string_to_rank
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
@@ -53,14 +59,8 @@ namespace mundy {
 
 namespace io {
 
-class IOBroker : public mundy::meta::MetaMethodExecutionInterface<void> {
+class IOBroker {
  public:
-  //! \name Typedefs
-  //@{
-
-  using PolymorphicBaseType = mundy::meta::MetaMethodExecutionInterface<void>;
-  //@}
-
   //! \name Constructors and destructor
   //@{
 
@@ -69,38 +69,99 @@ class IOBroker : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief Constructor
   IOBroker(mundy::mesh::BulkData *const bulk_data_ptr, [[maybe_unused]] const Teuchos::ParameterList &fixed_params)
-      : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
+      : bulk_data_ptr_(bulk_data_ptr),
+        meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()),
+        STKioBroker_(bulk_data_ptr->parallel()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "IOBroker: bulk_data_ptr cannot be a nullptr.");
+
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(IOBroker::get_valid_fixed_params());
+
+    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(0).showTypes(true));
+
+    // Set variables from the fixed_parameters
+    exodus_database_output_filename_ = valid_fixed_params.get<std::string>("exodus_database_output_filename");
+    coordinate_field_name_ = valid_fixed_params.get<std::string>("coordinate_field_name");
+    transient_coordinate_field_name_ = valid_fixed_params.get<std::string>("transient_coordinate_field_name");
+    parallel_io_mode_ = valid_fixed_params.get<std::string>("parallel_io_mode");
+    // Check the database purpose for output
+    auto database_purpose = valid_fixed_params.get<std::string>("database_purpose");
+    if (database_purpose == "results") {
+      database_purpose_ = stk::io::WRITE_RESULTS;
+    } else if (database_purpose == "restart") {
+      database_purpose_ = stk::io::WRITE_RESTART;
+    } else if (database_purpose == "append") {
+      database_purpose_ = stk::io::APPEND_RESULTS;
+    } else {
+      MUNDY_THROW_ASSERT(1 == 1, std::invalid_argument, "IOBroker: incorrect database purpose: " + database_purpose);
+    }
+
+    // Set the stk::io::StkMeshIoBroker bulk data to our bulk data
+    STKioBroker_.set_bulk_data(*bulk_data_ptr_);
+    // Set up the parallel IO mode
+    STKioBroker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+
+    // Set the coordinate field (tags as a Ioss::MESH role)
+    set_coordinate_field();
+
+    // Add IO to the parts we have enabled
+    Teuchos::Array<std::string> enabled_io_parts =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_io_parts");
+    for (const std::string &io_part_name : enabled_io_parts) {
+      std::ostringstream ostream;
+      ostream << "Enabling Part IO " << io_part_name;
+      stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
+      // Grab the Part and then assign it to IO
+      stk::mesh::Part *io_part_ptr = meta_data_ptr_->get_part(io_part_name);
+      stk::io::put_io_part_attribute(*io_part_ptr);
+    }
+
+    /////////////////////////
+    // This is probably where we do restart....
+    /////////////////////////
+
+    // Set the TRANSIENT fields and keep track of them.
+    set_transient_fields(valid_fixed_params);
   }
   //@}
-
-  //! \name MetaFactory static interface implementation
-  //@{
-
-  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<mundy::meta::MeshRequirements>();
-  }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    return default_parameter_list;
-  }
+    default_parameter_list.set("exodus_database_output_filename", std::string(default_exodus_database_output_filename_),
+                               "Filename of the EXODUS database output file.");
+    default_parameter_list.set("coordinate_field_name", std::string(default_coordinate_field_name_),
+                               "Coordinates field for entire mesh.");
+    default_parameter_list.set(
+        "transient_coordinate_field_name", std::string(default_transient_coordinate_field_name_),
+        "TRANSIENT coordinates field for entire mesh. Will be used for IO and mirrors the set COORDINATES field");
+    default_parameter_list.set("parallel_io_mode", std::string(default_parallel_io_mode_), "Parallel IO mode [hdf5].");
+    default_parameter_list.set("database_purpose", std::string(default_database_purpose_),
+                               "Database Purpose [results,restart,append]");
 
-  /// \brief Get the valid mutable parameters for this class and their defaults.
-  static Teuchos::ParameterList get_valid_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    // TODO(palmerb4): What are our mutable params?
+    // Create an empty vector of part names (forces it to exist)
+    std::vector<std::string> default_io_part_names{""};
+    Teuchos::Array<std::string> default_array_of_io_part_names(default_io_part_names);
+    default_parameter_list.set("enabled_io_parts", default_array_of_io_part_names,
+                               "The names of all parts to enable IO.");
+
+    // Create an empty vector of field names (forces it to exist)
+    std::vector<std::string> default_io_field_names{""};
+    Teuchos::Array<std::string> default_array_of_io_field_names(default_io_field_names);
+    // Do all 5 given ranks
+    default_parameter_list.set("enabled_io_fields_node_rank", default_array_of_io_field_names,
+                               "The names of all fields to enable IO for NODE_RANK.");
+    default_parameter_list.set("enabled_io_fields_edge_rank", default_array_of_io_field_names,
+                               "The names of all fields to enable IO for EDGE_RANK.");
+    default_parameter_list.set("enabled_io_fields_face_rank", default_array_of_io_field_names,
+                               "The names of all fields to enable IO for FACE_RANK.");
+    default_parameter_list.set("enabled_io_fields_element_rank", default_array_of_io_field_names,
+                               "The names of all fields to enable IO for ELEMENT_RANK.");
+    default_parameter_list.set("enabled_io_fields_constraint_rank", default_array_of_io_field_names,
+                               "The names of all fields to enable IO for CONSTRAINT_RANK.");
 
     return default_parameter_list;
   }
@@ -109,27 +170,186 @@ class IOBroker : public mundy::meta::MetaMethodExecutionInterface<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                  const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<IOBroker> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                       const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<IOBroker>(bulk_data_ptr, fixed_params);
   }
-  //@}
 
   //! \name Setters
   //@{
 
-  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &mutable_params) override;
+  /// \brief Set the coordinate field for IO (and the mesh)
+  void set_coordinate_field() {
+    meta_data_ptr_->set_coordinate_field_name(coordinate_field_name_);
+    // Get the coordinate field base so we can set the IOSS role (NOTE: Chris, I do not like this, as we might change
+    // variable types later)
+    // auto coordinate_field_ptr = meta_data_ptr_->get_field(stk::topology::NODE_RANK, coordinate_field_name_);
+    coordinate_field_ptr_ = meta_data_ptr_->get_field(stk::topology::NODE_RANK, coordinate_field_name_);
+    // Set the role of the field
+    stk::io::set_field_role(*coordinate_field_ptr_, Ioss::Field::MESH);
+  }
+
+  //@}
+
+  //! \name Printers
+  //@{
+
+  /// \brief Print mesh roles to std::cout
+  void print_field_roles() {
+    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "IO roles for fields");
+    const stk::mesh::FieldVector &fields = STKioBroker_.meta_data().get_fields();
+    for (size_t i = 0; i < fields.size(); ++i) {
+      const Ioss::Field::RoleType *role = stk::io::get_field_role(*fields[i]);
+      std::ostringstream ostream;
+      ostream << "...field: " << *fields[i];
+      if (role) {
+        ostream << ", role: " << Ioss::Field::role_string(*role);
+      }
+      stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
+    }
+  }
+
+  /// \brief Print entire IOBroker
+  void print_io_broker() {
+    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "MuNDy IOBroker");
+    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "EXODUS database: " + exodus_database_output_filename_);
+    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "Parallel IO mode: " + parallel_io_mode_);
+    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "Coordinates field: " + coordinate_field_name_);
+    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(),
+                                  "...(Transient) Coordinates field: " + transient_coordinate_field_name_);
+    {
+      std::ostringstream ostream;
+      ostream << "Database purpose: ";
+      if (database_purpose_ == stk::io::WRITE_RESULTS) {
+        ostream << "WRITE_RESULTS";
+      } else if (database_purpose_ == stk::io::WRITE_RESTART) {
+        ostream << "WRITE_RESTART";
+      } else if (database_purpose_ == stk::io::APPEND_RESULTS) {
+        ostream << "APPEND_RESULTS";
+      }
+      stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
+    }
+
+    // Print the IO fields (all fields too)
+    print_field_roles();
+  }
+
   //@}
 
   //! \name Actions
   //@{
 
   /// \brief Run the method's core calculation.
-  void execute() override;
+  void execute();
+
+  /// \brief Set the IO fields to TRANSIENT and keep track of Fields
+  ///
+  /// \param fixed_params [in] Parameters for IO fields.
+  ///
+  /// Set the field roles (Ioss::TRANSIENT). Do by looking at each rank individually. The two IF statements are there
+  /// as sentinels to guard against the defaults that we have to set the parameter lists.
+  void set_transient_fields(const Teuchos::ParameterList &valid_fixed_params) {
+    // Loop over the rank names we have in the mesh
+    for (const std::string &rank_name : meta_data_ptr_->entity_rank_names()) {
+      // Grab the correct version of the enabled_io_fields param
+      std::string enabled_rank_name_str = "enabled_io_fields_" + rank_name + "_rank";
+      std::string rank_name_str = rank_name + "_RANK";
+      std::transform(enabled_rank_name_str.begin(), enabled_rank_name_str.end(), enabled_rank_name_str.begin(),
+                     [](unsigned char c) {
+                       return std::tolower(c);
+                     });
+
+      Teuchos::Array<std::string> enabled_io_fields =
+          valid_fixed_params.get<Teuchos::Array<std::string>>(enabled_rank_name_str);
+      if (!enabled_io_fields.empty()) {
+        for (const std::string &io_field_name : enabled_io_fields) {
+          if (io_field_name != "") {
+            std::ostringstream ostream;
+            ostream << "Enabling Field IO (" << rank_name_str << ") " << io_field_name;
+            stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
+
+            // Get the field and tag as TRANSIENT
+            stk::mesh::FieldBase *io_field_ptr =
+                meta_data_ptr_->get_field(mundy::mesh::map_string_to_rank(rank_name_str), io_field_name);
+            MUNDY_THROW_ASSERT(io_field_ptr != nullptr, std::invalid_argument,
+                               "IOBroker: could not find field " + io_field_name + " with rank " + rank_name_str);
+            stk::io::set_field_role(*io_field_ptr, Ioss::Field::TRANSIENT);
+
+            enabled_io_fields_.push_back(io_field_ptr);
+          }
+        }
+      }
+    }
+
+    // Set the transient_coordinate_field directly
+    transient_coordinate_field_ptr_ =
+        meta_data_ptr_->get_field(stk::topology::NODE_RANK, transient_coordinate_field_name_);
+    MUNDY_THROW_ASSERT(transient_coordinate_field_ptr_ != nullptr, std::invalid_argument,
+                       "IOBroker: transient coordinate field alias set incorrectly.");
+    stk::io::set_field_role(*transient_coordinate_field_ptr_, Ioss::Field::TRANSIENT);
+    enabled_io_fields_.push_back(transient_coordinate_field_ptr_);
+  }
+
+  /// \brief Setup the IO Broker output (open files if not a single write)
+  void setup_io_broker() {
+    // Create the output mesh
+    io_index_ = STKioBroker_.create_output_mesh(exodus_database_output_filename_, database_purpose_);
+
+    // Add the enabled fields to the output mesh
+    for (size_t i = 0; i < enabled_io_fields_.size(); ++i) {
+      STKioBroker_.add_field(io_index_, *enabled_io_fields_[i]);
+    }
+
+    // No matter what, the setup function writes an output mesh
+    STKioBroker_.write_output_mesh(io_index_);
+  }
+
+  /// \brief Write to disk
+  void write_io_broker(double time) {
+    // Before we write, synchronize the TRANSIENT coordinate field
+    stk::mesh::Selector locally_owned = meta_data_ptr_->locally_owned_part();
+    // Alias the coordinate fields
+    auto &coordinate_field = *coordinate_field_ptr_;
+    auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
+    // This is how we loop over entities and assign them to each other
+    stk::mesh::for_each_entity_run(
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned,
+        [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                         const stk::mesh::Entity &entity) {
+          double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
+          double *transient_coordinates =
+              reinterpret_cast<double *>(stk::mesh::field_data(transient_coordinate_field, entity));
+          transient_coordinates[0] = coordinates[0];
+          transient_coordinates[1] = coordinates[1];
+          transient_coordinates[2] = coordinates[2];
+        });
+
+    // Save the IO
+    STKioBroker_.begin_output_step(io_index_, time);
+    STKioBroker_.write_defined_output_fields(io_index_);
+    STKioBroker_.end_output_step(io_index_);
+  }
+
+  /// \brief Finalize ioBroker (close)
+  void finalize_io_broker() {
+    // Flush the output to disk to make sure we're good
+    STKioBroker_.flush_output();
+    // Now close it
+    STKioBroker_.close_output_mesh(io_index_);
+  }
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_exodus_database_output_filename_ = "results.exo";
+  static constexpr std::string_view default_coordinate_field_name_ = "coordinates";
+  static constexpr std::string_view default_transient_coordinate_field_name_ = "transient_coordinates";
+  static constexpr std::string_view default_parallel_io_mode_ = "hdf5";
+  static constexpr std::string_view default_database_purpose_ = "results";
+  //@}
+
   //! \name Internal members
   //@{
 
@@ -138,6 +358,36 @@ class IOBroker : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief The MetaData object this class acts upon.
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
+
+  /// \brief The stk::io::StkMeshIoBroker for output operations
+  stk::io::StkMeshIoBroker STKioBroker_;
+
+  /// \brief EXODUS output database filename
+  std::string exodus_database_output_filename_ = "";
+
+  /// \brief COORDINATES field name
+  std::string coordinate_field_name_ = "";
+
+  /// \brief TRANSIENT_COORDINATES field name
+  std::string transient_coordinate_field_name_ = "";
+
+  /// \brief Parallel IO mode
+  std::string parallel_io_mode_ = "";
+
+  /// \brief Purpose of database
+  stk::io::DatabasePurpose database_purpose_ = stk::io::PURPOSE_UNKNOWN;
+
+  /// \brief Enabled IO FIELDS
+  std::vector<stk::mesh::FieldBase *> enabled_io_fields_;
+
+  /// \brief coordinate field
+  stk::mesh::FieldBase *coordinate_field_ptr_ = nullptr;
+
+  /// \brief transient coordinate field
+  stk::mesh::FieldBase *transient_coordinate_field_ptr_ = nullptr;
+
+  /// \brief Index of output file
+  size_t io_index_ = 0;
   //@}
 };  // IoBroker
 

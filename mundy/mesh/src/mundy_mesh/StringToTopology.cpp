@@ -21,6 +21,7 @@
 /// \brief Definition of the StringToTopology class
 
 // C++ core libs
+#include <regex>   // for std::regex
 #include <string>  // for std::string
 
 // Trilinos libs

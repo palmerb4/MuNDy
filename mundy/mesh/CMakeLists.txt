@@ -19,11 +19,13 @@ SET(HEADERS
   include/mundy_mesh/MetaData.hpp
   include/mundy_mesh/MeshBuilder.hpp
   include/mundy_mesh/BulkData.hpp
+  include/mundy_mesh/StringToTopology.hpp
   )
 
 SET(SOURCES 
   src/mundy_mesh/MeshBuilder.cpp
   src/mundy_mesh/MetaData.cpp
+  src/mundy_mesh/StringToTopology.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
