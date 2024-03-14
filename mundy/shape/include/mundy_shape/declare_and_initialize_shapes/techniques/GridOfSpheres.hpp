@@ -63,15 +63,19 @@ Our goal is to declare mundy::shape::Shapes and initialize them in 3D space.
 
 We have a bunch of functionality built into this initialization routine that can be turned on and off depending on your
 needs. To start, by grid of spheres, we mean that if neighboring spheres were connected, they would be
-homeomorphic to a structured grid of size $n_x \times n_y \times n_z$.
+homeomorphic to a structured grid of size $n_x \times n_y \times n_z$. We initialize the spheres with a uniform random
+radius between 'sphere_radius_lower_bound' and 'sphere_radius_upper_bound'. Of course, if you want to initialize the
+spheres with a fixed radius, you can set 'sphere_radius_lower_bound' and 'sphere_radius_upper_bound' to the same value.
+By default, IDs are assigned to the spheres in a simple row-major ordering. If you want to use the Z-order Morton curve
+to decide how to assign IDs to the spheres in a way that is more cache-friendly, you can set 'zmorton' to true.
+Otherwise, if you want to shuffle the IDs of the spheres in a cache-unfriendly way, you can set 'shuffle' to true. This
+final option is useful for testing purposes; please do not use it in production code.
 
-We initialize the spheres with a uniform random radius between 'sphere_radius_lower_bound' and
-'sphere_radius_upper_bound'. Of course, if you want to initialize the spheres with a fixed radius, you can set
-'sphere_radius_lower_bound' and 'sphere_radius_upper_bound' to the same value. By default, IDs are assigned to
-the spheres in a simple row-major ordering. If you want to use the Z-order Morton curve to decide how to assign IDs
-to the spheres in a way that is more cache-friendly, you can set 'zmorton' to true. Otherwise, if you want to shuffle
-the IDs of the spheres in a cache-unfriendly way, you can set 'shuffle' to true. This final option is useful for testing
-purposes; please do not use it in production code.
+If this method is run using multiple ranks, the grid will be distributed accross the ranks with i as the partitioned
+index. That is, each rank will recieve n_x / num_ranks columns in the x direction with rank 0 recieving the first chunk
+of columns, rank 1 the next, and so on. Because n_x / num_ranks may not be an integer, we will add one column to the
+first n_x % num_ranks ranks. Importantly, sphere ID generation (linear sorting, znorm sorting, and shuffling) are
+independent of the number of ranks.
 
 Parameters:
   - 'sphere_part_names' (Array of strings): [Optional, Defaults to 'SPHERES'] The names of the parts to which we will
@@ -229,6 +233,13 @@ class GridOfSpheres : public mundy::meta::MetaMethodExecutionInterface<void> {
   static constexpr std::string_view default_sphere_part_name_ = "SPHERES";
   //@}
 
+  //! \name Internal methods
+  //@{
+
+  /// \brief Build the map from linearized index to sequential z-morton ordered index.
+  void build_zmorton_map();
+  //@}
+
   //! \name Internal members
   //@{
 
@@ -249,6 +260,9 @@ class GridOfSpheres : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief The user-defined map function for the sphere coordinates.
   std::shared_ptr<GridCoordinateMapping> coordinate_map_ptr_;
+
+  /// \brief The map from linearized index to sequential z-morton ordered index.
+  std::vector<size_t> zmorton_map_;
 
   /// \brief The lower bound on the sphere radius.
   double sphere_radius_lower_bound_;

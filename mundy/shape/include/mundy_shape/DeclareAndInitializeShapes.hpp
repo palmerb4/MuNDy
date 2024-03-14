@@ -101,7 +101,7 @@ class DeclareAndInitializeShapes
 //@{
 
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS("GID_OF_SPHERES", mundy::shape::declare_and_initialize_shapes::techniques::GridOfSpheres,
+MUNDY_REGISTER_METACLASS("GRID_OF_SPHERES", mundy::shape::declare_and_initialize_shapes::techniques::GridOfSpheres,
                          mundy::shape::DeclareAndInitializeShapes::OurTechniqueFactory)
 
 //@}
