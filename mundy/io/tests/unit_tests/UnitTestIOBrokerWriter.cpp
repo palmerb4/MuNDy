@@ -183,11 +183,6 @@ TEST(IOBroker, WriteInitialConfigAABB) {
   mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
       "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
 
-  // Directly set an unsigned field on everybody
-  // mesh_reqs_ptr->add_field_reqs(
-  //     std::make_shared<mundy::meta::FieldRequirements<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1,
-  //     1));
-
   // Get fixed parameters for the IOBroker
   Teuchos::ParameterList fixed_params_iobroker;
 
@@ -202,11 +197,6 @@ TEST(IOBroker, WriteInitialConfigAABB) {
   Teuchos::Array<std::string> default_array_of_io_field_element_names(default_io_field_element_names);
   fixed_params_iobroker.set("enabled_io_fields_element_rank", default_array_of_io_field_element_names,
                             "ELEMENT_RANK fields with enabled IO.");
-  // NODE_RANK
-  // std::vector<std::string> default_io_field_node_names{"NODE_RNG_COUNTER"};
-  // Teuchos::Array<std::string> default_array_of_io_field_node_names(default_io_field_node_names);
-  // fixed_params_iobroker.set("enabled_io_fields_node_rank", default_array_of_io_field_node_names,
-  //                           "NODE_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
   fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
@@ -247,10 +237,6 @@ TEST(IOBroker, WriteInitialConfigAABB) {
       meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
-  // stk::mesh::Field<double> *aabb_field_ptr =
-  //     meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_AABB");
-  // stk::mesh::Field<unsigned> *rng_field_ptr =
-  //     meta_data_ptr->get_field<unsigned>(stk::topology::ELEMENT_RANK, "NODE_RNG_COUNTER");
 
   // Set the sphere's position.
   double sphere_position[3] = {1.0, 2.0, 3.0};
@@ -320,6 +306,186 @@ TEST(IOBroker, WriteInitialConfigAABB) {
       EXPECT_DOUBLE_EQ(field_data[3], 2.5);
       EXPECT_DOUBLE_EQ(field_data[4], 3.5);
       EXPECT_DOUBLE_EQ(field_data[5], 4.5);
+    }
+  }
+}
+
+// Test if we can write a results file with ComputeAABB (include integers)
+TEST(IOBroker, WriteResultsAABBInteger) {
+  perform_registration();
+
+  std::string results_filename = "exodus_mesh_results.exo";
+
+  // Attempt to get the mesh requirements using the default parameters of ComputeAABB
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->set_spatial_dimension(3);
+  mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+
+  // Set up a ComputeAABB function
+  Teuchos::ParameterList fixed_params_sphere;
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+
+  // Add the TRANSIENT node coordinate field to the requirements so that we have it later
+  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+
+  // Directly set an unsigned field on everybody
+  mesh_reqs_ptr->add_field_reqs(
+      std::make_shared<mundy::meta::FieldRequirements<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
+
+  // Get fixed parameters for the IOBroker
+  Teuchos::ParameterList fixed_params_iobroker;
+
+  // Set the IO Parts
+  std::vector<std::string> default_io_part_names{"SPHERES", "SPHEROCYLINDERS"};
+  Teuchos::Array<std::string> default_array_of_io_part_names(default_io_part_names);
+  fixed_params_iobroker.set("enabled_io_parts", default_array_of_io_part_names, "PARTS with enabled IO.");
+
+  // Set the IO fields
+  // ELEMENT_RANK
+  std::vector<std::string> default_io_field_element_names{"ELEMENT_AABB"};
+  Teuchos::Array<std::string> default_array_of_io_field_element_names(default_io_field_element_names);
+  fixed_params_iobroker.set("enabled_io_fields_element_rank", default_array_of_io_field_element_names,
+                            "ELEMENT_RANK fields with enabled IO.");
+  // NODE_RANK
+  std::vector<std::string> default_io_field_node_names{"NODE_RNG_COUNTER"};
+  Teuchos::Array<std::string> default_array_of_io_field_node_names(default_io_field_node_names);
+  fixed_params_iobroker.set("enabled_io_fields_node_rank", default_array_of_io_field_node_names,
+                            "NODE_RANK fields with enabled IO.");
+
+  // Set custom values for the ComputeAABB methods to work with IO
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
+
+  // Set the output filename and file type
+  fixed_params_iobroker.set("exodus_database_output_filename", results_filename);
+  fixed_params_iobroker.set("parallel_io_mode", "hdf5");
+  fixed_params_iobroker.set("database_purpose", "restart");
+
+  // Validate and set
+  fixed_params_iobroker.validateParametersAndSetDefaults(IOBroker::get_valid_fixed_params());
+
+  // Create a new instance of ComputeAABB using the default parameters and the mesh generated from the mesh
+  // requirements.
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
+  auto io_broker_ptr = IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
+  auto compute_aabb_ptr = mundy::shape::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
+
+  // Hit the button on committing the metadata
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
+  meta_data_ptr->commit();
+
+  // Get the sphere part
+  stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
+  MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
+  stk::mesh::Part &spheres_part = *spheres_part_ptr;
+
+  // Create multiple spheres (based on SphereBrownianMotionWithContact)
+  int num_spheres_local = 10 / bulk_data_ptr->parallel_size();
+  const int remaining_spheres = 10 - num_spheres_local * bulk_data_ptr->parallel_size();
+  if (bulk_data_ptr->parallel_rank() < remaining_spheres) {
+    num_spheres_local += 1;
+  }
+  int num_nodes_local = num_spheres_local;
+
+  bulk_data_ptr->modification_begin();
+  std::vector<size_t> requests(meta_data_ptr->entity_rank_count(), 0);
+  requests[stk::topology::NODE_RANK] = num_nodes_local;
+  requests[stk::topology::ELEMENT_RANK] = num_spheres_local;
+
+  std::vector<stk::mesh::Entity> requested_entities;
+  bulk_data_ptr->generate_new_entities(requests, requested_entities);
+
+  // Associate each segments with the sphere part and connect them to their nodes.
+  std::vector<stk::mesh::Part *> add_spheres_part = {spheres_part_ptr};
+  for (int i = 0; i < num_spheres_local; i++) {
+    stk::mesh::Entity sphere_i = requested_entities[num_nodes_local + i];
+    stk::mesh::Entity node_i = requested_entities[i];
+    bulk_data_ptr->change_entity_parts(sphere_i, add_spheres_part);
+    bulk_data_ptr->declare_relation(sphere_i, node_i, 0);
+  }
+  bulk_data_ptr->modification_end();
+
+  // Fetch the required fields to set (note that we are only going to write out some of them)
+  stk::mesh::Field<double> *node_coordinates_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  stk::mesh::Field<unsigned> *node_rng_counter_field_ptr =
+      meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
+  stk::mesh::Field<double> *element_radius_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
+
+  // Initialize the spheres position
+  for (int i = 0; i < num_spheres_local; i++) {
+    stk::mesh::Entity node_i = requested_entities[i];
+    stk::mesh::Entity sphere_i = requested_entities[num_nodes_local + i];
+
+    // Get the GID for this sphere
+    const stk::mesh::EntityId sphere_node_gid = bulk_data_ptr->identifier(node_i);
+
+    // Set the coordinates, should be a 5x2 grid
+    double *node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node_i);
+    node_coords[0] = (i % 5);
+    node_coords[1] = (i / 5);
+    node_coords[2] = 0.0;
+
+    // Set the RNG to the GID of the object
+    unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr, node_i);
+    node_rng_counter[0] = static_cast<unsigned>(sphere_node_gid);
+
+    // Set the radius
+    stk::mesh::field_data(*element_radius_field_ptr, sphere_i)[0] = 1.2;
+  }
+
+  // Setup the output for RESULTS
+  io_broker_ptr->setup_io_broker();
+
+  // Loop over some fictitious times
+  for (int i = 0; i < 2; i++) {
+    // Now loop over the spheres and do something with the coordinates and write out
+    for (int i = 0; i < num_spheres_local; i++) {
+      stk::mesh::Entity node_i = requested_entities[i];
+
+      // Set the coordinates, should be a 5x2 grid, just march somewhere else
+      double *node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node_i);
+      node_coords[0] = node_coords[0] + 1.0;
+      node_coords[1] = node_coords[1] + 1.0;
+      node_coords[2] = 0.0;
+    }
+
+    // ComputeAABB with the adjusted coordinates
+    compute_aabb_ptr->execute(*spheres_part_ptr);
+
+    // Write the initial config
+    io_broker_ptr->write_io_broker(i);
+  }
+
+  // Close up everything
+  io_broker_ptr->finalize_io_broker();
+
+  // Verification of the database contents via direct IOSS access
+  {
+    Ioss::DatabaseIO *resultsDb = Ioss::IOFactory::create("exodus", results_filename, Ioss::READ_MODEL, MPI_COMM_WORLD);
+    Ioss::Region results(resultsDb);
+    // Should have a single step in the database
+    EXPECT_EQ(results.get_property("state_count").get_int(), 2);
+    // Get the node block (transient coordinates)
+    Ioss::NodeBlock *nb = results.get_node_blocks()[0];
+    EXPECT_EQ(2u, nb->field_count(Ioss::Field::TRANSIENT));
+    EXPECT_TRUE(nb->field_exists("TRANSIENT_NODE_COORDINATES"));
+
+    // Try to grab the data from inside of this
+    for (size_t step = 0; step < 1; step++) {
+      results.begin_state(static_cast<int>(step + 1));
+      std::vector<double> field_data;
+      nb->get_field_data("TRANSIENT_NODE_COORDINATES", field_data);
+
+      // Loop over local spheres, the comparison is complicated because of how it's packed on disk
+      for (int i = 0; i < num_spheres_local; i++) {
+        EXPECT_DOUBLE_EQ(field_data[3 * i], (i % 5) + static_cast<double>(step) + 1.0);
+        EXPECT_DOUBLE_EQ(field_data[3 * i + 1], (i / 5) + static_cast<double>(step) + 1.0);
+        EXPECT_DOUBLE_EQ(field_data[3 * i + 2], 0.0);
+      }
     }
   }
 }
