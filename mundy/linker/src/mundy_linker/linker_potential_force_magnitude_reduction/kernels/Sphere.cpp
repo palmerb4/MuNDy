@@ -143,12 +143,15 @@ void Sphere::execute(const stk::mesh::Entity &sphere) {
     const bool is_reduction_linker = bulk_data_ptr_->bucket(connected_linker).member(*linkers_part_to_reduce_over_);
 
     if (is_reduction_linker) {
+      // The contact normal stored on a linker points from the left element to the right element. This is important, as it means we should multiply by -1 if we are the right element.
+      const bool are_we_the_left_sphere = (bulk_data_ptr_->begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == sphere);
+      const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
       double *contact_normal = stk::mesh::field_data(*linker_contact_normal_field_ptr_, connected_linker);
       double *potential_force_magnitude =
           stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr_, connected_linker);
-      node_force[0] -= contact_normal[0] * potential_force_magnitude[0];
-      node_force[1] -= contact_normal[1] * potential_force_magnitude[0];
-      node_force[2] -= contact_normal[2] * potential_force_magnitude[0];
+      node_force[0] -= sign * contact_normal[0] * potential_force_magnitude[0];
+      node_force[1] -= sign * contact_normal[1] * potential_force_magnitude[0];
+      node_force[2] -= sign * contact_normal[2] * potential_force_magnitude[0];
     }
   }
 }
