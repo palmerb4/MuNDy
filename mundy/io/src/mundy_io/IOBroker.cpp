@@ -58,6 +58,10 @@ void IOBroker::set_coordinate_field() {
 void IOBroker::set_transient_fields(const Teuchos::ParameterList &valid_fixed_params) {
   // Loop over the rank names we have in the mesh
   for (const std::string &rank_name : meta_data_ptr_->entity_rank_names()) {
+    // Explicitly disable constraint rank fields
+    if (rank_name == "CONSTRAINT") {
+      continue;
+    }
     // Grab the correct version of the enabled_io_fields param
     std::string enabled_rank_name_str = "enabled_io_fields_" + rank_name + "_rank";
     std::string rank_name_str = rank_name + "_RANK";

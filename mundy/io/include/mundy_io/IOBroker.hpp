@@ -174,8 +174,6 @@ class IOBroker {
                                "The names of all fields to enable IO for FACE_RANK.");
     default_parameter_list.set("enabled_io_fields_element_rank", default_array_of_io_field_names,
                                "The names of all fields to enable IO for ELEMENT_RANK.");
-    default_parameter_list.set("enabled_io_fields_constraint_rank", default_array_of_io_field_names,
-                               "The names of all fields to enable IO for CONSTRAINT_RANK.");
 
     return default_parameter_list;
   }
