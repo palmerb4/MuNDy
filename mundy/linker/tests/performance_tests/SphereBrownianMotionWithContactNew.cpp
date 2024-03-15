@@ -35,7 +35,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 */
 
 // Define a helper macro for turning on and off debug
-// #define BROWNIAN_DEBUG 1
+#define BROWNIAN_DEBUG 1
 
 // External libs
 #include <openrand/philox.h>
@@ -64,6 +64,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_linker/PerformRegistration.hpp>                     // for mundy::linker::perform_registration
 #include <mundy_mesh/BulkData.hpp>                                  // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                  // for mundy::mesh::MetaData
+#include <mundy_mesh/utils/FillFieldWithValue.hpp>                  // for mundy::mesh::utils::fill_field_with_value
 #include <mundy_meta/MetaFactory.hpp>                               // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                                // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaKernelDispatcher.hpp>                      // for mundy::meta::MetaKernelDispatcher
@@ -1449,6 +1450,7 @@ int main(int argc, char **argv) {
   Kokkos::Timer timer;
   for (size_t i = 0; i < num_time_steps; i++) {
     // As a first pass, we will:
+    //  - Zero out the node forces and velocities
     //  - Compute the AABB for the spheres
     //  - Delete SphereSphereLinkers that are too far apart
     //  - Generate SphereSphereLinkers neighbor linkers between nearby spheres
@@ -1458,6 +1460,8 @@ int main(int argc, char **argv) {
     //  - Compute the velocity induced by the node forces using local drag
     //  - Compute the brownian velocity for the nodes
     //  - Update the node positions using a first order Euler method
+    mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
 
     compute_aabb_ptr->execute(spheres_part);
     dump_mesh_info("After compute_aabb_ptr->execute(spheres_part)");

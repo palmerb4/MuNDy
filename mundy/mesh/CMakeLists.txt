@@ -21,6 +21,7 @@ SET(HEADERS
   include/mundy_mesh/MetaData.hpp
   include/mundy_mesh/StringToTopology.hpp
   include/mundy_mesh/utils/DestroyFlaggedEntities.hpp
+  include/mundy_mesh/utils/FillFieldWithValue.hpp
   )
 
 SET(SOURCES 
