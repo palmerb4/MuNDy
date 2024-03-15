@@ -76,11 +76,11 @@ class IOBroker {
     MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "IOBroker: bulk_data_ptr cannot be a nullptr.");
 
+    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "MuNDy IO");
+
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(IOBroker::get_valid_fixed_params());
-
-    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(0).showTypes(true));
 
     // Set variables from the fixed_parameters
     exodus_database_output_filename_ = valid_fixed_params.get<std::string>("exodus_database_output_filename");
@@ -99,12 +99,14 @@ class IOBroker {
       MUNDY_THROW_ASSERT(1 == 1, std::invalid_argument, "IOBroker: incorrect database purpose: " + database_purpose);
     }
 
-    // Set the stk::io::StkMeshIoBroker bulk data to our bulk data
-    STKioBroker_.set_bulk_data(*bulk_data_ptr_);
-    // Set up the parallel IO mode
-    STKioBroker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    // Check if we are reading a RESTART or not, otherwise make sure that the input filename is set to an empty string
+    if (valid_fixed_params.get<std::string>("enable_restart") == "true") {
+      enable_restart_ = true;
+      exodus_database_input_filename_ = valid_fixed_params.get<std::string>("exodus_database_input_filename");
+    }
 
-    // Set the coordinate field (tags as a Ioss::MESH role)
+    // Set the coordinate field (tags as a Ioss::MESH role if not a restart, otherwise, need to defer setting the
+    // internal pointer until later)
     set_coordinate_field();
 
     // Add IO to the parts we have enabled
@@ -119,12 +121,21 @@ class IOBroker {
       stk::io::put_io_part_attribute(*io_part_ptr);
     }
 
-    /////////////////////////
-    // This is probably where we do restart....
-    /////////////////////////
+    // Set the stk::io::StkMeshIoBroker bulk data to our bulk data
+    STKioBroker_.set_bulk_data(*bulk_data_ptr_);
+    // Set up the parallel IO mode
+    STKioBroker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
 
     // Set the TRANSIENT fields and keep track of them.
     set_transient_fields(valid_fixed_params);
+
+    // If we are restarting the mesh, read in the values here. This requires that the mesh be set up, but not committed.
+    // Additionally, it requires that we have stored pointers to the fields that are going to be used for IO so that we
+    // can add them as input fields.
+    if (enable_restart_) {
+      restart_mesh();
+      synchronize_node_coordinates_from_transient();
+    }
   }
   //@}
 
@@ -133,6 +144,8 @@ class IOBroker {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("exodus_database_output_filename", std::string(default_exodus_database_output_filename_),
                                "Filename of the EXODUS database output file.");
+    default_parameter_list.set("exodus_database_input_filename", std::string(default_exodus_database_input_filename_),
+                               "Filename of the EXODUS database input file.");
     default_parameter_list.set("coordinate_field_name", std::string(default_coordinate_field_name_),
                                "Coordinates field for entire mesh.");
     default_parameter_list.set(
@@ -141,6 +154,7 @@ class IOBroker {
     default_parameter_list.set("parallel_io_mode", std::string(default_parallel_io_mode_), "Parallel IO mode [hdf5].");
     default_parameter_list.set("database_purpose", std::string(default_database_purpose_),
                                "Database Purpose [results,restart,append]");
+    default_parameter_list.set("enable_restart", std::string(default_enable_restart_), "Enable RESTART.");
 
     // Create an empty vector of part names (forces it to exist)
     std::vector<std::string> default_io_part_names{""};
@@ -179,14 +193,24 @@ class IOBroker {
   //@{
 
   /// \brief Set the coordinate field for IO (and the mesh)
-  void set_coordinate_field() {
-    meta_data_ptr_->set_coordinate_field_name(coordinate_field_name_);
-    // Get the coordinate field base so we can set the IOSS role (NOTE: Chris, I do not like this, as we might change
-    // variable types later)
-    // auto coordinate_field_ptr = meta_data_ptr_->get_field(stk::topology::NODE_RANK, coordinate_field_name_);
-    coordinate_field_ptr_ = meta_data_ptr_->get_field(stk::topology::NODE_RANK, coordinate_field_name_);
-    // Set the role of the field
-    stk::io::set_field_role(*coordinate_field_ptr_, Ioss::Field::MESH);
+  void set_coordinate_field();
+
+  /// \brief Set the IO fields to TRANSIENT and keep track of Fields
+  ///
+  /// \param fixed_params [in] Parameters for IO fields.
+  ///
+  /// Set the field roles (Ioss::TRANSIENT). Do by looking at each rank individually. The two IF statements are there
+  /// as sentinels to guard against the defaults that we have to set the parameter lists.
+  void set_transient_fields(const Teuchos::ParameterList &valid_fixed_params);
+
+  //@}
+
+  //! \name Getters
+  //@{
+
+  /// \brief Get if RESTART is enabled
+  bool get_enable_restart() {
+    return enable_restart_;
   }
 
   //@}
@@ -195,148 +219,31 @@ class IOBroker {
   //@{
 
   /// \brief Print mesh roles to std::cout
-  void print_field_roles() {
-    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "IO roles for fields");
-    const stk::mesh::FieldVector &fields = STKioBroker_.meta_data().get_fields();
-    for (size_t i = 0; i < fields.size(); ++i) {
-      const Ioss::Field::RoleType *role = stk::io::get_field_role(*fields[i]);
-      std::ostringstream ostream;
-      ostream << "...field: " << *fields[i];
-      if (role) {
-        ostream << ", role: " << Ioss::Field::role_string(*role);
-      }
-      stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
-    }
-  }
+  void print_field_roles();
 
   /// \brief Print entire IOBroker
-  void print_io_broker() {
-    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "MuNDy IOBroker");
-    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "EXODUS database: " + exodus_database_output_filename_);
-    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "Parallel IO mode: " + parallel_io_mode_);
-    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "Coordinates field: " + coordinate_field_name_);
-    stk::log_with_time_and_memory(bulk_data_ptr_->parallel(),
-                                  "...(Transient) Coordinates field: " + transient_coordinate_field_name_);
-    {
-      std::ostringstream ostream;
-      ostream << "Database purpose: ";
-      if (database_purpose_ == stk::io::WRITE_RESULTS) {
-        ostream << "WRITE_RESULTS";
-      } else if (database_purpose_ == stk::io::WRITE_RESTART) {
-        ostream << "WRITE_RESTART";
-      } else if (database_purpose_ == stk::io::APPEND_RESULTS) {
-        ostream << "APPEND_RESULTS";
-      }
-      stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
-    }
-
-    // Print the IO fields (all fields too)
-    print_field_roles();
-  }
+  void print_io_broker();
 
   //@}
 
   //! \name Actions
   //@{
 
-  /// \brief Run the method's core calculation.
-  void execute();
-
-  /// \brief Set the IO fields to TRANSIENT and keep track of Fields
-  ///
-  /// \param fixed_params [in] Parameters for IO fields.
-  ///
-  /// Set the field roles (Ioss::TRANSIENT). Do by looking at each rank individually. The two IF statements are there
-  /// as sentinels to guard against the defaults that we have to set the parameter lists.
-  void set_transient_fields(const Teuchos::ParameterList &valid_fixed_params) {
-    // Loop over the rank names we have in the mesh
-    for (const std::string &rank_name : meta_data_ptr_->entity_rank_names()) {
-      // Grab the correct version of the enabled_io_fields param
-      std::string enabled_rank_name_str = "enabled_io_fields_" + rank_name + "_rank";
-      std::string rank_name_str = rank_name + "_RANK";
-      std::transform(enabled_rank_name_str.begin(), enabled_rank_name_str.end(), enabled_rank_name_str.begin(),
-                     [](unsigned char c) {
-                       return std::tolower(c);
-                     });
-
-      Teuchos::Array<std::string> enabled_io_fields =
-          valid_fixed_params.get<Teuchos::Array<std::string>>(enabled_rank_name_str);
-      if (!enabled_io_fields.empty()) {
-        for (const std::string &io_field_name : enabled_io_fields) {
-          if (io_field_name != "") {
-            std::ostringstream ostream;
-            ostream << "Enabling Field IO (" << rank_name_str << ") " << io_field_name;
-            stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
-
-            // Get the field and tag as TRANSIENT
-            stk::mesh::FieldBase *io_field_ptr =
-                meta_data_ptr_->get_field(mundy::mesh::map_string_to_rank(rank_name_str), io_field_name);
-            MUNDY_THROW_ASSERT(io_field_ptr != nullptr, std::invalid_argument,
-                               "IOBroker: could not find field " + io_field_name + " with rank " + rank_name_str);
-            stk::io::set_field_role(*io_field_ptr, Ioss::Field::TRANSIENT);
-
-            enabled_io_fields_.push_back(io_field_ptr);
-          }
-        }
-      }
-    }
-
-    // Set the transient_coordinate_field directly
-    transient_coordinate_field_ptr_ =
-        meta_data_ptr_->get_field(stk::topology::NODE_RANK, transient_coordinate_field_name_);
-    MUNDY_THROW_ASSERT(transient_coordinate_field_ptr_ != nullptr, std::invalid_argument,
-                       "IOBroker: transient coordinate field alias set incorrectly.");
-    stk::io::set_field_role(*transient_coordinate_field_ptr_, Ioss::Field::TRANSIENT);
-    enabled_io_fields_.push_back(transient_coordinate_field_ptr_);
-  }
+  /// \brief Finalize ioBroker (close)
+  void finalize_io_broker();
 
   /// \brief Setup the IO Broker output (open files if not a single write)
-  void setup_io_broker() {
-    // Create the output mesh
-    io_index_ = STKioBroker_.create_output_mesh(exodus_database_output_filename_, database_purpose_);
+  void setup_io_broker();
 
-    // Add the enabled fields to the output mesh
-    for (size_t i = 0; i < enabled_io_fields_.size(); ++i) {
-      STKioBroker_.add_field(io_index_, *enabled_io_fields_[i]);
-    }
+  /// \brief Read the RESTART file
+  void restart_mesh();
 
-    // No matter what, the setup function writes an output mesh
-    STKioBroker_.write_output_mesh(io_index_);
-  }
+  /// \brief Synchronize node coordinates from TRANSIENT node coordinates
+  void synchronize_node_coordinates_from_transient();
 
   /// \brief Write to disk
-  void write_io_broker(double time) {
-    // Before we write, synchronize the TRANSIENT coordinate field
-    stk::mesh::Selector locally_owned = meta_data_ptr_->locally_owned_part();
-    // Alias the coordinate fields
-    auto &coordinate_field = *coordinate_field_ptr_;
-    auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
-    // This is how we loop over entities and assign them to each other
-    stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned,
-        [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                         const stk::mesh::Entity &entity) {
-          double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
-          double *transient_coordinates =
-              reinterpret_cast<double *>(stk::mesh::field_data(transient_coordinate_field, entity));
-          transient_coordinates[0] = coordinates[0];
-          transient_coordinates[1] = coordinates[1];
-          transient_coordinates[2] = coordinates[2];
-        });
+  void write_io_broker(double time);
 
-    // Save the IO
-    STKioBroker_.begin_output_step(io_index_, time);
-    STKioBroker_.write_defined_output_fields(io_index_);
-    STKioBroker_.end_output_step(io_index_);
-  }
-
-  /// \brief Finalize ioBroker (close)
-  void finalize_io_broker() {
-    // Flush the output to disk to make sure we're good
-    STKioBroker_.flush_output();
-    // Now close it
-    STKioBroker_.close_output_mesh(io_index_);
-  }
   //@}
 
  private:
@@ -344,10 +251,12 @@ class IOBroker {
   //@{
 
   static constexpr std::string_view default_exodus_database_output_filename_ = "results.exo";
+  static constexpr std::string_view default_exodus_database_input_filename_ = "restart.exo";
   static constexpr std::string_view default_coordinate_field_name_ = "coordinates";
   static constexpr std::string_view default_transient_coordinate_field_name_ = "transient_coordinates";
   static constexpr std::string_view default_parallel_io_mode_ = "hdf5";
   static constexpr std::string_view default_database_purpose_ = "results";
+  static constexpr std::string_view default_enable_restart_ = "false";
   //@}
 
   //! \name Internal members
@@ -364,6 +273,12 @@ class IOBroker {
 
   /// \brief EXODUS output database filename
   std::string exodus_database_output_filename_ = "";
+
+  /// \brief EXODUS input database filename
+  std::string exodus_database_input_filename_ = "";
+
+  /// \brief Flag controlling if we do a RESTART or not
+  bool enable_restart_ = false;
 
   /// \brief COORDINATES field name
   std::string coordinate_field_name_ = "";
