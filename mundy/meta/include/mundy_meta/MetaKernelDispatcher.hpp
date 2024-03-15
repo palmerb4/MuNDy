@@ -340,8 +340,7 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_fixed_params());
 
   // Populate our internal members.
-  enabled_kernel_names_ =
-      valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
+  enabled_kernel_names_ = valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
   num_active_kernels_ = static_cast<int>(enabled_kernel_names_.size());
   if (num_active_kernels_ > 0) {
     kernel_ptrs_.reserve(num_active_kernels_);
@@ -351,9 +350,9 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       const std::string kernel_name = enabled_kernel_names_[i];
       Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
 
-      // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels, and
-      // the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in the
-      // kernel sublists and forward them to the current kernel.
+      // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels,
+      // and the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in
+      // the kernel sublists and forward them to the current kernel.
       for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
         const std::string &param_name = valid_fixed_params.name(i);
         const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
@@ -418,6 +417,14 @@ template <typename DerivedType,
           mundy::meta::RegistrationStringValueWrapper kernel_factory_registration_string_value_wrapper>
 void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::execute(
     const stk::mesh::Selector &input_selector) {
+  const bool is_safe_to_loop_over_entities = bulk_data_ptr_->in_synchronized_state();
+  MUNDY_THROW_ASSERT(
+      is_safe_to_loop_over_entities, std::logic_error,
+      "MetaKernelDispatcher: The bulk data must NOT be in a modification cycle to execute kernels. "
+      "Kernel dispatcher loops over entities in a way that assumes bucket stability, but that need not "
+      "be the case during a modification cycle. For example, changing entity parts within a kernel "
+      "could cause the entity to change buckets. This is a potentially dangerous operation, so we forbid it.");
+
   for (int i = 0; i < num_active_kernels_; i++) {
     kernel_ptrs_[i]->setup();
   }

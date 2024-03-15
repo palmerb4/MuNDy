@@ -37,6 +37,14 @@ tribits_add_executable_and_test(
   )
 
 tribits_add_executable_and_test(
+  UnitTestDestroyNeighborLinkers
+  SOURCES
+  UnitTestDestroyNeighborLinkers.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 2
+  )
+
+tribits_add_executable_and_test(
   UnitTestComputeSignedSeparationDistanceAndContactNormal
   SOURCES
   UnitTestComputeSignedSeparationDistanceAndContactNormal.cpp

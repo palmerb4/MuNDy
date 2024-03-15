@@ -16,16 +16,18 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(HEADERS 
-  include/mundy_mesh/MetaData.hpp
-  include/mundy_mesh/MeshBuilder.hpp
   include/mundy_mesh/BulkData.hpp
+  include/mundy_mesh/MeshBuilder.hpp
+  include/mundy_mesh/MetaData.hpp
   include/mundy_mesh/StringToTopology.hpp
+  include/mundy_mesh/utils/DestroyFlaggedEntities.hpp
   )
 
 SET(SOURCES 
   src/mundy_mesh/MeshBuilder.cpp
   src/mundy_mesh/MetaData.cpp
   src/mundy_mesh/StringToTopology.cpp
+  src/mundy_mesh/utils/DestroyFlaggedEntities.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

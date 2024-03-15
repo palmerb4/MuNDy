@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPE_DECLAREANDINITIALIZESHAPES_HPP_
-#define MUNDY_SHAPE_DECLAREANDINITIALIZESHAPES_HPP_
+#ifndef MUNDY_LINKER_DESTROYNEIGHBORLINKERS_HPP_
+#define MUNDY_LINKER_DESTROYNEIGHBORLINKERS_HPP_
 
-/// \file DeclareAndInitializeShapes.hpp
-/// \brief Declaration of the DeclareAndInitializeShapes class
+/// \file DestroyNeighborLinkers.hpp
+/// \brief Declaration of the DestroyNeighborLinkers class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -31,38 +31,39 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_shape/declare_and_initialize_shapes/techniques/GridOfSpheres.hpp>  // for mundy::shape::declare_and_initialize_shapes::techniques::GridOfSpheres
-#include <mundy_mesh/BulkData.hpp>                                          // for mundy::mesh::BulkData
+#include <mundy_core/StringLiteral.hpp>  // for mundy::core::make_string_literal
+#include <mundy_linker/destroy_neighbor_linkers/techniques/DestroyDistantNeighbors.hpp>  // for mundy::linker::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors
+#include <mundy_mesh/BulkData.hpp>                                                       // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaMethodExecutionDispatcher
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodSubsetExecutionDispatcher
 
 namespace mundy {
 
-namespace shape {
+namespace linker {
 
-/// \class DeclareAndInitializeShapes
+/// \class DestroyNeighborLinkers
 /// \brief Method for generating neighbor linkers between source-target entity pairs.
-class DeclareAndInitializeShapes
-    : public mundy::meta::MetaMethodExecutionDispatcher<
-          DeclareAndInitializeShapes, void, mundy::meta::make_registration_string("DECLARE_AND_INITIALIZE_SHAPES"),
+class DestroyNeighborLinkers
+    : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
+          DestroyNeighborLinkers, void, mundy::meta::make_registration_string("DESTROY_NEIGHBOR_LINKERS"),
           mundy::meta::make_registration_string("NO_DEFAULT_TECHNIQUE")> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  DeclareAndInitializeShapes() = delete;
+  DestroyNeighborLinkers() = delete;
 
   /// \brief Constructor
-  DeclareAndInitializeShapes(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaMethodExecutionDispatcher<
-            DeclareAndInitializeShapes, void, mundy::meta::make_registration_string("DECLARE_AND_INITIALIZE_SHAPES"),
+  DestroyNeighborLinkers(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaMethodSubsetExecutionDispatcher<
+            DestroyNeighborLinkers, void, mundy::meta::make_registration_string("DESTROY_NEIGHBOR_LINKERS"),
             mundy::meta::make_registration_string("NO_DEFAULT_TECHNIQUE")>(bulk_data_ptr, fixed_params) {
   }
   //@}
 
-  //! \name MetaMethodExecutionDispatcher static interface implementation
+  //! \name MetaMethodSubsetExecutionDispatcher static interface implementation
   //@{
 
   /// \brief Get the valid fixed parameters that we will forward to the techniques.
@@ -91,9 +92,16 @@ class DeclareAndInitializeShapes
     return default_parameter_list;
   }
   //@}
-};  // DeclareAndInitializeShapes
 
-}  // namespace shape
+ private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
+  //@}
+};  // DestroyNeighborLinkers
+
+}  // namespace linker
 
 }  // namespace mundy
 
@@ -101,9 +109,10 @@ class DeclareAndInitializeShapes
 //@{
 
 /// @brief Register our default techniques
-MUNDY_REGISTER_METACLASS("GRID_OF_SPHERES", mundy::shape::declare_and_initialize_shapes::techniques::GridOfSpheres,
-                         mundy::shape::DeclareAndInitializeShapes::OurTechniqueFactory)
+MUNDY_REGISTER_METACLASS("DESTROY_DISTANT_NEIGHBORS",
+                         mundy::linker::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors,
+                         mundy::linker::DestroyNeighborLinkers::OurTechniqueFactory)
 
 //@}
 
-#endif  // MUNDY_SHAPE_DECLAREANDINITIALIZESHAPES_HPP_
+#endif  // MUNDY_LINKER_DESTROYNEIGHBORLINKERS_HPP_

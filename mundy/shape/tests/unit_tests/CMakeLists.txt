@@ -41,3 +41,10 @@ tribits_add_executable_and_test(
       UnitTestComputeOBB.cpp
       ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
     )
+
+tribits_add_executable_and_test(
+  UnitTestDeclareAndInitializeShapes
+  SOURCES
+  UnitTestDeclareAndInitializeShapes.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  )

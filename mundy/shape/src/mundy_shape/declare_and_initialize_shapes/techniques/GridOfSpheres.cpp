@@ -21,9 +21,10 @@
 /// \brief Definition of DeclareAndInitializeShapes's GridOfSpheres technique.
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <iostream>  // for std::cout, std::endl
+#include <memory>    // for std::shared_ptr, std::unique_ptr
+#include <string>    // for std::string
+#include <vector>    // for std::vector
 
 // External libs
 #include <openrand/philox.h>
@@ -72,23 +73,40 @@ size_t shuffle(size_t input, size_t max_size) {
 // \name Helper functions for Morton code
 //{
 
-uint32_t part1by2(uint32_t n) {
-  n &= 0x000003ff;                   // Keep only the first 10 bits
-  n = (n ^ (n << 16)) & 0xff0000ff;  // Move bits, spreading them apart
-  n = (n ^ (n << 8)) & 0x0300f00f;   // Move bits further apart
-  n = (n ^ (n << 4)) & 0x030c30c3;   // Move bits even further apart
-  n = (n ^ (n << 2)) & 0x09249249;   // Final spread of bits
-  return n;
+// From https://www.forceflow.be/2013/10/07/morton-encodingdecoding-through-bit-interleaving-implementations/
+// Method to separate bits from a given integer 3 positions apart
+inline uint64_t splitBy3(uint32_t a) {
+  uint64_t x = a & 0x1fffff;              // we only look at the first 21 bits
+  x = (x | x << 32) & 0x1f00000000ffff;   // shift left 32 bits, OR with self, and
+                                          // 00011111000000000000000000000000000000001111111111111111
+  x = (x | x << 16) & 0x1f0000ff0000ff;   // shift left 32 bits, OR with self, and
+                                          // 00011111000000000000000011111111000000000000000011111111
+  x = (x | x << 8) & 0x100f00f00f00f00f;  // shift left 32 bits, OR with self, and
+                                          // 0001000000001111000000001111000000001111000000001111000000000000
+  x = (x | x << 4) & 0x10c30c30c30c30c3;  // shift left 32 bits, OR with self, and
+                                          // 0001000011000011000011000011000011000011000011000011000100000000
+  x = (x | x << 2) & 0x1249249249249249;
+  return x;
 }
 
-uint64_t interleave(uint32_t i, uint32_t j, uint32_t k) {
-  return static_cast<uint64_t>(part1by2(i)) | (static_cast<uint64_t>(part1by2(j)) << 1) |
-         (static_cast<uint64_t>(part1by2(k)) << 2);
+inline uint64_t interleave_magic(uint32_t x, uint32_t y, uint32_t z) {
+  uint64_t answer = 0;
+  answer |= splitBy3(x) | splitBy3(y) << 1 | splitBy3(z) << 2;
+  return answer;
+}
+
+inline uint64_t interleave_for(unsigned int x, unsigned int y, unsigned int z) {
+  uint64_t answer = 0;
+  for (uint64_t i = 0; i < (sizeof(uint64_t) * CHAR_BIT) / 3; ++i) {
+    answer |= ((x & ((uint64_t)1 << i)) << 2 * i) | ((y & ((uint64_t)1 << i)) << (2 * i + 1)) |
+              ((z & ((uint64_t)1 << i)) << (2 * i + 2));
+  }
+  return answer;
 }
 
 /// \brief Get the Morton code for the given i, j, k.
-uint64_t get_morton_code(uint32_t i, uint32_t j, uint32_t k) {
-  return interleave(i, j, k);
+inline uint64_t get_morton_code(uint32_t i, uint32_t j, uint32_t k) {
+  return interleave_for(i, j, k);
 }
 //}
 
@@ -155,6 +173,10 @@ void GridOfSpheres::set_mutable_params(const Teuchos::ParameterList &mutable_par
   sphere_radius_upper_bound_ = valid_mutable_params.get<double>("sphere_radius_upper_bound");
   zmorton_ = valid_mutable_params.get<bool>("zmorton");
   shuffle_ = valid_mutable_params.get<bool>("shuffle");
+
+  if (zmorton_) {
+    build_zmorton_map();
+  }
 }
 //}
 
@@ -162,19 +184,16 @@ void GridOfSpheres::set_mutable_params(const Teuchos::ParameterList &mutable_par
 //{
 
 stk::mesh::EntityId GridOfSpheres::node_id(size_t i, size_t j, size_t k) const {
-  // Note, the current morton code requires that i, j, and k are unsigned int or uint32_t.
-  // This limits us to ints between 0 and 4,294,967,295.
-  const size_t morton_code =
-      get_morton_code(static_cast<uint32_t>(i), static_cast<uint32_t>(j), static_cast<uint32_t>(k));
   const size_t linearized_id =
       i * num_spheres_y_ * num_spheres_z_ + j * num_spheres_z_ + k;  // i slowest, j next, k fastest
-  const size_t unshuffled_id = zmorton_ ? morton_code : linearized_id;
-  return shuffle_ ? shuffle(unshuffled_id, num_spheres_x_ * num_spheres_y_ * num_spheres_z_) : unshuffled_id;
+  const size_t unshuffled_id = zmorton_ ? zmorton_map_[linearized_id] : linearized_id;
+  return shuffle_ ? shuffle(unshuffled_id, num_spheres_x_ * num_spheres_y_ * num_spheres_z_) + sphere_node_id_start_
+                  : unshuffled_id + sphere_node_id_start_;
 }
 
 stk::mesh::EntityId GridOfSpheres::element_id(size_t i, size_t j, size_t k) const {
-  // The entity id of the spheres is the same as that of their connected nodes.
-  return node_id(i, j, k);
+  // The entity id of the spheres is the same as that of their connected nodes minus their node ID shift.
+  return node_id(i, j, k) - sphere_node_id_start_ + sphere_element_id_start_;
 }
 
 stk::mesh::Entity GridOfSpheres::node(size_t i, size_t j, size_t k) const {
@@ -189,9 +208,63 @@ stk::mesh::Entity GridOfSpheres::element(size_t i, size_t j, size_t k) const {
 // \name Actions
 //{
 
-void GridOfSpheres::execute() {
-  openrand::Philox rng(1, 0);
+void GridOfSpheres::build_zmorton_map() {
+  // The ZMorton codes for an arbitrary 3D grid are not, in general, sequentially ordered.
+  // We need to loop over our entire grid and build a map from the linear index defined by
+  // linear_index = i * num_spheres_y_ * num_spheres_z_ + j * num_spheres_z_ + k;  // i slowest, j next, k fastest
+  // to the sequential ZMorton code. We can then use this map to create the spheres in the correct order.
+  //
+  // This map is just a vector of size num_spheres_x_ * num_spheres_y_ * num_spheres_z_ where the index is the linear
+  // index and the value is the sequential ZMorton code.
+  //
+  // To create this map, we first create a map from linear_index to ZMorton code. This code is not sequential
+  // but it contains the correct sorting property. We then create a sequentially ordered vector using iota and sort it
+  // using the sort of the ZMorton code. This vector acts as a map from linear index to the index of the ZMordon codes
+  // in sorted order, allowing us to replace the ZMorton codes in the ZMorton map with their sequential versions.
+
+  // Create the map from linearized linear_index to ZMorton code.
+  // This map is, unfortunitely, of the same size as the number of GLOBAL spheres, a potentially massive number.
+  // TODO(palmerb4): Find a way to generate the Zmorton sequential sequence without needing to store the entire map.
+  zmorton_map_.resize(num_spheres_x_ * num_spheres_y_ * num_spheres_z_);
   for (size_t i = 0; i < num_spheres_x_; ++i) {
+    for (size_t j = 0; j < num_spheres_y_; ++j) {
+      for (size_t k = 0; k < num_spheres_z_; ++k) {
+        const size_t linear_index =
+            i * num_spheres_y_ * num_spheres_z_ + j * num_spheres_z_ + k;  // i slowest, j next, k fastest
+        const size_t morton_code = get_morton_code(static_cast<uint32_t>(i), static_cast<uint32_t>(j),
+                                                   static_cast<uint32_t>(k));  // Note, the current morton code requires
+                                                                               // that i, j, and k are unsigned int or
+                                                                               // uint32_t. This limits us to ints
+                                                                               // between 0 and 4,294,967,295.
+        zmorton_map_[linear_index] = morton_code;
+      }
+    }
+  }
+
+  // Create the sequentially ordered map using iota and sort it using the sort of the ZMorton code.
+  std::vector<size_t> sequential_map(num_spheres_x_ * num_spheres_y_ * num_spheres_z_);
+  std::iota(sequential_map.begin(), sequential_map.end(), 0);
+
+  std::sort(sequential_map.begin(), sequential_map.end(), [this](size_t a, size_t b) {
+    return zmorton_map_[a] < zmorton_map_[b];
+  });
+
+  // Replace the ZMorton codes in the ZMorton map with their sequential versions.
+  for (size_t i = 0; i < num_spheres_x_ * num_spheres_y_ * num_spheres_z_; ++i) {
+    zmorton_map_[sequential_map[i]] = i;
+  }
+}
+
+void GridOfSpheres::execute() {
+  // Create the spheres and their connected nodes, distributing the work across the ranks.
+  const size_t rank = bulk_data_ptr_->parallel_rank();
+  const size_t columns_per_rank = num_spheres_x_ / bulk_data_ptr_->parallel_size();
+  const size_t remainder = num_spheres_x_ % bulk_data_ptr_->parallel_size();
+  const size_t start_column = rank * columns_per_rank + std::min(rank, remainder);
+  const size_t end_column = start_column + columns_per_rank + (rank < remainder ? 1 : 0);
+  bulk_data_ptr_->modification_begin();
+  openrand::Philox rng(1, 0);
+  for (size_t i = start_column; i < end_column; ++i) {
     for (size_t j = 0; j < num_spheres_y_; ++j) {
       for (size_t k = 0; k < num_spheres_z_; ++k) {
         // Create the sphere.
@@ -218,6 +291,7 @@ void GridOfSpheres::execute() {
       }
     }
   }
+  bulk_data_ptr_->modification_end();
 }
 //}
 
