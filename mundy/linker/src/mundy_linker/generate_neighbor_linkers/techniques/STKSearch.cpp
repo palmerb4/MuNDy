@@ -192,7 +192,6 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     }
   }
 
-  std::cout << "Creating ghosting (this might not be necessary)" << std::endl;
   stk::mesh::Ghosting &ghosting = bulk_data_ptr_->create_ghosting("STKSearchGhosting");
   bulk_data_ptr_->change_ghosting(ghosting, send_entities);
   bulk_data_ptr_->modification_end();

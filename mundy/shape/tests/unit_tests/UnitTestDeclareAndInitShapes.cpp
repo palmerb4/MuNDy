@@ -31,8 +31,7 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <stk_io/StkMeshIoBroker.hpp>
-#include <stk_io/WriteMesh.hpp>
+#include <stk_io/StkMeshIoBroker.hpp>     // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
 #include <stk_mesh/base/Types.hpp>         // for stk::mesh::ConstPartVector
 #include <stk_topology/topology.hpp>       // for stk::topology
@@ -44,7 +43,7 @@
 #include <mundy_mesh/MetaData.hpp>                     // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>            // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>        // for mundy::meta::FieldRequirementsBase
-#include <mundy_shape/DeclareAndInitializeShapes.hpp>  // for mundy::shape::DeclareAndInitializeShapes
+#include <mundy_shape/DeclareAndInitShapes.hpp>  // for mundy::shape::DeclareAndInitShapes
 #include <mundy_shape/PerformRegistration.hpp>         // for mundy::shape::perform_registration
 #include <mundy_shape/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp>  // for mundy::shape::declare_and_initialize_shapes::techniques::GridCoordinateMapping
 
@@ -57,26 +56,26 @@ namespace shape {
 
 namespace {
 
-//! \name DeclareAndInitializeShapes functionality unit tests
+//! \name DeclareAndInitShapes functionality unit tests
 //@{
 
-TEST(DeclareAndInitializeShapes, GridOfSpheresVisualInspection) {
+TEST(DeclareAndInitShapes, GridOfSpheresVisualInspection) {
   perform_registration();
 
-  /* Check that DeclareAndInitializeShapes works correctly for spheres.
+  /* Check that DeclareAndInitShapes works correctly for spheres.
   For a sphere at any arbitrary position, the OBB should be a cube with side length equal to the diameter of the sphere
   and center at the sphere's position.
   */
 
-  // Create an instance of DeclareAndInitializeShapes based on committed mesh that meets the requirements for
-  // DeclareAndInitializeShapes.
-  std::cout << "Creating DeclareAndInitializeShapes instance and mesh." << std::endl;
+  // Create an instance of DeclareAndInitShapes based on committed mesh that meets the requirements for
+  // DeclareAndInitShapes.
+  std::cout << "Creating DeclareAndInitShapes instance and mesh." << std::endl;
 
   Teuchos::ParameterList declare_and_init_shapes_fixed_params;
   declare_and_init_shapes_fixed_params.set("enabled_technique_name", "GRID_OF_SPHERES");
 
   auto [declare_and_init_shapes_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<DeclareAndInitializeShapes>(
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<DeclareAndInitShapes>(
           {declare_and_init_shapes_fixed_params});
   ASSERT_TRUE(declare_and_init_shapes_ptr != nullptr);
   ASSERT_TRUE(bulk_data_ptr != nullptr);
@@ -84,7 +83,7 @@ TEST(DeclareAndInitializeShapes, GridOfSpheresVisualInspection) {
   ASSERT_TRUE(meta_data_ptr != nullptr);
   meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
 
-  std::cout << "Successfully created DeclareAndInitializeShapes instance and mesh." << std::endl;
+  std::cout << "Successfully created DeclareAndInitShapes instance and mesh." << std::endl;
 
   // Fetch the sphere part.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
@@ -165,7 +164,7 @@ TEST(DeclareAndInitializeShapes, GridOfSpheresVisualInspection) {
       .set<size_t>("num_spheres_z", 1)
       .set("zmorton", true)
       .set("shuffle", false)
-      .set<std::shared_ptr<CoordinateMappingType>>("coordinate_map", levis_function_mapping_ptr);
+      .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", levis_function_mapping_ptr);
   set_mutable_params_execute_and_dump_mesh_to_file("test_grid_of_spheres_40x50_r0.1_zmorton_levis_function.exo",
                                                    declare_and_init_shapes_mutable_params);
 }

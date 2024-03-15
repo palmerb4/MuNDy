@@ -43,8 +43,8 @@ tribits_add_executable_and_test(
     )
 
 tribits_add_executable_and_test(
-  UnitTestDeclareAndInitializeShapes
+  UnitTestDeclareAndInitShapes
   SOURCES
-  UnitTestDeclareAndInitializeShapes.cpp
+  UnitTestDeclareAndInitShapes.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   )

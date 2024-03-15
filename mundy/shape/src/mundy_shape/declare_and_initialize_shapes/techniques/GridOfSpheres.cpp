@@ -18,7 +18,7 @@
 // @HEADER
 
 /// \file GridOfSpheres.cpp
-/// \brief Definition of DeclareAndInitializeShapes's GridOfSpheres technique.
+/// \brief Definition of DeclareAndInitShapes's GridOfSpheres technique.
 
 // C++ core libs
 #include <iostream>  // for std::cout, std::endl
@@ -168,7 +168,7 @@ void GridOfSpheres::set_mutable_params(const Teuchos::ParameterList &mutable_par
   num_spheres_x_ = valid_mutable_params.get<size_t>("num_spheres_x");
   num_spheres_y_ = valid_mutable_params.get<size_t>("num_spheres_y");
   num_spheres_z_ = valid_mutable_params.get<size_t>("num_spheres_z");
-  coordinate_map_ptr_ = valid_mutable_params.get<std::shared_ptr<GridCoordinateMapping>>("coordinate_map");
+  coordinate_map_ptr_ = valid_mutable_params.get<std::shared_ptr<GridCoordinateMapping>>("coordinate_mapping");
   sphere_radius_lower_bound_ = valid_mutable_params.get<double>("sphere_radius_lower_bound");
   sphere_radius_upper_bound_ = valid_mutable_params.get<double>("sphere_radius_upper_bound");
   zmorton_ = valid_mutable_params.get<bool>("zmorton");

@@ -169,7 +169,6 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
     element_aabb[5] = 1.0;
   }
 
-  stk::mesh::communicate_field_data(*bulk_data_ptr, {element_aabb_field_ptr});
   destroy_neighbor_linkers_ptr->execute(*neighbor_linkers_part_ptr);
   {
     std::vector<size_t> entity_counts;

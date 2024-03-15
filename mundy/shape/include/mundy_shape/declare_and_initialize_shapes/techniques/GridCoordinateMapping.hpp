@@ -58,44 +58,70 @@ class IdentityMap : public GridCoordinateMapping {
   }
 };  // class IdentityMap
 
-/// \brief Normalized grid coordinate mapping.
-/// \details Given a grid index $(i,j,k)$, we map it to the coordinate $(x,y,z)$\in[0,1]\times[0,1]\times[0,1]$ using
-/// the formula $$x = \frac{i}{N_x}, \quad y = \frac{j}{N_y}, \quad z = \frac{k}{N_z}$$
-class NormalizedGridCoordinateMapping : public GridCoordinateMapping {
+/// \brief Scaled grid coordinate mapping.
+/// \details Given a grid index $(i,j,k)$, we map it to the coordinate
+/// $(x,y,z)$\in[min_x,max_x]\times[min_x,max_x]\times[min_z,max_z]$ using the formula $$x = \frac{i}{N_x} (max_x -
+/// min_x) + min_x, \quad y = \frac{j}{N_y} (max_y - min_y) + min_y, \quad z = \frac{k}{N_z} (max_z - min_z) + min_z$$
+class ScaledGridCoordinateMapping : public GridCoordinateMapping {
  public:
   /// Constructor
-  NormalizedGridCoordinateMapping(const size_t num_grid_points_x, const size_t num_grid_points_y,
-                                  const size_t num_grid_points_z)
+  ScaledGridCoordinateMapping(const size_t num_grid_points_x, const size_t num_grid_points_y,
+                              const size_t num_grid_points_z, const double min_x = 0, const double max_x = 1,
+                              const double min_y = 0, const double max_y = 1, const double min_z = 0,
+                              const double max_z = 1)
       : num_grid_points_x_(num_grid_points_x),
         num_grid_points_y_(num_grid_points_y),
-        num_grid_points_z_(num_grid_points_z) {
+        num_grid_points_z_(num_grid_points_z),
+        min_x_(min_x),
+        max_x_(max_x),
+        min_y_(min_y),
+        max_y_(max_y),
+        min_z_(min_z),
+        max_z_(max_z) {
   }
 
   /// \brief Get the grid coordinate corresponding to a given grid index.
   /// \param grid_index The grid index.
   /// \return The grid coordinate.
   std::array<double, 3> get_grid_coordinate(const std::array<size_t, 3> &grid_index) const override {
-    return {static_cast<double>(grid_index[0]) / static_cast<double>(num_grid_points_x_),
-            static_cast<double>(grid_index[1]) / static_cast<double>(num_grid_points_y_),
-            static_cast<double>(grid_index[2]) / static_cast<double>(num_grid_points_z_)};
+    return {static_cast<double>(grid_index[0]) / static_cast<double>(num_grid_points_x_) * (max_x_ - min_x_) + min_x_,
+            static_cast<double>(grid_index[1]) / static_cast<double>(num_grid_points_y_) * (max_y_ - min_y_) + min_y_,
+            static_cast<double>(grid_index[2]) / static_cast<double>(num_grid_points_z_) * (max_z_ - min_z_) + min_z_};
   }
 
  private:
   size_t num_grid_points_x_;
   size_t num_grid_points_y_;
   size_t num_grid_points_z_;
-};  // class NormalizedGridCoordinateMapping
+  double min_x_;
+  double max_x_;
+  double min_y_;
+  double max_y_;
+  double min_z_;
+  double max_z_;
+};  // class ScaledGridCoordinateMapping
 
 /// @brief Levi's function in 3D applied to a 2D grid with Nx x Ny points. We ignore the k-th index.
 /// @details Given a grid index $(i,j)$, we map it to the coordinate $(x,y)$\in[0,2]\times[0,2]$ using the formula
 /// $$x = \frac{2i}{N_x}, \quad y = \frac{2j}{N_y}$$. We then compute their z coordinate using
 /// $$z(x,y)= \sin^2(3 \pi x) + (x - 1)^2 \left(1 + \sin^2(3 \pi y) \right) + (y - 1)^2 \left(1 + \sin^2(2 \pi x)
 /// \right)$$
+/// We then scale and shift the coordinates to fall within the range
+/// [min_x,max_x]\times[min_x,max_x]\times[min_z,max_z].
 class LevisFunction2DTo3D : public GridCoordinateMapping {
  public:
   /// Constructor
-  LevisFunction2DTo3D(const size_t num_grid_points_x, const size_t num_grid_points_y)
-      : num_grid_points_x_(num_grid_points_x), num_grid_points_y_(num_grid_points_y) {
+  LevisFunction2DTo3D(const size_t num_grid_points_x, const size_t num_grid_points_y, const double min_x = 0,
+                      const double max_x = 1, const double min_y = 0, const double max_y = 1, const double min_z = 0,
+                      const double max_z = 1)
+      : num_grid_points_x_(num_grid_points_x),
+        num_grid_points_y_(num_grid_points_y),
+        min_x_(min_x),
+        max_x_(max_x),
+        min_y_(min_y),
+        max_y_(max_y),
+        min_z_(min_z),
+        max_z_(max_z) {
   }
 
   /// \brief Get the grid coordinate corresponding to a given grid index.
@@ -107,12 +133,18 @@ class LevisFunction2DTo3D : public GridCoordinateMapping {
     const double z = std::sin(3.0 * M_PI * x) * std::sin(3.0 * M_PI * x) +
                      (x - 1.0) * (x - 1.0) * (1.0 + std::sin(3.0 * M_PI * y) * std::sin(3.0 * M_PI * y)) +
                      (y - 1.0) * (y - 1.0) * (1.0 + std::sin(2.0 * M_PI * x) * std::sin(2.0 * M_PI * x));
-    return {x, y, z};
+    return {x / 2.0 * (max_x_ - min_x_) + min_x_, y / 2.0 * (max_y_ - min_y_) + min_y_, z * (max_z_ - min_z_) + min_z_};
   }
 
  private:
   size_t num_grid_points_x_;
   size_t num_grid_points_y_;
+  double min_x_;
+  double max_x_;
+  double min_y_;
+  double max_y_;
+  double min_z_;
+  double max_z_;
 };  // class LevisFunction2DTo3D
 
 }  // namespace techniques

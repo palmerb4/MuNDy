@@ -23,7 +23,7 @@ SET(HEADERS
   include/mundy_shape/compute_bounding_radius/kernels/Sphere.hpp
   include/mundy_shape/ComputeOBB.hpp
   include/mundy_shape/compute_obb/kernels/Sphere.hpp
-  include/mundy_shape/DeclareAndInitializeShapes.hpp
+  include/mundy_shape/DeclareAndInitShapes.hpp
   include/mundy_shape/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp
   include/mundy_shape/declare_and_initialize_shapes/techniques/GridOfSpheres.hpp
   include/mundy_shape/PerformRegistration.hpp

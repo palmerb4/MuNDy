@@ -147,7 +147,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          node_force_field_name, stk::topology::NODE_RANK, 3, 3));
+          node_force_field_name, stk::topology::NODE_RANK, 3, 1));
 
       if (part_name == "SPHERES") {
         // Add the requirements directly to sphere sphere linker part.

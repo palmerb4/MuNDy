@@ -164,7 +164,7 @@ class GridOfSpheres : public mundy::meta::MetaMethodExecutionInterface<void> {
     default_parameter_list.set("num_spheres_y", default_num_spheres_y_, "The number of spheres in the y direction.");
     default_parameter_list.set("num_spheres_z", default_num_spheres_z_, "The number of spheres in the z direction.");
     default_parameter_list.set<std::shared_ptr<GridCoordinateMapping>>(
-        "coordinate_map", std::make_shared<IdentityMap>(), "The user-defined map function for the sphere coordinates.");
+        "coordinate_mapping", std::make_shared<IdentityMap>(), "The user-defined map function for the sphere coordinates.");
     default_parameter_list.set("sphere_radius_lower_bound", default_sphere_radius_lower_bound_,
                                "The lower bound on the sphere radius.");
     default_parameter_list.set("sphere_radius_upper_bound", default_sphere_radius_upper_bound_,

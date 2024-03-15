@@ -142,6 +142,9 @@ std::vector<stk::mesh::Part *> DestroyDistantNeighbors::get_valid_entity_parts()
 //{
 
 void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector) {
+ // Step 0: Populate the AABB's of our ghosted elements.
+   stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), {element_aabb_field_ptr_});
+
   // Step 1: Loop over each locally owned linker in the input selector and mark them for destruction if the AABBs of
   // their source and target connected elements don't overlap.
   const stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;

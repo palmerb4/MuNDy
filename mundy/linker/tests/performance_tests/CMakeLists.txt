@@ -23,3 +23,10 @@ tribits_add_executable(
     SphereBrownianMotionWithContact.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    PerformanceTestSphereBrownianMotionWithContactNew
+    SOURCES
+    SphereBrownianMotionWithContactNew.cpp
+    CATEGORIES PERFORMANCE
+    )

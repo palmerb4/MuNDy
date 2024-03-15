@@ -391,9 +391,24 @@ void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_
   valid_mutable_params.validateParametersAndSetDefaults(
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_mutable_params());
 
-  // Parse the parameters
+
+  // Populate our internal members.
   for (int i = 0; i < num_active_kernels_; i++) {
-    Teuchos::ParameterList &kernel_params = valid_mutable_params.sublist(enabled_kernel_names_[i]);
+    // Create the kernel and store it in the kernel_ptrs_ vector.
+    const std::string kernel_name = enabled_kernel_names_[i];
+    Teuchos::ParameterList &kernel_params = valid_mutable_params.sublist(kernel_name);
+
+    // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels,
+    // and the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in
+    // the kernel sublists and forward them to the current kernel.
+    for (Teuchos::ParameterList::ConstIterator i = valid_mutable_params.begin(); i != valid_mutable_params.end(); i++) {
+      const std::string &param_name = valid_mutable_params.name(i);
+      const Teuchos::ParameterEntry &param_entry = valid_mutable_params.getEntry(param_name);
+      if (!valid_mutable_params.isSublist(param_name) && param_name != "enabled_kernel_names") {
+        kernel_params.setEntry(param_name, param_entry);
+      }
+    }
+
     kernel_ptrs_[i]->set_mutable_params(kernel_params);
   }
 }

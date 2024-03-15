@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPE_DECLAREANDINITIALIZESHAPES_HPP_
-#define MUNDY_SHAPE_DECLAREANDINITIALIZESHAPES_HPP_
+#ifndef MUNDY_SHAPE_DECLAREANDINITSHAPES_HPP_
+#define MUNDY_SHAPE_DECLAREANDINITSHAPES_HPP_
 
-/// \file DeclareAndInitializeShapes.hpp
-/// \brief Declaration of the DeclareAndInitializeShapes class
+/// \file DeclareAndInitShapes.hpp
+/// \brief Declaration of the DeclareAndInitShapes class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -31,34 +31,35 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_shape/declare_and_initialize_shapes/techniques/GridOfSpheres.hpp>  // for mundy::shape::declare_and_initialize_shapes::techniques::GridOfSpheres
-#include <mundy_mesh/BulkData.hpp>                                          // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaMethodExecutionDispatcher
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodExecutionDispatcher
+#include <mundy_shape/declare_and_initialize_shapes/techniques/GridOfSpheres.hpp>  // for mundy::shape::declare_and_initialize_shapes::techniques::GridOfSpheres
 
 namespace mundy {
 
 namespace shape {
 
-/// \class DeclareAndInitializeShapes
+/// \class DeclareAndInitShapes
 /// \brief Method for generating neighbor linkers between source-target entity pairs.
-class DeclareAndInitializeShapes
+class DeclareAndInitShapes
     : public mundy::meta::MetaMethodExecutionDispatcher<
-          DeclareAndInitializeShapes, void, mundy::meta::make_registration_string("DECLARE_AND_INITIALIZE_SHAPES"),
+          DeclareAndInitShapes, void, mundy::meta::make_registration_string("DECLARE_AND_INIT_SHAPES"),
           mundy::meta::make_registration_string("NO_DEFAULT_TECHNIQUE")> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  DeclareAndInitializeShapes() = delete;
+  DeclareAndInitShapes() = delete;
 
   /// \brief Constructor
-  DeclareAndInitializeShapes(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaMethodExecutionDispatcher<
-            DeclareAndInitializeShapes, void, mundy::meta::make_registration_string("DECLARE_AND_INITIALIZE_SHAPES"),
-            mundy::meta::make_registration_string("NO_DEFAULT_TECHNIQUE")>(bulk_data_ptr, fixed_params) {
+  DeclareAndInitShapes(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaMethodExecutionDispatcher<DeclareAndInitShapes, void,
+                                                   mundy::meta::make_registration_string("DECLARE_AND_INIT_SHAPES"),
+                                                   mundy::meta::make_registration_string("NO_DEFAULT_TECHNIQUE")>(
+            bulk_data_ptr, fixed_params) {
   }
   //@}
 
@@ -91,7 +92,7 @@ class DeclareAndInitializeShapes
     return default_parameter_list;
   }
   //@}
-};  // DeclareAndInitializeShapes
+};  // DeclareAndInitShapes
 
 }  // namespace shape
 
@@ -102,8 +103,8 @@ class DeclareAndInitializeShapes
 
 /// @brief Register our default techniques
 MUNDY_REGISTER_METACLASS("GRID_OF_SPHERES", mundy::shape::declare_and_initialize_shapes::techniques::GridOfSpheres,
-                         mundy::shape::DeclareAndInitializeShapes::OurTechniqueFactory)
+                         mundy::shape::DeclareAndInitShapes::OurTechniqueFactory)
 
 //@}
 
-#endif  // MUNDY_SHAPE_DECLAREANDINITIALIZESHAPES_HPP_
+#endif  // MUNDY_SHAPE_DECLAREANDINITSHAPES_HPP_
