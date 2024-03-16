@@ -221,7 +221,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere [in] The sphere acted on by this kernel.
-  void execute(const stk::mesh::Entity &sphere) override;
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere) const override;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.

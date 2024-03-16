@@ -34,8 +34,9 @@ Each timestep will consist of
 We'll need two MetaMethods: one for computing the brownian motion and one for taking the timestep.
 */
 
-// Define a helper macro for turning on and off debug
-#define BROWNIAN_DEBUG 1
+// Define a helper macros for turning on and off debug
+// #define BROWNIAN_DEBUG_WRITE_MESH 1
+// #define BROWNIAN_DEBUG_WRITE_MESH_INFO 1
 
 // External libs
 #include <openrand/philox.h>
@@ -44,6 +45,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <Kokkos_Core.hpp>                   // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 #include <Teuchos_CommandLineProcessor.hpp>  // for Teuchos::CommandLineProcessor
 #include <Teuchos_ParameterList.hpp>         // for Teuchos::ParameterList
+#include <stk_balance/balance.hpp>           // for stk::balance::balanceStkMesh, stk::balance::BalanceSettings
 #include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
@@ -76,6 +78,29 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_shape/ComputeAABB.hpp>           // for mundy::shape::ComputeAABB
 #include <mundy_shape/DeclareAndInitShapes.hpp>  // for mundy::shape::DeclareAndInitShapes
 #include <mundy_shape/shapes/Spheres.hpp>        // for mundy::shape::shapes::Spheres
+
+/*// A macro for a block of stuff
+#define TIME_BLOCK(thing_to_time, rank, message)                          \
+  {                                                                       \
+    {                                                                     \
+      Kokkos::Timer timer;                                                \
+      thing_to_time;                                                      \
+      double time = timer.seconds();                                      \
+      if (rank == 0) {                                                    \
+        std::cout << message << ": " << time << std::endl; \
+      }                                                                   \
+    }                                                                     \
+  }
+*/
+
+// A macro for a block of stuff
+#define TIME_BLOCK(thing_to_time, rank, message)                          \
+  {                                                                       \
+    {                                                                     \
+      thing_to_time;                                                      \
+    }                                                                     \
+  }
+
 
 class NodeEuler
     : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")> {
@@ -287,7 +312,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_node) override {
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_node) const override {
     double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, sphere_node);
     double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
     node_coords[0] += time_step_size_ * node_velocity[0];
@@ -582,7 +607,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_node) override {
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_node) const override {
     double *node_brownian_velocity = stk::mesh::field_data(*node_brownian_velocity_field_ptr_, sphere_node);
     const stk::mesh::EntityId sphere_node_gid = bulk_data_ptr_->identifier(sphere_node);
     unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr_, sphere_node);
@@ -937,25 +962,16 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere_element [in] The sphere element acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_element) override {
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_element) const override {
     const stk::mesh::Entity &node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 
     const double *element_radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
     const double *node_force = stk::mesh::field_data(*node_force_field_ptr_, node);
     double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, node);
-
-    std::cout << "viscosity: " << viscosity_ << std::endl;
-    std::cout << "element_radius: " << element_radius[0] << std::endl;
-    std::cout << "node_force: " << node_force[0] << " " << node_force[1] << " " << node_force[2] << std::endl;
-    std::cout << "node_velocity: " << node_velocity[0] << " " << node_velocity[1] << " " << node_velocity[2]
-              << std::endl;
     const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity_ * element_radius[0]);
     node_velocity[0] += inv_drag_coeff * node_force[0];
     node_velocity[1] += inv_drag_coeff * node_force[1];
     node_velocity[2] += inv_drag_coeff * node_force[2];
-
-    std::cout << "node_velocity: " << node_velocity[0] << " " << node_velocity[1] << " " << node_velocity[2]
-              << std::endl;
   }
 
   /// \brief Finalize the kernel's core calculations.
@@ -1003,6 +1019,30 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
 /// @brief Register LocalDragNonorientableSphere with LocalDrag's kernel factory
 MUNDY_REGISTER_METACLASS("NONORIENTABLE_SPHERE", LocalDragNonorientableSphere, LocalDrag::OurKernelFactory)
 
+///////////////////////////
+// Partitioning settings //
+///////////////////////////
+class RcbSettings : public stk::balance::BalanceSettings {
+ public:
+  RcbSettings() {
+  }
+  virtual ~RcbSettings() {
+  }
+
+  virtual bool isIncrementalRebalance() const {
+    return false;
+  }
+  virtual std::string getDecompMethod() const {
+    return std::string("rcb");
+  }
+  virtual std::string getCoordinateFieldName() const {
+    return std::string("NODE_COORDINATES");
+  }
+  virtual bool shouldPrintMetrics() const {
+    return false;
+  }
+};  // RcbSettings
+
 int main(int argc, char **argv) {
   // Initialize MPI
   stk::parallel_machine_init(&argc, &argv);
@@ -1014,15 +1054,17 @@ int main(int argc, char **argv) {
   size_t num_spheres_z = 10;
   double sphere_radius_lower_bound = 0.6;
   double sphere_radius_upper_bound = 0.6;
+  double length_of_domain = 10.0;
   bool zmorton = false;
   bool shuffle = false;
   bool use_levis_function = false;
-  double length_of_domain = 10.0;
+  bool loadbalance_initial_config = false;
+
   size_t num_time_steps = 100;
   double time_step_size = 0.01;
   double diffusion_coeff = 1.0;
   double viscosity = 1.0;
-  double youngs_modulus = 1.0;
+  double youngs_modulus = 1000.0;
   double poissons_ratio = 0.3;
 
   // Parse the command line options.
@@ -1036,12 +1078,14 @@ int main(int argc, char **argv) {
                  "Lower bound of the sphere radius. Sphere radii will be chosen between the lower and upper bound");
   cmdp.setOption("sphere_radius_upper_bound", &sphere_radius_upper_bound,
                  "Upper bound of the sphere radius. Sphere radii will be chosen between the lower and upper bound");
+  cmdp.setOption("length_of_domain", &length_of_domain, "Length of the domain.");
   cmdp.setOption("zmorton", "no_zmorton", &zmorton, "Use Z-Morton ordering for the spheres.");
   cmdp.setOption("shuffle", "no_shuffle", &shuffle, "Shuffle the spheres after they are created.");
   cmdp.setOption("use_levis_function", "dont_use_levis_function", &use_levis_function,
                  "Use Levis function for sphere initialization along a highly bumpy surface. If true, num_spheres_z "
                  "will not be used.");
-  cmdp.setOption("length_of_domain", &length_of_domain, "Length of the domain.");
+  cmdp.setOption("loadbalance", "no_loadbalance", &loadbalance_initial_config,
+                 "Load balance the initial configuration.");
 
   // Optional command line arguments for controlling the simulation:
   cmdp.setOption("num_time_steps", &num_time_steps, "Number of time steps.");
@@ -1347,7 +1391,6 @@ int main(int argc, char **argv) {
                      "SPHERE_SPHERE_LINKERS part not found.");
   stk::mesh::Part &sphere_sphere_linkers_part = *sphere_sphere_linkers_part_ptr;
 
-#ifdef BROWNIAN_DEBUG
   ///////////////////
   // Setup our IO  //
   ///////////////////
@@ -1371,7 +1414,6 @@ int main(int argc, char **argv) {
   stk_io_broker.add_field(output_file_index, *linker_signed_separation_distance_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_potential_force_magnitude_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_destroy_flag_field_ptr);
-#endif
 
   //////////////////////////////////////
   // Initialize the spheres and nodes //
@@ -1415,39 +1457,110 @@ int main(int argc, char **argv) {
   }
 
   ////////////////////////
+  // Balancing the mesh //
+  ////////////////////////
+  if (loadbalance_initial_config) {
+    RcbSettings balanceSettings;
+    stk::balance::balanceStkMesh(balanceSettings, *static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()));
+  }
+
+  ////////////////////////
   // Run the simulation //
   ////////////////////////
 
-#ifdef BROWNIAN_DEBUG
-  // Dump the initial mesh.
+#ifdef BROWNIAN_DEBUG_WRITE_MESH_INFO
+  // Dump the initial mesh to screen
   auto dump_mesh_info = [&bulk_data_ptr](const std::string &message) {
     std::cout << "############################################" << std::endl;
     std::cout << message << std::endl;
     stk::mesh::impl::dump_all_mesh_info(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()), std::cout);
     std::cout << "############################################" << std::endl;
   };
+  dump_mesh_info("Dumping initial mesh info.");
+#else
+  auto dump_mesh_info = []([[maybe_unused]] const std::string &message) {
+  };
+#endif
 
+#ifdef BROWNIAN_DEBUG_WRITE_MESH
+  // Write the initial mesh to file
   auto write_mesh = [&stk_io_broker, &output_file_index](double time) {
     stk_io_broker.begin_output_step(output_file_index, time);
     stk_io_broker.write_defined_output_fields(output_file_index);
     stk_io_broker.end_output_step(output_file_index);
     stk_io_broker.flush_output();
   };
-
-  write_mesh(0.0);
-  dump_mesh_info("Dumping initial mesh info.");
 #else
-  auto dump_mesh_info = []([[maybe_unused]] const std::string &message) {
-  };
   auto write_mesh = []([[maybe_unused]] double time) {
   };
 #endif
+
+  // // Write the initial mesh to file
+  // stk_io_broker.begin_output_step(output_file_index, 0.0);
+  // stk_io_broker.write_defined_output_fields(output_file_index);
+  // stk_io_broker.end_output_step(output_file_index);
+  // stk_io_broker.flush_output();
 
   if (bulk_data_ptr->parallel_rank() == 0) {
     std::cout << "Running the simulation for " << num_time_steps << " time steps." << std::endl;
   }
 
   Kokkos::Timer timer;
+  // for (size_t i = 0; i < num_time_steps; i++) {
+  //   // As a first pass, we will:
+  //   //  - Zero out the node forces and velocities
+  //   //  - Compute the AABB for the spheres
+  //   //  - Delete SphereSphereLinkers that are too far apart
+  //   //  - Generate SphereSphereLinkers neighbor linkers between nearby spheres
+  //   //  - Compute the signed separation distance and contact normal for the SphereSphereLinkers
+  //   //  - Evaluate the Hertzian contact potential for the SphereSphereLinkers
+  //   //  - Reduce the linker potential force magnitude to the Sphere nodes
+  //   //  - Compute the velocity induced by the node forces using local drag
+  //   //  - Compute the brownian velocity for the nodes
+  //   //  - Update the node positions using a first order Euler method
+  //   mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
+  //   mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
+
+  //   compute_aabb_ptr->execute(spheres_part);
+  //   dump_mesh_info("After compute_aabb_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.1);
+
+  //   destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part);
+  //   dump_mesh_info("After destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part)");
+  //   write_mesh(static_cast<double>(i) + 0.2);
+
+  //   generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
+  //   dump_mesh_info("After generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.3);
+
+  //   compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part);
+  //   dump_mesh_info("After compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part)");
+  //   write_mesh(static_cast<double>(i) + 0.4);
+
+  //   evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part);
+  //   dump_mesh_info("After evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)");
+  //   write_mesh(static_cast<double>(i) + 0.5);
+
+  //   linker_potential_force_magnitude_reduction_ptr->execute(spheres_part);
+  //   dump_mesh_info("After linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.6);
+
+  //   compute_mobility_ptr->execute(spheres_part);
+  //   dump_mesh_info("After compute_mobility_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.7);
+
+  //   compute_brownian_velocity_ptr->execute(spheres_part);
+  //   dump_mesh_info("After compute_brownian_velocity_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.8);
+
+  //   node_euler_ptr->execute(spheres_part);
+  //   dump_mesh_info("After node_euler_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.9);
+  // }
+
+  compute_aabb_ptr->execute(spheres_part);
+  generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
+  auto rank = bulk_data_ptr->parallel_rank();
   for (size_t i = 0; i < num_time_steps; i++) {
     // As a first pass, we will:
     //  - Zero out the node forces and velocities
@@ -1463,39 +1576,30 @@ int main(int argc, char **argv) {
     mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
     mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
 
-    compute_aabb_ptr->execute(spheres_part);
-    dump_mesh_info("After compute_aabb_ptr->execute(spheres_part)");
-    write_mesh(static_cast<double>(i) + 0.1);
-
-    destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part);
-    dump_mesh_info("After destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part)");
-    write_mesh(static_cast<double>(i) + 0.2);
-
-    generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
-    dump_mesh_info("After generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part)");
-    write_mesh(static_cast<double>(i) + 0.3);
-
-    compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part);
+    TIME_BLOCK(compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part), rank, "compute_ssd_and_cn_ptr->execute")
     dump_mesh_info("After compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part)");
     write_mesh(static_cast<double>(i) + 0.4);
 
-    evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part);
+    TIME_BLOCK(evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part), rank,
+               "evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)")
     dump_mesh_info("After evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)");
     write_mesh(static_cast<double>(i) + 0.5);
 
-    linker_potential_force_magnitude_reduction_ptr->execute(spheres_part);
+    TIME_BLOCK(linker_potential_force_magnitude_reduction_ptr->execute(spheres_part), rank,
+               "linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)")
     dump_mesh_info("After linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)");
     write_mesh(static_cast<double>(i) + 0.6);
 
-    compute_mobility_ptr->execute(spheres_part);
+    TIME_BLOCK(compute_mobility_ptr->execute(spheres_part), rank, "compute_mobility_ptr->execute(spheres_part)")
     dump_mesh_info("After compute_mobility_ptr->execute(spheres_part)");
     write_mesh(static_cast<double>(i) + 0.7);
 
-    compute_brownian_velocity_ptr->execute(spheres_part);
+    TIME_BLOCK(compute_brownian_velocity_ptr->execute(spheres_part), rank,
+               "compute_brownian_velocity_ptr->execute(spheres_part)")
     dump_mesh_info("After compute_brownian_velocity_ptr->execute(spheres_part)");
     write_mesh(static_cast<double>(i) + 0.8);
 
-    node_euler_ptr->execute(spheres_part);
+    TIME_BLOCK(node_euler_ptr->execute(spheres_part), rank, "node_euler_ptr->execute(spheres_part)")
     dump_mesh_info("After node_euler_ptr->execute(spheres_part)");
     write_mesh(static_cast<double>(i) + 0.9);
   }
@@ -1507,6 +1611,12 @@ int main(int argc, char **argv) {
     double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps);
     std::cout << "Time per timestep: " << avg_time_per_timestep << std::endl;
   }
+
+  // // Write the final mesh to file
+  // stk_io_broker.begin_output_step(output_file_index, static_cast<double>(num_time_steps));
+  // stk_io_broker.write_defined_output_fields(output_file_index);
+  // stk_io_broker.end_output_step(output_file_index);
+  // stk_io_broker.flush_output();
 
   Kokkos::finalize();
   stk::parallel_machine_finalize();

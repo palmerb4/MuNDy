@@ -206,7 +206,7 @@ class SphereSphereLinker : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere_sphere_linker [in] The linker acted on by this kernel.
-  void execute(const stk::mesh::Entity &sphere_sphere_linker) override;
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_sphere_linker) const override;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.

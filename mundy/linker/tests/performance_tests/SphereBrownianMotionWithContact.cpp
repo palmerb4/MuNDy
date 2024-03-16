@@ -278,7 +278,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_node) override {
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_node) const override {
     double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, sphere_node);
     double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
     node_coords[0] += time_step_size_ * node_velocity[0];
@@ -573,7 +573,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_node) override {
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_node) const override {
     double *node_brownian_velocity = stk::mesh::field_data(*node_brownian_velocity_field_ptr_, sphere_node);
     const stk::mesh::EntityId sphere_node_gid = bulk_data_ptr_->identifier(sphere_node);
     unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr_, sphere_node);
@@ -925,7 +925,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param sphere_element [in] The sphere element acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_element) override {
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_element) const override {
     const stk::mesh::Entity &node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 
     const double *element_radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);

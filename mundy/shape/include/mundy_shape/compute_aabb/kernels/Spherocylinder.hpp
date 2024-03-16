@@ -163,7 +163,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param Spherocylinder_element [in] The Spherocylinder element acted on by the kernel.
-  void execute(const stk::mesh::Entity &Spherocylinder_element) override;
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &Spherocylinder_element) const override;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.

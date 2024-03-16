@@ -84,7 +84,7 @@ void Collision::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList
 void Collision::setup() {
 }
 
-void Collision::execute(const stk::mesh::Entity &collision_element) {
+void Collision::execute(const stk::mesh::Entity &collision_element) const {
   double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, collision_element);
 
   // Non-adhesive collisions must have non-negative Lagrange multiplier.

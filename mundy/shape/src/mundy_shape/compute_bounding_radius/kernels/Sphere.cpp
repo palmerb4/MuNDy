@@ -114,7 +114,7 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 void Sphere::setup() {
 }
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
   double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
   double *bounding_radius = stk::mesh::field_data(*element_bounding_radius_field_ptr_, sphere_element);
   bounding_radius[0] = radius[0] + buffer_distance_;

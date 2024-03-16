@@ -122,7 +122,7 @@ void Spherocylinder::set_mutable_params(const Teuchos::ParameterList &mutable_pa
 void Spherocylinder::setup() {
 }
 
-void Spherocylinder::execute(const stk::mesh::Entity &spherocylinder_element) {
+void Spherocylinder::execute(const stk::mesh::Entity &spherocylinder_element) const {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(spherocylinder_element);
   double *left_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *right_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);

@@ -86,7 +86,7 @@ class MetaKernel {
   /// For example, calculate the force on an entity.
   /// \param entity The entity to calculate the kernel's core calculation for.
   /// \param args The additional arguments to the kernel's core calculation.
-  virtual ReturnType execute(const stk::mesh::Entity &entity, Args... args) = 0;
+  virtual KOKKOS_INLINE_FUNCTION ReturnType execute(const stk::mesh::Entity &entity, Args... args) const = 0;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.

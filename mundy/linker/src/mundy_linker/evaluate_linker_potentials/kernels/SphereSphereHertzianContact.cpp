@@ -168,7 +168,7 @@ void SphereSphereHertzianContact::set_mutable_params(const Teuchos::ParameterLis
 void SphereSphereHertzianContact::setup() {
 }
 
-void SphereSphereHertzianContact::execute(const stk::mesh::Entity &sphere_sphere_linker) {
+void SphereSphereHertzianContact::execute(const stk::mesh::Entity &sphere_sphere_linker) const {
   // Use references to avoid copying entities
   const stk::mesh::Entity &left_sphere_element = bulk_data_ptr_->begin_elements(sphere_sphere_linker)[0];
   const stk::mesh::Entity &right_sphere_element = bulk_data_ptr_->begin_elements(sphere_sphere_linker)[1];
@@ -194,9 +194,10 @@ void SphereSphereHertzianContact::execute(const stk::mesh::Entity &sphere_sphere
   // Only apply force to overlapping particles
   // Note, signed separation distance is negative when particles overlap, so delta = -signed_separation_distance.
   const bool do_particles_overlap = linker_signed_separation_distance[0] < 0;
-  linker_potential_force_magnitude[0] = do_particles_overlap * (4.0 / 3.0) * effective_youngs_modulus *
-                                        std::sqrt(effective_radius) *
-                                        std::pow(-linker_signed_separation_distance[0], 1.5);
+  linker_potential_force_magnitude[0] = do_particles_overlap
+                                            ? (4.0 / 3.0) * effective_youngs_modulus * std::sqrt(effective_radius) *
+                                                  std::pow(-linker_signed_separation_distance[0], 1.5)
+                                            : 0.0;
 }
 
 void SphereSphereHertzianContact::finalize() {

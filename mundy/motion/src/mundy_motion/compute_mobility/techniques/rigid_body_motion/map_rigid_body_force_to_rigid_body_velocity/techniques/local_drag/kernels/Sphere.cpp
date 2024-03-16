@@ -112,7 +112,7 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 void Sphere::setup() {
 }
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
   // Fetch the sphere's fields.
   const stk::mesh::Entity center_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 

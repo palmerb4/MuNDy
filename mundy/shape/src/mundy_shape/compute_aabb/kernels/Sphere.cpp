@@ -118,7 +118,7 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 void Sphere::setup() {
 }
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
   stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
   double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
   double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);

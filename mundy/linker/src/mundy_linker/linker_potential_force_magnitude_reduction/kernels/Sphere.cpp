@@ -127,9 +127,12 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 //{
 
 void Sphere::setup() {
+  // Communicate the linker fields.
+  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
+                                    {linker_contact_normal_field_ptr_, linker_potential_force_magnitude_field_ptr_});
 }
 
-void Sphere::execute(const stk::mesh::Entity &sphere) {
+void Sphere::execute(const stk::mesh::Entity &sphere) const {
   // Get our node and its force
   const stk::mesh::Entity &node = bulk_data_ptr_->begin_nodes(sphere)[0];
   double *node_force = stk::mesh::field_data(*node_force_field_ptr_, node);
@@ -140,15 +143,21 @@ void Sphere::execute(const stk::mesh::Entity &sphere) {
 
   for (unsigned i = 0; i < num_constraint_rank_conn; i++) {
     const stk::mesh::Entity &connected_linker = connected_linkers[i];
+    MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(connected_linker), std::logic_error,
+                       "Sphere: connected_linker is not valid.");
+
     const bool is_reduction_linker = bulk_data_ptr_->bucket(connected_linker).member(*linkers_part_to_reduce_over_);
 
     if (is_reduction_linker) {
-      // The contact normal stored on a linker points from the left element to the right element. This is important, as it means we should multiply by -1 if we are the right element.
-      const bool are_we_the_left_sphere = (bulk_data_ptr_->begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == sphere);
+      // The contact normal stored on a linker points from the left element to the right element. This is important, as
+      // it means we should multiply by -1 if we are the right element.
+      const bool are_we_the_left_sphere =
+          (bulk_data_ptr_->begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == sphere);
       const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
       double *contact_normal = stk::mesh::field_data(*linker_contact_normal_field_ptr_, connected_linker);
       double *potential_force_magnitude =
           stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr_, connected_linker);
+
       node_force[0] -= sign * contact_normal[0] * potential_force_magnitude[0];
       node_force[1] -= sign * contact_normal[1] * potential_force_magnitude[0];
       node_force[2] -= sign * contact_normal[2] * potential_force_magnitude[0];

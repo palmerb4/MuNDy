@@ -144,7 +144,7 @@ class Collision : public mundy::meta::MetaKernel<void> {
 
   /// \brief Run the kernel's core calculation.
   /// \param collision_element [in] The collision element acted on by the kernel.
-  void execute(const stk::mesh::Entity &collision_element) override;
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &collision_element) const override;
 
   /// \brief Finalize the kernel's core calculations.
   /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.

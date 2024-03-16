@@ -133,7 +133,7 @@ void SphereSphereLinker::set_mutable_params(const Teuchos::ParameterList &mutabl
 void SphereSphereLinker::setup() {
 }
 
-void SphereSphereLinker::execute(const stk::mesh::Entity &sphere_sphere_linker) {
+void SphereSphereLinker::execute(const stk::mesh::Entity &sphere_sphere_linker) const {
   // Use references to avoid copying entities
   const stk::mesh::Entity &left_sphere_element = bulk_data_ptr_->begin_elements(sphere_sphere_linker)[0];
   const stk::mesh::Entity &right_sphere_element = bulk_data_ptr_->begin_elements(sphere_sphere_linker)[1];

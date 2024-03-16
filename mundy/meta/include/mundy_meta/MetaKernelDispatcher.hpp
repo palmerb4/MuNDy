@@ -447,7 +447,7 @@ void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_
   for (int i = 0; i < num_active_kernels_; i++) {
     // For each kernel, we only want to evaluate the kernel ONCE for each entity in our valid entity parts.
     // We do so via taking the union of our valid entity parts and the input selector.
-    auto kernel_ptr_i = kernel_ptrs_[i];
+    const auto kernel_ptr_i = kernel_ptrs_[i];
     auto valid_entity_parts_i = kernel_ptr_i->get_valid_entity_parts();
 
     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =

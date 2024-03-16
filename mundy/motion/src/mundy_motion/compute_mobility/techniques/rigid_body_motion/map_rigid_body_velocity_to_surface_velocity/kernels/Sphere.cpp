@@ -94,7 +94,7 @@ void Sphere::setup() {
   // TODO(palmerb4): Populate the ghosted spheres.
 }
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
   stk::mesh::Entity const linker = bulk_data_ptr_->begin(sphere_element, stk::topology::CONSTRAINT_RANK)[0];
   stk::mesh::Entity const *surface_nodes = bulk_data_ptr_->begin_nodes(linker);
   stk::mesh::Entity const body_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
