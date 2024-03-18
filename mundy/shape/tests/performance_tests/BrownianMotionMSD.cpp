@@ -37,12 +37,14 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <openrand/philox.h>
 
 // Trilinos libs
-#include <Kokkos_Core.hpp>                 // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
-#include <Teuchos_ParameterList.hpp>       // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>        // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>      // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>       // for stk::topology
+#include <Kokkos_Core.hpp>                                // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
+#include <Teuchos_ParameterList.hpp>                      // for Teuchos::ParameterList
+#include <stk_mesh/base/DumpMeshInfo.hpp>                 // for stk::mesh::impl::dump_all_mesh_info
+#include <stk_mesh/base/Entity.hpp>                       // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>                         // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>                     // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>                      // for stk::topology
+#include <stk_util/environment/LogWithTimeAndMemory.hpp>  // for stk::log_with_time_and_memory
 #include <stk_util/parallel/Parallel.hpp>  // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
@@ -100,6 +102,9 @@ class NodeEuler
     default_parameter_list.set(
         "node_velocity_field_name", std::string(default_node_velocity_field_name_),
         "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
+    default_parameter_list.set("node_original_position_field_name",
+                               std::string(default_node_original_position_field_name_),
+                               "Node original position field name");
     return default_parameter_list;
   }
 
@@ -117,6 +122,7 @@ class NodeEuler
 
   static inline double default_time_step_size_ = 0.0;
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
+  static constexpr std::string_view default_node_original_position_field_name_ = "NODE_ORIGINAL";
   //@}
 };  // NodeEuler
 
@@ -158,9 +164,13 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     // Fetch the fields.
     const std::string node_coord_field_name = mundy::shape::shapes::Spheres::get_node_coord_field_name();
     const std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
+    const std::string node_original_position_field_name =
+        valid_fixed_params.get<std::string>("node_original_position_field_name");
 
     node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
     node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name);
+    node_original_position_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_original_position_field_name);
   }
   //@}
 
@@ -182,6 +192,8 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     // Fill the requirements using the given parameter list.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
+    std::string node_original_position_field_name =
+        valid_fixed_params.get<std::string>("node_original_position_field_name");
     Teuchos::Array<std::string> valid_entity_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
@@ -191,6 +203,9 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
+      // Add a requirement to make MSD calcs easier too
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          node_original_position_field_name, stk::topology::NODE_RANK, 3, 1));
 
       if (part_name == "SPHERES") {
         // Add the requirements directly to spheres part.
@@ -216,6 +231,9 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
     default_parameter_list.set(
         "node_velocity_field_name", std::string(default_node_velocity_field_name_),
         "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
+    default_parameter_list.set("node_original_position_field_name",
+                               std::string(default_node_original_position_field_name_),
+                               "Helper to keep track of the original position of the spheres.");
     return default_parameter_list;
   }
 
@@ -290,6 +308,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   static inline double default_time_step_size_ = 0.0;
   static constexpr std::string_view default_part_name_ = "SPHERES";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
+  static constexpr std::string_view default_node_original_position_field_name_ = "NODE_ORIGINAL";
   //@}
 
   //! \name Internal members
@@ -316,6 +335,9 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
 
   /// \brief Node field containing the node's translational velocity.
   stk::mesh::Field<double> *node_velocity_field_ptr_ = nullptr;
+
+  /// \brief Node original position
+  stk::mesh::Field<double> *node_original_position_field_ptr_ = nullptr;
   //@}
 };  // NodeEulerSphere
 
@@ -679,7 +701,8 @@ int main(int argc, char **argv) {
   Teuchos::ParameterList node_euler_fixed_params;
   node_euler_fixed_params
       .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>(std::string("SPHERE")))
-      .set("node_velocity_field_name", "NODE_BROWNIAN_VELOCITY");
+      .set("node_velocity_field_name", "NODE_BROWNIAN_VELOCITY")
+      .set("node_original_position_field_name", "NODE_ORIGINAL_POSITION");
   node_euler_fixed_params.sublist("SPHERE").set<Teuchos::Array<std::string>>(
       "valid_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
   mesh_reqs_ptr->merge(NodeEuler::get_mesh_requirements(node_euler_fixed_params));
@@ -739,6 +762,7 @@ int main(int argc, char **argv) {
   // Typically, this would occur in a requirements wrapped class, but we haven't created the declare or initialize shape
   // functions.
   auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  auto node_original_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_ORIGINAL_POSITION");
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_BROWNIAN_VELOCITY");
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
 
@@ -751,20 +775,35 @@ int main(int argc, char **argv) {
   check_if_exists(node_velocity_field_ptr, "NODE_BROWNIAN_VELOCITY");
   check_if_exists(node_rng_counter_field_ptr, "NODE_RNG_COUNTER");
 
-  openrand::Philox rng(bulk_data_ptr->parallel_rank(), 0);
   for (int i = 0; i < num_spheres_local; i++) {
     stk::mesh::Entity node_i = requested_entities[i];
     double *node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node_i);
+    double *node_original = stk::mesh::field_data(*node_original_field_ptr, node_i);
     double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr, node_i);
     unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr, node_i);
+    // Do the RNG based on the GID of the sphere
+    const stk::mesh::EntityId sphere_node_gid = bulk_data_ptr->identifier(node_i);
+    openrand::Philox rng(sphere_node_gid, 0);
     node_coords[0] = length_of_domain * rng.rand<double>();
     node_coords[1] = length_of_domain * rng.rand<double>();
     node_coords[2] = length_of_domain * rng.rand<double>();
+    // Set the original node coordinates
+    node_original[0] = node_coords[0];
+    node_original[1] = node_coords[1];
+    node_original[2] = node_coords[2];
     node_velocity[0] = 0.0;
     node_velocity[1] = 0.0;
     node_velocity[2] = 0.0;
-    node_rng_counter[0] = 0;
+    node_rng_counter[0] = rng.rand<int>();
   }
+
+  //// XXX Dump the mesh info for ourselves to inspect?
+  // stk::log_with_time_and_memory(MPI_COMM_WORLD, "Timestep: initial");
+  // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
+
+  // Track the MSD information
+  int msd_nwrite = 1000;
+  std::vector<double> msd_vs_time(num_time_steps / msd_nwrite, 0.0);
 
   // Run the simulation
   // Keep time using Kokkos::Timer
@@ -772,6 +811,25 @@ int main(int argc, char **argv) {
   for (int i = 0; i < num_time_steps; i++) {
     compute_brownian_velocity_ptr->execute(spheres_part);
     node_euler_ptr->execute(spheres_part);
+
+    if (i % msd_nwrite == 0) {
+      std::ostringstream ostream;
+      ostream << "Writing MSD step " << i;
+      stk::log_with_time_and_memory(MPI_COMM_WORLD, ostream.str());
+      // Record the MSD
+      double dr2 = 0.0;
+      for (int i = 0; i < num_spheres_local; i++) {
+        stk::mesh::Entity node_i = requested_entities[i];
+        double *node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node_i);
+        double *node_original = stk::mesh::field_data(*node_original_field_ptr, node_i);
+        double drx = node_coords[0] - node_original[0];
+        double dry = node_coords[1] - node_original[1];
+        double drz = node_coords[2] - node_original[2];
+        dr2 += drx * drx + dry * dry + drz * drz;
+      }
+      // msd_vs_time.push_back(dr2 / num_spheres_local);
+      msd_vs_time[i / msd_nwrite] = dr2 / num_spheres_local;
+    }
   }
 
   // Do a synchronize to force everybody to stop here, then write the time
@@ -780,7 +838,32 @@ int main(int argc, char **argv) {
   if (bulk_data_ptr->parallel_rank() == 0) {
     double timesteps_per_second = num_time_steps / timer.seconds();
     std::cout << "Performance: " << timesteps_per_second << std::endl;
+
+    // Also write out the MSD
+    std::cout << "dt: " << time_step_size << std::endl;
+    // dt * nsteps = total time, so can just use the last value for MSD (better ways of doing this later)
+    double calc_diffusion = msd_vs_time.back() / (time_step_size * num_time_steps);
+    std::cout << "diffusion: " << calc_diffusion << std::endl;
+    // std::cout << "t,msd\n";
+    // for (size_t i = 0; i < msd_vs_time.size(); ++i) {
+    //   std::cout << static_cast<double>(i * time_step_size << "," << msd_vs_time[i] << std::endl;
+    // }
+    // std::ofstream msd_file("msd_file.csv");
+    // msd_file << "t,msd\n";
+    // for (size_t i = 0; i < msd_vs_time.size(); ++i) {
+    //  msd_file << static_cast<double>(i) * time_step_size << "," << msd_vs_time[i] << std::endl;
+    //}
+    // msd_file.close();
   }
+
+  std::ostringstream outfilename;
+  outfilename << "msd_file_" << bulk_data_ptr->parallel_rank() << ".csv";
+  std::ofstream msd_file(outfilename.str());
+  msd_file << "t,msd\n";
+  for (size_t i = 0; i < msd_vs_time.size(); ++i) {
+    msd_file << static_cast<double>(i) * time_step_size << "," << msd_vs_time[i] << std::endl;
+  }
+  msd_file.close();
 
   Kokkos::finalize();
   stk::parallel_machine_finalize();

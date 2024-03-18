@@ -613,11 +613,11 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
     unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr_, sphere_node);
 
     openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
-    node_brownian_velocity[0] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
+    node_brownian_velocity[0] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ / time_step_size_) * rng.randn<double>() +
                                 beta_ * node_brownian_velocity[0];
-    node_brownian_velocity[1] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
+    node_brownian_velocity[1] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ / time_step_size_) * rng.randn<double>() +
                                 beta_ * node_brownian_velocity[1];
-    node_brownian_velocity[2] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ * time_step_size_) * rng.randn<double>() +
+    node_brownian_velocity[2] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ / time_step_size_) * rng.randn<double>() +
                                 beta_ * node_brownian_velocity[2];
     node_rng_counter[0]++;
   }

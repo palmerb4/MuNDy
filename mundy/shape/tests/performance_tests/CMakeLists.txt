@@ -23,3 +23,10 @@ tribits_add_executable(
     BrownianMotion.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    PerformanceTestBrownianMotionMSD
+    SOURCES
+    BrownianMotionMSD.cpp
+    CATEGORIES PERFORMANCE
+    )
