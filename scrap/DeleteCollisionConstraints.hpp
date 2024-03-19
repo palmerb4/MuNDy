@@ -195,7 +195,7 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethodSubsetExecution
   std::vector<stk::mesh::Part *> multibody_part_ptr_vector_;
 
   /// \brief Vector of kernels, one for each active multibody part.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernel<void>>> multibody_kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernel<>>> multibody_kernel_ptrs_;
 
   /// \brief The set of neighbor pairs
   std::shared_ptr<IdentProcPairVector> old_neighbor_pairs_ptr_;

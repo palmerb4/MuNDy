@@ -29,6 +29,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                                 // for mundy::mesh::BulkData
@@ -95,10 +96,6 @@ std::vector<stk::mesh::Part *> Sphere::get_valid_entity_parts() const {
   return valid_entity_parts_;
 }
 
-stk::topology::rank_t Sphere::get_entity_rank() const {
-  return stk::topology::ELEMENT_RANK;
-}
-
 void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
@@ -111,16 +108,24 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 
 // \name Actions
 //{
-void Sphere::setup() {
-}
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
-  double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
-  double *bounding_radius = stk::mesh::field_data(*element_bounding_radius_field_ptr_, sphere_element);
-  bounding_radius[0] = radius[0] + buffer_distance_;
-}
+void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
+  // Get references to internal members so we aren't passing around *this
+  stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+  stk::mesh::Field<double> &element_bounding_radius_field = *element_bounding_radius_field_ptr_;
+  double buffer_distance = buffer_distance_;
 
-void Sphere::finalize() {
+  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+  stk::mesh::for_each_entity_run(
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+      locally_owned_intersection_with_valid_entity_parts,
+      [&element_radius_field, &element_bounding_radius_field, &buffer_distance](
+          [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+        double *radius = stk::mesh::field_data(element_radius_field, sphere_element);
+        double *bounding_radius = stk::mesh::field_data(element_bounding_radius_field, sphere_element);
+        bounding_radius[0] = radius[0] + buffer_distance;
+      });
 }
 //}
 

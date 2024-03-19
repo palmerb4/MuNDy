@@ -94,13 +94,10 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 */
 
 // A macro for a block of stuff
-#define TIME_BLOCK(thing_to_time, rank, message)                          \
-  {                                                                       \
-    {                                                                     \
-      thing_to_time;                                                      \
-    }                                                                     \
+#define TIME_BLOCK(thing_to_time, rank, message) \
+  {                                              \
+    { thing_to_time; }                           \
   }
-
 
 class NodeEuler
     : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")> {
@@ -162,12 +159,12 @@ class NodeEuler
 
 /// \class NodeEulerSphere
 /// \brief Concrete implementation of \c MetaKernel for computing the node euler timestep of spheres.
-class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
+class NodeEulerSphere : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
   //@{
 
-  using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
+  using PolymorphicBaseType = mundy::meta::MetaKernel<>;
   //@}
 
   //! \name Constructors and destructor
@@ -270,7 +267,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaKernel<void>> create_new_instance(
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr,
       const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     return std::make_shared<NodeEulerSphere>(bulk_data_ptr, fixed_params);
@@ -295,34 +292,32 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<void> {
   std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
     return valid_entity_parts_;
   }
-
-  /// \brief Get the entity rank that the kernel acts on.
-  stk::topology::rank_t get_entity_rank() const override {
-    return stk::topology::NODE_RANK;
-  }
   //@}
 
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override {
-  }
-
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
-  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_node) const override {
-    double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, sphere_node);
-    double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
-    node_coords[0] += time_step_size_ * node_velocity[0];
-    node_coords[1] += time_step_size_ * node_velocity[1];
-    node_coords[2] += time_step_size_ * node_velocity[2];
-  }
+  void execute(const stk::mesh::Selector &sphere_selector) {
+    // Get references to internal members so we aren't passing around *this
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    double time_step_size = time_step_size_;
 
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  void finalize() override {
+    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+    stk::mesh::for_each_entity_run(
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
+        locally_owned_intersection_with_valid_entity_parts,
+        [&node_coord_field, &node_velocity_field, &time_step_size](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+          node_coords[0] += time_step_size * node_velocity[0];
+          node_coords[1] += time_step_size * node_velocity[1];
+          node_coords[2] += time_step_size * node_velocity[2];
+        });
   }
   //@}
 
@@ -436,12 +431,12 @@ class ComputeBrownianVelocity
 
 /// \class ComputeBrownianVelocitySphere
 /// \brief Concrete implementation of \c MetaKernel for computing the node euler timestep of spheres.
-class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
+class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
   //@{
 
-  using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
+  using PolymorphicBaseType = mundy::meta::MetaKernel<>;
   //@}
 
   //! \name Constructors and destructor
@@ -559,7 +554,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaKernel<void>> create_new_instance(
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr,
       const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     return std::make_shared<ComputeBrownianVelocitySphere>(bulk_data_ptr, fixed_params);
@@ -590,41 +585,42 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<void> {
   std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
     return valid_entity_parts_;
   }
-
-  /// \brief Get the entity rank that the kernel acts on.
-  stk::topology::rank_t get_entity_rank() const override {
-    return stk::topology::NODE_RANK;
-  }
   //@}
 
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override {
-  }
-
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
-  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_node) const override {
-    double *node_brownian_velocity = stk::mesh::field_data(*node_brownian_velocity_field_ptr_, sphere_node);
-    const stk::mesh::EntityId sphere_node_gid = bulk_data_ptr_->identifier(sphere_node);
-    unsigned *node_rng_counter = stk::mesh::field_data(*node_rng_counter_field_ptr_, sphere_node);
+  void execute(const stk::mesh::Selector &sphere_selector) {
+    // Get references to internal members so we aren't passing around *this
+    stk::mesh::Field<double> &node_brownian_velocity_field = *node_brownian_velocity_field_ptr_;
+    stk::mesh::Field<unsigned> &node_rng_counter_field = *node_rng_counter_field_ptr_;
+    double time_step_size = time_step_size_;
+    double diffusion_coeff = diffusion_coeff_;
+    double alpha = alpha_;
+    double beta = beta_;
 
-    openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
-    node_brownian_velocity[0] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ / time_step_size_) * rng.randn<double>() +
-                                beta_ * node_brownian_velocity[0];
-    node_brownian_velocity[1] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ / time_step_size_) * rng.randn<double>() +
-                                beta_ * node_brownian_velocity[1];
-    node_brownian_velocity[2] = alpha_ * std::sqrt(2.0 * diffusion_coeff_ / time_step_size_) * rng.randn<double>() +
-                                beta_ * node_brownian_velocity[2];
-    node_rng_counter[0]++;
-  }
+    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+    stk::mesh::for_each_entity_run(
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
+        locally_owned_intersection_with_valid_entity_parts,
+        [&node_brownian_velocity_field, &node_rng_counter_field, &time_step_size, &diffusion_coeff, &alpha, &beta](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          double *node_brownian_velocity = stk::mesh::field_data(node_brownian_velocity_field, sphere_node);
+          const stk::mesh::EntityId sphere_node_gid = bulk_data.identifier(sphere_node);
+          unsigned *node_rng_counter = stk::mesh::field_data(node_rng_counter_field, sphere_node);
 
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  void finalize() override {
+          openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
+          node_brownian_velocity[0] = alpha * std::sqrt(2.0 * diffusion_coeff / time_step_size) * rng.randn<double>() +
+                                      beta * node_brownian_velocity[0];
+          node_brownian_velocity[1] = alpha * std::sqrt(2.0 * diffusion_coeff / time_step_size) * rng.randn<double>() +
+                                      beta * node_brownian_velocity[1];
+          node_brownian_velocity[2] = alpha * std::sqrt(2.0 * diffusion_coeff / time_step_size) * rng.randn<double>() +
+                                      beta * node_brownian_velocity[2];
+          node_rng_counter[0]++;
+        });
   }
   //@}
 
@@ -805,12 +801,12 @@ class LocalDrag
 /// @brief Register LocalDrag with ComputeMobility's technique factory
 MUNDY_REGISTER_METACLASS("LOCAL_DRAG", LocalDrag, ComputeMobility::OurTechniqueFactory)
 
-class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
+class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
   //@{
 
-  using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
+  using PolymorphicBaseType = mundy::meta::MetaKernel<>;
   //@}
 
   //! \name Constructors and destructor
@@ -920,7 +916,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaKernel<void>> create_new_instance(
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr,
       const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     return std::make_shared<LocalDragNonorientableSphere>(bulk_data_ptr, fixed_params);
@@ -945,38 +941,37 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<void> {
   std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
     return valid_entity_parts_;
   }
-
-  /// \brief Get the entity rank that the kernel acts on.
-  stk::topology::rank_t get_entity_rank() const override {
-    return stk::topology::ELEMENT_RANK;
-  }
   //@}
 
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override {
-  }
-
   /// \brief Run the kernel's core calculation.
-  /// \param sphere_element [in] The sphere element acted on by the kernel.
-  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_element) const override {
-    const stk::mesh::Entity &node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
+  /// \param sphere_node [in] The sphere's node acted on by the kernel.
+  void execute(const stk::mesh::Selector &sphere_selector) {
+    // Get references to internal members so we aren't passing around *this
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    double viscosity = viscosity_;
 
-    const double *element_radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
-    const double *node_force = stk::mesh::field_data(*node_force_field_ptr_, node);
-    double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, node);
-    const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity_ * element_radius[0]);
-    node_velocity[0] += inv_drag_coeff * node_force[0];
-    node_velocity[1] += inv_drag_coeff * node_force[1];
-    node_velocity[2] += inv_drag_coeff * node_force[2];
-  }
+    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+                                   locally_owned_intersection_with_valid_entity_parts,
+                                   [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
+                                       const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+                                     const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
 
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  void finalize() override {
+                                     const double *element_radius =
+                                         stk::mesh::field_data(element_radius_field, sphere_element);
+                                     const double *node_force = stk::mesh::field_data(node_force_field, node);
+                                     double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
+                                     const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity * element_radius[0]);
+                                     node_velocity[0] += inv_drag_coeff * node_force[0];
+                                     node_velocity[1] += inv_drag_coeff * node_force[1];
+                                     node_velocity[2] += inv_drag_coeff * node_force[2];
+                                   });
   }
   //@}
 
@@ -1135,8 +1130,8 @@ int main(int argc, char **argv) {
   ////////////////////////////////////////////////////////////////////////////////////////
   // Setup the fixed parameters and generate the corresponding class instances and mesh //
   ////////////////////////////////////////////////////////////////////////////////////////
-  // IMPORTANT NOTE: Often, users will simply use the default fixed parameters with a small number of manual overrides.
-  // However, in this example, we will explicitly set all fixed and mutable params for each class instance.
+  // IMPORTANT NOTE: Often, users will simply use the default fixed parameters with a small number of manual
+  // overrides. However, in this example, we will explicitly set all fixed and mutable params for each class instance.
 
   // ComputeBrownianVelocity fixed parameters
   Teuchos::ParameterList compute_brownian_velocity_fixed_params;
@@ -1625,7 +1620,8 @@ int main(int argc, char **argv) {
 
 // export OMP_NUM_THREADS=1 && export OMP_PROC_BIND=spread && OMP_PLACES=threads && mpirun -n 2
 // ./MundyLinker_PerformanceTestSphereBrownianMotionWithContactNew.exe --num_spheres_x=40 --num_spheres_y=40
-// --num_spheres_z=1 --num_time_steps=10 mpirun -n 2 ./MundyLinker_PerformanceTestSphereBrownianMotionWithContactNew.exe
+// --num_spheres_z=1 --num_time_steps=10 mpirun -n 2
+// ./MundyLinker_PerformanceTestSphereBrownianMotionWithContactNew.exe
 // --num_spheres_x=40 --num_spheres_y=40 --num_spheres_z=1 --num_time_steps=4
 
 // mpirun -n 4 ./MundyLinker_PerformanceTestSphereBrownianMotionWithContactNew.exe --num_spheres_x=4 --num_spheres_y=4

@@ -55,12 +55,12 @@ namespace kernels {
 
 /// \class Spherocylinder
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of Spherocylinders.
-class Spherocylinder : public mundy::meta::MetaKernel<void> {
+class Spherocylinder : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
   //@{
 
-  using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
+  using PolymorphicBaseType = mundy::meta::MetaKernel<>;
   //@}
 
   //! \name Constructors and destructor
@@ -137,9 +137,6 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
   /// \brief Get valid entity parts for the kernel.
   /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
   std::vector<stk::mesh::Part *> get_valid_entity_parts() const override;
-
-  /// \brief Get the entity rank that the kernel acts on.
-  stk::topology::rank_t get_entity_rank() const override;
   
   /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override;
@@ -148,7 +145,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaKernel<void>> create_new_instance(
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<Spherocylinder>(bulk_data_ptr, fixed_params);
   }
@@ -157,17 +154,9 @@ class Spherocylinder : public mundy::meta::MetaKernel<void> {
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the kernel's core calculation.
   /// \param Spherocylinder_element [in] The Spherocylinder element acted on by the kernel.
-  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &Spherocylinder_element) const override;
-
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  void finalize() override;
+  void execute(const stk::mesh::Selector &spherocylinder_selector) override;
   //@}
 
  private:

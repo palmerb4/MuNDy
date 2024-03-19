@@ -29,6 +29,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
@@ -114,10 +115,6 @@ std::vector<stk::mesh::Part *> SphereSphereLinker::get_valid_entity_parts() cons
   return valid_entity_parts_;
 }
 
-stk::topology::rank_t SphereSphereLinker::get_entity_rank() const {
-  return stk::topology::CONSTRAINT_RANK;
-}
-
 void SphereSphereLinker::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   // We don't have any valid mutable params, so this seems pointless but it's useful in that it will throw if the user
@@ -130,44 +127,52 @@ void SphereSphereLinker::set_mutable_params(const Teuchos::ParameterList &mutabl
 // \name Actions
 //{
 
-void SphereSphereLinker::setup() {
-}
+void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker_selector) {
+  // Get references to internal members so we aren't passing around *this
+  stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+  stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+  stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
+  stk::mesh::Field<double> &linker_signed_separation_distance_field = *linker_signed_separation_distance_field_ptr_;
 
-void SphereSphereLinker::execute(const stk::mesh::Entity &sphere_sphere_linker) const {
-  // Use references to avoid copying entities
-  const stk::mesh::Entity &left_sphere_element = bulk_data_ptr_->begin_elements(sphere_sphere_linker)[0];
-  const stk::mesh::Entity &right_sphere_element = bulk_data_ptr_->begin_elements(sphere_sphere_linker)[1];
-  const stk::mesh::Entity &left_sphere_node = bulk_data_ptr_->begin_nodes(left_sphere_element)[0];
-  const stk::mesh::Entity &right_sphere_node = bulk_data_ptr_->begin_nodes(right_sphere_element)[0];
+  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_sphere_linker_selector;
+  stk::mesh::for_each_entity_run(
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
+      locally_owned_intersection_with_valid_entity_parts,
+      [&node_coord_field, &element_radius_field, &linker_contact_normal_field, &linker_signed_separation_distance_field](
+          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_sphere_linker) {
+        // Use references to avoid copying entities
+        const stk::mesh::Entity &left_sphere_element = bulk_data.begin_elements(sphere_sphere_linker)[0];
+        const stk::mesh::Entity &right_sphere_element = bulk_data.begin_elements(sphere_sphere_linker)[1];
+        const stk::mesh::Entity &left_sphere_node = bulk_data.begin_nodes(left_sphere_element)[0];
+        const stk::mesh::Entity &right_sphere_node = bulk_data.begin_nodes(right_sphere_element)[0];
 
-  const double *left_coords = stk::mesh::field_data(*node_coord_field_ptr_, left_sphere_node);
-  const double *right_coords = stk::mesh::field_data(*node_coord_field_ptr_, right_sphere_node);
-  const double *left_radius = stk::mesh::field_data(*element_radius_field_ptr_, left_sphere_element);
-  const double *right_radius = stk::mesh::field_data(*element_radius_field_ptr_, right_sphere_element);
+        const double *left_coords = stk::mesh::field_data(node_coord_field, left_sphere_node);
+        const double *right_coords = stk::mesh::field_data(node_coord_field, right_sphere_node);
+        const double *left_radius = stk::mesh::field_data(element_radius_field, left_sphere_element);
+        const double *right_radius = stk::mesh::field_data(element_radius_field, right_sphere_element);
 
-  double *contact_normal = stk::mesh::field_data(*linker_contact_normal_field_ptr_, sphere_sphere_linker);
-  double *signed_separation_distance =
-      stk::mesh::field_data(*linker_signed_separation_distance_field_ptr_, sphere_sphere_linker);
+        double *contact_normal = stk::mesh::field_data(linker_contact_normal_field, sphere_sphere_linker);
+        double *signed_separation_distance =
+            stk::mesh::field_data(linker_signed_separation_distance_field, sphere_sphere_linker);
 
-  // Compute the separation distance and contact normal
-  const double dx = right_coords[0] - left_coords[0];
-  const double dy = right_coords[1] - left_coords[1];
-  const double dz = right_coords[2] - left_coords[2];
-  const double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
-  const double radius_sum = *left_radius + *right_radius;
-  const double separation_distance = distance - radius_sum;
-  const double inv_distance = 1.0 / distance;
+        // Compute the separation distance and contact normal
+        const double dx = right_coords[0] - left_coords[0];
+        const double dy = right_coords[1] - left_coords[1];
+        const double dz = right_coords[2] - left_coords[2];
+        const double distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+        const double radius_sum = *left_radius + *right_radius;
+        const double separation_distance = distance - radius_sum;
+        const double inv_distance = 1.0 / distance;
 
-  // Set the separation distance and contact normal
-  // Notice that the contact normal points from the left sphere to the right sphere
-  // It is the normal to the left sphere and negative the normal of the right sphere.
-  signed_separation_distance[0] = separation_distance;
-  contact_normal[0] = dx * inv_distance;
-  contact_normal[1] = dy * inv_distance;
-  contact_normal[2] = dz * inv_distance;
-}
-
-void SphereSphereLinker::finalize() {
+        // Set the separation distance and contact normal
+        // Notice that the contact normal points from the left sphere to the right sphere
+        // It is the normal to the left sphere and negative the normal of the right sphere.
+        signed_separation_distance[0] = separation_distance;
+        contact_normal[0] = dx * inv_distance;
+        contact_normal[1] = dy * inv_distance;
+        contact_normal[2] = dz * inv_distance;
+      });
 }
 //}
 

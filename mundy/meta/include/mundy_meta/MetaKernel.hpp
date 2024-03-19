@@ -37,62 +37,57 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 
 namespace mundy {
 
 namespace meta {
+
+// void execute(const stk::mesh::Selector &input_selector) {
+//   setup();
+
+//   auto valid_entity_parts = get_valid_entity_parts();
+//   auto kernel_entity_rank = get_entity_rank();
+//   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+//       stk::mesh::selectIntersection(valid_entity_parts) & meta_data_ptr_->locally_owned_part() & input_selector;
+//   stk::mesh::for_each_entity_run(
+//       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), kernel_entity_rank,
+//       locally_owned_intersection_with_valid_entity_parts,
+//       []([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &entity) {
+//         execute(entity);
+//       });
+
+//   finalize();
+// }
+
+//   void execute(const stk::mesh::Selector &input_selector) {
+//     setup();
+
+//     auto valid_entity_parts = get_valid_entity_parts();
+//     auto kernel_entity_rank = get_entity_rank();
+//     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+//         stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & input_selector;
+//     for (auto *part_ptr : valid_entity_parts) {
+//       locally_owned_intersection_with_valid_entity_parts &= *part_ptr;
+//     }
+
+//     stk::mesh::for_each_entity_run(
+//         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), kernel_entity_rank,
+//         locally_owned_intersection_with_valid_entity_parts,
+//         []([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &entity) {
+//           execute(entity);
+//         });
+
+//     finalize();
+//   }
 
 /// \class MetaKernel
 /// \brief A virtual interface that defines the core functionality of a kernel--a class that acts on a single entity.
 ///
 /// \tparam ReturnType The return type of the execute function.
 /// \tparam Args The types of the arguments to the execute function.
-template <typename ReturnType_t, typename... Args>
-class MetaKernel {
- public:
-  //! \name Typedefs
-  //@{
-
-  using ReturnType = ReturnType_t;
-  using ArgsTuple = std::tuple<Args...>;
-  //@}
-
-  //! \name Setters
-  //@{
-
-  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  virtual void set_mutable_params(const Teuchos::ParameterList &mutable_params) = 0;
-  //@}
-
-  //! \name Getters
-  //@{
-
-  /// \brief Get valid entity parts for the kernel.
-  /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
-  virtual std::vector<stk::mesh::Part *> get_valid_entity_parts() const = 0;
-
-  /// \brief Get the entity rank that the kernel acts on.
-  virtual stk::topology::rank_t get_entity_rank() const = 0;
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  virtual void setup() = 0;
-
-  /// \brief Run the kernel's core calculation.
-  /// For example, calculate the force on an entity.
-  /// \param entity The entity to calculate the kernel's core calculation for.
-  /// \param args The additional arguments to the kernel's core calculation.
-  virtual KOKKOS_INLINE_FUNCTION ReturnType execute(const stk::mesh::Entity &entity, Args... args) const = 0;
-
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  virtual void finalize() = 0;
-  //@}
-};  // MetaKernel
+template <typename... Args>
+class MetaKernel : public MetaMethodSubsetExecutionInterface<void, Args...> {};  // MetaKernel
 
 }  // namespace meta
 

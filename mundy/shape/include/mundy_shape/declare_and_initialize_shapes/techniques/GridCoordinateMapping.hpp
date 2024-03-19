@@ -133,7 +133,7 @@ class LevisFunction2DTo3D : public GridCoordinateMapping {
     const double z = std::sin(3.0 * M_PI * x) * std::sin(3.0 * M_PI * x) +
                      (x - 1.0) * (x - 1.0) * (1.0 + std::sin(3.0 * M_PI * y) * std::sin(3.0 * M_PI * y)) +
                      (y - 1.0) * (y - 1.0) * (1.0 + std::sin(2.0 * M_PI * x) * std::sin(2.0 * M_PI * x));
-    return {x / 2.0 * (max_x_ - min_x_) + min_x_, y / 2.0 * (max_y_ - min_y_) + min_y_, z * (max_z_ - min_z_) + min_z_};
+    return {x / 2.0 * (max_x_ - min_x_) + min_x_, y / 2.0 * (max_y_ - min_y_) + min_y_, z / 4.0 * (max_z_ - min_z_) + min_z_};
   }
 
  private:

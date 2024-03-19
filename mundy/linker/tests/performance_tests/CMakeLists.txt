@@ -18,13 +18,6 @@
 # @HEADER
 
 tribits_add_executable(
-    PerformanceTestSphereBrownianMotionWithContact
-    SOURCES
-    SphereBrownianMotionWithContact.cpp
-    CATEGORIES PERFORMANCE
-    )
-
-tribits_add_executable(
     PerformanceTestSphereBrownianMotionWithContactNew
     SOURCES
     SphereBrownianMotionWithContactNew.cpp

@@ -29,6 +29,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
@@ -98,10 +99,6 @@ std::vector<stk::mesh::Part *> Sphere::get_valid_entity_parts() const {
   return valid_entity_parts_;
 }
 
-stk::topology::rank_t Sphere::get_entity_rank() const {
-  return stk::topology::ELEMENT_RANK;
-}
-
 void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
@@ -115,24 +112,32 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 // \name Actions
 //{
 
-void Sphere::setup() {
-}
+void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
+  // Get references to internal members so we aren't passing around *this
+  stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+  stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+  stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+  double buffer_distance = buffer_distance_;
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(sphere_element);
-  double *coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
-  double *aabb = stk::mesh::field_data(*element_aabb_field_ptr_, sphere_element);
+  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+  stk::mesh::for_each_entity_run(
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+      locally_owned_intersection_with_valid_entity_parts,
+      [&node_coord_field, &element_radius_field, &element_aabb_field, &buffer_distance](
+          [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+        stk::mesh::Entity const *nodes = bulk_data.begin_nodes(sphere_element);
+        double *coords = stk::mesh::field_data(node_coord_field, nodes[0]);
+        double *radius = stk::mesh::field_data(element_radius_field, sphere_element);
+        double *aabb = stk::mesh::field_data(element_aabb_field, sphere_element);
 
-  aabb[0] = coords[0] - radius[0] - buffer_distance_;
-  aabb[1] = coords[1] - radius[0] - buffer_distance_;
-  aabb[2] = coords[2] - radius[0] - buffer_distance_;
-  aabb[3] = coords[0] + radius[0] + buffer_distance_;
-  aabb[4] = coords[1] + radius[0] + buffer_distance_;
-  aabb[5] = coords[2] + radius[0] + buffer_distance_;
-}
-
-void Sphere::finalize() {
+        aabb[0] = coords[0] - radius[0] - buffer_distance;
+        aabb[1] = coords[1] - radius[0] - buffer_distance;
+        aabb[2] = coords[2] - radius[0] - buffer_distance;
+        aabb[3] = coords[0] + radius[0] + buffer_distance;
+        aabb[4] = coords[1] + radius[0] + buffer_distance;
+        aabb[5] = coords[2] + radius[0] + buffer_distance;
+      });
 }
 //}
 

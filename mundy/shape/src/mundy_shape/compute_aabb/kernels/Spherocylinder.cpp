@@ -29,6 +29,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
@@ -102,10 +103,6 @@ std::vector<stk::mesh::Part *> Spherocylinder::get_valid_entity_parts() const {
   return valid_entity_parts_;
 }
 
-stk::topology::rank_t Spherocylinder::get_entity_rank() const {
-  return stk::topology::ELEMENT_RANK;
-}
-
 void Spherocylinder::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
@@ -119,26 +116,34 @@ void Spherocylinder::set_mutable_params(const Teuchos::ParameterList &mutable_pa
 // \name Actions
 //{
 
-void Spherocylinder::setup() {
-}
+void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector) {
+  // Get references to internal members so we aren't passing around *this
+  stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+  stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+  stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+  const double buffer_distance = buffer_distance_;
 
-void Spherocylinder::execute(const stk::mesh::Entity &spherocylinder_element) const {
-  stk::mesh::Entity const *nodes = bulk_data_ptr_->begin_nodes(spherocylinder_element);
-  double *left_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[0]);
-  double *right_endpt_coords = stk::mesh::field_data(*node_coord_field_ptr_, nodes[2]);
-  double *radius = stk::mesh::field_data(*element_radius_field_ptr_, spherocylinder_element);
-  // double *length = stk::mesh::field_data(*element_length_field_ptr_, spherocylinder_element);
-  double *aabb = stk::mesh::field_data(*element_aabb_field_ptr_, spherocylinder_element);
+  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spherocylinder_selector;
+  stk::mesh::for_each_entity_run(
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+      locally_owned_intersection_with_valid_entity_parts,
+      [&node_coord_field, &element_radius_field, &element_aabb_field, &buffer_distance](
+          [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_element) {
+        stk::mesh::Entity const *nodes = bulk_data.begin_nodes(spherocylinder_element);
+        double *left_endpt_coords = stk::mesh::field_data(node_coord_field, nodes[0]);
+        double *right_endpt_coords = stk::mesh::field_data(node_coord_field, nodes[2]);
+        double *radius = stk::mesh::field_data(element_radius_field, spherocylinder_element);
+        // double *length = stk::mesh::field_data(element_length_field, spherocylinder_element);
+        double *aabb = stk::mesh::field_data(element_aabb_field, spherocylinder_element);
 
-  aabb[0] = std::min(left_endpt_coords[0], right_endpt_coords[0]) - radius[0] - buffer_distance_;
-  aabb[1] = std::min(left_endpt_coords[1], right_endpt_coords[1]) - radius[0] - buffer_distance_;
-  aabb[2] = std::min(left_endpt_coords[2], right_endpt_coords[2]) - radius[0] - buffer_distance_;
-  aabb[3] = std::max(left_endpt_coords[0], right_endpt_coords[0]) + radius[0] + buffer_distance_;
-  aabb[4] = std::max(left_endpt_coords[1], right_endpt_coords[1]) + radius[0] + buffer_distance_;
-  aabb[5] = std::max(left_endpt_coords[2], right_endpt_coords[2]) + radius[0] + buffer_distance_;
-}
-
-void Spherocylinder::finalize() {
+        aabb[0] = std::min(left_endpt_coords[0], right_endpt_coords[0]) - radius[0] - buffer_distance;
+        aabb[1] = std::min(left_endpt_coords[1], right_endpt_coords[1]) - radius[0] - buffer_distance;
+        aabb[2] = std::min(left_endpt_coords[2], right_endpt_coords[2]) - radius[0] - buffer_distance;
+        aabb[3] = std::max(left_endpt_coords[0], right_endpt_coords[0]) + radius[0] + buffer_distance;
+        aabb[4] = std::max(left_endpt_coords[1], right_endpt_coords[1]) + radius[0] + buffer_distance;
+        aabb[5] = std::max(left_endpt_coords[2], right_endpt_coords[2]) + radius[0] + buffer_distance;
+      });
 }
 //}
 

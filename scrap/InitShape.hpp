@@ -249,7 +249,7 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
   std::vector<stk::mesh::Part *> shape_part_ptr_vector_;
 
   /// \brief Map from kernel name to kernel instance.
-  std::map<std::string_view, std::shared_ptr<mundy::meta::MetaKernel<void>>> kernel_map_;
+  std::map<std::string_view, std::shared_ptr<mundy::meta::MetaKernel<>>> kernel_map_;
   //@}
 };  // InitShape
 

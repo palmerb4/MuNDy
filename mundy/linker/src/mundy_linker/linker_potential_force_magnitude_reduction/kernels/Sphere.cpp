@@ -26,9 +26,10 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>                                                 // for MUNDY_THROW_ASSERT
@@ -110,10 +111,6 @@ std::vector<stk::mesh::Part *> Sphere::get_valid_entity_parts() const {
   return valid_entity_parts_;
 }
 
-stk::topology::rank_t Sphere::get_entity_rank() const {
-  return stk::topology::ELEMENT_RANK;
-}
-
 void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   // We don't have any valid mutable params, so this seems pointless but it's useful in that it will throw if the user
@@ -132,40 +129,51 @@ void Sphere::setup() {
                                     {linker_contact_normal_field_ptr_, linker_potential_force_magnitude_field_ptr_});
 }
 
-void Sphere::execute(const stk::mesh::Entity &sphere) const {
-  // Get our node and its force
-  const stk::mesh::Entity &node = bulk_data_ptr_->begin_nodes(sphere)[0];
-  double *node_force = stk::mesh::field_data(*node_force_field_ptr_, node);
+void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
+  // Get references to internal members so we aren't passing around *this
+  const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
+  const stk::mesh::Field<double> &linker_potential_force_magnitude_field = *linker_potential_force_magnitude_field_ptr_;
+  const stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+  stk::mesh::Part &linkers_part_to_reduce_over = *linkers_part_to_reduce_over_;
 
-  // Loop over the connected constraint rank entities
-  const unsigned num_constraint_rank_conn = bulk_data_ptr_->num_connectivity(sphere, stk::topology::CONSTRAINT_RANK);
-  const stk::mesh::Entity *connected_linkers = bulk_data_ptr_->begin(sphere, stk::topology::CONSTRAINT_RANK);
+  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+  stk::mesh::for_each_entity_run(
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+      locally_owned_intersection_with_valid_entity_parts,
+      [&linker_contact_normal_field, &linker_potential_force_magnitude_field, &node_force_field,
+       &linkers_part_to_reduce_over](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere) {
+        // Get our node and its force
+        const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere)[0];
+        double *node_force = stk::mesh::field_data(node_force_field, node);
 
-  for (unsigned i = 0; i < num_constraint_rank_conn; i++) {
-    const stk::mesh::Entity &connected_linker = connected_linkers[i];
-    MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(connected_linker), std::logic_error,
-                       "Sphere: connected_linker is not valid.");
+        // Loop over the connected constraint rank entities
+        const unsigned num_constraint_rank_conn = bulk_data.num_connectivity(sphere, stk::topology::CONSTRAINT_RANK);
+        const stk::mesh::Entity *connected_linkers = bulk_data.begin(sphere, stk::topology::CONSTRAINT_RANK);
 
-    const bool is_reduction_linker = bulk_data_ptr_->bucket(connected_linker).member(*linkers_part_to_reduce_over_);
+        for (unsigned i = 0; i < num_constraint_rank_conn; i++) {
+          const stk::mesh::Entity &connected_linker = connected_linkers[i];
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(connected_linker), std::logic_error,
+                             "Sphere: connected_linker is not valid.");
 
-    if (is_reduction_linker) {
-      // The contact normal stored on a linker points from the left element to the right element. This is important, as
-      // it means we should multiply by -1 if we are the right element.
-      const bool are_we_the_left_sphere =
-          (bulk_data_ptr_->begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == sphere);
-      const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
-      double *contact_normal = stk::mesh::field_data(*linker_contact_normal_field_ptr_, connected_linker);
-      double *potential_force_magnitude =
-          stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr_, connected_linker);
+          const bool is_reduction_linker = bulk_data.bucket(connected_linker).member(linkers_part_to_reduce_over);
 
-      node_force[0] -= sign * contact_normal[0] * potential_force_magnitude[0];
-      node_force[1] -= sign * contact_normal[1] * potential_force_magnitude[0];
-      node_force[2] -= sign * contact_normal[2] * potential_force_magnitude[0];
-    }
-  }
-}
+          if (is_reduction_linker) {
+            // The contact normal stored on a linker points from the left element to the right element. This is
+            // important, as it means we should multiply by -1 if we are the right element.
+            const bool are_we_the_left_sphere =
+                (bulk_data.begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == sphere);
+            const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
+            double *contact_normal = stk::mesh::field_data(linker_contact_normal_field, connected_linker);
+            double *potential_force_magnitude =
+                stk::mesh::field_data(linker_potential_force_magnitude_field, connected_linker);
 
-void Sphere::finalize() {
+            node_force[0] -= sign * contact_normal[0] * potential_force_magnitude[0];
+            node_force[1] -= sign * contact_normal[1] * potential_force_magnitude[0];
+            node_force[2] -= sign * contact_normal[2] * potential_force_magnitude[0];
+          }
+        }
+      });
 }
 //}
 
