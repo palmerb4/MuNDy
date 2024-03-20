@@ -53,6 +53,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
+#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
@@ -1604,7 +1605,7 @@ int main(int argc, char **argv) {
 
   if (bulk_data_ptr->parallel_rank() == 0) {
     double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps);
-    std::cout << "Time per timestep: " << avg_time_per_timestep << std::endl;
+    std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
   }
 
   // // Write the final mesh to file
