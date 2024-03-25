@@ -24,7 +24,7 @@ free parameters:
   - number_of_particles
   - length_of_domain
   - total_time
-  - time_step_size
+  - timestep_size
   - diffusion_coeff
 
 Each timestep will consist of
@@ -49,11 +49,11 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
+#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_agent/AgentHierarchy.hpp>  // for mundy::agent::AgentHierarchy
@@ -76,9 +76,8 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
-#include <mundy_shape/ComputeAABB.hpp>           // for mundy::shape::ComputeAABB
-#include <mundy_shape/DeclareAndInitShapes.hpp>  // for mundy::shape::DeclareAndInitShapes
-#include <mundy_shape/shapes/Spheres.hpp>        // for mundy::shape::shapes::Spheres
+#include <mundy_shape/ComputeAABB.hpp>     // for mundy::shape::ComputeAABB
+#include <mundy_shape/shapes/Spheres.hpp>  // for mundy::shape::shapes::Spheres
 
 /*// A macro for a block of stuff
 #define TIME_BLOCK(thing_to_time, rank, message)                          \
@@ -144,7 +143,7 @@ class NodeEuler
   /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    default_parameter_list.set("timestep_size", default_timestep_size_, "The timestep size.");
     return default_parameter_list;
   }
   //@}
@@ -153,7 +152,7 @@ class NodeEuler
   //! \name Default parameters
   //@{
 
-  static inline double default_time_step_size_ = 0.0;
+  static inline double default_timestep_size_ = 0.0;
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   //@}
 };  // NodeEuler
@@ -197,7 +196,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     const std::string node_coord_field_name = mundy::shape::shapes::Spheres::get_node_coord_field_name();
     const std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
 
-    node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+    node_coordinates_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
     node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name);
   }
   //@}
@@ -260,7 +259,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    default_parameter_list.set("timestep_size", default_timestep_size_, "The timestep size.");
     return default_parameter_list;
   }
 
@@ -278,10 +277,10 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
     Teuchos::ParameterList valid_mutable_params = mutable_params;
     valid_mutable_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_mutable_params());
-    time_step_size_ = valid_mutable_params.get<double>("time_step_size");
+    timestep_size_ = valid_mutable_params.get<double>("timestep_size");
 
-    MUNDY_THROW_ASSERT(time_step_size_ > 0.0, std::invalid_argument,
-                       "NodeEulerSphere: time_step_size must be greater than zero.");
+    MUNDY_THROW_ASSERT(timestep_size_ > 0.0, std::invalid_argument,
+                       "NodeEulerSphere: timestep_size must be greater than zero.");
   }
   //@}
 
@@ -302,22 +301,22 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
   void execute(const stk::mesh::Selector &sphere_selector) {
     // Get references to internal members so we aren't passing around *this
-    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coordinates_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
-    double time_step_size = time_step_size_;
+    double timestep_size = timestep_size_;
 
     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
         stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
         locally_owned_intersection_with_valid_entity_parts,
-        [&node_coord_field, &node_velocity_field, &time_step_size](
-            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+        [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                                  const stk::mesh::Entity &sphere_node) {
           double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
           double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
-          node_coords[0] += time_step_size * node_velocity[0];
-          node_coords[1] += time_step_size * node_velocity[1];
-          node_coords[2] += time_step_size * node_velocity[2];
+          node_coords[0] += timestep_size * node_velocity[0];
+          node_coords[1] += timestep_size * node_velocity[1];
+          node_coords[2] += timestep_size * node_velocity[2];
         });
   }
   //@}
@@ -326,7 +325,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   //! \name Default parameters
   //@{
 
-  static inline double default_time_step_size_ = 0.0;
+  static inline double default_timestep_size_ = 0.0;
   static constexpr std::string_view default_part_name_ = "SPHERES";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   //@}
@@ -344,10 +343,10 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   std::vector<stk::mesh::Part *> valid_entity_parts_;
 
   /// \brief The numerical timestep size.
-  double time_step_size_;
+  double timestep_size_;
 
   /// \brief Node field containing the node's spatial coordinate.
-  stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
+  stk::mesh::Field<double> *node_coordinates_field_ptr_ = nullptr;
 
   /// \brief Node field containing the node's translational velocity.
   stk::mesh::Field<double> *node_velocity_field_ptr_ = nullptr;
@@ -409,7 +408,7 @@ class ComputeBrownianVelocity
   /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    default_parameter_list.set("timestep_size", default_timestep_size_, "The timestep size.");
     default_parameter_list.set("alpha", default_alpha_,
                                "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
     default_parameter_list.set("beta", default_beta_,
@@ -422,7 +421,7 @@ class ComputeBrownianVelocity
   //! \name Default parameters
   //@{
 
-  static inline double default_time_step_size_ = 0.0;
+  static inline double default_timestep_size_ = 0.0;
   static constexpr double default_alpha_ = 1.0;
   static constexpr double default_beta_ = 0.0;
   static constexpr std::string_view default_node_brownian_velocity_field_name_ = "NODE_BROWNIAN_VELOCITY";
@@ -542,7 +541,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
+    default_parameter_list.set("timestep_size", default_timestep_size_, "The timestep size.");
     default_parameter_list.set("diffusion_coeff", default_diffusion_coeff_, "The diffusion coefficient.");
     default_parameter_list.set("alpha", default_alpha_,
                                "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
@@ -568,13 +567,13 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
     Teuchos::ParameterList valid_mutable_params = mutable_params;
     valid_mutable_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_mutable_params());
-    time_step_size_ = valid_mutable_params.get<double>("time_step_size");
+    timestep_size_ = valid_mutable_params.get<double>("timestep_size");
     diffusion_coeff_ = valid_mutable_params.get<double>("diffusion_coeff");
     alpha_ = valid_mutable_params.get<double>("alpha");
     beta_ = valid_mutable_params.get<double>("beta");
 
-    MUNDY_THROW_ASSERT(time_step_size_ > 0.0, std::invalid_argument,
-                       "ComputeBrownianVelocitySphere: time_step_size must be greater than zero.");
+    MUNDY_THROW_ASSERT(timestep_size_ > 0.0, std::invalid_argument,
+                       "ComputeBrownianVelocitySphere: timestep_size must be greater than zero.");
   }
   //@}
 
@@ -597,7 +596,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     // Get references to internal members so we aren't passing around *this
     stk::mesh::Field<double> &node_brownian_velocity_field = *node_brownian_velocity_field_ptr_;
     stk::mesh::Field<unsigned> &node_rng_counter_field = *node_rng_counter_field_ptr_;
-    double time_step_size = time_step_size_;
+    double timestep_size = timestep_size_;
     double diffusion_coeff = diffusion_coeff_;
     double alpha = alpha_;
     double beta = beta_;
@@ -607,18 +606,18 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
         locally_owned_intersection_with_valid_entity_parts,
-        [&node_brownian_velocity_field, &node_rng_counter_field, &time_step_size, &diffusion_coeff, &alpha, &beta](
+        [&node_brownian_velocity_field, &node_rng_counter_field, &timestep_size, &diffusion_coeff, &alpha, &beta](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           double *node_brownian_velocity = stk::mesh::field_data(node_brownian_velocity_field, sphere_node);
           const stk::mesh::EntityId sphere_node_gid = bulk_data.identifier(sphere_node);
           unsigned *node_rng_counter = stk::mesh::field_data(node_rng_counter_field, sphere_node);
 
           openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
-          node_brownian_velocity[0] = alpha * std::sqrt(2.0 * diffusion_coeff / time_step_size) * rng.randn<double>() +
+          node_brownian_velocity[0] = alpha * std::sqrt(2.0 * diffusion_coeff / timestep_size) * rng.randn<double>() +
                                       beta * node_brownian_velocity[0];
-          node_brownian_velocity[1] = alpha * std::sqrt(2.0 * diffusion_coeff / time_step_size) * rng.randn<double>() +
+          node_brownian_velocity[1] = alpha * std::sqrt(2.0 * diffusion_coeff / timestep_size) * rng.randn<double>() +
                                       beta * node_brownian_velocity[1];
-          node_brownian_velocity[2] = alpha * std::sqrt(2.0 * diffusion_coeff / time_step_size) * rng.randn<double>() +
+          node_brownian_velocity[2] = alpha * std::sqrt(2.0 * diffusion_coeff / timestep_size) * rng.randn<double>() +
                                       beta * node_brownian_velocity[2];
           node_rng_counter[0]++;
         });
@@ -629,7 +628,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   //! \name Default parameters
   //@{
 
-  static inline double default_time_step_size_ = 0.0;
+  static inline double default_timestep_size_ = 0.0;
   static inline double default_diffusion_coeff_ = 0.0;
   static constexpr double default_alpha_ = 1.0;
   static constexpr double default_beta_ = 0.0;
@@ -651,7 +650,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   std::vector<stk::mesh::Part *> valid_entity_parts_;
 
   /// \brief The numerical timestep size.
-  double time_step_size_;
+  double timestep_size_;
 
   /// \brief The diffusion coefficient.
   double diffusion_coeff_;
@@ -1015,6 +1014,306 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
 /// @brief Register LocalDragNonorientableSphere with LocalDrag's kernel factory
 MUNDY_REGISTER_METACLASS("NONORIENTABLE_SPHERE", LocalDragNonorientableSphere, LocalDrag::OurKernelFactory)
 
+///////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////
+
+class ComputeConstraintForces
+    : public mundy::meta::MetaKernelDispatcher<ComputeConstraintForces,
+                                               mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCES")> {
+ public:
+  //! \name Constructors and destructor
+  //@{
+
+  /// \brief No default constructor
+  ComputeConstraintForces() = delete;
+
+  /// \brief Constructor
+  ComputeConstraintForces(mundy::mesh::BulkData *const bulk_data_ptr,
+                          const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
+      : mundy::meta::MetaKernelDispatcher<ComputeConstraintForces,
+                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCES")>(
+            bulk_data_ptr, fixed_params) {
+  }
+  //@}
+
+  //! \name MetaKernelDispatcher static interface implementation
+  //@{
+
+  /// \brief Get the valid fixed parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we require our techniques have.
+  static Teuchos::ParameterList get_valid_required_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid fixed parameters that we will forward to our kernels.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters that we will forward to our kernels.
+  static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+  //@}
+};  // ComputeConstraintForces
+
+/// \class ComputeConstraintForcesHookeanSpring
+/// \brief Concrete implementation of \c MetaKernel for computing the node force induced by a Hookean spring.
+///
+/// This class assumes that springs have BEAM_2 topology.
+///
+/// The force is computed as F1 = k * (L - L0) * u12, F2 = -F1, where k is the spring constant, L is the current spring
+/// length, L0 is the rest length, and u12 is the unit vector pointing from the first node to the second.
+class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
+ public:
+  //! \name Typedefs
+  //@{
+
+  using PolymorphicBaseType = mundy::meta::MetaKernel<>;
+  //@}
+
+  //! \name Constructors and destructor
+  //@{
+
+  /// \brief Constructor
+  explicit ComputeConstraintForcesHookeanSpring(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
+      : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
+    // The bulk data pointer must not be null.
+    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+                       "ComputeConstraintForcesHookeanSpring: bulk_data_ptr cannot be a nullptr.");
+
+    // Validate the input params. Use default values for any parameter not given.
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(ComputeConstraintForcesHookeanSpring::get_valid_fixed_params());
+
+    // Store the valid entity parts for the kernel.
+    Teuchos::Array<std::string> valid_entity_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    for (const std::string &part_name : valid_entity_part_names) {
+      valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
+      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         "ComputeConstraintForcesHookeanSpring: Part '"
+                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+    }
+
+    // Fetch the fields.
+    const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
+    const std::string node_coord_field_name = mundy::shape::shapes::Spheres::get_node_coord_field_name();
+    const std::string element_rest_length_field_name =
+        valid_fixed_params.get<std::string>("element_rest_length_field_name");
+    const std::string element_spring_constant_field_name =
+        valid_fixed_params.get<std::string>("element_spring_constant_field_name");
+
+    node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
+    node_coordinates_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+    element_rest_length_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_rest_length_field_name);
+    element_spring_constant_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_spring_constant_field_name);
+  }
+  //@}
+
+  //! \name MetaKernel interface implementation
+  //@{
+
+  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
+  ///
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
+  ///
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// will be created. You can save the result yourself if you wish to reuse it.
+  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+      [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
+    Teuchos::ParameterList valid_fixed_params = fixed_params;
+    valid_fixed_params.validateParametersAndSetDefaults(ComputeConstraintForcesHookeanSpring::get_valid_fixed_params());
+
+    // Fill the requirements using the given parameter list.
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
+    std::string element_rest_length_field_name = valid_fixed_params.get<std::string>("element_rest_length_field_name");
+    std::string element_spring_constant_field_name =
+        valid_fixed_params.get<std::string>("element_spring_constant_field_name");
+
+    Teuchos::Array<std::string> valid_entity_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    const int num_parts = static_cast<int>(valid_entity_part_names.size());
+    for (int i = 0; i < num_parts; i++) {
+      const std::string part_name = valid_entity_part_names[i];
+      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::BEAM_2);
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          node_force_field_name, stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          element_rest_length_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
+          element_spring_constant_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+
+      mesh_reqs_ptr->add_part_reqs(part_reqs);
+    }
+    return mesh_reqs_ptr;
+  }
+
+  /// \brief Get the valid fixed parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_fixed_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "Name of the parts associated with this kernel.");
+    default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
+                               "Name of the node force field to be used for storing the computed spring force.");
+    default_parameter_list.set("element_rest_length_field_name", std::string(default_element_rest_length_field_name_),
+                               "Name of the element field containing the rest length of the spring.");
+    default_parameter_list.set("element_spring_constant_field_name",
+                               std::string(default_element_spring_constant_field_name_),
+                               "Name of the element field containing the spring constant.");
+    return default_parameter_list;
+  }
+
+  /// \brief Get the valid mutable parameters for this class and their defaults.
+  static Teuchos::ParameterList get_valid_mutable_params() {
+    static Teuchos::ParameterList default_parameter_list;
+    return default_parameter_list;
+  }
+
+  /// \brief Generate a new instance of this class.
+  ///
+  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
+  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
+      mundy::mesh::BulkData *const bulk_data_ptr,
+      const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
+    return std::make_shared<ComputeConstraintForcesHookeanSpring>(bulk_data_ptr, fixed_params);
+  }
+
+  //! \name Setters
+  //@{
+
+  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
+  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
+    Teuchos::ParameterList valid_mutable_params = mutable_params;
+    valid_mutable_params.validateParametersAndSetDefaults(
+        ComputeConstraintForcesHookeanSpring::get_valid_mutable_params());
+  }
+  //@}
+
+  //! \name Getters
+  //@{
+
+  /// \brief Get valid entity parts for the kernel.
+  /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
+  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
+    return valid_entity_parts_;
+  }
+  //@}
+
+  //! \name Actions
+  //@{
+
+  /// \brief Run the kernel's core calculation.
+  /// \param sphere_node [in] The sphere's node acted on by the kernel.
+  void execute(const stk::mesh::Selector &spring_selector) {
+    // Get references to internal members so we aren't passing around *this
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coordinates_field_ptr_;
+    stk::mesh::Field<double> &element_rest_length_field = *element_rest_length_field_ptr_;
+    stk::mesh::Field<double> &element_spring_constant_field = *element_spring_constant_field_ptr_;
+
+    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spring_selector;
+    stk::mesh::for_each_entity_run(
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+        locally_owned_intersection_with_valid_entity_parts,
+        [&node_force_field, &node_coord_field, &element_rest_length_field, &element_spring_constant_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spring_element) {
+          // Fetch the connected nodes.
+          const stk::mesh::Entity *nodes = bulk_data.begin_nodes(spring_element);
+          const stk::mesh::Entity &node1 = nodes[0];
+          const stk::mesh::Entity &node2 = nodes[1];
+
+          // Fetch the required node and element field data.
+          const double *node1_coord = stk::mesh::field_data(node_coord_field, node1);
+          const double *node2_coord = stk::mesh::field_data(node_coord_field, node2);
+          const double *element_rest_length = stk::mesh::field_data(element_rest_length_field, spring_element);
+          const double *element_spring_constant = stk::mesh::field_data(element_spring_constant_field, spring_element);
+
+          // Compute the separation distance and the unit vector from node1 to node2.
+          double separation[3] = {node2_coord[0] - node1_coord[0], node2_coord[1] - node1_coord[1],
+                                  node2_coord[2] - node1_coord[2]};
+          const double separation_length =
+              std::sqrt(separation[0] * separation[0] + separation[1] * separation[1] + separation[2] * separation[2]);
+
+          // Compute the spring force.
+          const double spring_force_magnitude =
+              element_spring_constant[0] * (separation_length - element_rest_length[0]);
+          const double spring_force[3] = {spring_force_magnitude * separation[0] / separation_length,
+                                          spring_force_magnitude * separation[1] / separation_length,
+                                          spring_force_magnitude * separation[2] / separation_length};
+
+          // Add the spring force to the nodes.
+          double *node1_force = stk::mesh::field_data(node_force_field, node1);
+          double *node2_force = stk::mesh::field_data(node_force_field, node2);
+          node1_force[0] += spring_force[0];
+          node1_force[1] += spring_force[1];
+          node1_force[2] += spring_force[2];
+          node2_force[0] -= spring_force[0];
+          node2_force[1] -= spring_force[1];
+          node2_force[2] -= spring_force[2];
+        });
+  }
+  //@}
+
+ private:
+  //! \name Default parameters
+  //@{
+
+  static constexpr std::string_view default_part_name_ = "SPRINGS";
+  static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
+  static constexpr std::string_view default_element_rest_length_field_name_ = "ELEMENT_REST_LENGTH";
+  static constexpr std::string_view default_element_spring_constant_field_name_ = "ELEMENT_SPRING_CONSTANT";
+  //@}
+
+  //! \name Internal members
+  //@{
+
+  /// \brief The BulkData object this class acts upon.
+  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
+
+  /// \brief The MetaData object this class acts upon.
+  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
+
+  /// \brief The valid entity parts for the kernel.
+  std::vector<stk::mesh::Part *> valid_entity_parts_;
+
+  /// \brief Node field containing the node's force.
+  stk::mesh::Field<double> *node_force_field_ptr_ = nullptr;
+
+  /// \brief Node field containing the node's coordinates.
+  stk::mesh::Field<double> *node_coordinates_field_ptr_ = nullptr;
+
+  /// \brief Element field containing the spring's rest length.
+  stk::mesh::Field<double> *element_rest_length_field_ptr_ = nullptr;
+
+  /// \brief Element field containing the spring's spring constant.
+  stk::mesh::Field<double> *element_spring_constant_field_ptr_ = nullptr;
+  //@}
+};  // ComputeConstraintForcesHookeanSpring
+
+/// @brief Register ComputeConstraintForcesHookeanSpring with ComputeConstraintForces default kernels
+MUNDY_REGISTER_METACLASS("HOOKEAN_SPRING", ComputeConstraintForcesHookeanSpring,
+                         ComputeConstraintForces::OurKernelFactory)
+
 ///////////////////////////
 // Partitioning settings //
 ///////////////////////////
@@ -1045,51 +1344,43 @@ int main(int argc, char **argv) {
   Kokkos::initialize(argc, argv);
 
   // Default values for the inputs
-  size_t num_spheres_x = 10;
-  size_t num_spheres_y = 10;
-  size_t num_spheres_z = 10;
+  size_t num_spheres = 10;
   double sphere_radius_lower_bound = 0.6;
   double sphere_radius_upper_bound = 0.6;
-  double length_of_domain = 10.0;
-  bool zmorton = false;
-  bool shuffle = false;
-  bool use_levis_function = false;
+  double initial_segment_length = 1.0;
+  double rest_length = 1.0;
   bool loadbalance_initial_config = false;
 
   size_t num_time_steps = 100;
-  double time_step_size = 0.01;
+  double timestep_size = 0.01;
   double diffusion_coeff = 1.0;
   double viscosity = 1.0;
   double youngs_modulus = 1000.0;
   double poissons_ratio = 0.3;
+  double spring_constant = 1.0;
 
   // Parse the command line options.
   Teuchos::CommandLineProcessor cmdp(false, true);
 
   // Optional command line arguments for controlling sphere initialization:
-  cmdp.setOption("num_spheres_x", &num_spheres_x, "Number of spheres in the x direction.");
-  cmdp.setOption("num_spheres_y", &num_spheres_y, "Number of spheres in the y direction.");
-  cmdp.setOption("num_spheres_z", &num_spheres_z, "Number of spheres in the z direction.");
+  cmdp.setOption("num_spheres", &num_spheres, "Number of spheres.");
   cmdp.setOption("sphere_radius_lower_bound", &sphere_radius_lower_bound,
                  "Lower bound of the sphere radius. Sphere radii will be chosen between the lower and upper bound");
   cmdp.setOption("sphere_radius_upper_bound", &sphere_radius_upper_bound,
                  "Upper bound of the sphere radius. Sphere radii will be chosen between the lower and upper bound");
-  cmdp.setOption("length_of_domain", &length_of_domain, "Length of the domain.");
-  cmdp.setOption("zmorton", "no_zmorton", &zmorton, "Use Z-Morton ordering for the spheres.");
-  cmdp.setOption("shuffle", "no_shuffle", &shuffle, "Shuffle the spheres after they are created.");
-  cmdp.setOption("use_levis_function", "dont_use_levis_function", &use_levis_function,
-                 "Use Levis function for sphere initialization along a highly bumpy surface. If true, num_spheres_z "
-                 "will not be used.");
+  cmdp.setOption("initial_segment_length", &initial_segment_length, "Initial segment length.");
+  cmdp.setOption("rest_length", &rest_length, "Rest length of the spring.");
   cmdp.setOption("loadbalance", "no_loadbalance", &loadbalance_initial_config,
                  "Load balance the initial configuration.");
 
   // Optional command line arguments for controlling the simulation:
   cmdp.setOption("num_time_steps", &num_time_steps, "Number of time steps.");
-  cmdp.setOption("time_step_size", &time_step_size, "Time step size.");
+  cmdp.setOption("timestep_size", &timestep_size, "Time step size.");
   cmdp.setOption("diffusion_coeff", &diffusion_coeff, "Diffusion coefficient.");
   cmdp.setOption("viscosity", &viscosity, "Viscosity.");
   cmdp.setOption("youngs_modulus", &youngs_modulus, "Young's modulus.");
   cmdp.setOption("poissons_ratio", &poissons_ratio, "Poisson's ratio.");
+  cmdp.setOption("spring_constant", &spring_constant, "Spring constant.");
 
   if (cmdp.parse(argc, argv) != Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL) {
     Kokkos::finalize();
@@ -1097,31 +1388,24 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  if (use_levis_function) {
-    num_spheres_z = 1;
-  }
-
-  MUNDY_THROW_ASSERT(time_step_size > 0, std::invalid_argument, "Time step size must be greater than zero.");
+  MUNDY_THROW_ASSERT(timestep_size > 0, std::invalid_argument, "Time step size must be greater than zero.");
 
   // Dump the parameters to screen on rank 0
   if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
     std::cout << "##################################################" << std::endl;
     std::cout << "INPUT PARAMETERS:" << std::endl;
-    std::cout << "  num_spheres_x: " << num_spheres_x << std::endl;
-    std::cout << "  num_spheres_y: " << num_spheres_y << std::endl;
-    std::cout << "  num_spheres_z: " << num_spheres_z << std::endl;
+    std::cout << "  num_spheres: " << num_spheres << std::endl;
     std::cout << "  sphere_radius_lower_bound: " << sphere_radius_lower_bound << std::endl;
     std::cout << "  sphere_radius_upper_bound: " << sphere_radius_upper_bound << std::endl;
-    std::cout << "  zmorton: " << zmorton << std::endl;
-    std::cout << "  shuffle: " << shuffle << std::endl;
-    std::cout << "  use_levis_function: " << use_levis_function << std::endl;
-    std::cout << "  length_of_domain: " << length_of_domain << std::endl;
+    std::cout << "  initial_segment_length: " << initial_segment_length << std::endl;
+    std::cout << "  rest_length: " << rest_length << std::endl;
     std::cout << "  num_time_steps: " << num_time_steps << std::endl;
-    std::cout << "  time_step_size: " << time_step_size << std::endl;
+    std::cout << "  timestep_size: " << timestep_size << std::endl;
     std::cout << "  diffusion_coeff: " << diffusion_coeff << std::endl;
     std::cout << "  viscosity: " << viscosity << std::endl;
     std::cout << "  youngs_modulus: " << youngs_modulus << std::endl;
     std::cout << "  poissons_ratio: " << poissons_ratio << std::endl;
+    std::cout << "  spring_constant: " << spring_constant << std::endl;
     std::cout << "##################################################" << std::endl;
   }
 
@@ -1163,9 +1447,15 @@ int main(int argc, char **argv) {
       .sublist("NONORIENTABLE_SPHERE")
       .set<Teuchos::Array<std::string>>("valid_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
 
-  // DeclareAndInitShapes fixed parameters
-  Teuchos::ParameterList declare_and_init_shapes_fixed_params;
-  declare_and_init_shapes_fixed_params.set("enabled_technique_name", "GRID_OF_SPHERES");
+  // ComputeConstraintForces fixed parameters
+  Teuchos::ParameterList compute_constraint_forces_fixed_params;
+  compute_constraint_forces_fixed_params
+      .set<Teuchos::Array<std::string>>("enabled_kernel_names",
+                                        Teuchos::tuple<std::string>(std::string("HOOKEAN_SPRING")))
+      .sublist("HOOKEAN_SPRING")
+      .set("node_force_field_name", "NODE_FORCE")
+      .set("element_rest_length_field_name", "ELEMENT_REST_LENGTH")
+      .set("element_spring_constant_field_name", "ELEMENT_SPRING_CONSTANT");
 
   // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
   Teuchos::ParameterList compute_ssd_and_cn_fixed_params;
@@ -1233,16 +1523,16 @@ int main(int argc, char **argv) {
       .set("element_aabb_field_name", "ELEMENT_AABB");
 
   // Create the class instances and mesh based on the given fixed requirements.
-  auto [compute_brownian_velocity_ptr, node_euler_ptr, compute_mobility_ptr, declare_and_init_shapes_ptr,
+  auto [compute_brownian_velocity_ptr, node_euler_ptr, compute_mobility_ptr, compute_constraint_forces_ptr,
         compute_ssd_and_cn_ptr, compute_aabb_ptr, generate_neighbor_linkers_ptr, evaluate_linker_potentials_ptr,
         linker_potential_force_magnitude_reduction_ptr, destroy_neighbor_linkers_ptr, bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<
-          ComputeBrownianVelocity, NodeEuler, ComputeMobility, mundy::shape::DeclareAndInitShapes,
+          ComputeBrownianVelocity, NodeEuler, ComputeMobility, ComputeConstraintForces,
           mundy::linker::ComputeSignedSeparationDistanceAndContactNormal, mundy::shape::ComputeAABB,
           mundy::linker::GenerateNeighborLinkers, mundy::linker::EvaluateLinkerPotentials,
           mundy::linker::LinkerPotentialForceMagnitudeReduction, mundy::linker::DestroyNeighborLinkers>(
           {compute_brownian_velocity_fixed_params, node_euler_fixed_params, compute_mobility_fixed_params,
-           declare_and_init_shapes_fixed_params, compute_ssd_and_cn_fixed_params, compute_aabb_fixed_params,
+           compute_constraint_forces_fixed_params, compute_ssd_and_cn_fixed_params, compute_aabb_fixed_params,
            generate_neighbor_linkers_fixed_params, evaluate_linker_potentials_fixed_params,
            linker_potential_force_magnitude_reduction_fixed_params, destroy_neighbor_linkers_fixed_params});
 
@@ -1254,7 +1544,7 @@ int main(int argc, char **argv) {
   check_class_instance(compute_brownian_velocity_ptr, "ComputeBrownianVelocity");
   check_class_instance(node_euler_ptr, "NodeEuler");
   check_class_instance(compute_mobility_ptr, "ComputeMobility");
-  check_class_instance(declare_and_init_shapes_ptr, "DeclareAndInitShapes");
+  check_class_instance(compute_constraint_forces_ptr, "ComputeConstraintForces");
   check_class_instance(compute_ssd_and_cn_ptr, "ComputeSignedSeparationDistanceAndContactNormal");
   check_class_instance(compute_aabb_ptr, "ComputeAABB");
   check_class_instance(generate_neighbor_linkers_ptr, "GenerateNeighborLinkers");
@@ -1273,13 +1563,13 @@ int main(int argc, char **argv) {
 
   // ComputeBrownianVelocity mutable parameters
   Teuchos::ParameterList compute_brownian_velocity_mutable_params;
-  compute_brownian_velocity_mutable_params.set("time_step_size", time_step_size).set("alpha", 1.0).set("beta", 1.0);
+  compute_brownian_velocity_mutable_params.set("timestep_size", timestep_size).set("alpha", 1.0).set("beta", 1.0);
   compute_brownian_velocity_mutable_params.sublist("SPHERE").set("diffusion_coeff", diffusion_coeff);
   compute_brownian_velocity_ptr->set_mutable_params(compute_brownian_velocity_mutable_params);
 
   // NodeEuler mutable parameters
   Teuchos::ParameterList node_euler_mutable_params;
-  node_euler_mutable_params.set("time_step_size", time_step_size);
+  node_euler_mutable_params.set("timestep_size", timestep_size);
   node_euler_ptr->set_mutable_params(node_euler_mutable_params);
 
   // ComputeMobility mutable parameters
@@ -1287,36 +1577,8 @@ int main(int argc, char **argv) {
   compute_mobility_mutable_params.sublist("LOCAL_DRAG").set("viscosity", viscosity);
   compute_mobility_ptr->set_mutable_params(compute_mobility_mutable_params);
 
-  // DeclareAndInitShapes mutable parameters
-  Teuchos::ParameterList declare_and_init_shapes_mutable_params;
-  using CoordinateMappingType = mundy::shape::declare_and_initialize_shapes::techniques::GridCoordinateMapping;
-  std::shared_ptr<CoordinateMappingType> coordinate_mapping_ptr;
-  const double min_x = 0.0;
-  const double max_x = length_of_domain;
-  const double min_y = 0.0;
-  const double max_y = length_of_domain;
-  const double min_z = 0.0;
-  const double max_z = length_of_domain;
-  if (use_levis_function) {
-    using OurCoordinateMappingType = mundy::shape::declare_and_initialize_shapes::techniques::LevisFunction2DTo3D;
-    coordinate_mapping_ptr = std::make_shared<OurCoordinateMappingType>(num_spheres_x, num_spheres_y, min_x, max_x,
-                                                                        min_y, max_y, min_z, max_z);
-  } else {
-    using OurCoordinateMappingType =
-        mundy::shape::declare_and_initialize_shapes::techniques::ScaledGridCoordinateMapping;
-    coordinate_mapping_ptr = std::make_shared<OurCoordinateMappingType>(num_spheres_x, num_spheres_y, num_spheres_z,
-                                                                        min_x, max_x, min_y, max_y, min_z, max_z);
-  }
-  declare_and_init_shapes_mutable_params.sublist("GRID_OF_SPHERES")
-      .set<size_t>("num_spheres_x", num_spheres_x)
-      .set<size_t>("num_spheres_y", num_spheres_y)
-      .set<size_t>("num_spheres_z", num_spheres_z)
-      .set("sphere_radius_lower_bound", sphere_radius_lower_bound)
-      .set("sphere_radius_upper_bound", sphere_radius_upper_bound)
-      .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", coordinate_mapping_ptr)
-      .set("zmorton", zmorton)
-      .set("shuffle", shuffle);
-  declare_and_init_shapes_ptr->set_mutable_params(declare_and_init_shapes_mutable_params);
+  // ComputeConstraintForces mutable parameters
+  // Doesn't have any mutable parameters to set
 
   // ComputeSignedSeparationDistanceAndContactNormal mutable parameters
   // Doesn't have any mutable parameters to set
@@ -1350,6 +1612,10 @@ int main(int argc, char **argv) {
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_YOUNGS_MODULUS");
   auto element_poissons_ratio_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_POISSONS_RATIO");
+  auto element_rest_length_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_REST_LENGTH");
+  auto element_spring_constant_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_SPRING_CONSTANT");
 
   // Linker (constraint rank) fields
   auto linker_contact_normal_field_ptr =
@@ -1373,6 +1639,8 @@ int main(int argc, char **argv) {
   check_if_exists(element_radius_field_ptr, "ELEMENT_RADIUS");
   check_if_exists(element_youngs_modulus_field_ptr, "ELEMENT_YOUNGS_MODULUS");
   check_if_exists(element_poissons_ratio_field_ptr, "ELEMENT_POISSONS_RATIO");
+  check_if_exists(element_rest_length_field_ptr, "ELEMENT_REST_LENGTH");
+  check_if_exists(element_spring_constant_field_ptr, "ELEMENT_SPRING_CONSTANT");
   check_if_exists(linker_contact_normal_field_ptr, "LINKER_CONTACT_NORMAL");
   check_if_exists(linker_signed_separation_distance_field_ptr, "LINKER_SIGNED_SEPARATION_DISTANCE");
   check_if_exists(linker_potential_force_magnitude_field_ptr, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
@@ -1387,18 +1655,22 @@ int main(int argc, char **argv) {
                      "SPHERE_SPHERE_LINKERS part not found.");
   stk::mesh::Part &sphere_sphere_linkers_part = *sphere_sphere_linkers_part_ptr;
 
+  stk::mesh::Part *springs_part_ptr = meta_data_ptr->get_part("SPRINGS");
+  MUNDY_THROW_ASSERT(springs_part_ptr != nullptr, std::invalid_argument, "SPRINGS part not found.");
+  stk::mesh::Part &springs_part = *springs_part_ptr;
+
   ///////////////////
   // Setup our IO  //
   ///////////////////
   stk::io::put_io_part_attribute(spheres_part);
   stk::io::put_io_part_attribute(sphere_sphere_linkers_part);
+  stk::io::put_io_part_attribute(springs_part);
 
   stk::io::StkMeshIoBroker stk_io_broker;
   stk_io_broker.use_simple_fields();
   stk_io_broker.set_bulk_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()));
 
-  size_t output_file_index =
-      stk_io_broker.create_output_mesh("SphereBrownianMotionWithContactNew.exo", stk::io::WRITE_RESULTS);
+  size_t output_file_index = stk_io_broker.create_output_mesh("Springs.exo", stk::io::WRITE_RESULTS);
   stk_io_broker.add_field(output_file_index, *node_coordinates_field_ptr);
   stk_io_broker.add_field(output_file_index, *node_velocity_field_ptr);
   stk_io_broker.add_field(output_file_index, *node_force_field_ptr);
@@ -1406,6 +1678,8 @@ int main(int argc, char **argv) {
   stk_io_broker.add_field(output_file_index, *element_radius_field_ptr);
   stk_io_broker.add_field(output_file_index, *element_youngs_modulus_field_ptr);
   stk_io_broker.add_field(output_file_index, *element_poissons_ratio_field_ptr);
+  stk_io_broker.add_field(output_file_index, *element_rest_length_field_ptr);
+  stk_io_broker.add_field(output_file_index, *element_spring_constant_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_contact_normal_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_signed_separation_distance_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_potential_force_magnitude_field_ptr);
@@ -1415,42 +1689,123 @@ int main(int argc, char **argv) {
   // Initialize the spheres and nodes //
   //////////////////////////////////////
 
-  // Declare and connect the spheres and nodes. Initialize their positions and radius.
-  declare_and_init_shapes_ptr->execute();
+  // Declare and connect the spheres, springs, and nodes. Initialize their positions and radius.
+  const size_t rank = bulk_data_ptr->parallel_rank();
+  const size_t spheres_per_rank = num_spheres / bulk_data_ptr->parallel_size();
+  const size_t remainder = num_spheres % bulk_data_ptr->parallel_size();
+  const size_t sphere_id_start = rank * spheres_per_rank + std::min(rank, remainder) + 1;
+  const size_t sphere_id_end = sphere_id_start + spheres_per_rank + (rank < remainder ? 1 : 0);
+  bulk_data_ptr->modification_begin();
+  openrand::Philox rng(1, 0);
 
-  // Zero out the velocity and force fields
-  // Store the sphere material properties
-  {
-    const stk::mesh::Field<double> &node_force_field = *node_force_field_ptr;
-    const stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr;
-    const stk::mesh::Field<unsigned> &node_rng_counter_field = *node_rng_counter_field_ptr;
-    const stk::mesh::Field<double> &element_youngs_modulus_field = *element_youngs_modulus_field_ptr;
-    const stk::mesh::Field<double> &element_poissons_ratio_field = *element_poissons_ratio_field_ptr;
-    const stk::mesh::Selector locally_owned_spheres =
-        spheres_part & bulk_data_ptr->mesh_meta_data().locally_owned_part();
+  // Spheres first.
+  for (size_t i = sphere_id_start; i < sphere_id_end; ++i) {
+    // Create the sphere.
+    stk::mesh::EntityId our_sphere_id = i;
+    stk::mesh::Entity sphere = bulk_data_ptr->declare_element(our_sphere_id);
+    bulk_data_ptr->change_entity_parts(sphere, stk::mesh::ConstPartVector({&spheres_part}));
 
-    stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()), stk::topology::ELEMENT_RANK, locally_owned_spheres,
-        [&node_force_field, &node_velocity_field, &node_rng_counter_field, &element_youngs_modulus_field,
-         &element_poissons_ratio_field, &viscosity, &youngs_modulus,
-         &poissons_ratio]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere) {
-          const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere)[0];
+    // Create the node and connect it to the sphere.
+    stk::mesh::EntityId our_node_id = i;
+    stk::mesh::Entity node = bulk_data_ptr->declare_node(our_node_id);
+    bulk_data_ptr->declare_relation(sphere, node, 0);
 
-          double *node_force = stk::mesh::field_data(node_force_field, node);
-          node_force[0] = 0.0;
-          node_force[1] = 0.0;
-          node_force[2] = 0.0;
+    // Set the node's coordinates using the given coordinate map.
+    double *const node_coords = stk::mesh::field_data(*node_coordinates_field_ptr, node);
+    node_coords[0] = static_cast<double>(i) * initial_segment_length;
+    node_coords[1] = 0.0;
+    node_coords[2] = 0.0;
 
-          double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
-          node_velocity[0] = 0.0;
-          node_velocity[1] = 0.0;
-          node_velocity[2] = 0.0;
+    // Zero out the node's force and velocity.
+    double *node_force = stk::mesh::field_data(*node_force_field_ptr, node);
+    node_force[0] = 0.0;
+    node_force[1] = 0.0;
+    node_force[2] = 0.0;
 
-          stk::mesh::field_data(node_rng_counter_field, node)[0] = 0;
-          stk::mesh::field_data(element_youngs_modulus_field, sphere)[0] = youngs_modulus;
-          stk::mesh::field_data(element_poissons_ratio_field, sphere)[0] = poissons_ratio;
-        });  // for_each_entity_run
+    double *node_velocity = stk::mesh::field_data(*node_velocity_field_ptr, node);
+    node_velocity[0] = 0.0;
+    node_velocity[1] = 0.0;
+    node_velocity[2] = 0.0;
+
+    // Set the misc fields.
+    stk::mesh::field_data(*node_rng_counter_field_ptr, node)[0] = 0;
+    stk::mesh::field_data(*element_youngs_modulus_field_ptr, sphere)[0] = youngs_modulus;
+    stk::mesh::field_data(*element_poissons_ratio_field_ptr, sphere)[0] = poissons_ratio;
+
+    // Set the sphere's radius.
+    stk::mesh::field_data(*element_radius_field_ptr, sphere)[0] =
+        rng.rand<double>() * (sphere_radius_upper_bound - sphere_radius_lower_bound) + sphere_radius_lower_bound;
   }
+
+  // Note, node sharing is symmetric. If we don't own the node that we intend to share, we need to declare it before
+  // marking it as shared. If we are rank 0, we share our final node with rank 1 and receive their first node. If we are
+  // rank N, we share our first node with rank N - 1 and receive their final node. Otherwise, we share our first and
+  // last nodes with the corresponding neighboring ranks and receive their corresponding nodes.
+  if (bulk_data_ptr->parallel_size() > 1) {
+    if (rank == 0) {
+      // Share the last node with rank 1.
+      stk::mesh::EntityId node_id = sphere_id_end - 1;
+      stk::mesh::Entity node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, node_id);
+      bulk_data_ptr->add_node_sharing(node, rank + 1);
+
+      // Receive the first node from rank 1
+      stk::mesh::EntityId received_node_id = sphere_id_end;
+      stk::mesh::Entity received_node = bulk_data_ptr->declare_node(received_node_id);
+      bulk_data_ptr->add_node_sharing(received_node, rank + 1);
+    } else if (rank == bulk_data_ptr->parallel_size() - 1) {
+      // Share the first node with rank N - 1.
+      stk::mesh::EntityId node_id = sphere_id_start;
+      stk::mesh::Entity node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, node_id);
+      bulk_data_ptr->add_node_sharing(node, rank - 1);
+
+      // Receive the last node from rank N - 1.
+      stk::mesh::EntityId received_node_id = sphere_id_start - 1;
+      stk::mesh::Entity received_node = bulk_data_ptr->declare_node(received_node_id);
+      bulk_data_ptr->add_node_sharing(received_node, rank - 1);
+    } else {
+      // Share the first and last nodes with the corresponding neighboring ranks.
+      stk::mesh::EntityId first_node_id = sphere_id_start;
+      stk::mesh::EntityId last_node_id = sphere_id_end - 1;
+      stk::mesh::Entity first_node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, first_node_id);
+      stk::mesh::Entity last_node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, last_node_id);
+      bulk_data_ptr->add_node_sharing(first_node, rank - 1);
+      bulk_data_ptr->add_node_sharing(last_node, rank + 1);
+
+      // Receive the corresponding nodes from the neighboring ranks.
+      stk::mesh::EntityId received_first_node_id = sphere_id_start - 1;
+      stk::mesh::EntityId received_last_node_id = sphere_id_end;
+      stk::mesh::Entity received_first_node = bulk_data_ptr->declare_node(received_first_node_id);
+      stk::mesh::Entity received_last_node = bulk_data_ptr->declare_node(received_last_node_id);
+      bulk_data_ptr->add_node_sharing(received_first_node, rank - 1);
+      bulk_data_ptr->add_node_sharing(received_last_node, rank + 1);
+    }
+  }
+
+  // Now the springs.
+  const size_t spring_id_start = sphere_id_start + num_spheres;
+  const size_t spring_id_end =
+      (rank == bulk_data_ptr->parallel_size() - 1) ? sphere_id_end - 1 + num_spheres : sphere_id_end + num_spheres;
+  for (size_t i = spring_id_start; i < spring_id_end; ++i) {
+    // Create the spring.
+    stk::mesh::EntityId our_spring_id = i;
+    stk::mesh::Entity spring = bulk_data_ptr->declare_element(our_spring_id);
+    bulk_data_ptr->change_entity_parts(spring, stk::mesh::ConstPartVector({&springs_part}));
+
+    // Connect the spring to the nodes of the neighboring spheres. We've already declared the nodes and rectified
+    // sharing, so we can just fetch them.
+    stk::mesh::EntityId node1_id = i - num_spheres;
+    stk::mesh::EntityId node2_id = i + 1 - num_spheres;
+    stk::mesh::Entity node1 = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, node1_id);
+    stk::mesh::Entity node2 = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, node2_id);
+
+    bulk_data_ptr->declare_relation(spring, node1, 0);
+    bulk_data_ptr->declare_relation(spring, node2, 1);
+
+    // Set the spring's properties.
+    stk::mesh::field_data(*element_rest_length_field_ptr, spring)[0] = rest_length;
+    stk::mesh::field_data(*element_spring_constant_field_ptr, spring)[0] = spring_constant;
+  }
+  bulk_data_ptr->modification_end();
 
   ////////////////////////
   // Balancing the mesh //
@@ -1491,72 +1846,17 @@ int main(int argc, char **argv) {
   };
 #endif
 
-  // Write the initial mesh to file
-  stk_io_broker.begin_output_step(output_file_index, 0.0);
-  stk_io_broker.write_defined_output_fields(output_file_index);
-  stk_io_broker.end_output_step(output_file_index);
-  stk_io_broker.flush_output();
+  // // Write the initial mesh to file
+  // stk_io_broker.begin_output_step(output_file_index, 0.0);
+  // stk_io_broker.write_defined_output_fields(output_file_index);
+  // stk_io_broker.end_output_step(output_file_index);
+  // stk_io_broker.flush_output();
 
   if (bulk_data_ptr->parallel_rank() == 0) {
     std::cout << "Running the simulation for " << num_time_steps << " time steps." << std::endl;
   }
 
   Kokkos::Timer timer;
-  // for (size_t i = 0; i < num_time_steps; i++) {
-  //   // As a first pass, we will:
-  //   //  - Zero out the node forces and velocities
-  //   //  - Compute the AABB for the spheres
-  //   //  - Delete SphereSphereLinkers that are too far apart
-  //   //  - Generate SphereSphereLinkers neighbor linkers between nearby spheres
-  //   //  - Compute the signed separation distance and contact normal for the SphereSphereLinkers
-  //   //  - Evaluate the Hertzian contact potential for the SphereSphereLinkers
-  //   //  - Reduce the linker potential force magnitude to the Sphere nodes
-  //   //  - Compute the velocity induced by the node forces using local drag
-  //   //  - Compute the brownian velocity for the nodes
-  //   //  - Update the node positions using a first order Euler method
-  //   mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
-  //   mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
-
-  //   compute_aabb_ptr->execute(spheres_part);
-  //   dump_mesh_info("After compute_aabb_ptr->execute(spheres_part)");
-  //   write_mesh(static_cast<double>(i) + 0.1);
-
-  //   destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part);
-  //   dump_mesh_info("After destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part)");
-  //   write_mesh(static_cast<double>(i) + 0.2);
-
-  //   generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
-  //   dump_mesh_info("After generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part)");
-  //   write_mesh(static_cast<double>(i) + 0.3);
-
-  //   compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part);
-  //   dump_mesh_info("After compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part)");
-  //   write_mesh(static_cast<double>(i) + 0.4);
-
-  //   evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part);
-  //   dump_mesh_info("After evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)");
-  //   write_mesh(static_cast<double>(i) + 0.5);
-
-  //   linker_potential_force_magnitude_reduction_ptr->execute(spheres_part);
-  //   dump_mesh_info("After linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)");
-  //   write_mesh(static_cast<double>(i) + 0.6);
-
-  //   compute_mobility_ptr->execute(spheres_part);
-  //   dump_mesh_info("After compute_mobility_ptr->execute(spheres_part)");
-  //   write_mesh(static_cast<double>(i) + 0.7);
-
-  //   compute_brownian_velocity_ptr->execute(spheres_part);
-  //   dump_mesh_info("After compute_brownian_velocity_ptr->execute(spheres_part)");
-  //   write_mesh(static_cast<double>(i) + 0.8);
-
-  //   node_euler_ptr->execute(spheres_part);
-  //   dump_mesh_info("After node_euler_ptr->execute(spheres_part)");
-  //   write_mesh(static_cast<double>(i) + 0.9);
-  // }
-
-  compute_aabb_ptr->execute(spheres_part);
-  generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
-  auto rank = bulk_data_ptr->parallel_rank();
   for (size_t i = 0; i < num_time_steps; i++) {
     // As a first pass, we will:
     //  - Zero out the node forces and velocities
@@ -1572,33 +1872,112 @@ int main(int argc, char **argv) {
     mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
     mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
 
-    TIME_BLOCK(compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part), rank, "compute_ssd_and_cn_ptr->execute")
+    TIME_BLOCK(compute_constraint_forces_ptr->execute(springs_part), rank,
+               "compute_constraint_forces_ptr->execute(springs_part)")
+    dump_mesh_info("After compute_constraint_forces_ptr->execute(springs_part)");
+    write_mesh(static_cast<double>(i) + 0.01);
+
+    if (i % 10 == 0) {
+      compute_aabb_ptr->execute(spheres_part);
+      dump_mesh_info("After compute_aabb_ptr->execute(spheres_part)");
+      write_mesh(static_cast<double>(i) + 0.02);
+
+      destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part);
+      dump_mesh_info("After destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part)");
+      write_mesh(static_cast<double>(i) + 0.03);
+
+      generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
+      dump_mesh_info("After generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part)");
+      write_mesh(static_cast<double>(i) + 0.04);
+    }
+
+    compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part);
     dump_mesh_info("After compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part)");
-    write_mesh(static_cast<double>(i) + 0.4);
+    write_mesh(static_cast<double>(i) + 0.05);
 
-    TIME_BLOCK(evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part), rank,
-               "evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)")
+    evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part);
     dump_mesh_info("After evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)");
-    write_mesh(static_cast<double>(i) + 0.5);
+    write_mesh(static_cast<double>(i) + 0.06);
 
-    TIME_BLOCK(linker_potential_force_magnitude_reduction_ptr->execute(spheres_part), rank,
-               "linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)")
+    linker_potential_force_magnitude_reduction_ptr->execute(spheres_part);
     dump_mesh_info("After linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)");
-    write_mesh(static_cast<double>(i) + 0.6);
+    write_mesh(static_cast<double>(i) + 0.07);
 
-    TIME_BLOCK(compute_mobility_ptr->execute(spheres_part), rank, "compute_mobility_ptr->execute(spheres_part)")
+    compute_mobility_ptr->execute(spheres_part);
     dump_mesh_info("After compute_mobility_ptr->execute(spheres_part)");
-    write_mesh(static_cast<double>(i) + 0.7);
+    write_mesh(static_cast<double>(i) + 0.08);
 
-    TIME_BLOCK(compute_brownian_velocity_ptr->execute(spheres_part), rank,
-               "compute_brownian_velocity_ptr->execute(spheres_part)")
+    compute_brownian_velocity_ptr->execute(spheres_part);
     dump_mesh_info("After compute_brownian_velocity_ptr->execute(spheres_part)");
-    write_mesh(static_cast<double>(i) + 0.8);
+    write_mesh(static_cast<double>(i) + 0.09);
 
-    TIME_BLOCK(node_euler_ptr->execute(spheres_part), rank, "node_euler_ptr->execute(spheres_part)")
+    node_euler_ptr->execute(spheres_part);
     dump_mesh_info("After node_euler_ptr->execute(spheres_part)");
-    write_mesh(static_cast<double>(i) + 0.9);
+    write_mesh(static_cast<double>(i) + 0.10);
+
+    if (i % 1000 == 0) {
+      stk_io_broker.begin_output_step(output_file_index, static_cast<double>(i));
+      stk_io_broker.write_defined_output_fields(output_file_index);
+      stk_io_broker.end_output_step(output_file_index);
+      stk_io_broker.flush_output();
+    }
   }
+
+  // compute_aabb_ptr->execute(spheres_part);
+  // generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
+  // for (size_t i = 0; i < num_time_steps; i++) {
+  //   // As a first pass, we will:
+  //   //  - Zero out the node forces and velocities
+  //   //  - Compute the AABB for the spheres
+  //   //  - Delete SphereSphereLinkers that are too far apart
+  //   //  - Generate SphereSphereLinkers neighbor linkers between nearby spheres
+  //   //  - Compute the signed separation distance and contact normal for the SphereSphereLinkers
+  //   //  - Evaluate the Hertzian contact potential for the SphereSphereLinkers
+  //   //  - Reduce the linker potential force magnitude to the Sphere nodes
+  //   //  - Compute the velocity induced by the node forces using local drag
+  //   //  - Compute the brownian velocity for the nodes
+  //   //  - Update the node positions using a first order Euler method
+  //   mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
+  //   mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
+
+  //   TIME_BLOCK(compute_constraint_forces_ptr->execute(springs_part), rank,
+  //   "compute_constraint_forces_ptr->execute(springs_part)") dump_mesh_info("After
+  //   compute_constraint_forces_ptr->execute(springs_part)"); write_mesh(static_cast<double>(i) + 0.1);
+
+  //   TIME_BLOCK(compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part), rank, "compute_ssd_and_cn_ptr->execute")
+  //   dump_mesh_info("After compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part)");
+  //   write_mesh(static_cast<double>(i) + 0.2);
+
+  //   TIME_BLOCK(evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part), rank,
+  //              "evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)")
+  //   dump_mesh_info("After evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part)");
+  //   write_mesh(static_cast<double>(i) + 0.3);
+
+  //   TIME_BLOCK(linker_potential_force_magnitude_reduction_ptr->execute(spheres_part), rank,
+  //              "linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)")
+  //   dump_mesh_info("After linker_potential_force_magnitude_reduction_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.4);
+
+  //   TIME_BLOCK(compute_mobility_ptr->execute(spheres_part), rank, "compute_mobility_ptr->execute(spheres_part)")
+  //   dump_mesh_info("After compute_mobility_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.5);
+
+  //   TIME_BLOCK(compute_brownian_velocity_ptr->execute(spheres_part), rank,
+  //              "compute_brownian_velocity_ptr->execute(spheres_part)")
+  //   dump_mesh_info("After compute_brownian_velocity_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.6);
+
+  //   TIME_BLOCK(node_euler_ptr->execute(spheres_part), rank, "node_euler_ptr->execute(spheres_part)")
+  //   dump_mesh_info("After node_euler_ptr->execute(spheres_part)");
+  //   write_mesh(static_cast<double>(i) + 0.7);
+
+  //   if (i % 10 == 0) {
+  //     stk_io_broker.begin_output_step(output_file_index, static_cast<double>(i));
+  //     stk_io_broker.write_defined_output_fields(output_file_index);
+  //     stk_io_broker.end_output_step(output_file_index);
+  //     stk_io_broker.flush_output();
+  //   }
+  // }
 
   // Do a synchronize to force everybody to stop here, then write the time
   stk::parallel_machine_barrier(bulk_data_ptr->parallel());
