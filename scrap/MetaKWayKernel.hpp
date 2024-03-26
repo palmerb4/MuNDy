@@ -79,19 +79,11 @@ class MetaKWayKernel {
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  virtual void setup() = 0;
-
   /// \brief Run the kernel's core calculation.
   /// For example, calculate the force on an entity.
   /// \param entity_array The array of entities to act on.
   /// \param args The additional arguments to the kernel's core calculation.
   virtual ReturnType execute(const std::array<stk::mesh::Entity, K> &entity_array, Args... args) = 0;
-
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  virtual void finalize() = 0;
   //@}
 };  // MetaKWayKernel
 

@@ -212,10 +212,6 @@ class Sphere : public mundy::meta::MetaKernel<> {
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the kernel's core calculation.
   /// \param sphere [in] The sphere acted on by this kernel.
   void execute(const stk::mesh::Selector &sphere_selector) override;

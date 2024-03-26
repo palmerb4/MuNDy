@@ -43,44 +43,6 @@ namespace mundy {
 
 namespace meta {
 
-// void execute(const stk::mesh::Selector &input_selector) {
-//   setup();
-
-//   auto valid_entity_parts = get_valid_entity_parts();
-//   auto kernel_entity_rank = get_entity_rank();
-//   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-//       stk::mesh::selectIntersection(valid_entity_parts) & meta_data_ptr_->locally_owned_part() & input_selector;
-//   stk::mesh::for_each_entity_run(
-//       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), kernel_entity_rank,
-//       locally_owned_intersection_with_valid_entity_parts,
-//       []([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &entity) {
-//         execute(entity);
-//       });
-
-//   finalize();
-// }
-
-//   void execute(const stk::mesh::Selector &input_selector) {
-//     setup();
-
-//     auto valid_entity_parts = get_valid_entity_parts();
-//     auto kernel_entity_rank = get_entity_rank();
-//     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-//         stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & input_selector;
-//     for (auto *part_ptr : valid_entity_parts) {
-//       locally_owned_intersection_with_valid_entity_parts &= *part_ptr;
-//     }
-
-//     stk::mesh::for_each_entity_run(
-//         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), kernel_entity_rank,
-//         locally_owned_intersection_with_valid_entity_parts,
-//         []([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &entity) {
-//           execute(entity);
-//         });
-
-//     finalize();
-//   }
-
 /// \class MetaKernel
 /// \brief A virtual interface that defines the core functionality of a kernel--a class that acts on a single entity.
 ///

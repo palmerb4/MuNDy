@@ -177,19 +177,11 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the kernel's core calculation.
   /// For example, calculate the force on an entity.
   /// \param entity_array The array of entities to act on. These are
   /// [collision_element, left_sphere_element, right_sphere_element]
   void execute(const std::array<stk::mesh::Entity, 3> &entity_array) override;
-
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  void finalize() override;
   //@}
 
  private:

@@ -93,9 +93,6 @@ void CollisionSphereSphere::set_mutable_params([[maybe_unused]] const Teuchos::P
 // \name Actions
 //{
 
-void CollisionSphereSphere::setup() {
-}
-
 void CollisionSphereSphere::execute(const std::array<stk::mesh::Entity, 3> &entity_array) {
   // Unpack the input array.
   const stk::mesh::Entity &collision_element = entity_array[0];
@@ -142,9 +139,6 @@ void CollisionSphereSphere::execute(const std::array<stk::mesh::Entity, 3> &enti
   right_contact_node_normal[0] = -left_contact_normal[0];
   right_contact_node_normal[1] = -left_contact_normal[1];
   right_contact_node_normal[2] = -left_contact_normal[2];
-}
-
-void CollisionSphereSphere::finalize() {
 }
 //}
 

@@ -83,23 +83,11 @@ class MetaMethodSubsetExecutionInterface {
   //! \name Actions
   //@{
 
-  /// \brief Setup the method's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  virtual void setup() {
-    // Do nothing by default.
-  }
-
   /// \brief Run the method's core calculation.
   /// For example, calculate the force on each entity in the given selector.
   /// \param input_selector The selector that defines the entities to act on.
   /// \param args The additional arguments to the methods's core calculation.
   virtual ReturnType execute(const stk::mesh::Selector &input_selector, Args... args) = 0;
-
-  /// \brief Finalize the methods's core calculations.
-  /// For example, communicate information back to the host, or clean up temporary data.
-  virtual void finalize() {
-    // Do nothing by default.
-  }
   //@}
 };  // MetaMethodSubsetExecutionInterface
 

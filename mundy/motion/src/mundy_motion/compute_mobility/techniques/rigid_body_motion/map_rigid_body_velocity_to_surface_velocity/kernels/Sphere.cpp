@@ -90,11 +90,8 @@ void Sphere::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList &m
 // \name Actions
 //{
 
-void Sphere::setup() {
-  // TODO(palmerb4): Populate the ghosted spheres.
-}
-
 void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
+  // TODO(palmerb4): Populate the ghosted spheres.
   stk::mesh::Entity const linker = bulk_data_ptr_->begin(sphere_element, stk::topology::CONSTRAINT_RANK)[0];
   stk::mesh::Entity const *surface_nodes = bulk_data_ptr_->begin_nodes(linker);
   stk::mesh::Entity const body_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
@@ -122,9 +119,6 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
     surface_node_omega[1] = body_node_omega[1];
     surface_node_omega[2] = body_node_omega[2];
   }
-}
-
-void Sphere::finalize() {
   // TODO(palmerb4): Communicate the ghosted information. Overwrite the information in the non-ghosted nodes.
 }
 //}

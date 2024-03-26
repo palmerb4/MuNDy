@@ -105,11 +105,8 @@ std::vector<stk::mesh::Part *> Collision::get_valid_entity_parts() const {
 // \name Actions
 //{
 
-void Collision::setup() {
-  // TODO(palmerb4): Populate our ghost collision elements.
-}
-
 void Collision::execute(const stk::mesh::Entity &collision_node) {
+  // TODO(palmerb4): Populate our ghost collision elements.
   const int num_connected_elements = bulk_data_ptr_->num_elements(collision_node);
   stk::mesh::Entity const *connected_elements = bulk_data_ptr_->begin_elements(collision_node);
   double *node_normal = stk::mesh::field_data(*node_normal_field_ptr_, collision_node);
@@ -127,9 +124,6 @@ void Collision::execute(const stk::mesh::Entity &collision_node) {
       node_force[2] += -linker_lag_mult * node_normal[2];
     }
   }
-}
-
-void Collision::finalize() {
   // TODO(palmerb4): We need to reduce over the shared nodes.
 }
 //}

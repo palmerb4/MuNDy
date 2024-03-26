@@ -58,10 +58,9 @@ namespace {
 //! \name LinkerPotentialForceMagnitudeReduction functionality unit tests
 //@{
 
-TEST(LinkerPotentialForceMagnitudeReduction, PerformsHertzianContactCalculationCorrectlyForSpheresSimple) {
-  /* Check that LinkerPotentialForceMagnitudeReduction properly performs a reduction over linker potential forces.
-  The only edge case to consider is where multiple linkers connect to a single entity and yet we only wish to reduce
-  over a subset of them.
+TEST(LinkerPotentialForceMagnitudeReduction, SumOverASubsetOfLinkersConnectedToASphere) {
+  /* Check that LinkerPotentialForceMagnitudeReduction properly performs a reduction over a subset of linkers connected
+  to an object.
 
   For this test, we'll create one sphere and 3 linkers. Two of the linkers will be in the specified linker part and one
   will simply be a neighbor linker.
@@ -145,7 +144,7 @@ TEST(LinkerPotentialForceMagnitudeReduction, PerformsHertzianContactCalculationC
   // Zero out the node force field.
   double *node_force = stk::mesh::field_data(*node_force_field_ptr, sphere_node);
   for (unsigned i = 0; i < 3; ++i) {
-      node_force[i] = 0.0;
+    node_force[i] = 0.0;
   }
 
   // Reduce the potential force.
@@ -156,8 +155,138 @@ TEST(LinkerPotentialForceMagnitudeReduction, PerformsHertzianContactCalculationC
   const double *new_node_force = stk::mesh::field_data(*node_force_field_ptr, sphere_node);
   for (unsigned i = 0; i < 3; ++i) {
     EXPECT_DOUBLE_EQ(new_node_force[i], -linker_contact_normal1[i] * linker1_potential_force_magnitude[0] -
-                                        linker_contact_normal2[i] * linker2_potential_force_magnitude[0]);
+                                            linker_contact_normal2[i] * linker2_potential_force_magnitude[0]);
   }
+}
+
+TEST(LinkerPotentialForceMagnitudeReduction, CorrectlyReducesOverGhostedLinkers) {
+  /* Check that LinkerPotentialForceMagnitudeReduction properly performs a reduction over locally owned and ghosted
+  linkers.
+
+  For this test, we'll create a chain of spheres and linkers, with each process creating a sphere and a linker (except
+  the last process, which only creates a sphere).
+
+  o--linker--o--linker--o--linker--o--linker--o--linker--o
+
+  We'll set the potential force magnitude of locally owned linkers to the process id
+  */
+  perform_registration();
+
+  // Create an instance of LinkerPotentialForceMagnitudeReduction based on committed mesh that meets the
+  // default requirements for LinkerPotentialForceMagnitudeReduction.
+  Teuchos::ParameterList fixed_params;
+  auto [potential_force_magnitude_reduction_ptr, bulk_data_ptr] =
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<
+          LinkerPotentialForceMagnitudeReduction>({fixed_params});
+  ASSERT_TRUE(potential_force_magnitude_reduction_ptr != nullptr);
+  ASSERT_TRUE(bulk_data_ptr != nullptr);
+  auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
+  ASSERT_TRUE(meta_data_ptr != nullptr);
+
+  // Fetch the parts.
+  stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
+  stk::mesh::Part *neighbor_linkers_part_ptr = meta_data_ptr->get_part("NEIGHBOR_LINKERS");
+  ASSERT_TRUE(sphere_part_ptr != nullptr);
+  ASSERT_TRUE(neighbor_linkers_part_ptr != nullptr);
+
+  // Fetch the required fields.
+  // Fetch the required fields.
+  stk::mesh::Field<double> *node_force_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
+  stk::mesh::Field<double> *linker_potential_force_magnitude_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
+  stk::mesh::Field<double> *linker_contact_normal_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
+
+  ASSERT_TRUE(node_force_field_ptr != nullptr);
+  ASSERT_TRUE(linker_potential_force_magnitude_field_ptr != nullptr);
+  ASSERT_TRUE(linker_contact_normal_field_ptr != nullptr);
+
+  // Declare the spheres and linkers.
+  bulk_data_ptr->modification_begin();
+
+  const int rank = stk::parallel_machine_rank(bulk_data_ptr->parallel());
+  const int num_procs = stk::parallel_machine_size(bulk_data_ptr->parallel());
+
+  // Declare the sphere, its node, and the node's relation to the sphere.
+  stk::mesh::Entity sphere_element =
+      bulk_data_ptr->declare_element(rank + 1, stk::mesh::ConstPartVector{sphere_part_ptr});
+  stk::mesh::Entity sphere_node = bulk_data_ptr->declare_node(rank + 1);
+  bulk_data_ptr->declare_relation(sphere_element, sphere_node, 0);
+
+  // Because linkers connect to their right, we ghost our sphere to the left.
+  if (num_procs > 1) {
+    std::vector<stk::mesh::EntityProc> send_entities;
+    if (rank > 0) {
+      send_entities.push_back(std::make_pair(sphere_element, rank - 1));
+    }
+
+    stk::mesh::Ghosting &ghosting = bulk_data_ptr->create_ghosting("CorrectlyReducesOverGhostedLinkersGhosting");
+    bulk_data_ptr->change_ghosting(ghosting, send_entities);
+  }
+  bulk_data_ptr->modification_end();
+
+  // Declare the linkers.
+  // Each linker is connected to our sphere and the sphere of the process to our right.
+  // Note, the final process will not declare a linker.
+  bulk_data_ptr->modification_begin();
+  if (rank < num_procs - 1) {
+    stk::mesh::Entity linker =
+        bulk_data_ptr->declare_constraint(rank + 1, stk::mesh::ConstPartVector{neighbor_linkers_part_ptr});
+    stk::mesh::Entity rightward_sphere = bulk_data_ptr->get_entity(stk::topology::ELEMENT_RANK, rank + 2);
+    stk::mesh::Entity rightward_node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, rank + 2);
+    ASSERT_TRUE(bulk_data_ptr->is_valid(rightward_sphere));
+    ASSERT_TRUE(bulk_data_ptr->is_valid(rightward_node))
+        << "The rightward node being invalid either means that we set up the connection to the sphere wrong (unlikely)"
+        << " or that the rightward node is not being ghosted correctly.";
+
+    mundy::linker::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker, sphere_element,
+                                                                            rightward_sphere);
+  }
+  bulk_data_ptr->modification_end();
+
+  // Set the linker force magnitudes
+  if (rank < num_procs - 1) {
+    stk::mesh::Entity linker = bulk_data_ptr->get_entity(stk::topology::CONSTRAINT_RANK, rank + 1);
+    double *linker_potential_force_magnitude =
+        stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr, linker);
+    linker_potential_force_magnitude[0] = static_cast<double>(rank);
+  }
+
+  // Zero out the node force field.
+  double *node_force = stk::mesh::field_data(*node_force_field_ptr, sphere_node);
+  for (unsigned i = 0; i < 3; ++i) {
+    node_force[i] = 0.0;
+  }
+
+  // Set the contact normal for the linkers from left to right.
+  if (rank < num_procs - 1) {
+    stk::mesh::Entity linker = bulk_data_ptr->get_entity(stk::topology::CONSTRAINT_RANK, rank + 1);
+    double *linker_contact_normal = stk::mesh::field_data(*linker_contact_normal_field_ptr, linker);
+    linker_contact_normal[0] = 1.0;
+    linker_contact_normal[1] = 0.0;
+    linker_contact_normal[2] = 0.0;
+  }
+
+  // Reduce the potential force.
+  potential_force_magnitude_reduction_ptr->execute(*sphere_part_ptr);
+
+  // Check that the result is as expected.
+  // Process 0 expects the result to be 0, 0, 0
+  // Process i in 1 to N-1 expect the result to be -1, 0, 0
+  // Process N-1 expects the result to be N-2, 0, 0
+  const double *new_node_force = stk::mesh::field_data(*node_force_field_ptr, sphere_node);
+  if (rank == 0) {
+    EXPECT_DOUBLE_EQ(new_node_force[0], 0.0) << "Failed on rank = " << rank;
+  } else if (rank == num_procs - 1) {
+    EXPECT_DOUBLE_EQ(new_node_force[0], static_cast<double>(num_procs) - 2.0)
+        << "Failed on rank = " << rank
+        << ". If the actual value is zero, then we aren't correctly reducing over ghosted linkers.";
+  } else {
+    EXPECT_DOUBLE_EQ(new_node_force[0], -1.0) << "Failed on rank = " << rank;
+  }
+  EXPECT_DOUBLE_EQ(new_node_force[1], 0.0);
+  EXPECT_DOUBLE_EQ(new_node_force[2], 0.0);
 }
 //@}
 

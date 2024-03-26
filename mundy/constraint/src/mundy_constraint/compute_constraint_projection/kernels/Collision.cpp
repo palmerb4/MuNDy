@@ -81,17 +81,11 @@ void Collision::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList
 // \name Actions
 //{
 
-void Collision::setup() {
-}
-
 void Collision::execute(const stk::mesh::Entity &collision_element) const {
   double *lagrange_mult = stk::mesh::field_data(*element_lagrange_multiplier_field_ptr_, collision_element);
 
   // Non-adhesive collisions must have non-negative Lagrange multiplier.
   lagrange_mult[0] = stk::math::max(lagrange_mult[0], 0.0);
-}
-
-void Collision::finalize() {
 }
 //}
 

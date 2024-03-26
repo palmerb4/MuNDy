@@ -94,9 +94,6 @@ void Collision::set_mutable_params([[maybe_unused]] const Teuchos::ParameterList
 // \name Actions
 //{
 
-void Collision::setup() {
-}
-
 void Collision::execute(const stk::mesh::Entity &collision_element) const {
   const double *signed_separation_dist =
       stk::mesh::field_data(*element_signed_separation_dist_field_ptr_, collision_element);
@@ -105,9 +102,6 @@ void Collision::execute(const stk::mesh::Entity &collision_element) const {
 
   // Minimum map constraint violation.
   constraint_violation[0] = std::min(signed_separation_dist[0], lagrange_mult[0]);
-}
-
-void Collision::finalize() {
 }
 //}
 

@@ -138,17 +138,9 @@ class Collision : public mundy::meta::MetaKernel<> {
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the kernel's core calculation.
   /// \param collision_element [in] The collision element acted on by the kernel.
   KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &collision_element) const override;
-
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  void finalize() override;
   //@}
 
  private:

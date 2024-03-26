@@ -184,10 +184,10 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
         bulk_data_ptr_->is_valid(target_entity) ? bulk_data_ptr_->bucket(target_entity).owned() : false;
 
     if (is_source_owned && !is_target_owned) {
-      // Sent the source entity to the target proc.
+      // Send the source entity to the target proc.
       send_entities.push_back(std::make_pair(source_entity, target_proc));
     } else if (!is_source_owned && is_target_owned) {
-      // Ghost the target entity to the source proc.
+      // Send the target entity to the source proc.
       send_entities.push_back(std::make_pair(target_entity, source_proc));
     }
   }

@@ -123,13 +123,11 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 // \name Actions
 //{
 
-void Sphere::setup() {
+void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
   // Communicate the linker fields.
   stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
                                     {linker_contact_normal_field_ptr_, linker_potential_force_magnitude_field_ptr_});
-}
-
-void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
+  
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
   const stk::mesh::Field<double> &linker_potential_force_magnitude_field = *linker_potential_force_magnitude_field_ptr_;
