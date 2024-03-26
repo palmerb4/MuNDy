@@ -21,6 +21,7 @@ SET(HEADERS
   include/mundy_agents/HierarchyOfAgents.hpp
   include/mundy_agents/IsAgentType.hpp
   include/mundy_agents/RankedAssembly.hpp
+  include/mundy_agents/RegisterAgents.hpp
   )
 
 SET(SOURCES 
