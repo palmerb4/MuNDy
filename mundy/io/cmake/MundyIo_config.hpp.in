@@ -1,5 +1,5 @@
-#ifndef MUNDYIO_CONFIG_H
-#define MUNDYIO_CONFIG_H
+#ifndef MUNDYIO_CONFIG_HPP_
+#define MUNDYIO_CONFIG_HPP_
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
@@ -7,4 +7,4 @@
 #cmakedefine HAVE_MUNDYIO_MUNDYSHAPES
 #cmakedefine HAVE_MUNDYIO_MUNDYCONSTRAINTS
 
-#endif  // MUNDYIO_CONFIG_H
+#endif  // MUNDYIO_CONFIG_HPP_

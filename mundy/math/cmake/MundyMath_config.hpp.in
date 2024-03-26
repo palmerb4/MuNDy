@@ -1,6 +1,6 @@
-#ifndef MUNDYMATH_CONFIG_H
-#define MUNDYMATH_CONFIG_H
+#ifndef MUNDYMATH_CONFIG_HPP_
+#define MUNDYMATH_CONFIG_HPP_
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
-#endif  // MUNDYMATH_CONFIG_H
+#endif  // MUNDYMATH_CONFIG_HPP_

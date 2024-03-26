@@ -1,6 +1,6 @@
-#ifndef MUNDYCORE_CONFIG_HPP_
-#define MUNDYCORE_CONFIG_HPP_
+#ifndef MUNDYDRIVER_CONFIG_HPP_
+#define MUNDYDRIVER_CONFIG_HPP_
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
-#endif  // MUNDYCORE_CONFIG_HPP_
+#endif  // MUNDYDRIVER_CONFIG_HPP_

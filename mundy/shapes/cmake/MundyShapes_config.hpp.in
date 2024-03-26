@@ -1,6 +1,6 @@
-#ifndef MUNDYSHAPES_CONFIG_H
-#define MUNDYSHAPES_CONFIG_H
+#ifndef MUNDYSHAPES_CONFIG_HPP_
+#define MUNDYSHAPES_CONFIG_HPP_
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
-#endif  // MUNDYSHAPES_CONFIG_H
+#endif  // MUNDYSHAPES_CONFIG_HPP_
