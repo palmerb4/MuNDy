@@ -1,0 +1,6 @@
+#ifndef MUNDYCONSTRAINTS_CONFIG_H
+#define MUNDYCONSTRAINTS_CONFIG_H
+
+// Declare special variables, especially those related to optional features, TPLs, and workarounds.
+
+#endif  // MUNDYCONSTRAINTS_CONFIG_H

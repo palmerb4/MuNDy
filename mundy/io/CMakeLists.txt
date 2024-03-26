@@ -17,11 +17,9 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 
 SET(HEADERS
     include/mundy_io/IOBroker.hpp
-    include/mundy_io/PerformRegistration.hpp
     )
 SET(SOURCES
     src/mundy_io/IOBroker.cpp
-    src/mundy_io/PerformRegistration.cpp
     )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

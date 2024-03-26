@@ -49,7 +49,7 @@
 
 namespace mundy {
 
-namespace constraint {
+namespace constraints {
 
 /// \class InitShapes
 /// \brief Method for generating and initializing N shapes in in various configurations
@@ -250,7 +250,7 @@ class InitShapes : public mundy::meta::MetaMethodSubsetExecutionInterface<void> 
   //@}
 };  // InitShapes
 
-}  // namespace constraint
+}  // namespace constraints
 
 }  // namespace mundy
 

@@ -14,12 +14,12 @@ tribits_package_define_dependencies(
     Mesh        mesh        PT  OPTIONAL
     Math        math        PT  OPTIONAL
     Meta        meta        PT  OPTIONAL
-    Agent       agent       PT  OPTIONAL
-    Shape       shape       PT  OPTIONAL
-    Linker      linker      PT  OPTIONAL
+    Agents      agents      PT  OPTIONAL
+    Shapes      shapes      PT  OPTIONAL
+    Linkers     linkers     PT  OPTIONAL
     # Balance     balance     PT  OPTIONAL
     Io          io          PT  OPTIONAL
-    # Constraint  constraint  PT  OPTIONAL
+    # Constraints  constraints  PT  OPTIONAL
     # Motion      motion      PT  OPTIONAL
   REGRESSION_EMAIL_LIST brycepalmer96@gmail.com
   )

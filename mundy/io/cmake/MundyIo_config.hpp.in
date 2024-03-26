@@ -4,7 +4,7 @@
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
 // Optional packages
-#cmakedefine HAVE_MUNDYIO_MUNDYSHAPE
-#cmakedefine HAVE_MUNDYIO_MUNDYCONSTRAINT
+#cmakedefine HAVE_MUNDYIO_MUNDYSHAPES
+#cmakedefine HAVE_MUNDYIO_MUNDYCONSTRAINTS
 
 #endif  // MUNDYIO_CONFIG_H

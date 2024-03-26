@@ -45,16 +45,15 @@
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
 
 // Mundy libs
-#include <MundyIo_config.hpp>                // for HAVE_MUNDYIO_MUNDYSHAPE
+#include <MundyIo_config.hpp>                // for HAVE_MUNDYIO_MUNDYSHAPES
 #include <mundy_io/IOBroker.hpp>             // for mundy::io::IoBroker
-#include <mundy_io/PerformRegistration.hpp>  // for mundy::linker::perform_registration
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>        // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
-#include <mundy_shape/ComputeAABB.hpp>  // for mundy::shape::ComputeAABB
+#include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 
 namespace mundy {
 
@@ -75,7 +74,6 @@ actually commit the meta data.
 //! \name IOBroker static interface implementations unit tests
 //@{
 TEST(IOBroker, FixedParameterDefaults) {
-  perform_registration();
 
   // Check the expected default values.
   Teuchos::ParameterList fixed_params;
@@ -104,7 +102,6 @@ bool check_field_role(std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr, cons
 
 // Test if we can create a new instance of the IOBroker
 TEST(IOBroker, CreateNewInstanceIOAABB) {
-  perform_registration();
 
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
   auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
@@ -113,8 +110,8 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
-  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -165,7 +162,6 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
 
 // Test if we can write some initial configuration with the iobroker based on ComputeAABB
 TEST(IOBroker, WriteInitialConfigAABB) {
-  perform_registration();
 
   std::string restart_filename = "exodus_mesh_initial.exo";
 
@@ -176,8 +172,8 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
-  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -214,7 +210,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
   // requirements.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   auto io_broker_ptr = IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
-  auto compute_aabb_ptr = mundy::shape::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
+  auto compute_aabb_ptr = mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
 
   // Hit the button on committing the metadata
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
@@ -312,7 +308,6 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
 // Test if we can write a results file with ComputeAABB (include integers)
 TEST(IOBroker, WriteResultsAABBInteger) {
-  perform_registration();
 
   std::string results_filename = "exodus_mesh_results.exo";
 
@@ -323,8 +318,8 @@ TEST(IOBroker, WriteResultsAABBInteger) {
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
-  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -370,7 +365,7 @@ TEST(IOBroker, WriteResultsAABBInteger) {
   // requirements.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   auto io_broker_ptr = IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
-  auto compute_aabb_ptr = mundy::shape::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
+  auto compute_aabb_ptr = mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
 
   // Hit the button on committing the metadata
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
@@ -491,7 +486,6 @@ TEST(IOBroker, WriteResultsAABBInteger) {
 
 // Test if we can write a restart file and then read it back in with integers
 TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
-  perform_registration();
 
   std::string restart_filename = "exodus_mesh_restart.exo";
 
@@ -506,8 +500,8 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
-  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -568,7 +562,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
   // Create instances of our objects
   ////////////////
   auto io_broker_ptr = IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
-  auto compute_aabb_ptr = mundy::shape::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
+  auto compute_aabb_ptr = mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
 
   // Hit the button on committing the metadata
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
@@ -653,7 +647,6 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
 
 // Test if we can read back in the written mesh
 TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
-  perform_registration();
 
   std::string restart_filename = "exodus_mesh_restart.exo";
   std::string results_filename = "exodus_mesh_restart_results.exo";
@@ -665,8 +658,8 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
-  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shape::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shape::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
+  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
@@ -718,7 +711,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
   bulk_data_ptr->mesh_meta_data_ptr()->use_simple_fields();
 
   auto io_broker_ptr = IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
-  auto compute_aabb_ptr = mundy::shape::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
+  auto compute_aabb_ptr = mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr.get(), fixed_params_sphere);
 
   // Hit the button on committing the metadata
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();

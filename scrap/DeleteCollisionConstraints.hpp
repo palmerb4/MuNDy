@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_CONSTRAINT_DELETECOLLISIONCONSTRAINTS_HPP_
-#define MUNDY_CONSTRAINT_DELETECOLLISIONCONSTRAINTS_HPP_
+#ifndef MUNDY_CONSTRAINTS_DELETECOLLISIONCONSTRAINTS_HPP_
+#define MUNDY_CONSTRAINTS_DELETECOLLISIONCONSTRAINTS_HPP_
 
 /// \file DeleteCollisionConstraints.hpp
 /// \brief Declaration of the DeleteCollisionConstraints class
@@ -47,7 +47,7 @@
 
 namespace mundy {
 
-namespace constraint {
+namespace constraints {
 
 /// \class DeleteCollisionConstraints
 /// \brief Method for deleting unnecessary collision constraints.
@@ -205,8 +205,8 @@ class DeleteCollisionConstraints : public mundy::meta::MetaMethodSubsetExecution
   //@}
 };  // DeleteCollisionConstraints
 
-}  // namespace constraint
+}  // namespace constraints
 
 }  // namespace mundy
 
-#endif  // MUNDY_CONSTRAINT_DELETECOLLISIONCONSTRAINTS_HPP_
+#endif  // MUNDY_CONSTRAINTS_DELETECOLLISIONCONSTRAINTS_HPP_

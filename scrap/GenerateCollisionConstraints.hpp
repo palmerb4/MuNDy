@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_CONSTRAINT_GENERATECOLLISIONCONSTRAINTS_HPP_
-#define MUNDY_CONSTRAINT_GENERATECOLLISIONCONSTRAINTS_HPP_
+#ifndef MUNDY_CONSTRAINTS_GENERATECOLLISIONCONSTRAINTS_HPP_
+#define MUNDY_CONSTRAINTS_GENERATECOLLISIONCONSTRAINTS_HPP_
 
 /// \file GenerateCollisionConstraints.hpp
 /// \brief Declaration of the GenerateCollisionConstraints class
@@ -46,11 +46,11 @@
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_constraint/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::constraint::...::CollisionSphereSphere
+#include <mundy_constraints/generate_collision_constraints/kernels/CollisionSphereSphere.hpp>  // for mundy::constraint::...::CollisionSphereSphere
 
 namespace mundy {
 
-namespace constraint {
+namespace constraints {
 
 // TODO(palmerb4): Who should be the one to decide on this type?
 using SearchIdentProc = stk::search::IdentProc<stk::mesh::EntityKey>;
@@ -283,7 +283,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethodSubsetExecuti
   //@}
 };  // GenerateCollisionConstraints
 
-}  // namespace constraint
+}  // namespace constraints
 
 }  // namespace mundy
 
@@ -295,4 +295,4 @@ MUNDY_REGISTER_METACLASS("SPHERE_SPHERE", mundy::constraint::generate_collision_
                          mundy::constraint::GenerateCollisionConstraints::OurThreeWayKernelFactory)
 //@}
 
-#endif  // MUNDY_CONSTRAINT_GENERATECOLLISIONCONSTRAINTS_HPP_
+#endif  // MUNDY_CONSTRAINTS_GENERATECOLLISIONCONSTRAINTS_HPP_

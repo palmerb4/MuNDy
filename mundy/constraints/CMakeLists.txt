@@ -1,0 +1,63 @@
+#
+# A) Define the subpackage
+#
+tribits_subpackage(Constraint)
+
+# By default we enable all optional packages. They can be disabled by the user if they are not needed.
+GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
+
+#
+# B) Define the header and source files
+#
+
+# Headers are relative to the tribits_include_directory
+# We don't recommend typing these by hand. Use 
+# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
+
+SET(HEADERS 
+  # include/mundy_constraints/DeleteCollisionConstraints.hpp
+  include/mundy_constraints/ComputeConstraintForcing.hpp
+  # include/mundy_constraints/generate_collision_constraints/kernels/CollisionSphereSphere.hpp
+  include/mundy_constraints/compute_constraint_projection/kernels/Collision.hpp
+  include/mundy_constraints/ComputeConstraintProjection.hpp
+  include/mundy_constraints/compute_constraint_violation/kernels/Collision.hpp
+  include/mundy_constraints/ComputeConstraintViolation.hpp
+  include/mundy_constraints/compute_constraint_forcing/kernels/Collision.hpp
+  include/mundy_constraints/ComputeConstraintResidual.hpp
+  #include/mundy_constraints/GenerateCollisionConstraints.hpp
+  )
+
+SET(SOURCES 
+  # src/mundy_constraints/GenerateCollisionConstraints.cpp
+  # src/mundy_constraints/generate_collision_constraints/kernels/CollisionSphereSphere.cpp
+  src/mundy_constraints/ComputeConstraintViolation.cpp
+  src/mundy_constraints/ComputeConstraintResidual.cpp
+  src/mundy_constraints/compute_constraint_projection/kernels/Collision.cpp
+  src/mundy_constraints/compute_constraint_violation/kernels/Collision.cpp
+  src/mundy_constraints/ComputeConstraintProjection.cpp
+  src/mundy_constraints/compute_constraint_forcing/kernels/Collision.cpp
+  src/mundy_constraints/ComputeConstraintForcing.cpp
+  )
+
+tribits_configure_file(${PACKAGE_NAME}_config.hpp)
+tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+#
+# C) Add the libraries, tests, and examples
+#
+
+# Add a standard library
+tribits_add_library(
+  mundy_constraints
+  HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  SOURCES ${SOURCES}
+  )
+
+tribits_add_test_directories(tests)
+
+#
+# D) Do standard post processing
+#
+tribits_subpackage_postprocess()

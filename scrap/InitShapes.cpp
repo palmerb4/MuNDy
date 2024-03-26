@@ -36,7 +36,7 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
-#include <mundy_constraint/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
+#include <mundy_constraints/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
@@ -46,7 +46,7 @@
 
 namespace mundy {
 
-namespace constraint {
+namespace constraints {
 
 // \name Constructors and destructor
 //{
@@ -443,6 +443,6 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
 }
 //}
 
-}  // namespace constraint
+}  // namespace constraints
 
 }  // namespace mundy
