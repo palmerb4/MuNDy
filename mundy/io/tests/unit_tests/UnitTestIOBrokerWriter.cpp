@@ -74,7 +74,6 @@ actually commit the meta data.
 //! \name IOBroker static interface implementations unit tests
 //@{
 TEST(IOBroker, FixedParameterDefaults) {
-
   // Check the expected default values.
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(IOBroker::get_valid_fixed_params());
@@ -102,7 +101,6 @@ bool check_field_role(std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr, cons
 
 // Test if we can create a new instance of the IOBroker
 TEST(IOBroker, CreateNewInstanceIOAABB) {
-
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
   auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
@@ -162,7 +160,6 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
 
 // Test if we can write some initial configuration with the iobroker based on ComputeAABB
 TEST(IOBroker, WriteInitialConfigAABB) {
-
   std::string restart_filename = "exodus_mesh_initial.exo";
 
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
@@ -308,7 +305,6 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
 // Test if we can write a results file with ComputeAABB (include integers)
 TEST(IOBroker, WriteResultsAABBInteger) {
-
   std::string results_filename = "exodus_mesh_results.exo";
 
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
@@ -486,7 +482,6 @@ TEST(IOBroker, WriteResultsAABBInteger) {
 
 // Test if we can write a restart file and then read it back in with integers
 TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
-
   std::string restart_filename = "exodus_mesh_restart.exo";
 
   ////////////////
@@ -647,7 +642,6 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
 
 // Test if we can read back in the written mesh
 TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
-
   std::string restart_filename = "exodus_mesh_restart.exo";
   std::string results_filename = "exodus_mesh_restart_results.exo";
 

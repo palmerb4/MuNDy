@@ -42,7 +42,7 @@
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
-#include <mundy_shapes/ComputeAABB.hpp>           // for mundy::shapes::ComputeAABB
+#include <mundy_shapes/ComputeAABB.hpp>          // for mundy::shapes::ComputeAABB
 
 // Mundy test libs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
@@ -57,13 +57,11 @@ namespace {
 //@{
 
 TEST(ComputeAABBStaticInterface, IsRegisterable) {
-
   // Check if ComputeAABB has the correct static interface to be compatible with MetaFactory.
   ASSERT_TRUE(mundy::meta::HasMeshRequirementsAndIsRegisterable<ComputeAABB>::value);
 }
 
 TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
-
   // Check the expected default values.
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_fixed_params());
@@ -89,7 +87,6 @@ TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
 }
 
 TEST(ComputeAABBStaticInterface, MutableParameterDefaults) {
-
   // Check the expected default values.
   Teuchos::ParameterList mutable_params;
   mutable_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_mutable_params());
@@ -109,7 +106,6 @@ TEST(ComputeAABBStaticInterface, MutableParameterValidation) {
 }
 
 TEST(ComputeAABBStaticInterface, GetMeshRequirementsFromDefaultParameters) {
-
   // Attempt to get the mesh requirements using the default parameters.
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_fixed_params());
@@ -117,7 +113,6 @@ TEST(ComputeAABBStaticInterface, GetMeshRequirementsFromDefaultParameters) {
 }
 
 TEST(ComputeAABBStaticInterface, CreateNewInstanceFromDefaultParameters) {
-
   // Attempt to get the mesh requirements using the default parameters.
   auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
@@ -138,7 +133,6 @@ TEST(ComputeAABBStaticInterface, CreateNewInstanceFromDefaultParameters) {
 //@{
 
 TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
-
   /* Check that ComputeAABB works correctly for spheres.
   For a sphere at any arbitrary position, the AABB should be a cube with side length equal to the diameter of the sphere
   and center at the sphere's position.

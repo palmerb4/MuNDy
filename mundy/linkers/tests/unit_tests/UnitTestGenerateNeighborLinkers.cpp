@@ -41,13 +41,13 @@
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
 
 // Mundy libs
-#include <MundyLinker_config.hpp>                    // for HAVE_MUNDYLINKER_MUNDYSHAPES
+#include <MundyLinker_config.hpp>                     // for HAVE_MUNDYLINKER_MUNDYSHAPES
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>  // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/Linkers.hpp>  // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
+#include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
+#include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
@@ -74,13 +74,11 @@ PerformsNeighborLinkerGenerationCorrectlyForSpheres
 //@{
 
 TEST(GenerateNeighborLinkersStaticInterface, IsRegisterable) {
-
   // Check if GenerateNeighborLinkers has the correct static interface to be compatible with MetaFactory.
   ASSERT_TRUE(mundy::meta::HasMeshRequirementsAndIsRegisterable<GenerateNeighborLinkers>::value);
 }
 
 TEST(GenerateNeighborLinkersStaticInterface, FixedParameterDefaults) {
-
   // Check the expected default values.
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_fixed_params());
@@ -104,7 +102,6 @@ TEST(GenerateNeighborLinkersStaticInterface, FixedParameterDefaults) {
 }
 
 TEST(GenerateNeighborLinkersStaticInterface, MutableParameterDefaults) {
-
   // Check the expected default values.
   Teuchos::ParameterList mutable_params;
   mutable_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_mutable_params());
@@ -127,7 +124,6 @@ TEST(GenerateNeighborLinkersStaticInterface, MutableParameterValidation) {
 }
 
 TEST(GenerateNeighborLinkersStaticInterface, GetMeshRequirementsFromDefaultParameters) {
-
   // Attempt to get the mesh requirements using the default parameters.
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_fixed_params());
@@ -135,7 +131,6 @@ TEST(GenerateNeighborLinkersStaticInterface, GetMeshRequirementsFromDefaultParam
 }
 
 TEST(GenerateNeighborLinkersStaticInterface, CreateNewInstanceFromDefaultParameters) {
-
   // Attempt to get the mesh requirements using the default parameters.
   auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);

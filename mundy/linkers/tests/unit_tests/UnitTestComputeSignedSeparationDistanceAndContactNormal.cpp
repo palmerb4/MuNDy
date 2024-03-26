@@ -38,10 +38,10 @@
 
 // Mundy libs
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
-#include <mundy_linkers/Linkers.hpp>  // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
@@ -56,7 +56,6 @@ namespace {
 //@{
 
 TEST(ComputeSignedSeparationDistanceAndContactNormal, PerformsCalculationCorrectlyForSphere) {
-
   /* Check that ComputeSignedSeparationDistanceAndContactNormal works correctly for spheres.
   The signed separation distance between two spheres is the distance between their centers minus the sum of their radii.
   The contact normal is the normalized vector pointing from the first sphere to the second sphere. In our case, that
@@ -93,7 +92,7 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal, PerformsCalculationCorrect
   stk::mesh::Entity linker_constraint =
       bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{sphere_sphere_linker_part_ptr});
   mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker_constraint,
-                                                                          sphere_element1, sphere_element2);
+                                                                           sphere_element1, sphere_element2);
   bulk_data_ptr->modification_end();
 
   // Fetch the required fields.

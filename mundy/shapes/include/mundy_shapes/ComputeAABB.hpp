@@ -60,7 +60,6 @@ class ComputeAABB
   }
   //@}
 
-
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 

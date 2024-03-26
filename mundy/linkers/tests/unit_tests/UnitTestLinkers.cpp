@@ -39,7 +39,7 @@
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
 
 // Mundy libs
-#include <mundy_linkers/Linkers.hpp>    // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
+#include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
@@ -273,8 +273,8 @@ TEST(Linkers, FamilyTreeRelationGeneration) {
     // Connect the linker to the spheres
     bulk_data_ptr->modification_begin();
     stk::mesh::Entity linker1 = bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{&linker_part});
-    ASSERT_NO_THROW(mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(),
-                                                                                            linker1, sphere1, sphere2));
+    ASSERT_NO_THROW(mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(
+        bulk_data_ptr.get(), linker1, sphere1, sphere2));
     bulk_data_ptr->modification_end();
 
     // Check the connectivity.
@@ -338,8 +338,8 @@ TEST(Linkers, FamilyTreeRelationGeneration) {
     // Connect the linker to the spheres
     bulk_data_ptr->modification_begin();
     stk::mesh::Entity linker1 = bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{&linker_part});
-    ASSERT_NO_THROW(mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(),
-                                                                                            linker1, sphere1, sphere2));
+    ASSERT_NO_THROW(mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(
+        bulk_data_ptr.get(), linker1, sphere1, sphere2));
     bulk_data_ptr->modification_end();
 
     // Check the connectivity.

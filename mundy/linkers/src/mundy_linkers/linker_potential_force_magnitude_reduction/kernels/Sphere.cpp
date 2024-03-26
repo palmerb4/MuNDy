@@ -32,10 +32,10 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                                                 // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                                                  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Sphere.hpp>  // for mundy::linkers::...::kernels::Sphere
-#include <mundy_mesh/BulkData.hpp>                                                     // for mundy::mesh::BulkData
-#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
+#include <mundy_mesh/BulkData.hpp>                                                      // for mundy::mesh::BulkData
+#include <mundy_shapes/Spheres.hpp>                                                     // for mundy::shapes::Spheres
 
 namespace mundy {
 
@@ -127,7 +127,7 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
   // Communicate the linker fields.
   stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
                                     {linker_contact_normal_field_ptr_, linker_potential_force_magnitude_field_ptr_});
-  
+
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
   const stk::mesh::Field<double> &linker_potential_force_magnitude_field = *linker_potential_force_magnitude_field_ptr_;
@@ -177,7 +177,7 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
 
 }  // namespace kernels
 
-}  // namespace linkers_potential_force_magnitude_reduction
+}  // namespace linker_potential_force_magnitude_reduction
 
 }  // namespace linkers
 

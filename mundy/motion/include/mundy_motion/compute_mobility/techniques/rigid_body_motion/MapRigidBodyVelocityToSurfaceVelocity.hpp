@@ -70,7 +70,6 @@ class MapRigidBodyVelocityToSurfaceVelocity
   }
   //@}
 
-
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 

@@ -33,8 +33,8 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_agents/Agents.hpp>          // for mundy::agents::Agents
-#include <mundy_agents/RankedAssembly.hpp>    // for mundy::agents::RankedAssembly
+#include <mundy_agents/Agents.hpp>           // for mundy::agents::Agents
+#include <mundy_agents/RankedAssembly.hpp>   // for mundy::agents::RankedAssembly
 #include <mundy_core/StringLiteral.hpp>      // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
@@ -116,9 +116,9 @@ namespace linkers {
 /// The design of this class is in accordance with the static interface requirements of mundy::agents::AgentFactory.
 ///
 /// \note This class is a constraint rank assembly part containing all linkers. It is a subset of the AGENTS part.
-class Linkers
-    : public mundy::agents::RankedAssembly<mundy::core::make_string_literal("LINKERS"), stk::topology::CONSTRAINT_RANK,
-                                           mundy::agents::Agents> {};  // Linkers
+class Linkers : public mundy::agents::RankedAssembly<mundy::core::make_string_literal("LINKERS"),
+                                                     stk::topology::CONSTRAINT_RANK, mundy::agents::Agents> {
+};  // Linkers
 
 /// \brief Declare the relations and their converse between a constraint-rank entity and the family tree of any number
 /// of entities within the same mesh.

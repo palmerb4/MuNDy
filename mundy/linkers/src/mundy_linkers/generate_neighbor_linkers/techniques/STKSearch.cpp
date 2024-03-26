@@ -36,9 +36,9 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_linkers/Linkers.hpp>     // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_linkers/Linkers.hpp>    // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
 #include <mundy_linkers/generate_neighbor_linkers/techniques/STKSearch.hpp>  // for mundy::linkers::...::STKSearch
-#include <mundy_mesh/BulkData.hpp>                                          // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>                                           // for mundy::mesh::BulkData
 
 namespace mundy {
 
@@ -196,7 +196,6 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   bulk_data_ptr_->change_ghosting(ghosting, send_entities);
   bulk_data_ptr_->modification_end();
 
-
   // Step 4: Check if a new linker should be created between the pair or not. We do not generate a linker if
   //  1. A linker already exists between the source and target entities. If it does, we add it to the specified neighbor
   //  linker parts instead of creating a new linker.
@@ -288,7 +287,7 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
 
       // Connect the linker to the source and target entities.
       mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr_, linker_i, source_entity,
-                                                                              target_entity);
+                                                                               target_entity);
     }
   }
   bulk_data_ptr_->modification_end();

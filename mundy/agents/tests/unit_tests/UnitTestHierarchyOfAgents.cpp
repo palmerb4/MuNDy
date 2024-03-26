@@ -36,7 +36,7 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_agents/HierarchyOfAgents.hpp>        // for mundy::agents::HierarchyOfAgents
+#include <mundy_agents/HierarchyOfAgents.hpp>    // for mundy::agents::HierarchyOfAgents
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData

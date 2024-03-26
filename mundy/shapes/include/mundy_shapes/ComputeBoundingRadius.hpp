@@ -62,7 +62,6 @@ class ComputeBoundingRadius
   }
   //@}
 
-
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 

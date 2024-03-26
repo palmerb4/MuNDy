@@ -30,11 +30,11 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>        // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
@@ -107,8 +107,8 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   //@{
 
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
-  using OurKernelFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<>,
-                                                               kernel_factory_registration_string_value_wrapper>;
+  using OurKernelFactory =
+      mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<>, kernel_factory_registration_string_value_wrapper>;
   //@}
 
   //! \name Constructors and destructor
@@ -378,7 +378,6 @@ void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_
   Teuchos::ParameterList valid_mutable_params = mutable_params;
   valid_mutable_params.validateParametersAndSetDefaults(
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_mutable_params());
-
 
   // Populate our internal members.
   for (int i = 0; i < num_active_kernels_; i++) {

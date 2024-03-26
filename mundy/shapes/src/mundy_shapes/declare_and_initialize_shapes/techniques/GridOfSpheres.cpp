@@ -39,11 +39,11 @@
 #include <stk_search/SearchMethod.hpp>    // for stk::search::KDTREE
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                                                     // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>                                                         // for mundy::mesh::BulkData
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>      // for mundy::mesh::BulkData
+#include <mundy_shapes/Spheres.hpp>     // for mundy::shapes::Spheres
 #include <mundy_shapes/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp>  // for mundy::shapes::...::GridCoordinateMapping
 #include <mundy_shapes/declare_and_initialize_shapes/techniques/GridOfSpheres.hpp>  // for mundy::shapes::...::GridOfSpheres
-#include <mundy_shapes/Spheres.hpp>                                          // for mundy::shapes::Spheres
 
 namespace mundy {
 

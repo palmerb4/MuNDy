@@ -63,8 +63,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
   //@{
 
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
-  using OurKernelFactory =
-      mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<>, registration_string_wrapper>;
+  using OurKernelFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<>, registration_string_wrapper>;
   using OurMethodFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>,
                                                                registration_string_wrapper>;
   //@}

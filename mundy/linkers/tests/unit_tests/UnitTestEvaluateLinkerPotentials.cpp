@@ -38,10 +38,10 @@
 
 // Mundy libs
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>  // for mundy::linkers::EvaluateLinkerPotentials
-#include <mundy_linkers/Linkers.hpp>  // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
@@ -58,7 +58,6 @@ namespace {
 //@{
 
 TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSpheresSimple) {
-
   /* Check that EvaluateLinkerPotentials evaluates the Hertzian contact correctly for spheres.
     For this test, we generate a 2 spheres of different radii and generate sphere-sphere linkers between neighboring
     spheres. For simplicity, we directly compute the signed separation distances and contact normals. We then pass these
@@ -94,7 +93,7 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
   stk::mesh::Entity linker_constraint =
       bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{sphere_sphere_linker_part_ptr});
   mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker_constraint,
-                                                                          sphere_element1, sphere_element2);
+                                                                           sphere_element1, sphere_element2);
   bulk_data_ptr->modification_end();
 
   // Fetch the required fields.

@@ -57,26 +57,26 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 
 // Mundy libs
 #include <mundy_agents/HierarchyOfAgents.hpp>  // for mundy::agents::HierarchyOfAgents
-#include <mundy_core/StringLiteral.hpp>    // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
+#include <mundy_core/StringLiteral.hpp>        // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_core/throw_assert.hpp>         // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
 #include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
-#include <mundy_mesh/BulkData.hpp>                                  // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                                  // for mundy::mesh::MetaData
-#include <mundy_mesh/utils/FillFieldWithValue.hpp>                  // for mundy::mesh::utils::fill_field_with_value
-#include <mundy_meta/MetaFactory.hpp>                               // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                                // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaKernelDispatcher.hpp>                      // for mundy::meta::MetaKernelDispatcher
+#include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                                   // for mundy::mesh::MetaData
+#include <mundy_mesh/utils/FillFieldWithValue.hpp>                   // for mundy::mesh::utils::fill_field_with_value
+#include <mundy_meta/MetaFactory.hpp>                                // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                                 // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernelDispatcher.hpp>                       // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
-#include <mundy_shapes/ComputeAABB.hpp>     // for mundy::shapes::ComputeAABB
-#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
+#include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
+#include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
 
 /*// A macro for a block of stuff
 #define TIME_BLOCK(thing_to_time, rank, message)                          \
@@ -1412,7 +1412,6 @@ int main(int argc, char **argv) {
     std::cout << "  spring_constant: " << spring_constant << std::endl;
     std::cout << "##################################################" << std::endl;
   }
-
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Setup the fixed parameters and generate the corresponding class instances and mesh //

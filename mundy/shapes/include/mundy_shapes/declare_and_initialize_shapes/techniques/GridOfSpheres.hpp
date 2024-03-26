@@ -37,7 +37,6 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
-#include <mundy_shapes/Spheres.hpp>         // for mundy::shapes::Spheres
 #include <mundy_core/StringLiteral.hpp>                 // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
@@ -48,6 +47,7 @@
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>  // for mundy::meta::MetaMethodExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                  // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 #include <mundy_shapes/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp>  // for mundy::shapes::...::GridCoordinateMapping
 
 namespace mundy {
@@ -161,7 +161,8 @@ class GridOfSpheres : public mundy::meta::MetaMethodExecutionInterface<void> {
     default_parameter_list.set("num_spheres_y", default_num_spheres_y_, "The number of spheres in the y direction.");
     default_parameter_list.set("num_spheres_z", default_num_spheres_z_, "The number of spheres in the z direction.");
     default_parameter_list.set<std::shared_ptr<GridCoordinateMapping>>(
-        "coordinate_mapping", std::make_shared<IdentityMap>(), "The user-defined map function for the sphere coordinates.");
+        "coordinate_mapping", std::make_shared<IdentityMap>(),
+        "The user-defined map function for the sphere coordinates.");
     default_parameter_list.set("sphere_radius_lower_bound", default_sphere_radius_lower_bound_,
                                "The lower bound on the sphere radius.");
     default_parameter_list.set("sphere_radius_upper_bound", default_sphere_radius_upper_bound_,

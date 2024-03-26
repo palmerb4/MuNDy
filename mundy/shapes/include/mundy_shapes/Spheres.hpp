@@ -32,10 +32,10 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy includes
-#include <mundy_shapes/Shapes.hpp>          // for mundy::shapes::Shapes
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_shapes/Shapes.hpp>           // for mundy::shapes::Shapes
 
 namespace mundy {
 
@@ -96,14 +96,14 @@ class Spheres {
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
     // By default, we assume that the Spheres part is a point particle with a radius.
     // All Spheres are Shapes.
-    
+
     // Declare our part as a subpart of our parent parts.
     mundy::shapes::Shapes::add_subpart_reqs(part_reqs_ptr_);
 
-    // Because we passed our part requirements up the chain, we can now fetch and merge all of our parent's requirements.
-    // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
-    // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
-    // combined requirements for all parts touched in this traversal are then returned here.
+    // Because we passed our part requirements up the chain, we can now fetch and merge all of our parent's
+    // requirements. If done correctly, this call will result in a upward tree traversal. Our part is declared as a
+    // subpart of our parent, which is declared as a subpart of its parent. This process repeated until we reach a root
+    // node. The combined requirements for all parts touched in this traversal are then returned here.
     //
     // We add our part requirements directly to the mesh to account for the case where we are the root node.
     static auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();

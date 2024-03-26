@@ -85,8 +85,8 @@ std::tuple<std::shared_ptr<typename MetaClasses::PolymorphicBaseType>...> create
 template <typename... MetaClasses>
 std::tuple<std::shared_ptr<typename MetaClasses::PolymorphicBaseType>..., std::shared_ptr<mundy::mesh::BulkData>>
 generate_class_instance_and_mesh_from_meta_class_requirements(
-    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &array_of_fixed_params  = {
-      Teuchos::ParameterList()}) {
+    const std::array<Teuchos::ParameterList, sizeof...(MetaClasses)> &array_of_fixed_params = {
+        Teuchos::ParameterList()}) {
   constexpr size_t num_meta_classes = sizeof...(MetaClasses);
 
   // Setup the mesh requirements.

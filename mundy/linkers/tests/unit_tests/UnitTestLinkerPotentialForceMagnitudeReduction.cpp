@@ -38,10 +38,10 @@
 
 // Mundy libs
 #include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
-#include <mundy_linkers/Linkers.hpp>  // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
 
@@ -97,9 +97,12 @@ TEST(LinkerPotentialForceMagnitudeReduction, SumOverASubsetOfLinkersConnectedToA
   stk::mesh::Entity linker2 = bulk_data_ptr->declare_constraint(2, stk::mesh::ConstPartVector{custom_linkers_part_ptr});
   stk::mesh::Entity linker3 =
       bulk_data_ptr->declare_constraint(3, stk::mesh::ConstPartVector{neighbor_linkers_part_ptr});
-  mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker1, sphere_element);
-  mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker2, sphere_element);
-  mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker3, sphere_element);
+  mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker1,
+                                                                           sphere_element);
+  mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker2,
+                                                                           sphere_element);
+  mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker3,
+                                                                           sphere_element);
   bulk_data_ptr->modification_end();
 
   // Double check that the sphere has three linkers connected to it
@@ -237,8 +240,8 @@ TEST(LinkerPotentialForceMagnitudeReduction, CorrectlyReducesOverGhostedLinkers)
         << "The rightward node being invalid either means that we set up the connection to the sphere wrong (unlikely)"
         << " or that the rightward node is not being ghosted correctly.";
 
-    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker, sphere_element,
-                                                                            rightward_sphere);
+    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), linker,
+                                                                             sphere_element, rightward_sphere);
   }
   bulk_data_ptr->modification_end();
 

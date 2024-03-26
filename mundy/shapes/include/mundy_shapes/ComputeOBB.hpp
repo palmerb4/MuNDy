@@ -59,7 +59,6 @@ class ComputeOBB
   }
   //@}
 
-
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 

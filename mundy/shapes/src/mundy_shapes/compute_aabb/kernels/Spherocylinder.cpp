@@ -26,15 +26,15 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>                               // for mundy::mesh::BulkData
+#include <mundy_shapes/Spherocylinders.hpp>                      // for mundy::shapes::Spherocylinders
 #include <mundy_shapes/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_aabb::kernels::Spherocylinder
-#include <mundy_shapes/Spherocylinders.hpp>               // for mundy::shapes::Spherocylinders
 
 namespace mundy {
 
@@ -124,7 +124,8 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   const double buffer_distance = buffer_distance_;
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spherocylinder_selector;
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
+      spherocylinder_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
       locally_owned_intersection_with_valid_entity_parts,

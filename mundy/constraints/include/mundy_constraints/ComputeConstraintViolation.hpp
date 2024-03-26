@@ -61,7 +61,6 @@ class ComputeConstraintViolation
   }
   //@}
 
-
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 

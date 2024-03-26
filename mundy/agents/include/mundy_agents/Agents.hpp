@@ -31,7 +31,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_agents/Assembly.hpp>         // for mundy::agents::Assembly
+#include <mundy_agents/Assembly.hpp>        // for mundy::agents::Assembly
 #include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements

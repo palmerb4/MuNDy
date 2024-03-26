@@ -35,7 +35,7 @@
 
 // Mundy libs
 #include <mundy_agents/HierarchyOfAgents.hpp>  // for mundy::agents::HierarchyOfAgents
-#include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>         // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -118,33 +118,33 @@ stk::topology::rank_t HierarchyOfAgents::get_rank(const agent_t agent_type) {
 }
 
 void HierarchyOfAgents::add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr,
-                                   const std::string& name, const std::string& parent_name) {
+                                      const std::string& name, const std::string& parent_name) {
   assert_is_valid(name, parent_name);
   const agent_t agent_type = get_agent_type(name, parent_name);
   add_part_reqs(part_reqs_ptr, agent_type);
 }
 
 void HierarchyOfAgents::add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr,
-                                   const agent_t agent_type) {
+                                      const agent_t agent_type) {
   assert_is_valid(agent_type);
   get_add_part_reqs_generator_map()[agent_type](part_reqs_ptr);
 }
 
 void HierarchyOfAgents::add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
-                                      const std::string& name, const std::string& parent_name) {
+                                         const std::string& name, const std::string& parent_name) {
   assert_is_valid(name, parent_name);
   const agent_t agent_type = get_agent_type(name, parent_name);
   add_subpart_reqs(subpart_reqs_ptr, agent_type);
 }
 
 void HierarchyOfAgents::add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
-                                      const agent_t agent_type) {
+                                         const agent_t agent_type) {
   assert_is_valid(agent_type);
   get_add_subpart_reqs_generator_map()[agent_type](subpart_reqs_ptr);
 }
 
-std::shared_ptr<mundy::meta::MeshRequirements> HierarchyOfAgents::get_mesh_requirements(const std::string& name,
-                                                                                     const std::string& parent_name) {
+std::shared_ptr<mundy::meta::MeshRequirements> HierarchyOfAgents::get_mesh_requirements(
+    const std::string& name, const std::string& parent_name) {
   assert_is_valid(name, parent_name);
   const agent_t agent_type = get_agent_type(name, parent_name);
   return get_mesh_requirements(agent_type);
@@ -174,12 +174,12 @@ std::string HierarchyOfAgents::get_hierarchy_as_a_string() {
 //@{
 
 HierarchyOfAgents::StringTreeNode::StringTreeNode(const unsigned id, const std::string& name,
-                                               const std::string& parent_name)
+                                                  const std::string& parent_name)
     : id_(id), name_(name), parent_name_(parent_name) {
 }
 
 void HierarchyOfAgents::StringTreeNode::add_child(const unsigned id, const std::string& name,
-                                               const std::string& parent_name) {
+                                                  const std::string& parent_name) {
   children_.push_back(std::make_shared<StringTreeNode>(id, name, parent_name));
 }
 
@@ -209,7 +209,8 @@ std::shared_ptr<HierarchyOfAgents::StringTreeNode> HierarchyOfAgents::StringTree
   return nullptr;
 }
 
-std::vector<std::shared_ptr<HierarchyOfAgents::StringTreeNode>> HierarchyOfAgents::StringTreeNode::get_children() const {
+std::vector<std::shared_ptr<HierarchyOfAgents::StringTreeNode>> HierarchyOfAgents::StringTreeNode::get_children()
+    const {
   return children_;
 }
 
@@ -267,7 +268,8 @@ void HierarchyOfAgents::StringTreeManager::print_tree(std::ostream& os) {
   }
 }
 
-void HierarchyOfAgents::StringTreeManager::print_tree(std::shared_ptr<StringTreeNode> node, std::ostream& os, int depth) {
+void HierarchyOfAgents::StringTreeManager::print_tree(std::shared_ptr<StringTreeNode> node, std::ostream& os,
+                                                      int depth) {
   for (int i = 0; i < depth; ++i) {
     os << "  ";
   }

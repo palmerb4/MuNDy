@@ -42,7 +42,7 @@
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
 #include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
-#include <mundy_shapes/ComputeOBB.hpp>            // for mundy::shapes::ComputeOBB
+#include <mundy_shapes/ComputeOBB.hpp>           // for mundy::shapes::ComputeOBB
 
 // Mundy test libs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
@@ -57,7 +57,6 @@ namespace {
 //@{
 
 TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
-
   /* Check that ComputeOBB works correctly for spheres.
   For a sphere at any arbitrary position, the OBB should be a cube with side length equal to the diameter of the sphere
   and center at the sphere's position.

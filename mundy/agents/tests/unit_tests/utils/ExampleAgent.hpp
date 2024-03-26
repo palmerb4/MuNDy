@@ -106,14 +106,14 @@ class ExampleAgent {
 
     // Declare our part as a subpart of our parent part.
     mundy::agents::HierarchyOfAgents::add_subpart_reqs(part_reqs_ptr_, std::string(parents_name_),
-                                                   std::string(grandparents_name_));
+                                                       std::string(grandparents_name_));
 
     // Fetch our parent's requirements.
     // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
     // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
     // combined requirements for all parts touched in this traversal are then returned here.
     return mundy::agents::HierarchyOfAgents::get_mesh_requirements(std::string(parents_name_),
-                                                               std::string(grandparents_name_));
+                                                                   std::string(grandparents_name_));
   }
 
   /// \brief Get the number of times get_name() has been called.

@@ -49,7 +49,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <stk_util/parallel/Parallel.hpp>  // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
-#include <mundy_agents/HierarchyOfAgents.hpp>       // for mundy::agents::HierarchyOfAgents
+#include <mundy_agents/HierarchyOfAgents.hpp>   // for mundy::agents::HierarchyOfAgents
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>          // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
@@ -62,7 +62,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
-#include <mundy_shapes/Spheres.hpp>       // for mundy::shapes::Spheres
+#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 
 class NodeEuler
     : public mundy::meta::MetaKernelDispatcher<NodeEuler, mundy::meta::make_registration_string("NODE_EULER")> {

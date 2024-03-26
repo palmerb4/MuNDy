@@ -26,15 +26,15 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                                                      // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                                                       // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.hpp>  // for mundy::linkers::...::kernels::SphereSphereHertzianContact
-#include <mundy_mesh/BulkData.hpp>                                                          // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
 #include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 
 /// F = \frac{4}{3} E \sqrt{R} \delta^{3/2}
@@ -172,7 +172,8 @@ void SphereSphereHertzianContact::execute(const stk::mesh::Selector &sphere_sphe
       *linker_signed_separation_distance_field_ptr_;
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_sphere_linker_selector;
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
+      sphere_sphere_linker_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
       locally_owned_intersection_with_valid_entity_parts,

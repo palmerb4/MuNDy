@@ -36,12 +36,12 @@
 
 // Mundy libs
 #include <mundy_linkers/neighbor_linkers/SphereSphereLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSphereLinkers
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_mesh/BulkData.hpp>                                 // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                                 // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>                        // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>                              // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                               // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>                             // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_shapes/Spheres.hpp>         // for mundy::shapes::Spheres
@@ -200,7 +200,8 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
                                                             Teuchos::tuple<std::string>("SPHERES"),
                                                             "List of valid sphere part names for the kernel.");
     default_parameter_list.set(
-        "linker_potential_force_magnitude_field_name", std::string(default_linker_potential_force_magnitude_field_name_),
+        "linker_potential_force_magnitude_field_name",
+        std::string(default_linker_potential_force_magnitude_field_name_),
         "Name of the constraint-rank field within which the linker's potential force magnitude will be written.");
     default_parameter_list.set(
         "linker_signed_separation_distance_field_name",
@@ -232,8 +233,8 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                  const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<SphereSphereHertzianContact>(bulk_data_ptr, fixed_params);
   }
   //@}
@@ -250,7 +251,8 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_linker_potential_force_magnitude_field_name_ = "LINKER_POTENTIAL_FORCE_MAGNITUDE";
+  static constexpr std::string_view default_linker_potential_force_magnitude_field_name_ =
+      "LINKER_POTENTIAL_FORCE_MAGNITUDE";
   static constexpr std::string_view default_linker_signed_separation_distance_field_name_ =
       "LINKER_SIGNED_SEPARATION_DISTANCE";
   static constexpr std::string_view default_element_youngs_modulus_field_name_ = "ELEMENT_YOUNGS_MODULUS";

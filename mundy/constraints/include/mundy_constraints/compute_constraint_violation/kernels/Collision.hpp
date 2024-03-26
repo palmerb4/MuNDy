@@ -153,8 +153,8 @@ class Collision : public mundy::meta::MetaKernel<> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                  const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<Collision>(bulk_data_ptr, fixed_params);
   }
 

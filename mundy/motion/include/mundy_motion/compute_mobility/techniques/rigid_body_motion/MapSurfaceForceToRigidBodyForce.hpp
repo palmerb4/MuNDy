@@ -69,7 +69,6 @@ class MapSurfaceForceToRigidBodyForce
   }
   //@}
 
-
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 

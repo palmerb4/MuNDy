@@ -31,18 +31,18 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <stk_io/StkMeshIoBroker.hpp>     // for stk::io::StkMeshIoBroker
+#include <stk_io/StkMeshIoBroker.hpp>      // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
 #include <stk_mesh/base/Types.hpp>         // for stk::mesh::ConstPartVector
 #include <stk_topology/topology.hpp>       // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                     // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>                  // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>                     // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>            // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>        // for mundy::meta::FieldRequirementsBase
+#include <mundy_mesh/BulkData.hpp>                // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>             // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>                // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>       // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldRequirementsBase.hpp>   // for mundy::meta::FieldRequirementsBase
 #include <mundy_shapes/DeclareAndInitShapes.hpp>  // for mundy::shapes::DeclareAndInitShapes
 #include <mundy_shapes/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp>  // for mundy::shapes::declare_and_initialize_shapes::techniques::GridCoordinateMapping
 
@@ -59,7 +59,6 @@ namespace {
 //@{
 
 TEST(DeclareAndInitShapes, GridOfSpheresVisualInspection) {
-
   /* Check that DeclareAndInitShapes works correctly for spheres.
   For a sphere at any arbitrary position, the OBB should be a cube with side length equal to the diameter of the sphere
   and center at the sphere's position.

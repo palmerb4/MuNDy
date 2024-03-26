@@ -106,10 +106,10 @@ class RankedAssembly {
     // Declare our part as a subpart of our parent parts.
     (ParentAgentTypes::add_subpart_reqs(part_reqs_ptr_), ...);
 
-    // Because we passed our part requirements up the chain, we can now fetch and merge all of our parent's requirements.
-    // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
-    // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
-    // combined requirements for all parts touched in this traversal are then returned here.
+    // Because we passed our part requirements up the chain, we can now fetch and merge all of our parent's
+    // requirements. If done correctly, this call will result in a upward tree traversal. Our part is declared as a
+    // subpart of our parent, which is declared as a subpart of its parent. This process repeated until we reach a root
+    // node. The combined requirements for all parts touched in this traversal are then returned here.
     //
     // We add our part requirements directly to the mesh to account for the case where we are the root node.
     static auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();

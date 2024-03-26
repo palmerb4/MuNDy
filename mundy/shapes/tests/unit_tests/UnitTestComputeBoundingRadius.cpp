@@ -37,11 +37,11 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>                // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>             // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>                // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>       // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>   // for mundy::meta::FieldRequirementsBase
+#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>              // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>                 // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>        // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldRequirementsBase.hpp>    // for mundy::meta::FieldRequirementsBase
 #include <mundy_shapes/ComputeBoundingRadius.hpp>  // for mundy::shapes::ComputeBoundingRadius
 
 // Mundy test libs
@@ -57,7 +57,6 @@ namespace {
 //@{
 
 TEST(ComputeBoundingRadius, PerformsBoundingRadiusCalculationCorrectlyForSphere) {
-
   /* Check that ComputeBoundingRadius works correctly for spheres.
   For a sphere at any arbitrary position, the bounding radius is just the sphere's radius.
   */

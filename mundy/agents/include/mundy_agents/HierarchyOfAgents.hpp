@@ -39,7 +39,7 @@
 
 // Mundy libs
 #include <mundy_agents/IsAgentType.hpp>  // for mundy::agents::IsAgentType
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 
 namespace mundy {
 
@@ -271,8 +271,8 @@ class HierarchyOfAgents {
     const std::string parent_name = ClassToRegister::get_parent_name();
     const bool already_registered = is_valid(name, parent_name);
     if (already_registered) {
-      std::cout << "HierarchyOfAgents: Skipping registration for class " << ClassToRegister::get_name() << " with parent "
-                << parent_name << " because it is already registered." << std::endl;
+      std::cout << "HierarchyOfAgents: Skipping registration for class " << ClassToRegister::get_name()
+                << " with parent " << parent_name << " because it is already registered." << std::endl;
       return true;
     }
 

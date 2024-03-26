@@ -26,15 +26,15 @@
 #include <vector>  // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>   // for stk::mesh::Entity
-#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field, stl::mesh::field_data
+#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
+#include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.hpp>  // for mundy::linkers::...::kernels::SphereSphereLinker
-#include <mundy_mesh/BulkData.hpp>         // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
 #include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 
 namespace mundy {
@@ -135,12 +135,14 @@ void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker
   stk::mesh::Field<double> &linker_signed_separation_distance_field = *linker_signed_separation_distance_field_ptr_;
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_sphere_linker_selector;
+      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
+      sphere_sphere_linker_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
-      [&node_coord_field, &element_radius_field, &linker_contact_normal_field, &linker_signed_separation_distance_field](
-          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_sphere_linker) {
+      [&node_coord_field, &element_radius_field, &linker_contact_normal_field,
+       &linker_signed_separation_distance_field](const stk::mesh::BulkData &bulk_data,
+                                                 const stk::mesh::Entity &sphere_sphere_linker) {
         // Use references to avoid copying entities
         const stk::mesh::Entity &left_sphere_element = bulk_data.begin_elements(sphere_sphere_linker)[0];
         const stk::mesh::Entity &right_sphere_element = bulk_data.begin_elements(sphere_sphere_linker)[1];
