@@ -3,4 +3,10 @@
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
+// Optional packages
+#cmakedefine HAVE_MUNDYDRIVER_MUNDYIO
+#cmakedefine HAVE_MUNDYLINKER_MUNDYCONSTRAINTS
+#cmakedefine HAVE_MUNDYLINKER_MUNDYLINKERS
+#cmakedefine HAVE_MUNDYLINKER_MUNDYSHAPES
+
 #endif  // MUNDYDRIVER_CONFIG_HPP_
