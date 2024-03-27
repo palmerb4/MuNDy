@@ -48,18 +48,18 @@ unsigned HierarchyOfAgents::get_number_of_registered_types() {
   return number_of_registered_types_;
 }
 
-bool HierarchyOfAgents::is_valid(const std::string& name, const std::string& parent_name) {
-  return get_name_pair_to_type_map().count(std::make_pair(name, parent_name)) != 0;
+bool HierarchyOfAgents::is_valid(const std::string& name) {
+  return get_name_to_type_map().count(name) != 0;
 }
 
 bool HierarchyOfAgents::is_valid(const agent_t agent_type) {
   return get_name_map().count(agent_type) != 0;
 }
 
-void HierarchyOfAgents::assert_is_valid(const std::string& name, const std::string& parent_name) {
-  MUNDY_THROW_ASSERT(is_valid(name, parent_name), std::invalid_argument,
+void HierarchyOfAgents::assert_is_valid(const std::string& name) {
+  MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
                      "HierarchyOfAgents: The provided class's name '"
-                         << name << "' with parent '" << parent_name << "' is not valid.\n"
+                         << name << "' is not valid.\n"
                          << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
                          << "The hierarchy is:\n"
                          << get_hierarchy_as_a_string() << "\n");
@@ -74,9 +74,9 @@ void HierarchyOfAgents::assert_is_valid(const agent_t agent_type) {
                          << get_hierarchy_as_a_string() << "\n");
 }
 
-agent_t HierarchyOfAgents::get_agent_type(const std::string& name, const std::string& parent_name) {
-  assert_is_valid(name, parent_name);
-  return get_name_pair_to_type_map()[std::make_pair(name, parent_name)];
+agent_t HierarchyOfAgents::get_agent_type(const std::string& name) {
+  assert_is_valid(name);
+  return get_name_to_type_map()[name];
 }
 
 std::string HierarchyOfAgents::get_name(const agent_t agent_type) {
@@ -84,20 +84,20 @@ std::string HierarchyOfAgents::get_name(const agent_t agent_type) {
   return get_name_map()[agent_type];
 }
 
-std::string HierarchyOfAgents::get_parent_name(const std::string& name, const std::string& parent_name) {
-  assert_is_valid(name, parent_name);
-  const agent_t agent_type = get_agent_type(name, parent_name);
-  return get_parent_name(agent_type);
+std::vector<std::string> HierarchyOfAgents::get_parent_names(const std::string& name) {
+  assert_is_valid(name);
+  const agent_t agent_type = get_agent_type(name);
+  return get_parent_names(agent_type);
 }
 
-std::string HierarchyOfAgents::get_parent_name(const agent_t agent_type) {
+std::vector<std::string> HierarchyOfAgents::get_parent_names(const agent_t agent_type) {
   assert_is_valid(agent_type);
-  return get_parent_name_map()[agent_type];
+  return get_parent_names_generator_map()[agent_type]();
 }
 
-stk::topology::topology_t HierarchyOfAgents::get_topology(const std::string& name, const std::string& parent_name) {
-  assert_is_valid(name, parent_name);
-  const agent_t agent_type = get_agent_type(name, parent_name);
+stk::topology::topology_t HierarchyOfAgents::get_topology(const std::string& name) {
+  assert_is_valid(name);
+  const agent_t agent_type = get_agent_type(name);
   return get_topology(agent_type);
 }
 
@@ -106,9 +106,9 @@ stk::topology::topology_t HierarchyOfAgents::get_topology(const agent_t agent_ty
   return get_topology_generator_map()[agent_type]();
 }
 
-stk::topology::rank_t HierarchyOfAgents::get_rank(const std::string& name, const std::string& parent_name) {
-  assert_is_valid(name, parent_name);
-  const agent_t agent_type = get_agent_type(name, parent_name);
+stk::topology::rank_t HierarchyOfAgents::get_rank(const std::string& name) {
+  assert_is_valid(name);
+  const agent_t agent_type = get_agent_type(name);
   return get_rank(agent_type);
 }
 
@@ -118,9 +118,9 @@ stk::topology::rank_t HierarchyOfAgents::get_rank(const agent_t agent_type) {
 }
 
 void HierarchyOfAgents::add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr,
-                                      const std::string& name, const std::string& parent_name) {
-  assert_is_valid(name, parent_name);
-  const agent_t agent_type = get_agent_type(name, parent_name);
+                                      const std::string& name) {
+  assert_is_valid(name);
+  const agent_t agent_type = get_agent_type(name);
   add_part_reqs(part_reqs_ptr, agent_type);
 }
 
@@ -131,9 +131,9 @@ void HierarchyOfAgents::add_part_reqs(std::shared_ptr<mundy::meta::PartRequireme
 }
 
 void HierarchyOfAgents::add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
-                                         const std::string& name, const std::string& parent_name) {
-  assert_is_valid(name, parent_name);
-  const agent_t agent_type = get_agent_type(name, parent_name);
+                                         const std::string& name) {
+  assert_is_valid(name);
+  const agent_t agent_type = get_agent_type(name);
   add_subpart_reqs(subpart_reqs_ptr, agent_type);
 }
 
@@ -143,10 +143,9 @@ void HierarchyOfAgents::add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequir
   get_add_subpart_reqs_generator_map()[agent_type](subpart_reqs_ptr);
 }
 
-std::shared_ptr<mundy::meta::MeshRequirements> HierarchyOfAgents::get_mesh_requirements(
-    const std::string& name, const std::string& parent_name) {
-  assert_is_valid(name, parent_name);
-  const agent_t agent_type = get_agent_type(name, parent_name);
+std::shared_ptr<mundy::meta::MeshRequirements> HierarchyOfAgents::get_mesh_requirements(const std::string& name) {
+  assert_is_valid(name);
+  const agent_t agent_type = get_agent_type(name);
   return get_mesh_requirements(agent_type);
 }
 
@@ -173,17 +172,19 @@ std::string HierarchyOfAgents::get_hierarchy_as_a_string() {
 //! \name Internal hierarchy of agent names
 //@{
 
-HierarchyOfAgents::StringTreeNode::StringTreeNode(const unsigned id, const std::string& name,
-                                                  const std::string& parent_name)
-    : id_(id), name_(name), parent_name_(parent_name) {
-}
-
-void HierarchyOfAgents::StringTreeNode::add_child(const unsigned id, const std::string& name,
-                                                  const std::string& parent_name) {
-  children_.push_back(std::make_shared<StringTreeNode>(id, name, parent_name));
+HierarchyOfAgents::StringTreeNode::StringTreeNode(const unsigned& id, const std::string& name,
+                                                  const std::vector<std::string>& parent_names)
+    : id_(id), name_(name), parent_names_(parent_names) {
 }
 
 void HierarchyOfAgents::StringTreeNode::add_child(std::shared_ptr<StringTreeNode> child) {
+  // If the child already exists, don't add it.
+  for (const auto& existing_child : children_) {
+    if (existing_child->get_name() == child->get_name()) {
+      return;
+    }
+  }
+
   children_.push_back(child);
 }
 
@@ -195,8 +196,8 @@ std::string HierarchyOfAgents::StringTreeNode::get_name() const {
   return name_;
 }
 
-std::string HierarchyOfAgents::StringTreeNode::get_parent_name() const {
-  return parent_name_;
+std::vector<std::string> HierarchyOfAgents::StringTreeNode::get_parent_names() const {
+  return parent_names_;
 }
 
 std::shared_ptr<HierarchyOfAgents::StringTreeNode> HierarchyOfAgents::StringTreeNode::get_child(
@@ -215,47 +216,50 @@ std::vector<std::shared_ptr<HierarchyOfAgents::StringTreeNode>> HierarchyOfAgent
 }
 
 std::shared_ptr<HierarchyOfAgents::StringTreeNode> HierarchyOfAgents::StringTreeManager::create_node(
-    const unsigned id, const std::string& name, const std::string& parent_name) {
+    const unsigned& id, const std::string& name, const std::vector<std::string>& parent_names) {
   // Check if the node already exists.
-  const auto node_iter = node_map_.find(name);
-  if (node_iter != node_map_.end()) {
-    return node_iter->second;
+  const auto named_node_iter = node_map_.find(name);
+  if (named_node_iter != node_map_.end()) {
+    // The node exists. Return it.
+    return named_node_iter->second;
   }
 
-  const auto root_node_iter = root_node_map_.find(name);
-  if (root_node_iter != root_node_map_.end()) {
-    return root_node_iter->second;
+  const auto named_root_node_iter = root_node_map_.find(name);
+  if (named_root_node_iter != root_node_map_.end()) {
+    // The root node exists. Return it.
+    return named_root_node_iter->second;
   }
 
   // Create the node.
-  std::shared_ptr<HierarchyOfAgents::StringTreeNode> node =
-      std::make_shared<HierarchyOfAgents::StringTreeNode>(id, name, parent_name);
+  auto node = std::make_shared<HierarchyOfAgents::StringTreeNode>(id, name, parent_names);
   node_map_.insert({name, node});
 
-  // If parent name exists in the map, attach the current node to its parent.
-  if (!parent_name.empty()) {
+  // For each parent, if parent name exists in the map, attach the current node to it.
+  // This handles the case where the child is declared after the parent.
+  for (const auto& parent_name : parent_names) {
     const auto parent_iter = node_map_.find(parent_name);
     if (parent_iter != node_map_.end()) {
       parent_iter->second->add_child(node);
-    } else {
-      // Parent doesn't exist yet. Store this node in orphaned map.
-      orphaned_node_map_.insert({name, node});
     }
-  } else {
-    // This node doesn't have a parent, so it's a root.
+  }
+
+  // If the node has no parents, it is a root node.
+  if (parent_names.size() == 0) {
     root_node_map_.insert({name, node});
   }
 
-  // Check if the orphaned nodes can be linked to the new node.
-  for (auto orphaned_node_iter = orphaned_node_map_.begin(); orphaned_node_iter != orphaned_node_map_.end();) {
-    std::shared_ptr<StringTreeNode> orphaned_node = orphaned_node_iter->second;
-    if (orphaned_node->get_parent_name() == name) {
-      // This orphaned node is a child of the new node.
-      node->add_child(orphaned_node);
-      orphaned_node_iter = orphaned_node_map_.erase(orphaned_node_iter);
-    } else {
-      // This orphaned node is not a child of the new node.
-      ++orphaned_node_iter;
+  // For each node, if the current node is one of its parents, attach the current node to it.
+  // This handles the case where the parent is declared after the child.
+  for (auto node_iter = node_map_.begin(); node_iter != node_map_.end();) {
+    std::shared_ptr<StringTreeNode> potential_child_node = node_iter->second;
+    for (const auto& parent_name : potential_child_node->get_parent_names()) {
+      if (parent_name == name) {
+        // This node is a child of the new node. Congrats!
+        node->add_child(potential_child_node);
+      } else {
+        // This node is not a child of the new node.
+        ++node_iter;
+      }
     }
   }
 

@@ -32,6 +32,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_agents/Agents.hpp>          // for mundy::agents::Agents
 #include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 
@@ -55,10 +56,10 @@ class ExampleAgent {
     return std::string(name_);
   }
 
-  /// @brief Get the name of our parent part.
-  static inline std::string get_parent_name() {
-    get_parent_name_counter_++;
-    return std::string(parents_name_);
+  /// @brief Get the names of our parent parts.
+  static inline std::vector<std::string> get_parent_names() {
+    get_parent_names_counter_++;
+    return {mundy::agents::Agents::get_name()};
   }
 
   /// \brief Get the topology of our part.
@@ -104,16 +105,19 @@ class ExampleAgent {
     get_mesh_requirements_counter_++;
     // By default, we assume that the ExampleAgents part is an agent with an INVALID_TOPOLOGY.
 
-    // Declare our part as a subpart of our parent part.
-    mundy::agents::HierarchyOfAgents::add_subpart_reqs(part_reqs_ptr_, std::string(parents_name_),
-                                                       std::string(grandparents_name_));
+    // Declare our part as a subpart of our parent parts.
+    mundy::agents::Agents::add_subpart_reqs(part_reqs_ptr_);
 
-    // Fetch our parent's requirements.
-    // If done correctly, this call will result in a upward tree traversal. Our part is declared as a subpart of our
-    // parent, which is declared as a subpart of its parent. This process repeated until we reach a root node. The
-    // combined requirements for all parts touched in this traversal are then returned here.
-    return mundy::agents::HierarchyOfAgents::get_mesh_requirements(std::string(parents_name_),
-                                                                   std::string(grandparents_name_));
+    // Because we passed our part requirements up the chain, we can now fetch and merge all of our parent's
+    // requirements. If done correctly, this call will result in a upward tree traversal. Our part is declared as a
+    // subpart of our parent, which is declared as a subpart of its parent. This process repeated until we reach a root
+    // node. The combined requirements for all parts touched in this traversal are then returned here.
+    //
+    // We add our part requirements directly to the mesh to account for the case where we are the root node.
+    static auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    mesh_reqs_ptr->add_part_reqs(part_reqs_ptr_);
+    mesh_reqs_ptr->merge(mundy::agents::Agents::get_mesh_requirements());
+    return mesh_reqs_ptr;
   }
 
   /// \brief Get the number of times get_name() has been called.
@@ -121,9 +125,9 @@ class ExampleAgent {
     return get_name_counter_;
   }
 
-  /// \brief Get the number of times get_parent_name() has been called.
-  static inline int get_get_parent_name_counter() {
-    return get_parent_name_counter_;
+  /// \brief Get the number of times get_parent_names() has been called.
+  static inline int get_get_parent_names_counter() {
+    return get_parent_names_counter_;
   }
 
   /// \brief Get the number of times get_topology() has been called.
@@ -169,8 +173,8 @@ class ExampleAgent {
   /// \brief The number of times get_name() has been called.
   static inline int get_name_counter_ = 0;
 
-  /// \brief The number of times get_parent_name() has been called.
-  static inline int get_parent_name_counter_ = 0;
+  /// \brief The number of times get_parent_names() has been called.
+  static inline int get_parent_names_counter_ = 0;
 
   /// \brief The number of times get_topology() has been called.
   static inline int get_topology_counter_ = 0;
@@ -212,12 +216,6 @@ class ExampleAgent {
       return "FAKE_NAME_N";
     }
   }();
-
-  /// \brief The name of the our parent part.
-  static constexpr inline std::string_view parents_name_ = "AGENTS";
-
-  /// \brief The name of the our grandparent part.
-  static constexpr inline std::string_view grandparents_name_ = "";
 
   /// \brief Our topology
   static constexpr stk::topology::topology_t topology_ = stk::topology::INVALID_TOPOLOGY;

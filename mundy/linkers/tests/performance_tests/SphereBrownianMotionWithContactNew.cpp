@@ -56,14 +56,14 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
-#include <mundy_agents/HierarchyOfAgents.hpp>  // for mundy::agents::HierarchyOfAgents
-#include <mundy_core/StringLiteral.hpp>        // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_core/throw_assert.hpp>         // for MUNDY_THROW_ASSERT
+#include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
 #include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                   // for mundy::mesh::MetaData
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>                   // for mundy::mesh::utils::fill_field_with_value
@@ -217,7 +217,6 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     valid_fixed_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
-    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
     Teuchos::Array<std::string> valid_entity_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
@@ -229,19 +228,16 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
 
-      if (part_name == "SPHERES") {
-        // Add the requirements directly to spheres part.
-        const std::string parent_part_name = "SHAPES";
-        mundy::agents::HierarchyOfAgents::add_part_reqs(part_reqs, part_name, parent_part_name);
-        mesh_reqs_ptr->merge(mundy::agents::HierarchyOfAgents::get_mesh_requirements(part_name, parent_part_name));
+      if (part_name == mundy::shapes::Spheres::get_name()) {
+        // Add the requirements directly to sphere sphere linkers agent.
+        mundy::shapes::Spheres::add_part_reqs(part_reqs);
       } else {
-        // Add the associated part as a subset of the spheres part.
-        const std::string parent_part_name = "SPHERES";
-        mundy::agents::HierarchyOfAgents::add_subpart_reqs(part_reqs, part_name, parent_part_name);
-        mesh_reqs_ptr->merge(mundy::agents::HierarchyOfAgents::get_mesh_requirements(part_name, parent_part_name));
+        // Add the associated part as a subset of the sphere sphere linkers agent.
+        mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
       }
     }
-    return mesh_reqs_ptr;
+
+    return mundy::shapes::Spheres::get_mesh_requirements();
   }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
@@ -492,7 +488,6 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     valid_fixed_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
-    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string node_brownian_velocity_field_name =
         valid_fixed_params.get<std::string>("node_brownian_velocity_field_name");
     std::string node_rng_counter_field_name = valid_fixed_params.get<std::string>("node_rng_counter_field_name");
@@ -508,19 +503,16 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<unsigned>>(
           node_rng_counter_field_name, stk::topology::NODE_RANK, 1, 1));
 
-      if (part_name == "SPHERES") {
-        // Add the requirements directly to spheres part.
-        const std::string parent_part_name = "SHAPES";
-        mundy::agents::HierarchyOfAgents::add_part_reqs(part_reqs, part_name, parent_part_name);
-        mesh_reqs_ptr->merge(mundy::agents::HierarchyOfAgents::get_mesh_requirements(part_name, parent_part_name));
+      if (part_name == mundy::shapes::Spheres::get_name()) {
+        // Add the requirements directly to sphere sphere linkers agent.
+        mundy::shapes::Spheres::add_part_reqs(part_reqs);
       } else {
-        // Add the associated part as a subset of the spheres part.
-        const std::string parent_part_name = "SPHERES";
-        mundy::agents::HierarchyOfAgents::add_subpart_reqs(part_reqs, part_name, parent_part_name);
-        mesh_reqs_ptr->merge(mundy::agents::HierarchyOfAgents::get_mesh_requirements(part_name, parent_part_name));
+        // Add the associated part as a subset of the sphere sphere linkers agent.
+        mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
       }
     }
-    return mesh_reqs_ptr;
+
+    return mundy::shapes::Spheres::get_mesh_requirements();
   }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
@@ -862,7 +854,6 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     valid_fixed_params.validateParametersAndSetDefaults(LocalDragNonorientableSphere::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
-    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
     std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
     Teuchos::Array<std::string> valid_entity_part_names =
@@ -877,19 +868,15 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
 
-      if (part_name == "SPHERES") {
-        // Add the requirements directly to spheres part.
-        const std::string parent_part_name = "SHAPES";
-        mundy::agents::HierarchyOfAgents::add_part_reqs(part_reqs, part_name, parent_part_name);
-        mesh_reqs_ptr->merge(mundy::agents::HierarchyOfAgents::get_mesh_requirements(part_name, parent_part_name));
+      if (part_name == mundy::shapes::Spheres::get_name()) {
+        // Add the requirements directly to sphere sphere linkers agent.
+        mundy::shapes::Spheres::add_part_reqs(part_reqs);
       } else {
-        // Add the associated part as a subset of the spheres part.
-        const std::string parent_part_name = "SPHERES";
-        mundy::agents::HierarchyOfAgents::add_subpart_reqs(part_reqs, part_name, parent_part_name);
-        mesh_reqs_ptr->merge(mundy::agents::HierarchyOfAgents::get_mesh_requirements(part_name, parent_part_name));
+        // Add the associated part as a subset of the sphere sphere linkers agent.
+        mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
       }
     }
-    return mesh_reqs_ptr;
+    return mundy::shapes::Spheres::get_mesh_requirements();
   }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.

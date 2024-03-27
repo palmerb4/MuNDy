@@ -53,10 +53,8 @@ TEST(HierarchyOfAgents, AutoRegistration) {
   HierarchyOfAgents::register_new_class<mundy::agents::utils::ExampleAgent<2>>();
 
   EXPECT_GT(HierarchyOfAgents::get_number_of_registered_types(), 0);
-  EXPECT_TRUE(HierarchyOfAgents::is_valid(mundy::agents::utils::ExampleAgent<1>::get_name(),
-                                          mundy::agents::utils::ExampleAgent<1>::get_parent_name()));
-  EXPECT_TRUE(HierarchyOfAgents::is_valid(mundy::agents::utils::ExampleAgent<2>::get_name(),
-                                          mundy::agents::utils::ExampleAgent<2>::get_parent_name()));
+  EXPECT_TRUE(HierarchyOfAgents::is_valid(mundy::agents::utils::ExampleAgent<1>::get_name()));
+  EXPECT_TRUE(HierarchyOfAgents::is_valid(mundy::agents::utils::ExampleAgent<2>::get_name()));
   HierarchyOfAgents::print_hierarchy();
 }
 //@}

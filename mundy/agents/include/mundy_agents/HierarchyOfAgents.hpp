@@ -78,8 +78,8 @@ using agent_t = unsigned;
 ///   /// \brief Get the ExampleAgent's name.
 ///   static constexpr inline std::string get_name();
 ///
-///   /// \brief Get the ExampleAgent's parent's name.
-///   static constexpr inline std::string get_parent_name();
+///   /// \brief Get the names of ExampleAgent's parents.
+///   static constexpr inline std::vector<std::string> get_parent_names();
 ///
 ///   /// \brief Get the ExampleAgent's topology (throws if the part doesn't constrain topology)
 ///   static constexpr inline stk::topology::topology_t get_topology();
@@ -114,13 +114,15 @@ using agent_t = unsigned;
 ///    |         |           |             |       |      |
 /// Spheres Ellipsoids Spherocylinders  Springs Hinges Joints
 ///
-/// In this example, every node in the tree knows its unique name and the name of its parent. Together, these names map
-/// onto a agent_t that is unique across all nodes in the tree. The pair of names or the corresponding agent_t can be
-/// used to access the internal member functions of the registered agent in the hierarchy.
+/// In this example, every node in the tree has a unique name and knows the names of its parents. The uniqueness of part
+/// names means that we can create a on-to-one map from name to agent_t and use either to access the internal member
+/// functions of the registered agent in the hierarchy.
 ///
 /// Because this factory is constructed at static initialization time, the order in which nodes in the tree
 /// are registered is not guaranteed (due to the static initialization order fiasco). As a result, the id's of the nodes
-/// in the tree are not guaranteed to be in the order you would expect and they need not be consistent between runs.
+/// in the tree are not guaranteed to be in the order you would expect and they need not be consistent between runs. If
+/// this is every required, tell the developers and we can try to use post-registration sorting to ensure that the id's
+/// are consistent.
 ///
 /// It's important to note that the topology/rank of each part in this hierarchy take some consideration when building
 /// your agents. For example, if certain shapes have different topologies than others, how should one construct the
@@ -138,7 +140,7 @@ class HierarchyOfAgents {
 
   /// \brief Get if the provided name is valid or not
   /// \param name [in] A string name that may or may not correspond to a registered class.
-  static bool is_valid(const std::string& name, const std::string& parent_name);
+  static bool is_valid(const std::string& name);
 
   /// \brief Get if the provided agent_type is valid or not
   /// \param agent_type [in] A agent_type that may or may not correspond to a registered class.
@@ -146,7 +148,7 @@ class HierarchyOfAgents {
 
   /// \brief Throw if the provided name is invalid
   /// \param name [in] A string name that may or may not correspond to a registered class.
-  static void assert_is_valid(const std::string& name, const std::string& parent_name);
+  static void assert_is_valid(const std::string& name);
 
   /// \brief Throw if the provided agent_type is invalid
   /// \param agent_type [in] A agent_type that may or may not correspond to a registered class.
@@ -155,27 +157,27 @@ class HierarchyOfAgents {
   /// \brief Get the agent_type corresponding to a registered class with the given name.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static agent_t get_agent_type(const std::string& name, const std::string& parent_name);
+  static agent_t get_agent_type(const std::string& name);
 
   /// \brief Get the name corresponding to the registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
   static std::string get_name(const agent_t agent_type);
 
-  /// \brief Get the name corresponding to the parent of the registered class with the given name.
+  /// \brief Get the names corresponding to the parents of the registered class with the given name.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static std::string get_parent_name(const std::string& name, const std::string& parent_name);
+  static std::vector<std::string> get_parent_names(const std::string& name);
 
-  /// \brief Get the name corresponding to the parent of the registered class with the given agent_type.
+  /// \brief Get the names corresponding to the parents of the registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static std::string get_parent_name(const agent_t agent_type);
+  static std::vector<std::string> get_parent_names(const agent_t agent_type);
 
   /// \brief Get the topology corresponding to a registered class with the given agent_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static stk::topology::topology_t get_topology(const std::string& name, const std::string& parent_name);
+  static stk::topology::topology_t get_topology(const std::string& name);
 
   /// \brief Get the topology corresponding to a registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -185,7 +187,7 @@ class HierarchyOfAgents {
   /// \brief Get the rank corresponding to a registered class with the given agent_type.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static stk::topology::rank_t get_rank(const std::string& name, const std::string& parent_name);
+  static stk::topology::rank_t get_rank(const std::string& name);
 
   /// \brief Get the rank corresponding to a registered class with the given agent_type.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -196,8 +198,7 @@ class HierarchyOfAgents {
   /// \param name [in] A string name that correspond to a registered class.
   /// \param part_reqs_ptr [in] A pointer to the part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const std::string& name,
-                            const std::string& parent_name);
+  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const std::string& name);
 
   /// \brief Add new part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -208,8 +209,8 @@ class HierarchyOfAgents {
   /// \param name [in] A string name that correspond to a registered class.
   /// \param subpart_reqs_ptr [in] A pointer to the sub-part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr, const std::string& name,
-                               const std::string& parent_name);
+  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
+                               const std::string& name);
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -220,8 +221,7 @@ class HierarchyOfAgents {
   /// \brief Get the mesh requirements for the specified agent.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(const std::string& name,
-                                                                              const std::string& parent_name);
+  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(const std::string& name);
 
   /// \brief Get the mesh requirements for the specified agent.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
@@ -233,6 +233,7 @@ class HierarchyOfAgents {
   //@{
 
   /// \brief Register a new class. The key for the class is determined by its class identifier.
+  /// \return True if the class was registered successfully, false if registration failed.
   template <typename ClassToRegister>
   static inline bool register_new_class() {
     // Check that the ClassToRegister has the desired interface.
@@ -240,8 +241,8 @@ class HierarchyOfAgents {
     static_assert(Checker::has_get_name,
                   "HierarchyOfAgents: The class to register doesn't have the correct get_name function.\n"
                   "See the documentation of HierarchyOfAgents for more information about the expected interface.");
-    static_assert(Checker::has_get_parent_name,
-                  "HierarchyOfAgents: The class to register doesn't have the correct get_parent_name function.\n"
+    static_assert(Checker::has_get_parent_names,
+                  "HierarchyOfAgents: The class to register doesn't have the correct get_parent_names function.\n"
                   "See the documentation of HierarchyOfAgents for more information about the expected interface.");
     static_assert(Checker::has_get_topology,
                   "HierarchyOfAgents: The class to register doesn't have the correct get_topology function.\n"
@@ -268,12 +269,11 @@ class HierarchyOfAgents {
 
     // Ensure that the class name/parent name combo is unique.
     const std::string name = ClassToRegister::get_name();
-    const std::string parent_name = ClassToRegister::get_parent_name();
-    const bool already_registered = is_valid(name, parent_name);
+    const bool already_registered = is_valid(name);
     if (already_registered) {
-      std::cout << "HierarchyOfAgents: Skipping registration for class " << ClassToRegister::get_name()
-                << " with parent " << parent_name << " because it is already registered." << std::endl;
-      return true;
+      std::cout << "HierarchyOfAgents: Skipping registration for class with name '" << name
+                << "' because it is already registered." << std::endl;
+      return false;
     }
 
     // Get the agent type for this class.
@@ -281,12 +281,12 @@ class HierarchyOfAgents {
     const agent_t agent_type = number_of_registered_types_ - 1;
 
     // Create the node in the hierarchy.
-    StringTreeManager::create_node(agent_type, name, parent_name);
+    StringTreeManager::create_node(agent_type, name, ClassToRegister::get_parent_names());
 
     // Register the class.
-    get_name_pair_to_type_map().insert(std::make_pair(std::make_pair(name, parent_name), agent_type));
+    get_name_to_type_map().insert(std::make_pair(name, agent_type));
     get_name_map().insert(std::make_pair(agent_type, name));
-    get_parent_name_map().insert(std::make_pair(agent_type, parent_name));
+    get_parent_names_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_parent_names));
     get_topology_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_topology));
     get_rank_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_rank));
     get_has_topology_generator_map().insert(std::make_pair(agent_type, ClassToRegister::has_topology));
@@ -296,7 +296,7 @@ class HierarchyOfAgents {
     get_mesh_requirements_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_mesh_requirements));
 
     std::cout << "HierarchyOfAgents: Class " << ClassToRegister::get_name() << " registered with id "
-              << number_of_registered_types_ - 1 << " and parent " << parent_name << std::endl;
+              << number_of_registered_types_ - 1 << std::endl;
     return true;
   }
 
@@ -323,29 +323,39 @@ class HierarchyOfAgents {
    public:
     /// @brief Construct a new StringTreeNode object
     /// @param name [in] The name of this node.
-    StringTreeNode(const unsigned id, const std::string& name, const std::string& parent_name);
+    StringTreeNode(const unsigned &id, const std::string& name, const std::vector<std::string>& parent_names);
 
-    void add_child(const unsigned id, const std::string& name, const std::string& parent_name);
+    /// \brief Add a child to the current node.
+    /// Nodes shared so they can be assigned multiple parents.
     void add_child(std::shared_ptr<StringTreeNode> child);
 
+    /// \brief Get the id of the node.
     unsigned get_id() const;
+
+    /// \brief Get the name of the node.
     std::string get_name() const;
-    std::string get_parent_name() const;
+
+    /// \brief Get the names of the parents of the node.
+    std::vector<std::string> get_parent_names() const;
+
+    /// \brief Get the child of the node with the given name.
     std::shared_ptr<StringTreeNode> get_child(const std::string& name) const;
+
+    /// \brief Get the children of the node.
     std::vector<std::shared_ptr<StringTreeNode>> get_children() const;
 
    private:
     const unsigned id_;
     const std::string name_;
-    const std::string parent_name_;
+    const std::vector<std::string> parent_names_;
     std::vector<std::shared_ptr<StringTreeNode>> children_;
   };  // StringTreeNode
 
   /// \brief A non-member builder class for \c StringTreeNode's that accounts for the static initialization order.
   class StringTreeManager {
    public:
-    static std::shared_ptr<StringTreeNode> create_node(const unsigned id, const std::string& name,
-                                                       const std::string& parent_name);
+    static std::shared_ptr<StringTreeNode> create_node(const unsigned &id, const std::string& name,
+                                                       const std::vector<std::string>& parent_names);
 
     /// @brief Print the tree.
     static void print_tree(std::ostream& os = std::cout);
@@ -356,7 +366,6 @@ class HierarchyOfAgents {
     /// @param depth The depth of the node in the tree.
     static void print_tree(std::shared_ptr<StringTreeNode> node, std::ostream& os = std::cout, int depth = 0);
 
-    static inline std::unordered_multimap<std::string, std::shared_ptr<StringTreeNode>> orphaned_node_map_;
     static inline std::map<std::string, std::shared_ptr<StringTreeNode>> root_node_map_;
     static inline std::map<std::string, std::shared_ptr<StringTreeNode>> node_map_;
   };  // StringTreeManager
@@ -368,6 +377,9 @@ class HierarchyOfAgents {
 
   /// \brief A function that returns an std::string.
   using StringGenerator = std::function<std::string()>;
+
+  /// \brief A function that returns a vector of strings.
+  using VectorOfStringsGenerator = std::function<std::vector<std::string>()>;
 
   /// \brief A function that returns an stk::topology::topology_t.
   using TopologyGenerator = std::function<stk::topology::topology_t()>;
@@ -386,10 +398,13 @@ class HierarchyOfAgents {
   using BoolGenerator = std::function<bool()>;
 
   /// \brief A map from a string to agent_type.
-  using NamePairToTypeMap = std::map<std::pair<std::string, std::string>, agent_t>;
+  using NameToTypeMap = std::map<std::string, agent_t>;
 
   /// \brief A map from a string to agent_type.
   using TypeToNameMap = std::map<agent_t, std::string>;
+
+  /// \brief A map from agent_type to a function that returns a vector of strings.
+  using TypeToVectorOfStringsGeneratorMap = std::map<agent_t, VectorOfStringsGenerator>;
 
   /// \brief A map from agent_type to a function that returns a string view.
   using TypeToStringViewGeneratorMap = std::map<agent_t, StringGenerator>;
@@ -412,10 +427,10 @@ class HierarchyOfAgents {
 
   //! \name Attributes
   //@{
-  static NamePairToTypeMap& get_name_pair_to_type_map() {
+  static NameToTypeMap& get_name_to_type_map() {
     // Static: One and the same instance for all function calls.
-    static NamePairToTypeMap name_pair_to_id_map;
-    return name_pair_to_id_map;
+    static NameToTypeMap name_to_id_map;
+    return name_to_id_map;
   }
 
   static TypeToNameMap& get_name_map() {
@@ -424,10 +439,10 @@ class HierarchyOfAgents {
     return name_map;
   }
 
-  static TypeToNameMap& get_parent_name_map() {
+  static TypeToVectorOfStringsGeneratorMap& get_parent_names_generator_map() {
     // Static: One and the same instance for all function calls.
-    static TypeToNameMap parent_name_map;
-    return parent_name_map;
+    static TypeToVectorOfStringsGeneratorMap parent_names_generator_map;
+    return parent_names_generator_map;
   }
 
   static TypeToTopologyGeneratorMap& get_topology_generator_map() {

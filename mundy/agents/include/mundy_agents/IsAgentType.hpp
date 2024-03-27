@@ -53,8 +53,8 @@ namespace agents {
 ///   /// \brief Get the name of our part.
 ///   static constexpr inline std::string get_name();
 ///
-///   /// @brief Get the name of our parent part.
-///   static constexpr inline std::string get_parent_name();
+///   /// @brief Get the names of our parent parts.
+///   static constexpr inline std::vector<std::string> get_parent_names();
 ///
 ///   /// \brief Get the topology of our part. (throws if the part doesn't constrain rank)
 ///   static constexpr inline stk::topology::topology_t get_topology();
@@ -103,19 +103,19 @@ struct IsAgentType {
   template <typename>
   static auto check_get_name(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c get_parent_name function.
+  /// \brief Helper for checking if \c U has a \c get_parent_names function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c get_parent_name function, \c std::false_type otherwise.
+  /// \return \c std::true_type if \c U has a \c get_parent_names function, \c std::false_type otherwise.
   template <typename U>
-  static auto check_get_parent_name([[maybe_unused]] int unused) -> decltype(U::get_parent_name(), std::true_type{});
+  static auto check_get_parent_names([[maybe_unused]] int unused) -> decltype(U::get_parent_names(), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c get_parent_name function.
+  /// \brief Helper for checking if \c U has a \c get_parent_names function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c get_parent_name function.
+  /// \return \c std::false_type if \c U does not have a \c get_parent_names function.
   template <typename>
-  static auto check_get_parent_name(...) -> std::false_type;
+  static auto check_get_parent_names(...) -> std::false_type;
 
   /// \brief Helper for checking if \c U has a \c get_topology function.
   /// \tparam U The type to check.
@@ -241,15 +241,16 @@ struct IsAgentType {
   static constexpr bool has_get_name =
       decltype(check_get_name<T>(0))::value && std::is_same_v<decltype(T::get_name()), std::string>;
 
-  /// \brief Check for the existence of a \c get_parent_name function.
-  /// \return \c true if \c T has a \c get_parent_name function, \c false otherwise.
+  /// \brief Check for the existence of a \c get_parent_names function.
+  /// \return \c true if \c T has a \c get_parent_names function, \c false otherwise.
   ///
-  /// The specific signature of the \c get_parent_name function is:
+  /// The specific signature of the \c get_parent_names function is:
   /// \code
-  /// static constexpr inline std::string get_parent_name();
+  /// static constexpr inline std::string get_parent_names();
   /// \endcode
-  static constexpr bool has_get_parent_name =
-      decltype(check_get_parent_name<T>(0))::value && std::is_same_v<decltype(T::get_parent_name()), std::string>;
+  static constexpr bool has_get_parent_names =
+      decltype(check_get_parent_names<T>(0))::value &&
+      std::is_same_v<decltype(T::get_parent_names()), std::vector<std::string>>;
 
   /// \brief Check for the existence of a \c get_topology function.
   /// \return \c true if \c T has a \c get_topology function, \c false otherwise.
@@ -321,8 +322,9 @@ struct IsAgentType {
   /// \brief Value type semantics for checking \c T meets all the requirements to have mesh requirements and be
   /// registerable. \return \c true if \c T meets all the requirements to have mesh requirements and be registerable, \c
   /// false otherwise.
-  static constexpr bool value = has_get_name && has_get_topology && has_get_rank && has_has_topology && has_has_rank &&
-                                has_add_part_reqs && has_add_subpart_reqs && has_get_mesh_requirements;
+  static constexpr bool value = has_get_name && has_get_parent_names && has_get_topology && has_get_rank &&
+                                has_has_topology && has_has_rank && has_add_part_reqs && has_add_subpart_reqs &&
+                                has_get_mesh_requirements;
 };  // IsAgentType
 
 }  // namespace agents
