@@ -15,7 +15,7 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # We don't recommend typing these by hand. Use 
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
-SET(HEADERS 
+SET(NOINSTALLHEADERS 
   include/mundy_driver/Configurator.hpp
   )
 
@@ -32,9 +32,12 @@ tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #
 
 # Add a standard library
-tribits_add_library(
+mundy_tribits_add_library(
   mundy_driver
-  HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  NOINSTALLHEADERS ${NOINSTALLHEADERS}
+  DIRECTORIES include/mundy_driver
+  FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )
 

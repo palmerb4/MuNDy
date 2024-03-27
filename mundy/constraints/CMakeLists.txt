@@ -15,7 +15,7 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
-SET(HEADERS 
+SET(NOINSTALLHEADERS 
   # include/mundy_constraints/DeleteCollisionConstraints.hpp
   include/mundy_constraints/ComputeConstraintForcing.hpp
   # include/mundy_constraints/generate_collision_constraints/kernels/CollisionSphereSphere.hpp
@@ -49,9 +49,12 @@ tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #
 
 # Add a standard library
-tribits_add_library(
+mundy_tribits_add_library(
   mundy_constraints
-  HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  NOINSTALLHEADERS ${NOINSTALLHEADERS}
+  DIRECTORIES include/mundy_constraints
+  FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )
 
