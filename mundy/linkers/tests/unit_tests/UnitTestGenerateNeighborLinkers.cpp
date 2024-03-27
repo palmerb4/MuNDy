@@ -41,13 +41,13 @@
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
 
 // Mundy libs
-#include <MundyLinkers_config.hpp>                     // for HAVE_MUNDYLINKER_MUNDYSHAPES
+#include <MundyLinkers_config.hpp>                    // for HAVE_MUNDYLINKERS_MUNDYSHAPES
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>  // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
-#include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_linkers/Linkers.hpp>  // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
+#include <mundy_mesh/BulkData.hpp>                                 // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>                              // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>                                 // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>                        // for mundy::meta::FieldRequirements
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshRequirementsAndIsRegisterable
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
@@ -150,7 +150,7 @@ TEST(GenerateNeighborLinkersStaticInterface, CreateNewInstanceFromDefaultParamet
 //! \name GenerateNeighborLinkers functionality unit tests
 //@{
 
-#ifdef HAVE_MUNDYLINKER_MUNDYSHAPES
+#ifdef HAVE_MUNDYLINKERS_MUNDYSHAPES
 
 bool aabbs_overlap(const double *aabb_i, const double *aabb_j) {
   // Check overlap in the x dimension
@@ -474,7 +474,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   // Wait for all processes to finish before continuing.
   stk::parallel_machine_barrier(bulk_data_ptr->parallel());
 }
-#endif  // HAVE_MUNDYLINKER_MUNDYSHAPES
+#endif  // HAVE_MUNDYLINKERS_MUNDYSHAPES
 
 }  // namespace
 

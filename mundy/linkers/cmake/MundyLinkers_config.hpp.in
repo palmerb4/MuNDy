@@ -4,7 +4,7 @@
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
 // Optional packages
-#cmakedefine HAVE_MUNDYLINKER_MUNDYSHAPES
-#cmakedefine HAVE_MUNDYLINKER_MUNDYCONSTRAINTS
+#cmakedefine HAVE_MUNDYLINKERS_MUNDYSHAPES
+#cmakedefine HAVE_MUNDYLINKERS_MUNDYCONSTRAINTS
 
 #endif  // MUNDYLINKER_CONFIG_HPP_

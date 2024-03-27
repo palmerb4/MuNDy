@@ -41,7 +41,7 @@
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
 
 // Mundy libs
-#include <MundyLinkers_config.hpp>                     // for HAVE_MUNDYLINKER_MUNDYSHAPES
+#include <MundyLinkers_config.hpp>                     // for HAVE_MUNDYLINKERS_MUNDYSHAPES
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>   // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>  // for mundy::linkers::GenerateNeighborLinkers
 #include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
@@ -61,7 +61,7 @@ namespace {
 //! \name GenerateNeighborLinkers functionality unit tests
 //@{
 
-#ifdef HAVE_MUNDYLINKER_MUNDYSHAPES
+#ifdef HAVE_MUNDYLINKERS_MUNDYSHAPES
 
 TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpheresSimple) {
   /* Outline
@@ -184,7 +184,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
   }
 }
 
-#endif  // HAVE_MUNDYLINKER_MUNDYSHAPES
+#endif  // HAVE_MUNDYLINKERS_MUNDYSHAPES
 
 }  // namespace
 
