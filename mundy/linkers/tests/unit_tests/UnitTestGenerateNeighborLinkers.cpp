@@ -41,7 +41,7 @@
 #include <stk_mesh/base/Types.hpp>          // for stk::mesh::EntityProc, EntityVector, etc
 
 // Mundy libs
-#include <MundyLinker_config.hpp>                     // for HAVE_MUNDYLINKER_MUNDYSHAPES
+#include <MundyLinkers_config.hpp>                     // for HAVE_MUNDYLINKER_MUNDYSHAPES
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>  // for mundy::linkers::GenerateNeighborLinkers
 #include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
