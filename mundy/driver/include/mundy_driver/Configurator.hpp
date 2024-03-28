@@ -42,12 +42,11 @@
 #endif                                         // HAVE_MUNDYDRIVER_MUNDYAGENTS
 
 #ifdef HAVE_MUNDYDRIVER_MUNDYCONSTRAINTS
-#include <mundy_constraints/ComputeConstraintForcing.hpp>     // for mundy::constraints::ComputeConstraintForcing
-#include <mundy_constraints/ComputeConstraintProjection.hpp>  // for mundy::constraints::ComputeConstraintProjection
-#include <mundy_constraints/ComputeConstraintResidual.hpp>    // for mundy::constraints::ComputeConstraintResidual
-#include <mundy_constraints/ComputeConstraintViolation.hpp>   // for mundy::constraints::ComputeConstraintViolation
-#include <mundy_constraints/Springs.hpp>                      // for mundy::constraints::Springs
-#endif                                                        // HAVE_MUNDYDRIVER_MUNDYCONSTRAINTS
+#include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
+#include <mundy_constraints/Constraints.hpp>                // for mundy::constraints::Constraints
+#include <mundy_constraints/DeclareAndInitConstraints.hpp>  // for mundy::constraints::DeclareAndInitConstraints
+#include <mundy_constraints/HookeanSprings.hpp>             // for mundy::constraints::HookeanSprings
+#endif                                                      // HAVE_MUNDYDRIVER_MUNDYCONSTRAINTS
 
 #ifdef HAVE_MUNDYDRIVER_MUNDYIO
 #include <mundy_io/IOBroker.hpp>  // for mundy::io::IOBroker
@@ -90,19 +89,13 @@ using ConfigurableMetaMethodFactory =
 }  // namespace mundy
 
 #ifdef HAVE_MUNDYDRIVER_MUNDYCONSTRAINTS
-MUNDY_REGISTER_AGENTS(mundy::constraints::Springs)
+MUNDY_REGISTER_AGENTS(mundy::constraints::Constraints)
+MUNDY_REGISTER_AGENTS(mundy::constraints::HookeanSprings)
 MUNDY_REGISTER_METACLASS(
     "COMPUTE_CONSTRAINT_FORCING", mundy::constraints::ComputeConstraintForcing,
     mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
-MUNDY_REGISTER_METACLASS(
-    "COMPUTE_CONSTRAINT_PROJECTION", mundy::constraints::ComputeConstraintProjection,
-    mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
-MUNDY_REGISTER_METACLASS(
-    "COMPUTE_CONSTRAINT_RESIDUAL", mundy::constraints::ComputeConstraintResidual,
-    mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
-MUNDY_REGISTER_METACLASS(
-    "COMPUTE_CONSTRAINT_VIOLATION", mundy::constraints::ComputeConstraintViolation,
-    mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("DECLARE_AND_INIT_CONSTRAINTS", mundy::constraints::DeclareAndInitConstraints,
+                         mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodExecutionInterface<void>>)
 #endif  // HAVE_MUNDYDRIVER_MUNDYCONSTRAINTS
 
 #ifdef HAVE_MUNDYDRIVER_MUNDYLINKERS

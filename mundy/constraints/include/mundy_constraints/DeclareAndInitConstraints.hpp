@@ -31,10 +31,10 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_constraints/declare_and_initialize_constraints/techniques/GridOfSpheres.hpp>  // for mundy::constraints::declare_and_initialize_constraints::techniques::GridOfSpheres
-#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
-#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
-#include <mundy_meta/MetaTechniqueDispatcher.hpp>             // for mundy::meta::MetaMethodExecutionDispatcher
+#include <mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.hpp>  // for mundy::constraints::declare_and_initialize_constraints::techniques::ChainOfSprings
+#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
+#include <mundy_meta/MetaRegistry.hpp>             // for mundy::meta::GlobalMetaMethodRegistry
+#include <mundy_meta/MetaTechniqueDispatcher.hpp>  // for mundy::meta::MetaMethodExecutionDispatcher
 
 namespace mundy {
 
