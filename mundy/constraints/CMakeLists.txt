@@ -16,28 +16,14 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(NOINSTALLHEADERS 
-  # include/mundy_constraints/DeleteCollisionConstraints.hpp
   include/mundy_constraints/ComputeConstraintForcing.hpp
-  # include/mundy_constraints/generate_collision_constraints/kernels/CollisionSphereSphere.hpp
-  include/mundy_constraints/compute_constraint_projection/kernels/Collision.hpp
-  include/mundy_constraints/ComputeConstraintProjection.hpp
-  include/mundy_constraints/compute_constraint_violation/kernels/Collision.hpp
-  include/mundy_constraints/ComputeConstraintViolation.hpp
-  include/mundy_constraints/compute_constraint_forcing/kernels/Collision.hpp
-  include/mundy_constraints/ComputeConstraintResidual.hpp
-  #include/mundy_constraints/GenerateCollisionConstraints.hpp
+  include/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp
+  include/mundy_constraints/Constraints.hpp
+  include/mundy_constraints/HookeanSprings.hpp
   )
 
 SET(SOURCES 
-  # src/mundy_constraints/GenerateCollisionConstraints.cpp
-  # src/mundy_constraints/generate_collision_constraints/kernels/CollisionSphereSphere.cpp
-  src/mundy_constraints/ComputeConstraintViolation.cpp
-  src/mundy_constraints/ComputeConstraintResidual.cpp
-  src/mundy_constraints/compute_constraint_projection/kernels/Collision.cpp
-  src/mundy_constraints/compute_constraint_violation/kernels/Collision.cpp
-  src/mundy_constraints/ComputeConstraintProjection.cpp
-  src/mundy_constraints/compute_constraint_forcing/kernels/Collision.cpp
-  src/mundy_constraints/ComputeConstraintForcing.cpp
+  src/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

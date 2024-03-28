@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_CONSTRAINTS_COMPUTECONSTRAINTFORCING_HPP_
-#define MUNDY_CONSTRAINTS_COMPUTECONSTRAINTFORCING_HPP_
+#ifndef MUNDY_CONSTRAINTS_COMPUTECONSTRAINTLAGRANGEFORCING_HPP_
+#define MUNDY_CONSTRAINTS_COMPUTECONSTRAINTLAGRANGEFORCING_HPP_
 
-/// \file ComputeConstraintForcing.hpp
-/// \brief Declaration of the ComputeConstraintForcing class
+/// \file ComputeConstraintLagrangeForcing.hpp
+/// \brief Declaration of the ComputeConstraintLagrangeForcing class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -31,7 +31,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp>
+#include <mundy_constraints/compute_constraint_lagrange_forcing/kernels/Collision.hpp>
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
@@ -41,22 +41,24 @@ namespace mundy {
 
 namespace constraints {
 
-/// \class ComputeConstraintForcing
+/// \class ComputeConstraintLagrangeForcing
 /// \brief Method for computing the force exerted by a constraint onto its nodes.
-class ComputeConstraintForcing
-    : public mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
-                                               mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCING")> {
+class ComputeConstraintLagrangeForcing
+    : public mundy::meta::MetaKernelDispatcher<ComputeConstraintLagrangeForcing,
+                                               mundy::meta::make_registration_string(
+                                                   "COMPUTE_CONSTRAINT_LAGRANGE_FORCING")> {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief No default constructor
-  ComputeConstraintForcing() = delete;
+  ComputeConstraintLagrangeForcing() = delete;
 
   /// \brief Constructor
-  ComputeConstraintForcing(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : mundy::meta::MetaKernelDispatcher<ComputeConstraintForcing,
-                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_FORCING")>(
+  ComputeConstraintLagrangeForcing(mundy::mesh::BulkData *const bulk_data_ptr,
+                                   const Teuchos::ParameterList &fixed_params)
+      : mundy::meta::MetaKernelDispatcher<ComputeConstraintLagrangeForcing,
+                                          mundy::meta::make_registration_string("COMPUTE_CONSTRAINT_LAGRANGE_FORCING")>(
             bulk_data_ptr, fixed_params) {
   }
   //@}
@@ -80,7 +82,10 @@ class ComputeConstraintForcing
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
-                               "Name of the node force field to be used for storing the computed spring force.");
+                               "Name of the node field containing the force field to sum the constraint force into.");
+    default_parameter_list.set("element_lagrange_multiplier_field_name",
+                               std::string(default_element_lagrange_multiplier_field_name_),
+                               "Name of the element field containing the Lagrange multiplier.");
     return default_parameter_list;
   }
 
@@ -95,9 +100,10 @@ class ComputeConstraintForcing
   //! \name Default parameters
   //@{
 
+  static constexpr std::string_view default_element_lagrange_multiplier_field_name_ = "ELEMENT_LAGRANGE_MULTIPLIER";
   static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
   //@}
-};  // ComputeConstraintForcing
+};  // ComputeConstraintLagrangeForcing
 
 }  // namespace constraints
 
@@ -107,9 +113,8 @@ class ComputeConstraintForcing
 //@{
 
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS("HOOKEAN_SPRINGS",
-                         mundy::constraint::compute_constraint_forcing::kernels::HookeanSpringsKernel,
-                         mundy::constraint::ComputeConstraintForcing::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("COLLISION", mundy::constraint::COMPUTE_CONSTRAINT_LAGRANGE_FORCING::kernels::Collision,
+                         mundy::constraint::ComputeConstraintLagrangeForcing::OurKernelFactory)
 //@}
 
-#endif  // MUNDY_CONSTRAINTS_COMPUTECONSTRAINTFORCING_HPP_
+#endif  // MUNDY_CONSTRAINTS_COMPUTECONSTRAINTLAGRANGEFORCING_HPP_

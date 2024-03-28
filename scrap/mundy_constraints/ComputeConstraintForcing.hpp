@@ -31,7 +31,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp>
+#include <mundy_constraints/compute_constraint_forcing/kernels/Collision.hpp>
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
@@ -79,8 +79,9 @@ class ComputeConstraintForcing
   /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
-                               "Name of the node force field to be used for storing the computed spring force.");
+    default_parameter_list.set("node_constraint_force_field_name",
+                               std::string(default_constraint_node_force_field_name_),
+                               "Name of the node field containing the constraint force.");
     return default_parameter_list;
   }
 
@@ -95,7 +96,7 @@ class ComputeConstraintForcing
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_node_force_field_name_ = "NODE_FORCE";
+  static constexpr std::string_view default_constraint_node_force_field_name_ = "NODE_CONSTRAINT_FORCE";
   //@}
 };  // ComputeConstraintForcing
 
@@ -107,8 +108,8 @@ class ComputeConstraintForcing
 //@{
 
 /// @brief Register our default kernels
-MUNDY_REGISTER_METACLASS("HOOKEAN_SPRINGS",
-                         mundy::constraint::compute_constraint_forcing::kernels::HookeanSpringsKernel,
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_FORCING",
+                         mundy::constraint::compute_constraint_forcing::kernels::Collision,
                          mundy::constraint::ComputeConstraintForcing::OurKernelFactory)
 //@}
 
