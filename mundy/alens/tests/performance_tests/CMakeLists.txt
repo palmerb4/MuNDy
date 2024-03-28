@@ -30,3 +30,17 @@ tribits_add_executable(
     BrownianMotionMSD.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    PerformanceTestSphereBrownianMotionWithContactNew
+    SOURCES
+    SphereBrownianMotionWithContactNew.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
+    Springs
+    SOURCES
+    Springs.cpp
+    CATEGORIES PERFORMANCE
+    )
