@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -323,7 +323,7 @@ class HierarchyOfAgents {
    public:
     /// @brief Construct a new StringTreeNode object
     /// @param name [in] The name of this node.
-    StringTreeNode(const unsigned &id, const std::string& name, const std::vector<std::string>& parent_names);
+    StringTreeNode(const unsigned& id, const std::string& name, const std::vector<std::string>& parent_names);
 
     /// \brief Add a child to the current node.
     /// Nodes shared so they can be assigned multiple parents.
@@ -354,7 +354,7 @@ class HierarchyOfAgents {
   /// \brief A non-member builder class for \c StringTreeNode's that accounts for the static initialization order.
   class StringTreeManager {
    public:
-    static std::shared_ptr<StringTreeNode> create_node(const unsigned &id, const std::string& name,
+    static std::shared_ptr<StringTreeNode> create_node(const unsigned& id, const std::string& name,
                                                        const std::vector<std::string>& parent_names);
 
     /// @brief Print the tree.

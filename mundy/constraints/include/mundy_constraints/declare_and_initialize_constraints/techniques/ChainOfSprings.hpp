@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -61,13 +61,14 @@ namespace techniques {
 /*
 Our goal is to declare a chain of mundy::constraints::HookeanSprings and initialize them in 3D space along a line.
 
-The chain of springs contains num_nodes nodes. Each node is connected to its neighbors by a spring. 
+The chain of springs contains num_nodes nodes. Each node is connected to its neighbors by a spring.
 
 Parameters:
   - 'springs_part_names' (Array of strings): [Optional, Defaults to 'SPHERES'] The names of the parts to which we will
 add the generated springs.
   - 'num_nodes' (int): [Optional, Defaults to 2] The number of nodes in the chain.
-  - 'coordinate_map' (std::shared_ptr<ArchlengthCoordinateMapping<3,3>>): [Optional, Defaults to a straight line along x with center 0 and length 1.
+  - 'coordinate_map' (std::shared_ptr<ArchlengthCoordinateMapping<3,3>>): [Optional, Defaults to a straight line along x
+with center 0 and length 1.
 */
 class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
  public:
@@ -143,8 +144,9 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     const double orientation_y = 0.0;
     const double orientation_z = 0.0;
     default_parameter_list.set<std::shared_ptr<ArchlengthCoordinateMapping>>(
-        "coordinate_mapping", std::make_shared<StraightLine>(default_num_nodes_, center_x, center_y, center_z, length,
-                                                             orientation_x, orientation_y, orientation_z),
+        "coordinate_mapping",
+        std::make_shared<StraightLine>(default_num_nodes_, center_x, center_y, center_z, length, orientation_x,
+                                       orientation_y, orientation_z),
         "The user-defined map function for the spring coordinates.");
     return default_parameter_list;
   }
@@ -170,7 +172,8 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   stk::mesh::EntityId get_element_id(const size_t &sequential_element_index) const;
 
   /// \brief Get the ID of the nodes connected by the spring at the given sequential element index in the chain.
-  std::pair<stk::mesh::EntityId, stk::mesh::EntityId> get_connected_node_ids(const size_t &sequential_element_index) const;
+  std::pair<stk::mesh::EntityId, stk::mesh::EntityId> get_connected_node_ids(
+      const size_t &sequential_element_index) const;
 
   /// \brief Get the node given its sequential node index in the chain.
   /// Returns an invalid entity if the node does not exist.

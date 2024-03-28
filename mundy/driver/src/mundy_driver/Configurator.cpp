@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -25,13 +25,10 @@
 // Trilinos libs
 
 // Mundy libs
-#include <mundy_driver/Configurator.hpp> // for mundy::driver::Configurator
+#include <mundy_driver/Configurator.hpp>  // for mundy::driver::Configurator
 
 namespace mundy {
 
-namespace driver {
-
-
-}  // namespace driver
+namespace driver {}  // namespace driver
 
 }  // namespace mundy

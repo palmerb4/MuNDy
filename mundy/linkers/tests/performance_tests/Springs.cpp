@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -76,7 +76,6 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
-#include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
 
 /*// A macro for a block of stuff

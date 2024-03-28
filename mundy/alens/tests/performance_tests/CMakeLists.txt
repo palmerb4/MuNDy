@@ -16,3 +16,17 @@
 #
 # **********************************************************************************************************************
 # @HEADER
+
+tribits_add_executable(
+    PerformanceTestBrownianMotion
+    SOURCES
+    BrownianMotion.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
+    PerformanceTestBrownianMotionMSD
+    SOURCES
+    BrownianMotionMSD.cpp
+    CATEGORIES PERFORMANCE
+    )

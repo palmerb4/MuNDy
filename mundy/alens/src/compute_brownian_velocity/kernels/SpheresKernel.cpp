@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -32,10 +32,10 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                   // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>                       // for mundy::mesh::BulkData
-#include <mundy_shapes/Spheres.hpp>                      // for mundy::shapes::Spheres
 #include <mundy_alens/compute_brownian_velocity/kernels/SpheresKernel.hpp>  // for mundy::alens::compute_brownian_velocity::kernels::SpheresKernel
+#include <mundy_core/throw_assert.hpp>                                      // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                                          // for mundy::mesh::BulkData
+#include <mundy_shapes/Spheres.hpp>                                         // for mundy::shapes::Spheres
 
 namespace mundy {
 
@@ -49,10 +49,10 @@ namespace kernels {
 //{
 
 SpheresKernel::SpheresKernel(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
-      : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
+    : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                      "SpheresKernel: bulk_data_ptr cannot be a nullptr.");
+                     "SpheresKernel: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -63,9 +63,9 @@ SpheresKernel::SpheresKernel(mundy::mesh::BulkData *const bulk_data_ptr, const T
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
   for (const std::string &part_name : valid_entity_part_names) {
     valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-    MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                        "SpheresKernel: Part '"
-                            << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+    MUNDY_THROW_ASSERT(
+        valid_entity_parts_.back() != nullptr, std::invalid_argument,
+        "SpheresKernel: Part '" << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
   }
 
   // Fetch the fields.

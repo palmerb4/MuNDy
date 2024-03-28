@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -32,10 +32,10 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy includes
-#include <mundy_constraints/Constraints.hpp>   // for mundy::constraints::Constraints
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_constraints/Constraints.hpp>  // for mundy::constraints::Constraints
+#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
+#include <mundy_meta/MeshRequirements.hpp>    // for mundy::meta::MeshRequirements
+#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
 
 namespace mundy {
 
@@ -94,8 +94,8 @@ class HookeanSprings {
 
   /// \brief Get our mesh requirements.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
-    // By default, we assume that the HookeanSprings part is a beam 2 particle (an element that forms a line between two nodes)
-    // with a spring constant and a rest length. All HookeanSprings are Constraints.
+    // By default, we assume that the HookeanSprings part is a beam 2 particle (an element that forms a line between two
+    // nodes) with a spring constant and a rest length. All HookeanSprings are Constraints.
 
     // Declare our part as a subpart of our parent parts.
     mundy::constraints::Constraints::add_subpart_reqs(part_reqs_ptr_);

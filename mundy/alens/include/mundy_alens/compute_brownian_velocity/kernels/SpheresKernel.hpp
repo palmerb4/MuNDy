@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -71,7 +71,7 @@ class SpheresKernel : public mundy::meta::MetaKernel<> {
 
   /// \brief Constructor
   explicit SpheresKernel(mundy::mesh::BulkData *const bulk_data_ptr,
-                                         const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList());
+                         const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList());
   //@}
 
   //! \name MetaKernel interface implementation
@@ -123,12 +123,11 @@ class SpheresKernel : public mundy::meta::MetaKernel<> {
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "valid_entity_part_names", Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name()),
         "Name of the parts associated with this kernel.");
-    default_parameter_list.set(
-        "node_brownian_velocity_field_name", std::string(default_node_brownian_velocity_field_name_),
-        "Name of the node velocity field to sum the node's translational velocity into.");
-    default_parameter_list.set(
-        "node_rng_counter_field_name", std::string(default_node_rng_counter_field_name_),
-        "Name of the node field counter used to generate random streams.");
+    default_parameter_list.set("node_brownian_velocity_field_name",
+                               std::string(default_node_brownian_velocity_field_name_),
+                               "Name of the node velocity field to sum the node's translational velocity into.");
+    default_parameter_list.set("node_rng_counter_field_name", std::string(default_node_rng_counter_field_name_),
+                               "Name of the node field counter used to generate random streams.");
     return default_parameter_list;
   }
 
@@ -212,7 +211,6 @@ class SpheresKernel : public mundy::meta::MetaKernel<> {
   stk::mesh::Field<unsigned> *node_rng_counter_field_ptr_ = nullptr;
   //@}
 };  // SpheresKernel
-
 
 }  // namespace kernels
 
