@@ -17,10 +17,11 @@ tribits_package_define_dependencies(
     Agents       agents      PT  OPTIONAL
     Shapes       shapes      PT  OPTIONAL
     Linkers      linkers     PT  OPTIONAL
-    # Balance      balance     PT  OPTIONAL
     Io           io          PT  OPTIONAL
     Constraints  constraints  PT  OPTIONAL
+    # Balance      balance     PT  OPTIONAL
     # Motion       motion      PT  OPTIONAL
+    Alens        alens       PT  OPTIONAL
     Driver       driver      PT  OPTIONAL
   REGRESSION_EMAIL_LIST brycepalmer96@gmail.com
   )

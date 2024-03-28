@@ -17,7 +17,5 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(compute_aabb)
-add_subdirectory(compute_bounding_radius)
-add_subdirectory(compute_obb)
-add_subdirectory(declare_and_initialize_shapes)
+add_subdirectory(unit_tests)
+
