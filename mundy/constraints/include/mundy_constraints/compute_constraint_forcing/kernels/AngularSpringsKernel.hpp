@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_CONSTRAINTS_COMPUTE_CONSTRAINT_FORCING_KERNELS_HOOKEANSPRINGSKERNEL_HPP_
-#define MUNDY_CONSTRAINTS_COMPUTE_CONSTRAINT_FORCING_KERNELS_HOOKEANSPRINGSKERNEL_HPP_
+#ifndef MUNDY_CONSTRAINTS_COMPUTE_CONSTRAINT_FORCING_KERNELS_ANGULARSPRINGSKERNEL_HPP_
+#define MUNDY_CONSTRAINTS_COMPUTE_CONSTRAINT_FORCING_KERNELS_ANGULARSPRINGSKERNEL_HPP_
 
-/// \file HookeanSpringsKernel.hpp
-/// \brief Declaration of the ComputeConstraintForcing's HookeanSpringsKernel kernel.
+/// \file AngularSpringsKernel.hpp
+/// \brief Declaration of the ComputeConstraintForcing's AngularSpringsKernel kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -35,7 +35,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_constraints/HookeanSprings.hpp>  // for HookeanSprings
+#include <mundy_constraints/AngularSprings.hpp>  // for AngularSprings
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
@@ -53,10 +53,10 @@ namespace compute_constraint_forcing {
 
 namespace kernels {
 
-/// \class HookeanSpringsKernel
-/// \brief Concrete implementation of \c MetaKernel for computing the spring force induced by a collection of Hookean
+/// \class AngularSpringsKernel
+/// \brief Concrete implementation of \c MetaKernel for computing the spring force induced by a collection of Angular
 /// springs. constraint.
-class HookeanSpringsKernel : public mundy::meta::MetaKernel<> {
+class AngularSpringsKernel : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
   //@{
@@ -68,7 +68,7 @@ class HookeanSpringsKernel : public mundy::meta::MetaKernel<> {
   //@{
 
   /// \brief Constructor
-  explicit HookeanSpringsKernel(mundy::mesh::BulkData *const bulk_data_ptr,
+  explicit AngularSpringsKernel(mundy::mesh::BulkData *const bulk_data_ptr,
                                 const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList());
   //@}
 
@@ -85,7 +85,7 @@ class HookeanSpringsKernel : public mundy::meta::MetaKernel<> {
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(HookeanSpringsKernel::get_valid_fixed_params());
+    valid_fixed_params.validateParametersAndSetDefaults(AngularSpringsKernel::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
     std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
@@ -101,23 +101,23 @@ class HookeanSpringsKernel : public mundy::meta::MetaKernel<> {
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           node_force_field_name, stk::topology::NODE_RANK, 3, 1));
 
-      if (part_name == HookeanSprings::get_name()) {
+      if (part_name == AngularSprings::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        HookeanSprings::add_part_reqs(part_reqs);
+        AngularSprings::add_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        HookeanSprings::add_subpart_reqs(part_reqs);
+        AngularSprings::add_subpart_reqs(part_reqs);
       }
     }
 
-    return HookeanSprings::get_mesh_requirements();
+    return AngularSprings::get_mesh_requirements();
   }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                                            Teuchos::tuple<std::string>(HookeanSprings::get_name()),
+                                                            Teuchos::tuple<std::string>(AngularSprings::get_name()),
                                                             "Name of the parts associated with this kernel.");
     default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
                                "Name of the node force field to be used for storing the computed spring force.");
@@ -137,7 +137,7 @@ class HookeanSpringsKernel : public mundy::meta::MetaKernel<> {
   static std::shared_ptr<PolymorphicBaseType> create_new_instance(
       mundy::mesh::BulkData *const bulk_data_ptr,
       const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
-    return std::make_shared<HookeanSpringsKernel>(bulk_data_ptr, fixed_params);
+    return std::make_shared<AngularSpringsKernel>(bulk_data_ptr, fixed_params);
   }
 
   //! \name Setters
@@ -188,13 +188,13 @@ class HookeanSpringsKernel : public mundy::meta::MetaKernel<> {
   /// \brief Node field containing the node's coordinates.
   stk::mesh::Field<double> *node_coordinates_field_ptr_ = nullptr;
 
-  /// \brief Element field containing the spring's rest length.
-  stk::mesh::Field<double> *element_rest_length_field_ptr_ = nullptr;
+  /// \brief Element field containing the spring's rest angle.
+  stk::mesh::Field<double> *element_rest_angle_field_ptr_ = nullptr;
 
   /// \brief Element field containing the spring's spring constant.
   stk::mesh::Field<double> *element_spring_constant_field_ptr_ = nullptr;
   //@}
-};  // HookeanSpringsKernel
+};  // AngularSpringsKernel
 
 }  // namespace kernels
 
@@ -204,4 +204,4 @@ class HookeanSpringsKernel : public mundy::meta::MetaKernel<> {
 
 }  // namespace mundy
 
-#endif  // MUNDY_CONSTRAINTS_COMPUTE_CONSTRAINT_FORCING_KERNELS_HOOKEANSPRINGSKERNEL_HPP_
+#endif  // MUNDY_CONSTRAINTS_COMPUTE_CONSTRAINT_FORCING_KERNELS_ANGULARSPRINGSKERNEL_HPP_

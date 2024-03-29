@@ -66,6 +66,10 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   valid_fixed_params.validateParametersAndSetDefaults(ChainOfSprings::get_valid_fixed_params());
 
+  // Get the control parameters.
+  generate_hookean_springs_ = valid_fixed_params.get<bool>("generate_hookean_springs");
+  generate_angular_springs_ = valid_fixed_params.get<bool>("generate_angular_springs");
+
   // Get the field pointers.
   const std::string node_coord_field_name = mundy::constraints::HookeanSprings::get_node_coord_field_name();
 
@@ -90,7 +94,13 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
     return parts;
   };
 
-  spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, spring_part_names);
+  if (generate_hookean_springs_) {
+    hookean_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, spring_part_names);
+  }
+
+  if (generate_angular_springs_) {
+    angular_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, spring_part_names);
+  }
 }
 //}
 
@@ -103,7 +113,8 @@ void ChainOfSprings::set_mutable_params(const Teuchos::ParameterList &mutable_pa
   valid_mutable_params.validateParametersAndSetDefaults(ChainOfSprings::get_valid_mutable_params());
 
   num_nodes_ = valid_mutable_params.get<size_t>("num_nodes");
-  num_springs_ = num_nodes_ - 1;
+  num_hookean_springs_ = (generate_hookean_springs_ ? num_nodes_ - 1 : 0);
+  num_angular_springs_ = (generate_angular_springs_ ? num_hookean_springs_ + num_nodes_ - 2 : 0);
   coordinate_map_ptr_ = valid_mutable_params.get<std::shared_ptr<ArchlengthCoordinateMapping>>("coordinate_mapping");
 }
 //}
@@ -115,26 +126,26 @@ stk::mesh::EntityId ChainOfSprings::get_node_id(const size_t &sequential_node_in
   return node_id_start_ + sequential_node_index;
 }
 
-stk::mesh::EntityId ChainOfSprings::get_element_id(const size_t &sequential_element_index) const {
-  return element_id_start_ + sequential_element_index;
+stk::mesh::EntityId ChainOfSprings::get_hookean_spring_id(const size_t &sequential_hookean_spring_index) const {
+  return element_id_start_ + sequential_hookean_spring_index;
 }
 
-std::pair<stk::mesh::EntityId, stk::mesh::EntityId> ChainOfSprings::get_connected_node_ids(
-    const size_t &sequential_element_index) const {
-  return {get_node_id(sequential_element_index), get_node_id(sequential_element_index + 1)};
+stk::mesh::EntityId ChainOfSprings::get_angular_spring_id(const size_t &sequential_angular_spring_index) const {
+  return element_id_start_ + num_hookean_springs_ + sequential_angular_spring_index;
 }
 
 stk::mesh::Entity ChainOfSprings::get_node(const size_t &sequential_node_index) const {
   return bulk_data_ptr_->get_entity(stk::topology::NODE_RANK, get_node_id(sequential_node_index));
 }
 
-stk::mesh::Entity ChainOfSprings::get_element(const size_t &sequential_element_index) const {
-  return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK, get_element_id(sequential_element_index));
+stk::mesh::Entity ChainOfSprings::get_hookean_spring(const size_t &sequential_hookean_spring_index) const {
+  return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK,
+                                    get_hookean_spring_id(sequential_hookean_spring_index));
 }
 
-std::pair<stk::mesh::Entity, stk::mesh::Entity> ChainOfSprings::get_connected_nodes(
-    const size_t &sequential_element_index) const {
-  return {get_node(sequential_element_index), get_node(sequential_element_index + 1)};
+stk::mesh::Entity ChainOfSprings::get_angular_spring(const size_t &sequential_angular_spring_index) const {
+  return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK,
+                                    get_angular_spring_id(sequential_angular_spring_index));
 }
 //}
 
@@ -148,6 +159,11 @@ void ChainOfSprings::execute() {
   const size_t remainder = num_nodes_ % bulk_data_ptr_->parallel_size();
   const size_t start_node_index = rank * nodes_per_rank + std::min(rank, remainder);
   const size_t end_node_index = start_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
+
+  // Concatenate the spring part pointers.
+  std::vector<stk::mesh::Part *> spring_part_ptrs_;
+  spring_part_ptrs_.insert(spring_part_ptrs_.end(), hookean_spring_part_ptrs_.begin(), hookean_spring_part_ptrs_.end());
+  spring_part_ptrs_.insert(spring_part_ptrs_.end(), angular_spring_part_ptrs_.begin(), angular_spring_part_ptrs_.end());
 
   bulk_data_ptr_->modification_begin();
   openrand::Philox rng(1, 0);
@@ -206,32 +222,53 @@ void ChainOfSprings::execute() {
     }
   }
 
-  // Now the springs.
-  const size_t start_spring_index = start_node_index;
-  const size_t end_spring_index = end_node_index - 1;
-  for (size_t i = start_spring_index; i < end_spring_index; ++i) {
-    // Create the spring.
-    stk::mesh::EntityId spring_id = get_element_id(i);
-    stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
-    bulk_data_ptr_->change_entity_parts(spring, spring_part_ptrs_);
+  // Now the hookean springs.
+  if (generate_hookean_springs_) {
+    const size_t start_spring_index = start_node_index;
+    const size_t end_spring_index = end_node_index - 1;
+    for (size_t i = start_spring_index; i < end_spring_index; ++i) {
+      // Create the hookean spring.
+      stk::mesh::EntityId spring_id = get_hookean_spring_id(i);
+      stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
+      bulk_data_ptr_->change_entity_parts(spring, hookean_spring_part_ptrs_);
 
-    // Create the node and connect it to the spring.
-    auto [node0, node1] = get_connected_nodes(i);
-    bulk_data_ptr_->declare_relation(spring, node0, 0);
-    bulk_data_ptr_->declare_relation(spring, node1, 1);
-
-    // Set the node's coordinates using the given coordinate map.
-    double *const node0_coords = stk::mesh::field_data(*node_coord_field_ptr_, node0);
-    double *const node1_coords = stk::mesh::field_data(*node_coord_field_ptr_, node1);
-    const auto [coord0_x, coord0_y, coord0_z] = coordinate_map_ptr_->get_grid_coordinate({i});
-    const auto [coord1_x, coord1_y, coord1_z] = coordinate_map_ptr_->get_grid_coordinate({i + 1});
-    node0_coords[0] = coord0_x;
-    node0_coords[1] = coord0_y;
-    node0_coords[2] = coord0_z;
-    node1_coords[0] = coord1_x;
-    node1_coords[1] = coord1_y;
-    node1_coords[2] = coord1_z;
+      // Create the node and connect it to the spring.
+      // To map our sequential index to the node sequential index, we connect to node i and i + 1.
+      // node i --- spring i --- node i + 1
+      stk::mesh::Entity node0 = get_node(i);
+      stk::mesh::Entity node1 = get_node(i + 1);
+      bulk_data_ptr_->declare_relation(spring, node0, 0);
+      bulk_data_ptr_->declare_relation(spring, node1, 1);
+    }
   }
+
+  if (generate_angular_springs_) {
+    const size_t start_spring_index = start_node_index + num_hookean_springs_;
+    const size_t end_spring_index = end_node_index - 2;
+    for (size_t i = start_spring_index; i < end_spring_index; ++i) {
+      // Create the angular spring.
+      stk::mesh::EntityId spring_id = get_angular_spring_id(i);
+      stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
+      bulk_data_ptr_->change_entity_parts(spring, angular_spring_part_ptrs_);
+
+      // Create the nodes and connect them to the spring.
+      // To map our sequential index to the node sequential index, we connect to node i, i - 1, and i + 1.
+      // Our center node is node i. Note, the node ordinals for BEAM_3 are
+      /* n1      n2
+      //   \    /
+      //    \  /
+      //     n3
+      */
+      stk::mesh::Entity left_node = get_node(i - 1);
+      stk::mesh::Entity center_node = get_node(i);
+      stk::mesh::Entity right_node = get_node(i + 1);
+
+      bulk_data_ptr_->declare_relation(spring, left_node, 0);
+      bulk_data_ptr_->declare_relation(spring, right_node, 1);
+      bulk_data_ptr_->declare_relation(spring, center_node, 2);
+    }
+  }
+
   bulk_data_ptr_->modification_end();
 }
 //}

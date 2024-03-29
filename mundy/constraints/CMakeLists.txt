@@ -16,7 +16,9 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 
 SET(NOINSTALLHEADERS 
+  include/mundy_constraints/AngularSprings.hpp
   include/mundy_constraints/ComputeConstraintForcing.hpp
+  include/mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.hpp
   include/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp
   include/mundy_constraints/Constraints.hpp
   include/mundy_constraints/DeclareAndInitConstraints.hpp
@@ -26,6 +28,7 @@ SET(NOINSTALLHEADERS
   )
 
 SET(SOURCES 
+  src/mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.cpp
   src/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.cpp
   src/mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.cpp
   )

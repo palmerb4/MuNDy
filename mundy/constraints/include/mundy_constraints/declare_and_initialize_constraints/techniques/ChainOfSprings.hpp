@@ -37,6 +37,7 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
+#include <mundy_constraints/AngularSprings.hpp>  // for mundy::constraints::AngularSprings
 #include <mundy_constraints/HookeanSprings.hpp>  // for mundy::constraints::HookeanSprings
 #include <mundy_constraints/declare_and_initialize_constraints/techniques/ArchlengthCoordinateMapping.hpp>  // for mundy::constraints::...::ArchlengthCoordinateMapping
 #include <mundy_core/StringLiteral.hpp>                 // for mundy::core::StringLiteral
@@ -58,18 +59,34 @@ namespace declare_and_initialize_constraints {
 
 namespace techniques {
 
+/// \brief The ChainOfSprings class is a MetaMethod that declares and initializes a chain of springs.
+/// Our goal is to declare a chain of HookeanSprings and AngularSprings and initialize them in 3D space along a line.
+/// 
+/// The chain of springs contains num_nodes nodes. Each node is connected to its neighbors like so
 /*
-Our goal is to declare a chain of mundy::constraints::HookeanSprings and initialize them in 3D space along a line.
-
-The chain of springs contains num_nodes nodes. Each node is connected to its neighbors by a spring.
-
-Parameters:
-  - 'springs_part_names' (Array of strings): [Optional, Defaults to 'SPHERES'] The names of the parts to which we will
-add the generated springs.
-  - 'num_nodes' (int): [Optional, Defaults to 2] The number of nodes in the chain.
-  - 'coordinate_map' (std::shared_ptr<ArchlengthCoordinateMapping<3,3>>): [Optional, Defaults to a straight line along x
-with center 0 and length 1.
+/// n1       n3        n5        n7
+///  \      /  \      /  \      /
+///   s1   s2   s3   s4   s5   s6
+///    \  /      \  /      \  /
+///     n2        n4        n6
+/// Angular springs are hard to draw with ASCII art, but they are centered at every node and connected to the node's neighbors:
+///   a1 connects has a center node at n2 and connects to n1 and n3.
+///   a2 connects has a center node at n3 and connects to n2 and n4.
+///   and so on.
+///
+/// STK EntityId-wise. Nodes are numbered sequentially from 1 to num_nodes. Springs are numbered sequentially from 1 to num_nodes-1.
+/// and angular springs are numbered sequentially from num_springs+1 to num_spring+num_nodes-2.
 */
+/// Parameters:
+///   - 'generate_hookean_springs' (bool): [Optional, Defaults to true] Whether to generate the hookean springs.
+///   - 'generate_angular_springs' (bool): [Optional, Defaults to false] Whether to generate the angular springs.
+///   - 'hookean_springs_part_names' (Array of strings): [Optional, Defaults to 'HOOKEAN_SPRINGS'] The names of the parts to
+/// which we will add the generated hookean springs. Only used if the user sets generate_hookean_springs to true.
+///   - 'angular_springs_part_names' (Array of strings): [Optional, Defaults to 'ANGULAR_SPRINGS'] The names of the parts to
+/// which we will add the generated angular springs. Only used if the user sets generate_angular_springs to true.
+///   - 'num_nodes' (int): [Optional, Defaults to 2] The number of nodes in the chain.
+///   - 'coordinate_map' (std::shared_ptr<ArchlengthCoordinateMapping<3,3>>): [Optional, Defaults to a straight line along x
+/// with center 0 and length 1.
 class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
  public:
   //! \name Typedefs
@@ -104,30 +121,66 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     valid_fixed_params.validateParametersAndSetDefaults(ChainOfSprings::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
-    Teuchos::Array<std::string> springs_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("springs_part_names");
+    const bool generate_hookean_springs = valid_fixed_params.get<bool>("generate_hookean_springs", true);
+    const bool generate_angular_springs = valid_fixed_params.get<bool>("generate_angular_springs", false);
+    MUNDY_THROW_ASSERT(generate_hookean_springs || generate_angular_springs, std::invalid_argument,
+                        "ChainOfSprings: At least one of 'generate_hookean_springs' or 'generate_angular_springs' must "
+                        "be true.");
 
-    for (int i = 0; i < springs_part_names.size(); i++) {
-      const std::string part_name = springs_part_names[i];
-      if (part_name == HookeanSprings::get_name()) {
-        // No specialization is required.
-      } else {
-        // The specialized part must be a subset of the springs part.
-        auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-        part_reqs->set_part_name(part_name);
-        HookeanSprings::add_subpart_reqs(part_reqs);
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+
+    if (generate_hookean_springs) {
+      Teuchos::Array<std::string> hookean_spring_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>(
+          "hookean_springs_part_names", Teuchos::tuple<std::string>(HookeanSprings::get_name()));
+
+      for (int i = 0; i < hookean_spring_part_names.size(); i++) {
+        const std::string part_name = hookean_spring_part_names[i];
+        if (part_name == HookeanSprings::get_name()) {
+          // No specialization is required.
+        } else {
+          // The specialized part must be a subset of the hookean springs part.
+          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          part_reqs->set_part_name(part_name);
+          HookeanSprings::add_subpart_reqs(part_reqs);
+        }
       }
+
+      mesh_reqs_ptr->merge(HookeanSprings::get_mesh_requirements());
     }
 
-    return HookeanSprings::get_mesh_requirements();
+    if (generate_angular_springs) {
+      Teuchos::Array<std::string> angular_spring_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>(
+          "angular_springs_part_names", Teuchos::tuple<std::string>(AngularSprings::get_name()));
+
+      for (int i = 0; i < angular_spring_part_names.size(); i++) {
+        const std::string part_name = angular_spring_part_names[i];
+        if (part_name == AngularSprings::get_name()) {
+          // No specialization is required.
+        } else {
+          // The specialized part must be a subset of the angular springs part.
+          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          part_reqs->set_part_name(part_name);
+          AngularSprings::add_subpart_reqs(part_reqs);
+        }
+      }
+
+      mesh_reqs_ptr->merge(AngularSprings::get_mesh_requirements());
+    }
+
+    return mesh_reqs_ptr;
   }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
+    default_parameter_list.set<bool>("generate_hookean_springs", true, "Whether to generate the hookean springs.");
+    default_parameter_list.set<bool>("generate_angular_springs", false, "Whether to generate the angular springs.");
     default_parameter_list.set<Teuchos::Array<std::string>>(
-        "springs_part_names", Teuchos::tuple<std::string>(HookeanSprings::get_name()),
-        "The names of the parts to which we will add the generated springs.");
+        "hookean_springs_part_names", Teuchos::tuple<std::string>(HookeanSprings::get_name()),
+        "The names of the parts to which we will add the generated hookean springs.");
+    default_parameter_list.set<Teuchos::Array<std::string>>(
+        "angular_springs_part_names", Teuchos::tuple<std::string>(AngularSprings::get_name()),
+        "The names of the parts to which we will add the generated angular springs.");
     return default_parameter_list;
   }
 
@@ -164,27 +217,27 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   //! \name Getters
   //@{
 
-  /// \brief Get the ID of the node given its sequential node index in the chain.
-  /// Simply because the index increases sequentially, the IDs need not.
+  /// \brief Get the ID of the i'th node in the chain.
+  /// \note Simply because the i'th index increases sequentially, the IDs need not.
   stk::mesh::EntityId get_node_id(const size_t &sequential_node_index) const;
 
-  /// \brief Get the ID of the element at index i in the chain.
-  stk::mesh::EntityId get_element_id(const size_t &sequential_element_index) const;
+  /// \brief Get the ID of the i'th hookean spring in the chain.
+  stk::mesh::EntityId get_hookean_spring_id(const size_t &sequential_hookean_spring_index) const;
 
-  /// \brief Get the ID of the nodes connected by the spring at the given sequential element index in the chain.
-  std::pair<stk::mesh::EntityId, stk::mesh::EntityId> get_connected_node_ids(
-      const size_t &sequential_element_index) const;
+  /// \brief Get the ID of the i'th angular spring in the chain.
+  stk::mesh::EntityId get_angular_spring_id(const size_t &sequential_angular_spring_index) const;
 
-  /// \brief Get the node given its sequential node index in the chain.
+  /// \brief Get the i'th node in the chain.
   /// Returns an invalid entity if the node does not exist.
   stk::mesh::Entity get_node(const size_t &sequential_node_index) const;
 
-  /// \brief Get the element given its sequential element index in the chain.
+  /// \brief Get the i'th hookean spring in the chain.
   /// Returns an invalid entity if the element does not exist.
-  stk::mesh::Entity get_element(const size_t &sequential_element_index) const;
+  stk::mesh::Entity get_hookean_spring(const size_t &sequential_hookean_spring_index) const;
 
-  /// \brief Get the nodes connected by the spring at the given sequential element index in the chain.
-  std::pair<stk::mesh::Entity, stk::mesh::Entity> get_connected_nodes(const size_t &sequential_element_index) const;
+  /// \brief Get the i'th angular spring in the chain.
+  /// Returns an invalid entity if the element does not exist.
+  stk::mesh::Entity get_angular_spring(const size_t &sequential_angular_spring_index) const;
   //@}
 
   //! \name Setters
@@ -205,7 +258,6 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   //@{
 
   static constexpr size_t default_num_nodes_ = 2;
-  static constexpr size_t default_num_springs_ = default_num_nodes_ - 1;
   //@}
 
   //! \name Internal members
@@ -220,20 +272,32 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \brief Number of nodes in the chain.
   size_t num_nodes_;
 
-  /// \brief Number of springs in the chain.
-  size_t num_springs_;
+  /// \brief Number of hookean springs in the chain.
+  size_t num_hookean_springs_;
+
+  /// \brief Number of angular springs in the chain.
+  size_t num_angular_springs_;
+
+  /// \brief If we should generate the hookean springs or not.
+  bool generate_hookean_springs_;
+
+  /// \brief If we should generate the angular springs or not.
+  bool generate_angular_springs_;
 
   /// \brief The user-defined map function for the node coordinates.
   std::shared_ptr<ArchlengthCoordinateMapping> coordinate_map_ptr_;
 
-  /// \brief Spring element id start.
+  /// \brief Element id start.
   size_t element_id_start_ = 1;
 
   /// \brief Node id start.
   size_t node_id_start_ = 1;
 
-  /// \brief The spring parts.
-  std::vector<stk::mesh::Part *> spring_part_ptrs_;
+  /// \brief The hookean spring parts.
+  std::vector<stk::mesh::Part *> hookean_spring_part_ptrs_;
+
+  /// \brief The angular spring parts.
+  std::vector<stk::mesh::Part *> angular_spring_part_ptrs_;
 
   /// \brief The spring node coordinate field pointer.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
