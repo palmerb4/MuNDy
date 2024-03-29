@@ -37,6 +37,8 @@
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for mundy::meta::GlobalMetaMethodRegistry
 #include <mundy_shapes/compute_bounding_radius/kernels/Sphere.hpp>  // for mundy::shapes::compute_bounding_radius::kernels::Sphere
+#include <mundy_shapes/compute_bounding_radius/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_bounding_radius::kernels::Spherocylinder
+#include <mundy_shapes/compute_bounding_radius/kernels/SpherocylinderSegment.hpp>  // for mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment
 
 namespace mundy {
 
@@ -113,6 +115,10 @@ class ComputeBoundingRadius
 
 /// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_bounding_radius::kernels::Sphere,
+                         mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_bounding_radius::kernels::Spherocylinder,
+                        mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT", mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment,
                          mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
 //@}
 

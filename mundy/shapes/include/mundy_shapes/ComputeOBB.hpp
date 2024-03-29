@@ -35,7 +35,9 @@
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
-#include <mundy_shapes/compute_obb/kernels/Sphere.hpp>  // for mundy::shapes::compute_obb::kernels::Sphere
+#include <mundy_shapes/compute_obb/kernels/Sphere.hpp>          // for mundy::shapes::compute_obb::kernels::Sphere
+#include <mundy_shapes/compute_obb/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_obb::kernels::Spherocylinder
+#include <mundy_shapes/compute_obb/kernels/SpherocylinderSegment.hpp>  // for mundy::shapes::compute_obb::kernels::SpherocylinderSegment
 
 namespace mundy {
 
@@ -110,6 +112,10 @@ class ComputeOBB
 /// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_obb::kernels::Sphere,
                          mundy::shapes::ComputeOBB::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_obb::kernels::Spherocylinder,
+                         mundy::shapes::ComputeOBB::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT", mundy::shapes::compute_obb::kernels::SpherocylinderSegment,
+                          mundy::shapes::ComputeOBB::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_SHAPES_COMPUTEOBB_HPP_

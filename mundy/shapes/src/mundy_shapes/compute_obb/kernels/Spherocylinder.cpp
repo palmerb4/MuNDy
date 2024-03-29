@@ -18,7 +18,7 @@
 // @HEADER
 
 /// \file Spherocylinder.cpp
-/// \brief Definition of the ComputeAABB's Spherocylinder kernel.
+/// \brief Definition of the ComputeOBB's Spherocylinder kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -32,17 +32,17 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_math/Quaternion.hpp>                             // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>                                // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>                               // for mundy::mesh::BulkData
-#include <mundy_shapes/Spherocylinders.hpp>                      // for mundy::shapes::Spherocylinders
-#include <mundy_shapes/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_aabb::kernels::Spherocylinder
+#include <mundy_math/Quaternion.hpp>                            // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>                               // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
+#include <mundy_shapes/Spherocylinders.hpp>                     // for mundy::shapes::Spherocylinders
+#include <mundy_shapes/compute_obb/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_obb::kernels::Spherocylinder
 
 namespace mundy {
 
 namespace shapes {
 
-namespace compute_aabb {
+namespace compute_obb {
 
 namespace kernels {
 
@@ -65,14 +65,14 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   const std::string element_length_field_name = mundy::shapes::Spherocylinders::get_element_length_field_name();
   const std::string element_orientation_field_name =
       mundy::shapes::Spherocylinders::get_element_orientation_field_name();
-  const std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
+  const std::string element_obb_field_name = valid_fixed_params.get<std::string>("element_obb_field_name");
 
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
   element_orientation_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_orientation_field_name);
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
   element_length_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_length_field_name);
-  element_aabb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_aabb_field_name);
+  element_obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_obb_field_name);
 
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
@@ -82,8 +82,8 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
                      "Spherocylinder: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_length_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_length_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
-                     "Spherocylinder: element_aabb_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(element_obb_field_ptr_ != nullptr, std::invalid_argument,
+                     "Spherocylinder: element_obb_field_ptr cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
@@ -130,7 +130,7 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   stk::mesh::Field<double> &element_orientation_field = *element_orientation_field_ptr_;
   stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
   stk::mesh::Field<double> &element_length_field = *element_length_field_ptr_;
-  stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+  stk::mesh::Field<double> &element_obb_field = *element_obb_field_ptr_;
   const double buffer_distance = buffer_distance_;
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
@@ -139,8 +139,9 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
-      [&node_coord_field, &element_orientation_field, &element_radius_field, &element_length_field, &element_aabb_field, &buffer_distance](
-          [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_element) {
+      [&node_coord_field, &element_orientation_field, &element_radius_field, &element_length_field, &element_obb_field,
+       &buffer_distance]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                         const stk::mesh::Entity &spherocylinder_element) {
         // Element data
         const double radius = stk::mesh::field_data(element_radius_field, spherocylinder_element)[0];
         const double length = stk::mesh::field_data(element_length_field, spherocylinder_element)[0];
@@ -158,24 +159,26 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
         const auto left_endpoint = node_coord - 0.5 * tangent_vector * length;
         const auto right_endpoint = node_coord + 0.5 * tangent_vector * length;
 
-        // Populate the AABB.
-        double *aabb = stk::mesh::field_data(element_aabb_field, spherocylinder_element);
-        auto bottom_left = mundy::math::get_vector3_view<double>(aabb);
-        auto top_right = mundy::math::get_vector3_view<double>(aabb + 3);
+        // Populate the OBB.
+        // Note, the OBB is just the AABB in the reference configuration rotated by the orientation and then shifted by
+        // the center of the spherocylinder.
+        double *obb = stk::mesh::field_data(element_obb_field, spherocylinder_element);
+        auto bottom_left = mundy::math::get_vector3_view<double>(obb);
+        auto top_right = mundy::math::get_vector3_view<double>(obb + 3);
 
-        bottom_left[0] = std::min(left_endpoint[0], right_endpoint[0]) - radius - buffer_distance;
-        bottom_left[1] = std::min(left_endpoint[1], right_endpoint[1]) - radius - buffer_distance;
-        bottom_left[2] = std::min(left_endpoint[2], right_endpoint[2]) - radius - buffer_distance;
-        top_right[0] = std::max(left_endpoint[0], right_endpoint[0]) + radius + buffer_distance;
-        top_right[1] = std::max(left_endpoint[1], right_endpoint[1]) + radius + buffer_distance;
-        top_right[2] = std::max(left_endpoint[2], right_endpoint[2]) + radius + buffer_distance;
+        const mundy::math::Vector3<double> bottom_left_ref_config(-radius - buffer_distance, -radius - buffer_distance,
+                                                                  -0.5 * length - buffer_distance);
+        const mundy::math::Vector3<double> top_right_ref_config(radius + buffer_distance, radius + buffer_distance,
+                                                                0.5 * length + buffer_distance);
+        bottom_left = element_orientation * bottom_left_ref_config + node_coord;
+        top_right = element_orientation * top_right_ref_config + node_coord;
       });
 }
 //}
 
 }  // namespace kernels
 
-}  // namespace compute_aabb
+}  // namespace compute_obb
 
 }  // namespace shapes
 

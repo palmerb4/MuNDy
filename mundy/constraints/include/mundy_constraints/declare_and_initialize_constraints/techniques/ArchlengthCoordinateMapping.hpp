@@ -115,7 +115,7 @@ class Helix : public ArchlengthCoordinateMapping {
     const mundy::math::Vector3<double> jhat(0.0, 1.0, 0.0);
     basis_vector0_ = mundy::math::norm(mundy::math::cross(axis_, ihat)) > 1.0e-12 ? ihat : jhat;
     basis_vector0_ /= mundy::math::norm(basis_vector0_);
-    basis_vector1_ = mundy::math::norm(mundy::math::cross(axis_, basis_vector0_));
+    basis_vector1_ = mundy::math::cross(axis_, basis_vector0_);
     basis_vector1_ /= mundy::math::norm(basis_vector1_);
   }
 

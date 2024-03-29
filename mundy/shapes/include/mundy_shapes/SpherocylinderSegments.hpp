@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPES_SPHEROCYLINDERS_HPP_
-#define MUNDY_SHAPES_SPHEROCYLINDERS_HPP_
+#ifndef MUNDY_SHAPES_SPHEROCYLINDERSEGMENTS_HPP_
+#define MUNDY_SHAPES_SPHEROCYLINDERSEGMENTS_HPP_
 
-/// \file Spherocylinders.hpp
-/// \brief Declaration of the Spherocylinders part class
+/// \file SpherocylinderSegments.hpp
+/// \brief Declaration of the SpherocylinderSegments part class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -41,11 +41,11 @@ namespace mundy {
 
 namespace shapes {
 
-/// \class Spherocylinders
-/// \brief The static interface for all of Mundy's Spherocylinders shapes.
+/// \class SpherocylinderSegments
+/// \brief The static interface for all of Mundy's SpherocylinderSegments shapes.
 ///
 /// The design of this class is in accordance with the static interface requirements of mundy::agents::AgentFactory.
-class Spherocylinders {
+class SpherocylinderSegments {
  public:
   //! \name Getters
   //@{
@@ -94,8 +94,10 @@ class Spherocylinders {
 
   /// \brief Get our mesh requirements.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
-    // By default, we assume that the Spherocylinders part is a point particle with a radius and length.
-    // All Spherocylinders are Shapes.
+    // By default, we assume that the SpherocylinderSegments part is a BEAM_2 particle with a radius and two endpoints.
+    // A spherocylinder segment is distinct from a spherocylinder in that orientation and length are controlled by the endpoint locations.
+    // Segments are designed to be linked together and admit special physical interactions as a result that are not present in the spherocylinder.
+    // All SpherocylinderSegments are Shapes.
 
     // Declare our part as a subpart of our parent parts.
     mundy::shapes::Shapes::add_subpart_reqs(part_reqs_ptr_);
@@ -112,24 +114,14 @@ class Spherocylinders {
     return mesh_reqs_ptr;
   }
 
-  /// \brief Get the default node coordinate field name for the Spherocylinders part.
+  /// \brief Get the default node coordinate field name for the SpherocylinderSegments part.
   static inline std::string get_node_coord_field_name() {
     return std::string(node_coord_field_name_);
   }
 
-  /// \brief Get the default element orientation field name for the Spherocylinders part.
-  static inline std::string get_element_orientation_field_name() {
-    return std::string(element_orientation_field_name_);
-  }
-
-  /// \brief Get the default element radius field name for the Spherocylinders part.
+  /// \brief Get the default element radius field name for the SpherocylinderSegments part.
   static inline std::string get_element_radius_field_name() {
     return std::string(element_radius_field_name_);
-  }
-
-  /// \brief Get the default element length field name for the Spherocylinders part.
-  static inline std::string get_element_length_field_name() {
-    return std::string(element_length_field_name_);
   }
 
  private:
@@ -137,10 +129,10 @@ class Spherocylinders {
   //@{
 
   /// \brief The name of the our part.
-  static constexpr std::string_view name_ = "SPHEROCYLINDERS";
+  static constexpr std::string_view name_ = "SPHEROCYLINDER_SEGMENTS";
 
   /// \brief Our topology
-  static constexpr stk::topology::topology_t topology_ = stk::topology::PARTICLE;
+  static constexpr stk::topology::topology_t topology_ = stk::topology::BEAM_2;
 
   /// \brief Our rank (we have a rank, so this is never used).
   static constexpr inline stk::topology::rank_t rank_ = stk::topology::INVALID_RANK;
@@ -154,12 +146,6 @@ class Spherocylinders {
   /// @brief The name of our element radius field.
   static constexpr std::string_view element_radius_field_name_ = "ELEMENT_RADIUS";
 
-  /// @brief The name of our element length field.
-  static constexpr std::string_view element_length_field_name_ = "ELEMENT_LENGTH";
-
-  /// @brief The name of our element orientation field (as a quaternion).
-  static constexpr std::string_view element_orientation_field_name_ = "ELEMENT_ORIENTATION";
-
   /// @brief The name of our node coordinate field.
   static constexpr std::string_view node_coord_field_name_ = "NODE_COORDINATES";
 
@@ -171,18 +157,14 @@ class Spherocylinders {
     part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
     part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_orientation_field_name_), stk::topology::ELEMENT_RANK, 4, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
         std::string(element_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_length_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
     return part_reqs_ptr;
   }();
   //@}
-};  // Spherocylinders
+};  // SpherocylinderSegments
 
 }  // namespace shapes
 
 }  // namespace mundy
 
-#endif  // MUNDY_SHAPES_SPHEROCYLINDERS_HPP_
+#endif  // MUNDY_SHAPES_SPHEROCYLINDERSEGMENTS_HPP_

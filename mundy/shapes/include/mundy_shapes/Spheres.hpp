@@ -112,11 +112,6 @@ class Spheres {
     return mesh_reqs_ptr;
   }
 
-  /// \brief Get the set of default field names for the Spheres part.
-  static inline std::vector<std::string> get_default_field_names() {
-    return {std::string(node_coord_field_name_), std::string(element_radius_field_name_)};
-  }
-
   /// \brief Get the default node coordinate field name for the Spheres part.
   static inline std::string get_node_coord_field_name() {
     return std::string(node_coord_field_name_);

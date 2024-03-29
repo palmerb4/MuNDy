@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_SHAPES_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_
-#define MUNDY_SHAPES_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_
+#ifndef MUNDY_SHAPES_COMPUTE_BOUNDING_RASIUS_KERNELS_SPHEROCYLINDER_HPP_
+#define MUNDY_SHAPES_COMPUTE_BOUNDING_RASIUS_KERNELS_SPHEROCYLINDER_HPP_
 
-/// \file Sphere.hpp
-/// \brief Declaration of the ComputeBoundingRadius's Sphere kernel.
+/// \file Spherocylinder.hpp
+/// \brief Declaration of the ComputeBoundingRadius's Spherocylinder kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -42,8 +42,8 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_shapes/Spheres.hpp>         // for mundy::shapes::Spheres
+#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
 
 namespace mundy {
 
@@ -53,9 +53,9 @@ namespace compute_bounding_radius {
 
 namespace kernels {
 
-/// \class Sphere
-/// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaKernel<> {
+/// \class Spherocylinder
+/// \brief Concrete implementation of \c MetaKernel for computing the bounding radius of Spherocylinders.
+class Spherocylinder : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
   //@{
@@ -67,7 +67,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
   //@{
 
   /// \brief Constructor
-  explicit Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  explicit Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -83,11 +83,12 @@ class Sphere : public mundy::meta::MetaKernel<> {
   static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
+    valid_fixed_params.validateParametersAndSetDefaults(Spherocylinder::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
     std::string element_bounding_radius_field_name =
         valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
+
     Teuchos::Array<std::string> valid_entity_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
@@ -98,16 +99,16 @@ class Sphere : public mundy::meta::MetaKernel<> {
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
 
-      if (part_name == mundy::shapes::Spheres::get_name()) {
+      if (part_name == mundy::shapes::Spherocylinders::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_part_reqs(part_reqs);
+        mundy::shapes::Spherocylinders::add_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
+        mundy::shapes::Spherocylinders::add_subpart_reqs(part_reqs);
       }
     }
 
-    return mundy::shapes::Spheres::get_mesh_requirements();
+    return mundy::shapes::Spherocylinders::get_mesh_requirements();
   }
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
@@ -126,7 +127,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
   static Teuchos::ParameterList get_valid_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("buffer_distance", default_buffer_distance_,
-                               "Buffer distance to be added to the bounding radius.");
+                               "Buffer distance to be added to the axis-aligned boundary box.");
     return default_parameter_list;
   }
 
@@ -143,7 +144,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                   const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<Sphere>(bulk_data_ptr, fixed_params);
+    return std::make_shared<Spherocylinder>(bulk_data_ptr, fixed_params);
   }
   //@}
 
@@ -151,8 +152,8 @@ class Sphere : public mundy::meta::MetaKernel<> {
   //@{
 
   /// \brief Run the kernel's core calculation.
-  /// \param sphere_element [in] The sphere element acted on by the kernel.
-  void execute(const stk::mesh::Selector &sphere_selector) override;
+  /// \param Spherocylinder_element [in] The Spherocylinder element acted on by the kernel.
+  void execute(const stk::mesh::Selector &spherocylinder_selector) override;
   //@}
 
  private:
@@ -160,8 +161,8 @@ class Sphere : public mundy::meta::MetaKernel<> {
   //@{
 
   static constexpr double default_buffer_distance_ = 0.0;
-  static constexpr std::string_view default_part_name_ = "SPHERES";
-  static constexpr std::string_view default_element_bounding_radius_field_name_ = "ELEMENT_BOUNDING_RADIUS";
+  static constexpr std::string_view default_part_name_ = "SPHEROCYLINDERS";
+  static constexpr std::string_view default_element_bounding_radius_field_name_ = "ELEMENT_AABB";
   //@}
 
   //! \name Internal members
@@ -179,12 +180,16 @@ class Sphere : public mundy::meta::MetaKernel<> {
   /// \brief Buffer distance to be added to the bounding radius
   double buffer_distance_ = default_buffer_distance_;
 
-  /// \brief Element field within which the output bounding radius will be written.
-  stk::mesh::Field<double> *element_bounding_radius_field_ptr_;
+  /// \brief Element field containing the Spherocylinder's radius.
+  stk::mesh::Field<double> *element_radius_field_ptr_ = nullptr;
 
-  /// \brief Element field containing the sphere radius.
-  stk::mesh::Field<double> *element_radius_field_ptr_;
-};  // Sphere
+  /// \brief Element field containing the Spherocylinder's length.
+  stk::mesh::Field<double> *element_length_field_ptr_ = nullptr;
+
+  /// \brief Element field within which the output bounding radius will be written.
+  stk::mesh::Field<double> *element_bounding_radius_field_ptr_ = nullptr;
+  //@}
+};  // Spherocylinder
 
 }  // namespace kernels
 
@@ -194,4 +199,4 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
 }  // namespace mundy
 
-#endif  // MUNDY_SHAPES_COMPUTE_BOUNDING_RADIUS_KERNELS_SPHERE_HPP_
+#endif  // MUNDY_SHAPES_COMPUTE_BOUNDING_RASIUS_KERNELS_SPHEROCYLINDER_HPP_

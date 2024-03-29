@@ -112,12 +112,6 @@ class HookeanSprings {
     return mesh_reqs_ptr;
   }
 
-  /// \brief Get the set of default field names for the HookeanSprings part.
-  static inline std::vector<std::string> get_default_field_names() {
-    return {std::string(node_coord_field_name_), std::string(element_hookean_spring_constant_field_name_),
-            std::string(element_hookean_spring_rest_length_field_name_)};
-  }
-
   /// \brief Get the default node coordinate field name for the HookeanSprings part.
   static inline std::string get_node_coord_field_name() {
     return std::string(node_coord_field_name_);

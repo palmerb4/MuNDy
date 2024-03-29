@@ -18,23 +18,34 @@ SET(NOINSTALLHEADERS
   include/mundy_shapes/ComputeAABB.hpp
   include/mundy_shapes/compute_aabb/kernels/Sphere.hpp
   include/mundy_shapes/compute_aabb/kernels/Spherocylinder.hpp
+  include/mundy_shapes/compute_aabb/kernels/SpherocylinderSegment.hpp
   include/mundy_shapes/ComputeBoundingRadius.hpp
   include/mundy_shapes/compute_bounding_radius/kernels/Sphere.hpp
+  include/mundy_shapes/compute_bounding_radius/kernels/Spherocylinder.hpp
+  include/mundy_shapes/compute_bounding_radius/kernels/SpherocylinderSegment.hpp
   include/mundy_shapes/ComputeOBB.hpp
   include/mundy_shapes/compute_obb/kernels/Sphere.hpp
+  include/mundy_shapes/compute_obb/kernels/Spherocylinder.hpp
+  include/mundy_shapes/compute_obb/kernels/SpherocylinderSegment.hpp
   include/mundy_shapes/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp
   include/mundy_shapes/declare_and_initialize_shapes/techniques/GridOfSpheres.hpp
   include/mundy_shapes/DeclareAndInitShapes.hpp
   include/mundy_shapes/Shapes.hpp
   include/mundy_shapes/Spheres.hpp
+  include/mundy_shapes/SpherocylinderSegments.hpp
   include/mundy_shapes/Spherocylinders.hpp
   )
 
 SET(SOURCES 
   src/mundy_shapes/compute_aabb/kernels/Sphere.cpp
   src/mundy_shapes/compute_aabb/kernels/Spherocylinder.cpp
+  src/mundy_shapes/compute_aabb/kernels/SpherocylinderSegment.cpp
   src/mundy_shapes/compute_bounding_radius/kernels/Sphere.cpp
+  src/mundy_shapes/compute_bounding_radius/kernels/Spherocylinder.cpp
+  src/mundy_shapes/compute_bounding_radius/kernels/SpherocylinderSegment.cpp
   src/mundy_shapes/compute_obb/kernels/Sphere.cpp
+  src/mundy_shapes/compute_obb/kernels/Spherocylinder.cpp
+  src/mundy_shapes/compute_obb/kernels/SpherocylinderSegment.cpp
   src/mundy_shapes/declare_and_initialize_shapes/techniques/GridOfSpheres.cpp
   )
 

@@ -73,6 +73,7 @@
 #include <mundy_shapes/DeclareAndInitShapes.hpp>   // for mundy::shapes::DeclareAndInitShapes
 #include <mundy_shapes/Spheres.hpp>                // for mundy::shapes::Spheres
 #include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
+#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 #endif                                             // HAVE_MUNDYDRIVER_MUNDYSHAPES
 
 namespace mundy {
@@ -203,6 +204,7 @@ MUNDY_REGISTER_METACLASS(
 #ifdef HAVE_MUNDYDRIVER_MUNDYSHAPES
 MUNDY_REGISTER_AGENTS(mundy::shapes::Spheres)
 MUNDY_REGISTER_AGENTS(mundy::shapes::Spherocylinders)
+MUNDY_REGISTER_AGENTS(mundy::shapes::SpherocylinderSegments)
 MUNDY_REGISTER_METACLASS(
     "COMPUTE_AABB", mundy::shapes::ComputeAABB,
     mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)

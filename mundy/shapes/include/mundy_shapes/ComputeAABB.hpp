@@ -37,6 +37,7 @@
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
 #include <mundy_shapes/compute_aabb/kernels/Sphere.hpp>          // for mundy::shapes::compute_aabb::kernels::Sphere
 #include <mundy_shapes/compute_aabb/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_aabb::kernels::Spherocylinder
+#include <mundy_shapes/compute_aabb/kernels/SpherocylinderSegment.hpp>  // for mundy::shapes::compute_aabb::kernels::SpherocylinderSegment
 
 namespace mundy {
 
@@ -113,6 +114,8 @@ MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_aabb::kernels::Sphere,
                          mundy::shapes::ComputeAABB::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_aabb::kernels::Spherocylinder,
                          mundy::shapes::ComputeAABB::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT", mundy::shapes::compute_aabb::kernels::SpherocylinderSegment,
+                          mundy::shapes::ComputeAABB::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_SHAPES_COMPUTEAABB_HPP_

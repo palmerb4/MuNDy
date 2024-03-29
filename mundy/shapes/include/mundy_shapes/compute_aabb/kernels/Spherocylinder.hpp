@@ -114,7 +114,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<> {
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
+        "valid_entity_part_names", Teuchos::tuple<std::string>(mundy::shapes::Spherocylinders::get_name()),
         "Name of the parts associated with this kernel.");
     default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
                                "Name of the element field within which the output axis-aligned boundary "
@@ -160,7 +160,6 @@ class Spherocylinder : public mundy::meta::MetaKernel<> {
   //@{
 
   static constexpr double default_buffer_distance_ = 0.0;
-  static constexpr std::string_view default_part_name_ = "SPHEROCYLINDERS";
   static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
   //@}
 
@@ -190,6 +189,9 @@ class Spherocylinder : public mundy::meta::MetaKernel<> {
 
   /// \brief Element field containing the Spherocylinder's length.
   stk::mesh::Field<double> *element_length_field_ptr_ = nullptr;
+
+  /// \brief Element field containing the Spherocylinder's orientation (as a quaternion).
+  stk::mesh::Field<double> *element_orientation_field_ptr_ = nullptr;
 
   /// \brief Element field within which the output axis-aligned boundary boxes will be written.
   stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
