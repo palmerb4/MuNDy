@@ -24,8 +24,10 @@
 /// \brief Declaration of the Configurator class
 
 // C++ core libs
+#include <string>
 
 // Trilinos libs
+#include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy includes
 #include <MundyDriver_config.hpp>                                     // for HAVE_MUNDYDRIVER_*
@@ -83,6 +85,63 @@ template <typename PolymorphicBaseType>
 using ConfigurableMetaMethodFactory =
     mundy::meta::StringBasedMetaFactory<PolymorphicBaseType,
                                         mundy::meta::make_registration_string("CONFIGURABLE_META_METHODS")>;
+
+/// \class Configurator
+/// \brief Class for reading in a configuration file and configuring a driver (simulation context)
+class Configurator {
+ public:
+  //! \name Constructors and destructors
+  //@{
+
+  /// \brief Default constructor for configurator
+  Configurator() {
+  }
+
+  /// \brief Teuchos paramter list constructor
+  explicit Configurator(const Teuchos::ParameterList& param_list) : param_list_(param_list) {
+  }
+
+  /// \brief Configuration file constructor
+  Configurator(const std::string& input_format, const std::string& input_filename);
+
+  //@}
+
+  //! \name Queries of registered "methods"
+  //@{
+
+  /// \brief Get the registered MetaMethodExecutionInterface
+  std::string get_registered_MetaMethodExecutionInterface();
+
+  /// \brief Get the registered MetaMethodSubsetExecutionInterface
+  std::string get_registered_MetaMethodSubsetExecutionInterface();
+
+  /// \brief Get the registered MetaMethodPairwiseSubsetExecutionInterface
+  std::string get_registered_MetaMethodPairwiseSubsetExecutionInterface();
+
+  /// \brief Get all registered classes
+  std::string get_registered_classes();
+
+  //@}
+
+  //! \name Parse configuration
+  //@{
+
+  /// \brief Parse the parameters and construct a driver (execution engine)
+  void ParseParameters();
+
+  void ParseConfiguration(const Teuchos::ParameterList& config_params);
+
+  //@}
+
+ private:
+  //! \name Internal members
+  //@{
+
+  /// @brief  \brief Teuchos ParameterList for global information
+  Teuchos::ParameterList param_list_;
+
+  //}
+};  // Configurator
 
 }  // namespace driver
 
