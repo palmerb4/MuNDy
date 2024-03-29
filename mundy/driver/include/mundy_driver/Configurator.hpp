@@ -31,6 +31,7 @@
 
 // Mundy includes
 #include <MundyDriver_config.hpp>                                     // for HAVE_MUNDYDRIVER_*
+#include <mundy_meta/MeshRequirements.hpp>                            // for mundy::meta::MeshRequirements
 #include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::StringBasedMetaFactory
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>                // for mundy::meta::MetaMethodExecutionInterface
 #include <mundy_meta/MetaMethodPairwiseSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
@@ -123,22 +124,42 @@ class Configurator {
 
   //@}
 
-  //! \name Parse configuration
+  //! \name Parse input file (ParameterList)
   //@{
 
   /// \brief Parse the parameters and construct a driver (execution engine)
-  void ParseParameters();
+  void parse_parameters();
 
-  void ParseConfiguration(const Teuchos::ParameterList& config_params);
+  /// \brief Parse the configuration portion of the parameters
+  void parse_configuration(const Teuchos::ParameterList& config_params);
+
+  /// \brief Parse and configure MetaMethodExecutionInterace methods
+  void parse_and_configure_metamethod(const std::string& method_type, const Teuchos::ParameterList& method_params);
 
   //@}
 
  private:
+  //! \name Default parameters
+  //@{
+
+  /// \brief MetaMethod type names
+  static constexpr std::array<std::string_view, 3> metamethod_types_ = {
+      "meta_method_execution_interface", "meta_method_subset_execution_interface",
+      "meta_method_pairwise_subset_execution_interface"};
+
+  //@}
+
   //! \name Internal members
   //@{
 
-  /// @brief  \brief Teuchos ParameterList for global information
+  /// \brief Teuchos ParameterList for global information
   Teuchos::ParameterList param_list_;
+
+  /// \brief Mundy mesh requirements pointer
+  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_ = nullptr;
+
+  /// \brief Number of dimensions
+  int n_dim_ = 0;
 
   //}
 };  // Configurator

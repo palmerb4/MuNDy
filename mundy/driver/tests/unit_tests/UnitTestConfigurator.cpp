@@ -158,7 +158,7 @@ TEST(Configurator, ParseParametersFromYAMLFileBasic) {
   Configurator configurator("yaml", yaml_file);
 
   // Run the parse command
-  configurator.ParseParameters();
+  configurator.parse_parameters();
 }
 
 //@}
