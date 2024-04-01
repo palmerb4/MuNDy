@@ -162,6 +162,12 @@ class Configurator {
   /// \brief Declare the mesh on the driver
   void declare_mesh_driver();
 
+  /// \brief Commit the mesh on the driver
+  void commit_mesh_driver();
+
+  /// \brief Generate meta classes on driver
+  void generate_meta_methods_driver();
+
   //@}
 
  private:

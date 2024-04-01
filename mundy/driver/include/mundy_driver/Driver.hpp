@@ -152,6 +152,14 @@ class Driver {
   /// \brief Declare the mesh (but do not commit), and set the meta data to using simple fields
   void declare_mesh();
 
+  /// \brief Explicitly commit the mesh
+  void commit_mesh();
+
+  /// \brief Add a Meta Class instance to the driver
+  void add_meta_class_instance(const std::string& method_type, const std::string& method_name,
+                               const Teuchos::ParameterList& fixed_params,
+                               const Teuchos::ParameterList& mutable_params);
+
  private:
   //! \name Default parameters
   //@{
@@ -185,6 +193,20 @@ class Driver {
   stk::ParallelMachine communicator_;
 
   //}
+
+  //! \name MetaMethod vectors and string lookup maps
+  //@{
+
+  std::vector<std::shared_ptr<mundy::meta::MetaMethodExecutionInterface<void>>> meta_methods_;
+  std::vector<std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>>> meta_methods_subset_;
+  std::vector<std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>>>
+      meta_methods_pairwise_subset_;
+
+  std::unordered_map<std::string, unsigned int> meta_method_string_to_id_;
+  std::unordered_map<std::string, unsigned int> meta_method_subset_string_to_id_;
+  std::unordered_map<std::string, unsigned int> meta_method_pairwise_subset_string_to_id_;
+
+  //@}
 };  // Driver
 
 }  // namespace driver

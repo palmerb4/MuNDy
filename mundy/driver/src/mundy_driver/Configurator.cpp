@@ -100,9 +100,6 @@ void Configurator::parse_parameters() {
 }
 
 void Configurator::parse_configuration(const Teuchos::ParameterList& config_params) {
-  // TODO(cje): Remove later
-  std::cout << "Configuration sublist:\n" << config_params << std::endl;
-
   // Get simulation variables that don't belong to a specific Meta*
   n_dim_ = config_params.get<int>("n_dim");
 
@@ -126,15 +123,10 @@ void Configurator::parse_configuration(const Teuchos::ParameterList& config_para
 }
 
 void Configurator::parse_metamethod(const std::string& method_type, const Teuchos::ParameterList& method_params) {
-  // TODO(cje): Remove later
-  std::cout << "meta_method " << method_type << " sublist:\n" << method_params << std::endl;
   // Loop over MetaMethod sublist
   for (auto pit = method_params.begin(); pit != method_params.end(); ++pit) {
     const std::string& param_name = pit->first;
     const Teuchos::ParameterEntry& entry = pit->second;
-
-    // TODO(cje): Remove later
-    std::cout << "Processing MetaMethod " << param_name << std::endl;
 
     // Dive into the sublist of this method and get the method it's trying to call
     MUNDY_THROW_ASSERT(
@@ -242,6 +234,13 @@ void Configurator::generate_driver() {
 
   // After we have created the requirements, delcare the mesh
   declare_mesh_driver();
+
+  // Ask the driver to commit the mesh
+  // TODO(cje): Here is where we would diverge from a restart!
+  commit_mesh_driver();
+
+  // Now we loop back through the enabled meta methods and ask the driver to create instances of them
+  generate_meta_methods_driver();
 }
 
 void Configurator::generate_mesh_requirements_driver() {
@@ -260,15 +259,40 @@ void Configurator::generate_mesh_requirements_driver() {
   }
 
   // TODO(cje): Remove after debug session
+  std::cout << "Mesh requirements mundy::driver::Configuator::generate_mesh_requirements_driver:\n";
   driver_ptr_->print_mesh_requirements();
 }
 
 void Configurator::declare_mesh_driver() {
+  // Assert we have a driver to populate
+  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot generate a Driver without an existing Driver instance");
+
   // Set the node coordinates field name in the driver
   driver_ptr_->set_node_coordinates_field_name(node_coordinates_field_name_);
 
   // Simple pass-through to call the driver's declare
   driver_ptr_->declare_mesh();
+}
+
+void Configurator::commit_mesh_driver() {
+  // Assert we have a driver to populate
+  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot generate a Driver without an existing Driver instance");
+
+  // Pass through the request to the driver
+  driver_ptr_->commit_mesh();
+}
+
+void Configurator::generate_meta_methods_driver() {
+  // Assert we have a driver to populate
+  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot generate a Driver without an existing Driver instance");
+  // Loop over the elements in the enabled_meta_methods_ map and ask the driver to create them
+  for (const auto& [key, value] : enabled_meta_methods_) {
+    auto [method_type, method_name, fixed_params, mutable_params] = value;
+    driver_ptr_->add_meta_class_instance(method_type, method_name, fixed_params, mutable_params);
+  }
 }
 
 //@}

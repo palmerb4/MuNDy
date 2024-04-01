@@ -32,7 +32,6 @@
 
 // Mundy libs
 #include <mundy_driver/Configurator.hpp>
-#include <mundy_driver/Driver.hpp>
 
 namespace mundy {
 

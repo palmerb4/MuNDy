@@ -11,8 +11,5 @@ simulation:
                         valid_entity_part_names: [SPHERES]
                 mutable_params:
                     buffer_distance: 0.0
-        meta_method_pairwise_subset_execution_interface:
-            sphere_neighbor_linkers:
-                method: GENERATE_NEIGHBOR_LINKERS
-    Actions:
-        run: [sphereComputeAABB, sphereNeighborLinkers]
+    actions:
+        run: [sphereComputeAABB]

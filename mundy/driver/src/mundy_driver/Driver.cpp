@@ -131,6 +131,39 @@ void Driver::declare_mesh() {
   stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
 }
 
+void Driver::commit_mesh() {
+  // Ask the meta data to commit the mesh for us
+  meta_data_ptr_->commit();
+}
+
+void Driver::add_meta_class_instance(const std::string& method_type, const std::string& method_name,
+                                     const Teuchos::ParameterList& fixed_params,
+                                     const Teuchos::ParameterList& mutable_params) {
+  if (method_type == "meta_method_execution_interface") {
+    // Create a new class instance
+    std::shared_ptr<mundy::meta::MetaMethodExecutionInterface<void>> new_meta_method =
+        FactoryMM::create_new_instance(method_name, bulk_data_ptr_.get(), fixed_params);
+    new_meta_method->set_mutable_params(mutable_params);
+    meta_methods_.push_back(new_meta_method);
+    meta_method_string_to_id_[method_name] = static_cast<unsigned>(meta_methods_.size()) - 1;
+  } else if (method_type == "meta_method_subset_execution_interface") {
+    // Create a new class instance
+    std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> new_meta_method =
+        FactoryMMS::create_new_instance(method_name, bulk_data_ptr_.get(), fixed_params);
+    new_meta_method->set_mutable_params(mutable_params);
+    meta_methods_subset_.push_back(new_meta_method);
+    meta_method_subset_string_to_id_[method_name] = static_cast<unsigned>(meta_methods_subset_.size()) - 1;
+  } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
+    // Create a new class instance
+    std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> new_meta_method =
+        FactoryMMPS::create_new_instance(method_name, bulk_data_ptr_.get(), fixed_params);
+    new_meta_method->set_mutable_params(mutable_params);
+    meta_methods_pairwise_subset_.push_back(new_meta_method);
+    meta_method_pairwise_subset_string_to_id_[method_name] =
+        static_cast<unsigned>(meta_methods_pairwise_subset_.size()) - 1;
+  }
+}
+
 }  // namespace driver
 
 }  // namespace mundy
