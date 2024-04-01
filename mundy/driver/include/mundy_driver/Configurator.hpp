@@ -173,6 +173,8 @@ class Configurator {
       "meta_method_execution_interface", "meta_method_subset_execution_interface",
       "meta_method_pairwise_subset_execution_interface"};
 
+  static constexpr std::string_view default_node_coordinates_field_name_ = "NODE_COORDINATES";
+
   //@}
 
   //! \name Internal members
@@ -188,6 +190,9 @@ class Configurator {
   /// parameters)
   std::unordered_map<std::string, std::tuple<std::string, std::string, Teuchos::ParameterList, Teuchos::ParameterList>>
       enabled_meta_methods_;
+
+  /// \brief Node coordinate field name
+  std::string node_coordinates_field_name_;
 
   /// \brief Associated Driver instance
   //

@@ -89,6 +89,10 @@ void Driver::set_communicator(const stk::ParallelMachine& communicator) {
   communicator_ = communicator;
 }
 
+void Driver::set_node_coordinates_field_name(const std::string& node_coordinates_field_name) {
+  node_coordinates_field_name_ = node_coordinates_field_name;
+}
+
 //@}
 
 void Driver::build_mesh_requirements() {
@@ -120,6 +124,8 @@ void Driver::declare_mesh() {
   meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
   // Also set to using simple fields
   meta_data_ptr_->use_simple_fields();
+  // Set the coordinate field name
+  meta_data_ptr_->set_coordinate_field_name(node_coordinates_field_name_);
 
   // TODO(cje): Remove later
   stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);

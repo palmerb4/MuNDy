@@ -134,6 +134,9 @@ class Driver {
   /// \brief Set the MPI communicator (STK)
   void set_communicator(const stk::ParallelMachine& communicator);
 
+  /// \brief Set the NODE_COORDINATES field name
+  void set_node_coordinates_field_name(const std::string& node_coordiantes_field_name);
+
   //@}
 
   /// \brief Build the default mesh requirements
@@ -174,6 +177,9 @@ class Driver {
 
   /// \brief Mundy meta data pointer
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_ = nullptr;
+
+  /// \brief Coordinate field name
+  std::string node_coordinates_field_name_ = "";
 
   /// \brief The MPI communicator to use (STK)
   stk::ParallelMachine communicator_;

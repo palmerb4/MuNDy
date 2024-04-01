@@ -106,6 +106,13 @@ void Configurator::parse_configuration(const Teuchos::ParameterList& config_para
   // Get simulation variables that don't belong to a specific Meta*
   n_dim_ = config_params.get<int>("n_dim");
 
+  // Look for the node_coordinates name
+  if (config_params.isParameter("node_coordinates_field_name")) {
+    node_coordinates_field_name_ = config_params.get<std::string>("node_coordiantes_field_name");
+  } else {
+    node_coordinates_field_name_ = default_node_coordinates_field_name_;
+  }
+
   // Loop over known MetaMethod types and parse_and_configure them
   for (auto metamethod_type = metamethod_types_.begin(); metamethod_type != metamethod_types_.end();
        ++metamethod_type) {
@@ -257,6 +264,9 @@ void Configurator::generate_mesh_requirements_driver() {
 }
 
 void Configurator::declare_mesh_driver() {
+  // Set the node coordinates field name in the driver
+  driver_ptr_->set_node_coordinates_field_name(node_coordinates_field_name_);
+
   // Simple pass-through to call the driver's declare
   driver_ptr_->declare_mesh();
 }
