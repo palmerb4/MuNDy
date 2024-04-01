@@ -140,13 +140,100 @@ void generate_colinear_line_segments(RngType& rng, Vector3<double>& a1, Vector3<
   }
 }
 
+// Use a class enum to specify the type of degeneracy (if any) to force upon the lines.
+enum class DegeneracyType {
+  NONE,
+  A1_EQUALS_A12,
+  A2_EQUALS_A12,
+  B1_EQUALS_B12,
+  B2_EQUALS_B12,
+  A1_EQUALS_A2,
+  B1_EQUALS_B2,
+  RANDOM
+};
+
 template <RandomNumberGenerator RngType>
 void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
                                       Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
-                                      Vector3<double>& b12, double& u, double& v) {
+                                      Vector3<double>& b12, double& u, double& v,
+                                      DegeneracyType degeneracy = DegeneracyType::RANDOM) {
   // Generate two lines ((a1,a2) and (b1,b2)) set a known distance (line_dist)
   // apart. the parameter and value of the closest points for lines a and b are
   // a12, u and b12, v, respectively.
+
+  // Importantly, lines require that the distance between endpoints on the same line is non-zero. Otherwise, the
+  // orientation of the line is not well-defined.
+  if (degeneracy == DegeneracyType::RANDOM) {
+    // Randomly choose a degeneracy for the lines. Only using the first five degeneracies (0, 1, 2, 3, 4)
+    degeneracy = static_cast<DegeneracyType>(static_cast<int>(rng.template rand<double>() * 4));
+  }
+  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::A1_EQUALS_A2, std::invalid_argument, "A1_EQUALS_A2 is not a valid degeneracy for lines.");
+  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::B1_EQUALS_B2, std::invalid_argument, "B1_EQUALS_B2 is not a valid degeneracy for lines.");
+
+  // Generate two unit vectors v1 and v2, and their cross product v3.
+  // v1 and v2 will represent the orientations of the two lines, and v3 will be the direction of the line connecting
+  // them.
+  //
+  // Properly generating unit vectors can be done by choosing phi in [0, 2pi] and z = cos(theta) in [-1, 1], and then
+  // converting to cartesian coordinates.
+  const double phi1 = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  const double phi2 = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  const double theta1 = acos(2. * rng.template rand<double>() - 1.);
+  const double theta2 = acos(2. * rng.template rand<double>() - 1.);
+
+  Vector3<double> v1 = {
+      cos(phi1) * sin(theta1),
+      sin(phi1) * sin(theta1),
+      cos(theta1),
+  };
+  Vector3<double> v2 = {
+      cos(phi2) * sin(theta2),
+      sin(phi2) * sin(theta2),
+      cos(theta2),
+  };
+
+  // Because v1 and v2 may be equal, care needs to be taken when determining the line distance along v3.
+  // Instead of normalizing v3, we'll scale it randomly by [0, 1] such that its norm is the desired line distance.
+  const Vector3<double> v3 = mundy::math::cross(v1, v2) * rng.template rand<double>();
+  const double norm_v3 = mundy::math::norm(v3);
+  line_dist = norm_v3;
+
+  // Now that we have the unit orientations, the separation vector, and the separation distance, we need to decide the
+  // placements of the ends of the lines. The key here is to allow degenerate lines where the endpoints are the same or
+  // where one of the endpoints is the same as the contact point. We'll choose a the left and right distance from the
+  // contact point from U01 with a small shift to guarantee that the endpoints can never be the same.
+  double a1_to_a12 = (degeneracy == DegeneracyType::A1_EQUALS_A12) ? 0.0 : 0.1 + rng.template rand<double>();
+  double a12_to_a2 = (degeneracy == DegeneracyType::A2_EQUALS_A12) ? 0.0 : 0.1 + rng.template rand<double>();
+  double b1_to_b12 = (degeneracy == DegeneracyType::B1_EQUALS_B12) ? 0.0 : 0.1 + rng.template rand<double>();
+  double b12_to_b2 = (degeneracy == DegeneracyType::B2_EQUALS_B12) ? 0.0 : 0.1 + rng.template rand<double>();
+
+  for (unsigned i = 0; i < 3; i++) {
+    a12[i] = rng.template rand<double>();
+    b12[i] = a12[i] + v3[i];
+    a1[i] = a12[i] - a1_to_a12 * v1[i];
+    a2[i] = a12[i] + a12_to_a2 * v1[i];
+    b1[i] = b12[i] - b1_to_b12 * v2[i];
+    b2[i] = b12[i] + b12_to_b2 * v2[i];
+  }
+
+  u = a1_to_a12 / (a1_to_a12 + a12_to_a2);
+  v = b1_to_b12 / (b1_to_b12 + b12_to_b2);
+}
+
+template <RandomNumberGenerator RngType>
+void generate_line_segments_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
+                                              Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
+                                              Vector3<double>& b12, double& u, double& v,
+                                              DegeneracyType degeneracy = DegeneracyType::NONE) {
+  // Generate two line segments ((a1,a2) and (b1,b2)) set a known distance (line_dist)
+  // apart. The parameter and value of the closest points for lines a and b are
+  // a12, u and b12, v, respectively.
+
+  if (degeneracy == DegeneracyType::RANDOM) {
+    // Randomly choose a degeneracy for the line segments. Only using the first seven degeneracies (0, 1, 2, 3, 4, 5, 6).
+    degeneracy = static_cast<DegeneracyType>(static_cast<int>(rng.template rand<double>() * 6));
+  }
+
 
   // Generate two unit vectors v1 and v2, and their cross product v3.
   // v1 and v2 will represent the orientations of the two lines, and v3 will be the direction of the line connecting
@@ -180,38 +267,18 @@ void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<d
   // placements of the ends of the lines. The key here is to allow degenerate lines where the endpoints are the same or
   // where one of the endpoints is the same as the contact point. We'll choose a the left and right distance from the
   // contact point from U01 and then check for degeneracies.
-  // const double modify = rng.template rand<double>();
-  // bool force_a1_equals_a12 = modify < 0.10;
-  // bool force_a2_equals_a12 = modify < 0.20 && !force_a1_equals_a12;
-  // bool force_b1_equals_b12 = modify < 0.30 && !force_a1_equals_a12 && !force_a2_equals_a12;
-  // bool force_b2_equals_b12 = modify < 0.40 && !force_a1_equals_a12 && !force_a2_equals_a12 && !force_b1_equals_b12;
-  // bool force_a1_equals_a2 =
-  //     modify < 0.50 && !force_a1_equals_a12 && !force_a2_equals_a12 && !force_b1_equals_b12 && !force_b2_equals_b12;
-  // bool force_b1_equals_b2 = modify < 0.60 && !force_a1_equals_a12 && !force_a2_equals_a12 && !force_b1_equals_b12 &&
-  //                           !force_b2_equals_b12 && !force_a1_equals_a2;
-
-  // if (force_a1_equals_a2) {
-  //   force_a1_equals_a12 = true;
-  //   force_a2_equals_a12 = true;
-  // }
-
-  // if (force_b1_equals_b2) {
-  //   force_b1_equals_b12 = true;
-  //   force_b2_equals_b12 = true;
-  // }
-
-  // Hardcode one degeneracy at a time.
-  bool force_a1_equals_a12 = false;  // Causes rounding errors of something like 8e-6 vs 1e-6.
-  bool force_a2_equals_a12 = false;  // Causes rounding errors ''
-  bool force_b1_equals_b12 = false;  // Causes rounding errors ''
-  bool force_b2_equals_b12 = false;  // Causes rounding errors ''
-
-  // TODO(palmerb4): a be degenerate seems fine but if b is degenerate we get nan's for separation distance.
-
-  double a1_to_a12 = force_a1_equals_a12 ? 0.0 : rng.template rand<double>();
-  double a12_to_a2 = force_a2_equals_a12 ? 0.0 : rng.template rand<double>();
-  double b1_to_b12 = force_b1_equals_b12 ? 0.0 : rng.template rand<double>();
-  double b12_to_b2 = force_b2_equals_b12 ? 0.0 : rng.template rand<double>();
+  double a1_to_a12 = ((degeneracy == DegeneracyType::A1_EQUALS_A12) || (degeneracy == DegeneracyType::A1_EQUALS_A2))
+                         ? 0.0
+                         : rng.template rand<double>();
+  double a12_to_a2 = ((degeneracy == DegeneracyType::A2_EQUALS_A12) || (degeneracy == DegeneracyType::A1_EQUALS_A2))
+                         ? 0.0
+                         : rng.template rand<double>();
+  double b1_to_b12 = ((degeneracy == DegeneracyType::B1_EQUALS_B12) || (degeneracy == DegeneracyType::B1_EQUALS_B2))
+                         ? 0.0
+                         : rng.template rand<double>();
+  double b12_to_b2 = ((degeneracy == DegeneracyType::B2_EQUALS_B12) || (degeneracy == DegeneracyType::B1_EQUALS_B2))
+                         ? 0.0
+                         : rng.template rand<double>();
 
   for (unsigned i = 0; i < 3; i++) {
     a12[i] = rng.template rand<double>();
@@ -277,47 +344,6 @@ void generate_line_at_known_distance(RngType& rng, Vector3<double>& a1, Vector3<
     a1[i] = a12[i] - a1_to_a12 * v1[i];
     a2[i] = a12[i] + a12_to_a2 * v1[i];
   }
-}
-
-template <RandomNumberGenerator RngType>
-void generate_line_segments_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
-                                              Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
-                                              Vector3<double>& b12, double& u, double& v) {
-  // Generate two line segments ((a1,a2) and (b1,b2)) set a known distance
-  // (line_dist) apart. the parameter and value of the closest points for lines
-  // a and b are a12, u and b12, v, respectively.
-
-  generate_lines_at_known_distance(rng, line_dist, a1, a2, b1, b2, a12, b12, u, v);
-
-  // // TODO(palmerb4): If we're going to test degenerate cases, we should do so more explicitly and extensively.
-  // // What about fully degenerate rods with length zero or colinear rods or rods that are the same or rods that are
-  // // perfectly perpendicular? What about rods that are almost colinear or almost perpendicular?
-
-  // // 25% chance to force a perfect intersection at the right endpoint of a1.
-  // // 25% chance to force a perfect intersection at the right endpoint of a2.
-  // // 50% chance to use two random segments.
-  // double modify = rng.template rand<double>();
-  // if (modify < 0.25) {
-  //   double t = rng.template rand<double>();
-
-  //   for (unsigned i = 0; i < 3; i++) {
-  //     a12[i] = a2[i] = a1[i] + (a12[i] - a1[i]) * t;
-  //   }
-
-  //   u = 1.;
-  //   // a2 is the point and b is the line segment.
-  //   line_dist = std::sqrt(distance_sq_from_point_to_line_segment(a2, b1, b2, &b12, &v));
-  // } else if (modify < 0.5) {
-  //   double t = rng.template rand<double>();
-
-  //   for (unsigned i = 0; i < 3; i++) {
-  //     b12[i] = b2[i] = b1[i] + (b12[i] - b1[i]) * t;
-  //   }
-
-  //   // b2 is the point and a is the line segment.
-  //   v = 1.;
-  //   line_dist = std::sqrt(distance_sq_from_point_to_line_segment(b2, a1, a2, &a12, &u));
-  // }
 }
 //@}
 
