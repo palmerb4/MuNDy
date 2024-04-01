@@ -33,6 +33,7 @@
 // Mundy libs
 #include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
 #include <mundy_math/Quaternion.hpp>  // for mundy_math::Quaternion
+#include <mundy_math/Tolerance.hpp>   // for mundy::math::get_relaxed_tolerance
 #include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
 
 // Note, these tests are meant to look like real use cases for the Quaternion class. As a result, we use implicit type
@@ -57,25 +58,13 @@ template <typename U, typename T>
 void is_close_debug(const U& a, const T& b, const std::string& message_if_fail = "")
   requires std::is_arithmetic_v<T> && std::is_arithmetic_v<U>
 {
-  using TU = decltype(U() - T());
-
-  bool is_close;
-  if constexpr (std::is_floating_point_v<TU>) {
-    // For floating-point types, compare with a tolerance determined by the type
-    const auto tol = get_zero_tolerance<TU>();
-    is_close = (std::abs(a - b) < tol);
-  } else {
-    // For integral types, compare with exact equality
-    is_close = (a == b);
-  }
-
-  if (!is_close) {
+  if (!is_approx_close(a, b)) {
     std::cout << "a = " << a << std::endl;
     std::cout << "b = " << b << std::endl;
     std::cout << "diff = " << a - b << std::endl;
   }
 
-  EXPECT_TRUE(is_close) << message_if_fail;
+  EXPECT_TRUE(is_approx_close(a, b)) << message_if_fail;
 }
 
 /// \brief Test that two Matrix3s are close
@@ -85,11 +74,11 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
                     const std::string& message_if_fail = "") {
-  if (!is_close(m1, m2)) {
+  if (!is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
     std::cout << "m2 = " << m2 << std::endl;
   }
-  EXPECT_TRUE(is_close(m1, m2)) << message_if_fail;
+  EXPECT_TRUE(is_approx_close(m1, m2)) << message_if_fail;
 }
 
 /// \brief Test that two Vector3s are close
@@ -99,11 +88,11 @@ void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Access
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
                     const std::string& message_if_fail = "") {
-  if (!is_close(v1, v2)) {
+  if (!is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
     std::cout << "v2 = " << v2 << std::endl;
   }
-  EXPECT_TRUE(is_close(v1, v2)) << message_if_fail;
+  EXPECT_TRUE(is_approx_close(v1, v2)) << message_if_fail;
 }
 
 /// \brief Test that two Quaternions are close
@@ -113,11 +102,11 @@ void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Access
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 void is_close_debug(const Quaternion<U, OtherAccessor>& q1, const Quaternion<T, Accessor>& q2,
                     const std::string& message_if_fail = "") {
-  if (!is_close(q1, q2)) {
+  if (!is_approx_close(q1, q2)) {
     std::cout << "q1 = " << q1 << std::endl;
     std::cout << "q2 = " << q2 << std::endl;
   }
-  EXPECT_TRUE(is_close(q1, q2)) << message_if_fail;
+  EXPECT_TRUE(is_approx_close(q1, q2)) << message_if_fail;
 }
 
 //// \brief Test that two Matrix3s are different
@@ -127,11 +116,11 @@ void is_close_debug(const Quaternion<U, OtherAccessor>& q1, const Quaternion<T, 
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
                         const std::string& message_if_fail = "") {
-  if (is_close(m1, m2)) {
+  if (is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
     std::cout << "m2 = " << m2 << std::endl;
   }
-  EXPECT_TRUE(!is_close(m1, m2)) << message_if_fail;
+  EXPECT_TRUE(!is_approx_close(m1, m2)) << message_if_fail;
 }
 
 /// \brief Test that two Vector3s are different
@@ -141,11 +130,11 @@ void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Ac
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 void is_different_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
                         const std::string& message_if_fail = "") {
-  if (is_close(v1, v2)) {
+  if (is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
     std::cout << "v2 = " << v2 << std::endl;
   }
-  EXPECT_TRUE(!is_close(v1, v2)) << message_if_fail;
+  EXPECT_TRUE(!is_approx_close(v1, v2)) << message_if_fail;
 }
 
 /// \brief Test that two Quaternions are different
@@ -155,11 +144,11 @@ void is_different_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Ac
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 void is_different_debug(const Quaternion<U, OtherAccessor>& q1, const Quaternion<T, Accessor>& q2,
                         const std::string& message_if_fail = "") {
-  if (is_close(q1, q2)) {
+  if (is_approx_close(q1, q2)) {
     std::cout << "q1 = " << q1 << std::endl;
     std::cout << "q2 = " << q2 << std::endl;
   }
-  EXPECT_TRUE(!is_close(q1, q2)) << message_if_fail;
+  EXPECT_TRUE(!is_approx_close(q1, q2)) << message_if_fail;
 }
 //@}
 

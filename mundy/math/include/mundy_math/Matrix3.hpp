@@ -860,6 +860,17 @@ KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matri
            (mat1(8) == mat2(8));
   }
 }
+
+/// \brief Matrix-matrix equality (element-wise within a relaxed tolerance)
+/// \param[in] mat1 The first matrix.
+/// \param[in] mat2 The second matrix.
+/// \param[in] tol The tolerance (default is determined by the given type).
+template <typename U, typename OtherAccessor, typename T, typename Accessor>
+KOKKOS_FUNCTION bool is_approx_close(
+    const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
+    const std::common_type_t<T, U>& tol = get_relaxed_zero_tolerance<std::common_type_t<T, U>>()) {
+  return is_close(mat1, mat2, tol);
+}
 //@}
 
 //! \name Non-member addition and subtraction operators

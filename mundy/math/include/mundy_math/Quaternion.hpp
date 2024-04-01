@@ -663,6 +663,17 @@ KOKKOS_FUNCTION bool is_close(const Quaternion<U, OtherAccessor> &quat1, const Q
          std::abs(static_cast<CommonType>(quat1[2]) - static_cast<CommonType>(quat2[2])) < tol &&
          std::abs(static_cast<CommonType>(quat1[3]) - static_cast<CommonType>(quat2[3])) < tol;
 }
+
+/// \brief Quaternion-quaternion equality (element-wise within a relaxed tolerance)
+/// \param[in] quat1 The first quaternion.
+/// \param[in] quat2 The second quaternion.
+/// \param[in] tol The tolerance.
+template <typename U, typename OtherAccessor, typename T, typename Accessor>
+KOKKOS_FUNCTION bool is_approx_close(
+    const Quaternion<U, OtherAccessor> &quat1, const Quaternion<T, Accessor> &quat2,
+    const std::common_type_t<T, U> &tol = get_relaxed_zero_tolerance<std::common_type_t<T, U>>()) {
+  return is_close(quat1, quat2, tol);
+}
 //@}
 
 //! \name Non-member multiplication and division operators

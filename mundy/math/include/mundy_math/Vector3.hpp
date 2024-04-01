@@ -542,23 +542,71 @@ KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Vector3<T, Acce
 //! \name Non-member comparison functions
 //@{
 
+/// TODO(palmerb4): These really shouldn't be in the vector class. They should be in a separate file.
+/// \brief Scalar-scalar equality (within a tolerance)
+/// \param[in] scalar1 The first scalar.
+/// \param[in] scalar2 The second scalar.
+/// \param[in] tol The tolerance (default is determined by the given type).
+template <typename U, typename T>
+  requires std::is_arithmetic_v<U> && std::is_arithmetic_v<T>
+KOKKOS_FUNCTION bool is_close(
+    const U& scalar1, const T& scalar2,
+    const decltype(get_comparison_tolerance<U, T>())& tol = get_comparison_tolerance<U, T>()) {
+  // Our tolerance type is using the the smallest type of U and T
+  using ComparisonType = std::remove_reference_t<decltype(tol)>;
+  if constexpr (std::is_floating_point_v<ComparisonType>) {
+    // For floating-point types, compare with a tolerance
+    return std::abs(static_cast<ComparisonType>(scalar1) - static_cast<ComparisonType>(scalar2)) < tol;
+  } else {
+    // For integral types, compare with exact equality using the common type to avoid type promotion warnings.
+    return static_cast<ComparisonType>(scalar1) == static_cast<ComparisonType>(scalar2);
+  }
+}
+
+/// \brief Scalar-scalar equality (within a relaxed tolerance)
+/// \param[in] scalar1 The first scalar.
+/// \param[in] scalar2 The second scalar.
+/// \param[in] tol The tolerance (default is determined by the given type).
+template <typename U, typename T>
+  requires std::is_arithmetic_v<U> && std::is_arithmetic_v<T>
+KOKKOS_FUNCTION bool is_approx_close(
+    const U& scalar1, const T& scalar2,
+    const decltype(get_relaxed_comparison_tolerance<T, U>())& tol = get_relaxed_comparison_tolerance<T, U>()) {
+  return is_close(scalar1, scalar2, tol);
+}
+
 /// \brief Vector-vector equality (element-wise within a tolerance)
 /// \param[in] vec1 The first vector.
 /// \param[in] vec2 The second vector.
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION bool is_close(const Vector3<U, OtherAccessor>& vec1, const Vector3<T, Accessor>& vec2,
-                              const std::common_type_t<T, U>& tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
-  using CommonType = std::common_type_t<T, U>;
-  if constexpr (std::is_floating_point_v<CommonType>) {
+KOKKOS_FUNCTION bool is_close(
+    const Vector3<U, OtherAccessor>& vec1, const Vector3<T, Accessor>& vec2,
+    const decltype(get_comparison_tolerance<U, T>())& tol = get_comparison_tolerance<U, T>()) {
+  // Our tolerance type is using the the smallest type of U and T
+  using ComparisonType = std::remove_reference_t<decltype(tol)>;
+  if constexpr (std::is_floating_point_v<ComparisonType>) {
     // For floating-point types, compare with a tolerance
-    return (std::abs(static_cast<CommonType>(vec1[0]) - static_cast<CommonType>(vec2[0])) < tol) &&
-           std::abs(static_cast<CommonType>(vec1[1]) - static_cast<CommonType>(vec2[1])) < tol &&
-           std::abs(static_cast<CommonType>(vec1[2]) - static_cast<CommonType>(vec2[2])) < tol;
+    return (std::abs(static_cast<ComparisonType>(vec1[0]) - static_cast<ComparisonType>(vec2[0])) < tol) &&
+           std::abs(static_cast<ComparisonType>(vec1[1]) - static_cast<ComparisonType>(vec2[1])) < tol &&
+           std::abs(static_cast<ComparisonType>(vec1[2]) - static_cast<ComparisonType>(vec2[2])) < tol;
   } else {
-    // For integral types, compare with exact equality
-    return (vec1[0] == vec2[0]) && (vec1[1] == vec2[1]) && (vec1[2] == vec2[2]);
+    // For integral types, compare with exact equality using the common type to avoid type promotion warnings.
+    return (static_cast<ComparisonType>(vec1[0]) == static_cast<ComparisonType>(vec2[0])) &&
+           (static_cast<ComparisonType>(vec1[1]) == static_cast<ComparisonType>(vec2[1])) &&
+           (static_cast<ComparisonType>(vec1[2]) == static_cast<ComparisonType>(vec2[2]));
   }
+}
+
+/// \brief Vector-vector equality (element-wise within a relaxed tolerance)
+/// \param[in] vec1 The first vector.
+/// \param[in] vec2 The second vector.
+/// \param[in] tol The tolerance (default is determined by the given type).
+template <typename U, typename OtherAccessor, typename T, typename Accessor>
+KOKKOS_FUNCTION bool is_approx_close(
+    const Vector3<U, OtherAccessor>& vec1, const Vector3<T, Accessor>& vec2,
+    const decltype(get_relaxed_comparison_tolerance<T, U>())& tol = get_relaxed_comparison_tolerance<T, U>()) {
+  return is_close(vec1, vec2, tol);
 }
 //@}
 
