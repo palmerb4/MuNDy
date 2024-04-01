@@ -61,7 +61,7 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
   bool is_close;
   if constexpr (std::is_floating_point_v<TU>) {
     // For floating-point types, compare with a tolerance determined by the type
-    const auto tol = get_default_tolerance<TU>();
+    const auto tol = get_zero_tolerance<TU>();
     is_close = (std::abs(a - b) < tol);
   } else {
     // For integral types, compare with exact equality

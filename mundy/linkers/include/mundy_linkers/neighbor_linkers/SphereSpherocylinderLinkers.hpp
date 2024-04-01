@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHERELINKERS_HPP_
-#define MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHERELINKERS_HPP_
+#ifndef MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHEROCYLINDERLINKERS_HPP_
+#define MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHEROCYLINDERLINKERS_HPP_
 
-/// \file SphereSphereLinkers.hpp
-/// \brief Declaration of the SphereSphereLinkers part class
+/// \file SphereSpherocylinderLinkers.hpp
+/// \brief Declaration of the SphereSpherocylinderLinkers part class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -43,17 +43,17 @@ namespace linkers {
 
 namespace neighbor_linkers {
 
-/// \class SphereSphereLinkers
-/// \brief The static interface for all of Mundy's SphereSphereLinkers neighbor linkers.
+/// \class SphereSpherocylinderLinkers
+/// \brief The static interface for all of Mundy's SphereSpherocylinderLinkers neighbor linkers.
 ///
 /// The design of this class is in accordance with the static interface requirements of mundy::agents::AgentFactory.
 ///
 /// \note This class is a constraint rank assembly part containing neighbor linkers between spheres. It is a subset of
 /// the NeighborLinkers agent.
-class SphereSphereLinkers
-    : public mundy::agents::RankedAssembly<mundy::core::make_string_literal("SPHERE_SPHERE_LINKERS"),
+class SphereSpherocylinderLinkers
+    : public mundy::agents::RankedAssembly<mundy::core::make_string_literal("SPHERE_SPHEROCYLINDER_LINKERS"),
                                            stk::topology::CONSTRAINT_RANK, mundy::linkers::NeighborLinkers> {
-};  // SphereSphereLinkers
+};  // SphereSpherocylinderLinkers
 
 }  // namespace neighbor_linkers
 
@@ -61,4 +61,4 @@ class SphereSphereLinkers
 
 }  // namespace mundy
 
-#endif  // MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHERELINKERS_HPP_
+#endif  // MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHEROCYLINDERLINKERS_HPP_

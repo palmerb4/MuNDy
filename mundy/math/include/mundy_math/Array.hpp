@@ -32,7 +32,7 @@
 
 // Our libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
 
 namespace mundy {
 

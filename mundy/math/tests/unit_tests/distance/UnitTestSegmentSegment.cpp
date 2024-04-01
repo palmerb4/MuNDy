@@ -1,0 +1,487 @@
+// @HEADER
+// **********************************************************************************************************************
+//
+//                                          Mundy: Multi-body Nonlocal Dynamics
+//                                           Copyright 2024 Flatiron Institute
+//                                                 Author: Bryce Palmer
+//
+// Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Mundy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Mundy. If not, see
+// <https://www.gnu.org/licenses/>.
+//
+// **********************************************************************************************************************
+// @HEADER
+
+// External libs
+#include <gtest/gtest.h>      // for TEST, ASSERT_NO_THROW, etc
+#include <openrand/philox.h>  // for openrand::Philox
+
+// C++ core libs
+#include <algorithm>   // for std::max
+#include <concepts>    // for std::convertible_to
+#include <functional>  // for std::hash
+#include <string>      // for std::string
+
+// Trilinos includes
+#include <Kokkos_Core.hpp>  // for Kokkos::numbers::pi
+
+// Mundy libs
+#include <mundy_math/Tolerance.hpp>                // for mundy::math::get_zero_tolerance
+#include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
+#include <mundy_math/distance/SegmentSegment.hpp>  // for
+
+/// \brief The following global is used to control the number of samples per test.
+/// For unit tests, this number should be kept low to ensure fast test times, but to still give an immediate warning if
+/// something went very wrong. For integration tests, we recommend setting this number to 10,000 or more.
+#ifndef MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST
+#define MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST 1000000
+#endif
+
+namespace mundy {
+
+namespace math {
+
+namespace distance {
+
+namespace {
+
+// The following test differ from VTK, which erroneously throws a failure only when BOTH u and v are off in many of the
+// tests.
+
+const double TEST_DOUBLE_EPSILON = 1.e-6;
+
+//! \brief Helper functions
+//@{
+
+// Utility function to generate a unique seed for each test based on its GTEST name.
+size_t generate_test_seed() {
+  const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+  std::string test_identifier = std::string(test_info->test_suite_name()) + "." + test_info->name();
+  return std::hash<std::string>{}(test_identifier);
+}
+
+// // A concept for RNG types that offer a rand<T>() function.
+// template<typename T>
+// concept RandomNumberGenerator = requires(T rng) {
+//   { rng.template rand<double>() } -> std::convertible_to<double>;
+// };
+
+template <typename RngType>
+void generate_intersecting_line_segments(RngType& rng, Vector3<double>& a1, Vector3<double>& a2, Vector3<double>& b1,
+                                         Vector3<double>& b2, double& u, double& v) {
+  // Generate two line segments ((a1,a2) and (b1,b2)) that intersect, and set
+  // u and v as the parametric points of intersection on the two respective
+  // lines.
+  Vector3<double> intersection;
+  for (unsigned i = 0; i < 3; i++) {
+    intersection[i] = rng.template rand<double>();
+    a1[i] = rng.template rand<double>();
+    b1[i] = rng.template rand<double>();
+  }
+
+  // Note, we cannot generate u, v directly as getting a2 and b2 for degenerate cases is difficult. Instead, we can
+  // generate a random ratio for the distance between the intersection and the endpoints of the line segments. This can
+  // still generate degenerate rods (as desired), but without dividing by zero.
+  const double ratio1 = rng.template rand<double>();
+  const double ratio2 = rng.template rand<double>();
+  a2 = a1 + (intersection - a1) * (1. + ratio1);
+  b2 = b1 + (intersection - b1) * (1. + ratio2);
+
+  const double len_a = mundy::math::norm(a2 - a1);
+  const double len_b = mundy::math::norm(b2 - b1);
+
+  const double len_a1_to_intersection = mundy::math::norm(a1 - intersection);
+  const double len_b1_to_intersection = mundy::math::norm(b1 - intersection);
+
+  u = len_a1_to_intersection / len_a;
+  v = len_b1_to_intersection / len_b;
+}
+
+template <typename RngType>
+void random_sphere(RngType& rng, const double radius, const Vector3<double>& offset, Vector3<double>& value) {
+  // Generate a point within a sphere centered at offset with a given radius.
+  double theta = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  double phi = Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  value[0] = radius * cos(theta) * sin(phi) + offset[0];
+  value[1] = radius * sin(theta) * sin(phi) + offset[1];
+  value[2] = radius * cos(phi) + offset[2];
+}
+
+template <typename RngType>
+void generate_non_intersecting_line_segments(RngType& rng, Vector3<double>& a1, Vector3<double>& a2,
+                                             Vector3<double>& b1, Vector3<double>& b2) {
+  // Generate two line segments ((a1,a2) and (b1,b2)) that do not intersect.
+  // The endpoints of each line segment are generated from two non-overlapping
+  // spheres, and the two spheres for each line segment are physically displaced
+  // as well.
+
+  static const double radius = 0.5 - 1.e-6;
+  random_sphere(rng, radius, Vector3<double>(0., 0., 0.), a1);
+  random_sphere(rng, radius, Vector3<double>(1., 0., 0.), a2);
+  random_sphere(rng, radius, Vector3<double>(0., 1., 0.), b1);
+  random_sphere(rng, radius, Vector3<double>(1., 1., 0.), b2);
+}
+
+template <typename RngType>
+void generate_colinear_line_segments(RngType& rng, Vector3<double>& a1, Vector3<double>& a2, Vector3<double>& b1,
+                                     Vector3<double>& b2) {
+  // Generate two line segments ((a1,a2) and (b1,b2)) that are colinear.
+  for (unsigned i = 0; i < 3; i++) {
+    a1[i] = rng.template rand<double>();
+    a2[i] = rng.template rand<double>();
+    double tmp = rng.template rand<double>();
+    b1[i] = a1[i] + tmp;
+    b2[i] = a2[i] + tmp;
+  }
+}
+
+template <typename RngType>
+void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
+                                      Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
+                                      Vector3<double>& b12, double& u, double& v) {
+  // Generate two lines ((a1,a2) and (b1,b2)) set a known distance (line_dist)
+  // apart. the parameter and value of the closest points for lines a and b are
+  // a12, u and b12, v, respectively.
+
+  // Generate two unit vectors v1 and v2, and their cross product v3.
+  // v1 and v2 will represent the orientations of the two lines, and v3 will be the direction of the line connecting
+  // them.
+  //
+  // Properly generating unit vectors can be done by choosing phi in [0, 2pi] and z = cos(theta) in [-1, 1], and then
+  // converting to cartesian coordinates.
+  const double phi1 = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  const double phi2 = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  const double theta1 = acos(2. * rng.template rand<double>() - 1.);
+  const double theta2 = acos(2. * rng.template rand<double>() - 1.);
+
+  Vector3<double> v1 = {
+      cos(phi1) * sin(theta1),
+      sin(phi1) * sin(theta1),
+      cos(theta1),
+  };
+  Vector3<double> v2 = {
+      cos(phi2) * sin(theta2),
+      sin(phi2) * sin(theta2),
+      cos(theta2),
+  };
+
+  // Because v1 and v2 may be equal, care needs to be taken when determining the line distance along v3.
+  // Instead of normalizing v3, we'll scale it randomly by [0, 1] such that its norm is the desired line distance.
+  const Vector3<double> v3 = mundy::math::cross(v1, v2) * rng.template rand<double>();
+  const double norm_v3 = mundy::math::norm(v3);
+  line_dist = norm_v3;
+
+  // Now that we have the unit orientations, the separation vector, and the separation distance, we need to decide the
+  // placements of the ends of the lines. The key here is to allow degenerate lines where the endpoints are the same or
+  // where one of the endpoints is the same as the contact point. We'll choose a the left and right distance from the
+  // contact point from U01 and then check for degeneracies.
+  double a1_to_a12 = rng.template rand<double>();
+  double a12_to_a2 = rng.template rand<double>();
+  double b1_to_b12 = rng.template rand<double>();
+  double b12_to_b2 = rng.template rand<double>();
+
+  for (unsigned i = 0; i < 3; i++) {
+    a12[i] = rng.template rand<double>();
+    b12[i] = a12[i] + v3[i];
+    a1[i] = a12[i] - a1_to_a12 * v1[i];
+    a2[i] = a12[i] + a12_to_a2 * v1[i];
+    b1[i] = b12[i] - b1_to_b12 * v2[i];
+    b2[i] = b12[i] + b12_to_b2 * v2[i];
+  }
+
+  const bool is_a_degenerate = (a1_to_a12 + a12_to_a2) < get_zero_tolerance<double>();
+  const bool is_b_degenerate = (b1_to_b12 + b12_to_b2) < get_zero_tolerance<double>();
+  u = is_a_degenerate ? 0. : a1_to_a12 / (a1_to_a12 + a12_to_a2);
+  v = is_b_degenerate ? 0. : b1_to_b12 / (b1_to_b12 + b12_to_b2);
+}
+
+template <typename RngType>
+void generate_line_at_known_distance(RngType& rng, Vector3<double>& a1, Vector3<double>& a2, Vector3<double>& p,
+                                     double& dist) {
+  // Generate a line (a1,a2) set a known distance (dist) from a generated point p.
+
+  // Generate a random point p
+  for (unsigned i = 0; i < 3; i++) {
+    p[i] = rng.template rand<double>();
+  }
+
+  // Generate a random unit vector v1 to describe the orientation of the line and a random unit vector v2 orthogonal to
+  // v1 to describe the direction of the line from the point to the nearest point on the rod.
+  //
+  // Properly generating unit vectors can be done by choosing phi in [0, 2pi] and z = cos(theta) in [-1, 1], and then
+  // converting to cartesian coordinates.
+  const double phi1 = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  const double phi2 = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
+  const double theta1 = acos(2. * rng.template rand<double>() - 1.);
+  const double theta2 = acos(2. * rng.template rand<double>() - 1.);
+  Vector3<double> v1 = {
+      cos(phi1) * sin(theta1),
+      sin(phi1) * sin(theta1),
+      cos(theta1),
+  };
+  Vector3<double> v2 = {
+      cos(phi2) * sin(theta2),
+      sin(phi2) * sin(theta2),
+      cos(theta2),
+  };
+
+  // At this point, v2 is not orthogonal to v1. We'll use the orthogonal projection formula to make it so.
+  // Specifically, v2 = v2 - (v2 dot v1) * v1.
+  // Instead of normalizing v3, we'll scale it randomly by [0, 1] such that its norm is the desired line distance.
+  v2 -= mundy::math::dot(v2, v1) * v1;
+  v2 *= rng.template rand<double>();
+  dist = mundy::math::norm(v2);
+
+  // Use a random distance from the endpoints to the nearest point on the line.
+  double a1_to_a12 = rng.template rand<double>();
+  double a12_to_a2 = rng.template rand<double>();
+
+  Vector3<double> a12;
+  for (unsigned i = 0; i < 3; i++) {
+    a12[i] = p[i] + v2[i];
+    a1[i] = a12[i] - a1_to_a12 * v1[i];
+    a2[i] = a12[i] + a12_to_a2 * v1[i];
+  }
+}
+
+// TODO(palmerb4): I doubt the validity of this function for all edge cases. I prefer to use the SegmentSegment function
+// double point_to_line_segment(Vector3<double>& p1, Vector3<double>& p2, Vector3<double>& p, Vector3<double>& pn,
+//                              double& u) {
+//   // Helper function that computes the distance from a point to a line segment.
+//   // It is not used to actually test the vtkLine function for the same purpose,
+//   // but rather to determine correct values for these test functions.
+
+//   u = 0.;
+//   double dist2 = 0.;
+//   for (unsigned i = 0; i < 3; i++) {
+//     u += (p[i] - p1[i]) * (p2[i] - p1[i]);
+//     dist2 += (p2[i] - p1[i]) * (p2[i] - p1[i]);
+//   }
+//   u /= dist2;
+
+//   if (u <= 0.) {
+//     for (unsigned i = 0; i < 3; i++) {
+//       u = 0.;
+//       pn[i] = p1[i];
+//     }
+//   } else if (u >= 1.) {
+//     u = 1.;
+//     for (unsigned i = 0; i < 3; i++) {
+//       pn[i] = p2[i];
+//     }
+//   } else {
+//     for (unsigned i = 0; i < 3; i++) {
+//       pn[i] = p1[i] + u * (p2[i] - p1[i]);
+//     }
+//   }
+
+//   double dist = 0.;
+//   for (unsigned i = 0; i < 3; i++) {
+//     dist += (p[i] - pn[i]) * (p[i] - pn[i]);
+//   }
+//   return std::sqrt(dist);
+// }
+
+template <typename RngType>
+void generate_line_segments_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
+                                              Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
+                                              Vector3<double>& b12, double& u, double& v) {
+  // Generate two line segments ((a1,a2) and (b1,b2)) set a known distance
+  // (line_dist) apart. the parameter and value of the closest points for lines
+  // a and b are a12, u and b12, v, respectively.
+
+  generate_lines_at_known_distance(rng, line_dist, a1, a2, b1, b2, a12, b12, u, v);
+
+  // TODO(palmerb4): If we're going to test degenerate cases, we should do so more explicitly and extensively.
+  // What about fully degenerate rods with length zero or colinear rods or rods that are the same or rods that are
+  // perfectly perpendicular? What about rods that are almost colinear or almost perpendicular?
+
+  // 25% chance to force a perfect intersection at the right endpoint of a1.
+  // 25% chance to force a perfect intersection at the right endpoint of a2.
+  // 50% chance to use two random segments.
+  double modify = rng.template rand<double>();
+  if (modify < 0.25) {
+    double t = rng.template rand<double>();
+
+    for (unsigned i = 0; i < 3; i++) {
+      a12[i] = a2[i] = a1[i] + (a12[i] - a1[i]) * t;
+    }
+
+    u = 1.;
+    // a2 is the point and b is the line segment.
+    line_dist = std::sqrt(distance_sq_from_point_to_line_segment(a2, b1, b2, &b12, &v));
+  } else if (modify < 0.5) {
+    double t = rng.template rand<double>();
+
+    for (unsigned i = 0; i < 3; i++) {
+      b12[i] = b2[i] = b1[i] + (b12[i] - b1[i]) * t;
+    }
+
+    // b2 is the point and a is the line segment.
+    v = 1.;
+    line_dist = std::sqrt(distance_sq_from_point_to_line_segment(b2, a1, a2, &a12, &u));
+  }
+}
+//@}
+
+//! \brief Unit tests
+//@{
+
+// TEST(LineIntersection, PositiveResult) {
+//   openrand::Philox rng(generate_test_seed(), 0);
+//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+//   Vector3<double> a1, a2, b1, b2;
+//   double u_expected, v_expected;
+//   double u_actual, v_actual;
+//   for (unsigned i = 0; i < nTests; i++) {
+//     generate_intersecting_line_segments(rng, a1, a2, b1, b2, u_expected, v_expected);
+
+//     double uv[2];
+//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u_actual, v_actual);
+
+//     ASSERT_EQ(returnValue, vtkLine::Intersect);
+//     ASSERT_NEAR(u_expected, u_actual, TEST_DOUBLE_EPSILON);
+//     ASSERT_NEAR(v_expected, v_actual, TEST_DOUBLE_EPSILON);
+//   }
+// }
+
+// TEST(LineIntersection, NegativeResult) {
+//   openrand::Philox rng(generate_test_seed(), 0);
+//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+//   Vector3<double> a1, a2, b1, b2;
+//   double u, v;
+//   for (unsigned i = 0; i < nTests; i++) {
+//     generate_non_intersecting_line_segments(rng, a1, a2, b1, b2);
+
+//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u, v);
+//     ASSERT_EQ(returnValue, vtkLine::NoIntersect);
+//   }
+// }
+
+// TEST(LineIntersectionAbsTol, PositiveResult) {
+//   openrand::Philox rng(generate_test_seed(), 0);
+//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+//   Vector3<double> a1, a2, b1, b2;
+//   double u_expected, v_expected;
+//   double u_actual, v_actual;
+//   for (unsigned i = 0; i < nTests; i++) {
+//     generate_intersecting_line_segments(rng, a1, a2, b1, b2, u_expected, v_expected);
+
+//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u_actual, u_actual, 1.0e-06, vtkLine::Absolute);
+//     ASSERT_EQ(returnValue, vtkLine::Intersect);
+//     ASSERT_NEAR(u_expected, u_actual, TEST_DOUBLE_EPSILON);
+//     ASSERT_NEAR(v_expected, u_actual, TEST_DOUBLE_EPSILON);
+//   }
+// }
+
+// TEST(LineIntersectionAbsTol, NegativeResult) {
+//   openrand::Philox rng(generate_test_seed(), 0);
+//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+//   Vector3<double> a1, a2, b1, b2;
+//   double u, v;
+//   for (unsigned i = 0; i < nTests; i++) {
+//     generate_non_intersecting_line_segments(rng, a1, a2, b1, b2);
+
+//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u, v, 1.0e-06, vtkLine::Absolute);
+//     ASSERT_EQ(returnValue, vtkLine::NoIntersect);
+//   }
+// }
+
+// TEST(LineIntersection, ColinearResult) {
+//   openrand::Philox rng(generate_test_seed(), 0);
+//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+//   Vector3<double> a1, a2, b1, b2;
+//   double u, v;
+//   for (unsigned i = 0; i < nTests; i++) {
+//     generate_colinear_line_segments(rng, a1, a2, b1, b2);
+
+//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u, v);
+//     ASSERT_EQ(returnValue, vtkLine::OnLine);
+//   }
+// }
+
+TEST(DistanceBetweenLines, PositiveResult) {
+  openrand::Philox rng(generate_test_seed(), 0);
+  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+  Vector3<double> a1, a2, b1, b2, a12_expected, a12_actual, b12_expected, b12_actual;
+  double u_expected, v_expected, u_actual, v_actual, dist_expected, dist_sq_actual;
+  for (unsigned i = 0; i < nTests; i++) {
+    generate_lines_at_known_distance(rng, dist_expected, a1, a2, b1, b2, a12_expected, b12_expected, u_expected,
+                                     v_expected);
+    dist_sq_actual = distance_sq_between_lines(a1, a2, b1, b2, &a12_actual, &b12_actual, &u_actual, &v_actual);
+
+    ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
+
+    for (unsigned j = 0; j < 3; j++) {
+      ASSERT_NEAR(a12_expected[j], a12_actual[j], TEST_DOUBLE_EPSILON);
+      ASSERT_NEAR(b12_expected[j], b12_actual[j], TEST_DOUBLE_EPSILON);
+    }
+
+    ASSERT_NEAR(u_expected, u_actual, TEST_DOUBLE_EPSILON);
+    ASSERT_NEAR(v_expected, v_actual, TEST_DOUBLE_EPSILON);
+  }
+}
+
+TEST(DistanceBetweenLineSegments, PositiveResult) {
+  openrand::Philox rng(generate_test_seed(), 0);
+  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+  Vector3<double> a1, a2, b1, b2, a12_expected, a12_actual, b12_expected, b12_actual;
+  double u_expected, v_expected, u_actual, v_actual, dist_expected, dist_sq_actual;
+  for (unsigned i = 0; i < nTests; i++) {
+    generate_line_segments_at_known_distance(rng, dist_expected, a1, a2, b1, b2, a12_expected, b12_expected, u_expected,
+                                             v_expected);
+    dist_sq_actual = distance_sq_between_line_segments(a1, a2, b1, b2, &a12_actual, &b12_actual, &u_actual, &v_actual);
+
+    ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
+
+    for (unsigned j = 0; j < 3; j++) {
+      ASSERT_NEAR(a12_expected[j], a12_actual[j], TEST_DOUBLE_EPSILON)
+          << "Test failed for segment i: " << i << " when j: " << j << " for segments \n"
+          << "a1: " << a1[0] << ", " << a1[1] << ", " << a1[2] << " b1: " << b1[0] << ", " << b1[1] << ", " << b1[2]
+          << "a2: " << a2[0] << ", " << a2[1] << ", " << a2[2] << " b2: " << b2[0] << ", " << b2[1] << ", " << b2[2] << "\n"
+          << "Expected a12: " << a12_expected[0] << ", " << a12_expected[1] << ", " << a12_expected[2]
+          << " expected b12: " << b12_expected[0] << ", " << b12_expected[1] << ", " << b12_expected[2] << "\n"
+          << "Actual a12: " << a12_actual[0] << ", " << a12_actual[1] << ", " << a12_actual[2]
+          << " actual b12: " << b12_actual[0] << ", " << b12_actual[1] << ", " << b12_actual[2] << "\n"
+          << "The distances are expected: " << dist_expected << " and actual: " << sqrt(dist_sq_actual) << "\n";
+      ASSERT_NEAR(b12_expected[j], b12_actual[j], TEST_DOUBLE_EPSILON);
+    }
+
+    ASSERT_NEAR(u_expected, u_actual, TEST_DOUBLE_EPSILON);
+    ASSERT_NEAR(v_expected, v_actual, TEST_DOUBLE_EPSILON);
+  }
+}
+
+TEST(DistanceToLine, PositiveResult) {
+  openrand::Philox rng(generate_test_seed(), 0);
+  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+
+  Vector3<double> a1, a2, p;
+  double dist_expected, dist_sq_actual;
+  for (unsigned i = 0; i < nTests; i++) {
+    generate_line_at_known_distance<openrand::Philox>(rng, a1, a2, p, dist_expected);
+    dist_sq_actual = distance_sq_from_point_to_line_segment(p, a1, a2);
+
+    ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
+  }
+}
+
+}  // namespace
+
+}  // namespace distance
+
+}  // namespace math
+
+}  // namespace mundy

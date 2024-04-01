@@ -19,7 +19,6 @@
 
 // External libs
 #include <gtest/gtest.h>      // for TEST, ASSERT_NO_THROW, etc
-#include <openrand/philox.h>  // for openrand::Philox
 
 // C++ core libs
 #include <memory>     // for std::shared_ptr, std::unique_ptr

@@ -31,7 +31,7 @@
 #include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
 #include <mundy_math/Array.hpp>         // for mundy::math::Array
 #include <mundy_math/Matrix3.hpp>       // for mundy::math::Matrix3
-#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
 #include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
@@ -656,7 +656,7 @@ KOKKOS_FUNCTION std::ostream &operator<<(std::ostream &os, const Quaternion<T, A
 /// \param[in] tol The tolerance.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION bool is_close(const Quaternion<U, OtherAccessor> &quat1, const Quaternion<T, Accessor> &quat2,
-                              const std::common_type_t<T, U> &tol = get_default_tolerance<std::common_type_t<T, U>>()) {
+                              const std::common_type_t<T, U> &tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
   using CommonType = std::common_type_t<T, U>;
   return std::abs(static_cast<CommonType>(quat1[0]) - static_cast<CommonType>(quat2[0])) < tol &&
          std::abs(static_cast<CommonType>(quat1[1]) - static_cast<CommonType>(quat2[1])) < tol &&

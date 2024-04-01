@@ -34,7 +34,7 @@
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
 #include <mundy_math/Array.hpp>         // for mundy::math::Array
-#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
 #include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
@@ -840,7 +840,7 @@ KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix3<T, Acce
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
-                              const std::common_type_t<T, U>& tol = get_default_tolerance<std::common_type_t<T, U>>()) {
+                              const std::common_type_t<T, U>& tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
   using CommonType = std::common_type_t<T, U>;
   if constexpr (std::is_floating_point_v<CommonType>) {
     // For floating-point types, compare with a tolerance

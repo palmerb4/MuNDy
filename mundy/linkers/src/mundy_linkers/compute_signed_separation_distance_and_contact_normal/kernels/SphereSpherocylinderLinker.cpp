@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file SphereSphereLinker.cpp
-/// \brief Definition of the ComputeSignedSeparationDistanceAndContactNormal's SphereSphereLinker kernel.
+/// \file SphereSpherocylinderLinker.cpp
+/// \brief Definition of the ComputeSignedSeparationDistanceAndContactNormal's SphereSpherocylinderLinker kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -33,10 +33,11 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.hpp>  // for mundy::linkers::...::kernels::SphereSphereLinker
-#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
-#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
+#include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderLinker.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderLinker
 #include <mundy_math/Vector3.hpp>            // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_shapes/Spheres.hpp>          // for mundy::shapes::Spheres
+#include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
 
 namespace mundy {
 
@@ -49,20 +50,23 @@ namespace kernels {
 // \name Constructors and destructor
 //{
 
-SphereSphereLinker::SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_ptr,
-                                       const Teuchos::ParameterList &fixed_params)
+SphereSpherocylinderLinker::SphereSpherocylinderLinker(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                       const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "SphereSphereLinker: bulk_data_ptr cannot be a nullptr.");
+                     "SphereSpherocylinderLinker: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(SphereSphereLinker::get_valid_fixed_params());
+  valid_fixed_params.validateParametersAndSetDefaults(SphereSpherocylinderLinker::get_valid_fixed_params());
 
   // Get the field pointers.
   const std::string node_coord_field_name = mundy::shapes::Spheres::get_node_coord_field_name();
   const std::string element_radius_field_name = mundy::shapes::Spheres::get_element_radius_field_name();
+  const std::string element_length_field_name = mundy::shapes::Spherocylinders::get_element_length_field_name();
+  const std::string element_orientation_field_name =
+      mundy::shapes::Spherocylinders::get_element_orientation_field_name();
   const std::string linker_contact_normal_field_name =
       valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
   const std::string linker_signed_separation_distance_field_name =
@@ -70,27 +74,34 @@ SphereSphereLinker::SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_pt
 
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
+  element_length_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_length_field_name);
+  element_orientation_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_orientation_field_name);
   linker_contact_normal_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_normal_field_name);
   linker_signed_separation_distance_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_signed_separation_distance_field_name);
 
-  MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
-                     "SphereSphereLinker: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
-                     "SphereSphereLinker: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(
-      linker_contact_normal_field_ptr_ != nullptr, std::invalid_argument,
-      "SphereSphereLinker: linker_contact_normal_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(linker_signed_separation_distance_field_ptr_ != nullptr, std::invalid_argument,
-                     "SphereSphereLinker: linker_signed_separation_distance_field_ptr cannot be a nullptr. Check that "
-                     "the field exists.");
+  auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
+    MUNDY_THROW_ASSERT(
+        field_ptr != nullptr, std::invalid_argument,
+        "SphereSpherocylinderLinker: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
+  };  // field_exists
+
+  field_exists(node_coord_field_ptr_, node_coord_field_name);
+  field_exists(element_radius_field_ptr_, element_radius_field_name);
+  field_exists(element_length_field_ptr_, element_length_field_name);
+  field_exists(element_orientation_field_ptr_, element_orientation_field_name);
+  field_exists(linker_contact_normal_field_ptr_, linker_contact_normal_field_name);
+  field_exists(linker_signed_separation_distance_field_ptr_, linker_signed_separation_distance_field_name);
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
   Teuchos::Array<std::string> valid_sphere_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_sphere_part_names");
+  Teuchos::Array<std::string> valid_spherocylinder_part_names =
+      valid_fixed_params.get<Teuchos::Array<std::string>>("valid_spherocylinder_part_names");
 
   auto parts_from_names = [](mundy::mesh::MetaData &meta_data, const Teuchos::Array<std::string> &part_names) {
     std::vector<stk::mesh::Part *> parts;
@@ -98,7 +109,7 @@ SphereSphereLinker::SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_pt
       stk::mesh::Part *part = meta_data.get_part(part_name);
       MUNDY_THROW_ASSERT(
           part != nullptr, std::invalid_argument,
-          "SphereSphereLinker: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+          "SphereSpherocylinderLinker: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -106,61 +117,68 @@ SphereSphereLinker::SphereSphereLinker(mundy::mesh::BulkData *const bulk_data_pt
 
   valid_entity_parts_ = parts_from_names(*meta_data_ptr_, valid_entity_part_names);
   valid_sphere_parts_ = parts_from_names(*meta_data_ptr_, valid_sphere_part_names);
+  valid_spherocylinder_parts_ = parts_from_names(*meta_data_ptr_, valid_spherocylinder_part_names);
 }
 //}
 
 // \name MetaKernel interface implementation
 //{
 
-std::vector<stk::mesh::Part *> SphereSphereLinker::get_valid_entity_parts() const {
+std::vector<stk::mesh::Part *> SphereSpherocylinderLinker::get_valid_entity_parts() const {
   return valid_entity_parts_;
 }
 
-void SphereSphereLinker::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+void SphereSpherocylinderLinker::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
-  // We don't have any valid mutable params, so this seems pointless but it's useful in that it will throw if the user
-  // gives us parameters. This is useful for catching user errors.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(SphereSphereLinker::get_valid_mutable_params());
+  valid_mutable_params.validateParametersAndSetDefaults(SphereSpherocylinderLinker::get_valid_mutable_params());
 }
 //}
 
 // \name Actions
 //{
 
-void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker_selector) {
+void SphereSpherocylinderLinker::execute(const stk::mesh::Selector &sphere_spherocylinder_linker_selector) {
   // Get references to internal members so we aren't passing around *this
   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
   stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+  stk::mesh::Field<double> &element_length_field = *element_length_field_ptr_;
+  stk::mesh::Field<double> &element_orientation_field = *element_orientation_field_ptr_;
   stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
   stk::mesh::Field<double> &linker_signed_separation_distance_field = *linker_signed_separation_distance_field_ptr_;
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
       stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      sphere_sphere_linker_selector;
+      sphere_spherocylinder_linker_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
-      [&node_coord_field, &element_radius_field, &linker_contact_normal_field,
-       &linker_signed_separation_distance_field](const stk::mesh::BulkData &bulk_data,
-                                                 const stk::mesh::Entity &sphere_sphere_linker) {
+      [&node_coord_field, &element_radius_field, &element_length_field, &element_orientation_field,
+       &linker_contact_normal_field, &linker_signed_separation_distance_field](
+          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_spherocylinder_linker) {
         // Use references to avoid copying entities
-        const stk::mesh::Entity &left_sphere_element = bulk_data.begin_elements(sphere_sphere_linker)[0];
-        const stk::mesh::Entity &right_sphere_element = bulk_data.begin_elements(sphere_sphere_linker)[1];
+        const stk::mesh::Entity &left_sphere_element = bulk_data.begin_elements(sphere_spherocylinder_linker)[0];
+        const stk::mesh::Entity &right_spherocylinder_element =
+            bulk_data.begin_elements(sphere_spherocylinder_linker)[1];
         const stk::mesh::Entity &left_sphere_node = bulk_data.begin_nodes(left_sphere_element)[0];
-        const stk::mesh::Entity &right_sphere_node = bulk_data.begin_nodes(right_sphere_element)[0];
+        const stk::mesh::Entity &right_spherocylinder_node = bulk_data.begin_nodes(right_spherocylinder_element)[0];
 
-        const auto left_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, left_sphere_node));
-        const auto right_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, right_sphere_node));
-
-        const double *left_coords = stk::mesh::field_data(node_coord_field, left_sphere_node);
-        const double *right_coords = stk::mesh::field_data(node_coord_field, right_sphere_node);
+        const auto left_coord =
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, left_sphere_node));
+        const auto right_coord =
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, right_spherocylinder_node));
         const double left_radius = stk::mesh::field_data(element_radius_field, left_sphere_element)[0];
-        const double right_radius = stk::mesh::field_data(element_radius_field, right_sphere_element)[0];
+        const double right_radius = stk::mesh::field_data(element_radius_field, right_spherocylinder_element)[0];
+        const double right_length = stk::mesh::field_data(element_length_field, right_spherocylinder_element)[0];
 
-        auto contact_normal = mundy::math::get_vector3_view<double>(stk::mesh::field_data(linker_contact_normal_field, sphere_spherocylinder_linker));
+        auto contact_normal = mundy::math::get_vector3_view<double>(
+            stk::mesh::field_data(linker_contact_normal_field, sphere_spherocylinder_linker));
         double *signed_separation_distance =
-            stk::mesh::field_data(linker_signed_separation_distance_field, sphere_sphere_linker);
+            stk::mesh::field_data(linker_signed_separation_distance_field, sphere_spherocylinder_linker);
+
+
+
+
 
         // Compute the separation distance and contact normal
         const auto left_to_right_vector = right_coord - left_coord;
