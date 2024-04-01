@@ -34,11 +34,11 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderSegmentLinker.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderSegmentLinker
-#include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
-#include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_from_point_to_line_segment
-#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_shapes/Spheres.hpp>                // for mundy::shapes::Spheres
-#include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
+#include <mundy_math/Vector3.hpp>                   // for mundy::math::Vector3
+#include <mundy_math/distance/SegmentSegment.hpp>   // for mundy::math::distance::distance_sq_from_point_to_line_segment
+#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
+#include <mundy_shapes/Spheres.hpp>                 // for mundy::shapes::Spheres
+#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
 
@@ -165,9 +165,9 @@ void SphereSpherocylinderSegmentLinker::execute(
 
         // Get the spherocylinder_segment data
         const auto spherocylinder_segment_left_endpoint_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_segment_node));
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_segment_left_node));
         const auto spherocylinder_segment_right_endpoint_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_segment_node));
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_segment_right_node));
         const double spherocylinder_segment_radius =
             stk::mesh::field_data(element_radius_field, spherocylinder_segment_element)[0];
 

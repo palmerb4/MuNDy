@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHEROCYLINDERLINKERS_HPP_
-#define MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHEROCYLINDERLINKERS_HPP_
+#ifndef MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHEROCYLINDERSEGMENTSPHEROCYLINDERSEGMENTLINKERS_HPP_
+#define MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHEROCYLINDERSEGMENTSPHEROCYLINDERSEGMENTLINKERS_HPP_
 
-/// \file SphereSpherocylinderLinkers.hpp
-/// \brief Declaration of the SphereSpherocylinderLinkers part class
+/// \file SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp
+/// \brief Declaration of the SpherocylinderSegmentSpherocylinderSegmentLinkers part class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -43,17 +43,18 @@ namespace linkers {
 
 namespace neighbor_linkers {
 
-/// \class SphereSpherocylinderLinkers
-/// \brief The static interface for all of Mundy's SphereSpherocylinderLinkers neighbor linkers.
+/// \class SpherocylinderSegmentSpherocylinderSegmentLinkers
+/// \brief The static interface for all of Mundy's SpherocylinderSegmentSpherocylinderSegmentLinkers neighbor linkers.
 ///
 /// The design of this class is in accordance with the static interface requirements of mundy::agents::AgentFactory.
 ///
-/// \note This class is a constraint rank assembly part containing neighbor linkers between spheres and spherocylinders. It is a subset of
-/// the NeighborLinkers agent.
-class SphereSpherocylinderLinkers
-    : public mundy::agents::RankedAssembly<mundy::core::make_string_literal("SPHERE_SPHEROCYLINDER_LINKERS"),
+/// \note This class is a constraint rank assembly part containing neighbor linkers between spherocylinder segments. It
+/// is a subset of the NeighborLinkers agent.
+class SpherocylinderSegmentSpherocylinderSegmentLinkers
+    : public mundy::agents::RankedAssembly<mundy::core::make_string_literal(
+                                               "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"),
                                            stk::topology::CONSTRAINT_RANK, mundy::linkers::NeighborLinkers> {
-};  // SphereSpherocylinderLinkers
+};  // SpherocylinderSegmentSpherocylinderSegmentLinkers
 
 }  // namespace neighbor_linkers
 
@@ -61,4 +62,4 @@ class SphereSpherocylinderLinkers
 
 }  // namespace mundy
 
-#endif  // MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHERESPHEROCYLINDERLINKERS_HPP_
+#endif  // MUNDY_LINKERS_NEIGHBOR_LINKERS_SPHEROCYLINDERSEGMENTSPHEROCYLINDERSEGMENTLINKERS_HPP_

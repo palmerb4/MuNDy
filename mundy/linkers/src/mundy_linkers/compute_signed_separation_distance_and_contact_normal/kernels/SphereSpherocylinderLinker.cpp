@@ -34,15 +34,12 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderLinker.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderLinker
+#include <mundy_math/Quaternion.hpp>               // for mundy::math::Quaternion
 #include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
 #include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_from_point_to_line_segment
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
 #include <mundy_shapes/Spheres.hpp>                // for mundy::shapes::Spheres
 #include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
-
-// double distance_sq_from_point_to_line_segment(const Vector3<double>& x, const Vector3<double>& p1,
-//                                               const Vector3<double>& p2, Vector3<double>* const closest_point =
-//                                               nullptr, double* const t = nullptr) {
 
 namespace mundy {
 
@@ -177,7 +174,7 @@ void SphereSpherocylinderLinker::execute(const stk::mesh::Selector &sphere_spher
             mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_node));
         const double spherocylinder_radius = stk::mesh::field_data(element_radius_field, spherocylinder_element)[0];
         const double spherocylinder_length = stk::mesh::field_data(element_length_field, spherocylinder_element)[0];
-        const auto spherocylinder_orientation = mundy::math::get_vector3_view<double>(
+        const auto spherocylinder_orientation = mundy::math::get_quaternion_view<double>(
             stk::mesh::field_data(element_orientation_field, spherocylinder_element));
 
         // Find the endpoints of the spherocylinder

@@ -1,5 +1,5 @@
 tribits_package_define_dependencies(
-  LIB_REQUIRED_PACKAGES MundyCore MundyMesh MundyMeta MundyAgents
+  LIB_REQUIRED_PACKAGES MundyCore MundyMath MundyMesh MundyMeta MundyAgents
   LIB_OPTIONAL_PACKAGES MundyShapes
   TEST_REQUIRED_PACKAGES
   TEST_OPTIONAL_PACKAGES

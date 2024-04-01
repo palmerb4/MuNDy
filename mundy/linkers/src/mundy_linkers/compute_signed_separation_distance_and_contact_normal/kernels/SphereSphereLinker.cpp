@@ -34,9 +34,9 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.hpp>  // for mundy::linkers::...::kernels::SphereSphereLinker
+#include <mundy_math/Vector3.hpp>    // for mundy::math::Vector3
 #include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
 #include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
-#include <mundy_math/Vector3.hpp>            // for mundy::math::Vector3
 
 namespace mundy {
 
@@ -150,20 +150,21 @@ void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker
         const stk::mesh::Entity &left_sphere_node = bulk_data.begin_nodes(left_sphere_element)[0];
         const stk::mesh::Entity &right_sphere_node = bulk_data.begin_nodes(right_sphere_element)[0];
 
-        const auto left_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, left_sphere_node));
-        const auto right_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, right_sphere_node));
-
-        const double *left_coords = stk::mesh::field_data(node_coord_field, left_sphere_node);
-        const double *right_coords = stk::mesh::field_data(node_coord_field, right_sphere_node);
+        // Get the sphere data
+        const auto left_coords =
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, left_sphere_node));
+        const auto right_coords =
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, right_sphere_node));
         const double left_radius = stk::mesh::field_data(element_radius_field, left_sphere_element)[0];
         const double right_radius = stk::mesh::field_data(element_radius_field, right_sphere_element)[0];
 
-        auto contact_normal = mundy::math::get_vector3_view<double>(stk::mesh::field_data(linker_contact_normal_field, sphere_spherocylinder_linker));
+        auto contact_normal = mundy::math::get_vector3_view<double>(
+            stk::mesh::field_data(linker_contact_normal_field, sphere_sphere_linker));
         double *signed_separation_distance =
             stk::mesh::field_data(linker_signed_separation_distance_field, sphere_sphere_linker);
 
         // Compute the separation distance and contact normal
-        const auto left_to_right_vector = right_coord - left_coord;
+        const auto left_to_right_vector = right_coords - left_coords;
         const double distance = mundy::math::norm(left_to_right_vector);
         const double radius_sum = left_radius + right_radius;
         const double separation_distance = distance - radius_sum;

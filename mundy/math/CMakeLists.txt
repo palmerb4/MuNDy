@@ -15,12 +15,13 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
-  include/mundy_math/Array.hpp
   include/mundy_math/Accessor.hpp
+  include/mundy_math/Array.hpp
+  include/mundy_math/distance/SegmentSegment.hpp
+  include/mundy_math/Matrix3.hpp
   include/mundy_math/Quaternion.hpp
   include/mundy_math/Tolerance.hpp
   include/mundy_math/Vector3.hpp
-  include/mundy_math/Matrix3.hpp
   )
 
 SET(SOURCES 

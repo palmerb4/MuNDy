@@ -45,7 +45,6 @@
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
-#include <mundy_shapes/Spheres.hpp>          // for mundy::shapes::Spheres
 #include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
 
 namespace mundy {
@@ -125,8 +124,8 @@ class SpherocylinderSpherocylinderLinker : public mundy::meta::MetaKernel<> {
     // We don't have any requirements for the connected spheres not already specified by the spherocylinders agent
     Teuchos::Array<std::string> valid_spherocylinder_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_spherocylinder_part_names");
-    const int num_sphere_parts = static_cast<int>(valid_spherocylinder_part_names.size());
-    for (int i = 0; i < num_sphere_parts; i++) {
+    const int num_spherocylinder_parts = static_cast<int>(valid_spherocylinder_part_names.size());
+    for (int i = 0; i < num_spherocylinder_parts; i++) {
       const std::string part_name = valid_spherocylinder_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);

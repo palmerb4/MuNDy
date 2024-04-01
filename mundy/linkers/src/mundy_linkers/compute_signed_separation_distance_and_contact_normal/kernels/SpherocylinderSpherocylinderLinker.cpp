@@ -35,6 +35,7 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSpherocylinderLinker.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSpherocylinderLinker
+#include <mundy_math/Quaternion.hpp>               // for mundy::math::Quaternion
 #include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
 #include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_between_line_segments
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
@@ -99,8 +100,6 @@ SpherocylinderSpherocylinderLinker::SpherocylinderSpherocylinderLinker(mundy::me
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
-  Teuchos::Array<std::string> valid_sphere_part_names =
-      valid_fixed_params.get<Teuchos::Array<std::string>>("valid_sphere_part_names");
   Teuchos::Array<std::string> valid_spherocylinder_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_spherocylinder_part_names");
 
@@ -177,9 +176,9 @@ void SpherocylinderSpherocylinderLinker::execute(
         const double spherocylinder1_length = stk::mesh::field_data(element_length_field, spherocylinder1_element)[0];
         const double spherocylinder2_length = stk::mesh::field_data(element_length_field, spherocylinder2_element)[0];
 
-        const auto spherocylinder1_orientation = mundy::math::get_vector3_view<double>(
+        const auto spherocylinder1_orientation = mundy::math::get_quaternion_view<double>(
             stk::mesh::field_data(element_orientation_field, spherocylinder1_element));
-        const auto spherocylinder2_orientation = mundy::math::get_vector3_view<double>(
+        const auto spherocylinder2_orientation = mundy::math::get_quaternion_view<double>(
             stk::mesh::field_data(element_orientation_field, spherocylinder2_element));
 
         // Find the endpoints of the spherocylinder

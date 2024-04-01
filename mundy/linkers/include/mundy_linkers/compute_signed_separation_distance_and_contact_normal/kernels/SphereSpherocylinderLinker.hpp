@@ -144,8 +144,8 @@ class SphereSpherocylinderLinker : public mundy::meta::MetaKernel<> {
     // We don't have any requirements for the connected spheres not already specified by the spherocylinders agent
     Teuchos::Array<std::string> valid_spherocylinder_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_spherocylinder_part_names");
-    const int num_sphere_parts = static_cast<int>(valid_spherocylinder_part_names.size());
-    for (int i = 0; i < num_sphere_parts; i++) {
+    const int num_spherocylinder_parts = static_cast<int>(valid_spherocylinder_part_names.size());
+    for (int i = 0; i < num_spherocylinder_parts; i++) {
       const std::string part_name = valid_spherocylinder_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);

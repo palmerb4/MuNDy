@@ -106,8 +106,9 @@ void if_not_nullptr_then_set(auto const ptr, auto value) {
  * respectively.
  *
  */
-double distance_sq_from_point_to_line_segment(const Vector3<double>& x, const Vector3<double>& p1,
-                                              const Vector3<double>& p2, Vector3<double>* const closest_point = nullptr,
+double distance_sq_from_point_to_line_segment(const Vector3<double, auto>& x, const Vector3<double, auto>& p1,
+                                              const Vector3<double, auto>& p2,
+                                              Vector3<double>* const closest_point = nullptr,
                                               double* const t = nullptr) {
   // Define some temporary variables
   Vector3<double> closest_point_tmp;
@@ -156,8 +157,8 @@ double distance_sq_from_point_to_line_segment(const Vector3<double>& x, const Ve
   return distance_sq;
 }
 
-double distance_sq_between_lines(const Vector3<double>& l0, const Vector3<double>& l1,  // line 1
-                                 const Vector3<double>& m0, const Vector3<double>& m1,  // line 2
+double distance_sq_between_lines(const Vector3<double, auto>& l0, const Vector3<double, auto>& l1,  // line 1
+                                 const Vector3<double, auto>& m0, const Vector3<double, auto>& m1,  // line 2
                                  Vector3<double>* const closest_point1 = nullptr,
                                  Vector3<double>* const closest_point2 = nullptr, double* const t1 = nullptr,
                                  double* const t2 = nullptr)  // parametric coords of the closest points

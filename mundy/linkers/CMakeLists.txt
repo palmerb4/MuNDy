@@ -17,6 +17,11 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 SET(NOINSTALLHEADERS
   include/mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp
   include/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.hpp
+  include/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderLinker.hpp
+  include/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderSegmentLinker.hpp
+  include/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSegmentSpherocylinderSegmentLinker.hpp
+  include/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSpherocylinderLinker.hpp
+  include/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSpherocylinderSegmentLinker.hpp
   include/mundy_linkers/DestroyNeighborLinkers.hpp
   include/mundy_linkers/destroy_neighbor_linkers/techniques/DestroyDistantNeighbors.hpp
   include/mundy_linkers/EvaluateLinkerPotentials.hpp
@@ -28,10 +33,20 @@ SET(NOINSTALLHEADERS
   include/mundy_linkers/Linkers.hpp
   include/mundy_linkers/NeighborLinkers.hpp
   include/mundy_linkers/neighbor_linkers/SphereSphereLinkers.hpp
+  include/mundy_linkers/neighbor_linkers/SphereSpherocylinderLinkers.hpp
+  include/mundy_linkers/neighbor_linkers/SphereSpherocylinderSegmentLinkers.hpp
+  include/mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp
+  include/mundy_linkers/neighbor_linkers/SpherocylinderSpherocylinderLinkers.hpp
+  include/mundy_linkers/neighbor_linkers/SpherocylinderSpherocylinderSegmentLinkers.hpp
   )
 
 SET(SOURCES 
   src/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSphereLinker.cpp
+  src/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderLinker.cpp
+  src/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderSegmentLinker.cpp
+  src/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSegmentSpherocylinderSegmentLinker.cpp
+  src/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSpherocylinderLinker.cpp
+  src/mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSpherocylinderSegmentLinker.cpp
   src/mundy_linkers/destroy_neighbor_linkers/techniques/DestroyDistantNeighbors.cpp
   src/mundy_linkers/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.cpp
   src/mundy_linkers/generate_neighbor_linkers/techniques/STKSearch.cpp
