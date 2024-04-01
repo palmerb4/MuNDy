@@ -252,28 +252,28 @@ double distance_sq_between_line_segments(const Vector3<double, auto>& l0,
     double min_distance_sq = std::min(std::min(dist_sq1, dist_sq2), std::min(dist_sq3, dist_sq4));
     if (min_distance_sq == dist_sq1) {
       // CASE 1.1: l0 is closest to the line segment m0-m1.
-      if_not_nullptr_then_set(t1, t_tmp1);
-      if_not_nullptr_then_set(t2, 0.0);
-      if_not_nullptr_then_set(closest_point1, pn_tmp1);
-      if_not_nullptr_then_set(closest_point2, m0);
+      if_not_nullptr_then_set(t1, 0.0);
+      if_not_nullptr_then_set(t2, t_tmp1);
+      if_not_nullptr_then_set(closest_point1, l0);
+      if_not_nullptr_then_set(closest_point2, pn_tmp1);
     } else if (min_distance_sq == dist_sq2) {
       // CASE 1.2: l1 is closest to the line segment m0-m1.
-      if_not_nullptr_then_set(t1, t_tmp2);
-      if_not_nullptr_then_set(t2, 1.0);
-      if_not_nullptr_then_set(closest_point1, pn_tmp2);
-      if_not_nullptr_then_set(closest_point2, m1);
+      if_not_nullptr_then_set(t1, 1.0);
+      if_not_nullptr_then_set(t2, t_tmp2);
+      if_not_nullptr_then_set(closest_point1, l1);
+      if_not_nullptr_then_set(closest_point2, pn_tmp2);
     } else if (min_distance_sq == dist_sq3) {
       // CASE 1.3: m0 is closest to the line segment l0-l1.
-      if_not_nullptr_then_set(t1, 0.0);
-      if_not_nullptr_then_set(t2, t_tmp3);
-      if_not_nullptr_then_set(closest_point1, l0);
-      if_not_nullptr_then_set(closest_point2, pn_tmp3);
+      if_not_nullptr_then_set(t1, t_tmp3);
+      if_not_nullptr_then_set(t2, 0.0);
+      if_not_nullptr_then_set(closest_point1, pn_tmp3);
+      if_not_nullptr_then_set(closest_point2, m0);
     } else {
       // CASE 1.4: m1 is closest to the line segment l0-l1.
-      if_not_nullptr_then_set(t1, 1.0);
-      if_not_nullptr_then_set(t2, t_tmp4);
-      if_not_nullptr_then_set(closest_point1, l1);
-      if_not_nullptr_then_set(closest_point2, pn_tmp4);
+      if_not_nullptr_then_set(t1, t_tmp4);
+      if_not_nullptr_then_set(t2, 1.0);
+      if_not_nullptr_then_set(closest_point1, pn_tmp4);
+      if_not_nullptr_then_set(closest_point2, m1);
     }
 
     return min_distance_sq;
@@ -322,8 +322,8 @@ double distance_sq_between_line_segments(const Vector3<double, auto>& l0,
   }
 
   // Finally, get the arch-length parameters, the corresponding closest points, and their distance squared.
-  const double t1_tmp = ((sN < get_zero_tolerance<double>()) & (sN > get_zero_tolerance<double>())) ? 0.0 : sN / sD;
-  const double t2_tmp = ((tN < get_zero_tolerance<double>()) & (sN > get_zero_tolerance<double>())) ? 0.0 : tN / tD;
+  const double t1_tmp = (fabs(sN) < get_zero_tolerance<double>()) ? 0.0 : sN / sD;
+  const double t2_tmp = (fabs(tN) < get_zero_tolerance<double>()) ? 0.0 : tN / tD;
   const Vector3<double> closest_point1_tmp = l0 + t1_tmp * u;
   const Vector3<double> closest_point2_tmp = m0 + t2_tmp * v;
   const double distance_sq = mundy::math::two_norm_squared(closest_point1_tmp - closest_point2_tmp);

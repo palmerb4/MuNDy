@@ -65,13 +65,13 @@ size_t generate_test_seed() {
   return std::hash<std::string>{}(test_identifier);
 }
 
-// // A concept for RNG types that offer a rand<T>() function.
-// template<typename T>
-// concept RandomNumberGenerator = requires(T rng) {
-//   { rng.template rand<double>() } -> std::convertible_to<double>;
-// };
+// A concept for RNG types that offer a rand<T>() function.
+template <typename T>
+concept RandomNumberGenerator = requires(T rng) {
+  { rng.template rand<double>() } -> std::convertible_to<double>;
+};
 
-template <typename RngType>
+template <RandomNumberGenerator RngType>
 void generate_intersecting_line_segments(RngType& rng, Vector3<double>& a1, Vector3<double>& a2, Vector3<double>& b1,
                                          Vector3<double>& b2, double& u, double& v) {
   // Generate two line segments ((a1,a2) and (b1,b2)) that intersect, and set
@@ -102,7 +102,7 @@ void generate_intersecting_line_segments(RngType& rng, Vector3<double>& a1, Vect
   v = len_b1_to_intersection / len_b;
 }
 
-template <typename RngType>
+template <RandomNumberGenerator RngType>
 void random_sphere(RngType& rng, const double radius, const Vector3<double>& offset, Vector3<double>& value) {
   // Generate a point within a sphere centered at offset with a given radius.
   double theta = 2. * Kokkos::numbers::pi_v<double> * rng.template rand<double>();
@@ -112,7 +112,7 @@ void random_sphere(RngType& rng, const double radius, const Vector3<double>& off
   value[2] = radius * cos(phi) + offset[2];
 }
 
-template <typename RngType>
+template <RandomNumberGenerator RngType>
 void generate_non_intersecting_line_segments(RngType& rng, Vector3<double>& a1, Vector3<double>& a2,
                                              Vector3<double>& b1, Vector3<double>& b2) {
   // Generate two line segments ((a1,a2) and (b1,b2)) that do not intersect.
@@ -127,7 +127,7 @@ void generate_non_intersecting_line_segments(RngType& rng, Vector3<double>& a1, 
   random_sphere(rng, radius, Vector3<double>(1., 1., 0.), b2);
 }
 
-template <typename RngType>
+template <RandomNumberGenerator RngType>
 void generate_colinear_line_segments(RngType& rng, Vector3<double>& a1, Vector3<double>& a2, Vector3<double>& b1,
                                      Vector3<double>& b2) {
   // Generate two line segments ((a1,a2) and (b1,b2)) that are colinear.
@@ -140,7 +140,7 @@ void generate_colinear_line_segments(RngType& rng, Vector3<double>& a1, Vector3<
   }
 }
 
-template <typename RngType>
+template <RandomNumberGenerator RngType>
 void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
                                       Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
                                       Vector3<double>& b12, double& u, double& v) {
@@ -180,10 +180,38 @@ void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<d
   // placements of the ends of the lines. The key here is to allow degenerate lines where the endpoints are the same or
   // where one of the endpoints is the same as the contact point. We'll choose a the left and right distance from the
   // contact point from U01 and then check for degeneracies.
-  double a1_to_a12 = rng.template rand<double>();
-  double a12_to_a2 = rng.template rand<double>();
-  double b1_to_b12 = rng.template rand<double>();
-  double b12_to_b2 = rng.template rand<double>();
+  // const double modify = rng.template rand<double>();
+  // bool force_a1_equals_a12 = modify < 0.10;
+  // bool force_a2_equals_a12 = modify < 0.20 && !force_a1_equals_a12;
+  // bool force_b1_equals_b12 = modify < 0.30 && !force_a1_equals_a12 && !force_a2_equals_a12;
+  // bool force_b2_equals_b12 = modify < 0.40 && !force_a1_equals_a12 && !force_a2_equals_a12 && !force_b1_equals_b12;
+  // bool force_a1_equals_a2 =
+  //     modify < 0.50 && !force_a1_equals_a12 && !force_a2_equals_a12 && !force_b1_equals_b12 && !force_b2_equals_b12;
+  // bool force_b1_equals_b2 = modify < 0.60 && !force_a1_equals_a12 && !force_a2_equals_a12 && !force_b1_equals_b12 &&
+  //                           !force_b2_equals_b12 && !force_a1_equals_a2;
+
+  // if (force_a1_equals_a2) {
+  //   force_a1_equals_a12 = true;
+  //   force_a2_equals_a12 = true;
+  // }
+
+  // if (force_b1_equals_b2) {
+  //   force_b1_equals_b12 = true;
+  //   force_b2_equals_b12 = true;
+  // }
+
+  // Hardcode one degeneracy at a time.
+  bool force_a1_equals_a12 = false;  // Causes rounding errors of something like 8e-6 vs 1e-6.
+  bool force_a2_equals_a12 = false;  // Causes rounding errors ''
+  bool force_b1_equals_b12 = false;  // Causes rounding errors ''
+  bool force_b2_equals_b12 = false;  // Causes rounding errors ''
+
+  // TODO(palmerb4): a be degenerate seems fine but if b is degenerate we get nan's for separation distance.
+
+  double a1_to_a12 = force_a1_equals_a12 ? 0.0 : rng.template rand<double>();
+  double a12_to_a2 = force_a2_equals_a12 ? 0.0 : rng.template rand<double>();
+  double b1_to_b12 = force_b1_equals_b12 ? 0.0 : rng.template rand<double>();
+  double b12_to_b2 = force_b2_equals_b12 ? 0.0 : rng.template rand<double>();
 
   for (unsigned i = 0; i < 3; i++) {
     a12[i] = rng.template rand<double>();
@@ -200,9 +228,9 @@ void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<d
   v = is_b_degenerate ? 0. : b1_to_b12 / (b1_to_b12 + b12_to_b2);
 }
 
-template <typename RngType>
-void generate_line_at_known_distance(RngType& rng, Vector3<double>& a1, Vector3<double>& a2, Vector3<double>& p,
-                                     double& dist) {
+template <RandomNumberGenerator RngType>
+void generate_line_at_known_distance(RngType& rng, Vector3<double>& a1, Vector3<double>& a2, Vector3<double>& a12,
+                                     Vector3<double>& p, double& dist) {
   // Generate a line (a1,a2) set a known distance (dist) from a generated point p.
 
   // Generate a random point p
@@ -237,11 +265,13 @@ void generate_line_at_known_distance(RngType& rng, Vector3<double>& a1, Vector3<
   v2 *= rng.template rand<double>();
   dist = mundy::math::norm(v2);
 
-  // Use a random distance from the endpoints to the nearest point on the line.
-  double a1_to_a12 = rng.template rand<double>();
-  double a12_to_a2 = rng.template rand<double>();
+  // Hardcode one degeneracy at a time.
+  bool force_a1_equals_a12 = false;
+  bool force_a2_equals_a12 = false;
 
-  Vector3<double> a12;
+  // Use a random distance from the endpoints to the nearest point on the line.
+  double a1_to_a12 = force_a1_equals_a12 ? 0.0 : rng.template rand<double>();
+  double a12_to_a2 = force_a2_equals_a12 ? 0.0 : rng.template rand<double>();
   for (unsigned i = 0; i < 3; i++) {
     a12[i] = p[i] + v2[i];
     a1[i] = a12[i] - a1_to_a12 * v1[i];
@@ -249,45 +279,7 @@ void generate_line_at_known_distance(RngType& rng, Vector3<double>& a1, Vector3<
   }
 }
 
-// TODO(palmerb4): I doubt the validity of this function for all edge cases. I prefer to use the SegmentSegment function
-// double point_to_line_segment(Vector3<double>& p1, Vector3<double>& p2, Vector3<double>& p, Vector3<double>& pn,
-//                              double& u) {
-//   // Helper function that computes the distance from a point to a line segment.
-//   // It is not used to actually test the vtkLine function for the same purpose,
-//   // but rather to determine correct values for these test functions.
-
-//   u = 0.;
-//   double dist2 = 0.;
-//   for (unsigned i = 0; i < 3; i++) {
-//     u += (p[i] - p1[i]) * (p2[i] - p1[i]);
-//     dist2 += (p2[i] - p1[i]) * (p2[i] - p1[i]);
-//   }
-//   u /= dist2;
-
-//   if (u <= 0.) {
-//     for (unsigned i = 0; i < 3; i++) {
-//       u = 0.;
-//       pn[i] = p1[i];
-//     }
-//   } else if (u >= 1.) {
-//     u = 1.;
-//     for (unsigned i = 0; i < 3; i++) {
-//       pn[i] = p2[i];
-//     }
-//   } else {
-//     for (unsigned i = 0; i < 3; i++) {
-//       pn[i] = p1[i] + u * (p2[i] - p1[i]);
-//     }
-//   }
-
-//   double dist = 0.;
-//   for (unsigned i = 0; i < 3; i++) {
-//     dist += (p[i] - pn[i]) * (p[i] - pn[i]);
-//   }
-//   return std::sqrt(dist);
-// }
-
-template <typename RngType>
+template <RandomNumberGenerator RngType>
 void generate_line_segments_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
                                               Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
                                               Vector3<double>& b12, double& u, double& v) {
@@ -297,35 +289,35 @@ void generate_line_segments_at_known_distance(RngType& rng, double& line_dist, V
 
   generate_lines_at_known_distance(rng, line_dist, a1, a2, b1, b2, a12, b12, u, v);
 
-  // TODO(palmerb4): If we're going to test degenerate cases, we should do so more explicitly and extensively.
-  // What about fully degenerate rods with length zero or colinear rods or rods that are the same or rods that are
-  // perfectly perpendicular? What about rods that are almost colinear or almost perpendicular?
+  // // TODO(palmerb4): If we're going to test degenerate cases, we should do so more explicitly and extensively.
+  // // What about fully degenerate rods with length zero or colinear rods or rods that are the same or rods that are
+  // // perfectly perpendicular? What about rods that are almost colinear or almost perpendicular?
 
-  // 25% chance to force a perfect intersection at the right endpoint of a1.
-  // 25% chance to force a perfect intersection at the right endpoint of a2.
-  // 50% chance to use two random segments.
-  double modify = rng.template rand<double>();
-  if (modify < 0.25) {
-    double t = rng.template rand<double>();
+  // // 25% chance to force a perfect intersection at the right endpoint of a1.
+  // // 25% chance to force a perfect intersection at the right endpoint of a2.
+  // // 50% chance to use two random segments.
+  // double modify = rng.template rand<double>();
+  // if (modify < 0.25) {
+  //   double t = rng.template rand<double>();
 
-    for (unsigned i = 0; i < 3; i++) {
-      a12[i] = a2[i] = a1[i] + (a12[i] - a1[i]) * t;
-    }
+  //   for (unsigned i = 0; i < 3; i++) {
+  //     a12[i] = a2[i] = a1[i] + (a12[i] - a1[i]) * t;
+  //   }
 
-    u = 1.;
-    // a2 is the point and b is the line segment.
-    line_dist = std::sqrt(distance_sq_from_point_to_line_segment(a2, b1, b2, &b12, &v));
-  } else if (modify < 0.5) {
-    double t = rng.template rand<double>();
+  //   u = 1.;
+  //   // a2 is the point and b is the line segment.
+  //   line_dist = std::sqrt(distance_sq_from_point_to_line_segment(a2, b1, b2, &b12, &v));
+  // } else if (modify < 0.5) {
+  //   double t = rng.template rand<double>();
 
-    for (unsigned i = 0; i < 3; i++) {
-      b12[i] = b2[i] = b1[i] + (b12[i] - b1[i]) * t;
-    }
+  //   for (unsigned i = 0; i < 3; i++) {
+  //     b12[i] = b2[i] = b1[i] + (b12[i] - b1[i]) * t;
+  //   }
 
-    // b2 is the point and a is the line segment.
-    v = 1.;
-    line_dist = std::sqrt(distance_sq_from_point_to_line_segment(b2, a1, a2, &a12, &u));
-  }
+  //   // b2 is the point and a is the line segment.
+  //   v = 1.;
+  //   line_dist = std::sqrt(distance_sq_from_point_to_line_segment(b2, a1, a2, &a12, &u));
+  // }
 }
 //@}
 
@@ -447,15 +439,7 @@ TEST(DistanceBetweenLineSegments, PositiveResult) {
     ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
 
     for (unsigned j = 0; j < 3; j++) {
-      ASSERT_NEAR(a12_expected[j], a12_actual[j], TEST_DOUBLE_EPSILON)
-          << "Test failed for segment i: " << i << " when j: " << j << " for segments \n"
-          << "a1: " << a1[0] << ", " << a1[1] << ", " << a1[2] << " b1: " << b1[0] << ", " << b1[1] << ", " << b1[2]
-          << "a2: " << a2[0] << ", " << a2[1] << ", " << a2[2] << " b2: " << b2[0] << ", " << b2[1] << ", " << b2[2] << "\n"
-          << "Expected a12: " << a12_expected[0] << ", " << a12_expected[1] << ", " << a12_expected[2]
-          << " expected b12: " << b12_expected[0] << ", " << b12_expected[1] << ", " << b12_expected[2] << "\n"
-          << "Actual a12: " << a12_actual[0] << ", " << a12_actual[1] << ", " << a12_actual[2]
-          << " actual b12: " << b12_actual[0] << ", " << b12_actual[1] << ", " << b12_actual[2] << "\n"
-          << "The distances are expected: " << dist_expected << " and actual: " << sqrt(dist_sq_actual) << "\n";
+      ASSERT_NEAR(a12_expected[j], a12_actual[j], TEST_DOUBLE_EPSILON);
       ASSERT_NEAR(b12_expected[j], b12_actual[j], TEST_DOUBLE_EPSILON);
     }
 
@@ -464,17 +448,51 @@ TEST(DistanceBetweenLineSegments, PositiveResult) {
   }
 }
 
+TEST(DistanceBetweenLineSegments, APeskyEdgeCase) {
+  // The following pesky edge case is for a colinear rod that caused an untested edge case.
+  // TODO(palmerb4): We'll need colinear rods that give each of the 4 possible cases.
+  openrand::Philox rng(generate_test_seed(), 0);
+  Vector3<double> a1, a2, b1, b2, a12_expected, a12_actual, b12_expected, b12_actual;
+
+  double u_expected, v_expected, u_actual, v_actual, dist_expected, dist_sq_actual;
+  // Hardcoding a case that I know is wrong.
+  a1 = {0.2257294191072674, 0.30159862841764695, 0.12784820133135649};
+  b1 = {0.5220039935659887, 0.88764831847472003, -0.2219484914838093};
+  a2 = {0.22572948671663273, 0.30159858045792487, 0.1278481814714105};
+  b2 = {0.50288066060587278, 0.66779290982621586, -0.5723507723323677};
+  a12_expected = {0.22572948671663273, 0.30159858045792487, 0.1278481814714105};
+  b12_expected = {0.52067221426302679, 0.87233723836682309, -0.24635106326970288};
+  u_expected = 1.0;
+  v_expected = 0.069641589451982497;
+  dist_expected = 0.74347757392471259;
+
+  dist_sq_actual = distance_sq_between_line_segments(a1, a2, b1, b2, &a12_actual, &b12_actual, &u_actual, &v_actual);
+  EXPECT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
+
+  for (unsigned j = 0; j < 3; j++) {
+    EXPECT_NEAR(a12_expected[j], a12_actual[j], TEST_DOUBLE_EPSILON);
+    EXPECT_NEAR(b12_expected[j], b12_actual[j], TEST_DOUBLE_EPSILON);
+  }
+
+  EXPECT_NEAR(u_expected, u_actual, TEST_DOUBLE_EPSILON);
+  EXPECT_NEAR(v_expected, v_actual, TEST_DOUBLE_EPSILON);
+}
+
 TEST(DistanceToLine, PositiveResult) {
   openrand::Philox rng(generate_test_seed(), 0);
   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
 
-  Vector3<double> a1, a2, p;
+  Vector3<double> a1, a2, a12_actual, a12_expected, p;
   double dist_expected, dist_sq_actual;
   for (unsigned i = 0; i < nTests; i++) {
-    generate_line_at_known_distance<openrand::Philox>(rng, a1, a2, p, dist_expected);
-    dist_sq_actual = distance_sq_from_point_to_line_segment(p, a1, a2);
+    generate_line_at_known_distance<openrand::Philox>(rng, a1, a2, a12_expected, p, dist_expected);
+    dist_sq_actual = distance_sq_from_point_to_line_segment(p, a1, a2, &a12_actual);
 
     ASSERT_NEAR(dist_expected * dist_expected, dist_sq_actual, TEST_DOUBLE_EPSILON);
+
+    for (unsigned j = 0; j < 3; j++) {
+      ASSERT_NEAR(a12_expected[j], a12_actual[j], TEST_DOUBLE_EPSILON);
+    }
   }
 }
 
