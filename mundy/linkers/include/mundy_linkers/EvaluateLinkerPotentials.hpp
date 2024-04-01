@@ -33,6 +33,11 @@
 // Mundy libs
 #include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.hpp>  // for mundy::linkers::...::kernels::SphereSphereHertzianContact
+#include <mundy_linkers/evaluate_linker_potentials/kernels/SphereSpherocylinderHertzianContact.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderHertzianContact
+#include <mundy_linkers/evaluate_linker_potentials/kernels/SphereSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderSegmentHertzianContact
+#include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSegmentSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact
+#include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSpherocylinderHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSpherocylinderHertzianContact
+#include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSpherocylinderSegmentHertzianContact
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
@@ -100,6 +105,25 @@ class EvaluateLinkerPotentials
 MUNDY_REGISTER_METACLASS("SPHERE_SPHERE_HERTZIAN_CONTACT",
                          mundy::linkers::evaluate_linker_potentials::kernels::SphereSphereHertzianContact,
                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT",
+                         mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderHertzianContact,
+                         mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+MUNDY_REGISTER_METACLASS(
+    "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+    mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderSegmentHertzianContact,
+    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+MUNDY_REGISTER_METACLASS(
+    "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+    mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact,
+    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+MUNDY_REGISTER_METACLASS(
+    "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT",
+    mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderHertzianContact,
+    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+MUNDY_REGISTER_METACLASS(
+    "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+    mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderSegmentHertzianContact,
+    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_LINKERS_EVALUATELINKERPOTENTIALS_HPP_
