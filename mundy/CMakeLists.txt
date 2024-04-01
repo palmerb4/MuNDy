@@ -7,6 +7,8 @@ tribits_add_debug_option()
 # Global variables
 GLOBAL_SET(MUNDY_DEFAULT_UNIT_TEST_MAIN
   "${PACKAGE_SOURCE_DIR}/mundy/tests/unit_tests/DefaultUnitTestMain.cpp")
+GLOBAL_SET(MUNDY_DEFAULT_INTEGRATION_TEST_MAIN
+  "${PACKAGE_SOURCE_DIR}/mundy/tests/integration_tests/DefaultIntegrationTestMain.cpp")
 
 # For now, we enable all subpackages of Mundy by default. They can be disabled by the user
 # if they are not needed.

@@ -194,19 +194,71 @@ void Configurator::parse_metamethod(const std::string& method_type, const Teucho
     // the type coersion for std::make_tuple doesn't seem to like things for some reason...)
     std::tuple mtuple(method_type, method_name, valid_fixed_params, valid_mutable_params);
     enabled_meta_methods_[param_name] = mtuple;
-
-    ///////////////////////////////////////////////////////////////////////////////
-    //// Mesh interaction
-    ///////////////////////////////////////////////////////////////////////////////
-    //// Merge the requirements onto the mesh
-    // if (method_type == "meta_method_execution_interface") {
-    //   mesh_reqs_ptr_->merge(FactoryMM::get_mesh_requirements(method_name, valid_fixed_params));
-    // } else if (method_type == "meta_method_subset_execution_interface") {
-    //   mesh_reqs_ptr_->merge(FactoryMMS::get_mesh_requirements(method_name, valid_fixed_params));
-    // } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
-    //   mesh_reqs_ptr_->merge(FactoryMMPS::get_mesh_requirements(method_name, valid_fixed_params));
-    // }
   }  // for loop over user-given method names
+}
+
+//@}
+
+//! \name Print/format
+//@{
+
+void Configurator::print_enabled_meta_methods() {
+  // TODO(cje): Move to the mundy logger once we agree on it.
+  std::cout << "Enabled MetaMethods\n";
+  for (const auto& [key, value] : enabled_meta_methods_) {
+    std::cout << "................................\n";
+    std::cout << ".MetaMethod: " << key << std::endl;
+    auto [method_type, method_name, fixed_params, mutable_params] = value;
+    std::cout << "...Method type: " << method_type << std::endl;
+    std::cout << "...Method NAME: " << method_name << std::endl;
+    std::cout << "...Fixed Params:\n" << fixed_params;
+    std::cout << "...Mutable Params:\n" << mutable_params;
+  }
+}
+
+//@}
+
+//! \name Driver interactions
+//@{
+
+void Configurator::set_driver(std::shared_ptr<Driver> driver_ptr) {
+  driver_ptr_ = driver_ptr;
+}
+
+void Configurator::generate_driver() {
+  // Assert we have a driver to populate
+  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot generate a Driver without an existing Driver instance");
+
+  // Generate the requirements
+  generate_mesh_requirements_driver();
+
+  // After we have created the requirements, delcare the mesh
+  declare_mesh_driver();
+}
+
+void Configurator::generate_mesh_requirements_driver() {
+  // Assert we have a driver to populate
+  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot generate a Driver without an existing Driver instance");
+
+  // Set the spatial dimensions and build mesh requirements in the Driver
+  driver_ptr_->set_n_dimensions(n_dim_);
+  driver_ptr_->build_mesh_requirements();
+
+  // Loop over the elements in the enabled_meta_methods_ map and add them to the requirements
+  for (const auto& [key, value] : enabled_meta_methods_) {
+    auto [method_type, method_name, fixed_params, mutable_params] = value;
+    driver_ptr_->add_mesh_requirement(method_type, method_name, fixed_params);
+  }
+
+  // TODO(cje): Remove after debug session
+  driver_ptr_->print_mesh_requirements();
+}
+
+void Configurator::declare_mesh_driver() {
+  // Simple pass-through to call the driver's declare
+  driver_ptr_->declare_mesh();
 }
 
 //@}

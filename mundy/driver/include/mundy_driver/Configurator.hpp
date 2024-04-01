@@ -76,6 +76,11 @@
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 #endif                                             // HAVE_MUNDYDRIVER_MUNDYSHAPES
 
+// Class forward definitions (if we don't want the header)
+// clang-format off
+namespace mundy { namespace driver { class Driver; } }
+// clang-format on
+
 namespace mundy {
 
 namespace driver {
@@ -134,6 +139,31 @@ class Configurator {
 
   //@}
 
+  //! \name Print/format
+  //@{
+
+  /// \brief Print the enabled MetaMethods and their fixed/mutable parameters
+  void print_enabled_meta_methods();
+
+  //@}
+
+  //! \name Driver interactions
+  //@{
+
+  /// \brief Set the Driver instance
+  void set_driver(std::shared_ptr<Driver> driver_ptr);
+
+  /// \brief Generate the driver (entire)
+  void generate_driver();
+
+  /// \brief Generate mesh requirements on the driver
+  void generate_mesh_requirements_driver();
+
+  /// \brief Declare the mesh on the driver
+  void declare_mesh_driver();
+
+  //@}
+
  private:
   //! \name Default parameters
   //@{
@@ -158,6 +188,14 @@ class Configurator {
   /// parameters)
   std::unordered_map<std::string, std::tuple<std::string, std::string, Teuchos::ParameterList, Teuchos::ParameterList>>
       enabled_meta_methods_;
+
+  /// \brief Associated Driver instance
+  //
+  // TODO(cje): Think about if we want to hold a driver pointer ourselves, as the Configurator does not own the driver
+  // in any way, or have it pass into all of the configuration methods. The reason to keep it on hand is so that we
+  // aren't constantly writing down the Driver arguments, as well as incrementing the shared_ptr. The downside is that
+  // it requires setting it on the inside of the class, and then not changing it, leading to undefined behavior.
+  std::shared_ptr<Driver> driver_ptr_ = nullptr;
 
   //}
 };  // Configurator

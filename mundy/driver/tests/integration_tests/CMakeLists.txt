@@ -17,6 +17,18 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(unit_tests)
-add_subdirectory(integration_tests)
+tribits_add_executable_and_test(
+    IntegrationTestConfigureDriver
+    SOURCES
+      IntegrationTestConfigureDriver.cpp
+      ${MUNDY_DEFAULT_INTEGRATION_TEST_MAIN}
+    NUM_MPI_PROCS 1
+    )
 
+# Copy the test files for the executables...
+tribits_copy_files_to_binary_dir(
+    CopyTestConfigureDriver
+    SOURCE_FILES
+      integration_test_configuredriver_basic.yaml
+      EXEDEPS IntegrationTestConfigureDriver
+    )

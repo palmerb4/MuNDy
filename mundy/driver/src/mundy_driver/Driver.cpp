@@ -72,6 +72,10 @@ std::string Driver::get_registered_classes() {
          get_registered_meta_method_pairwise_subset_execution_interface();
 }
 
+void Driver::print_mesh_requirements() {
+  mesh_reqs_ptr_->print_reqs(std::cout, 0);
+}
+
 //@}
 
 //! \name Setters and Getters
@@ -91,6 +95,34 @@ void Driver::build_mesh_requirements() {
   mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshRequirements>(communicator_);
   mesh_reqs_ptr_->set_spatial_dimension(n_dim_);
   mesh_reqs_ptr_->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+}
+
+void Driver::add_mesh_requirement(const std::string& method_type, const std::string& method_name,
+                                  const Teuchos::ParameterList& fixed_params) {
+  // Check to make sure we've already called build_mesh_requirements (mesh_reqs_ptr_ isn't null)
+  MUNDY_THROW_ASSERT(mesh_reqs_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot add a mesh requirement before mesh is created in Driver.");
+  // Add a single requirement to the mesh, taking into account what factory it came from
+  // TODO(cje): At some point having this be a single factory, or making this easier, would be nice
+  if (method_type == "meta_method_execution_interface") {
+    mesh_reqs_ptr_->merge(FactoryMM::get_mesh_requirements(method_name, fixed_params));
+  } else if (method_type == "meta_method_subset_execution_interface") {
+    mesh_reqs_ptr_->merge(FactoryMMS::get_mesh_requirements(method_name, fixed_params));
+  } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
+    mesh_reqs_ptr_->merge(FactoryMMPS::get_mesh_requirements(method_name, fixed_params));
+  }
+}
+
+void Driver::declare_mesh() {
+  // This does not commit the mesh as it is supposed to play nicely with IO, which sometimes commits the mesh on a
+  // restart.
+  bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
+  meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
+  // Also set to using simple fields
+  meta_data_ptr_->use_simple_fields();
+
+  // TODO(cje): Remove later
+  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
 }
 
 }  // namespace driver

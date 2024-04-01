@@ -105,7 +105,7 @@ class Driver {
 
   //@}
 
-  //! \name Queries of registered "methods"
+  //! \name Print/format/query information
   //@{
 
   /// \brief Get the registered MetaMethodExecutionInterface
@@ -119,6 +119,9 @@ class Driver {
 
   /// \brief Get all registered classes
   static std::string get_registered_classes();
+
+  /// \brief Print the current mesh requirements
+  void print_mesh_requirements();
 
   //@}
 
@@ -139,6 +142,13 @@ class Driver {
   /// the communicator, spatial dimension, and entity rank names.
   void build_mesh_requirements();
 
+  /// \brief Add a mesh requirement
+  void add_mesh_requirement(const std::string& method_type, const std::string& method_name,
+                            const Teuchos::ParameterList& fixed_params);
+
+  /// \brief Declare the mesh (but do not commit), and set the meta data to using simple fields
+  void declare_mesh();
+
  private:
   //! \name Default parameters
   //@{
@@ -158,6 +168,12 @@ class Driver {
 
   /// \brief Mundy mesh requirements pointer
   std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_ = nullptr;
+
+  /// \brief Mundy bulk data pointer
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_ = nullptr;
+
+  /// \brief Mundy meta data pointer
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_ = nullptr;
 
   /// \brief The MPI communicator to use (STK)
   stk::ParallelMachine communicator_;
