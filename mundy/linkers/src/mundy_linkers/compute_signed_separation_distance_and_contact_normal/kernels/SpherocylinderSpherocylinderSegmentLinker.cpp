@@ -17,8 +17,9 @@
 // **********************************************************************************************************************
 // @HEADER
 
-/// \file SphereSpherocylinderLinker.cpp
-/// \brief Definition of the ComputeSignedSeparationDistanceAndContactNormal's SphereSpherocylinderLinker kernel.
+/// \file SpherocylinderSegmentSpherocylinderSegmentLinker.cpp
+/// \brief Definition of the ComputeSignedSeparationDistanceAndContactNormal's
+/// SpherocylinderSegmentSpherocylinderSegmentLinker kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -33,16 +34,11 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SphereSpherocylinderLinker.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderLinker
-#include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
-#include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_from_point_to_line_segment
-#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_shapes/Spheres.hpp>                // for mundy::shapes::Spheres
-#include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
-
-// double distance_sq_from_point_to_line_segment(const Vector3<double>& x, const Vector3<double>& p1,
-//                                               const Vector3<double>& p2, Vector3<double>* const closest_point =
-//                                               nullptr, double* const t = nullptr) {
+#include <mundy_linkers/compute_signed_separation_distance_and_contact_normal/kernels/SpherocylinderSegmentSpherocylinderSegmentLinker.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegmentSpherocylinderSegmentLinker
+#include <mundy_math/Vector3.hpp>                   // for mundy::math::Vector3
+#include <mundy_math/distance/SegmentSegment.hpp>   // for mundy::math::distance::distance_sq_between_line_segments
+#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
+#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
 
@@ -55,20 +51,23 @@ namespace kernels {
 // \name Constructors and destructor
 //{
 
-SphereSpherocylinderLinker::SphereSpherocylinderLinker(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                       const Teuchos::ParameterList &fixed_params)
+// TODO(palmerb4): Technically, the element radius field name may differ betrween spheres and spherocylinders.
+
+SpherocylinderSegmentSpherocylinderSegmentLinker::SpherocylinderSegmentSpherocylinderSegmentLinker(
+    mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "SphereSpherocylinderLinker: bulk_data_ptr cannot be a nullptr.");
+                     "SpherocylinderSegmentSpherocylinderSegmentLinker: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
-  valid_fixed_params.validateParametersAndSetDefaults(SphereSpherocylinderLinker::get_valid_fixed_params());
+  valid_fixed_params.validateParametersAndSetDefaults(
+      SpherocylinderSegmentSpherocylinderSegmentLinker::get_valid_fixed_params());
 
   // Get the field pointers.
-  const std::string node_coord_field_name = mundy::shapes::Spheres::get_node_coord_field_name();
-  const std::string element_radius_field_name = mundy::shapes::Spheres::get_element_radius_field_name();
+  const std::string node_coord_field_name = mundy::shapes::SpherocylinderSegments::get_node_coord_field_name();
+  const std::string element_radius_field_name = mundy::shapes::SpherocylinderSegments::get_element_radius_field_name();
   const std::string element_length_field_name = mundy::shapes::Spherocylinders::get_element_length_field_name();
   const std::string element_orientation_field_name =
       mundy::shapes::Spherocylinders::get_element_orientation_field_name();
@@ -88,9 +87,9 @@ SphereSpherocylinderLinker::SphereSpherocylinderLinker(mundy::mesh::BulkData *co
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_signed_separation_distance_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_ASSERT(
-        field_ptr != nullptr, std::invalid_argument,
-        "SphereSpherocylinderLinker: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
+    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
+                       "SpherocylinderSegmentSpherocylinderSegmentLinker: Field "
+                           << field_name << " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(node_coord_field_ptr_, node_coord_field_name);
@@ -103,47 +102,50 @@ SphereSpherocylinderLinker::SphereSpherocylinderLinker(mundy::mesh::BulkData *co
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
-  Teuchos::Array<std::string> valid_sphere_part_names =
-      valid_fixed_params.get<Teuchos::Array<std::string>>("valid_sphere_part_names");
   Teuchos::Array<std::string> valid_spherocylinder_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_spherocylinder_part_names");
+  Teuchos::Array<std::string> valid_spherocylinder_segment_part_names =
+      valid_fixed_params.get<Teuchos::Array<std::string>>("valid_spherocylinder_segment_part_names");
 
   auto parts_from_names = [](mundy::mesh::MetaData &meta_data, const Teuchos::Array<std::string> &part_names) {
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(
-          part != nullptr, std::invalid_argument,
-          "SphereSpherocylinderLinker: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
+                         "SpherocylinderSegmentSpherocylinderSegmentLinker: Part "
+                             << part_name << " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
   };
 
   valid_entity_parts_ = parts_from_names(*meta_data_ptr_, valid_entity_part_names);
-  valid_sphere_parts_ = parts_from_names(*meta_data_ptr_, valid_sphere_part_names);
   valid_spherocylinder_parts_ = parts_from_names(*meta_data_ptr_, valid_spherocylinder_part_names);
+  valid_spherocylinder_segment_parts_ = parts_from_names(*meta_data_ptr_, valid_spherocylinder_segment_part_names);
 }
 //}
 
 // \name MetaKernel interface implementation
 //{
 
-std::vector<stk::mesh::Part *> SphereSpherocylinderLinker::get_valid_entity_parts() const {
+std::vector<stk::mesh::Part *> SpherocylinderSegmentSpherocylinderSegmentLinker::get_valid_entity_parts() const {
   return valid_entity_parts_;
 }
 
-void SphereSpherocylinderLinker::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
+void SpherocylinderSegmentSpherocylinderSegmentLinker::set_mutable_params(
+    const Teuchos::ParameterList &mutable_params) {
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_mutable_params = mutable_params;
-  valid_mutable_params.validateParametersAndSetDefaults(SphereSpherocylinderLinker::get_valid_mutable_params());
+  valid_mutable_params.validateParametersAndSetDefaults(
+      SpherocylinderSegmentSpherocylinderSegmentLinker::get_valid_mutable_params());
 }
 //}
 
 // \name Actions
 //{
 
-void SphereSpherocylinderLinker::execute(const stk::mesh::Selector &sphere_spherocylinder_linker_selector) {
+void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
+    const stk::mesh::Selector &spherocylinder_spherocylinder_segment_linker_selector) {
   // Get references to internal members so we aren't passing around *this
   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
   stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
@@ -154,47 +156,60 @@ void SphereSpherocylinderLinker::execute(const stk::mesh::Selector &sphere_spher
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
       stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      sphere_spherocylinder_linker_selector;
+      spherocylinder_spherocylinder_segment_linker_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
       [&node_coord_field, &element_radius_field, &element_length_field, &element_orientation_field,
        &linker_contact_normal_field, &linker_signed_separation_distance_field](
-          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_spherocylinder_linker) {
+          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_spherocylinder_segment_linker) {
         // Use references to avoid copying entities
-        const stk::mesh::Entity &sphere_element = bulk_data.begin_elements(sphere_spherocylinder_linker)[0];
-        const stk::mesh::Entity &spherocylinder_element = bulk_data.begin_elements(sphere_spherocylinder_linker)[1];
-        const stk::mesh::Entity &sphere_node = bulk_data.begin_nodes(sphere_element)[0];
-        const stk::mesh::Entity &spherocylinder_node = bulk_data.begin_nodes(spherocylinder_element)[0];
+        const stk::mesh::Entity &spherocylinder_element =
+            bulk_data.begin_elements(spherocylinder_spherocylinder_linker)[0];
+        const stk::mesh::Entity &spherocylinder_segment_element =
+            bulk_data.begin_elements(spherocylinder_spherocylinder_segment_linker)[1];
 
-        // Get the sphere data
-        const auto sphere_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, sphere_node));
-        const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+        const stk::mesh::Entity &spherocylinder_segment_left_node =
+            bulk_data.begin_nodes(spherocylinder_segment_element)[0];
+        const stk::mesh::Entity &spherocylinder_segment_right_node =
+            bulk_data.begin_nodes(spherocylinder_segment_element)[1];
 
         // Get the spherocylinder data
         const auto spherocylinder_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_node));
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_element));
         const double spherocylinder_radius = stk::mesh::field_data(element_radius_field, spherocylinder_element)[0];
         const double spherocylinder_length = stk::mesh::field_data(element_length_field, spherocylinder_element)[0];
-        const auto spherocylinder_orientation = mundy::math::get_vector3_view<double>(
-            stk::mesh::field_data(element_orientation_field, spherocylinder_element));
+        const double spherocylinder_orientation =
+            stk::mesh::field_data(element_orientation_field, spherocylinder_element)[0];
+
+        // Get the spherocylinder_segment data
+        const double spherocylinder_segment_radius =
+            stk::mesh::field_data(element_radius_field, spherocylinder_segment_element)[0];
+        const auto spherocylinder_segment_left_endpt = mundy::math::get_vector3_view<double>(
+            stk::mesh::field_data(node_coord_field, spherocylinder_segment_left_node));
+        const auto spherocylinder_segment_right_endpt = mundy::math::get_vector3_view<double>(
+            stk::mesh::field_data(node_coord_field, spherocylinder_segment_right_node));
 
         // Find the endpoints of the spherocylinder
         // Note, the orientation maps the reference configuration to the current configuration and in the reference
         // configuration the spherocylinder is aligned with the x-axis.
         const auto tangent_vector = spherocylinder_orientation * mundy::math::Vector3<double>(1.0, 0.0, 0.0);
-        const auto left_endpoint = spherocylinder_center_coord - 0.5 * tangent_vector * spherocylinder_length;
-        const auto right_endpoint = spherocylinder_center_coord + 0.5 * tangent_vector * spherocylinder_length;
+        const auto spherocylinder_left_endpt =
+            spherocylinder_center_coord - 0.5 * tangent_vector * spherocylinder_length;
+        const auto spherocylinder_right_endpt =
+            spherocylinder_center_coord + 0.5 * tangent_vector * spherocylinder_length;
 
-        // Compute the separation distance and contact point along the center line of the spherocylinder
-        mundy::math::Vector3<double> closest_point;
-        const double distance = std::sqrt(mundy::math::distance::distance_sq_from_point_to_line_segment(
-            sphere_center_coord, left_endpoint, right_endpoint, &closest_point));
+        // Compute the separation distance and contact point along the center line of the spherocylinder and the
+        // spherocylinder_segment
+        mundy::math::Vector3<double> closest_point1;
+        mundy::math::Vector3<double> closest_point2;
+        const double distance = std::sqrt(mundy::math::distance::distance_sq_between_line_segments(
+            spherocylinder_left_endpt, spherocylinder_right_endpt, spherocylinder_segment_left_endpt,
+            spherocylinder_segment_right_endpt, &closest_point1, &closest_point2));
 
         // Compute the separation distance and contact normal
-        const auto left_to_right_vector = closest_point - sphere_center_coord;
-        const double radius_sum = sphere_radius + spherocylinder_radius;
+        const auto left_to_right_vector = closest_point2 - closest_point1;
+        const double radius_sum = spherocylinder_radius + spherocylinder_segment_radius;
         const double separation_distance = distance - radius_sum;
         const double inv_distance = 1.0 / distance;
 
@@ -202,9 +217,9 @@ void SphereSpherocylinderLinker::execute(const stk::mesh::Selector &sphere_spher
         // Notice that the contact normal points from the left sphere to the right sphere
         // It is the normal to the left sphere and negative the normal of the right sphere.
         auto contact_normal = mundy::math::get_vector3_view<double>(
-            stk::mesh::field_data(linker_contact_normal_field, sphere_spherocylinder_linker));
-        double *signed_separation_distance =
-            stk::mesh::field_data(linker_signed_separation_distance_field, sphere_spherocylinder_linker);
+            stk::mesh::field_data(linker_contact_normal_field, spherocylinder_spherocylinder_segment_linker));
+        double *signed_separation_distance = stk::mesh::field_data(linker_signed_separation_distance_field,
+                                                                   spherocylinder_spherocylinder_segment_linker);
         signed_separation_distance[0] = separation_distance;
         contact_normal = left_to_right_vector * inv_distance;
       });
