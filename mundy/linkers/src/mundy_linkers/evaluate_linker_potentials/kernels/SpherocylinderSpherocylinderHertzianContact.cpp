@@ -140,6 +140,11 @@ void SpherocylinderSpherocylinderHertzianContact::set_mutable_params(const Teuch
 
 void SpherocylinderSpherocylinderHertzianContact::execute(
     const stk::mesh::Selector &spherocylinder_spherocylinder_linker_selector) {
+  // Communicate the fields of downward connected entities.
+  stk::mesh::communicate_field_data(
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
+      {element_radius_field_ptr_, element_youngs_modulus_field_ptr_, element_poissons_ratio_field_ptr_});
+
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
   const stk::mesh::Field<double> &element_youngs_modulus_field = *element_youngs_modulus_field_ptr_;
