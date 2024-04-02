@@ -35,13 +35,13 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_linkers/neighbor_linkers/SphereSpherocylinderLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSpherocylinderLinkers
-#include <mundy_mesh/BulkData.hpp>                                         // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                                         // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>                                // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>                                      // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                                       // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>                                     // for mundy::meta::MetaKernelRegistry
+#include <mundy_linkers/neighbor_linkers/SphereSpherocylinderSegmentLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSpherocylinderSegmentLinkers
+#include <mundy_mesh/BulkData.hpp>                                                // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                                                // for mundy::mesh::MetaData
+#include <mundy_meta/FieldRequirements.hpp>                                       // for mundy::meta::FieldRequirements
+#include <mundy_meta/MetaFactory.hpp>                                             // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                                              // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>                                            // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 #include <mundy_shapes/Spheres.hpp>                 // for mundy::shapes::Spheres
@@ -155,15 +155,15 @@ class SphereSpherocylinderSegmentHertzianContact : public mundy::meta::MetaKerne
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           linker_signed_separation_distance_field_name, stk::topology::CONSTRAINT_RANK, 1, 1));
 
-      if (part_name == neighbor_linkers::SphereSpherocylinderLinkers::get_name()) {
+      if (part_name == neighbor_linkers::SphereSpherocylinderSegmentLinkers::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        neighbor_linkers::SphereSpherocylinderLinkers::add_part_reqs(part_reqs);
+        neighbor_linkers::SphereSpherocylinderSegmentLinkers::add_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        neighbor_linkers::SphereSpherocylinderLinkers::add_subpart_reqs(part_reqs);
+        neighbor_linkers::SphereSpherocylinderSegmentLinkers::add_subpart_reqs(part_reqs);
       }
     }
-    mesh_reqs_ptr->merge(neighbor_linkers::SphereSpherocylinderLinkers::get_mesh_requirements());
+    mesh_reqs_ptr->merge(neighbor_linkers::SphereSpherocylinderSegmentLinkers::get_mesh_requirements());
 
     // Add the requirements for the connected spheres.
     std::string element_youngs_modulus_field_name =
@@ -224,7 +224,7 @@ class SphereSpherocylinderSegmentHertzianContact : public mundy::meta::MetaKerne
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "valid_entity_part_names",
-        Teuchos::tuple<std::string>(neighbor_linkers::SphereSpherocylinderLinkers::get_name()),
+        Teuchos::tuple<std::string>(neighbor_linkers::SphereSpherocylinderSegmentLinkers::get_name()),
         "List of valid entity part names for the kernel.");
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "valid_sphere_part_names", Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name()),
