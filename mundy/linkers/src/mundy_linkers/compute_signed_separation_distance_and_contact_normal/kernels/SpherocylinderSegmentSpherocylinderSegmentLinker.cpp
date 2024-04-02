@@ -133,6 +133,10 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::set_mutable_params(
 
 void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
     const stk::mesh::Selector &spherocylinder_segment_spherocylinder_segment_linker_selector) {
+  // Communicate the fields of downward connected entities.
+  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
+                                    {node_coord_field_ptr_, element_radius_field_ptr_});
+
   // Get references to internal members so we aren't passing around *this
   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
   stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
@@ -154,7 +158,7 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
             bulk_data.begin_elements(spherocylinder_segment_spherocylinder_segment_linker)[0];
         const stk::mesh::Entity &spherocylinder_segment2_element =
             bulk_data.begin_elements(spherocylinder_segment_spherocylinder_segment_linker)[1];
-        
+
         const stk::mesh::Entity &spherocylinder_segment1_left_node =
             bulk_data.begin_nodes(spherocylinder_segment1_element)[0];
         const stk::mesh::Entity &spherocylinder_segment2_left_node =
@@ -163,7 +167,6 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
             bulk_data.begin_nodes(spherocylinder_segment1_element)[1];
         const stk::mesh::Entity &spherocylinder_segment2_right_node =
             bulk_data.begin_nodes(spherocylinder_segment2_element)[1];
-
 
         // Get the spherocylinder_segment data
         const double spherocylinder_segment1_radius =
@@ -175,7 +178,7 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
             stk::mesh::field_data(node_coord_field, spherocylinder_segment1_left_node));
         const auto spherocylinder_segment2_left_endpt = mundy::math::get_vector3_view<double>(
             stk::mesh::field_data(node_coord_field, spherocylinder_segment2_left_node));
-        
+
         const auto spherocylinder_segment1_right_endpt = mundy::math::get_vector3_view<double>(
             stk::mesh::field_data(node_coord_field, spherocylinder_segment1_right_node));
         const auto spherocylinder_segment2_right_endpt = mundy::math::get_vector3_view<double>(

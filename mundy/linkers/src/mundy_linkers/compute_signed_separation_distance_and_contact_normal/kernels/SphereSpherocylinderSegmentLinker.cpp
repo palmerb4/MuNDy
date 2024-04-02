@@ -133,6 +133,10 @@ void SphereSpherocylinderSegmentLinker::set_mutable_params(const Teuchos::Parame
 
 void SphereSpherocylinderSegmentLinker::execute(
     const stk::mesh::Selector &sphere_spherocylinder_segment_linker_selector) {
+  // Communicate the fields of downward connected entities.
+  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
+                                    {node_coord_field_ptr_, element_radius_field_ptr_});
+
   // Get references to internal members so we aren't passing around *this
   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
   stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
@@ -164,10 +168,10 @@ void SphereSpherocylinderSegmentLinker::execute(
         const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
 
         // Get the spherocylinder_segment data
-        const auto spherocylinder_segment_left_endpoint_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_segment_left_node));
-        const auto spherocylinder_segment_right_endpoint_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_segment_right_node));
+        const auto spherocylinder_segment_left_endpoint_coord = mundy::math::get_vector3_view<double>(
+            stk::mesh::field_data(node_coord_field, spherocylinder_segment_left_node));
+        const auto spherocylinder_segment_right_endpoint_coord = mundy::math::get_vector3_view<double>(
+            stk::mesh::field_data(node_coord_field, spherocylinder_segment_right_node));
         const double spherocylinder_segment_radius =
             stk::mesh::field_data(element_radius_field, spherocylinder_segment_element)[0];
 

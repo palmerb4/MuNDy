@@ -147,6 +147,11 @@ void SpherocylinderSpherocylinderSegmentLinker::set_mutable_params(const Teuchos
 
 void SpherocylinderSpherocylinderSegmentLinker::execute(
     const stk::mesh::Selector &spherocylinder_spherocylinder_segment_linker_selector) {
+  // Communicate the fields of downward connected entities.
+  stk::mesh::communicate_field_data(
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
+      {node_coord_field_ptr_, element_radius_field_ptr_, element_length_field_ptr_, element_orientation_field_ptr_});
+
   // Get references to internal members so we aren't passing around *this
   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
   stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
@@ -169,6 +174,7 @@ void SpherocylinderSpherocylinderSegmentLinker::execute(
             bulk_data.begin_elements(spherocylinder_spherocylinder_segment_linker)[0];
         const stk::mesh::Entity &spherocylinder_segment_element =
             bulk_data.begin_elements(spherocylinder_spherocylinder_segment_linker)[1];
+        const stk::mesh::Entity &spherocylinder_node = bulk_data.begin_nodes(spherocylinder_element)[0];
 
         const stk::mesh::Entity &spherocylinder_segment_left_node =
             bulk_data.begin_nodes(spherocylinder_segment_element)[0];
@@ -177,7 +183,7 @@ void SpherocylinderSpherocylinderSegmentLinker::execute(
 
         // Get the spherocylinder data
         const auto spherocylinder_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_element));
+            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_node));
         const double spherocylinder_radius = stk::mesh::field_data(element_radius_field, spherocylinder_element)[0];
         const double spherocylinder_length = stk::mesh::field_data(element_length_field, spherocylinder_element)[0];
         const auto spherocylinder_orientation = mundy::math::get_quaternion_view<double>(
