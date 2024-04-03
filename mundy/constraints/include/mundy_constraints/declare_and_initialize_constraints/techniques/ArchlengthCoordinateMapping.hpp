@@ -96,12 +96,14 @@ class StraightLine : public ArchlengthCoordinateMapping {
 class Helix : public ArchlengthCoordinateMapping {
  public:
   /// Constructor
-  Helix(const size_t &num_nodes, const double &radius, const double &length, const double &center_x,
+  Helix(const size_t &num_nodes, const double &radius, const double &length, const double &num_turns,
+  const double &center_x,
         const double &center_y, const double &center_z, const double &axis_x, const double &axis_y,
         const double &axis_z)
       : num_nodes_(num_nodes),
         radius_(radius),
         length_(length),
+        num_turns_(num_turns),
         center_{center_x, center_y, center_z},
         axis_{axis_x, axis_y, axis_z} {
     // Not that we don't trust you or anything, but we need to make sure the axis is normalized.
@@ -123,7 +125,8 @@ class Helix : public ArchlengthCoordinateMapping {
   /// \param archlength_index The archlength index.
   /// \return The corresponding coordinate.
   std::array<double, 3> get_grid_coordinate(const size_t &archlength_index) const override {
-    const double angle = 2.0 * M_PI * static_cast<double>(archlength_index) / static_cast<double>(num_nodes_);
+    // The angle is determined by the number of turns and the number of nodes.
+    const double angle = 2.0 * M_PI * num_turns_ * static_cast<double>(archlength_index) / static_cast<double>(num_nodes_);
     const auto pos_circle = center_ + radius_ * (basis_vector0_ * std::cos(angle) + basis_vector1_ * std::sin(angle));
     const double shift = (static_cast<double>(archlength_index) / static_cast<double>(num_nodes_ - 1) - 0.5) * length_;
     const auto pos = pos_circle + shift * axis_;
@@ -134,6 +137,7 @@ class Helix : public ArchlengthCoordinateMapping {
   size_t num_nodes_;
   double radius_;
   double length_;
+  double num_turns_;
   mundy::math::Vector3<double> center_;
   mundy::math::Vector3<double> axis_;
   mundy::math::Vector3<double> basis_vector0_;

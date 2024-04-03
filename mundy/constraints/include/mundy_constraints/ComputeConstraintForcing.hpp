@@ -31,7 +31,8 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
-#include <mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp>
+#include <mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.hpp>  // for mundy::...::kernels::AngularSpringsKernel
+#include <mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp>  // for mundy::...::kernels::HookeanSpringsKernel
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
@@ -109,6 +110,9 @@ class ComputeConstraintForcing
 /// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS("HOOKEAN_SPRINGS",
                          mundy::constraints::compute_constraint_forcing::kernels::HookeanSpringsKernel,
+                         mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("ANGULAR_SPRINGS",
+                         mundy::constraints::compute_constraint_forcing::kernels::AngularSpringsKernel,
                          mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
 //@}
 

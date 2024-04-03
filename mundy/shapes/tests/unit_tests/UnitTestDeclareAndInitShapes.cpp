@@ -59,9 +59,8 @@ namespace {
 //@{
 
 TEST(DeclareAndInitShapes, GridOfSpheresVisualInspection) {
-  /* Check that DeclareAndInitShapes works correctly for spheres.
-  For a sphere at any arbitrary position, the OBB should be a cube with side length equal to the diameter of the sphere
-  and center at the sphere's position.
+  /* Check that DeclareAndInitShapes works correctly for spheres. It's difficult to check the correctness of the
+   * sphere placement algorithm, so we will visually inspect the output.
   */
 
   // Create an instance of DeclareAndInitShapes based on committed mesh that meets the requirements for

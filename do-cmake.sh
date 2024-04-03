@@ -18,7 +18,7 @@ cmake \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_MundyAgents=ON \
 -DMundy_ENABLE_MundyBalance=OFF \
--DMundy_ENABLE_MundyDriver=OFF \
+-DMundy_ENABLE_MundyDriver=ON \
 -DMundy_ENABLE_MundyConstraints=ON \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyIo=OFF \

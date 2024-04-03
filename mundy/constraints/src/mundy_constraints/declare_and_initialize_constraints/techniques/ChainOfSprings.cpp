@@ -72,15 +72,12 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
 
   // Get the field pointers.
   const std::string node_coord_field_name = mundy::constraints::HookeanSprings::get_node_coord_field_name();
-
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
 
   MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "ChainOfSprings: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
-  const Teuchos::Array<std::string> spring_part_names =
-      valid_fixed_params.get<Teuchos::Array<std::string>>("spring_part_names");
   auto parts_from_names = [](mundy::mesh::MetaData &meta_data,
                              const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
@@ -95,11 +92,15 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
   };
 
   if (generate_hookean_springs_) {
-    hookean_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, spring_part_names);
+    const Teuchos::Array<std::string> hookean_springs_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("hookean_springs_part_names");
+    hookean_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, hookean_springs_part_names);
   }
 
   if (generate_angular_springs_) {
-    angular_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, spring_part_names);
+    const Teuchos::Array<std::string> angular_springs_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("angular_springs_part_names");
+    angular_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, angular_springs_part_names);
   }
 }
 //}
