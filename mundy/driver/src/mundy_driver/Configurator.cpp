@@ -94,7 +94,7 @@ void Configurator::parse_parameters() {
   // At this point we are expecting to have a valid param_list_. Get into the Configuration section first, and configure
   // the MetaMethod* that we need
   MUNDY_THROW_ASSERT(param_list_.isSublist("configuration"), std::invalid_argument,
-                     "mundy::driver::ParseParameters parameters do not contain an 'configuration' sublist.");
+                     "mundy::driver::ParseParameters parameters does not contain an 'configuration' sublist.");
   const Teuchos::ParameterList config_params = param_list_.sublist("configuration");
   parse_configuration(config_params);
 }

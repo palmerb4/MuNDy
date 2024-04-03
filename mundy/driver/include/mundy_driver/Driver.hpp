@@ -24,7 +24,10 @@
 /// \brief Declaration of the Driver class
 
 // C++ core libs
+#include <memory>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList

@@ -12,4 +12,4 @@ simulation:
                 mutable_params:
                     buffer_distance: 0.0
     actions:
-        run: [sphereComputeAABB]
+        run: [sphere_compute_aabb]

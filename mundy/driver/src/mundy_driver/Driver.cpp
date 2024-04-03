@@ -118,6 +118,9 @@ void Driver::add_mesh_requirement(const std::string& method_type, const std::str
 }
 
 void Driver::declare_mesh() {
+  // Check to make sure we've already called build_mesh_requirements (mesh_reqs_ptr_ isn't null)
+  MUNDY_THROW_ASSERT(mesh_reqs_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot declare a mesh before mesh is created in Driver.");
   // This does not commit the mesh as it is supposed to play nicely with IO, which sometimes commits the mesh on a
   // restart.
   bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
@@ -132,6 +135,8 @@ void Driver::declare_mesh() {
 }
 
 void Driver::commit_mesh() {
+  MUNDY_THROW_ASSERT(meta_data_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot commit a mesh without valid meta_data in Driver.");
   // Ask the meta data to commit the mesh for us
   meta_data_ptr_->commit();
 }
@@ -139,6 +144,8 @@ void Driver::commit_mesh() {
 void Driver::add_meta_class_instance(const std::string& method_type, const std::string& method_name,
                                      const Teuchos::ParameterList& fixed_params,
                                      const Teuchos::ParameterList& mutable_params) {
+  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot create a class instance without vaild BulkData in Driver.");
   if (method_type == "meta_method_execution_interface") {
     // Create a new class instance
     std::shared_ptr<mundy::meta::MetaMethodExecutionInterface<void>> new_meta_method =
