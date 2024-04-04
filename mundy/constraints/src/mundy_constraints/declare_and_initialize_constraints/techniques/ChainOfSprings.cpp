@@ -72,10 +72,35 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
 
   // Get the field pointers.
   const std::string node_coord_field_name = mundy::constraints::HookeanSprings::get_node_coord_field_name();
-  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+  const std::string element_hookean_spring_constant_field_name =
+      mundy::constraints::HookeanSprings::get_element_spring_constant_field_name();
+  const std::string element_hookean_spring_rest_length_field_name =
+      mundy::constraints::HookeanSprings::get_element_rest_length_field_name();
+  const std::string element_angular_spring_constant_field_name =
+      mundy::constraints::AngularSprings::get_element_spring_constant_field_name();
+  const std::string element_angular_spring_rest_angle_field_name =
+      mundy::constraints::AngularSprings::get_element_rest_angle_field_name();
 
-  MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
-                     "ChainOfSprings: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
+  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+  element_hookean_spring_constant_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_constant_field_name);
+  element_hookean_spring_rest_length_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_rest_length_field_name);
+  element_angular_spring_constant_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_constant_field_name);
+  element_angular_spring_rest_angle_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_rest_angle_field_name);
+
+  auto validate_field_ptr = [](const stk::mesh::FieldBase *const field_ptr, const std::string &field_name) {
+    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
+                       "ChainOfSprings: Expected a field with name '" << field_name << "' but field does not exist.");
+  };
+
+  validate_field_ptr(node_coord_field_ptr_, node_coord_field_name);
+  validate_field_ptr(element_hookean_spring_constant_field_ptr_, element_hookean_spring_constant_field_name);
+  validate_field_ptr(element_hookean_spring_rest_length_field_ptr_, element_hookean_spring_rest_length_field_name);
+  validate_field_ptr(element_angular_spring_constant_field_ptr_, element_angular_spring_constant_field_name);
+  validate_field_ptr(element_angular_spring_rest_angle_field_ptr_, element_angular_spring_rest_angle_field_name);
 
   // Get the part pointers.
   auto parts_from_names = [](mundy::mesh::MetaData &meta_data,
@@ -114,8 +139,8 @@ void ChainOfSprings::set_mutable_params(const Teuchos::ParameterList &mutable_pa
   valid_mutable_params.validateParametersAndSetDefaults(ChainOfSprings::get_valid_mutable_params());
 
   num_nodes_ = valid_mutable_params.get<size_t>("num_nodes");
-  num_hookean_springs_ = (generate_hookean_springs_ ? num_nodes_ - 1 : 0);
-  num_angular_springs_ = (generate_angular_springs_ ? num_hookean_springs_ + num_nodes_ - 2 : 0);
+  num_hookean_springs_ = generate_hookean_springs_ ? num_nodes_ - 1 : 0;
+  num_angular_springs_ = generate_angular_springs_ ? num_nodes_ - 2 : 0;
   coordinate_map_ptr_ = valid_mutable_params.get<std::shared_ptr<ArchlengthCoordinateMapping>>("coordinate_mapping");
 }
 //}
@@ -225,9 +250,12 @@ void ChainOfSprings::execute() {
 
   // Now the hookean springs.
   if (generate_hookean_springs_) {
-    const size_t start_spring_index = start_node_index;
-    const size_t end_spring_index = end_node_index - 1;
-    for (size_t i = start_spring_index; i < end_spring_index; ++i) {
+    // Linear springs connect nodes i and i + 1. We need to start at node 0 and end at node N - 1.
+    const size_t start_element_chain_ordinal = start_node_index;
+    const size_t end_start_element_chain_ordinal =
+        (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index : end_node_index - 1;
+
+    for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal - 1; ++i) {
       // Create the hookean spring.
       stk::mesh::EntityId spring_id = get_hookean_spring_id(i);
       stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
@@ -238,15 +266,19 @@ void ChainOfSprings::execute() {
       // node i --- spring i --- node i + 1
       stk::mesh::Entity node0 = get_node(i);
       stk::mesh::Entity node1 = get_node(i + 1);
+
       bulk_data_ptr_->declare_relation(spring, node0, 0);
       bulk_data_ptr_->declare_relation(spring, node1, 1);
     }
   }
 
   if (generate_angular_springs_) {
-    const size_t start_spring_index = start_node_index + num_hookean_springs_;
-    const size_t end_spring_index = end_node_index - 2;
-    for (size_t i = start_spring_index; i < end_spring_index; ++i) {
+    // Angular springs connect connect nodes i-1, i, and i+1. We need to start at node 1 and end at node N - 1.
+    const size_t start_element_chain_ordinal = rank == 0 ? start_node_index + 1 : start_node_index;
+    const size_t end_start_element_chain_ordinal =
+        (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 1 : end_node_index;
+
+    for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
       // Create the angular spring.
       stk::mesh::EntityId spring_id = get_angular_spring_id(i);
       stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);

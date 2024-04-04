@@ -121,8 +121,8 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     valid_fixed_params.validateParametersAndSetDefaults(ChainOfSprings::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
-    const bool generate_hookean_springs = valid_fixed_params.get<bool>("generate_hookean_springs", true);
-    const bool generate_angular_springs = valid_fixed_params.get<bool>("generate_angular_springs", false);
+    const bool generate_hookean_springs = valid_fixed_params.get<bool>("generate_hookean_springs");
+    const bool generate_angular_springs = valid_fixed_params.get<bool>("generate_angular_springs");
     MUNDY_THROW_ASSERT(generate_hookean_springs || generate_angular_springs, std::invalid_argument,
                         "ChainOfSprings: At least one of 'generate_hookean_springs' or 'generate_angular_springs' must "
                         "be true.");
@@ -301,6 +301,18 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief The spring node coordinate field pointer.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
+
+  /// \brief The hookean spring constant element field pointer.
+  stk::mesh::Field<double> *element_hookean_spring_constant_field_ptr_ = nullptr;
+
+  /// \brief The hookean spring rest length element field pointer.
+  stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr_ = nullptr;
+
+  /// \brief The angular spring constant element field pointer.
+  stk::mesh::Field<double> *element_angular_spring_constant_field_ptr_ = nullptr;
+
+  /// \brief The angular spring rest angle element field pointer.
+  stk::mesh::Field<double> *element_angular_spring_rest_angle_field_ptr_ = nullptr;
   //@}
 };  // ChainOfSprings
 
