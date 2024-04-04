@@ -269,6 +269,10 @@ void ChainOfSprings::execute() {
 
       bulk_data_ptr_->declare_relation(spring, node0, 0);
       bulk_data_ptr_->declare_relation(spring, node1, 1);
+
+      // Populate the spring constants and rest lengths. For the time being, we use a single user defined value.
+      stk::mesh::field_data(*element_hookean_spring_constant_field_ptr_, spring)[0] = hookean_spring_constant_;
+      stk::mesh::field_data(*element_hookean_spring_rest_length_field_ptr_, spring)[0] = hookean_spring_rest_length_;
     }
   }
 
@@ -299,6 +303,10 @@ void ChainOfSprings::execute() {
       bulk_data_ptr_->declare_relation(spring, left_node, 0);
       bulk_data_ptr_->declare_relation(spring, right_node, 1);
       bulk_data_ptr_->declare_relation(spring, center_node, 2);
+
+      // Populate the spring constants and rest angles. For the time being, we use a single user defined value.
+      stk::mesh::field_data(*element_angular_spring_constant_field_ptr_, spring)[0] = angular_spring_constant_;
+      stk::mesh::field_data(*element_angular_spring_rest_angle_field_ptr_, spring)[0] = angular_spring_rest_angle_;
     }
   }
 

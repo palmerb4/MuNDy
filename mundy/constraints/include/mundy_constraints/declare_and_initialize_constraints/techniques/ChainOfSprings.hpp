@@ -175,6 +175,10 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<bool>("generate_hookean_springs", true, "Whether to generate the hookean springs.");
     default_parameter_list.set<bool>("generate_angular_springs", false, "Whether to generate the angular springs.");
+    default_parameter_list.set("hookean_spring_constant", 1.0, "The spring constant for the hookean springs.");
+    default_parameter_list.set("hookean_spring_rest_length", 1.0, "The rest length for the hookean springs.");
+    default_parameter_list.set("angular_spring_constant", 1.0, "The spring constant for the angular springs.");
+    default_parameter_list.set("angular_spring_rest_angle", 0.0, "The rest angle for the angular springs.");
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "hookean_springs_part_names", Teuchos::tuple<std::string>(HookeanSprings::get_name()),
         "The names of the parts to which we will add the generated hookean springs.");
@@ -283,6 +287,12 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief If we should generate the angular springs or not.
   bool generate_angular_springs_;
+
+  // Temporary variables TODO(palmerb4) replace these with parameter initialization maps.
+  double hookean_spring_constant_;
+  double hookean_spring_rest_length_;
+  double angular_spring_constant_;
+  double angular_spring_rest_angle_;
 
   /// \brief The user-defined map function for the node coordinates.
   std::shared_ptr<ArchlengthCoordinateMapping> coordinate_map_ptr_;

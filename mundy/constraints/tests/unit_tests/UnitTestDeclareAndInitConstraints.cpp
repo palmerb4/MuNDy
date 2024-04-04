@@ -60,12 +60,13 @@ namespace {
 
 void declare_linear_and_angular_springs_and_dump_mesh(const Teuchos::ParameterList &fixed_params,
                                                       const Teuchos::ParameterList &mutable_params,
-                                                      const std::string &output_file_name) {
-  
+                                                      const std::string &output_file_name,
+                                                      const bool generate_hookean_springs = true,
+                                                      const bool generate_angular_springs = true) {
   std::cout << "#######################################################" << std::endl;
   std::cout << "Generating " << output_file_name << "..." << std::endl;
   std::cout << "#######################################################" << std::endl;
-  
+
   // Create an instance of DeclareAndInitConstraints based on committed mesh that meets the requirements for
   // DeclareAndInitConstraints.
   auto [declare_and_init_constraints_ptr, bulk_data_ptr] =
@@ -78,18 +79,16 @@ void declare_linear_and_angular_springs_and_dump_mesh(const Teuchos::ParameterLi
   meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
 
   // Fetch the spring parts
-  stk::mesh::Part *angular_spring_part_ptr = meta_data_ptr->get_part(mundy::constraints::AngularSprings::get_name());
-  stk::mesh::Part *linear_spring_part_ptr = meta_data_ptr->get_part(mundy::constraints::HookeanSprings::get_name());
-  ASSERT_TRUE(angular_spring_part_ptr != nullptr);
-  ASSERT_TRUE(linear_spring_part_ptr != nullptr);
-  stk::io::put_io_part_attribute(*angular_spring_part_ptr);
-  stk::io::put_io_part_attribute(*linear_spring_part_ptr);
-
-  // Fetch the required fields.
-  stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
-  ASSERT_TRUE(node_coord_field_ptr != nullptr);
-
+  if (generate_hookean_springs) {
+    stk::mesh::Part *linear_spring_part_ptr = meta_data_ptr->get_part(mundy::constraints::HookeanSprings::get_name());
+    ASSERT_TRUE(linear_spring_part_ptr != nullptr);
+    stk::io::put_io_part_attribute(*linear_spring_part_ptr);
+  }
+  if (generate_angular_springs) {
+    stk::mesh::Part *angular_spring_part_ptr = meta_data_ptr->get_part(mundy::constraints::AngularSprings::get_name());
+    ASSERT_TRUE(angular_spring_part_ptr != nullptr);
+    stk::io::put_io_part_attribute(*angular_spring_part_ptr);
+  }
   // Execute and then dumping the mesh to file given a set of mutable params.
   declare_and_init_constraints_ptr->set_mutable_params(mutable_params);
   declare_and_init_constraints_ptr->execute();
@@ -100,101 +99,47 @@ void declare_linear_and_angular_springs_and_dump_mesh(const Teuchos::ParameterLi
   stk_io_broker.set_bulk_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()));
 
   size_t output_file_index = stk_io_broker.create_output_mesh(output_file_name, stk::io::WRITE_RESULTS);
-  stk_io_broker.add_field(output_file_index, *node_coord_field_ptr);
 
-  // Write the mesh to file.
-  stk_io_broker.begin_output_step(output_file_index, 0.0);
-  stk_io_broker.write_defined_output_fields(output_file_index);
-  stk_io_broker.end_output_step(output_file_index);
-}
+  // Fetch the required fields and add them as output fields
+  auto validate_field_ptr = [](const stk::mesh::FieldBase *const field_ptr, const std::string &field_name) {
+    ASSERT_TRUE(field_ptr != nullptr) << "Expected a field with name '" << field_name << "' but field does not exist.";
+  };
 
-void declare_linear_springs_and_dump_mesh(const Teuchos::ParameterList &fixed_params,
-                                          const Teuchos::ParameterList &mutable_params,
-                                          const std::string &output_file_name) {
-
-  std::cout << "#######################################################" << std::endl;
-  std::cout << "Generating " << output_file_name << "..." << std::endl;
-  std::cout << "#######################################################" << std::endl;
-  
-  // Create an instance of DeclareAndInitConstraints based on committed mesh that meets the requirements for
-  // DeclareAndInitConstraints.
-  auto [declare_and_init_constraints_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<DeclareAndInitConstraints>(
-          {fixed_params});
-  ASSERT_TRUE(declare_and_init_constraints_ptr != nullptr);
-  ASSERT_TRUE(bulk_data_ptr != nullptr);
-  auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-  ASSERT_TRUE(meta_data_ptr != nullptr);
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
-
-  // Fetch the spring parts
-  stk::mesh::Part *linear_spring_part_ptr = meta_data_ptr->get_part(mundy::constraints::HookeanSprings::get_name());
-  ASSERT_TRUE(linear_spring_part_ptr != nullptr);
-  stk::io::put_io_part_attribute(*linear_spring_part_ptr);
-
-  // Fetch the required fields.
+  const std::string node_coord_field_name = mundy::constraints::HookeanSprings::get_node_coord_field_name();
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
-  ASSERT_TRUE(node_coord_field_ptr != nullptr);
-
-  // Execute and then dumping the mesh to file given a set of mutable params.
-  declare_and_init_constraints_ptr->set_mutable_params(mutable_params);
-  declare_and_init_constraints_ptr->execute();
-
-  // setup stk io
-  stk::io::StkMeshIoBroker stk_io_broker;
-  stk_io_broker.use_simple_fields();
-  stk_io_broker.set_bulk_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()));
-
-  size_t output_file_index = stk_io_broker.create_output_mesh(output_file_name, stk::io::WRITE_RESULTS);
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+  validate_field_ptr(node_coord_field_ptr, node_coord_field_name);
   stk_io_broker.add_field(output_file_index, *node_coord_field_ptr);
 
-  // Write the mesh to file.
-  stk_io_broker.begin_output_step(output_file_index, 0.0);
-  stk_io_broker.write_defined_output_fields(output_file_index);
-  stk_io_broker.end_output_step(output_file_index);
-}
+  if (generate_hookean_springs) {
+    const std::string element_hookean_spring_constant_field_name =
+        mundy::constraints::HookeanSprings::get_element_spring_constant_field_name();
+    const std::string element_hookean_spring_rest_length_field_name =
+        mundy::constraints::HookeanSprings::get_element_rest_length_field_name();
+    stk::mesh::Field<double> *element_hookean_spring_constant_field_ptr =
+        meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_constant_field_name);
+    stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr =
+        meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_rest_length_field_name);
+    validate_field_ptr(element_hookean_spring_constant_field_ptr, element_hookean_spring_constant_field_name);
+    validate_field_ptr(element_hookean_spring_rest_length_field_ptr, element_hookean_spring_rest_length_field_name);
+    stk_io_broker.add_field(output_file_index, *element_hookean_spring_constant_field_ptr);
+    stk_io_broker.add_field(output_file_index, *element_hookean_spring_rest_length_field_ptr);
+  }
 
-void declare_angular_springs_and_dump_mesh(const Teuchos::ParameterList &fixed_params,
-                                           const Teuchos::ParameterList &mutable_params,
-                                           const std::string &output_file_name) {
-  
-  std::cout << "#######################################################" << std::endl;
-  std::cout << "Generating " << output_file_name << "..." << std::endl;
-  std::cout << "#######################################################" << std::endl;
-  
-  // Create an instance of DeclareAndInitConstraints based on committed mesh that meets the requirements for
-  // DeclareAndInitConstraints.
-  auto [declare_and_init_constraints_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<DeclareAndInitConstraints>(
-          {fixed_params});
-  ASSERT_TRUE(declare_and_init_constraints_ptr != nullptr);
-  ASSERT_TRUE(bulk_data_ptr != nullptr);
-  auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-  ASSERT_TRUE(meta_data_ptr != nullptr);
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
-
-  // Fetch the spring parts
-  stk::mesh::Part *angular_spring_part_ptr = meta_data_ptr->get_part(mundy::constraints::AngularSprings::get_name());
-  ASSERT_TRUE(angular_spring_part_ptr != nullptr);
-  stk::io::put_io_part_attribute(*angular_spring_part_ptr);
-
-  // Fetch the required fields.
-  stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
-  ASSERT_TRUE(node_coord_field_ptr != nullptr);
-
-  // Execute and then dumping the mesh to file given a set of mutable params.
-  declare_and_init_constraints_ptr->set_mutable_params(mutable_params);
-  declare_and_init_constraints_ptr->execute();
-
-  // setup stk io
-  stk::io::StkMeshIoBroker stk_io_broker;
-  stk_io_broker.use_simple_fields();
-  stk_io_broker.set_bulk_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()));
-
-  size_t output_file_index = stk_io_broker.create_output_mesh(output_file_name, stk::io::WRITE_RESULTS);
-  stk_io_broker.add_field(output_file_index, *node_coord_field_ptr);
+  if (generate_angular_springs) {
+    const std::string element_angular_spring_constant_field_name =
+        mundy::constraints::AngularSprings::get_element_spring_constant_field_name();
+    const std::string element_angular_spring_rest_angle_field_name =
+        mundy::constraints::AngularSprings::get_element_rest_angle_field_name();
+    stk::mesh::Field<double> *element_angular_spring_constant_field_ptr =
+        meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_constant_field_name);
+    stk::mesh::Field<double> *element_angular_spring_rest_angle_field_ptr =
+        meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_rest_angle_field_name);
+    validate_field_ptr(element_angular_spring_constant_field_ptr, element_angular_spring_constant_field_name);
+    validate_field_ptr(element_angular_spring_rest_angle_field_ptr, element_angular_spring_rest_angle_field_name);
+    stk_io_broker.add_field(output_file_index, *element_angular_spring_constant_field_ptr);
+    stk_io_broker.add_field(output_file_index, *element_angular_spring_rest_angle_field_ptr);
+  }
 
   // Write the mesh to file.
   stk_io_broker.begin_output_step(output_file_index, 0.0);
@@ -206,100 +151,41 @@ TEST(DeclareAndInitConstraints, ChainOfLinearAndAngularSpringsVisualInspection) 
   /* Check that DeclareAndInitConstraints works correctly for angular and linear springs. It's difficult to check the
    * correctness of the spring placement algorithm, so we will visually inspect the output.
    */
-
-  // Setup fixed params for linear and angular springs
-  Teuchos::ParameterList declare_and_init_constraints_fixed_params;
-  declare_and_init_constraints_fixed_params.set("enabled_technique_name", "CHAIN_OF_SPRINGS")
-      .sublist("CHAIN_OF_SPRINGS")
-      .set<bool>("generate_hookean_springs", true)
-      .set<bool>("generate_angular_springs", true);
-
   // Setup mutable params for a default chain of springs
-  Teuchos::ParameterList declare_and_init_constraints_mutable_params;
-  declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS").set<size_t>("num_nodes", 13);
-  declare_linear_and_angular_springs_and_dump_mesh(declare_and_init_constraints_fixed_params,
-                                                   declare_and_init_constraints_mutable_params,
-                                                   "test_chain_of_springs_n13_default.exo");
+  Teuchos::ParameterList mutable_params_for_default_chain_of_springs;
+  mutable_params_for_default_chain_of_springs.sublist("CHAIN_OF_SPRINGS").set<size_t>("num_nodes", 13);
 
   // Setup mutable params for a chain of linear springs with a helix coordinate mapping
+  Teuchos::ParameterList mutable_params_for_helix_chain_of_springs;
   using CoordinateMappingType =
       mundy::constraints::declare_and_initialize_constraints::techniques::ArchlengthCoordinateMapping;
   using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::Helix;
   auto levis_function_mapping_ptr =
       std::make_shared<OurCoordinateMappingType>(100, 0.1, 1.0, 10, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
-  declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS")
+  mutable_params_for_helix_chain_of_springs.sublist("CHAIN_OF_SPRINGS")
       .set<size_t>("num_nodes", 100)
       .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", levis_function_mapping_ptr);
-  declare_linear_and_angular_springs_and_dump_mesh(declare_and_init_constraints_fixed_params,
-                                                   declare_and_init_constraints_mutable_params,
-                                                   "test_chain_of_springs_n13_default.exo");
+
+  // Dump the mesh for each combination of fixed and mutable params
+  std::vector<std::pair<bool, bool>> generate_hookean_and_angular_springs = {
+      {true, true}, {true, false}, {false, true}};
+  std::vector<Teuchos::ParameterList> mutable_params_list = {mutable_params_for_default_chain_of_springs,
+                                                             mutable_params_for_helix_chain_of_springs};
+  for (const auto &mutable_params : mutable_params_list) {
+    for (const auto &generate_hookean_and_angular_springs_pair : generate_hookean_and_angular_springs) {
+      // Setup fixed params using the generate_hookean_and_angular_springs_pair
+      Teuchos::ParameterList fixed_params;
+      fixed_params.set("enabled_technique_name", "CHAIN_OF_SPRINGS")
+          .sublist("CHAIN_OF_SPRINGS")
+          .set<bool>("generate_hookean_springs", generate_hookean_and_angular_springs_pair.first)
+          .set<bool>("generate_angular_springs", generate_hookean_and_angular_springs_pair.second);
+      declare_linear_and_angular_springs_and_dump_mesh(
+          fixed_params, mutable_params, "test_chain_of_springs_n13_default.exo",
+          generate_hookean_and_angular_springs_pair.first, generate_hookean_and_angular_springs_pair.second);
+    }
+  }
 }
 
-TEST(DeclareAndInitConstraints, ChainOfLinearSpringsVisualInspection) {
-  /* Check that DeclareAndInitConstraints works correctly for angular and linear springs. It's difficult to check the
-   * correctness of the spring placement algorithm, so we will visually inspect the output.
-   */
-
-  // Setup fixed params for only linear springs
-  Teuchos::ParameterList declare_and_init_constraints_fixed_params;
-  declare_and_init_constraints_fixed_params.set("enabled_technique_name", "CHAIN_OF_SPRINGS")
-      .sublist("CHAIN_OF_SPRINGS")
-      .set<bool>("generate_hookean_springs", true)
-      .set<bool>("generate_angular_springs", false);
-
-  // Setup our mutable params for a default chain of springs
-  Teuchos::ParameterList declare_and_init_constraints_mutable_params;
-  declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS").set<size_t>("num_nodes", 13);
-  declare_linear_springs_and_dump_mesh(declare_and_init_constraints_fixed_params,
-                                       declare_and_init_constraints_mutable_params,
-                                       "test_chain_of_hookean_springs_n13_default.exo");
-
-  // Setup our mutable params for a chain of linear springs with a helix coordinate mapping
-  using CoordinateMappingType =
-      mundy::constraints::declare_and_initialize_constraints::techniques::ArchlengthCoordinateMapping;
-  using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::Helix;
-  auto levis_function_mapping_ptr =
-      std::make_shared<OurCoordinateMappingType>(100, 0.1, 1.0, 10, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
-  declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS")
-      .set<size_t>("num_nodes", 100)
-      .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", levis_function_mapping_ptr);
-  declare_linear_springs_and_dump_mesh(declare_and_init_constraints_fixed_params,
-                                       declare_and_init_constraints_mutable_params,
-                                       "test_chain_of_hookean_springs_n100_helix.exo");
-}
-
-TEST(DeclareAndInitConstraints, ChainOfAngularSpringsVisualInspection) {
-  /* Check that DeclareAndInitConstraints works correctly for angular and linear springs. It's difficult to check the
-   * correctness of the spring placement algorithm, so we will visually inspect the output.
-   */
-
-  // Setup fixed params for only angular springs
-  Teuchos::ParameterList declare_and_init_constraints_fixed_params;
-  declare_and_init_constraints_fixed_params.set("enabled_technique_name", "CHAIN_OF_SPRINGS")
-      .sublist("CHAIN_OF_SPRINGS")
-      .set<bool>("generate_hookean_springs", false)
-      .set<bool>("generate_angular_springs", true);
-
-  // Setup our mutable params for a default chain of springs
-  Teuchos::ParameterList declare_and_init_constraints_mutable_params;
-  declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS").set<size_t>("num_nodes", 13);
-  declare_angular_springs_and_dump_mesh(declare_and_init_constraints_fixed_params,
-                                        declare_and_init_constraints_mutable_params,
-                                        "test_chain_of_angular_springs_n13_default.exo");
-
-  // Setup our mutable params for a chain of linear springs with a helix coordinate mapping
-  using CoordinateMappingType =
-      mundy::constraints::declare_and_initialize_constraints::techniques::ArchlengthCoordinateMapping;
-  using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::Helix;
-  auto levis_function_mapping_ptr =
-      std::make_shared<OurCoordinateMappingType>(100, 0.1, 1.0, 10, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
-  declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS")
-      .set<size_t>("num_nodes", 100)
-      .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", levis_function_mapping_ptr);
-  declare_angular_springs_and_dump_mesh(declare_and_init_constraints_fixed_params,
-                                        declare_and_init_constraints_mutable_params,
-                                        "test_chain_of_angular_springs_n100_helix.exo");
-}
 //@}
 
 }  // namespace
