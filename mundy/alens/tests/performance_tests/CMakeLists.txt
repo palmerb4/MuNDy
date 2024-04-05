@@ -44,3 +44,10 @@ tribits_add_executable(
     Springs.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    SpringsUpdated
+    SOURCES
+    SpringsUpdated.cpp
+    CATEGORIES PERFORMANCE
+    )

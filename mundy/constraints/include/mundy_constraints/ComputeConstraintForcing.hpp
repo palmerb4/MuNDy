@@ -80,8 +80,6 @@ class ComputeConstraintForcing
   /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
-                               "Name of the node force field to be used for storing the computed spring force.");
     return default_parameter_list;
   }
 

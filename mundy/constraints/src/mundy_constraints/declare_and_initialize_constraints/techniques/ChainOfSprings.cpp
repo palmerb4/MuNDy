@@ -337,7 +337,6 @@ void ChainOfSprings::execute() {
         (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 1 : end_node_index;
 
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal - 1; ++i) {
-      std::cout << "i: " << i << " get_hookean_spring_id(i): " << get_hookean_spring_id(i) << std::endl;
       // Create the hookean spring.
       stk::mesh::EntityId spring_id = get_hookean_spring_id(i);
       stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
@@ -365,7 +364,6 @@ void ChainOfSprings::execute() {
         (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 2 : end_node_index - 1;
 
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
-      std::cout << "i: " << i << " get_angular_spring_id(i): " << get_angular_spring_id(i) << std::endl;
       // Create the angular spring.
       stk::mesh::EntityId spring_id = get_angular_spring_id(i);
       stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
@@ -398,7 +396,6 @@ void ChainOfSprings::execute() {
     const size_t start_element_chain_ordinal = start_node_index;
     const size_t end_start_element_chain_ordinal = end_node_index;
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
-      std::cout << "i: " << i << " get_sphere_id(i): " << get_sphere_id(i) << std::endl;
       // Create the sphere.
       stk::mesh::Entity sphere = bulk_data_ptr_->declare_element(get_sphere_id(i));
       bulk_data_ptr_->change_entity_parts(sphere, sphere_part_ptrs_);
@@ -406,8 +403,8 @@ void ChainOfSprings::execute() {
       // Populate the sphere radius. For the time being, we use a single user defined value.
       stk::mesh::field_data(*element_sphere_radius_field_ptr_, sphere)[0] = sphere_radius_;
 
-          // Create the node and connect it to the sphere.
-          stk::mesh::Entity node = get_node(i);
+      // Create the node and connect it to the sphere.
+      stk::mesh::Entity node = get_node(i);
       bulk_data_ptr_->declare_relation(sphere, node, 0);
     }
   }
@@ -421,7 +418,6 @@ void ChainOfSprings::execute() {
 
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
       // Create the spherocylinder segment.
-      std::cout << "i: " << i << " get_spherocylinder_segment_id(i): " << get_spherocylinder_segment_id(i) << std::endl;
       stk::mesh::Entity segment = bulk_data_ptr_->declare_element(get_spherocylinder_segment_id(i));
       bulk_data_ptr_->change_entity_parts(segment, spherocylinder_segment_part_ptrs_);
 
