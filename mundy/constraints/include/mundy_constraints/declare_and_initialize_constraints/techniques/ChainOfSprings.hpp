@@ -50,6 +50,8 @@
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>  // for mundy::meta::MetaMethodExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                  // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_shapes/Spheres.hpp>                 // for mundy::shapes::Spheres
+#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
 
@@ -61,7 +63,7 @@ namespace techniques {
 
 /// \brief The ChainOfSprings class is a MetaMethod that declares and initializes a chain of springs.
 /// Our goal is to declare a chain of HookeanSprings and AngularSprings and initialize them in 3D space along a line.
-/// 
+///
 /// The chain of springs contains num_nodes nodes. Each node is connected to its neighbors like so
 /*
 /// n1       n3        n5        n7
@@ -69,23 +71,31 @@ namespace techniques {
 ///   s1   s2   s3   s4   s5   s6
 ///    \  /      \  /      \  /
 ///     n2        n4        n6
-/// Angular springs are hard to draw with ASCII art, but they are centered at every node and connected to the node's neighbors:
+/// Angular springs are hard to draw with ASCII art, but they are centered at every node and connected to the node's
+neighbors:
 ///   a1 connects has a center node at n2 and connects to n1 and n3.
 ///   a2 connects has a center node at n3 and connects to n2 and n4.
 ///   and so on.
 ///
-/// STK EntityId-wise. Nodes are numbered sequentially from 1 to num_nodes. Springs are numbered sequentially from 1 to num_nodes-1.
+/// STK EntityId-wise. Nodes are numbered sequentially from 1 to num_nodes. Springs are numbered sequentially from 1 to
+num_nodes-1.
 /// and angular springs are numbered sequentially from num_springs+1 to num_spring+num_nodes-2.
 */
 /// Parameters:
 ///   - 'generate_hookean_springs' (bool): [Optional, Defaults to true] Whether to generate the hookean springs.
 ///   - 'generate_angular_springs' (bool): [Optional, Defaults to false] Whether to generate the angular springs.
-///   - 'hookean_springs_part_names' (Array of strings): [Optional, Defaults to 'HOOKEAN_SPRINGS'] The names of the parts to
+///   - 'generate_spheres_at_nodes' (bool): [Optional, Defaults to false] Whether to generate spheres at the nodes.
+///   - 'generate_spherocylinder_segments_along_edges' (bool): [Optional, Defaults to false] Whether to generate
+///     spherocylinder segments along the edges.
+///   - 'hookean_springs_part_names' (Array of strings): [Optional, Defaults to 'HOOKEAN_SPRINGS'] The names of the
+///   parts to
 /// which we will add the generated hookean springs. Only used if the user sets generate_hookean_springs to true.
-///   - 'angular_springs_part_names' (Array of strings): [Optional, Defaults to 'ANGULAR_SPRINGS'] The names of the parts to
+///   - 'angular_springs_part_names' (Array of strings): [Optional, Defaults to 'ANGULAR_SPRINGS'] The names of the
+///   parts to
 /// which we will add the generated angular springs. Only used if the user sets generate_angular_springs to true.
 ///   - 'num_nodes' (int): [Optional, Defaults to 2] The number of nodes in the chain.
-///   - 'coordinate_map' (std::shared_ptr<ArchlengthCoordinateMapping<3,3>>): [Optional, Defaults to a straight line along x
+///   - 'coordinate_map' (std::shared_ptr<ArchlengthCoordinateMapping<3,3>>): [Optional, Defaults to a straight line
+///   along x
 /// with center 0 and length 1.
 class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
  public:
@@ -123,9 +133,13 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     // Fill the requirements using the given parameter list.
     const bool generate_hookean_springs = valid_fixed_params.get<bool>("generate_hookean_springs");
     const bool generate_angular_springs = valid_fixed_params.get<bool>("generate_angular_springs");
-    MUNDY_THROW_ASSERT(generate_hookean_springs || generate_angular_springs, std::invalid_argument,
-                        "ChainOfSprings: At least one of 'generate_hookean_springs' or 'generate_angular_springs' must "
-                        "be true.");
+    const bool generate_spheres_at_nodes = valid_fixed_params.get<bool>("generate_spheres_at_nodes");
+    const bool generate_spherocylinder_segments_along_edges =
+        valid_fixed_params.get<bool>("generate_spherocylinder_segments_along_edges");
+    MUNDY_THROW_ASSERT(generate_hookean_springs || generate_angular_springs || generate_spheres_at_nodes ||
+                           generate_spherocylinder_segments_along_edges,
+                       std::invalid_argument,
+                       "ChainOfSprings: At least one of the objects must be generated. Currently, all are turned off!");
 
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
 
@@ -167,6 +181,41 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
       mesh_reqs_ptr->merge(AngularSprings::get_mesh_requirements());
     }
 
+    if (generate_spheres_at_nodes) {
+      Teuchos::Array<std::string> sphere_part_names = Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name());
+      for (int i = 0; i < sphere_part_names.size(); i++) {
+        const std::string part_name = sphere_part_names[i];
+        if (part_name == mundy::shapes::Spheres::get_name()) {
+          // No specialization is required.
+        } else {
+          // The specialized part must be a subset of the sphere part.
+          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          part_reqs->set_part_name(part_name);
+          mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
+        }
+      }
+
+      mesh_reqs_ptr->merge(mundy::shapes::Spheres::get_mesh_requirements());
+    }
+
+    if (generate_spherocylinder_segments_along_edges) {
+      Teuchos::Array<std::string> spherocylinder_part_names =
+          Teuchos::tuple<std::string>(mundy::shapes::SpherocylinderSegments::get_name());
+      for (int i = 0; i < spherocylinder_part_names.size(); i++) {
+        const std::string part_name = spherocylinder_part_names[i];
+        if (part_name == mundy::shapes::SpherocylinderSegments::get_name()) {
+          // No specialization is required.
+        } else {
+          // The specialized part must be a subset of the spherocylinder part.
+          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          part_reqs->set_part_name(part_name);
+          mundy::shapes::SpherocylinderSegments::add_subpart_reqs(part_reqs);
+        }
+      }
+
+      mesh_reqs_ptr->merge(mundy::shapes::SpherocylinderSegments::get_mesh_requirements());
+    }
+
     return mesh_reqs_ptr;
   }
 
@@ -175,16 +224,23 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set<bool>("generate_hookean_springs", true, "Whether to generate the hookean springs.");
     default_parameter_list.set<bool>("generate_angular_springs", false, "Whether to generate the angular springs.");
-    default_parameter_list.set("hookean_spring_constant", 1.0, "The spring constant for the hookean springs.");
-    default_parameter_list.set("hookean_spring_rest_length", 1.0, "The rest length for the hookean springs.");
-    default_parameter_list.set("angular_spring_constant", 1.0, "The spring constant for the angular springs.");
-    default_parameter_list.set("angular_spring_rest_angle", 0.0, "The rest angle for the angular springs.");
+    default_parameter_list.set<bool>("generate_spheres_at_nodes", false, "Whether to generate spheres at the nodes.");
+    default_parameter_list.set<bool>("generate_spherocylinder_segments_along_edges", false,
+                                     "Whether to generate spherocylinder segments along the edges.");
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "hookean_springs_part_names", Teuchos::tuple<std::string>(HookeanSprings::get_name()),
         "The names of the parts to which we will add the generated hookean springs.");
     default_parameter_list.set<Teuchos::Array<std::string>>(
         "angular_springs_part_names", Teuchos::tuple<std::string>(AngularSprings::get_name()),
         "The names of the parts to which we will add the generated angular springs.");
+    default_parameter_list.set<Teuchos::Array<std::string>>("sphere_part_names",
+                               Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name()),
+                               "The names of the parts to which we will add the generated spheres.");
+    default_parameter_list.set<Teuchos::Array<std::string>>("spherocylinder_segment_part_names",
+                               Teuchos::tuple<std::string>(mundy::shapes::SpherocylinderSegments::get_name()),
+                               "The names of the parts to which we will add the generated spherocylinder segments.");
+                               
+    
     return default_parameter_list;
   }
 
@@ -192,6 +248,12 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   static Teuchos::ParameterList get_valid_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("num_nodes", default_num_nodes_, "The number of nodes in the chain.");
+    default_parameter_list.set("hookean_spring_constant", 1.0, "The spring constant for the hookean springs.");
+    default_parameter_list.set("hookean_spring_rest_length", 1.0, "The rest length for the hookean springs.");
+    default_parameter_list.set("angular_spring_constant", 1.0, "The spring constant for the angular springs.");
+    default_parameter_list.set("angular_spring_rest_angle", 0.0, "The rest angle for the angular springs.");
+    default_parameter_list.set("sphere_radius", 1.0, "The radius of the spheres at the nodes.");
+    default_parameter_list.set("spherocylinder_segment_radius", 1.0, "The radius of the spherocylinder segments.");
 
     const double center_x = 0.0;
     const double center_y = 0.0;
@@ -231,6 +293,12 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \brief Get the ID of the i'th angular spring in the chain.
   stk::mesh::EntityId get_angular_spring_id(const size_t &sequential_angular_spring_index) const;
 
+  /// \brief Get the ID of the i'th sphere in the chain.
+  stk::mesh::EntityId get_sphere_id(const size_t &sequential_sphere_index) const;
+
+  /// \brief Get the ID of the i'th spherocylinder segment in the chain.
+  stk::mesh::EntityId get_spherocylinder_segment_id(const size_t &sequential_spherocylinder_segment_index) const;
+
   /// \brief Get the i'th node in the chain.
   /// Returns an invalid entity if the node does not exist.
   stk::mesh::Entity get_node(const size_t &sequential_node_index) const;
@@ -242,6 +310,14 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \brief Get the i'th angular spring in the chain.
   /// Returns an invalid entity if the element does not exist.
   stk::mesh::Entity get_angular_spring(const size_t &sequential_angular_spring_index) const;
+
+  /// \brief Get the i'th sphere in the chain.
+  /// Returns an invalid entity if the element does not exist.
+  stk::mesh::Entity get_sphere(const size_t &sequential_sphere_index) const;
+
+  /// \brief Get the i'th spherocylinder segment in the chain.
+  /// Returns an invalid entity if the element does not exist.
+  stk::mesh::Entity get_spherocylinder_segment(const size_t &sequential_spherocylinder_segment_index) const;
   //@}
 
   //! \name Setters
@@ -282,17 +358,31 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \brief Number of angular springs in the chain.
   size_t num_angular_springs_;
 
+  /// \brief Number of spheres in the chain.
+  size_t num_spheres_;
+
+  /// \brief Number of spherocylinder segments in the chain.
+  size_t num_spherocylinder_segments_;
+
   /// \brief If we should generate the hookean springs or not.
   bool generate_hookean_springs_;
 
   /// \brief If we should generate the angular springs or not.
   bool generate_angular_springs_;
 
+  /// \brief If we should generate spheres at the nodes or not.
+  bool generate_spheres_at_nodes_;
+
+  /// \brief If we should generate spherocylinder segments along the edges or not.
+  bool generate_spherocylinder_segments_along_edges_;
+
   // Temporary variables TODO(palmerb4) replace these with parameter initialization maps.
   double hookean_spring_constant_;
   double hookean_spring_rest_length_;
   double angular_spring_constant_;
   double angular_spring_rest_angle_;
+  double sphere_radius_;
+  double spherocylinder_segment_radius_;
 
   /// \brief The user-defined map function for the node coordinates.
   std::shared_ptr<ArchlengthCoordinateMapping> coordinate_map_ptr_;
@@ -309,6 +399,12 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \brief The angular spring parts.
   std::vector<stk::mesh::Part *> angular_spring_part_ptrs_;
 
+  /// \brief The sphere parts.
+  std::vector<stk::mesh::Part *> sphere_part_ptrs_;
+
+  /// \brief The spherocylinder segment parts.
+  std::vector<stk::mesh::Part *> spherocylinder_segment_part_ptrs_;
+
   /// \brief The spring node coordinate field pointer.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
 
@@ -323,6 +419,12 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief The angular spring rest angle element field pointer.
   stk::mesh::Field<double> *element_angular_spring_rest_angle_field_ptr_ = nullptr;
+
+  /// \brief The sphere radius element field pointer.
+  stk::mesh::Field<double> *element_sphere_radius_field_ptr_ = nullptr;
+
+  /// \brief The spherocylinder segment radius element field pointer.
+  stk::mesh::Field<double> *element_spherocylinder_segment_radius_field_ptr_ = nullptr;
   //@}
 };  // ChainOfSprings
 

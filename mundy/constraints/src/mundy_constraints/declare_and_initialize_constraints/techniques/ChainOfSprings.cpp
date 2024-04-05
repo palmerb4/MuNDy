@@ -43,7 +43,9 @@
 #include <mundy_constraints/declare_and_initialize_constraints/techniques/ArchlengthCoordinateMapping.hpp>  // for mundy::constraints::...::ArchlengthCoordinateMapping
 #include <mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.hpp>  // for mundy::constraints::...::ChainOfSprings
 #include <mundy_core/throw_assert.hpp>                                                         // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
+#include <mundy_shapes/Spheres.hpp>                 // for mundy::shapes::Spheres
+#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
 
@@ -69,40 +71,22 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
   // Get the control parameters.
   generate_hookean_springs_ = valid_fixed_params.get<bool>("generate_hookean_springs");
   generate_angular_springs_ = valid_fixed_params.get<bool>("generate_angular_springs");
+  generate_spheres_at_nodes_ = valid_fixed_params.get<bool>("generate_spheres_at_nodes");
+  generate_spherocylinder_segments_along_edges_ =
+      valid_fixed_params.get<bool>("generate_spherocylinder_segments_along_edges");
 
-  // Get the field pointers.
-  const std::string node_coord_field_name = mundy::constraints::HookeanSprings::get_node_coord_field_name();
-  const std::string element_hookean_spring_constant_field_name =
-      mundy::constraints::HookeanSprings::get_element_spring_constant_field_name();
-  const std::string element_hookean_spring_rest_length_field_name =
-      mundy::constraints::HookeanSprings::get_element_rest_length_field_name();
-  const std::string element_angular_spring_constant_field_name =
-      mundy::constraints::AngularSprings::get_element_spring_constant_field_name();
-  const std::string element_angular_spring_rest_angle_field_name =
-      mundy::constraints::AngularSprings::get_element_rest_angle_field_name();
+  MUNDY_THROW_ASSERT(
+      generate_hookean_springs_ || generate_angular_springs_ || generate_spheres_at_nodes_ ||
+          generate_spherocylinder_segments_along_edges_,
+      std::invalid_argument,
+      "ChainOfSprings: At least one of the following must be true: generate_hookean_springs, "
+      "generate_angular_springs, generate_spheres_at_nodes, or generate_spherocylinder_segments_along_edges.");
 
-  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
-  element_hookean_spring_constant_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_constant_field_name);
-  element_hookean_spring_rest_length_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_rest_length_field_name);
-  element_angular_spring_constant_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_constant_field_name);
-  element_angular_spring_rest_angle_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_rest_angle_field_name);
-
+  // Get the field and pointers.
   auto validate_field_ptr = [](const stk::mesh::FieldBase *const field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
                        "ChainOfSprings: Expected a field with name '" << field_name << "' but field does not exist.");
   };
-
-  validate_field_ptr(node_coord_field_ptr_, node_coord_field_name);
-  validate_field_ptr(element_hookean_spring_constant_field_ptr_, element_hookean_spring_constant_field_name);
-  validate_field_ptr(element_hookean_spring_rest_length_field_ptr_, element_hookean_spring_rest_length_field_name);
-  validate_field_ptr(element_angular_spring_constant_field_ptr_, element_angular_spring_constant_field_name);
-  validate_field_ptr(element_angular_spring_rest_angle_field_ptr_, element_angular_spring_rest_angle_field_name);
-
-  // Get the part pointers.
   auto parts_from_names = [](mundy::mesh::MetaData &meta_data,
                              const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
@@ -116,16 +100,70 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
     return parts;
   };
 
+  const std::string node_coord_field_name = mundy::constraints::HookeanSprings::get_node_coord_field_name();
+  node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
+  validate_field_ptr(node_coord_field_ptr_, node_coord_field_name);
+
   if (generate_hookean_springs_) {
+    const std::string element_hookean_spring_constant_field_name =
+        mundy::constraints::HookeanSprings::get_element_spring_constant_field_name();
+    const std::string element_hookean_spring_rest_length_field_name =
+        mundy::constraints::HookeanSprings::get_element_rest_length_field_name();
+
+    element_hookean_spring_constant_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_constant_field_name);
+    element_hookean_spring_rest_length_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_hookean_spring_rest_length_field_name);
+
+    validate_field_ptr(element_hookean_spring_constant_field_ptr_, element_hookean_spring_constant_field_name);
+    validate_field_ptr(element_hookean_spring_rest_length_field_ptr_, element_hookean_spring_rest_length_field_name);
+
     const Teuchos::Array<std::string> hookean_springs_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("hookean_springs_part_names");
     hookean_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, hookean_springs_part_names);
   }
 
   if (generate_angular_springs_) {
+    const std::string element_angular_spring_constant_field_name =
+        mundy::constraints::AngularSprings::get_element_spring_constant_field_name();
+    const std::string element_angular_spring_rest_angle_field_name =
+        mundy::constraints::AngularSprings::get_element_rest_angle_field_name();
+
+    element_angular_spring_constant_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_constant_field_name);
+    element_angular_spring_rest_angle_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_angular_spring_rest_angle_field_name);
+
+    validate_field_ptr(element_angular_spring_constant_field_ptr_, element_angular_spring_constant_field_name);
+    validate_field_ptr(element_angular_spring_rest_angle_field_ptr_, element_angular_spring_rest_angle_field_name);
+
     const Teuchos::Array<std::string> angular_springs_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("angular_springs_part_names");
     angular_spring_part_ptrs_ = parts_from_names(*meta_data_ptr_, angular_springs_part_names);
+  }
+
+  if (generate_spheres_at_nodes_) {
+    const std::string element_sphere_radius_field_name = mundy::shapes::Spheres::get_element_radius_field_name();
+    element_sphere_radius_field_ptr_ =
+        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_sphere_radius_field_name);
+    validate_field_ptr(element_sphere_radius_field_ptr_, element_sphere_radius_field_name);
+
+    const Teuchos::Array<std::string> sphere_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("sphere_part_names");
+    sphere_part_ptrs_ = parts_from_names(*meta_data_ptr_, sphere_part_names);
+  }
+
+  if (generate_spherocylinder_segments_along_edges_) {
+    const std::string element_spherocylinder_segment_radius_field_name =
+        mundy::shapes::SpherocylinderSegments::get_element_radius_field_name();
+    element_spherocylinder_segment_radius_field_ptr_ = meta_data_ptr_->get_field<double>(
+        stk::topology::ELEMENT_RANK, element_spherocylinder_segment_radius_field_name);
+    validate_field_ptr(element_spherocylinder_segment_radius_field_ptr_,
+                       element_spherocylinder_segment_radius_field_name);
+
+    const Teuchos::Array<std::string> spherocylinder_segment_part_names =
+        valid_fixed_params.get<Teuchos::Array<std::string>>("spherocylinder_segment_part_names");
+    spherocylinder_segment_part_ptrs_ = parts_from_names(*meta_data_ptr_, spherocylinder_segment_part_names);
   }
 }
 //}
@@ -141,7 +179,16 @@ void ChainOfSprings::set_mutable_params(const Teuchos::ParameterList &mutable_pa
   num_nodes_ = valid_mutable_params.get<size_t>("num_nodes");
   num_hookean_springs_ = generate_hookean_springs_ ? num_nodes_ - 1 : 0;
   num_angular_springs_ = generate_angular_springs_ ? num_nodes_ - 2 : 0;
+  num_spheres_ = generate_spheres_at_nodes_ ? num_nodes_ : 0;
+  num_spherocylinder_segments_ = generate_spherocylinder_segments_along_edges_ ? num_nodes_ - 1 : 0;
   coordinate_map_ptr_ = valid_mutable_params.get<std::shared_ptr<ArchlengthCoordinateMapping>>("coordinate_mapping");
+
+  hookean_spring_constant_ = valid_mutable_params.get<double>("hookean_spring_constant");
+  hookean_spring_rest_length_ = valid_mutable_params.get<double>("hookean_spring_rest_length");
+  angular_spring_constant_ = valid_mutable_params.get<double>("angular_spring_constant");
+  angular_spring_rest_angle_ = valid_mutable_params.get<double>("angular_spring_rest_angle");
+  sphere_radius_ = valid_mutable_params.get<double>("sphere_radius");
+  spherocylinder_segment_radius_ = valid_mutable_params.get<double>("spherocylinder_segment_radius");
 }
 //}
 
@@ -160,6 +207,16 @@ stk::mesh::EntityId ChainOfSprings::get_angular_spring_id(const size_t &sequenti
   return element_id_start_ + num_hookean_springs_ + sequential_angular_spring_index;
 }
 
+stk::mesh::EntityId ChainOfSprings::get_sphere_id(const size_t &sequential_sphere_index) const {
+  return element_id_start_ + num_hookean_springs_ + num_angular_springs_ + sequential_sphere_index;
+}
+
+stk::mesh::EntityId ChainOfSprings::get_spherocylinder_segment_id(
+    const size_t &sequential_spherocylinder_segment_index) const {
+  return element_id_start_ + num_hookean_springs_ + num_angular_springs_ + num_spheres_ +
+         sequential_spherocylinder_segment_index;
+}
+
 stk::mesh::Entity ChainOfSprings::get_node(const size_t &sequential_node_index) const {
   return bulk_data_ptr_->get_entity(stk::topology::NODE_RANK, get_node_id(sequential_node_index));
 }
@@ -172,6 +229,16 @@ stk::mesh::Entity ChainOfSprings::get_hookean_spring(const size_t &sequential_ho
 stk::mesh::Entity ChainOfSprings::get_angular_spring(const size_t &sequential_angular_spring_index) const {
   return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK,
                                     get_angular_spring_id(sequential_angular_spring_index));
+}
+
+stk::mesh::Entity ChainOfSprings::get_sphere(const size_t &sequential_sphere_index) const {
+  return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK, get_sphere_id(sequential_sphere_index));
+}
+
+stk::mesh::Entity ChainOfSprings::get_spherocylinder_segment(
+    const size_t &sequential_spherocylinder_segment_index) const {
+  return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK,
+                                    get_spherocylinder_segment_id(sequential_spherocylinder_segment_index));
 }
 //}
 
@@ -187,9 +254,24 @@ void ChainOfSprings::execute() {
   const size_t end_node_index = start_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
 
   // Concatenate the spring part pointers.
-  std::vector<stk::mesh::Part *> spring_part_ptrs_;
-  spring_part_ptrs_.insert(spring_part_ptrs_.end(), hookean_spring_part_ptrs_.begin(), hookean_spring_part_ptrs_.end());
-  spring_part_ptrs_.insert(spring_part_ptrs_.end(), angular_spring_part_ptrs_.begin(), angular_spring_part_ptrs_.end());
+  std::vector<stk::mesh::Part *> element_part_ptrs_;
+  if (generate_hookean_springs_) {
+    element_part_ptrs_.insert(element_part_ptrs_.end(), hookean_spring_part_ptrs_.begin(),
+                              hookean_spring_part_ptrs_.end());
+  }
+  if (generate_angular_springs_) {
+    element_part_ptrs_.insert(element_part_ptrs_.end(), angular_spring_part_ptrs_.begin(),
+                              angular_spring_part_ptrs_.end());
+  }
+  if (generate_spheres_at_nodes_) {
+    element_part_ptrs_.insert(element_part_ptrs_.end(), sphere_part_ptrs_.begin(), sphere_part_ptrs_.end());
+  }
+  if (generate_spherocylinder_segments_along_edges_) {
+    element_part_ptrs_.insert(element_part_ptrs_.end(), spherocylinder_segment_part_ptrs_.begin(),
+                              spherocylinder_segment_part_ptrs_.end());
+  }
+  MUNDY_THROW_ASSERT(!element_part_ptrs_.empty(), std::invalid_argument,
+                     "ChainOfSprings: No parts were added to the elements.");
 
   bulk_data_ptr_->modification_begin();
   openrand::Philox rng(1, 0);
@@ -197,7 +279,7 @@ void ChainOfSprings::execute() {
     // Create the node.
     stk::mesh::EntityId our_node_id = get_node_id(i);
     stk::mesh::Entity node = bulk_data_ptr_->declare_node(our_node_id);
-    bulk_data_ptr_->change_entity_parts(node, spring_part_ptrs_);
+    bulk_data_ptr_->change_entity_parts(node, element_part_ptrs_);
 
     // Set the node's coordinates using the given coordinate map.
     double *const node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node);
@@ -248,14 +330,14 @@ void ChainOfSprings::execute() {
     }
   }
 
-  // Now the hookean springs.
   if (generate_hookean_springs_) {
     // Linear springs connect nodes i and i + 1. We need to start at node 0 and end at node N - 1.
     const size_t start_element_chain_ordinal = start_node_index;
     const size_t end_start_element_chain_ordinal =
-        (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index : end_node_index - 1;
+        (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 1 : end_node_index;
 
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal - 1; ++i) {
+      std::cout << "i: " << i << " get_hookean_spring_id(i): " << get_hookean_spring_id(i) << std::endl;
       // Create the hookean spring.
       stk::mesh::EntityId spring_id = get_hookean_spring_id(i);
       stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
@@ -277,28 +359,29 @@ void ChainOfSprings::execute() {
   }
 
   if (generate_angular_springs_) {
-    // Angular springs connect connect nodes i-1, i, and i+1. We need to start at node 1 and end at node N - 1.
-    const size_t start_element_chain_ordinal = rank == 0 ? start_node_index + 1 : start_node_index;
+    // Angular springs connect connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
+    const size_t start_element_chain_ordinal = start_node_index;
     const size_t end_start_element_chain_ordinal =
-        (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 1 : end_node_index;
+        (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 2 : end_node_index - 1;
 
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
+      std::cout << "i: " << i << " get_angular_spring_id(i): " << get_angular_spring_id(i) << std::endl;
       // Create the angular spring.
       stk::mesh::EntityId spring_id = get_angular_spring_id(i);
       stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
       bulk_data_ptr_->change_entity_parts(spring, angular_spring_part_ptrs_);
 
       // Create the nodes and connect them to the spring.
-      // To map our sequential index to the node sequential index, we connect to node i, i - 1, and i + 1.
+      // To map our sequential index to the node sequential index, we connect to node i, i + 1, and i + 2.
       // Our center node is node i. Note, the node ordinals for BEAM_3 are
       /* n1      n2
       //   \    /
       //    \  /
       //     n3
       */
-      stk::mesh::Entity left_node = get_node(i - 1);
-      stk::mesh::Entity center_node = get_node(i);
-      stk::mesh::Entity right_node = get_node(i + 1);
+      stk::mesh::Entity left_node = get_node(i);
+      stk::mesh::Entity center_node = get_node(i + 1);
+      stk::mesh::Entity right_node = get_node(i + 2);
 
       bulk_data_ptr_->declare_relation(spring, left_node, 0);
       bulk_data_ptr_->declare_relation(spring, right_node, 1);
@@ -307,6 +390,51 @@ void ChainOfSprings::execute() {
       // Populate the spring constants and rest angles. For the time being, we use a single user defined value.
       stk::mesh::field_data(*element_angular_spring_constant_field_ptr_, spring)[0] = angular_spring_constant_;
       stk::mesh::field_data(*element_angular_spring_rest_angle_field_ptr_, spring)[0] = angular_spring_rest_angle_;
+    }
+  }
+
+  if (generate_spheres_at_nodes_) {
+    // Springs connect to node i. We need to loop over all nodes.
+    const size_t start_element_chain_ordinal = start_node_index;
+    const size_t end_start_element_chain_ordinal = end_node_index;
+    for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
+      std::cout << "i: " << i << " get_sphere_id(i): " << get_sphere_id(i) << std::endl;
+      // Create the sphere.
+      stk::mesh::Entity sphere = bulk_data_ptr_->declare_element(get_sphere_id(i));
+      bulk_data_ptr_->change_entity_parts(sphere, sphere_part_ptrs_);
+
+      // Populate the sphere radius. For the time being, we use a single user defined value.
+      stk::mesh::field_data(*element_sphere_radius_field_ptr_, sphere)[0] = sphere_radius_;
+
+          // Create the node and connect it to the sphere.
+          stk::mesh::Entity node = get_node(i);
+      bulk_data_ptr_->declare_relation(sphere, node, 0);
+    }
+  }
+
+  if (generate_spherocylinder_segments_along_edges_) {
+    // Segments connect nodes i and i + 1. We need to start at node 0 and end at node N - 1. Just like the hookean
+    // springs.
+    const size_t start_element_chain_ordinal = start_node_index;
+    const size_t end_start_element_chain_ordinal =
+        (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 1 : end_node_index;
+
+    for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
+      // Create the spherocylinder segment.
+      std::cout << "i: " << i << " get_spherocylinder_segment_id(i): " << get_spherocylinder_segment_id(i) << std::endl;
+      stk::mesh::Entity segment = bulk_data_ptr_->declare_element(get_spherocylinder_segment_id(i));
+      bulk_data_ptr_->change_entity_parts(segment, spherocylinder_segment_part_ptrs_);
+
+      // Populate the segment radius. For the time being, we use a single user defined value.
+      stk::mesh::field_data(*element_spherocylinder_segment_radius_field_ptr_, segment)[0] =
+          spherocylinder_segment_radius_;
+
+      // Create the nodes and connect them to the segment.
+      stk::mesh::Entity node0 = get_node(i);
+      stk::mesh::Entity node1 = get_node(i + 1);
+
+      bulk_data_ptr_->declare_relation(segment, node0, 0);
+      bulk_data_ptr_->declare_relation(segment, node1, 1);
     }
   }
 
