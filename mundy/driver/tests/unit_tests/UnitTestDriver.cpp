@@ -31,7 +31,6 @@
 #include <Teuchos_YamlParser_decl.hpp>
 
 // Mundy libs
-#include <mundy_driver/Configurator.hpp>
 #include <mundy_driver/Driver.hpp>
 
 namespace mundy {
@@ -42,40 +41,30 @@ namespace {
 
 /* What tests should we run?
 
-The Configurator is responsible for pushing the information from the configuration file into the driver, including the
-configuration of the MetaMethods and the ordering of operations.
+Driver is our main 'simulation' class, and as such, holds all of the simulation data. This includes the state of the
+system.
 
 */
 
-//! \name Configurator unit tests
+//! \name Driver unit tests
 //@{
-TEST(Configurator, ParseParametersFromYAMLFileBasic) {
-  // This should be in the local test directory if things were set up correctly
-  const std::string yaml_file = "./unit_test_configurator_basic.yaml";
-
-  // Construct a configurator from the YAML file
-  Configurator configurator("yaml", yaml_file);
-
-  // Run the parse command
-  configurator.parse_parameters();
-}
 
 //@}
 
-//! \name Configurator exposure tests
+//! \name Driver exposure tests
 //@{
-TEST(Configurator, ExposeRegisteredClasses) {
+TEST(Driver, ExposeRegisteredClasses) {
   // Create a dummy configurator, this will still trigger the registration procedure
-  Configurator configurator;
+  Driver driver;
 
   // Ask it to expose the registered MetaMethodExecutionInterface
-  std::string registered_mmei = configurator.get_registered_meta_method_execution_interface();
+  std::string registered_mmei = driver.get_registered_meta_method_execution_interface();
   // Ask it to expose the registered MetaMethodSubsetExecutionInterface
-  std::string registered_mmsei = configurator.get_registered_meta_method_subset_execution_interface();
+  std::string registered_mmsei = driver.get_registered_meta_method_subset_execution_interface();
   // Ask it to expose the registered MetaMethodPairwiseSubsetExecutionInterface
-  std::string registered_mmpsei = configurator.get_registered_meta_method_pairwise_subset_execution_interface();
+  std::string registered_mmpsei = driver.get_registered_meta_method_pairwise_subset_execution_interface();
   // Ask for all the registered classes
-  std::string registered_classes = configurator.get_registered_classes();
+  std::string registered_classes = driver.get_registered_classes();
 
   EXPECT_THAT(registered_mmei, ::testing::ContainsRegex("DECLARE_AND_INIT_SHAPES"));
   EXPECT_THAT(registered_mmsei, ::testing::ContainsRegex("COMPUTE_OBB"));

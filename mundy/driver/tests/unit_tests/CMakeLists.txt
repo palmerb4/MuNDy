@@ -25,10 +25,18 @@ tribits_add_executable_and_test(
     NUM_MPI_PROCS 1
     )
 
+tribits_add_executable_and_test(
+    UnitTestDriver
+    SOURCES
+      UnitTestDriver.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    NUM_MPI_PROCS 1
+    )
+
 # Copy the test files for the executables...
 tribits_copy_files_to_binary_dir(
     CopyTestConfigurator
     SOURCE_FILES
-      test_configurator_basic.yaml
+      unit_test_configurator_basic.yaml
     EXEDEPS UnitTestConfigurator
     )

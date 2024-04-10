@@ -27,6 +27,7 @@
 
 // Mundy libs
 #include <mundy_driver/Configurator.hpp>  // for mundy::driver::Configurator
+#include <mundy_driver/Driver.hpp>        // for mundy::driver::Driver
 
 namespace mundy {
 
@@ -36,10 +37,13 @@ namespace driver {
 //@{
 
 // Shorthand names for the different meta method factories we use later
-using FactoryMM = mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodExecutionInterface<void>>;
-using FactoryMMS = mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>;
+// TODO(cje): There must be a better way to get the MetaMethod factories and check/create from them in a general way.
+// Right now I have ugly if-else blocks both here and the Driver, which are a pain, and make the code more fragile if we
+// add things.
+using FactoryMM = mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodExecutionInterface<void>>;
+using FactoryMMS = mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>;
 using FactoryMMPS =
-    mundy::driver::ConfigurableMetaMethodFactory<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>>;
+    mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>>;
 
 //@}
 
@@ -64,21 +68,21 @@ Configurator::Configurator(const std::string& input_format, const std::string& i
 //! \name Queries of registered "methods"
 //@{
 
-std::string Configurator::get_registered_MetaMethodExecutionInterface() {
+std::string Configurator::get_registered_meta_method_execution_interface() {
   return FactoryMM::get_keys_as_string();
 }
 
-std::string Configurator::get_registered_MetaMethodSubsetExecutionInterface() {
+std::string Configurator::get_registered_meta_method_subset_execution_interface() {
   return FactoryMMS::get_keys_as_string();
 }
 
-std::string Configurator::get_registered_MetaMethodPairwiseSubsetExecutionInterface() {
+std::string Configurator::get_registered_meta_method_pairwise_subset_execution_interface() {
   return FactoryMMPS::get_keys_as_string();
 }
 
 std::string Configurator::get_registered_classes() {
-  return get_registered_MetaMethodExecutionInterface() + get_registered_MetaMethodSubsetExecutionInterface() +
-         get_registered_MetaMethodPairwiseSubsetExecutionInterface();
+  return get_registered_meta_method_execution_interface() + get_registered_meta_method_subset_execution_interface() +
+         get_registered_meta_method_pairwise_subset_execution_interface();
 }
 
 //@}
@@ -87,9 +91,6 @@ std::string Configurator::get_registered_classes() {
 //@{
 
 void Configurator::parse_parameters() {
-  // Set up a basic mesh requirements pointer for the final merge of all requirements
-  mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);
-
   // At this point we are expecting to have a valid param_list_. Get into the Configuration section first, and configure
   // the MetaMethod* that we need
   MUNDY_THROW_ASSERT(param_list_.isSublist("configuration"), std::invalid_argument,
@@ -105,13 +106,6 @@ void Configurator::parse_configuration(const Teuchos::ParameterList& config_para
   // Get simulation variables that don't belong to a specific Meta*
   n_dim_ = config_params.get<int>("n_dim");
 
-  /////////////////////////////////////////////////////////////////////////////
-  // Mesh interaction
-  /////////////////////////////////////////////////////////////////////////////
-  // Load the number of dimensions and the name of entity ranks onto the mesh requirements
-  mesh_reqs_ptr_->set_spatial_dimension(n_dim_);
-  mesh_reqs_ptr_->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
-
   // Loop over known MetaMethod types and parse_and_configure them
   for (auto metamethod_type = metamethod_types_.begin(); metamethod_type != metamethod_types_.end();
        ++metamethod_type) {
@@ -119,20 +113,15 @@ void Configurator::parse_configuration(const Teuchos::ParameterList& config_para
     // Configure the MetaMethod interface
     if (config_params.isSublist(metamethod_str)) {
       const Teuchos::ParameterList metamethod_params = config_params.sublist(metamethod_str);
-      parse_and_configure_metamethod(metamethod_str, metamethod_params);
+      parse_metamethod(metamethod_str, metamethod_params);
     }
   }
-
-  // TODO(cje): remove this
-  std::cout << "At the end of configuration, our mesh requirements are...\n";
-  mesh_reqs_ptr_->print_reqs();
 }
 
-void Configurator::parse_and_configure_metamethod(const std::string& method_type,
-                                                  const Teuchos::ParameterList& method_params) {
+void Configurator::parse_metamethod(const std::string& method_type, const Teuchos::ParameterList& method_params) {
   // TODO(cje): Remove later
   std::cout << "meta_method " << method_type << " sublist:\n" << method_params << std::endl;
-  // Loop over MetaMethodExecutionInterfaces
+  // Loop over MetaMethod sublist
   for (auto pit = method_params.begin(); pit != method_params.end(); ++pit) {
     const std::string& param_name = pit->first;
     const Teuchos::ParameterEntry& entry = pit->second;
@@ -192,17 +181,31 @@ void Configurator::parse_and_configure_metamethod(const std::string& method_type
       valid_fixed_params.validateParametersAndSetDefaults(FactoryMMPS::get_valid_fixed_params(method_name));
       valid_mutable_params.validateParametersAndSetDefaults(FactoryMMPS::get_valid_mutable_params(method_name));
     }
-    /////////////////////////////////////////////////////////////////////////////
-    // Mesh interaction
-    /////////////////////////////////////////////////////////////////////////////
-    // Merge the requirements onto the mesh
-    if (method_type == "meta_method_execution_interface") {
-      mesh_reqs_ptr_->merge(FactoryMM::get_mesh_requirements(method_name, valid_fixed_params));
-    } else if (method_type == "meta_method_subset_execution_interface") {
-      mesh_reqs_ptr_->merge(FactoryMMS::get_mesh_requirements(method_name, valid_fixed_params));
-    } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
-      mesh_reqs_ptr_->merge(FactoryMMPS::get_mesh_requirements(method_name, valid_fixed_params));
+
+    // Build the enabled package to pass to Driver later. First, check to see if we already have a unique user name for
+    // this action, and if so, throw an error up that the user cannot do this, each name they give to a meta method must
+    // be unique.
+    if (enabled_meta_methods_.find(param_name) != enabled_meta_methods_.end()) {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "User-defined MetaMethod name " + param_name +
+                             " already exist, check configuration for duplicate MetaMethod names");
     }
+    // Now that we have a unique name, create the structure for the map for later (this is two commands because getting
+    // the type coersion for std::make_tuple doesn't seem to like things for some reason...)
+    std::tuple mtuple(method_type, method_name, valid_fixed_params, valid_mutable_params);
+    enabled_meta_methods_[param_name] = mtuple;
+
+    ///////////////////////////////////////////////////////////////////////////////
+    //// Mesh interaction
+    ///////////////////////////////////////////////////////////////////////////////
+    //// Merge the requirements onto the mesh
+    // if (method_type == "meta_method_execution_interface") {
+    //   mesh_reqs_ptr_->merge(FactoryMM::get_mesh_requirements(method_name, valid_fixed_params));
+    // } else if (method_type == "meta_method_subset_execution_interface") {
+    //   mesh_reqs_ptr_->merge(FactoryMMS::get_mesh_requirements(method_name, valid_fixed_params));
+    // } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
+    //   mesh_reqs_ptr_->merge(FactoryMMPS::get_mesh_requirements(method_name, valid_fixed_params));
+    // }
   }  // for loop over user-given method names
 }
 

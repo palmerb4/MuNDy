@@ -17,10 +17,12 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
   include/mundy_driver/Configurator.hpp
+  include/mundy_driver/Driver.hpp
   )
 
 SET(SOURCES 
   src/mundy_driver/Configurator.cpp
+  src/mundy_driver/Driver.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

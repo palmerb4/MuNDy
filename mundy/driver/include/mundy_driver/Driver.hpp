@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_DRIVER_CONFIGURATOR_HPP_
-#define MUNDY_DRIVER_CONFIGURATOR_HPP_
+#ifndef MUNDY_DRIVER_DRIVER_HPP_
+#define MUNDY_DRIVER_DRIVER_HPP_
 
-/// \file Configurator.hpp
-/// \brief Declaration of the Configurator class
+/// \file Driver.hpp
+/// \brief Declaration of the Driver class
 
 // C++ core libs
 #include <string>
@@ -73,37 +73,39 @@
 #include <mundy_shapes/DeclareAndInitShapes.hpp>   // for mundy::shapes::DeclareAndInitShapes
 #include <mundy_shapes/Spheres.hpp>                // for mundy::shapes::Spheres
 #include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
-#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 #endif                                             // HAVE_MUNDYDRIVER_MUNDYSHAPES
 
 namespace mundy {
 
 namespace driver {
 
-/// \class Configurator
-/// \brief Class for reading in a configuration file and configuring a driver (simulation context)
-///
-/// The Configurator is responsible for parsing the input configuration file (YAML, XML, etc) and either passing it onto
-/// a Driver, or creating a temporary Driver that can be used to query enabled/registered metamethods.
-class Configurator {
+/// \brief A factory for creating meta methods that are configurable via the Configurator.
+/// The core requirements for these classes is that they have a void execute function which the Configurator knows how
+/// to call.
+template <typename PolymorphicBaseType>
+using DriverMetaMethodFactory =
+    mundy::meta::StringBasedMetaFactory<PolymorphicBaseType,
+                                        mundy::meta::make_registration_string("DRIVER_META_METHODS")>;
+
+/// \class Driver
+/// \brief Master simulation class that holds all of the information, and most importantly, the mesh
+class Driver {
  public:
   //! \name Constructors and destructors
   //@{
 
-  /// \brief Default constructor for configurator
-  Configurator() {
-  }
+  /// \brief Default constructor
+  /// This will not set the parallel environment
+  Driver() = default;
 
-  /// \brief Teuchos paramter list constructor
-  explicit Configurator(const Teuchos::ParameterList& param_list) : param_list_(param_list) {
-  }
-
-  /// \brief Configuration file constructor
-  Configurator(const std::string& input_format, const std::string& input_filename);
+  /// \brief Construct with parallel environment
+  ///
+  /// \param comm [in] The MPI Communicator.
+  explicit Driver(const stk::ParallelMachine& communicator);
 
   //@}
 
-  //! \name Queries of Configurator
+  //! \name Queries of registered "methods"
   //@{
 
   /// \brief Get the registered MetaMethodExecutionInterface
@@ -120,19 +122,22 @@ class Configurator {
 
   //@}
 
-  //! \name Parse input file (ParameterList)
+  //! \name Setters and Getters
   //@{
 
-  /// \brief Parse the parameters and construct a driver (execution engine)
-  void parse_parameters();
+  /// \brief Set the number of spatial dimensions
+  void set_n_dimensions(const int n_dim);
 
-  /// \brief Parse the configuration portion of the parameters
-  void parse_configuration(const Teuchos::ParameterList& config_params);
-
-  /// \brief Parse and configure MetaMethodExecutionInterace methods
-  void parse_metamethod(const std::string& method_type, const Teuchos::ParameterList& method_params);
+  /// \brief Set the MPI communicator (STK)
+  void set_communicator(const stk::ParallelMachine& communicator);
 
   //@}
+
+  /// \brief Build the default mesh requirements
+  ///
+  /// This assumes that the number of dimesions, communicator, and entity names are set/fixed. Creates a mesh, assigns
+  /// the communicator, spatial dimension, and entity rank names.
+  void build_mesh_requirements();
 
  private:
   //! \name Default parameters
@@ -148,22 +153,63 @@ class Configurator {
   //! \name Internal members
   //@{
 
-  /// \brief Teuchos ParameterList for global information
-  Teuchos::ParameterList param_list_;
-
   /// \brief Number of dimensions
   int n_dim_ = 0;
 
-  /// \brief Enabled MetaMethods [User-defined name](MetaMethod type, MetaMethod name, fixed parameters, mutable
-  /// parameters)
-  std::unordered_map<std::string, std::tuple<std::string, std::string, Teuchos::ParameterList, Teuchos::ParameterList>>
-      enabled_meta_methods_;
+  /// \brief Mundy mesh requirements pointer
+  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_ = nullptr;
+
+  /// \brief The MPI communicator to use (STK)
+  stk::ParallelMachine communicator_;
 
   //}
-};  // Configurator
+};  // Driver
 
 }  // namespace driver
 
 }  // namespace mundy
 
-#endif  // MUNDY_DRIVER_CONFIGURATOR_HPP_
+// TODO(cje): Think about moving these into their own location? Right now we have the Driver and Configurator which both
+// sort of need access to these. For now its okay because the Configurator knows how to build the Driver.
+#ifdef HAVE_MUNDYDRIVER_MUNDYCONSTRAINTS
+MUNDY_REGISTER_AGENTS(mundy::constraints::Constraints)
+MUNDY_REGISTER_AGENTS(mundy::constraints::HookeanSprings)
+MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_FORCING", mundy::constraints::ComputeConstraintForcing,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("DECLARE_AND_INIT_CONSTRAINTS", mundy::constraints::DeclareAndInitConstraints,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodExecutionInterface<void>>)
+#endif  // HAVE_MUNDYDRIVER_MUNDYCONSTRAINTS
+
+#ifdef HAVE_MUNDYDRIVER_MUNDYLINKERS
+MUNDY_REGISTER_AGENTS(mundy::linkers::Linkers)
+MUNDY_REGISTER_AGENTS(mundy::linkers::NeighborLinkers)
+MUNDY_REGISTER_AGENTS(mundy::linkers::neighbor_linkers::SphereSphereLinkers)
+MUNDY_REGISTER_METACLASS("COMPUTE_SIGNED_SEPARATION_DISTANCE_AND_CONTACT_NORMAL",
+                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("DESTROY_NEIGHBOR_LINKERS", mundy::linkers::DestroyNeighborLinkers,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("EVALUATE_LINKER_POTENTIALS", mundy::linkers::EvaluateLinkerPotentials,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS(
+    "GENERATE_NEIGHBOR_LINKERS", mundy::linkers::GenerateNeighborLinkers,
+    mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("LINKER_POTENTIAL_FORCE_MAGNITUDE_REDUCTION",
+                         mundy::linkers::LinkerPotentialForceMagnitudeReduction,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+#endif  // HAVE_MUNDYDRIVER_MUNDYLINKERS
+
+#ifdef HAVE_MUNDYDRIVER_MUNDYSHAPES
+MUNDY_REGISTER_AGENTS(mundy::shapes::Spheres)
+MUNDY_REGISTER_AGENTS(mundy::shapes::Spherocylinders)
+MUNDY_REGISTER_METACLASS("COMPUTE_AABB", mundy::shapes::ComputeAABB,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("COMPUTE_BOUNDING_RADIUS", mundy::shapes::ComputeBoundingRadius,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("COMPUTE_OBB", mundy::shapes::ComputeOBB,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>>)
+MUNDY_REGISTER_METACLASS("DECLARE_AND_INIT_SHAPES", mundy::shapes::DeclareAndInitShapes,
+                         mundy::driver::DriverMetaMethodFactory<mundy::meta::MetaMethodExecutionInterface<void>>)
+#endif  // HAVE_MUNDYDRIVER_MUNDYSHAPES
+
+#endif  // MUNDY_DRIVER_DRIVER_HPP_
