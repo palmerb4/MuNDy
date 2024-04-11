@@ -39,6 +39,13 @@ tribits_add_executable(
     )
 
 tribits_add_executable(
+    PerformanceTestSphereBrownianInteractingIO
+    SOURCES
+    SphereBrownianInteractingIO.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
     Springs
     SOURCES
     Springs.cpp

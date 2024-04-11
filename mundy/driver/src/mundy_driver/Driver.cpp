@@ -24,6 +24,7 @@
 
 // Trilinos libs
 #include <Teuchos_YamlParameterListHelpers.hpp>
+#include <stk_mesh/base/DumpMeshInfo.hpp>  // for stk::mesh::impl::dump_all_mesh_info
 
 // Mundy libs
 #include <mundy_driver/Driver.hpp>  // for mundy::driver::Configurator
