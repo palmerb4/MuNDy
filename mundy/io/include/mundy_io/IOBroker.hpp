@@ -25,6 +25,7 @@
 
 // C++ core lib
 #include <algorithm>      // for std::transform
+#include <filesystem>     // for std::filesystem::path::stem()
 #include <memory>         // for std::shared_ptr, std::unique_ptr
 #include <string>         // for std::string
 #include <unordered_map>  // for std::unordered_map
@@ -84,6 +85,7 @@ class IOBroker {
 
     // Set variables from the fixed_parameters
     exodus_database_output_filename_ = valid_fixed_params.get<std::string>("exodus_database_output_filename");
+    exodus_database_output_filename_base_ = std::filesystem::path(exodus_database_output_filename_).stem();
     coordinate_field_name_ = valid_fixed_params.get<std::string>("coordinate_field_name");
     transient_coordinate_field_name_ = valid_fixed_params.get<std::string>("transient_coordinate_field_name");
     parallel_io_mode_ = valid_fixed_params.get<std::string>("parallel_io_mode");
@@ -242,6 +244,9 @@ class IOBroker {
   /// \brief Write to disk
   void write_io_broker(double time);
 
+  /// \brief Write a single timestep to disk
+  void write_io_broker_timestep(int timestep, double time);
+
   //@}
 
  private:
@@ -271,6 +276,9 @@ class IOBroker {
 
   /// \brief EXODUS output database filename
   std::string exodus_database_output_filename_ = "";
+
+  /// \brief EXODUS output database filename base (for timestep-delimited files)
+  std::string exodus_database_output_filename_base_ = "";
 
   /// \brief EXODUS input database filename
   std::string exodus_database_input_filename_ = "";

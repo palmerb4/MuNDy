@@ -1102,6 +1102,9 @@ int main(int argc, char **argv) {
     num_spheres_z = 1;
   }
 
+  // Come up with how often to log (do as a percent so we can examine how the run is going)
+  size_t n_log = num_time_steps / 100;
+
   MUNDY_THROW_ASSERT(time_step_size > 0, std::invalid_argument, "Time step size must be greater than zero.");
 
   // Dump the parameters to screen on rank 0
@@ -1419,6 +1422,9 @@ int main(int argc, char **argv) {
 
     // Create the IO broker
     io_broker_ptr = mundy::io::IOBroker::create_new_instance(bulk_data_ptr.get(), fixed_params_iobroker);
+
+    // Print the IO broker
+    io_broker_ptr->print_io_broker();
   }
 
   // stk::io::put_io_part_attribute(spheres_part);
@@ -1528,10 +1534,10 @@ int main(int argc, char **argv) {
   // stk_io_broker.flush_output();
 
   // Initialize the IO Broker
-  if (enable_io) {
-    io_broker_ptr->setup_io_broker();
-    // stk::mesh::impl::dump_all_mesh_info(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()), std::cout);
-  }
+  // if (enable_io) {
+  //   io_broker_ptr->setup_io_broker();
+  //   stk::mesh::impl::dump_all_mesh_info(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()), std::cout);
+  // }
 
   if (bulk_data_ptr->parallel_rank() == 0) {
     std::cout << "Running the simulation for " << num_time_steps << " time steps." << std::endl;
@@ -1636,7 +1642,17 @@ int main(int argc, char **argv) {
     write_mesh(static_cast<double>(i) + 0.9);
 
     if (enable_io && (i % n_write == 0)) {
-      io_broker_ptr->write_io_broker(static_cast<double>(i));
+      if (bulk_data_ptr->parallel_rank() == 0) {
+        std::cout << "Step " << std::setw(15) << i << " of " << std::setw(15) << num_time_steps << std::endl;
+      }
+      io_broker_ptr->write_io_broker_timestep(static_cast<int>(i), static_cast<double>(i));
+    }
+
+    // Write out to the log if we feel like it
+    if (i % n_log == 0) {
+      if (bulk_data_ptr->parallel_rank() == 0) {
+        std::cout << "Step " << std::setw(15) << i << " of " << std::setw(15) << num_time_steps << std::endl;
+      }
     }
   }
 
@@ -1644,13 +1660,17 @@ int main(int argc, char **argv) {
   stk::parallel_machine_barrier(bulk_data_ptr->parallel());
 
   // Tear down the IO Broker and make sure it gets flushed
-  if (enable_io) {
-    io_broker_ptr->finalize_io_broker();
-  }
+  // if (enable_io) {
+  //   io_broker_ptr->finalize_io_broker();
+  // }
 
   if (bulk_data_ptr->parallel_rank() == 0) {
-    double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps);
+    double raw_time = timer.seconds();
+    double avg_time_per_timestep = raw_time / static_cast<double>(num_time_steps);
+    double timesteps_per_second = static_cast<double>(num_time_steps) / raw_time;
     std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
+    std::cout << "RawTime: " << std::setprecision(15) << raw_time << std::endl;
+    std::cout << "Performance: " << std::setprecision(15) << timesteps_per_second << std::endl;
   }
 
   // Write the final mesh to file
