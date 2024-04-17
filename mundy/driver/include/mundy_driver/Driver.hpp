@@ -99,12 +99,12 @@ class Driver {
 
   /// \brief Default constructor
   /// This will not set the parallel environment
-  Driver() = default;
+  Driver();
 
   /// \brief Construct with parallel environment
   ///
   /// \param comm [in] The MPI Communicator.
-  explicit Driver(const stk::ParallelMachine& communicator);
+  explicit Driver(const stk::ParallelMachine &comm);
 
   //@}
 
@@ -123,45 +123,23 @@ class Driver {
   /// \brief Get all registered classes
   static std::string get_registered_classes();
 
-  /// \brief Print the current mesh requirements
-  void print_mesh_requirements();
-
   //@}
 
-  //! \name Setters and Getters
+  //! @name Setters and Getters
   //@{
 
-  /// \brief Set the number of spatial dimensions
-  void set_n_dimensions(const int n_dim);
+  Driver &set_spatial_dimension(const unsigned spatial_dimension);
 
-  /// \brief Set the MPI communicator (STK)
-  void set_communicator(const stk::ParallelMachine& communicator);
+  Driver &set_communicator(const stk::ParallelMachine &comm);
 
-  /// \brief Set the NODE_COORDINATES field name
-  void set_node_coordinates_field_name(const std::string& node_coordiantes_field_name);
+  Driver &set_node_coordinate_field_name(const std::string &node_coordinate_field_name);
 
   //@}
 
-  /// \brief Build the default mesh requirements
-  ///
-  /// This assumes that the number of dimesions, communicator, and entity names are set/fixed. Creates a mesh, assigns
-  /// the communicator, spatial dimension, and entity rank names.
-  void build_mesh_requirements();
-
-  /// \brief Add a mesh requirement
-  void add_mesh_requirement(const std::string& method_type, const std::string& method_name,
-                            const Teuchos::ParameterList& fixed_params);
-
-  /// \brief Declare the mesh (but do not commit), and set the meta data to using simple fields
-  void declare_mesh();
-
-  /// \brief Explicitly commit the mesh
-  void commit_mesh();
-
-  /// \brief Add a Meta Class instance to the driver
-  void add_meta_class_instance(const std::string& method_type, const std::string& method_name,
-                               const Teuchos::ParameterList& fixed_params,
-                               const Teuchos::ParameterList& mutable_params);
+  //   /// \brief Add a Meta Class instance to the driver
+  //   void add_meta_class_instance(const std::string& method_type, const std::string& method_name,
+  //                                const Teuchos::ParameterList& fixed_params,
+  //                                const Teuchos::ParameterList& mutable_params);
 
  private:
   //! \name Default parameters
@@ -177,8 +155,11 @@ class Driver {
   //! \name Internal members
   //@{
 
+  /// \brief Has a communicator
+  bool has_comm_ = false;
+
   /// \brief Number of dimensions
-  int n_dim_ = 0;
+  unsigned spatial_dimension_ = 0;
 
   /// \brief Mundy mesh requirements pointer
   std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_ = nullptr;
@@ -190,10 +171,10 @@ class Driver {
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_ = nullptr;
 
   /// \brief Coordinate field name
-  std::string node_coordinates_field_name_ = "";
+  std::string node_coordinate_field_name_ = "";
 
   /// \brief The MPI communicator to use (STK)
-  stk::ParallelMachine communicator_;
+  stk::ParallelMachine comm_ = MPI_COMM_NULL;
 
   //}
 

@@ -48,38 +48,85 @@ configuration of the MetaMethods and the ordering of operations.
 
 //! \name Configurator unit tests
 //@{
-TEST(Configurator, ParseParametersFromYAMLFileBasic) {
+
+TEST(Configurator, Constructor) {
+  // Construct a configurator from the YAML file
+  stk::ParallelMachine comm = MPI_COMM_WORLD;
+  EXPECT_NO_THROW({ Configurator configurator(comm); });
+}
+
+TEST(Configurator, ParseParametersYAML) {
   // This should be in the local test directory if things were set up correctly
   const std::string yaml_file = "./unit_test_configurator_basic.yaml";
 
   // Construct a configurator from the YAML file
-  Configurator configurator("yaml", yaml_file);
+  Configurator configurator(MPI_COMM_WORLD);
 
-  // Run the parse command
+  // Set things that need to be setup before calling the main parse command
+  std::vector<std::string> expected_rank_names = {"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"};
+  configurator.set_entity_rank_names(expected_rank_names);
+  configurator.set_input_file(yaml_file, "yaml");
+
+  // Try to fire off a parse
   configurator.parse_parameters();
+
+  // Test if we can see inside the configurator
+  std::stringstream buffer;
+  buffer << configurator;
+  EXPECT_THAT(buffer.str(), ::testing::ContainsRegex("GENERATE_NEIGHBOR_LINKERS"));
+  EXPECT_THAT(buffer.str(), ::testing::ContainsRegex("buffer_distance = 0"));
+  std::cout << "DEBUG YAML parameters\n";
+  std::cout << configurator;
 }
 
-//@}
+TEST(Configurator, CreateMeshRequirements) {
+  // This should be in the local test directory if things were set up correctly
+  const std::string yaml_file = "./unit_test_configurator_basic.yaml";
 
-//! \name Configurator exposure tests
-//@{
-TEST(Configurator, ExposeRegisteredClasses) {
-  // Create a dummy configurator, this will still trigger the registration procedure
-  Configurator configurator;
+  // Construct a configurator from the YAML file
+  Configurator configurator(MPI_COMM_WORLD);
 
-  // Ask it to expose the registered MetaMethodExecutionInterface
-  std::string registered_mmei = configurator.get_registered_meta_method_execution_interface();
-  // Ask it to expose the registered MetaMethodSubsetExecutionInterface
-  std::string registered_mmsei = configurator.get_registered_meta_method_subset_execution_interface();
-  // Ask it to expose the registered MetaMethodPairwiseSubsetExecutionInterface
-  std::string registered_mmpsei = configurator.get_registered_meta_method_pairwise_subset_execution_interface();
-  // Ask for all the registered classes
-  std::string registered_classes = configurator.get_registered_classes();
+  // Set things that need to be setup before calling the main parse command
+  std::vector<std::string> expected_rank_names = {"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"};
+  configurator.set_entity_rank_names(expected_rank_names);
+  configurator.set_input_file(yaml_file, "yaml");
 
-  EXPECT_THAT(registered_mmei, ::testing::ContainsRegex("DECLARE_AND_INIT_SHAPES"));
-  EXPECT_THAT(registered_mmsei, ::testing::ContainsRegex("COMPUTE_OBB"));
-  EXPECT_THAT(registered_mmpsei, ::testing::ContainsRegex("GENERATE_NEIGHBOR_LINKERS"));
-  EXPECT_THAT(registered_classes, ::testing::ContainsRegex("COMPUTE_AABB"));
+  // Parse the parameters
+  configurator.parse_parameters();
+
+  // Create mesh requirements from the parameters
+  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs;
+  EXPECT_NO_THROW({ mesh_reqs = configurator.create_mesh_requirements(); });
+
+  // Print this out to make sure it's good (can check logs for this)
+  mesh_reqs->print_reqs(std::cout, 0);
+
+  // Check that we have a fully valid set of requirements
+  ASSERT_TRUE(mesh_reqs->is_fully_specified());
+}
+
+TEST(Configurator, ConstructDriver) {
+  // This should be in the local test directory if things were set up correctly
+  const std::string yaml_file = "./unit_test_configurator_basic.yaml";
+
+  // Construct a configurator from the YAML file
+  Configurator configurator(MPI_COMM_WORLD);
+
+  // Set things that need to be setup before calling the main parse command
+  std::vector<std::string> expected_rank_names = {"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"};
+  configurator.set_entity_rank_names(expected_rank_names);
+  configurator.set_input_file(yaml_file, "yaml");
+
+  // Parse the configuration
+  configurator.parse_parameters();
+
+  // Generate mesh requirements
+  configurator.create_mesh_requirements();
+
+  // Construct a driver
+  std::shared_ptr<Driver> driver_ptr;
+
+  EXPECT_NO_THROW({ driver_ptr = configurator.generate_driver(); });
 }
 
 //@}

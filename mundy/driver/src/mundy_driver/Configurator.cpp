@@ -50,64 +50,147 @@ using FactoryMMPS =
 /// \name Constructors and destructors
 //@{
 
-Configurator::Configurator(const std::string& input_format, const std::string& input_filename) {
-  // Check to see what input file format we have
-  if (input_format == "yaml") {
-    param_list_ = *Teuchos::getParametersFromYamlFile(input_filename);
-  } else if (input_format == "xml") {
+Configurator::Configurator() {
+}
+
+Configurator::Configurator(stk::ParallelMachine comm) {
+  comm_ = comm;
+  has_comm_ = true;
+}
+
+//@}
+
+/// \name Setters
+//@{
+
+Configurator &Configurator::set_configuration_version(const unsigned configuration_version) {
+  configuration_version_ = configuration_version;
+  return *this;
+}
+
+Configurator &Configurator::set_spatial_dimension(const unsigned spatial_dimension) {
+  spatial_dimension_ = spatial_dimension;
+  return *this;
+}
+
+Configurator &Configurator::set_entity_rank_names(const std::vector<std::string> &entity_rank_names) {
+  entity_rank_names_ = entity_rank_names;
+  return *this;
+}
+
+Configurator &Configurator::set_communicator(const stk::ParallelMachine &comm) {
+  comm_ = comm;
+  return *this;
+}
+
+Configurator &Configurator::set_param_list(const Teuchos::ParameterList &param_list) {
+  param_list_ = param_list;
+  return *this;
+}
+
+Configurator &Configurator::set_input_file_name(const std::string &input_file_name) {
+  input_file_name_ = input_file_name;
+  return *this;
+}
+
+Configurator &Configurator::set_input_file_type(const std::string &input_file_type) {
+  input_file_type_ = input_file_type;
+  return *this;
+}
+
+Configurator &Configurator::set_input_file(const std::string &input_file_name, const std::string &input_file_type) {
+  input_file_name_ = input_file_name;
+  input_file_type_ = input_file_type;
+  return *this;
+}
+
+Configurator &Configurator::set_node_coordinate_field_name(const std::string &node_coordinate_field_name) {
+  node_coordinate_field_name_ = node_coordinate_field_name;
+  return *this;
+}
+
+Configurator &Configurator::set_driver(std::shared_ptr<Driver> driver) {
+  // Check if this is the same driver we already know about
+  {
+    const bool same_driver_already_set = driver_ptr_.get() == driver.get();
+    if (same_driver_already_set) {
+      return *this;
+    }
+  }
+
+  // If this isn't the same driver, and we already have a driver, throw an exception
+  MUNDY_THROW_ASSERT(driver_ptr_ == nullptr, std::logic_error,
+                     "mundy::driver::Configurator Driver already initialized.");
+
+  // Assign driver at this point
+  driver_ptr_ = driver;
+
+  return *this;
+}
+
+//@}
+
+//! @name Getters
+//@{
+
+std::shared_ptr<mundy::meta::MeshRequirements> Configurator::get_mesh_requirements() {
+  return mesh_reqs_ptr_;
+}
+
+//@}
+
+//! @name Actions
+//@{
+
+Configurator &Configurator::parse_parameters() {
+  // First determine what kind of file we are reading
+  if (input_file_type_ == "yaml") {
+    param_list_ = *Teuchos::getParametersFromYamlFile(input_file_name_);
+  } else if (input_file_type_ == "xml") {
     MUNDY_THROW_ASSERT(false, std::invalid_argument,
                        "mundy::driver::Configurator XML files are not implemented for reading yet.");
   } else {
     MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                       "mundy::driver::Configurator file_format " + input_format + " not recognized.");
+                       "mundy::driver::Configurator file_format " + input_file_type_ + " not recognized.");
   }
-}
 
-//@}
-
-//! \name Queries of registered "methods"
-//@{
-
-std::string Configurator::get_registered_meta_method_execution_interface() {
-  return FactoryMM::get_keys_as_string();
-}
-
-std::string Configurator::get_registered_meta_method_subset_execution_interface() {
-  return FactoryMMS::get_keys_as_string();
-}
-
-std::string Configurator::get_registered_meta_method_pairwise_subset_execution_interface() {
-  return FactoryMMPS::get_keys_as_string();
-}
-
-std::string Configurator::get_registered_classes() {
-  return get_registered_meta_method_execution_interface() + get_registered_meta_method_subset_execution_interface() +
-         get_registered_meta_method_pairwise_subset_execution_interface();
-}
-
-//@}
-
-//! \name Parse
-//@{
-
-void Configurator::parse_parameters() {
   // At this point we are expecting to have a valid param_list_. Get into the Configuration section first, and configure
   // the MetaMethod* that we need
   MUNDY_THROW_ASSERT(param_list_.isSublist("configuration"), std::invalid_argument,
                      "mundy::driver::ParseParameters parameters does not contain an 'configuration' sublist.");
+
   const Teuchos::ParameterList config_params = param_list_.sublist("configuration");
   parse_configuration(config_params);
+
+  // Parse the action list
+  MUNDY_THROW_ASSERT(param_list_.isSublist("actions"), std::invalid_argument,
+                     "mundy::driver::ParseParameters parameters does not contain an 'actions' sublist.");
+  const Teuchos::ParameterList action_params = param_list_.sublist("actions");
+  parse_actions(action_params);
+
+  return *this;
 }
 
-void Configurator::parse_configuration(const Teuchos::ParameterList& config_params) {
+Configurator &Configurator::parse_configuration(const Teuchos::ParameterList &config_params) {
   // Get simulation variables that don't belong to a specific Meta*
-  n_dim_ = config_params.get<int>("n_dim");
+  int configuration_version = config_params.get<int>("configuration_version");
+  set_configuration_version(configuration_version);
+  int n_dim = config_params.get<int>("n_dim");
+  set_spatial_dimension(n_dim);
 
   // Look for the node_coordinates name
+  std::string node_coordinate_field_name(default_node_coordinate_field_name_);
   if (config_params.isParameter("node_coordinates_field_name")) {
-    node_coordinates_field_name_ = config_params.get<std::string>("node_coordiantes_field_name");
-  } else {
-    node_coordinates_field_name_ = default_node_coordinates_field_name_;
+    node_coordinate_field_name = config_params.get<std::string>("node_coordiantes_field_name");
+  }
+  set_node_coordinate_field_name(node_coordinate_field_name);
+
+  // Look for restart condition
+  if (config_params.isParameter("restart")) {
+    is_restart_ = config_params.get<bool>("restart");
+    if (is_restart_) {
+      restart_filename_ = config_params.get<std::string>("restart_filename");
+    }
   }
 
   // Loop over known MetaMethod types and parse_and_configure them
@@ -117,21 +200,53 @@ void Configurator::parse_configuration(const Teuchos::ParameterList& config_para
     // Configure the MetaMethod interface
     if (config_params.isSublist(metamethod_str)) {
       const Teuchos::ParameterList metamethod_params = config_params.sublist(metamethod_str);
-      parse_metamethod(metamethod_str, metamethod_params);
+      parse_meta_method_type(metamethod_str, metamethod_params);
     }
   }
+  return *this;
 }
 
-void Configurator::parse_metamethod(const std::string& method_type, const Teuchos::ParameterList& method_params) {
+Configurator &Configurator::parse_actions(const Teuchos::ParameterList &action_params) {
+  // Loop over the different phases and set them up
+  std::vector<std::string> phase_types{"setup", "run", "finalize"};
+  for (auto phase = phase_types.begin(); phase != phase_types.end(); phase++) {
+    // Check if we have information for this phase
+    if (action_params.isSublist(*phase)) {
+      const Teuchos::ParameterList phase_sublist = action_params.sublist(*phase);
+
+      for (auto pit = phase_sublist.begin(); pit != phase_sublist.end(); ++pit) {
+        // Get the name and check that it exists in the unordered map for enabled meta methods
+        const std::string &method_name = pit->first;
+        const Teuchos::ParameterEntry &entry = pit->second;
+
+        MUNDY_THROW_ASSERT(enabled_meta_methods_.contains(method_name), std::invalid_argument,
+                           "Configurator did not find enabled meta method " + method_name + " when parsing actions.");
+
+        // Get the parameters for the type of trigger we are going to use
+        const Teuchos::ParameterList action_sublist = Teuchos::getValue<Teuchos::ParameterList>(entry);
+
+        all_actions_[*phase].push_back(std::make_tuple(method_name, action_sublist));
+      }
+    }
+  }
+
+  // Look for the special n_steps variable in configuration version 0
+  int n_steps = action_params.get<int>("n_steps");
+  n_steps_ = n_steps;
+  return *this;
+}
+
+Configurator &Configurator::parse_meta_method_type(const std::string &method_type,
+                                                   const Teuchos::ParameterList &method_params) {
   // Loop over MetaMethod sublist
   for (auto pit = method_params.begin(); pit != method_params.end(); ++pit) {
-    const std::string& param_name = pit->first;
-    const Teuchos::ParameterEntry& entry = pit->second;
+    const std::string &param_name = pit->first;
+    const Teuchos::ParameterEntry &entry = pit->second;
 
     // Dive into the sublist of this method and get the method it's trying to call
     MUNDY_THROW_ASSERT(
         entry.isList(), std::invalid_argument,
-        "mundy::driver::Configurator::parse_and_configure_metamethod Invalid specification of method " + param_name);
+        "mundy::driver::Configurator::parse_meta_method_type Invalid specification of method " + param_name);
     const Teuchos::ParameterList method_sublist = Teuchos::getValue<Teuchos::ParameterList>(entry);
 
     // Check to see if the method is a valid one (registered with MetaFactory). Unfortunately, without reflection, we
@@ -140,17 +255,17 @@ void Configurator::parse_metamethod(const std::string& method_type, const Teucho
     if (method_type == "meta_method_execution_interface") {
       bool is_valid_metamethod = FactoryMM::is_valid_key(method_name);
       MUNDY_THROW_ASSERT(is_valid_metamethod, std::invalid_argument,
-                         "mundy::driver::Configurator::parse_and_configure_metamethod Could not find MetaMethod " +
+                         "mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod " +
                              method_name + " for name " + param_name);
     } else if (method_type == "meta_method_subset_execution_interface") {
       bool is_valid_metamethod = FactoryMMS::is_valid_key(method_name);
       MUNDY_THROW_ASSERT(is_valid_metamethod, std::invalid_argument,
-                         "mundy::driver::Configurator::parse_and_configure_metamethod Could not find MetaMethod " +
+                         "mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod " +
                              method_name + " for name " + param_name);
     } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
       bool is_valid_metamethod = FactoryMMPS::is_valid_key(method_name);
       MUNDY_THROW_ASSERT(is_valid_metamethod, std::invalid_argument,
-                         "mundy::driver::Configurator::parse_and_configure_metamethod Could not find MetaMethod " +
+                         "mundy::driver::Configurator::parse_meta_method_type Could not find MetaMethod " +
                              method_name + " for name " + param_name);
     }
 
@@ -194,105 +309,89 @@ void Configurator::parse_metamethod(const std::string& method_type, const Teucho
     std::tuple mtuple(method_type, method_name, valid_fixed_params, valid_mutable_params);
     enabled_meta_methods_[param_name] = mtuple;
   }  // for loop over user-given method names
+  return *this;
 }
 
-//@}
-
-//! \name Print/format
-//@{
-
-void Configurator::print_enabled_meta_methods() {
-  // TODO(cje): Move to the mundy logger once we agree on it.
-  std::cout << "Enabled MetaMethods\n";
-  for (const auto& [key, value] : enabled_meta_methods_) {
-    std::cout << "................................\n";
-    std::cout << ".MetaMethod: " << key << std::endl;
-    auto [method_type, method_name, fixed_params, mutable_params] = value;
-    std::cout << "...Method type: " << method_type << std::endl;
-    std::cout << "...Method NAME: " << method_name << std::endl;
-    std::cout << "...Fixed Params:\n" << fixed_params;
-    std::cout << "...Mutable Params:\n" << mutable_params;
-  }
-}
-
-//@}
-
-//! \name Driver interactions
-//@{
-
-void Configurator::set_driver(std::shared_ptr<Driver> driver_ptr) {
-  driver_ptr_ = driver_ptr;
-}
-
-void Configurator::generate_driver() {
-  // Assert we have a driver to populate
-  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
-                     "Cannot generate a Driver without an existing Driver instance");
-
-  // Generate the requirements
-  generate_mesh_requirements_driver();
-
-  // After we have created the requirements, delcare the mesh
-  declare_mesh_driver();
-
-  // Ask the driver to commit the mesh
-  // TODO(cje): Here is where we would diverge from a restart!
-  commit_mesh_driver();
-
-  // Now we loop back through the enabled meta methods and ask the driver to create instances of them
-  generate_meta_methods_driver();
-}
-
-void Configurator::generate_mesh_requirements_driver() {
-  // Assert we have a driver to populate
-  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
-                     "Cannot generate a Driver without an existing Driver instance");
-
-  // Set the spatial dimensions and build mesh requirements in the Driver
-  driver_ptr_->set_n_dimensions(n_dim_);
-  driver_ptr_->build_mesh_requirements();
+std::shared_ptr<mundy::meta::MeshRequirements> Configurator::create_mesh_requirements() {
+  mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshRequirements>(comm_);
+  mesh_reqs_ptr_->set_spatial_dimension(spatial_dimension_);
+  mesh_reqs_ptr_->set_entity_rank_names(entity_rank_names_);
 
   // Loop over the elements in the enabled_meta_methods_ map and add them to the requirements
-  for (const auto& [key, value] : enabled_meta_methods_) {
+  for (const auto &[key, value] : enabled_meta_methods_) {
     auto [method_type, method_name, fixed_params, mutable_params] = value;
-    driver_ptr_->add_mesh_requirement(method_type, method_name, fixed_params);
+
+    // Add a single requirement to the mesh, taking into account what factory it came from
+    // TODO(cje): At some point having this be a single factory, or making this easier, would be nice
+    if (method_type == "meta_method_execution_interface") {
+      mesh_reqs_ptr_->merge(FactoryMM::get_mesh_requirements(method_name, fixed_params));
+    } else if (method_type == "meta_method_subset_execution_interface") {
+      mesh_reqs_ptr_->merge(FactoryMMS::get_mesh_requirements(method_name, fixed_params));
+    } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
+      mesh_reqs_ptr_->merge(FactoryMMPS::get_mesh_requirements(method_name, fixed_params));
+    }
   }
 
-  // TODO(cje): Remove after debug session
-  std::cout << "Mesh requirements mundy::driver::Configuator::generate_mesh_requirements_driver:\n";
-  driver_ptr_->print_mesh_requirements();
+  return mesh_reqs_ptr_;
 }
 
-void Configurator::declare_mesh_driver() {
-  // Assert we have a driver to populate
-  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
-                     "Cannot generate a Driver without an existing Driver instance");
-
-  // Set the node coordinates field name in the driver
-  driver_ptr_->set_node_coordinates_field_name(node_coordinates_field_name_);
-
-  // Simple pass-through to call the driver's declare
-  driver_ptr_->declare_mesh();
-}
-
-void Configurator::commit_mesh_driver() {
-  // Assert we have a driver to populate
-  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
-                     "Cannot generate a Driver without an existing Driver instance");
-
-  // Pass through the request to the driver
-  driver_ptr_->commit_mesh();
-}
-
-void Configurator::generate_meta_methods_driver() {
-  // Assert we have a driver to populate
-  MUNDY_THROW_ASSERT(driver_ptr_ != nullptr, std::invalid_argument,
-                     "Cannot generate a Driver without an existing Driver instance");
-  // Loop over the elements in the enabled_meta_methods_ map and ask the driver to create them
-  for (const auto& [key, value] : enabled_meta_methods_) {
-    auto [method_type, method_name, fixed_params, mutable_params] = value;
-    driver_ptr_->add_meta_class_instance(method_type, method_name, fixed_params, mutable_params);
+std::shared_ptr<Driver> Configurator::generate_driver() {
+  // If we don't have a driver, create an instance
+  if (driver_ptr_ == nullptr) {
+    driver_ptr_ = std::make_shared<Driver>(comm_);
   }
+
+  // Check to make sure we've already called build_mesh_requirements (mesh_reqs_ptr_ isn't null)
+  MUNDY_THROW_ASSERT(mesh_reqs_ptr_ != nullptr, std::invalid_argument,
+                     "Cannot create a Driver without mesh requirements.");
+
+  // This does not commit the mesh as it is supposed to play nicely with IO, which sometimes commits the mesh on a
+  // restart.
+  bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
+  meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
+  // Also set to using simple fields
+  meta_data_ptr_->use_simple_fields();
+  // Set the coordinate field name
+  meta_data_ptr_->set_coordinate_field_name(node_coordinate_field_name_);
+
+  // TODO(cje): Remove later
+  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+
+  // Here is where we might read in a restart mesh file, for now, throw an error if this is the case
+  if (is_restart_) {
+    MUNDY_THROW_ASSERT(false, std::invalid_argument, "Mundy currently does not enable restarts.");
+  } else {
+    // Commit the mesh if not a restart
+    meta_data_ptr_->commit();
+  }
+
+  // Now create instances of the meta methods that we want to configure. Loop over the elements in the
+  // enabled_meta_methods_ map, created a shared version and a map, and then hand them to the driver as well.
+  for (const auto &[key, value] : enabled_meta_methods_) {
+    auto [method_type, method_name, fixed_params, mutable_params] = value;
+
+    if (method_type == "meta_method_execution_interface") {
+      // Create a new class instance
+      std::shared_ptr<mundy::meta::MetaMethodExecutionInterface<void>> new_meta_method =
+          FactoryMM::create_new_instance(method_name, bulk_data_ptr_.get(), fixed_params);
+      new_meta_method->set_mutable_params(mutable_params);
+      meta_methods_map_[method_name] = new_meta_method;
+    } else if (method_type == "meta_method_subset_execution_interface") {
+      // Create a new class instance
+      std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> new_meta_method =
+          FactoryMMS::create_new_instance(method_name, bulk_data_ptr_.get(), fixed_params);
+      new_meta_method->set_mutable_params(mutable_params);
+      meta_methods_subset_map_[method_name] = new_meta_method;
+    } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
+      // Create a new class instance
+      std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> new_meta_method =
+          FactoryMMPS::create_new_instance(method_name, bulk_data_ptr_.get(), fixed_params);
+      new_meta_method->set_mutable_params(mutable_params);
+      meta_methods_pairwise_subset_map_[method_name] = new_meta_method;
+    }
+  }
+
+  return driver_ptr_;
 }
 
 //@}

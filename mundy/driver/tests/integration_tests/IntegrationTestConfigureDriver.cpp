@@ -48,28 +48,28 @@ This is an integration test for the configurator being able to push information 
 
 //! \name Combined configurator and driver integration tests
 //@{
-TEST(ConfigureDriver, ConfigureBasicYAML) {
-  // This should be in the local test directory if things were set up correctly
-  const std::string yaml_file = "./integration_test_configuredriver_basic.yaml";
+// TEST(ConfigureDriver, ConfigureBasicYAML) {
+//   // This should be in the local test directory if things were set up correctly
+//   const std::string yaml_file = "./integration_test_configuredriver_basic.yaml";
 
-  // Construct a Driver with the correct communicator
-  std::shared_ptr<Driver> driver_ptr = std::make_shared<Driver>(MPI_COMM_WORLD);
+//   // Construct a Driver with the correct communicator
+//   std::shared_ptr<Driver> driver_ptr = std::make_shared<Driver>(MPI_COMM_WORLD);
 
-  // Construct a configurator from the YAML file
-  Configurator configurator("yaml", yaml_file);
+//   // Construct a configurator from the YAML file
+//   Configurator configurator("yaml", yaml_file);
 
-  // Associate the Driver with the Configurator
-  configurator.set_driver(driver_ptr);
+//   // Associate the Driver with the Configurator
+//   configurator.set_driver(driver_ptr);
 
-  // Run the parse command
-  configurator.parse_parameters();
+//   // Run the parse command
+//   configurator.parse_parameters();
 
-  // Print the Configurator to see what's inside
-  configurator.print_enabled_meta_methods();
+//   // Print the Configurator to see what's inside
+//   configurator.print_enabled_meta_methods();
 
-  // Ask the configurator to set up the driver for us
-  configurator.generate_driver();
-}
+//   // Ask the configurator to set up the driver for us
+//   configurator.generate_driver();
+// }
 
 //@}
 

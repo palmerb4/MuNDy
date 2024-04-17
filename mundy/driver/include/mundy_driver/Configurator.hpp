@@ -24,7 +24,11 @@
 /// \brief Declaration of the Configurator class
 
 // C++ core libs
+#include <memory>
 #include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
@@ -67,14 +71,14 @@
 #endif                                                             // HAVE_MUNDYDRIVER_MUNDYLINKERS
 
 #ifdef HAVE_MUNDYDRIVER_MUNDYSHAPES
-#include <mundy_shapes/ComputeAABB.hpp>            // for mundy::shapes::ComputeAABB
-#include <mundy_shapes/ComputeBoundingRadius.hpp>  // for mundy::shapes::ComputeBoundingRadius
-#include <mundy_shapes/ComputeOBB.hpp>             // for mundy::shapes::ComputeOBB
-#include <mundy_shapes/DeclareAndInitShapes.hpp>   // for mundy::shapes::DeclareAndInitShapes
-#include <mundy_shapes/Spheres.hpp>                // for mundy::shapes::Spheres
-#include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
+#include <mundy_shapes/ComputeAABB.hpp>             // for mundy::shapes::ComputeAABB
+#include <mundy_shapes/ComputeBoundingRadius.hpp>   // for mundy::shapes::ComputeBoundingRadius
+#include <mundy_shapes/ComputeOBB.hpp>              // for mundy::shapes::ComputeOBB
+#include <mundy_shapes/DeclareAndInitShapes.hpp>    // for mundy::shapes::DeclareAndInitShapes
+#include <mundy_shapes/Spheres.hpp>                 // for mundy::shapes::Spheres
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
-#endif                                             // HAVE_MUNDYDRIVER_MUNDYSHAPES
+#include <mundy_shapes/Spherocylinders.hpp>         // for mundy::shapes::Spherocylinders
+#endif                                              // HAVE_MUNDYDRIVER_MUNDYSHAPES
 
 // Class forward definitions (if we don't want the header)
 // clang-format off
@@ -95,78 +99,92 @@ class Configurator {
   //! \name Constructors and destructors
   //@{
 
-  /// \brief Default constructor for configurator
-  Configurator() {
+  /// \brief Default constructor
+  Configurator();
+
+  /// \brief Constructor with given communicator
+  explicit Configurator(stk::ParallelMachine comm);
+
+  //@}
+
+  //! @name Setters
+  //@{
+
+  Configurator &set_configuration_version(const unsigned configuration_version);
+
+  Configurator &set_spatial_dimension(const unsigned spatial_dimension);
+
+  Configurator &set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
+
+  Configurator &set_communicator(const stk::ParallelMachine &comm);
+
+  Configurator &set_param_list(const Teuchos::ParameterList &param_list);
+
+  Configurator &set_input_file_name(const std::string &input_file_name);
+
+  Configurator &set_input_file_type(const std::string &input_file_type);
+
+  Configurator &set_input_file(const std::string &input_file_name, const std::string &input_file_type);
+
+  Configurator &set_node_coordinate_field_name(const std::string &node_coordinate_field_name);
+
+  Configurator &set_driver(std::shared_ptr<Driver> driver);
+
+  //@}
+
+  //! @name Getters
+  //@{
+
+  std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements();
+
+  //@}
+
+  //! @name Actions
+  //@{
+
+  Configurator &parse_parameters();
+
+  Configurator &parse_configuration(const Teuchos::ParameterList &config_params);
+
+  Configurator &parse_actions(const Teuchos::ParameterList &action_params);
+
+  Configurator &parse_meta_method_type(const std::string &method_type, const Teuchos::ParameterList &method_params);
+
+  std::shared_ptr<mundy::meta::MeshRequirements> create_mesh_requirements();
+
+  std::shared_ptr<Driver> generate_driver();
+
+  //@}
+
+  //! @name Print/format
+  //@{
+
+  friend auto operator<<(std::ostream &os, const Configurator &m) -> std::ostream & {
+    os << "Configuration Version: " << m.configuration_version_ << std::endl;
+    os << "Enabled MetaMethods\n";
+    for (const auto &[key, value] : m.enabled_meta_methods_) {
+      os << "................................\n";
+      os << ".MetaMethod: " << key << std::endl;
+      auto [method_type, method_name, fixed_params, mutable_params] = value;
+      os << "...Method type: " << method_type << std::endl;
+      os << "...Method NAME: " << method_name << std::endl;
+      os << "...Fixed Params:\n" << fixed_params;
+      os << "...Mutable Params:\n" << mutable_params;
+    }
+    os << "Actions\n";
+    os << ".Number of steps" << m.n_steps_ << std::endl;
+    std::vector<std::string> phase_types{"setup", "run", "finalize"};
+    for (const auto &phase : phase_types) {
+      os << "................................\n";
+      os << ".Phase: " << phase << std::endl;
+      const auto action_iter = m.all_actions_.find(phase);
+      for (const auto &[action, trigger_params] : action_iter->second) {
+        os << "...Action name: " << action << std::endl;
+        os << "...Trigger:\n" << trigger_params;
+      }
+    }
+    return os;
   }
-
-  /// \brief Teuchos paramter list constructor
-  explicit Configurator(const Teuchos::ParameterList& param_list) : param_list_(param_list) {
-  }
-
-  /// \brief Configuration file constructor
-  Configurator(const std::string& input_format, const std::string& input_filename);
-
-  //@}
-
-  //! \name Queries of Configurator
-  //@{
-
-  /// \brief Get the registered MetaMethodExecutionInterface
-  static std::string get_registered_meta_method_execution_interface();
-
-  /// \brief Get the registered MetaMethodSubsetExecutionInterface
-  static std::string get_registered_meta_method_subset_execution_interface();
-
-  /// \brief Get the registered MetaMethodPairwiseSubsetExecutionInterface
-  static std::string get_registered_meta_method_pairwise_subset_execution_interface();
-
-  /// \brief Get all registered classes
-  static std::string get_registered_classes();
-
-  //@}
-
-  //! \name Parse input file (ParameterList)
-  //@{
-
-  /// \brief Parse the parameters and construct a driver (execution engine)
-  void parse_parameters();
-
-  /// \brief Parse the configuration portion of the parameters
-  void parse_configuration(const Teuchos::ParameterList& config_params);
-
-  /// \brief Parse and configure MetaMethodExecutionInterace methods
-  void parse_metamethod(const std::string& method_type, const Teuchos::ParameterList& method_params);
-
-  //@}
-
-  //! \name Print/format
-  //@{
-
-  /// \brief Print the enabled MetaMethods and their fixed/mutable parameters
-  void print_enabled_meta_methods();
-
-  //@}
-
-  //! \name Driver interactions
-  //@{
-
-  /// \brief Set the Driver instance
-  void set_driver(std::shared_ptr<Driver> driver_ptr);
-
-  /// \brief Generate the driver (entire)
-  void generate_driver();
-
-  /// \brief Generate mesh requirements on the driver
-  void generate_mesh_requirements_driver();
-
-  /// \brief Declare the mesh on the driver
-  void declare_mesh_driver();
-
-  /// \brief Commit the mesh on the driver
-  void commit_mesh_driver();
-
-  /// \brief Generate meta classes on driver
-  void generate_meta_methods_driver();
 
   //@}
 
@@ -179,7 +197,7 @@ class Configurator {
       "meta_method_execution_interface", "meta_method_subset_execution_interface",
       "meta_method_pairwise_subset_execution_interface"};
 
-  static constexpr std::string_view default_node_coordinates_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view default_node_coordinate_field_name_ = "NODE_COORDINATES";
 
   //@}
 
@@ -189,16 +207,49 @@ class Configurator {
   /// \brief Teuchos ParameterList for global information
   Teuchos::ParameterList param_list_;
 
+  /// \brief MPI communicator to use
+  stk::ParallelMachine comm_ = MPI_COMM_NULL;
+
+  /// \brief Has the communicator been set?
+  bool has_comm_ = false;
+
+  /// \brief Is this a restart?
+  bool is_restart_ = false;
+
+  /// \brief Configuration version
+  unsigned configuration_version_ = 0;
+
   /// \brief Number of dimensions
-  int n_dim_ = 0;
+  unsigned spatial_dimension_ = 0;
+
+  /// \brief Number of steps for run
+  unsigned n_steps_ = 0;
+
+  /// \brief Entity rank names
+  std::vector<std::string> entity_rank_names_;
+
+  /// \brief Node coordinate field name
+  std::string node_coordinate_field_name_ = "";
+
+  /// \brief Input file name
+  std::string input_file_name_ = "";
+
+  /// \brief Input file type
+  std::string input_file_type_ = "";
+
+  /// \brief Restart filename (if applicable)
+  std::string restart_filename_ = "";
 
   /// \brief Enabled MetaMethods [User-defined name](MetaMethod type, MetaMethod name, fixed parameters, mutable
   /// parameters)
   std::unordered_map<std::string, std::tuple<std::string, std::string, Teuchos::ParameterList, Teuchos::ParameterList>>
       enabled_meta_methods_;
 
-  /// \brief Node coordinate field name
-  std::string node_coordinates_field_name_;
+  // TODO(cje): This will be replaced with a DAG construct eventually. For now, we expect a simulation to have a singly
+  // executed setup, some number of steps in the main loop, and then a finalize that does post-processing and tears down
+  // the system.
+  /// \brief Actions for differe phases [phase](Vector<User-defined name, Trigger Parameters>)
+  std::unordered_map<std::string, std::vector<std::tuple<std::string, Teuchos::ParameterList>>> all_actions_;
 
   /// \brief Associated Driver instance
   //
@@ -207,6 +258,26 @@ class Configurator {
   // aren't constantly writing down the Driver arguments, as well as incrementing the shared_ptr. The downside is that
   // it requires setting it on the inside of the class, and then not changing it, leading to undefined behavior.
   std::shared_ptr<Driver> driver_ptr_ = nullptr;
+
+  /// Associated mesh requirements
+  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_ = nullptr;
+
+  /// \brief Mundy bulk data pointer
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_ = nullptr;
+
+  /// \brief Mundy meta data pointer
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_ = nullptr;
+
+  //! \name MetaMethod instance lookups
+  //@{
+
+  std::unordered_map<std::string, std::shared_ptr<mundy::meta::MetaMethodExecutionInterface<void>>> meta_methods_map_;
+  std::unordered_map<std::string, std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>>>
+      meta_methods_subset_map_;
+  std::unordered_map<std::string, std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>>>
+      meta_methods_pairwise_subset_map_;
+
+  //@}
 
   //}
 };  // Configurator
