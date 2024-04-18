@@ -18,11 +18,14 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 SET(NOINSTALLHEADERS 
   include/mundy_driver/Configurator.hpp
   include/mundy_driver/Driver.hpp
+  include/mundy_driver/PeriodicTrigger.hpp
+  include/mundy_driver/TriggerBase.hpp
   )
 
 SET(SOURCES 
   src/mundy_driver/Configurator.cpp
   src/mundy_driver/Driver.cpp
+  src/mundy_driver/PeriodicTrigger.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
