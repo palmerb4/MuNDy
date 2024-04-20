@@ -86,23 +86,24 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief Set the required field name.
   /// \param field_name [in] Required name of the field.
-  void set_field_name(const std::string &field_name) final;
+  FieldRequirements<FieldType_t> &set_field_name(const std::string &field_name) final;
 
   /// \brief Set the required field rank.
   /// \param field_rank [in] Required rank of the field.
-  void set_field_rank(const stk::topology::rank_t &field_rank) final;
+  FieldRequirements<FieldType_t> &set_field_rank(const stk::topology::rank_t &field_rank) final;
 
   /// \brief Set the required field dimension.
   /// \param field_dimension [in] Required dimension of the field.
-  void set_field_dimension(const unsigned field_dimension) final;
+  FieldRequirements<FieldType_t> &set_field_dimension(const unsigned field_dimension) final;
 
   /// \brief Set the minimum required number of field states.
   /// \param field_min_number_of_states [in] Minimum required number of states of the field.
-  void set_field_min_number_of_states(const unsigned field_min_number_of_states) final;
+  FieldRequirements<FieldType_t> &set_field_min_number_of_states(const unsigned field_min_number_of_states) final;
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \param field_min_number_of_states [in] Minimum required number of states of the field.
-  void set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) final;
+  FieldRequirements<FieldType_t> &set_field_min_number_of_states_if_larger(
+      const unsigned field_min_number_of_states) final;
 
   /// \brief Get if the field name is constrained or not.
   bool constrains_field_name() const final;
@@ -146,34 +147,35 @@ class FieldRequirements : public FieldRequirementsBase {
   //@{
 
   /// \brief Declare/create the field that this class defines and assign it to a part.
-  void declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const final;
+  stk::mesh::Field<FieldType_t> &declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
+                                                        const stk::mesh::Part &part) const final;
 
   /// \brief Declare/create the field that this class defines and assign it to the entire mesh.
-  void declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const final;
+  stk::mesh::Field<FieldType_t> &declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const final;
 
   /// \brief Delete the field name constraint (if it exists).
-  void delete_field_name() final;
+  FieldRequirements<FieldType_t> &delete_field_name() final;
 
   /// \brief Delete the field rank constraint (if it exists).
-  void delete_field_rank() final;
+  FieldRequirements<FieldType_t> &delete_field_rank() final;
 
   /// \brief Delete the field dimension constraint (if it exists).
-  void delete_field_dimension() final;
+  FieldRequirements<FieldType_t> &delete_field_dimension() final;
 
   /// \brief Delete the field minimum number of states constraint (if it exists).
-  void delete_field_min_number_of_states() final;
+  FieldRequirements<FieldType_t> &delete_field_min_number_of_states() final;
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means that the rank, dimension, and number of states are > 0, but as unsigned ints, this is always the
   /// case. We will however, leave this checker incase the class grows and the set of requirements is no longer
   /// automatically satisfied.
-  void check_if_valid() const final;
+  FieldRequirements<FieldType_t> &check_if_valid() final;
 
   /// \brief Require that an attribute with the given name be present on the field.
   ///
   /// \param attribute_name [in] The name of the attribute that must be present on the field.
-  void add_field_attribute(const std::string &attribute_name) final;
+  FieldRequirements<FieldType_t> &add_field_attribute(const std::string &attribute_name) final;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///
@@ -182,7 +184,7 @@ class FieldRequirements : public FieldRequirementsBase {
   /// \c FieldRequirements must have the same rank, type, and dimension.
   ///
   /// \param field_req_ptr [in] A \c FieldRequirements objects to merge with the current object.
-  void merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) final;
+  FieldRequirements<FieldType_t> &merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) final;
 
   /// \brief Merge the current parameters with any number of other \c FieldRequirements.
   ///
@@ -192,7 +194,8 @@ class FieldRequirements : public FieldRequirementsBase {
   ///
   /// \param vector_of_field_req_ptrs [in] A vector of pointers to other \c FieldRequirements objects to merge with the
   /// current object.
-  void merge(const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) final;
+  FieldRequirements<FieldType_t> &merge(
+      const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) final;
 
   /// \brief Dump the contents of \c FieldRequirements to the given stream (defaults to std::cout).
   void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const final;
@@ -253,35 +256,41 @@ FieldRequirements<FieldType>::FieldRequirements(const std::string &field_name, c
 //{
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::set_field_name(const std::string &field_name) {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::set_field_name(const std::string &field_name) {
   field_name_ = field_name;
   field_name_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::set_field_rank(const stk::topology::rank_t &field_rank) {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::set_field_rank(const stk::topology::rank_t &field_rank) {
   field_rank_ = field_rank;
   field_rank_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::set_field_dimension(const unsigned field_dimension) {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::set_field_dimension(const unsigned field_dimension) {
   field_dimension_ = field_dimension;
   field_dimension_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::set_field_min_number_of_states(const unsigned field_min_number_of_states) {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::set_field_min_number_of_states(
+    const unsigned field_min_number_of_states) {
   field_min_number_of_states_ = field_min_number_of_states;
   field_min_number_of_states_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::set_field_min_number_of_states_if_larger(
+    const unsigned field_min_number_of_states) {
   if (this->constrains_field_min_number_of_states()) {
     field_min_number_of_states_ = std::max(field_min_number_of_states, field_min_number_of_states_);
   } else {
@@ -289,6 +298,7 @@ void FieldRequirements<FieldType>::set_field_min_number_of_states_if_larger(cons
   }
   field_min_number_of_states_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
 template <typename FieldType>
@@ -377,8 +387,8 @@ std::vector<std::string> FieldRequirements<FieldType>::get_field_attribute_names
 //{
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
-                                                         const stk::mesh::Part &part) const {
+stk::mesh::Field<FieldType> &FieldRequirements<FieldType>::declare_field_on_part(
+    mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const {
   MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
                      "FieldRequirements: MetaData pointer cannot be null).");
 
@@ -409,10 +419,12 @@ void FieldRequirements<FieldType>::declare_field_on_part(mundy::mesh::MetaData *
     std::any empty_attribute;
     meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
+  return field;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const {
+stk::mesh::Field<FieldType> &FieldRequirements<FieldType>::declare_field_on_entire_mesh(
+    mundy::mesh::MetaData *const meta_data_ptr) const {
   MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
                      "FieldRequirements: MetaData pointer cannot be null).");
 
@@ -443,34 +455,40 @@ void FieldRequirements<FieldType>::declare_field_on_entire_mesh(mundy::mesh::Met
     std::any empty_attribute;
     meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
+  return field;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_name() {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::delete_field_name() {
   field_name_is_set_ = false;
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_rank() {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::delete_field_rank() {
   field_rank_is_set_ = false;
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_dimension() {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::delete_field_dimension() {
   field_dimension_is_set_ = false;
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::delete_field_min_number_of_states() {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::delete_field_min_number_of_states() {
   field_min_number_of_states_is_set_ = false;
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::check_if_valid() const {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::check_if_valid() {
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::add_field_attribute(const std::string &attribute_name) {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::add_field_attribute(const std::string &attribute_name) {
   // Adding an existing attribute is perfectly fine. It's a no-op. This merely adds more responsibility to
   // the user to ensure that an they don't unintentionally edit an attribute that is used by another method.
   const bool attribute_exists =
@@ -478,17 +496,19 @@ void FieldRequirements<FieldType>::add_field_attribute(const std::string &attrib
   if (!attribute_exists) {
     required_field_attribute_names_.push_back(attribute_name);
   }
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) {
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::merge(
+    const std::shared_ptr<FieldRequirementsBase> &field_req_ptr) {
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
   // Check if the provided pointer is valid.
   // If it is not, then there is nothing to merge.
   if (field_req_ptr == nullptr) {
-    return;
+    return *this;
   }
 
   // Check if the provided parameters are valid.
@@ -544,14 +564,16 @@ void FieldRequirements<FieldType>::merge(const std::shared_ptr<FieldRequirements
   for (const std::string &attribute_name : field_req_ptr->get_field_attribute_names()) {
     this->add_field_attribute(attribute_name);
   }
+  return *this;
 }
 
 template <typename FieldType>
-void FieldRequirements<FieldType>::merge(
+FieldRequirements<FieldType> &FieldRequirements<FieldType>::merge(
     const std::vector<std::shared_ptr<FieldRequirementsBase>> &vector_of_field_req_ptrs) {
   for (const auto &field_req_ptr : vector_of_field_req_ptrs) {
     merge(field_req_ptr);
   }
+  return *this;
 }
 
 template <typename FieldType>

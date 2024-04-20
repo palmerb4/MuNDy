@@ -84,41 +84,41 @@ class PartRequirements {
 
   /// \brief Set the required part name.
   /// \param part_name [in] Required name of the part.
-  void set_part_name(const std::string &part_name);
+  PartRequirements &set_part_name(const std::string &part_name);
 
   /// \brief Set the required part topology.
   /// \param part_topology [in] Required topology of the part.
-  void set_part_topology(const stk::topology::topology_t &part_topology);
+  PartRequirements &set_part_topology(const stk::topology::topology_t &part_topology);
 
   /// \brief Set the required part rank.
   /// \param part_rank [in] Required rank of the part.
-  void set_part_rank(const stk::topology::rank_t &part_rank);
+  PartRequirements &set_part_rank(const stk::topology::rank_t &part_rank);
 
   /// \brief Delete the part name constraint (if it exists).
-  void delete_part_name();
+  PartRequirements &delete_part_name();
 
   /// \brief Delete the part topology constraint (if it exists).
-  void delete_part_topology();
+  PartRequirements &delete_part_topology();
 
   /// \brief Delete the part rank constraint (if it exists).
-  void delete_part_rank();
+  PartRequirements &delete_part_rank();
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
   /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+  PartRequirements &add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
   /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
-  void add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
+  PartRequirements &add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
   /// \brief Require that an attribute with the given name be present on the part.
   ///
   /// \param attribute_name [in] The name of the attribute that must be present on the part.
-  void add_part_attribute(const std::string &attribute_name);
+  PartRequirements &add_part_attribute(const std::string &attribute_name);
   //@}
 
   //! \name Getters
@@ -178,18 +178,18 @@ class PartRequirements {
   ///
   /// Here, valid means:
   ///   1. the rank of the fields does not exceed the rank of the part's topology.
-  void check_if_valid() const;
+  PartRequirements &check_if_valid();
 
   /// \brief Merge the current requirements with another \c PartRequirements.
   ///
   /// \param part_req_ptr [in] An \c PartRequirements object to merge with the current object.
-  void merge(const std::shared_ptr<PartRequirements> &part_req_ptr);
+  PartRequirements &merge(const std::shared_ptr<PartRequirements> &part_req_ptr);
 
   /// \brief Merge the current requirements with any number of other \c PartRequirements.
   ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
   /// current object.
-  void merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs);
+  PartRequirements &merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs);
 
   /// \brief Dump the contents of \c PartRequirements to the given stream (defaults to std::cout).
   void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;

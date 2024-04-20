@@ -28,9 +28,10 @@
 #include <cmath>  // for std::sin, std::cos, std::sqrt
 
 // Mundy includes
-#include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
-#include <mundy_math/Quaternion.hpp>  // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_math/Matrix3.hpp>       // for mundy::math::Matrix3
+#include <mundy_math/Quaternion.hpp>    // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
 
@@ -92,20 +93,46 @@ class StraightLine : public ArchlengthCoordinateMapping {
   double orientation_z_;
 };  // class StraightLine
 
-/// @brief Helix with given center, radius, length and the axis to the helix's center.
+/// @brief Helix with given start, radius, pitch, and center axis descretized into fixed-size segments.
 class Helix : public ArchlengthCoordinateMapping {
  public:
   /// Constructor
-  Helix(const size_t &num_nodes, const double &radius, const double &length, const double &num_turns,
-  const double &center_x,
-        const double &center_y, const double &center_z, const double &axis_x, const double &axis_y,
-        const double &axis_z)
+  Helix(const size_t &num_nodes, const double &radius, const double &pitch, const double &distance_between_nodes,
+        const double &start_x, const double &start_y, const double &start_z, const double &axis_x,
+        const double &axis_y, const double &axis_z)
       : num_nodes_(num_nodes),
+        num_edges_(num_nodes - 1),
         radius_(radius),
-        length_(length),
-        num_turns_(num_turns),
-        center_{center_x, center_y, center_z},
+        pitch_(pitch),
+        b_(pitch / (2.0 * M_PI)),
+        distance_between_nodes_(distance_between_nodes),
+        delta_t_(distance_between_nodes_ / std::sqrt(radius_ * radius_ + b_ * b_)),
+        start_{start_x, start_y, start_z},
         axis_{axis_x, axis_y, axis_z} {
+    // A note about the calculation of delta_t given the fixed euclidean distance between points on the helix.
+    //
+    // The helix is parameterized by the parametric variable t, the radius a, and the pitch p.
+    // To help, we will define b := p / (2 * pi).
+    // The helix is then given by the parametric equations:
+    // x = a * cos(t)
+    // y = a * sin(t)
+    // z = b * t
+    //
+    // The angle between the tangent vector and the plane perpendicular to the axis is given by:
+    // phi = atan( b / a )
+    //
+    // This angle is invariant under projections of the tangent vector onto a plane that intersects the axis.
+    //
+    // Now, we are interested in discretizing the helix into a set of nodes that are a fixed distance apart. If we take
+    // one node at t and the next at t + delta_t, then the euclidean distance between these nodes is fixed at some
+    // prescribed amount d.
+    //
+    // Notice that, phi is also the angle between the vector from the current node at t to the next at t + delta_t and
+    // the plane perpendicular to the helix axis. Thankfully, because of this projection relation, we can form two
+    // similar triangles: one with base a, height b, and hypotenuse sqrt(a^2 + b^2), and the other with an unimportant
+    // base, height b delta t, and hypotenuse d. This gives us
+    // d sin(phi) = b * delta_t -> delta_t = d * sin(phi) / b = d * sin( atan( b / a ) ) / b = d / sqrt( a^2 + b^2 )
+
     // Not that we don't trust you or anything, but we need to make sure the axis is normalized.
     axis_ /= mundy::math::norm(axis_);
 
@@ -122,23 +149,32 @@ class Helix : public ArchlengthCoordinateMapping {
   }
 
   /// \brief Get the grid coordinate corresponding to a given grid index.
-  /// \param archlength_index The archlength index.
+  /// \param archlength_index The archlength index in [0 to num_nodes-1].
   /// \return The corresponding coordinate.
   std::array<double, 3> get_grid_coordinate(const size_t &archlength_index) const override {
-    // The angle is determined by the number of turns and the number of nodes.
-    const double angle = 2.0 * M_PI * num_turns_ * static_cast<double>(archlength_index) / static_cast<double>(num_nodes_);
-    const auto pos_circle = center_ + radius_ * (basis_vector0_ * std::cos(angle) + basis_vector1_ * std::sin(angle));
-    const double shift = (static_cast<double>(archlength_index) / static_cast<double>(num_nodes_ - 1) - 0.5) * length_;
-    const auto pos = pos_circle + shift * axis_;
+    // t = delta_t * archlength_index
+    // x_ref = a * cos(t) 
+    // y_ref = a * sin(t)
+    // z_ref = b * t
+    //
+    // pos = start + x_ref * basis_vector0 + y_ref * basis_vector1 + z_ref * axis 
+    const double t = delta_t_ * static_cast<double>(archlength_index);
+    const double x_ref = radius_ * std::cos(t);
+    const double y_ref = radius_ * std::sin(t);
+    const double z_ref = b_ * t;
+    const auto pos = start_ + x_ref * basis_vector0_ + y_ref * basis_vector1_ + z_ref * axis_;
     return {pos[0], pos[1], pos[2]};
   }
 
  private:
   size_t num_nodes_;
+  size_t num_edges_;
   double radius_;
-  double length_;
-  double num_turns_;
-  mundy::math::Vector3<double> center_;
+  double pitch_;
+  double b_;
+  double distance_between_nodes_;
+  double delta_t_;
+  mundy::math::Vector3<double> start_;
   mundy::math::Vector3<double> axis_;
   mundy::math::Vector3<double> basis_vector0_;
   mundy::math::Vector3<double> basis_vector1_;

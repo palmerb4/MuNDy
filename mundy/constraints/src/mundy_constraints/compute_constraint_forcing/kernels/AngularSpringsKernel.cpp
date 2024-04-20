@@ -161,17 +161,28 @@ void AngularSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         const auto force_on_3 = -force_on_1 - force_on_2;
 
         // Add the spring force to the nodes.
-        auto node1_force =  mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node1));
-        auto node2_force =  mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node2));
-        auto node3_force =  mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node3));
+        auto node1_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node1));
+        auto node2_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node2));
+        auto node3_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node3));
 
-#pragma omp critical
-        {
-          // TODO(palmerb4): If we should have each one separately atomic or not, is a matter for testing.
-          node1_force += force_on_1;
-          node2_force += force_on_2;
-          node3_force += force_on_3;
-        }
+#pragma omp atomic
+        node1_force[0] += force_on_1[0];
+#pragma omp atomic
+        node1_force[1] += force_on_1[1];
+#pragma omp atomic
+        node1_force[2] += force_on_1[2];
+#pragma omp atomic
+        node2_force[0] += force_on_2[0];
+#pragma omp atomic
+        node2_force[1] += force_on_2[1];
+#pragma omp atomic
+        node2_force[2] += force_on_2[2];
+#pragma omp atomic
+        node3_force[0] += force_on_3[0];
+#pragma omp atomic
+        node3_force[1] += force_on_3[1];
+#pragma omp atomic
+        node3_force[2] += force_on_3[2];
       });
 }
 //}

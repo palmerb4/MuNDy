@@ -65,46 +65,53 @@ MeshRequirements::MeshRequirements(const stk::ParallelMachine &comm) {
 // \name Setters and Getters
 //{
 
-void MeshRequirements::set_spatial_dimension(const unsigned spatial_dimension) {
+MeshRequirements &MeshRequirements::set_spatial_dimension(const unsigned spatial_dimension) {
   spatial_dimension_ = spatial_dimension;
   spatial_dimension_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void MeshRequirements::set_entity_rank_names(const std::vector<std::string> &entity_rank_names) {
+MeshRequirements &MeshRequirements::set_entity_rank_names(const std::vector<std::string> &entity_rank_names) {
   entity_rank_names_ = entity_rank_names;
   entity_rank_names_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void MeshRequirements::set_communicator(const stk::ParallelMachine &communicator) {
+MeshRequirements &MeshRequirements::set_communicator(const stk::ParallelMachine &communicator) {
   communicator_ = communicator;
   communicator_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void MeshRequirements::set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option) {
+MeshRequirements &MeshRequirements::set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option) {
   aura_option_ = aura_option;
   aura_option_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void MeshRequirements::set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr) {
+MeshRequirements &MeshRequirements::set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr) {
   field_data_manager_ptr_ = field_data_manager_ptr;
   field_data_manager_ptr_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void MeshRequirements::set_bucket_capacity(const unsigned bucket_capacity) {
+MeshRequirements &MeshRequirements::set_bucket_capacity(const unsigned bucket_capacity) {
   bucket_capacity_ = bucket_capacity;
   bucket_capacity_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void MeshRequirements::set_upward_connectivity_flag(const bool upward_connectivity_flag) {
+MeshRequirements &MeshRequirements::set_upward_connectivity_flag(const bool upward_connectivity_flag) {
   upward_connectivity_flag_ = upward_connectivity_flag;
   upward_connectivity_flag_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
 bool MeshRequirements::constrains_spatial_dimension() const {
@@ -279,38 +286,46 @@ std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
   return bulk_data_ptr;
 }
 
-void MeshRequirements::delete_spatial_dimension() {
+MeshRequirements &MeshRequirements::delete_spatial_dimension() {
   spatial_dimension_is_set_ = false;
+  return *this;
 }
 
-void MeshRequirements::delete_entity_rank_names() {
+MeshRequirements &MeshRequirements::delete_entity_rank_names() {
   entity_rank_names_is_set_ = false;
+  return *this;
 }
 
-void MeshRequirements::delete_communicator() {
+MeshRequirements &MeshRequirements::delete_communicator() {
   communicator_is_set_ = false;
+  return *this;
 }
 
-void MeshRequirements::delete_aura_option() {
+MeshRequirements &MeshRequirements::delete_aura_option() {
   aura_option_is_set_ = false;
+  return *this;
 }
 
-void MeshRequirements::delete_field_data_manager() {
+MeshRequirements &MeshRequirements::delete_field_data_manager() {
   field_data_manager_ptr_is_set_ = false;
+  return *this;
 }
 
-void MeshRequirements::delete_bucket_capacity() {
+MeshRequirements &MeshRequirements::delete_bucket_capacity() {
   bucket_capacity_is_set_ = false;
+  return *this;
 }
 
-void MeshRequirements::delete_upward_connectivity_flag() {
+MeshRequirements &MeshRequirements::delete_upward_connectivity_flag() {
   upward_connectivity_flag_is_set_ = false;
+  return *this;
 }
 
-void MeshRequirements::check_if_valid() const {
+MeshRequirements &MeshRequirements::check_if_valid() {
+  return *this;
 }
 
-void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
+MeshRequirements &MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
   MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
                      "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.\n"
                          << "The current set of requirements is:\n"
@@ -331,9 +346,10 @@ void MeshRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> fie
   } else {
     mesh_field_map.insert(std::make_pair(field_name, field_req_ptr));
   }
+  return *this;
 }
 
-void MeshRequirements::add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
+MeshRequirements &MeshRequirements::add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
   MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
                      "MeshRequirements: The pointer passed to add_part_reqs cannot be a nullptr.\n"
                          << "The current set of requirements is:\n"
@@ -346,9 +362,10 @@ void MeshRequirements::add_part_reqs(std::shared_ptr<PartRequirements> part_req_
 
   // Store the params.
   mesh_part_map_.insert(std::make_pair(part_req_ptr->get_part_name(), part_req_ptr));
+  return *this;
 }
 
-void MeshRequirements::add_mesh_attribute(const std::string &attribute_name) {
+MeshRequirements &MeshRequirements::add_mesh_attribute(const std::string &attribute_name) {
   // Adding an existing attribute is perfectly fine. It's a no-op. This merely adds more responsibility to
   // the user to ensure that an they don't unintentionally edit an attribute that is used by another method.
   const bool attribute_exists =
@@ -356,16 +373,17 @@ void MeshRequirements::add_mesh_attribute(const std::string &attribute_name) {
   if (!attribute_exists) {
     required_mesh_attribute_names_.push_back(attribute_name);
   }
+  return *this;
 }
 
-void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr) {
+MeshRequirements &MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr) {
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
   // Check if the provided pointer is valid.
   // If it is not, then there is nothing to merge.
   if (mesh_req_ptr == nullptr) {
-    return;
+    return *this;
   }
 
   // Check if the provided parameters are valid.
@@ -471,12 +489,16 @@ void MeshRequirements::merge(const std::shared_ptr<MeshRequirements> &mesh_req_p
   for (const std::string &attribute_name : mesh_req_ptr->get_mesh_attribute_names()) {
     this->add_mesh_attribute(attribute_name);
   }
+
+  return *this;
 }
 
-void MeshRequirements::merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs) {
+MeshRequirements &MeshRequirements::merge(
+    const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs) {
   for (const auto &mesh_req_ptr : vector_of_mesh_req_ptrs) {
     merge(mesh_req_ptr);
   }
+  return *this;
 }
 
 void MeshRequirements::print_reqs(std::ostream &os, int indent_level) const {

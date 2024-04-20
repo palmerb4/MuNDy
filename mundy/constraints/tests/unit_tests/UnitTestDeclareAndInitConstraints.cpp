@@ -195,7 +195,7 @@ TEST(DeclareAndInitConstraints, ChainOfLinearAndAngularSpringsVisualInspection) 
       mundy::constraints::declare_and_initialize_constraints::techniques::ArchlengthCoordinateMapping;
   using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::Helix;
   auto levis_function_mapping_ptr =
-      std::make_shared<OurCoordinateMappingType>(100, 0.1, 1.0, 10, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
+      std::make_shared<OurCoordinateMappingType>(100, 1.0, 0.5, 0.1, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
   mutable_params_for_helix_chain_of_springs.sublist("CHAIN_OF_SPRINGS")
       .set<size_t>("num_nodes", 100)
       .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", levis_function_mapping_ptr);

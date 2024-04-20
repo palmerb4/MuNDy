@@ -108,7 +108,7 @@ class AttributeRequirements {
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// TODO(palmerb4): Is it even possible for an AttributeRequirements object to be invalid?
-  void check_if_valid() const final;
+  void check_if_valid() final;
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
   std::shared_ptr<AttributesBase> create_new_instance(const Teuchos::ParameterList &parameter_list) const final;

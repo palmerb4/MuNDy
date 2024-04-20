@@ -81,7 +81,7 @@ void IOBroker::set_transient_fields(const Teuchos::ParameterList &valid_fixed_pa
 
           // Get the field and tag as TRANSIENT
           stk::mesh::FieldBase *io_field_ptr =
-              meta_data_ptr_->get_field(mundy::mesh::map_string_to_rank(rank_name_str), io_field_name);
+              meta_data_ptr_->get_field(mundy::mesh::string_to_rank(rank_name_str), io_field_name);
           MUNDY_THROW_ASSERT(io_field_ptr != nullptr, std::invalid_argument,
                              "IOBroker: could not find field " + io_field_name + " with rank " + rank_name_str);
           stk::io::set_field_role(*io_field_ptr, Ioss::Field::TRANSIENT);

@@ -65,13 +65,14 @@ PartRequirements::PartRequirements(const std::string &part_name, const stk::topo
 // \name Setters
 //{
 
-void PartRequirements::set_part_name(const std::string &part_name) {
+PartRequirements &PartRequirements::set_part_name(const std::string &part_name) {
   part_name_ = part_name;
   part_name_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void PartRequirements::set_part_topology(const stk::topology::topology_t &part_topology) {
+PartRequirements &PartRequirements::set_part_topology(const stk::topology::topology_t &part_topology) {
   bool part_rank_already_set = this->constrains_part_rank();
   MUNDY_THROW_ASSERT(
       !part_rank_already_set, std::logic_error,
@@ -82,9 +83,10 @@ void PartRequirements::set_part_topology(const stk::topology::topology_t &part_t
   part_topology_ = part_topology;
   part_topology_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void PartRequirements::set_part_rank(const stk::topology::rank_t &part_rank) {
+PartRequirements &PartRequirements::set_part_rank(const stk::topology::rank_t &part_rank) {
   bool part_topology_already_set = this->constrains_part_topology();
   MUNDY_THROW_ASSERT(
       !part_topology_already_set, std::logic_error,
@@ -95,21 +97,25 @@ void PartRequirements::set_part_rank(const stk::topology::rank_t &part_rank) {
   part_rank_ = part_rank;
   part_rank_is_set_ = true;
   this->check_if_valid();
+  return *this;
 }
 
-void PartRequirements::delete_part_name() {
+PartRequirements &PartRequirements::delete_part_name() {
   part_name_is_set_ = false;
+  return *this;
 }
 
-void PartRequirements::delete_part_topology() {
+PartRequirements &PartRequirements::delete_part_topology() {
   part_topology_is_set_ = false;
+  return *this;
 }
 
-void PartRequirements::delete_part_rank() {
+PartRequirements &PartRequirements::delete_part_rank() {
   part_rank_is_set_ = false;
+  return *this;
 }
 
-void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
+PartRequirements &PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr) {
   MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
                      "MeshRequirements: The pointer passed to add_field_reqs cannot be a nullptr.\n"
                          << "The current set of requirements is:\n"
@@ -130,9 +136,10 @@ void PartRequirements::add_field_reqs(std::shared_ptr<FieldRequirementsBase> fie
   } else {
     part_field_map.insert(std::make_pair(field_name, field_req_ptr));
   }
+  return *this;
 }
 
-void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
+PartRequirements &PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr) {
   MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
                      "MeshRequirements: The pointer passed to add_subpart_reqs cannot be a nullptr.\n"
                          << "The current set of requirements is:\n"
@@ -149,9 +156,10 @@ void PartRequirements::add_subpart_reqs(std::shared_ptr<PartRequirements> part_r
   } else {
     part_subpart_map_.insert(std::make_pair(part_req_ptr->get_part_name(), part_req_ptr));
   }
+  return *this;
 }
 
-void PartRequirements::add_part_attribute(const std::string &attribute_name) {
+PartRequirements &PartRequirements::add_part_attribute(const std::string &attribute_name) {
   // Adding an existing attribute is perfectly fine. It's a no-op. This merely adds more responsibility to
   // the user to ensure that an they don't unintentionally edit an attribute that is used by another method.
   const bool attribute_does_not_exist =
@@ -159,6 +167,7 @@ void PartRequirements::add_part_attribute(const std::string &attribute_name) {
   if (attribute_does_not_exist) {
     required_part_attribute_names_.push_back(attribute_name);
   }
+  return *this;
 }
 //@}
 
@@ -279,18 +288,19 @@ stk::mesh::Part &PartRequirements::declare_part_on_mesh(mundy::mesh::MetaData *c
   return *part_ptr;
 }
 
-void PartRequirements::check_if_valid() const {
+PartRequirements &PartRequirements::check_if_valid() {
   // TODO(palmerb4): What are the requirements for validity?
+  return *this;
 }
 
-void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
+PartRequirements &PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_ptr) {
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
   // Check if the provided pointer is valid.
   // If it is not, then there is nothing to merge.
   if (part_req_ptr == nullptr) {
-    return;
+    return *this;
   }
 
   // Check if the provided parameters are valid.
@@ -350,12 +360,15 @@ void PartRequirements::merge(const std::shared_ptr<PartRequirements> &part_req_p
   for (const std::string &attribute_name : part_req_ptr->get_part_attribute_names()) {
     this->add_part_attribute(attribute_name);
   }
+  return *this;
 }
 
-void PartRequirements::merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs) {
+PartRequirements &PartRequirements::merge(
+    const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs) {
   for (const auto &part_req_ptr : vector_of_part_req_ptrs) {
     merge(part_req_ptr);
   }
+  return *this;
 }
 
 void PartRequirements::print_reqs(std::ostream &os, int indent_level) const {

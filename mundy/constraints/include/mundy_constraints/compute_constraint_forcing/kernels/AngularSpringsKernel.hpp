@@ -97,7 +97,7 @@ class AngularSpringsKernel : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->set_part_topology(stk::topology::BEAM_2);
+      part_reqs->set_part_topology(stk::topology::BEAM_3);
       part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
           node_force_field_name, stk::topology::NODE_RANK, 3, 1));
 

@@ -158,7 +158,7 @@ class AngularSprings {
 
   /// @brief The name of our element angular spring rest length field.
   static constexpr std::string_view element_angular_spring_rest_angle_field_name_ =
-      "ELEMENT_ANGULAR_SPRING_REST_LENGTH";
+      "ELEMENT_ANGULAR_SPRING_REST_ANGLE";
 
   /// \brief Our part requirements.
   static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ = []() {

@@ -248,6 +248,8 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   static Teuchos::ParameterList get_valid_mutable_params() {
     static Teuchos::ParameterList default_parameter_list;
     default_parameter_list.set("num_nodes", default_num_nodes_, "The number of nodes in the chain.");
+    default_parameter_list.set<size_t>("element_id_start", 1u, "The starting ID for the elements.");
+    default_parameter_list.set<size_t>("node_id_start", 1u, "The starting ID for the nodes.");
     default_parameter_list.set("hookean_spring_constant", 1.0, "The spring constant for the hookean springs.");
     default_parameter_list.set("hookean_spring_rest_length", 1.0, "The rest length for the hookean springs.");
     default_parameter_list.set("angular_spring_constant", 1.0, "The spring constant for the angular springs.");

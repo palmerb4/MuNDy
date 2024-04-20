@@ -141,16 +141,18 @@ void HookeanSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         double *node1_force = stk::mesh::field_data(node_force_field, node1);
         double *node2_force = stk::mesh::field_data(node_force_field, node2);
 
-#pragma omp critical
-        {
-          // TODO(palmerb4): If we should have each one separately atomic or not, is a matter for testing.
-          node1_force[0] += spring_force[0];
-          node1_force[1] += spring_force[1];
-          node1_force[2] += spring_force[2];
-          node2_force[0] -= spring_force[0];
-          node2_force[1] -= spring_force[1];
-          node2_force[2] -= spring_force[2];
-        }
+#pragma omp atomic
+        node1_force[0] += spring_force[0];
+#pragma omp atomic
+        node1_force[1] += spring_force[1];
+#pragma omp atomic
+        node1_force[2] += spring_force[2];
+#pragma omp atomic
+        node2_force[0] -= spring_force[0];
+#pragma omp atomic
+        node2_force[1] -= spring_force[1];
+#pragma omp atomic
+        node2_force[2] -= spring_force[2];
       });
 }
 //}

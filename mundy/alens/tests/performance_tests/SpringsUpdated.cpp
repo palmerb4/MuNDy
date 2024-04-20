@@ -990,7 +990,7 @@ int main(int argc, char **argv) {
   size_t num_spheres = 10;
   double sphere_radius = 0.6;
   double initial_segment_length = 1.0;
-  double rest_length = 1.0;
+  double rest_length = 2 * sphere_radius;
   bool loadbalance_initial_config = false;
 
   size_t num_time_steps = 100;
@@ -1000,8 +1000,12 @@ int main(int argc, char **argv) {
   double youngs_modulus = 1000.0;
   double poissons_ratio = 0.3;
   double spring_constant = 1.0;
+  double angular_spring_constant = 1.0;
+  double angular_spring_rest_angle = M_PI;
   bool generate_hookean_springs = true;
   bool generate_angular_springs = false;
+
+  bool consider_collisions = true;
 
   // Parse the command line options.
   Teuchos::CommandLineProcessor cmdp(false, true);
@@ -1013,6 +1017,8 @@ int main(int argc, char **argv) {
   cmdp.setOption("rest_length", &rest_length, "Rest length of the spring.");
   cmdp.setOption("loadbalance", "no_loadbalance", &loadbalance_initial_config,
                  "Load balance the initial configuration.");
+  cmdp.setOption("consider_collisions", "no_consider_collisions", &consider_collisions,
+                 "Consider collisions between spheres.");
 
   // Optional command line arguments for controlling the simulation:
   cmdp.setOption("num_time_steps", &num_time_steps, "Number of time steps.");
@@ -1022,6 +1028,8 @@ int main(int argc, char **argv) {
   cmdp.setOption("youngs_modulus", &youngs_modulus, "Young's modulus.");
   cmdp.setOption("poissons_ratio", &poissons_ratio, "Poisson's ratio.");
   cmdp.setOption("spring_constant", &spring_constant, "Spring constant.");
+  cmdp.setOption("angular_spring_constant", &angular_spring_constant, "Angular spring constant.");
+  cmdp.setOption("angular_spring_rest_angle", &angular_spring_rest_angle, "Angular spring rest angle.");
   cmdp.setOption("generate_hookean_springs", "no_generate_hookean_springs", &generate_hookean_springs,
                  "If we should generate Hookean springs or not.");
   cmdp.setOption("generate_angular_springs", "no_generate_angular_springs", &generate_angular_springs,
@@ -1050,7 +1058,9 @@ int main(int argc, char **argv) {
     std::cout << "  youngs_modulus: " << youngs_modulus << std::endl;
     std::cout << "  poissons_ratio: " << poissons_ratio << std::endl;
     std::cout << "  spring_constant: " << spring_constant << std::endl;
-    std::cout << " generate_angular_springs: " << generate_angular_springs << std::endl;
+    std::cout << "  angular_spring_constant: " << angular_spring_constant << std::endl;
+    std::cout << "  generate_hookean_springs: " << generate_hookean_springs << std::endl;
+    std::cout << "  generate_angular_springs: " << generate_angular_springs << std::endl;
     std::cout << "##################################################" << std::endl;
   }
 
@@ -1091,11 +1101,11 @@ int main(int argc, char **argv) {
 
   // ComputeConstraintForcing fixed parameters
   Teuchos::ParameterList compute_constraint_forcing_fixed_params;
-  compute_constraint_forcing_fixed_params
-      .set<Teuchos::Array<std::string>>("enabled_kernel_names",
-                                        Teuchos::tuple<std::string>(std::string("HOOKEAN_SPRINGS")))
-      .sublist("HOOKEAN_SPRINGS")
-      .set("node_force_field_name", "NODE_FORCE");
+  compute_constraint_forcing_fixed_params.set<Teuchos::Array<std::string>>(
+      "enabled_kernel_names", Teuchos::tuple<std::string>(mundy::constraints::HookeanSprings::get_name(),
+                                                          mundy::constraints::AngularSprings::get_name()));
+  compute_constraint_forcing_fixed_params.sublist("HOOKEAN_SPRINGS").set("node_force_field_name", "NODE_FORCE");
+  compute_constraint_forcing_fixed_params.sublist("ANGULAR_SPRINGS").set("node_force_field_name", "NODE_FORCE");
 
   // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
   Teuchos::ParameterList compute_ssd_and_cn_fixed_params;
@@ -1173,7 +1183,7 @@ int main(int argc, char **argv) {
                                         Teuchos::tuple<std::string>(mundy::constraints::AngularSprings::get_name()))
       .set<Teuchos::Array<std::string>>("sphere_part_names",
                                         Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name()))
-      .set<bool>("generate_hookean_springs", true)
+      .set<bool>("generate_hookean_springs", generate_hookean_springs)
       .set<bool>("generate_angular_springs", generate_angular_springs)
       .set<bool>("generate_spheres_at_nodes", true);
 
@@ -1222,8 +1232,9 @@ int main(int argc, char **argv) {
 
   // ComputeBrownianVelocity mutable parameters
   Teuchos::ParameterList compute_brownian_velocity_mutable_params;
-  compute_brownian_velocity_mutable_params.set("timestep_size", timestep_size);
-  compute_brownian_velocity_mutable_params.sublist("SPHERE").set("diffusion_coeff", diffusion_coeff);
+  compute_brownian_velocity_mutable_params.set("timestep_size", timestep_size)
+      .sublist("SPHERE")
+      .set("diffusion_coeff", diffusion_coeff);
   compute_brownian_velocity_ptr->set_mutable_params(compute_brownian_velocity_mutable_params);
 
   // NodeEuler mutable parameters
@@ -1259,18 +1270,6 @@ int main(int argc, char **argv) {
   // DestroyNeighborLinkers mutable parameters
   // Doesn't have any mutable parameters to set
 
-  // DeclareAndInitConstraints mutable parameters
-  Teuchos::ParameterList declare_and_init_constraints_mutable_params;
-  using CoordinateMappingType =
-      mundy::constraints::declare_and_initialize_constraints::techniques::ArchlengthCoordinateMapping;
-  using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::Helix;
-  auto levis_function_mapping_ptr = std::make_shared<OurCoordinateMappingType>(
-      num_spheres, 10 * sphere_radius, num_spheres, 10, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0);
-  declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS")
-      .set<size_t>("num_nodes", num_spheres)
-      .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", levis_function_mapping_ptr);
-  declare_and_init_constraints_ptr->set_mutable_params(declare_and_init_constraints_mutable_params);
-
   ////////////////////////////////
   // Fetch the fields and parts //
   ////////////////////////////////
@@ -1291,6 +1290,10 @@ int main(int argc, char **argv) {
       stk::topology::ELEMENT_RANK, mundy::constraints::HookeanSprings::get_element_rest_length_field_name());
   auto element_spring_constant_field_ptr = meta_data_ptr->get_field<double>(
       stk::topology::ELEMENT_RANK, mundy::constraints::HookeanSprings::get_element_spring_constant_field_name());
+  auto element_angular_spring_rest_angle_field_ptr = meta_data_ptr->get_field<double>(
+      stk::topology::ELEMENT_RANK, mundy::constraints::AngularSprings::get_element_rest_angle_field_name());
+  auto element_angular_spring_constant_field_ptr = meta_data_ptr->get_field<double>(
+      stk::topology::ELEMENT_RANK, mundy::constraints::AngularSprings::get_element_spring_constant_field_name());
 
   // Linker (constraint rank) fields
   auto linker_contact_normal_field_ptr =
@@ -1320,6 +1323,8 @@ int main(int argc, char **argv) {
   check_if_exists(linker_signed_separation_distance_field_ptr, "LINKER_SIGNED_SEPARATION_DISTANCE");
   check_if_exists(linker_potential_force_magnitude_field_ptr, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
   check_if_exists(linker_destroy_flag_field_ptr, "LINKER_DESTROY_FLAG");
+  check_if_exists(element_angular_spring_rest_angle_field_ptr, "ELEMENT_ANGULAR_SPRING_REST_ANGLE");
+  check_if_exists(element_angular_spring_constant_field_ptr, "ELEMENT_ANGULAR_SPRING_CONSTANT");
 
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part(mundy::shapes::Spheres::get_name());
   MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
@@ -1338,12 +1343,10 @@ int main(int argc, char **argv) {
   stk::mesh::Part &springs_part = *springs_part_ptr;
   stk::io::put_io_part_attribute(springs_part);
 
-  if (generate_angular_springs) {
-    stk::mesh::Part *angular_springs_part_ptr = meta_data_ptr->get_part(mundy::constraints::AngularSprings::get_name());
-    MUNDY_THROW_ASSERT(angular_springs_part_ptr != nullptr, std::invalid_argument, "ANGULAR_SPRINGS part not found.");
-    stk::mesh::Part &angular_springs_part = *angular_springs_part_ptr;
-    stk::io::put_io_part_attribute(angular_springs_part);
-  }
+  stk::mesh::Part *angular_springs_part_ptr = meta_data_ptr->get_part(mundy::constraints::AngularSprings::get_name());
+  MUNDY_THROW_ASSERT(angular_springs_part_ptr != nullptr, std::invalid_argument, "ANGULAR_SPRINGS part not found.");
+  stk::mesh::Part &angular_springs_part = *angular_springs_part_ptr;
+  stk::io::put_io_part_attribute(angular_springs_part);
 
   ///////////////////
   // Setup our IO  //
@@ -1367,11 +1370,47 @@ int main(int argc, char **argv) {
   stk_io_broker.add_field(output_file_index, *linker_signed_separation_distance_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_potential_force_magnitude_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_destroy_flag_field_ptr);
+  stk_io_broker.add_field(output_file_index, *element_angular_spring_rest_angle_field_ptr);
+  stk_io_broker.add_field(output_file_index, *element_angular_spring_constant_field_ptr);
 
   //////////////////////////////////////
   // Initialize the spheres and nodes //
   //////////////////////////////////////
-  declare_and_init_constraints_ptr->execute();
+
+  // Declare N spring chains with a slight shift to each chain
+  const int num_chains = 10;
+  for (int i = 0; i < num_chains; i++) {
+    // DeclareAndInitConstraints mutable parameters
+    Teuchos::ParameterList declare_and_init_constraints_mutable_params;
+    using CoordinateMappingType =
+        mundy::constraints::declare_and_initialize_constraints::techniques::ArchlengthCoordinateMapping;
+    using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::Helix;
+    double helical_radius = 10 * sphere_radius;
+    double pitch = 2 * num_chains * sphere_radius;
+    double distance_between_spheres = rest_length;
+    double center_x = 2 * i * sphere_radius;
+    double center_y = 0.0;
+    double center_z = 0.0;
+    double helical_axis_x = 1.0;
+    double helical_axis_y = 0.0;
+    double helical_axis_z = 0.0;
+    auto levis_function_mapping_ptr = std::make_shared<OurCoordinateMappingType>(
+        num_spheres, helical_radius, pitch, distance_between_spheres, center_x, center_y, center_z, helical_axis_x,
+        helical_axis_y, helical_axis_z);
+    declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS")
+        .set<size_t>("num_nodes", num_spheres)
+        .set<size_t>("node_id_start", i * num_spheres + + 1)
+        .set<size_t>("element_id_start", i * (num_spheres + (num_spheres - 1) * generate_hookean_springs + (num_spheres - 2) * generate_angular_springs) + 1)
+        .set("hookean_spring_constant", spring_constant)
+        .set("hookean_spring_rest_length", rest_length)
+        .set("angular_spring_constant", angular_spring_constant)
+        .set("angular_spring_rest_angle", angular_spring_rest_angle)
+        .set("sphere_radius", sphere_radius)
+        .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", levis_function_mapping_ptr);
+    declare_and_init_constraints_ptr->set_mutable_params(declare_and_init_constraints_mutable_params);
+    declare_and_init_constraints_ptr->execute();
+  }
+
   mundy::mesh::utils::fill_field_with_value<unsigned>(*node_rng_counter_field_ptr, std::array<unsigned, 1>{0u});
   mundy::mesh::utils::fill_field_with_value<double>(*element_youngs_modulus_field_ptr,
                                                     std::array<double, 1>{youngs_modulus});
@@ -1414,35 +1453,38 @@ int main(int argc, char **argv) {
     //  - Compute the brownian velocity for the nodes
     //  - Update the node positions using a first order Euler method
 
-    // Setup
-    mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
-    mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
-
-    // Potentials
-    compute_constraint_forcing_ptr->execute(springs_part);
-
-    // Collisions
-    if (i % 10 == 0) {
-      compute_aabb_ptr->execute(spheres_part);
-      destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part);
-      generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
-    }
-    compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part);
-    evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part);
-    linker_potential_force_magnitude_reduction_ptr->execute(spheres_part);
-
-    // Motion
-    compute_mobility_ptr->execute(spheres_part);
-    compute_brownian_velocity_ptr->execute(spheres_part);
-    node_euler_ptr->execute(spheres_part);
-
     // Output
-    if (i % 1000 == 0) {
+    if (i % 10000 == 0) {
       stk_io_broker.begin_output_step(output_file_index, static_cast<double>(i));
       stk_io_broker.write_defined_output_fields(output_file_index);
       stk_io_broker.end_output_step(output_file_index);
       stk_io_broker.flush_output();
     }
+
+    // Setup
+    mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
+
+    // Potentials
+    compute_constraint_forcing_ptr->execute(stk::mesh::Selector(springs_part) |
+                                            stk::mesh::Selector(angular_springs_part));
+
+    // Collisions
+    if (consider_collisions) {
+      if (i % 100 == 0) {
+        compute_aabb_ptr->execute(spheres_part);
+        destroy_neighbor_linkers_ptr->execute(sphere_sphere_linkers_part);
+        generate_neighbor_linkers_ptr->execute(spheres_part, spheres_part);
+      }
+      compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part);
+      evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part);
+      linker_potential_force_magnitude_reduction_ptr->execute(spheres_part);
+    }
+
+    // Motion
+    compute_mobility_ptr->execute(spheres_part);
+    compute_brownian_velocity_ptr->execute(spheres_part);
+    node_euler_ptr->execute(spheres_part);
   }
 
   // Do a synchronize to force everybody to stop here, then write the time

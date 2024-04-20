@@ -69,72 +69,72 @@ class MeshRequirements {
 
   /// \brief Set the spatial dimension of the mash.
   /// \param spatial_dimension [in] The dimension of the space within which the parts and entities reside.
-  void set_spatial_dimension(const unsigned spatial_dimension);
+  MeshRequirements& set_spatial_dimension(const unsigned spatial_dimension);
 
   /// \brief Set the names assigned to each rank.
   /// \param entity_rank_names [in] The names assigned to each rank.
-  void set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
+  MeshRequirements& set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
 
   /// \brief Set the MPI communicator to be used by STK.
   /// \param comm [in] The MPI communicator.
-  void set_communicator(const stk::ParallelMachine &comm);
+  MeshRequirements& set_communicator(const stk::ParallelMachine &comm);
 
   /// \brief Set the chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
   /// \param aura_option [in] The chosen Aura option.
-  void set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option);
+  MeshRequirements& set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
-  void set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
+  MeshRequirements& set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
 
   /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
   ///
   /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
   ///
   /// \param bucket_capacity [in] The bucket capacity.
-  void set_bucket_capacity(const unsigned bucket_capacity);
+  MeshRequirements& set_bucket_capacity(const unsigned bucket_capacity);
 
   /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  void set_upward_connectivity_flag(const bool enable_upward_connectivity);
+  MeshRequirements& set_upward_connectivity_flag(const bool enable_upward_connectivity);
 
   /// \brief Delete the spatial dimension constraint (if it exists).
-  void delete_spatial_dimension();
+  MeshRequirements& delete_spatial_dimension();
 
   /// \brief Delete the entity rank names constraint (if it exists).
-  void delete_entity_rank_names();
+  MeshRequirements& delete_entity_rank_names();
 
   /// \brief Delete the communicator constraint (if it exists).
-  void delete_communicator();
+  MeshRequirements& delete_communicator();
 
   /// \brief Delete the aura option constraint (if it exists).
-  void delete_aura_option();
+  MeshRequirements& delete_aura_option();
 
   /// \brief Delete the field data manager constraint (if it exists).
-  void delete_field_data_manager();
+  MeshRequirements& delete_field_data_manager();
 
   /// \brief Delete the bucket capacity constraint (if it exists).
-  void delete_bucket_capacity();
+  MeshRequirements& delete_bucket_capacity();
 
   /// \brief Delete the upward connectivity flag constraint (if it exists).
-  void delete_upward_connectivity_flag();
+  MeshRequirements& delete_upward_connectivity_flag();
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
   /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  void add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+  MeshRequirements& add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
   ///
   /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
-  void add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
+  MeshRequirements& add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
   /// \brief Require that an attribute with the given name be present on the mesh.
   ///
   /// \param attribute_name [in] The name of the attribute that must be present on the mesh.
-  void add_mesh_attribute(const std::string &attribute_name);
+  MeshRequirements& add_mesh_attribute(const std::string &attribute_name);
   //@}
 
   //! \name Getters
@@ -210,18 +210,18 @@ class MeshRequirements {
   ///
   /// Here, valid means:
   ///   - TODO(palmerb4): What are the mesh invariants set by STK?
-  void check_if_valid() const;
+  MeshRequirements& check_if_valid();
 
   /// \brief Merge the current requirements with another \c MeshRequirements.
   ///
   /// \param part_req_ptr [in] An \c MeshRequirements object to merge with the current object.
-  void merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr);
+  MeshRequirements& merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr);
 
   /// \brief Merge the current requirements with any number of other \c MeshRequirements.
   ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c MeshRequirements objects to merge with the
   /// current object.
-  void merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs);
+  MeshRequirements& merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs);
 
   /// \brief Dump the contents of \c MeshRequirements to the given stream (defaults to std::cout).
   void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;

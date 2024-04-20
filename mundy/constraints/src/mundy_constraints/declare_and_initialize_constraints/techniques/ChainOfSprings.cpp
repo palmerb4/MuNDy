@@ -181,8 +181,10 @@ void ChainOfSprings::set_mutable_params(const Teuchos::ParameterList &mutable_pa
   num_angular_springs_ = generate_angular_springs_ ? num_nodes_ - 2 : 0;
   num_spheres_ = generate_spheres_at_nodes_ ? num_nodes_ : 0;
   num_spherocylinder_segments_ = generate_spherocylinder_segments_along_edges_ ? num_nodes_ - 1 : 0;
-  coordinate_map_ptr_ = valid_mutable_params.get<std::shared_ptr<ArchlengthCoordinateMapping>>("coordinate_mapping");
 
+  element_id_start_ = valid_mutable_params.get<size_t>("element_id_start");
+  node_id_start_ = valid_mutable_params.get<size_t>("node_id_start");
+  coordinate_map_ptr_ = valid_mutable_params.get<std::shared_ptr<ArchlengthCoordinateMapping>>("coordinate_mapping");
   hookean_spring_constant_ = valid_mutable_params.get<double>("hookean_spring_constant");
   hookean_spring_rest_length_ = valid_mutable_params.get<double>("hookean_spring_rest_length");
   angular_spring_constant_ = valid_mutable_params.get<double>("angular_spring_constant");
@@ -336,7 +338,7 @@ void ChainOfSprings::execute() {
     const size_t end_start_element_chain_ordinal =
         (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 1 : end_node_index;
 
-    for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal - 1; ++i) {
+    for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
       // Create the hookean spring.
       stk::mesh::EntityId spring_id = get_hookean_spring_id(i);
       stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);

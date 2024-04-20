@@ -32,7 +32,9 @@
 
 // Mundy libs
 #include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Sphere.hpp>  // for mundy::linkers::...::kernels::SphereSphereHertzianContact
+#include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Sphere.hpp>  // for mundy::linkers::...::kernels::Sphere
+#include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Spherocylinder.hpp>  // for mundy::linkers::...::kernels::Spherocylinder
+#include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/SpherocylinderSegment.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegment
 #include <mundy_mesh/BulkData.hpp>                                                      // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaRegistry.hpp>          // for MUNDY_REGISTER_METACLASS
@@ -123,6 +125,12 @@ class LinkerPotentialForceMagnitudeReduction
 /// @brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::linkers::linker_potential_force_magnitude_reduction::kernels::Sphere,
                          mundy::linkers::LinkerPotentialForceMagnitudeReduction::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER",
+                          mundy::linkers::linker_potential_force_magnitude_reduction::kernels::Spherocylinder,
+                          mundy::linkers::LinkerPotentialForceMagnitudeReduction::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT",
+                          mundy::linkers::linker_potential_force_magnitude_reduction::kernels::SpherocylinderSegment,
+                          mundy::linkers::LinkerPotentialForceMagnitudeReduction::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_LINKERS_LINKERPOTENTIALFORCEMAGNITUDEREDUCTION_HPP_

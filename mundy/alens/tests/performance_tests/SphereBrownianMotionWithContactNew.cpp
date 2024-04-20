@@ -1475,10 +1475,10 @@ int main(int argc, char **argv) {
 #endif
 
   // Write the initial mesh to file
-  stk_io_broker.begin_output_step(output_file_index, 0.0);
-  stk_io_broker.write_defined_output_fields(output_file_index);
-  stk_io_broker.end_output_step(output_file_index);
-  stk_io_broker.flush_output();
+  // stk_io_broker.begin_output_step(output_file_index, 0.0);
+  // stk_io_broker.write_defined_output_fields(output_file_index);
+  // stk_io_broker.end_output_step(output_file_index);
+  // stk_io_broker.flush_output();
 
   if (bulk_data_ptr->parallel_rank() == 0) {
     std::cout << "Running the simulation for " << num_time_steps << " time steps." << std::endl;
@@ -1592,10 +1592,10 @@ int main(int argc, char **argv) {
   }
 
   // Write the final mesh to file
-  // stk_io_broker.begin_output_step(output_file_index, static_cast<double>(num_time_steps));
-  // stk_io_broker.write_defined_output_fields(output_file_index);
-  // stk_io_broker.end_output_step(output_file_index);
-  // stk_io_broker.flush_output();
+  stk_io_broker.begin_output_step(output_file_index, static_cast<double>(num_time_steps));
+  stk_io_broker.write_defined_output_fields(output_file_index);
+  stk_io_broker.end_output_step(output_file_index);
+  stk_io_broker.flush_output();
 
   Kokkos::finalize();
   stk::parallel_machine_finalize();
