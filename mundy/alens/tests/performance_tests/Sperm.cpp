@@ -120,7 +120,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 ///       - If desired, write out the data for time t
 ///         (Using stk::io::StkMeshIoBroker)
 ///
-///       // Setup the current configuration.
+///       // Prepare the current configuration.
 ///       - Rotate the field states
 ///         (Using BulkData's update_field_data_states function)
 ///
@@ -157,7 +157,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 ///         - Sum the linker potential force magnitude to get the induced node force on each rod
 ///          (Using mundy's LinkerPotentialForceMagnitudeReduction function)
 ///
-///         // Senterline twist rod model
+///         // Centerline twist rod model
 ///         - Compute the edge information (length, tangent, and binormal)
 ///          (By looping over all edges and computing the edge length, tangent, binormal)
 ///
@@ -183,7 +183,22 @@ class SpermSimulation {
  public:
   SpermSimulation() = default;
 
+  void print_rank0(auto think_to_print, int indent_level = 0) {
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      std::string indent(indent_level * 2, ' ');
+      std::cout << indent << think_to_print << std::endl;
+    }
+  }
+
+  void debug_print([[maybe_unused]] auto thing_to_print, [[maybe_unused]] int indent_level = 0) {
+#ifdef DEBUG
+    print_rank0(thing_to_print, indent_level);
+#endif
+  }
+
   bool parse_user_inputs(int argc, char **argv) {
+    debug_print("Parsing user inputs.");
+
     // Parse the command line options.
     Teuchos::CommandLineProcessor cmdp(false, true);
 
@@ -208,14 +223,17 @@ class SpermSimulation {
     //   The simulation:
     cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
     cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
-    cmdp.setOption("skin_distance", &skin_distance_, "The skin distance for neighbor detection. \n As long as no particle moves more than 
+    cmdp.setOption("skin_distance", &skin_distance_, "Skin distance for neighbor detection. \n As long as no particle moves more than 
     one skin distance, the current neighbor list is valid. This is used to avoid the expensive neighbor detection step.");
+    cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
+
 
     bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
     return was_parse_successful;
   }
 
   void check_input_parameters() {
+    debug_print("Checking input parameters.");
     MUNDY_THROW_ASSERT(num_sperm_ > 0, std::invalid_argument, "num_sperm_ must be greater than 0.");
     MUNDY_THROW_ASSERT(num_nodes_per_sperm_ > 0, std::invalid_argument, "num_nodes_per_sperm_ must be greater than 0.");
     MUNDY_THROW_ASSERT(sperm_radius_ > 0, std::invalid_argument, "sperm_radius_ must be greater than 0.");
@@ -235,6 +253,7 @@ class SpermSimulation {
   }
 
   void dump_user_inputs() {
+    debug_print("Dumping user inputs.");
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
       std::cout << "##################################################" << std::endl;
       std::cout << "INPUT PARAMETERS:" << std::endl;
@@ -257,6 +276,8 @@ class SpermSimulation {
   }
 
   void build_our_mesh_and_method_instances() {
+    debug_print("Building our mesh and method instances.");
+
     // Setup the mesh requirements.
     // First, we need to fetch the mesh requirements for each method, then we can create the class instances.
     // In the future, all of this will be done via the Configurator.
@@ -370,23 +391,23 @@ class SpermSimulation {
     meta_data_ptr_->commit();
 
     // Create the class instances and populate their mutable parameters
-    node_euler_ptr = NodeEuler::create_new_instance(bulk_data_ptr_.get(), node_euler_fixed_params);
-    compute_centerline_twist_constraint_force_ptr = ComputeCenterlineTwistSpringConstraintForce::create_new_instance(
+    node_euler_ptr_ = NodeEuler::create_new_instance(bulk_data_ptr_.get(), node_euler_fixed_params);
+    compute_centerline_twist_constraint_force_ptr_ = ComputeCenterlineTwistSpringConstraintForce::create_new_instance(
         bulk_data_ptr_.get(), compute_centerline_twist_constraint_force_fixed_params);
-    compute_constraint_forcing_ptr =
+    compute_constraint_forcing_ptr_ =
         ComputeConstraintForcing::create_new_instance(bulk_data_ptr_.get(), compute_constraint_forcing_fixed_params);
-    compute_ssd_and_cn_ptr = ComputeSignedSeparationDistanceAndContactNormal::create_new_instance(
+    compute_ssd_and_cn_ptr_ = ComputeSignedSeparationDistanceAndContactNormal::create_new_instance(
         bulk_data_ptr_.get(), compute_ssd_and_cn_fixed_params);
-    compute_aabb_ptr = ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params);
-    generate_neighbor_linkers_ptr =
+    compute_aabb_ptr_ = ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params);
+    generate_neighbor_linkers_ptr_ =
         GenerateNeighborLinkers::create_new_instance(bulk_data_ptr_.get(), generate_neighbor_linkers_fixed_params);
-    evaluate_linker_potentials_ptr =
+    evaluate_linker_potentials_ptr_ =
         EvaluateLinkerPotentials::create_new_instance(bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params);
-    linker_potential_force_magnitude_reduction_ptr = LinkerPotentialForceMagnitudeReduction::create_new_instance(
+    linker_potential_force_magnitude_reduction_ptr_ = LinkerPotentialForceMagnitudeReduction::create_new_instance(
         bulk_data_ptr_.get(), linker_potential_force_magnitude_reduction_fixed_params);
-    destroy_neighbor_linkers_ptr =
+    destroy_neighbor_linkers_ptr_ =
         DestroyNeighborLinkers::create_new_instance(bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params);
-    declare_and_init_constraints_ptr =
+    declare_and_init_constraints_ptr_ =
         DeclareAndInitConstraints::create_new_instance(bulk_data_ptr_.get(), declare_and_init_constraints_fixed_params);
 
     // Set up the mutable parameters for the classes
@@ -399,12 +420,12 @@ class SpermSimulation {
             .set("sperm_poissons_ratio_", sperm_poissons_ratio_)
             .set("shear_modulus", sperm_youngs_modulus_ / (2.0 * (1.0 + sperm_poissons_ratio_)))
             .set("density", 1.0);
-    compute_centerline_twist_constraint_force_ptr->set_mutable_params(
+    compute_centerline_twist_constraint_force_ptr_->set_mutable_params(
         compute_centerline_twist_constraint_force_mutable_params);
 
     // ComputeAABB mutable parameters
     auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", 0.0);
-    compute_aabb_ptr->set_mutable_params(compute_aabb_mutable_params);
+    compute_aabb_ptr_->set_mutable_params(compute_aabb_mutable_params);
   }
 
   template <typename FieldType>
@@ -423,6 +444,8 @@ class SpermSimulation {
   }
 
   void fetch_fields_and_parts() {
+    debug_print("Fetching fields and parts.");
+
     // Fetch the fields
     node_coordinates_field_ptr_ = fetch_field<double>("NODE_COORDINATES", stk::topology::NODE_RANK);
     node_velocity_field_ptr_ = fetch_field<double>("NODE_VELOCITY", stk::topology::NODE_RANK);
@@ -455,6 +478,8 @@ class SpermSimulation {
   }
 
   void setup_io() {
+    debug_print("Setting up IO.");
+
     // Declare each part as an IO part
     stk::io::put_io_part_attribute(*centerline_twist_springs_part_ptr_);
     stk::io::put_io_part_attribute(*spherocylinder_segments_part_ptr_);
@@ -489,7 +514,9 @@ class SpermSimulation {
     stk_io_broker_.add_field(output_file_index_, *element_rest_length_field_ptr_);
   }
 
-  void declare_and_initialize_the_sperm() {
+  void declare_and_initialize_sperm() {
+    debug_print("Declaring and initializing the sperm.");
+
     // Declare N spring chains with a slight shift to each chain
     for (int i = 0; i < num_sperm_; i++) {
       // DeclareAndInitConstraints mutable parameters
@@ -518,8 +545,8 @@ class SpermSimulation {
           .set("sperm_radius_", sperm_radius_)
           .set("spherocylinder_segment_radius", sperm_radius_)
           .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", straight_line_mapping_ptr);
-      declare_and_init_constraints_ptr->set_mutable_params(declare_and_init_constraints_mutable_params);
-      declare_and_init_constraints_ptr->execute();
+      declare_and_init_constraints_ptr_->set_mutable_params(declare_and_init_constraints_mutable_params);
+      declare_and_init_constraints_ptr_->execute();
     }
 
     mundy::mesh::utils::fill_field_with_value<double>(*element_youngs_modulus_field_ptr_,
@@ -529,11 +556,120 @@ class SpermSimulation {
   }
 
   void loadbalance() {
-    RcbSettings balanceSettings;
-    stk::balance::balanceStkMesh(balanceSettings, *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_.get()));
+    debug_print("Load balancing the mesh.");
+    stk::balance::balanceStkMesh(balance_settings_, *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_.get()));
+  }
+
+  void rotate_field_states() {
+    debug_print("Rotating the field states.");
+    bulk_data_ptr_->update_field_data_states();
+  }
+
+  void update_position_and_twist() {
+    debug_print("Updating the position and twist.");
+  }
+
+  void compute_aabb() {
+    debug_print("Computing the AABB.");
+    compute_aabb_ptr_->execute();
+  }
+
+  void destroy_distant_neighbors() {
+    debug_print("Destroying distant neighbors.");
+    destroy_neighbor_linkers_ptr_->execute();
+  }
+
+  void generate_neighbor_linkers() {
+    debug_print("Generating neighbor linkers.");
+    generate_neighbor_linkers_ptr_->execute();
+  }
+
+  void compute_ssd_and_cn() {
+    debug_print("Computing the signed separation distance and contact normal.");
+    compute_ssd_and_cn_ptr_->execute();
+  }
+
+  void evaluate_linker_potentials() {
+    debug_print("Evaluating the linker potentials.");
+    evaluate_linker_potentials_ptr_->execute();
+  }
+
+  void linker_potential_force_magnitude_reduction() {
+    debug_print("Reducing the linker potential force magnitude.");
+    linker_potential_force_magnitude_reduction_ptr_->execute();
+  }
+
+  void compute_edge_information() {
+    debug_print("Computing the edge information.");
+  }
+
+  void compute_node_curvature_and_rotation_gradient() {
+    debug_print("Computing the node curvature and rotation gradient.");
+  }
+
+  void compute_internal_force_and_twist_torque() {
+    debug_print("Computing the internal force and twist torque.");
+  }
+
+  void zero_out_transient_node_fields() {
+    debug_print("Zeroing out the transient node fields.");
+    mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_acceleration_field_ptr_,
+                                                      std::array<double, 3>{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_twist_velocity_field_ptr_, std::array<double, 1>{0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_twist_torque_field_ptr_, std::array<double, 1>{0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_twist_acceleration_field_ptr_, std::array<double, 1>{0.0});
+  }
+
+  void compute_hertzian_contact_force() {
+    debug_print("Computing the Hertzian contact force.");
+
+    // Check if we need to rebuild the neighbor list.
+    // For now, we rebuild the neighbor list every time step.
+    rebuild_neighbor_list_ = true;
+
+    // If necessary, rebuild the neighbor list.
+    if (rebuild_neighbor_list_) {
+      // Compute the AABBs for the rods.
+      compute_aabb_ptr_->execute();
+
+      // Delete rod-rod neighbor linkers that are too far apart.
+      destroy_neighbor_linkers_ptr_->execute();
+
+      // Generate neighbor linkers between nearby rods.
+      generate_neighbor_linkers_ptr_->execute();
+    }
+
+    // Compute the signed separation distance and contact normal between neighboring rods.
+    compute_ssd_and_cn_ptr_->execute();
+
+    // Evaluate the Hertzian contact potential between neighboring rods.
+    evaluate_linker_potentials_ptr_->execute();
+
+    // Sum the linker potential force magnitude to get the induced node force on each rod.
+    linker_potential_force_magnitude_reduction_ptr_->execute();
+  }
+
+  void compute_centerline_twist_force_and_torque() {
+    debug_print("Computing the centerline twist force and torque.");
+    // Compute the edge information in the current timestep (length, tangent, and binormal).
+    compute_edge_information();
+
+    // Compute the node curvature and rotation gradient.
+    compute_node_curvature_and_rotation_gradient();
+
+    // Compute the internal force and twist torque.
+    compute_internal_force_and_twist_torque();
+  }
+
+  void compute_velocity_and_acceleration() {
+    debug_print("Computing the velocity and acceleration.");
   }
 
   void run(int argc, char **argv) {
+    debug_print("Running the simulation.");
+
     // Preprocess
     if (!parse_user_inputs(argc, argv)) {
       std::cerr << "Failed to parse user inputs." << std::endl;
@@ -548,12 +684,6 @@ class SpermSimulation {
     setup_io();
     declare_and_initialize_the_sperm();
 
-    // // Write the initial mesh to file
-    // stk_io_broker_.begin_output_step(output_file_index_, 0.0);
-    // stk_io_broker_.write_defined_output_fields(output_file_index_);
-    // stk_io_broker_.end_output_step(output_file_index_);
-    // stk_io_broker_.flush_output();
-
     // Time loop
     if (bulk_data_ptr_->parallel_rank() == 0) {
       std::cout << "Running the simulation for " << num_time_steps_ << " time steps." << std::endl;
@@ -561,53 +691,54 @@ class SpermSimulation {
 
     Kokkos::Timer timer;
     for (size_t i = 0; i < num_time_steps_; i++) {
+      debug_print("Time step " << i << ".");
+
       // Rotate the field states.
       bulk_data.update_field_data_states();
 
-      // Output
-      if (i % 10000 == 0) {
+      // IO. If desired, write out the data for time t.
+      if (i % io_frequency_ == 0) {
         stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(i));
         stk_io_broker_.write_defined_output_fields(output_file_index_);
         stk_io_broker_.end_output_step(output_file_index_);
         stk_io_broker_.flush_output();
       }
 
-      // Setup
-      mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array{0.0, 0.0, 0.0});
-      mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array{0.0, 0.0, 0.0});
+      // Prepare the current configuration.
+      {
+        // Rotate the field states.
+        rotate_field_states();
 
-      // Potentials
-      compute_constraint_forcing_ptr->execute(stk::mesh::Selector(springs_part) |
-                                              stk::mesh::Selector(angular_springs_part));
+        // Motion from t -> t + dt.
+        update_position_and_twist();
 
-      // Collisions
-      if (i % 100 == 0) {
-        compute_aabb_ptr->execute(spherocylinder_segments_part);
-        destroy_neighbor_linkers_ptr->execute(spherocylinder_segment_spherocylinder_segment_linkers_part);
-        generate_neighbor_linkers_ptr->execute(spherocylinder_segments_part, spherocylinder_segments_part);
+        // Zero the node velocities, accelerations, and forces/torques for time t + dt.
+        zero_out_transient_node_fields();
       }
-      compute_ssd_and_cn_ptr->execute(spherocylinder_segment_spherocylinder_segment_linkers_part);
-      evaluate_linker_potentials_ptr->execute(spherocylinder_segment_spherocylinder_segment_linkers_part);
-      linker_potential_force_magnitude_reduction_ptr->execute(spherocylinder_segments_part);
 
-      // Motion
-      compute_mobility_ptr->execute(spheres_part);
-      node_euler_ptr->execute(spheres_part);
+      // Evaluate forces f(x(t + dt)).
+      {
+        // Hertzian contact force
+        compute_hertzian_contact_force();
+
+        // Centerline twist rod model
+        compute_centerline_twist_force_and_torque();
+      }
+
+      // Compute velocity and acceleration.
+      {
+        // Evaluate a(t + dt) = M^{-1} f(x(t + dt)).
+        // Evaluate v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2.
+        compute_velocity_and_acceleration();
+      }
     }
 
     // Do a synchronize to force everybody to stop here, then write the time
     stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
-
     if (bulk_data_ptr_->parallel_rank() == 0) {
       double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps_);
       std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
     }
-
-    // Write the final mesh to file
-    // stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(num_time_steps_));
-    // stk_io_broker_.write_defined_output_fields(output_file_index_);
-    // stk_io_broker_.end_output_step(output_file_index_);
-    // stk_io_broker_.flush_output();
   }
 
  private:
@@ -627,6 +758,7 @@ class SpermSimulation {
   std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_;
   stk::io::StkMeshIoBroker stk_io_broker_;
   size_t output_file_index_;
+  bool rebuild_neighbor_list_ = true;
   //@}
 
   //! \name Fields
@@ -667,16 +799,16 @@ class SpermSimulation {
   //! \name Class instances
   //@{
 
-  std::shared_ptr<NodeEuler> node_euler_ptr;
-  std::shared_ptr<ComputeCenterlineTwistSpringConstraintForce> compute_centerline_twist_constraint_force_ptr;
-  std::shared_ptr<ComputeConstraintForcing> compute_constraint_forcing_ptr;
-  std::shared_ptr<ComputeSignedSeparationDistanceAndContactNormal> compute_ssd_and_cn_ptr;
-  std::shared_ptr<ComputeAABB> compute_aabb_ptr;
-  std::shared_ptr<GenerateNeighborLinkers> generate_neighbor_linkers_ptr;
-  std::shared_ptr<EvaluateLinkerPotentials> evaluate_linker_potentials_ptr;
-  std::shared_ptr<LinkerPotentialForceMagnitudeReduction> linker_potential_force_magnitude_reduction_ptr;
-  std::shared_ptr<DestroyNeighborLinkers> destroy_neighbor_linkers_ptr;
-  std::shared_ptr<DeclareAndInitConstraints> declare_and_init_constraints_ptr;
+  std::shared_ptr<NodeEuler> node_euler_ptr_;
+  std::shared_ptr<ComputeCenterlineTwistSpringConstraintForce> compute_centerline_twist_constraint_force_ptr_;
+  std::shared_ptr<ComputeConstraintForcing> compute_constraint_forcing_ptr_;
+  std::shared_ptr<ComputeSignedSeparationDistanceAndContactNormal> compute_ssd_and_cn_ptr_;
+  std::shared_ptr<ComputeAABB> compute_aabb_ptr_;
+  std::shared_ptr<GenerateNeighborLinkers> generate_neighbor_linkers_ptr_;
+  std::shared_ptr<EvaluateLinkerPotentials> evaluate_linker_potentials_ptr_;
+  std::shared_ptr<LinkerPotentialForceMagnitudeReduction> linker_potential_force_magnitude_reduction_ptr_;
+  std::shared_ptr<DestroyNeighborLinkers> destroy_neighbor_linkers_ptr_;
+  std::shared_ptr<DeclareAndInitConstraints> declare_and_init_constraints_ptr_;
   //@}
 
   //! \name Partitioning settings
@@ -703,7 +835,7 @@ class SpermSimulation {
     }
   };  // RcbSettings
 
-  RcbSettings balance_settings;
+  RcbSettings balance_settings_;
   //@}
 
   //! \name User parameters
@@ -724,6 +856,7 @@ class SpermSimulation {
 
   size_t num_time_steps_ = 100;
   double timestep_size_ = 0.01;
+  size_t io_frequency_ = 10;
   double skin_distance_ = sperm_radius_;
   //@}
 };  // SpermSimulation
