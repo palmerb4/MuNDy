@@ -19,38 +19,7 @@
 
 /* Notes:
 
-The goal of this example is to simulate the swimming motion of long sperm confined to a 2D plane. For the sake of
-collisions, the sperm are a chain of spherocylinder segments. For the sake of particle motion, we use "mass lumping" to
-represent the chain as a collection of spheres located at the endpoints of each segment. To model inextensibility, we
-add distance-based Hookean springs between adjacent spheres. To model flexibility, we employ a finite difference
-discretization of a Kirchhoff rod model with a centerline-twist parametrization of the rod. To model the sperm's
-swimming motion, we vary the rest curvature with time and archlength along the chain.
-
-We will initialize the sperm as straight lines within the x-y plane. They can either all be initialized in the same
-direction or in alternating direction. You can also, optionally, enable, two boundary sperm at the top and bottom of the
-domain. These sperm will be able to move, swim, and collide with the other sperm, BUT we'll only consider one way
-collision forces. As in, the boundary perm can exert a collision force on the bulk sperm, but the bulk sperm can't exert
-a collision force on the boundary sperm.
-  x---x---x---x---x---x---x---x
-    <-o---o---o---o---o---o
-    <-o---o---o---o---o---o
-    <-o---o---o---o---o---o
-    <-o---o---o---o---o---o
-  x---x---x---x---x---x---x---x
-or
-  x---x---x---x---x---x---x---x
-    <-o---o---o---o---o---o
-      o---o---o---o---o---o->
-    <-o---o---o---o---o---o
-      o---o---o---o---o---o->
-  x---x---x---x---x---x---x---x
-The coordinate mapping used to set the initial position of the sperm in the bulk may differ from the coordinate mapping
-used to set the initial position of the sperm on the boundary. The two choices of coordinate mapping are straight and
-sinusoidal.
-
-To start, we won't employ Mundy's requirements encapsulation. That's supposed to come last in the development process.
-This can't be emphasized more: the goal is to get something working first and then wrap it in a MetaMethod so it can be
-integrated into Mundy and runnable via our Configurator/Driver system.
+The goal of this example is to simulate the swimming motion of a multiple, non-interacting long sperm.
 */
 
 // External libs
@@ -74,27 +43,14 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_constraints/DeclareAndInitConstraints.hpp>  // for mundy::constraints::DeclareAndInitConstraints
 #include <mundy_core/MakeStringArray.hpp>                   // for mundy::core::make_string_array
 #include <mundy_core/throw_assert.hpp>                      // for MUNDY_THROW_ASSERT
-#include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
-#include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
-#include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
-#include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
-#include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
-#include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::...::SpherocylinderSegmentSpherocylinderSegmentLinkers
-#include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
-#include <mundy_math/Quaternion.hpp>  // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
+#include <mundy_math/Matrix3.hpp>                           // for mundy::math::Matrix3
+#include <mundy_math/Quaternion.hpp>                        // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>                           // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
-#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
-#include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
-#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
-#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_shapes/ComputeAABB.hpp>     // for mundy::shapes::ComputeAABB
+#include <mundy_mesh/MetaData.hpp>                  // for mundy::mesh::MetaData
+#include <mundy_mesh/utils/FillFieldWithValue.hpp>  // for mundy::mesh::utils::fill_field_with_value
+#include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -130,27 +86,6 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 ///
 ///       // Evaluate forces f(x(t + dt))
 ///       {
-///         // Neighbor detection rod-rod
-///         - Check if the rod-rod neighbor list needs updated or not
-///             - Compute the AABBs for the rods
-///              (Using mundy's ComputeAABB function)
-///
-///             - Delete rod-rod neighbor linkers that are too far apart
-///              (Using the DestroyDistantNeighbors technique of mundy's DestroyNeighborLinkers function)
-///
-///             - Generate neighbor linkers between nearby rods
-///              (Using the GenerateNeighborLinkers function of mundy's GenerateNeighborLinkers function)
-///
-///         // Hertzian contact
-///         - Compute the signed separation distance and contact normal between neighboring rods
-///          (Using mundy's ComputeSignedSeparationDistanceAndContactNormal function)
-///
-///         - Evaluate the Hertzian contact potential between neighboring rods
-///          (Using mundy's EvaluateLinkerPotentials function)
-///
-///         - Sum the linker potential force magnitude to get the induced node force on each rod
-///          (Using mundy's LinkerPotentialForceMagnitudeReduction function)
-///
 ///         // Centerline twist rod model
 ///         - Compute the edge information (length, tangent, and binormal)
 ///          (By looping over all edges and computing the edge length, tangent, binormal)
@@ -173,6 +108,24 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 ///        - Evaluate v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2
 ///         (By looping over all nodes and updating the node velocity and twist rate using the corresponding
 ///         accelerations)
+///
+/// The sperm themselves are modeled as a chain of rods with a centerline twist spring connecting pairs of adjacent
+/// edges:
+/*
+/// n1       n3        n5        n7
+///  \      /  \      /  \      /
+///   s1   s2   s3   s4   s5   s6
+///    \  /      \  /      \  /
+///     n2        n4        n6
+*/
+/// The centerline twist springs are hard to draw with ASCII art, but they are centered at every interior node and
+/// connected to the node's neighbors:
+///   c1 has a center node at n2 and connects to n1 and n3.
+///   c2 has a center node at n3 and connects to n2 and n4.
+///   and so on.
+///
+/// STK EntityId-wise. Nodes are numbered sequentially from 1 to num_nodes. Centerline twist springs are numbered
+/// sequentially from 1 to num_nodes-2.
 class SpermSimulation {
  public:
   SpermSimulation() = default;
@@ -502,41 +455,168 @@ class SpermSimulation {
     debug_print("Declaring and initializing the sperm.");
 
     // Declare N spring chains with a slight shift to each chain
-    for (int i = 0; i < num_sperm_; i++) {
-      // DeclareAndInitConstraints mutable parameters
-      Teuchos::ParameterList declare_and_init_constraints_mutable_params;
-      using CoordinateMappingType =
-          mundy::constraints::declare_and_initialize_constraints::techniques::ArchlengthCoordinateMapping;
-      using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::StraightLine;
+    for (size_t j = 0; j < num_sperm_; j++) {
+      mundy::math::Vector3<double> tail_coord(0.0, 2 * j * sperm_radius_, 0.0);
+      mundy::math::Vector3<double> sperm_axis(1.0, 0.0, 0.0);
 
-      double center_x = 0.0;
-      double center_y = 2 * i * sperm_radius_;
-      double center_z = 0.0;
-      double length = num_nodes_per_sperm_ * sperm_initial_segment_length_;
-      double axis_x = 1.0;
-      double axis_y = 0.0;
-      double axis_z = 0.0;
-      auto straight_line_mapping_ptr = std::make_shared<OurCoordinateMappingType>(
-          num_nodes_per_sperm_, center_x, center_y, center_z, length, axis_x, axis_y, axis_z);
-      declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS")
-          .set<size_t>("num_nodes", num_nodes_per_sperm_)
-          .set<size_t>("node_id_start", i * num_nodes_per_sperm_ + 1)
-          .set<size_t>("element_id_start", i * (4 * num_nodes_per_sperm_ - 4) + 1)
-          .set("hookean_spring_constant", spring_constant)
-          .set("hookean_spring_rest_length", sperm_rest_segment_length_)
-          .set("angular_spring_constant", angular_spring_constant)
-          .set("angular_spring_rest_angle", angular_spring_rest_angle)
-          .set("sperm_radius_", sperm_radius_)
-          .set("spherocylinder_segment_radius", sperm_radius_)
-          .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", straight_line_mapping_ptr);
-      declare_and_init_constraints_ptr_->set_mutable_params(declare_and_init_constraints_mutable_params);
-      declare_and_init_constraints_ptr_->execute();
+      // Because we are creating multiple sperm, we need to determine the node and element index ranges for each sperm.
+      size_t start_node_id = num_nodes_per_sperm_ * j + 1u;
+      size_t start_edge_id = (num_nodes_per_sperm_ - 1) * j + 1u;
+      size_t start_centerline_twist_spring_id = (num_nodes_per_sperm_ - 2) * j + 1u;
+
+      auto get_node_id = [start_node_id](const size_t &seq_node_index) {
+        return start_node_id + seq_node_index;
+      };
+
+      auto get_node = [this](const size_t &seq_node_index) {
+        return bulk_data_ptr_->get_entity(stk::topology::NODE_RANK, get_node_id(seq_node_index));
+      };
+
+      auto get_edge_id = [start_edge_id](const size_t &seq_node_index) {
+        return start_edge_id + seq_node_index;
+      };
+
+      auto get_edge = [this](const size_t &seq_node_index) {
+        return bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, get_edge_id(seq_node_index));
+      };
+
+      auto get_centerline_twist_spring_id = [start_centerline_twist_spring_id](const size_t &seq_spring_index) {
+        return start_centerline_twist_spring_id + seq_spring_index;
+      };
+
+      auto get_centerline_twist_spring = [this](const size_t &seq_spring_index) {
+        return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK,
+                                          get_centerline_twist_spring_id(seq_spring_index));
+      };
+
+      // Create the springs and their connected nodes, distributing the work across the ranks.
+      const size_t rank = bulk_data_ptr_->parallel_rank();
+      const size_t nodes_per_rank = num_nodes_ / bulk_data_ptr_->parallel_size();
+      const size_t remainder = num_nodes_ % bulk_data_ptr_->parallel_size();
+      const size_t start_seq_node_index = rank * nodes_per_rank + std::min(rank, remainder);
+      const size_t end_seq_node_index = start_seq_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
+
+      bulk_data_ptr_->modification_begin();
+      for (size_t i = start_seq_node_index; i < end_seq_node_index; ++i) {
+        // Create the node.
+        stk::mesh::EntityId our_node_id = get_node_id(i);
+        stk::mesh::Entity node = bulk_data_ptr_->declare_node(our_node_id);
+        bulk_data_ptr_->change_entity_parts(node, stk::mesh::PartVector{centerline_twist_springs_part_ptr_});
+
+        // Set the node's data
+        mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) =
+            tail_coord + sperm_axis * i * sperm_initial_segment_length_;
+        mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node) = {0.0, 0.0, 0.0};
+        mundy::mesh::vector3_field_data(*node_force_field_ptr_, node) = {0.0, 0.0, 0.0};
+        mundy::mesh::vector3_field_data(*node_acceleration_field_ptr_, node) = {0.0, 0.0, 0.0};
+        stk::mesh::field_data(*node_twist_field_ptr_, node)[0] = 0.0;
+        stk::mesh::field_data(*node_twist_velocity_field_ptr_, node)[0] = 0.0;
+        stk::mesh::field_data(*node_twist_torque_field_ptr_, node)[0] = 0.0;
+        stk::mesh::field_data(*node_twist_acceleration_field_ptr_, node)[0] = 0.0;
+        mundy::mesh::vector3_field_data(*node_curvature_field_ptr_, node) = {0.0, 0.0, 0.0};
+        mundy::mesh::vector3_field_data(*node_rest_curvature_field_ptr_, node) = {0.0, 0.0, 0.0};
+        stk::mesh::field_data(*node_radius_field_ptr_, node)[0] = sperm_radius_;
+        stk::mesh::field_data(*node_archlength_field_ptr_, node)[0] = i * sperm_initial_segment_length_;
+      }
+
+      // Centerline twist springs connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
+      const size_t start_element_chain_index = start_node_index;
+      const size_t end_start_element_chain_index =
+          (rank == bulk_data_ptr_->parallel_size() - 1) ? end_node_index - 2 : end_node_index - 1;
+      for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
+        // Create the centerline twist spring.
+        stk::mesh::EntityId spring_id = get_centerline_twist_spring_id(i);
+        stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
+        bulk_data_ptr_->change_entity_parts(spring, stk::mesh::PartVector{centerline_twist_springs_part_ptr_});
+
+        // Fetch the nodes, and edges, and connect them to the spring.
+        // To map our sequential index to the node sequential index, we connect to node i, i + 1, and i + 2.
+        // Our center node is node i. Note, the node ordinals for BEAM_3 are
+        /* n1        n2
+        //   \      /
+        //    e1   e2
+        //     \  /
+        //      n3
+        */
+        stk::mesh::Entity left_node = get_node(i);
+        stk::mesh::Entity center_node = get_node(i + 1);
+        stk::mesh::Entity right_node = get_node(i + 2);
+
+        stk::mesh::Entity left_edge = get_edge(i);
+        stk::mesh::Entity right_edge = get_edge(i + 1);
+
+        bulk_data_ptr_->declare_relation(spring, left_node, 0);
+        bulk_data_ptr_->declare_relation(spring, right_node, 1);
+        bulk_data_ptr_->declare_relation(spring, center_node, 2);
+
+        // Populate the spring's data
+        stk::mesh::field_data(*element_radius_field_ptr_, spring)[0] = sperm_radius_;
+        stk::mesh::field_data(*element_youngs_modulus_field_ptr_, spring)[0] = sperm_youngs_modulus_;
+        stk::mesh::field_data(*element_poissons_ratio_field_ptr_, spring)[0] = sperm_poissons_ratio_;
+        stk::mesh::field_data(*element_rest_length_field_ptr_, spring)[0] = sperm_rest_segment_length_;
+      }
+
+      // Share the nodes with the neighboring ranks.
+      // Note, node sharing is symmetric. If we don't own the node that we intend to share, we need to declare it before
+      // marking it as shared. If we are rank 0, we share our final node with rank 1 and receive their first node. If we
+      // are rank N, we share our first node with rank N - 1 and receive their final node. Otherwise, we share our first
+      // and last nodes with the corresponding neighboring ranks and receive their corresponding nodes.
+      if (bulk_data_ptr_->parallel_size() > 1) {
+        if (rank == 0) {
+          // Share the last node with rank 1.
+          stk::mesh::Entity node = get_node(end_node_index - 1);
+          bulk_data_ptr_->add_node_sharing(node, rank + 1);
+
+          // Receive the first node from rank 1
+          stk::mesh::EntityId received_node_id = get_node_id(end_node_index);
+          stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
+          bulk_data_ptr_->add_node_sharing(received_node, rank + 1);
+        } else if (rank == bulk_data_ptr_->parallel_size() - 1) {
+          // Share the first node with rank N - 1.
+          stk::mesh::Entity node = get_node(start_node_index);
+          bulk_data_ptr_->add_node_sharing(node, rank - 1);
+
+          // Receive the last node from rank N - 1.
+          stk::mesh::EntityId received_node_id = get_node_id(start_node_index - 1);
+          stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
+          bulk_data_ptr_->add_node_sharing(received_node, rank - 1);
+        } else {
+          // Share the first and last nodes with the corresponding neighboring ranks.
+          stk::mesh::Entity first_node = get_node(start_node_index);
+          stk::mesh::Entity last_node = get_node(end_node_index - 1);
+          bulk_data_ptr_->add_node_sharing(first_node, rank - 1);
+          bulk_data_ptr_->add_node_sharing(last_node, rank + 1);
+
+          // Receive the corresponding nodes from the neighboring ranks.
+          stk::mesh::EntityId received_first_node_id = get_node_id(start_node_index - 1);
+          stk::mesh::EntityId received_last_node_id = get_node_id(end_node_index);
+          stk::mesh::Entity received_first_node = bulk_data_ptr_->declare_node(received_first_node_id);
+          stk::mesh::Entity received_last_node = bulk_data_ptr_->declare_node(received_last_node_id);
+          bulk_data_ptr_->add_node_sharing(received_first_node, rank - 1);
+          bulk_data_ptr_->add_node_sharing(received_last_node, rank + 1);
+        }
+      }
+      bulk_data_ptr_->modification_end();
+
+      // Create the edges and connect them to the nodes.
+      // The canonical way to create and share edges is stk's create_edges method
+      stk::mesh::create_edges(*bulk_data_ptr_);
+
+      // Populate the edge data
+      stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
+      stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
+      const double sperm_initial_segment_length = sperm_initial_segment_length_;
+      stk::mesh::for_each_entity_run(
+          *bulk_data_ptr_, stk::topology::EDGE_RANK, meta_data_ptr_->locally_owned_part(),
+          [&edge_orientation_field, &edge_tangent_field, sperm_axis, sperm_initial_segment_length](
+              const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &edge) {
+            // The orientation of the edge is the identity since we are currently in the reference configuration.
+            mundy::mesh::quaternion_field_data(*edge_orientation_field_ptr_, edge) =
+                mundy::math::Quaternion<double>::identity();
+            mundy::mesh::vector3_field_data(*edge_tangent_field_ptr_, edge) = sperm_axis;
+            stk::mesh::field_data(*edge_length_field_ptr_, edge)[0] = sperm_initial_segment_length_;
+          });
     }
-
-    mundy::mesh::utils::fill_field_with_value<double>(*element_youngs_modulus_field_ptr_,
-                                                      std::array<double, 1>{sperm_youngs_modulus_});
-    mundy::mesh::utils::fill_field_with_value<double>(*element_poissons_ratio_field_ptr_,
-                                                      std::array<double, 1>{sperm_poissons_ratio_});
   }
 
   void loadbalance() {
@@ -662,7 +742,7 @@ class SpermSimulation {
           // Get the output fields
           auto edge_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge);
           auto edge_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, edge);
-          double* edge_length = stk::mesh::field_data(edge_length_field, edge);
+          double *edge_length = stk::mesh::field_data(edge_length_field, edge);
 
           // Compute the un-normalized edge tangent
           edge_tangent = node_ip1_coords - node_i_coords;
@@ -781,9 +861,10 @@ class SpermSimulation {
           const auto edge_i_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge_i);
           const auto edge_im1_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, edge_im1);
           const auto edge_i_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, edge_i);
-          const double edge_im1_length = stk::mesh::field_data(edge_length_field, edge_im1)[0]
-          const double edge_i_length = stk::mesh::field_data(edge_length_field, edge_i)[0]
-          const auto edge_im1_orientation = mundy::mesh::quaternion_field_data(edge_orientation_field, edge_im1);
+          const double edge_im1_length =
+              stk::mesh::field_data(edge_length_field, edge_im1)[0] const double edge_i_length =
+                  stk::mesh::field_data(edge_length_field, edge_i)[0] const auto edge_im1_orientation =
+                      mundy::mesh::quaternion_field_data(edge_orientation_field, edge_im1);
 
           // Get the output fields
           auto node_im1_force = mundy::mesh::vector3_field_data(node_force_field, node_im1);
@@ -1047,6 +1128,7 @@ class SpermSimulation {
   stk::mesh::Field<double> *node_rest_curvature_field_ptr_;
   stk::mesh::Field<double> *node_rotation_gradient_field_ptr_;
   stk::mesh::Field<double> *node_radius_field_ptr_;
+  stk::mesh::Field<double> *node_archlength_field_ptr_;
 
   stk::mesh::Field<double> *edge_orientation_field_ptr_;
   stk::mesh::Field<double> *edge_tangent_field_ptr_;
