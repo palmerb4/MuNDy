@@ -102,129 +102,83 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
 
-//////////////////////////////
-// Finite element rod model //
-//////////////////////////////
-
-/* Section nodes:
-
-Centerline-twist rods store the following information
-  Element
-    Radius | double | len 1 | states 2
-  Edge
-    Orientation | double | len 4 | states 2
-    Tangent     | double | len 3 | states 2
-    Binormal    | double | len 3 | states 1
-    Length      | double | len 3 | states 1
-  Node
-    Coord              | double | len 3 | states 2
-    Velocity           | double | len 3 | states 1
-    Acceleration       | double | len 3 | states 2
-    Twist              | double | len 1 | states 2
-    Twist rate         | double | len 1 | states 2
-    Twist acceleration | double | len 1 | states 2
-    Curvature          | double | len 3 | states 1
-    Rest curvature     | double | len 3 | states 1
-    Rotation gradient  | double | len 4 | states 1
-    Force              | double | len 3 | states 1
-    Twist torque       | double | len 1 | states 1
-
-We require the following constant material properties for the rods:
-  - Young's modulus
-  - Poisson's ratio
-  - Shear modulus
-  - Density
-
-Other miscellaneous parameters:
-  - Time step size
-
-We need to be able to perform the following operations on these rods:
-  - Compute edge information (length, tangent, and binormal).
-  - Compute node curvature and rotation gradient
-  - Compute node rest curvature
-  - Compute internal force and torque
-  - Compute stretch force
-  - Compute collision force
-  - Compute node motion using a multi-step scheme
-  - Write the rods to disk
-
-*/
-
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
-/// 
-/// This struct is in charge of setting up and executing the following tasks:
+///
+/// This class is in charge of setting up and executing the following tasks. In the future, this will all be handled by
+/// the Configurator.
 ///   // Preprocess
 ///   - Parse user parameter
-///   
+///
 ///   // Setup
 ///   - Declare the fixed and mutable params for the desired MetaMethods
 ///   - Construct the mesh and the method instances
 ///   - Declare and initialize the chain of rods and their connecting springs, and the STL elements
-///   
+///
 ///   // Timeloop
 ///   - Run the timeloop for t in range(0, T):
 ///       // IO.
 ///       - If desired, write out the data for time t
 ///         (Using stk::io::StkMeshIoBroker)
-///   
+///
 ///       // Setup the current configuration.
 ///       - Rotate the field states
 ///         (Using BulkData's update_field_data_states function)
-///       
+///
 ///       - Zero the node forces and velocities for time t + dt
 ///         (Using mundy's fill_field_with_value function)
-///   
+///
 ///       // Motion from t -> t + dt:
 ///        - Apply velocity/acceleration constraints like no motion for particle 1
 ///         (By directly looping over all nodes and setting the velocity/acceleration to zero)
-///        
+///
 ///        - Evaluate x(t + dt) = x(t) + v(t) * dt + a(t) * dt^2 / 2
 ///         (By looping over all nodes and updating the coordinates)
-///   
+///
 ///       // Evaluate forces f(x(t + dt))
 ///       {
 ///         // Neighbor detection rod-rod
 ///         - Check if the rod-rod neighbor list needs updated or not
 ///             - Compute the AABBs for the rods
 ///              (Using mundy's ComputeAABB function)
-///             
+///
 ///             - Delete rod-rod neighbor linkers that are too far apart
 ///              (Using the DestroyDistantNeighbors technique of mundy's DestroyNeighborLinkers function)
-///             
+///
 ///             - Generate neighbor linkers between nearby rods
 ///              (Using the GenerateNeighborLinkers function of mundy's GenerateNeighborLinkers function)
-///   
+///
 ///         // Hertzian contact
 ///         - Compute the signed separation distance and contact normal between neighboring rods
 ///          (Using mundy's ComputeSignedSeparationDistanceAndContactNormal function)
-///         
+///
 ///         - Evaluate the Hertzian contact potential between neighboring rods
 ///          (Using mundy's EvaluateLinkerPotentials function)
-///         
+///
 ///         - Sum the linker potential force magnitude to get the induced node force on each rod
 ///          (Using mundy's LinkerPotentialForceMagnitudeReduction function)
-///   
+///
 ///         // Senterline twist rod model
 ///         - Compute the edge information (length, tangent, and binormal)
 ///          (By looping over all edges and computing the edge length, tangent, binormal)
-///         
+///
 ///         - Compute the node curvature and rotation gradient
-///          (By looping over all centerline twist spring elements and computing the curvature & rotation gradient at their
-///           center node using the edge orientations)
-///         
+///          (By looping over all centerline twist spring elements and computing the curvature & rotation gradient at
+///          their center node using the edge orientations)
+///
 ///         - Compute the internal force and twist torque
-///          (By looping over all centerline twist spring elements, using the curvature to compute the induced torque, and
-///           then using the torque to compute the force and twist-torque on the nodes)
+///          (By looping over all centerline twist spring elements, using the curvature to compute the induced
+///          benching/twisting torque and stretch force, and using them to compute the force and twist-torque on the
+///          nodes. .)
 ///       }
-///   
+///
 ///       // Compute velocity and acceleration
 ///        - Evaluate a(t + dt) = M^{-1} f(x(t + dt))
-///         (By looping over all nodes and computing the node acceleration and twist acceleration from the force and twist torque)
-///   
-///        - Evaluate v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2
-///         (By looping over all nodes and updating the node velocity and twist rate using the corresponding accelerations)
+///         (By looping over all nodes and computing the node acceleration and twist acceleration from the force and
+///         twist torque)
 ///
-/// All user inputs are parsed from the command line. 
+///        - Evaluate v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2
+///         (By looping over all nodes and updating the node velocity and twist rate using the corresponding
+///         accelerations)
 class SpermSimulation {
  public:
   SpermSimulation() = default;
@@ -234,153 +188,160 @@ class SpermSimulation {
     Teuchos::CommandLineProcessor cmdp(false, true);
 
     // Optional command line arguments for controlling
-    //   Sphere initialization:
-    cmdp.setOption("num_spheres", &num_spheres, "Number of spheres.");
-    cmdp.setOption("sphere_radius", &sphere_radius, "The radius of the spheres.");
-    cmdp.setOption("initial_segment_length", &initial_segment_length, "Initial segment length.");
-    cmdp.setOption("rest_length", &rest_length, "Rest length of the spring.");
-    cmdp.setOption("loadbalance", "no_loadbalance", &loadbalance_initial_config,
-                  "Load balance the initial configuration.");
+    //   Sperm initialization:
+    cmdp.setOption("num_sperm", &num_sperm_, "Number of sperm.");
+    cmdp.setOption("num_nodes_per_sperm", &num_nodes_per_sperm_, "Number of nodes per sperm.");
+    cmdp.setOption("sperm_radius", &sperm_radius_, "The radius of each sperm.");
+    cmdp.setOption("sperm_initial_segment_length", &sperm_initial_segment_length_, "Initial sperm segment length.");
+    cmdp.setOption("sperm_rest_segment_length", &sperm_rest_segment_length_, "Rest sperm segment length.");
+    cmdp.setOption("sperm_rest_curvature_twist", &sperm_rest_curvature_twist_, "Rest curvature (twist) of the sperm.");
+    cmdp.setOption("sperm_rest_curvature_bend1", &sperm_rest_curvature_bend1_,
+                   "Rest curvature (bend along the first coordinate direction) of the sperm.");
+    cmdp.setOption("sperm_rest_curvature_bend2", &sperm_rest_curvature_bend2_,
+                   "Rest curvature (bend along the second coordinate direction) of the sperm.");
 
-    //   Spring initialization:
-    cmdp.setOption("spring_constant", &spring_constant, "Spring constant.");
-    cmdp.setOption("angular_spring_constant", &angular_spring_constant, "Angular spring constant.");
-    cmdp.setOption("angular_spring_rest_angle", &angular_spring_rest_angle, "Angular spring rest angle.");
+    cmdp.setOption("sperm_density", &sperm_density_, "Density of the sperm.");
+    cmdp.setOption("sperm_youngs_modulus", &sperm_youngs_modulus_, "Young's modulus of the sperm.");
+    cmdp.setOption("sperm_poissons_ratio", &sperm_poissons_ratio_, "Poisson's ratio of the sperm.");
+    cmdp.setOption("sperm_density", &sperm_density_, "Density of the sperm.");
 
     //   The simulation:
-    cmdp.setOption("num_time_steps", &num_time_steps, "Number of time steps.");
-    cmdp.setOption("timestep_size", &timestep_size, "Time step size.");
-    cmdp.setOption("diffusion_coeff", &diffusion_coeff, "Diffusion coefficient.");
-    cmdp.setOption("viscosity", &viscosity, "Viscosity.");
-    cmdp.setOption("youngs_modulus", &youngs_modulus, "Young's modulus.");
-    cmdp.setOption("poissons_ratio", &poissons_ratio, "Poisson's ratio.");
+    cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
+    cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
+    cmdp.setOption("skin_distance", &skin_distance_, "The skin distance for neighbor detection. \n As long as no particle moves more than 
+    one skin distance, the current neighbor list is valid. This is used to avoid the expensive neighbor detection step.");
 
     bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
     return was_parse_successful;
   }
 
   void check_input_parameters() {
-    MUNDY_THROW_ASSERT(num_spheres > 0, std::invalid_argument, "num_spheres must be greater than 0.");
-    MUNDY_THROW_ASSERT(sphere_radius > 0, std::invalid_argument, "sphere_radius must be greater than 0.");
-    MUNDY_THROW_ASSERT(initial_segment_length > 0, std::invalid_argument, "initial_segment_length must be greater than 0.");
-    MUNDY_THROW_ASSERT(rest_length > 0, std::invalid_argument, "rest_length must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_time_steps > 0, std::invalid_argument, "num_time_steps must be greater than 0.");
-    MUNDY_THROW_ASSERT(timestep_size > 0, std::invalid_argument, "timestep_size must be greater than 0.");
-    MUNDY_THROW_ASSERT(diffusion_coeff > 0, std::invalid_argument, "diffusion_coeff must be greater than 0.");
-    MUNDY_THROW_ASSERT(viscosity > 0, std::invalid_argument, "viscosity must be greater than 0.");
-    MUNDY_THROW_ASSERT(youngs_modulus > 0, std::invalid_argument, "youngs_modulus must be greater than 0.");
-    MUNDY_THROW_ASSERT(poissons_ratio > 0, std::invalid_argument, "poissons_ratio must be greater than 0.");
-    MUNDY_THROW_ASSERT(spring_constant > 0, std::invalid_argument, "spring_constant must be greater than 0.");
-    MUNDY_THROW_ASSERT(angular_spring_constant > 0, std::invalid_argument, "angular_spring_constant must be greater than 0.");
-    MUNDY_THROW_ASSERT(angular_spring_rest_angle > 0, std::invalid_argument, "angular_spring_rest_angle must be greater than 0.");
+    MUNDY_THROW_ASSERT(num_sperm_ > 0, std::invalid_argument, "num_sperm_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(num_nodes_per_sperm_ > 0, std::invalid_argument, "num_nodes_per_sperm_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(sperm_radius_ > 0, std::invalid_argument, "sperm_radius_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(sperm_initial_segment_length_ > -1e-12, std::invalid_argument,
+                       "sperm_initial_segment_length_ must be greater than or equal to 0.");
+    MUNDY_THROW_ASSERT(sperm_rest_segment_length_ > -1e-12, std::invalid_argument,
+                       "sperm_rest_segment_length_ must be greater than or equal to 0.");
+    MUNDY_THROW_ASSERT(sperm_youngs_modulus_ > 0, std::invalid_argument,
+                       "sperm_youngs_modulus_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(sperm_poissons_ratio_ > 0, std::invalid_argument,
+                       "sperm_poissons_ratio_ must be greater than 0.");
+
+    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(skin_distance_ > -1e-12, std::invalid_argument,
+                       "skin_distance_ must be greater than or equal to 0.");
   }
 
   void dump_user_inputs() {
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
       std::cout << "##################################################" << std::endl;
       std::cout << "INPUT PARAMETERS:" << std::endl;
-      std::cout << "  num_spheres: " << num_spheres << std::endl;
-      std::cout << "  sphere_radius: " << sphere_radius << std::endl;
-      std::cout << "  initial_segment_length: " << initial_segment_length << std::endl;
-      std::cout << "  rest_length: " << rest_length << std::endl;
-      std::cout << "  num_time_steps: " << num_time_steps << std::endl;
-      std::cout << "  timestep_size: " << timestep_size << std::endl;
-      std::cout << "  diffusion_coeff: " << diffusion_coeff << std::endl;
-      std::cout << "  viscosity: " << viscosity << std::endl;
-      std::cout << "  youngs_modulus: " << youngs_modulus << std::endl;
-      std::cout << "  poissons_ratio: " << poissons_ratio << std::endl;
-      std::cout << "  spring_constant: " << spring_constant << std::endl;
-      std::cout << "  angular_spring_constant: " << angular_spring_constant << std::endl;
+      std::cout << "  num_sperm_: " << num_sperm_ << std::endl;
+      std::cout << "  num_nodes_per_sperm_: " << num_nodes_per_sperm_ << std::endl;
+      std::cout << "  sperm_radius_: " << sperm_radius_ << std::endl;
+      std::cout << "  sperm_initial_segment_length_: " << sperm_initial_segment_length_ << std::endl;
+      std::cout << "  sperm_rest_segment_length_: " << sperm_rest_segment_length_ << std::endl;
+      std::cout << "  sperm_rest_curvature_twist_: " << sperm_rest_curvature_twist_ << std::endl;
+      std::cout << "  sperm_rest_curvature_bend1_: " << sperm_rest_curvature_bend1_ << std::endl;
+      std::cout << "  sperm_rest_curvature_bend2_: " << sperm_rest_curvature_bend2_ << std::endl;
+      std::cout << "  sperm_youngs_modulus_: " << sperm_youngs_modulus_ << std::endl;
+      std::cout << "  sperm_poissons_ratio_: " << sperm_poissons_ratio_ << std::endl;
+      std::cout << "  sperm_density_: " << sperm_density_ << std::endl;
+      std::cout << "  num_time_steps_: " << num_time_steps_ << std::endl;
+      std::cout << "  timestep_size_: " << timestep_size_ << std::endl;
+      std::cout << "  skin_distance_: " << skin_distance_ << std::endl;
       std::cout << "##################################################" << std::endl;
     }
   }
-  
+
   void build_our_mesh_and_method_instances() {
     // Setup the mesh requirements.
     // First, we need to fetch the mesh requirements for each method, then we can create the class instances.
     // In the future, all of this will be done via the Configurator.
-    mesh_reqs_ptr->set_spatial_dimension(3);
-    mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+    mesh_reqs_ptr_->set_spatial_dimension(3);
+    mesh_reqs_ptr_->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
-    // Add custom requirements for this example. These are requirements that exceed those of the enabled methods and allow
-    // us to extend the functionality offered natively by Mundy.
+    // Add custom requirements for this example. These are requirements that exceed those of the enabled methods and
+    // allow us to extend the functionality offered natively by Mundy.
     //
     // We require that the centerline twist springs part exists, has a BEAM_3 topology, and has the desired
     // node/edge/element fields.
     auto clt_part_reqs = std::make_shared<mundy::meta::PartRequirements>()
-                            ->set_part_name("CENTERLINE_TWIST_SPRINGS")
-                            .set_part_topology(stk::topology::BEAM_3)
+                             ->set_part_name("CENTERLINE_TWIST_SPRINGS")
+                             .set_part_topology(stk::topology::BEAM_3)
 
-                            // Add the node fields
-                            .add_field_reqs<double>("NODE_COORDINATES", node_rank, 3, 2)
-                            .add_field_reqs<double>("NODE_VELOCITY", node_rank, 3, 2)
-                            .add_field_reqs<double>("NODE_FORCE", node_rank, 3, 1)
-                            .add_field_reqs<double>("NODE_ACCELERATION", node_rank, 3, 2)
+                             // Add the node fields
+                             .add_field_reqs<double>("NODE_COORDINATES", node_rank_, 3, 2)
+                             .add_field_reqs<double>("NODE_VELOCITY", node_rank_, 3, 2)
+                             .add_field_reqs<double>("NODE_FORCE", node_rank_, 3, 1)
+                             .add_field_reqs<double>("NODE_ACCELERATION", node_rank_, 3, 2)
 
-                            .add_field_reqs<double>("NODE_TWIST", node_rank, 1, 2)
-                            .add_field_reqs<double>("NODE_TWIST_VELOCITY", node_rank, 1, 2)
-                            .add_field_reqs<double>("NODE_TWIST_TORQUE", node_rank, 1, 1)
-                            .add_field_reqs<double>("NODE_TWIST_ACCELERATION", node_rank, 1, 2)
+                             .add_field_reqs<double>("NODE_TWIST", node_rank_, 1, 2)
+                             .add_field_reqs<double>("NODE_TWIST_VELOCITY", node_rank_, 1, 2)
+                             .add_field_reqs<double>("NODE_TWIST_TORQUE", node_rank_, 1, 1)
+                             .add_field_reqs<double>("NODE_TWIST_ACCELERATION", node_rank_, 1, 2)
 
-                            .add_field_reqs<double>("NODE_CURVATURE", node_rank, 3, 1)
-                            .add_field_reqs<double>("NODE_REST_CURVATURE", node_rank, 3, 1)
-                            .add_field_reqs<double>("NODE_ROTATION_GRADIENT", node_rank, 4, 1)
+                             .add_field_reqs<double>("NODE_CURVATURE", node_rank_, 3, 1)
+                             .add_field_reqs<double>("NODE_REST_CURVATURE", node_rank_, 3, 1)
+                             .add_field_reqs<double>("NODE_ROTATION_GRADIENT", node_rank_, 4, 1)
 
-                            // Add the edge fields
-                            .add_field_reqs<double>("EDGE_ORIENTATION", edge_rank, 4, 2)
-                            .add_field_reqs<double>("EDGE_TANGENT", edge_rank, 3, 2)
-                            .add_field_reqs<double>("EDGE_BINORMAL", edge_rank, 3, 1)
-                            .add_field_reqs<double>("EDGE_LENGTH", edge_rank, 1, 1);
+                             // Add the edge fields
+                             .add_field_reqs<double>("EDGE_ORIENTATION", edge_rank_, 4, 2)
+                             .add_field_reqs<double>("EDGE_TANGENT", edge_rank_, 3, 2)
+                             .add_field_reqs<double>("EDGE_BINORMAL", edge_rank_, 3, 1)
+                             .add_field_reqs<double>("EDGE_LENGTH", edge_rank_, 1, 1);
 
     // Create the mesh requirements
-    mesh_reqs_ptr->add_part_reqs(clt_part_reqs);
+    mesh_reqs_ptr_->add_part_reqs(clt_part_reqs);
 
     // ComputeConstraintForcing fixed parameters
     auto compute_constraint_forcing_fixed_params = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array(mundy::constraints::HookeanSprings::get_name()));
-    mesh_reqs_ptr->merge(
+    mesh_reqs_ptr_->merge(
         mundy::constraints::ComputeConstraintForcing::get_mesh_requirements(compute_constraint_forcing_fixed_params));
 
     // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
     auto compute_ssd_and_cn_fixed_params = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER"));
-    mesh_reqs_ptr->merge(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
+    mesh_reqs_ptr_->merge(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
         compute_ssd_and_cn_fixed_params));
 
     // ComputeAABB fixed parameters
     auto compute_aabb_fixed_params =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
-    mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
+    mesh_reqs_ptr_->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
 
     // GenerateNeighborLinkers fixed parameters
     auto generate_neighbor_linkers_fixed_params =
         Teuchos::ParameterList()
             .set("enabled_technique_name", "STK_SEARCH")
             .set("specialized_neighbor_linkers_part_names",
-                mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"))
+                 mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"))
             .sublist("STK_SEARCH")
             .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"))
             .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"));
-    mesh_reqs_ptr->merge(
+    mesh_reqs_ptr_->merge(
         mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_neighbor_linkers_fixed_params));
 
     // EvaluateLinkerPotentials fixed parameters
     auto evaluate_linker_potentials_fixed_params = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
-    mesh_reqs_ptr->merge(
+    mesh_reqs_ptr_->merge(
         mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
 
     // LinkerPotentialForceMagnitudeReduction fixed parameters
     auto linker_potential_force_magnitude_reduction_fixed_params =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
-    mesh_reqs_ptr->merge(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
+    mesh_reqs_ptr_->merge(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
         linker_potential_force_magnitude_reduction_fixed_params));
 
     // DestroyNeighborLinkers fixed parameters
     auto destroy_neighbor_linkers_fixed_params =
         Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
-    mesh_reqs_ptr->merge(
+    mesh_reqs_ptr_->merge(
         mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params));
 
     // DeclareAndInitConstraints fixed parameters
@@ -389,54 +350,54 @@ class SpermSimulation {
             .set("enabled_technique_name", "CHAIN_OF_SPRINGS")
             .sublist("CHAIN_OF_SPRINGS")
             .set("hookean_springs_part_names",
-                mundy::core::make_string_array(mundy::constraints::HookeanSprings::get_name()))
+                 mundy::core::make_string_array(mundy::constraints::HookeanSprings::get_name()))
             .set("angular_springs_part_names",
-                mundy::core::make_string_array(mundy::constraints::AngularSprings::get_name()))
+                 mundy::core::make_string_array(mundy::constraints::AngularSprings::get_name()))
             .set("sphere_part_names", mundy::core::make_string_array(mundy::shapes::Spheres::get_name()))
             .set("spherocylinder_segment_part_names",
-                mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()))
+                 mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()))
             .set<bool>("generate_hookean_springs", true)
             .set<bool>("generate_angular_springs", false)
             .set<bool>("generate_spheres_at_nodes", false)
             .set<bool>("generate_spherocylinder_segments_along_edges", true);
-    mesh_reqs_ptr->merge(
-        mundy::constraints::DeclareAndInitConstraints::get_mesh_requirements(declare_and_init_constraints_fixed_params));
- 
+    mesh_reqs_ptr_->merge(mundy::constraints::DeclareAndInitConstraints::get_mesh_requirements(
+        declare_and_init_constraints_fixed_params));
+
     // The mesh requirements are now set up, so we solidify the mesh structure.
-    bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
-    meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-    meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
-    meta_data_ptr->commit();
+    bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
+    meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
+    meta_data_ptr_->set_coordinate_field_name("NODE_COORDINATES");
+    meta_data_ptr_->commit();
 
     // Create the class instances and populate their mutable parameters
-    node_euler_ptr = NodeEuler::create_new_instance(bulk_data_ptr.get(), node_euler_fixed_params);
+    node_euler_ptr = NodeEuler::create_new_instance(bulk_data_ptr_.get(), node_euler_fixed_params);
     compute_centerline_twist_constraint_force_ptr = ComputeCenterlineTwistSpringConstraintForce::create_new_instance(
-        bulk_data_ptr.get(), compute_centerline_twist_constraint_force_fixed_params);
+        bulk_data_ptr_.get(), compute_centerline_twist_constraint_force_fixed_params);
     compute_constraint_forcing_ptr =
-        ComputeConstraintForcing::create_new_instance(bulk_data_ptr.get(), compute_constraint_forcing_fixed_params);
+        ComputeConstraintForcing::create_new_instance(bulk_data_ptr_.get(), compute_constraint_forcing_fixed_params);
     compute_ssd_and_cn_ptr = ComputeSignedSeparationDistanceAndContactNormal::create_new_instance(
-        bulk_data_ptr.get(), compute_ssd_and_cn_fixed_params);
-    compute_aabb_ptr = ComputeAABB::create_new_instance(bulk_data_ptr.get(), compute_aabb_fixed_params);
+        bulk_data_ptr_.get(), compute_ssd_and_cn_fixed_params);
+    compute_aabb_ptr = ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params);
     generate_neighbor_linkers_ptr =
-        GenerateNeighborLinkers::create_new_instance(bulk_data_ptr.get(), generate_neighbor_linkers_fixed_params);
+        GenerateNeighborLinkers::create_new_instance(bulk_data_ptr_.get(), generate_neighbor_linkers_fixed_params);
     evaluate_linker_potentials_ptr =
-        EvaluateLinkerPotentials::create_new_instance(bulk_data_ptr.get(), evaluate_linker_potentials_fixed_params);
+        EvaluateLinkerPotentials::create_new_instance(bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params);
     linker_potential_force_magnitude_reduction_ptr = LinkerPotentialForceMagnitudeReduction::create_new_instance(
-        bulk_data_ptr.get(), linker_potential_force_magnitude_reduction_fixed_params);
+        bulk_data_ptr_.get(), linker_potential_force_magnitude_reduction_fixed_params);
     destroy_neighbor_linkers_ptr =
-        DestroyNeighborLinkers::create_new_instance(bulk_data_ptr.get(), destroy_neighbor_linkers_fixed_params);
+        DestroyNeighborLinkers::create_new_instance(bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params);
     declare_and_init_constraints_ptr =
-        DeclareAndInitConstraints::create_new_instance(bulk_data_ptr.get(), declare_and_init_constraints_fixed_params);
-  
-    // Set up the mutable parameters for the classes 
+        DeclareAndInitConstraints::create_new_instance(bulk_data_ptr_.get(), declare_and_init_constraints_fixed_params);
+
+    // Set up the mutable parameters for the classes
     // If a class doesn't have mutable parameters, we can skip setting them.
 
     // ComputeCenterlineTwistSpringConstraintForce mutable parameters
     auto compute_centerline_twist_constraint_force_mutable_params =
         Teuchos::ParameterList()
-            .set("youngs_modulus", youngs_modulus)
-            .set("poissons_ratio", poissons_ratio)
-            .set("shear_modulus", youngs_modulus / (2.0 * (1.0 + poissons_ratio)))
+            .set("sperm_youngs_modulus_", sperm_youngs_modulus_)
+            .set("sperm_poissons_ratio_", sperm_poissons_ratio_)
+            .set("shear_modulus", sperm_youngs_modulus_ / (2.0 * (1.0 + sperm_poissons_ratio_)))
             .set("density", 1.0);
     compute_centerline_twist_constraint_force_ptr->set_mutable_params(
         compute_centerline_twist_constraint_force_mutable_params);
@@ -448,14 +409,14 @@ class SpermSimulation {
 
   template <typename FieldType>
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
-    auto field_ptr = meta_data_ptr->get_field<FieldType>(rank, field_name);
+    auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
                        "Field " << field_name << " not found in the mesh meta data.");
     return field_ptr;
   }
 
-  stk::mesh::Part* fetch_part(const std::string &part_name) {
-    auto part_ptr = meta_data_ptr->get_part(part_name);
+  stk::mesh::Part *fetch_part(const std::string &part_name) {
+    auto part_ptr = meta_data_ptr_->get_part(part_name);
     MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
                        "Part " << part_name << " not found in the mesh meta data.");
     return part_ptr;
@@ -463,76 +424,74 @@ class SpermSimulation {
 
   void fetch_fields_and_parts() {
     // Fetch the fields
-    node_coordinates_field_ptr = fetch_field<double>("NODE_COORDINATES", stk::topology::NODE_RANK);
-    node_velocity_field_ptr = fetch_field<double>("NODE_VELOCITY", stk::topology::NODE_RANK);
-    node_force_field_ptr = fetch_field<double>("NODE_FORCE", stk::topology::NODE_RANK);
-    node_acceleration_field_ptr = fetch_field<double>("NODE_ACCELERATION", stk::topology::NODE_RANK);
-    node_twist_field_ptr = fetch_field<double>("NODE_TWIST", stk::topology::NODE_RANK);
-    node_twist_velocity_field_ptr = fetch_field<double>("NODE_TWIST_VELOCITY", stk::topology::NODE_RANK);
-    node_twist_torque_field_ptr = fetch_field<double>("NODE_TWIST_TORQUE", stk::topology::NODE_RANK);
-    node_twist_acceleration_field_ptr = fetch_field<double>("NODE_TWIST_ACCELERATION", stk::topology::NODE_RANK);
-    node_curvature_field_ptr = fetch_field<double>("NODE_CURVATURE", stk::topology::NODE_RANK);
-    node_rest_curvature_field_ptr = fetch_field<double>("NODE_REST_CURVATURE", stk::topology::NODE_RANK);
-    node_rotation_gradient_field_ptr = fetch_field<double>("NODE_ROTATION_GRADIENT", stk::topology::NODE_RANK);
-    node_radius_field_ptr = fetch_field<double>("NODE_RADIUS", stk::topology::NODE_RANK);
+    node_coordinates_field_ptr_ = fetch_field<double>("NODE_COORDINATES", stk::topology::NODE_RANK);
+    node_velocity_field_ptr_ = fetch_field<double>("NODE_VELOCITY", stk::topology::NODE_RANK);
+    node_force_field_ptr_ = fetch_field<double>("NODE_FORCE", stk::topology::NODE_RANK);
+    node_acceleration_field_ptr_ = fetch_field<double>("NODE_ACCELERATION", stk::topology::NODE_RANK);
+    node_twist_field_ptr_ = fetch_field<double>("NODE_TWIST", stk::topology::NODE_RANK);
+    node_twist_velocity_field_ptr_ = fetch_field<double>("NODE_TWIST_VELOCITY", stk::topology::NODE_RANK);
+    node_twist_torque_field_ptr_ = fetch_field<double>("NODE_TWIST_TORQUE", stk::topology::NODE_RANK);
+    node_twist_acceleration_field_ptr_ = fetch_field<double>("NODE_TWIST_ACCELERATION", stk::topology::NODE_RANK);
+    node_curvature_field_ptr_ = fetch_field<double>("NODE_CURVATURE", stk::topology::NODE_RANK);
+    node_rest_curvature_field_ptr_ = fetch_field<double>("NODE_REST_CURVATURE", stk::topology::NODE_RANK);
+    node_rotation_gradient_field_ptr_ = fetch_field<double>("NODE_ROTATION_GRADIENT", stk::topology::NODE_RANK);
+    node_radius_field_ptr_ = fetch_field<double>("NODE_RADIUS", stk::topology::NODE_RANK);
 
-    edge_orientation_field_ptr = fetch_field<double>("EDGE_ORIENTATION", stk::topology::EDGE_RANK);
-    edge_tangent_field_ptr = fetch_field<double>("EDGE_TANGENT", stk::topology::EDGE_RANK);
-    edge_binormal_field_ptr = fetch_field<double>("EDGE_BINORMAL", stk::topology::EDGE_RANK);
-    edge_length_field_ptr = fetch_field<double>("EDGE_LENGTH", stk::topology::EDGE_RANK);
+    edge_orientation_field_ptr_ = fetch_field<double>("EDGE_ORIENTATION", stk::topology::EDGE_RANK);
+    edge_tangent_field_ptr_ = fetch_field<double>("EDGE_TANGENT", stk::topology::EDGE_RANK);
+    edge_binormal_field_ptr_ = fetch_field<double>("EDGE_BINORMAL", stk::topology::EDGE_RANK);
+    edge_length_field_ptr_ = fetch_field<double>("EDGE_LENGTH", stk::topology::EDGE_RANK);
 
-    element_radius_field_ptr = fetch_field<double>("ELEMENT_RADIUS", stk::topology::ELEMENT_RANK);
-    element_youngs_modulus_field_ptr = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", stk::topology::ELEMENT_RANK);
-    element_poissons_ratio_field_ptr = fetch_field<double>("ELEMENT_POISSONS_RATIO", stk::topology::ELEMENT_RANK);
-    element_rest_length_field_ptr = fetch_field<double>("ELEMENT_REST_LENGTH", stk::topology::ELEMENT_RANK);
-    element_spring_constant_field_ptr = fetch_field<double>("ELEMENT_SPRING_CONSTANT", stk::topology::ELEMENT_RANK);
+    element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", stk::topology::ELEMENT_RANK);
+    element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", stk::topology::ELEMENT_RANK);
+    element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", stk::topology::ELEMENT_RANK);
+    element_rest_length_field_ptr_ = fetch_field<double>("ELEMENT_REST_LENGTH", stk::topology::ELEMENT_RANK);
+    element_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_SPRING_CONSTANT", stk::topology::ELEMENT_RANK);
 
     // Fetch the parts
-    centerline_twist_springs_part_ptr = fetch_part("CENTERLINE_TWIST_SPRINGS");
-    spherocylinder_segments_part_ptr = fetch_part("SPHEROCYLINDER_SEGMENTS");
-    hookian_springs_part_ptr = fetch_part("HOOKEAN_SPRINGS");
+    centerline_twist_springs_part_ptr_ = fetch_part("CENTERLINE_TWIST_SPRINGS");
+    spherocylinder_segments_part_ptr_ = fetch_part("SPHEROCYLINDER_SEGMENTS");
+    hookean_springs_part_ptr_ = fetch_part("HOOKEAN_SPRINGS");
   }
 
   void setup_io() {
     // Declare each part as an IO part
-    stk::io::put_io_part_attribute(*centerline_twist_springs_part_ptr);
-    stk::io::put_io_part_attribute(*spherocylinder_segments_part_ptr);
-    stk::io::put_io_part_attribute(*hookian_springs_part_ptr);
+    stk::io::put_io_part_attribute(*centerline_twist_springs_part_ptr_);
+    stk::io::put_io_part_attribute(*spherocylinder_segments_part_ptr_);
+    stk::io::put_io_part_attribute(*hookean_springs_part_ptr_);
 
     // Setup the IO broker
-    stk_io_broker.use_simple_fields();
-    stk_io_broker.set_bulk_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()));
+    stk_io_broker_.use_simple_fields();
+    stk_io_broker_.set_bulk_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_.get()));
 
-    size_t output_file_index = stk_io_broker.create_output_mesh("Sperm.exo", stk::io::WRITE_RESULTS);
-    stk_io_broker.add_field(output_file_index, *node_coordinates_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_velocity_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_force_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_acceleration_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_twist_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_twist_velocity_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_twist_torque_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_twist_acceleration_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_curvature_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_rest_curvature_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_rotation_gradient_field_ptr);
-    stk_io_broker.add_field(output_file_index, *node_radius_field_ptr);
+    output_file_index_ = stk_io_broker_.create_output_mesh("Sperm.exo", stk::io::WRITE_RESULTS);
+    stk_io_broker_.add_field(output_file_index_, *node_coordinates_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_velocity_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_force_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_acceleration_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_twist_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_twist_velocity_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_twist_torque_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_twist_acceleration_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_curvature_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_rest_curvature_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_rotation_gradient_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_radius_field_ptr_);
 
-    stk_io_broker.add_field(output_file_index, *edge_orientation_field_ptr);
-    stk_io_broker.add_field(output_file_index, *edge_tangent_field_ptr);
-    stk_io_broker.add_field(output_file_index, *edge_binormal_field_ptr);
-    stk_io_broker.add_field(output_file_index, *edge_length_field_ptr);
+    stk_io_broker_.add_field(output_file_index_, *edge_orientation_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *edge_tangent_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *edge_binormal_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *edge_length_field_ptr_);
 
-    stk_io_broker.add_field(output_file_index, *element_radius_field_ptr);
-    stk_io_broker.add_field(output_file_index, *element_youngs_modulus_field_ptr);
-    stk_io_broker.add_field(output_file_index, *element_poissons_ratio_field_ptr);
-    stk_io_broker.add_field(output_file_index, *element_rest_length_field_ptr);
-    stk_io_broker.add_field(output_file_index, *element_spring_constant_field_ptr);
+    stk_io_broker_.add_field(output_file_index_, *element_radius_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *element_youngs_modulus_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *element_poissons_ratio_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *element_rest_length_field_ptr_);
   }
 
   void declare_and_initialize_the_sperm() {
     // Declare N spring chains with a slight shift to each chain
-    const int num_chains = 10;
-    for (int i = 0; i < num_chains; i++) {
+    for (int i = 0; i < num_sperm_; i++) {
       // DeclareAndInitConstraints mutable parameters
       Teuchos::ParameterList declare_and_init_constraints_mutable_params;
       using CoordinateMappingType =
@@ -540,38 +499,38 @@ class SpermSimulation {
       using OurCoordinateMappingType = mundy::constraints::declare_and_initialize_constraints::techniques::StraightLine;
 
       double center_x = 0.0;
-      double center_y = 2 * i * sphere_radius;
+      double center_y = 2 * i * sperm_radius_;
       double center_z = 0.0;
-      double length = num_spheres * initial_segment_length;
+      double length = num_nodes_per_sperm_ * sperm_initial_segment_length_;
       double axis_x = 1.0;
       double axis_y = 0.0;
       double axis_z = 0.0;
       auto straight_line_mapping_ptr = std::make_shared<OurCoordinateMappingType>(
-          num_spheres, center_x, center_y, center_z, length, axis_x, axis_y, axis_z);
+          num_nodes_per_sperm_, center_x, center_y, center_z, length, axis_x, axis_y, axis_z);
       declare_and_init_constraints_mutable_params.sublist("CHAIN_OF_SPRINGS")
-          .set<size_t>("num_nodes", num_spheres)
-          .set<size_t>("node_id_start", i * num_spheres + 1)
-          .set<size_t>("element_id_start", i * (4 * num_spheres - 4) + 1)
+          .set<size_t>("num_nodes", num_nodes_per_sperm_)
+          .set<size_t>("node_id_start", i * num_nodes_per_sperm_ + 1)
+          .set<size_t>("element_id_start", i * (4 * num_nodes_per_sperm_ - 4) + 1)
           .set("hookean_spring_constant", spring_constant)
-          .set("hookean_spring_rest_length", rest_length)
+          .set("hookean_spring_rest_length", sperm_rest_segment_length_)
           .set("angular_spring_constant", angular_spring_constant)
           .set("angular_spring_rest_angle", angular_spring_rest_angle)
-          .set("sphere_radius", sphere_radius)
-          .set("spherocylinder_segment_radius", sphere_radius)
+          .set("sperm_radius_", sperm_radius_)
+          .set("spherocylinder_segment_radius", sperm_radius_)
           .set<std::shared_ptr<CoordinateMappingType>>("coordinate_mapping", straight_line_mapping_ptr);
       declare_and_init_constraints_ptr->set_mutable_params(declare_and_init_constraints_mutable_params);
       declare_and_init_constraints_ptr->execute();
     }
 
-    mundy::mesh::utils::fill_field_with_value<double>(*element_youngs_modulus_field_ptr,
-                                                      std::array<double, 1>{youngs_modulus});
-    mundy::mesh::utils::fill_field_with_value<double>(*element_poissons_ratio_field_ptr,
-                                                      std::array<double, 1>{poissons_ratio});
+    mundy::mesh::utils::fill_field_with_value<double>(*element_youngs_modulus_field_ptr_,
+                                                      std::array<double, 1>{sperm_youngs_modulus_});
+    mundy::mesh::utils::fill_field_with_value<double>(*element_poissons_ratio_field_ptr_,
+                                                      std::array<double, 1>{sperm_poissons_ratio_});
   }
-  
+
   void loadbalance() {
     RcbSettings balanceSettings;
-    stk::balance::balanceStkMesh(balanceSettings, *static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()));
+    stk::balance::balanceStkMesh(balanceSettings, *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_.get()));
   }
 
   void run(int argc, char **argv) {
@@ -590,32 +549,32 @@ class SpermSimulation {
     declare_and_initialize_the_sperm();
 
     // // Write the initial mesh to file
-    // stk_io_broker.begin_output_step(output_file_index, 0.0);
-    // stk_io_broker.write_defined_output_fields(output_file_index);
-    // stk_io_broker.end_output_step(output_file_index);
-    // stk_io_broker.flush_output();
+    // stk_io_broker_.begin_output_step(output_file_index_, 0.0);
+    // stk_io_broker_.write_defined_output_fields(output_file_index_);
+    // stk_io_broker_.end_output_step(output_file_index_);
+    // stk_io_broker_.flush_output();
 
     // Time loop
-    if (bulk_data_ptr->parallel_rank() == 0) {
-      std::cout << "Running the simulation for " << num_time_steps << " time steps." << std::endl;
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      std::cout << "Running the simulation for " << num_time_steps_ << " time steps." << std::endl;
     }
 
     Kokkos::Timer timer;
-    for (size_t i = 0; i < num_time_steps; i++) {
+    for (size_t i = 0; i < num_time_steps_; i++) {
       // Rotate the field states.
       bulk_data.update_field_data_states();
 
       // Output
       if (i % 10000 == 0) {
-        stk_io_broker.begin_output_step(output_file_index, static_cast<double>(i));
-        stk_io_broker.write_defined_output_fields(output_file_index);
-        stk_io_broker.end_output_step(output_file_index);
-        stk_io_broker.flush_output();
+        stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(i));
+        stk_io_broker_.write_defined_output_fields(output_file_index_);
+        stk_io_broker_.end_output_step(output_file_index_);
+        stk_io_broker_.flush_output();
       }
 
       // Setup
-      mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr, std::array{0.0, 0.0, 0.0});
-      mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr, std::array{0.0, 0.0, 0.0});
+      mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array{0.0, 0.0, 0.0});
+      mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array{0.0, 0.0, 0.0});
 
       // Potentials
       compute_constraint_forcing_ptr->execute(stk::mesh::Selector(springs_part) |
@@ -637,63 +596,77 @@ class SpermSimulation {
     }
 
     // Do a synchronize to force everybody to stop here, then write the time
-    stk::parallel_machine_barrier(bulk_data_ptr->parallel());
+    stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
 
-    if (bulk_data_ptr->parallel_rank() == 0) {
-      double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps);
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps_);
       std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
     }
 
     // Write the final mesh to file
-    // stk_io_broker.begin_output_step(output_file_index, static_cast<double>(num_time_steps));
-    // stk_io_broker.write_defined_output_fields(output_file_index);
-    // stk_io_broker.end_output_step(output_file_index);
-    // stk_io_broker.flush_output();
+    // stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(num_time_steps_));
+    // stk_io_broker_.write_defined_output_fields(output_file_index_);
+    // stk_io_broker_.end_output_step(output_file_index_);
+    // stk_io_broker_.flush_output();
   }
 
  private:
-  // Useful aliases
-  constexpr auto node_rank = stk::topology::NODE_RANK;
-  constexpr auto edge_rank = stk::topology::EDGE_RANK;
+  //! \name Useful aliases
+  //@{
+
+  constexpr auto node_rank_ = stk::topology::NODE_RANK;
+  constexpr auto edge_rank_ = stk::topology::EDGE_RANK;
   constexpr auto element_rank = stk::topology::ELEMENT_RANK;
+  //@}
 
-  // Internal state 
-  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr;
-  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr;
-  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr;
-  stk::io::StkMeshIoBroker stk_io_broker;
+  //! \name Internal state
+  //@{
 
-  // Fields
-  stk::mesh::Field<double> *node_coordinates_field_ptr;
-  stk::mesh::Field<double> *node_velocity_field_ptr;
-  stk::mesh::Field<double> *node_force_field_ptr;
-  stk::mesh::Field<double> *node_acceleration_field_ptr;
-  stk::mesh::Field<double> *node_twist_field_ptr;
-  stk::mesh::Field<double> *node_twist_velocity_field_ptr;
-  stk::mesh::Field<double> *node_twist_torque_field_ptr;
-  stk::mesh::Field<double> *node_twist_acceleration_field_ptr;
-  stk::mesh::Field<double> *node_curvature_field_ptr;
-  stk::mesh::Field<double> *node_rest_curvature_field_ptr;
-  stk::mesh::Field<double> *node_rotation_gradient_field_ptr;
-  stk::mesh::Field<double> *node_radius_field_ptr;
-  
-  stk::mesh::Field<double> *edge_orientation_field_ptr;
-  stk::mesh::Field<double> *edge_tangent_field_ptr;
-  stk::mesh::Field<double> *edge_binormal_field_ptr;
-  stk::mesh::Field<double> *edge_length_field_ptr;
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_;
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
+  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_;
+  stk::io::StkMeshIoBroker stk_io_broker_;
+  size_t output_file_index_;
+  //@}
 
-  stk::mesh::Field<double> *element_radius_field_ptr;
-  stk::mesh::Field<double> *element_youngs_modulus_field_ptr;
-  stk::mesh::Field<double> *element_poissons_ratio_field_ptr;
-  stk::mesh::Field<double> *element_rest_length_field_ptr;
-  stk::mesh::Field<double> *element_spring_constant_field_ptr;
+  //! \name Fields
+  //@{
 
-  // Parts
-  stk::mesh::Part *centerline_twist_springs_part_ptr;
-  stk::mesh::Part *spherocylinder_segments_part_ptr;
-  stk::mesh::Part *hookian_springs_part_ptr;
+  stk::mesh::Field<double> *node_coordinates_field_ptr_;
+  stk::mesh::Field<double> *node_velocity_field_ptr_;
+  stk::mesh::Field<double> *node_force_field_ptr_;
+  stk::mesh::Field<double> *node_acceleration_field_ptr_;
+  stk::mesh::Field<double> *node_twist_field_ptr_;
+  stk::mesh::Field<double> *node_twist_velocity_field_ptr_;
+  stk::mesh::Field<double> *node_twist_torque_field_ptr_;
+  stk::mesh::Field<double> *node_twist_acceleration_field_ptr_;
+  stk::mesh::Field<double> *node_curvature_field_ptr_;
+  stk::mesh::Field<double> *node_rest_curvature_field_ptr_;
+  stk::mesh::Field<double> *node_rotation_gradient_field_ptr_;
+  stk::mesh::Field<double> *node_radius_field_ptr_;
 
-  // Class instances
+  stk::mesh::Field<double> *edge_orientation_field_ptr_;
+  stk::mesh::Field<double> *edge_tangent_field_ptr_;
+  stk::mesh::Field<double> *edge_binormal_field_ptr_;
+  stk::mesh::Field<double> *edge_length_field_ptr_;
+
+  stk::mesh::Field<double> *element_radius_field_ptr_;
+  stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
+  stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
+  stk::mesh::Field<double> *element_rest_length_field_ptr_;
+  //@}
+
+  //! \name Parts
+  //@{
+
+  stk::mesh::Part *centerline_twist_springs_part_ptr_;
+  stk::mesh::Part *spherocylinder_segments_part_ptr_;
+  stk::mesh::Part *hookean_springs_part_ptr_;
+  //@}
+
+  //! \name Class instances
+  //@{
+
   std::shared_ptr<NodeEuler> node_euler_ptr;
   std::shared_ptr<ComputeCenterlineTwistSpringConstraintForce> compute_centerline_twist_constraint_force_ptr;
   std::shared_ptr<ComputeConstraintForcing> compute_constraint_forcing_ptr;
@@ -704,10 +677,13 @@ class SpermSimulation {
   std::shared_ptr<LinkerPotentialForceMagnitudeReduction> linker_potential_force_magnitude_reduction_ptr;
   std::shared_ptr<DestroyNeighborLinkers> destroy_neighbor_linkers_ptr;
   std::shared_ptr<DeclareAndInitConstraints> declare_and_init_constraints_ptr;
+  //@}
 
-  // Partitioning settings
+  //! \name Partitioning settings
+  //@{
+
   class RcbSettings : public stk::balance::BalanceSettings {
-  public:
+   public:
     RcbSettings() {
     }
     virtual ~RcbSettings() {
@@ -727,32 +703,39 @@ class SpermSimulation {
     }
   };  // RcbSettings
 
-  // User parameters
-  size_t num_spheres = 10;
-  double sphere_radius = 0.6;
-  double initial_segment_length = 1.0;
-  double rest_length = 2 * sphere_radius;
-  bool loadbalance_initial_config = true;
-  size_t num_time_steps = 100;
-  double timestep_size = 0.01;
-  double diffusion_coeff = 1.0;
-  double viscosity = 1.0;
-  double youngs_modulus = 1000.0;
-  double poissons_ratio = 0.3;
-  double spring_constant = 1.0;
-  double angular_spring_constant = 1.0;
-  double angular_spring_rest_angle = M_PI;
-};  // SpermSimulation
+  RcbSettings balance_settings;
+  //@}
 
+  //! \name User parameters
+  //@{
+
+  size_t num_sperm_ = 1;
+  size_t num_nodes_per_sperm_ = 10;
+  double sperm_radius_ = 0.6;
+  double sperm_initial_segment_length_ = 1.0;
+  double sperm_rest_segment_length_ = 2 * sperm_radius_;
+  double sperm_rest_curvature_twist_ = 0.0;
+  double sperm_rest_curvature_bend1_ = 0.0;
+  double sperm_rest_curvature_bend2_ = 0.0;
+
+  double sperm_youngs_modulus_ = 1000.0;
+  double sperm_poissons_ratio_ = 0.3;
+  double sperm_density_ = 1.0;
+
+  size_t num_time_steps_ = 100;
+  double timestep_size_ = 0.01;
+  double skin_distance_ = sperm_radius_;
+  //@}
+};  // SpermSimulation
 
 class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMethodExecutionInterface<void> {
  public:
-  ComputeCenterlineTwistSpringConstraintForce(mundy::mesh::BulkData *const bulk_data_ptr,
+  ComputeCenterlineTwistSpringConstraintForce(mundy::mesh::BulkData *const bulk_data_ptr_,
                                               const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
-      : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
+      : bulk_data_ptr_(bulk_data_ptr_), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                       "ComputeCenterlineTwistSpringConstraintForce: bulk_data_ptr cannot be a nullptr.");
+                       "ComputeCenterlineTwistSpringConstraintForce: bulk_data_ptr_ cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -865,8 +848,8 @@ class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMeth
     static Teuchos::ParameterList default_parameter_list;
 
     // Material properties
-    default_parameter_list.set("youngs_modulus", default_youngs_modulus_, "Young's modulus.");
-    default_parameter_list.set("poissons_ratio", default_poissons_ratio_, "Poisson's ratio.");
+    default_parameter_list.set("sperm_youngs_modulus_", default_youngs_modulus_, "Young's modulus.");
+    default_parameter_list.set("sperm_poissons_ratio_", default_poissons_ratio_, "Poisson's ratio.");
     default_parameter_list.set("shear_modulus", default_shear_modulus_, "Shear modulus.");
     default_parameter_list.set("density", default_density_, "Density.");
     return default_parameter_list;
@@ -877,9 +860,9 @@ class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMeth
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<PolymorphicBaseType> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr,
+      mundy::mesh::BulkData *const bulk_data_ptr_,
       const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
-    return std::make_shared<ComputeCenterlineTwistSpringConstraintForce>(bulk_data_ptr, fixed_params);
+    return std::make_shared<ComputeCenterlineTwistSpringConstraintForce>(bulk_data_ptr_, fixed_params);
   }
 
   //! \name Setters
@@ -892,15 +875,15 @@ class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMeth
         ComputeCenterlineTwistSpringConstraintForce::get_valid_mutable_params());
 
     // Material properties
-    youngs_modulus_ = valid_mutable_params.get<double>("youngs_modulus");
-    poissons_ratio_ = valid_mutable_params.get<double>("poissons_ratio");
+    sperm_youngs_modulus_ = valid_mutable_params.get<double>("sperm_youngs_modulus_");
+    sperm_poissons_ratio_ = valid_mutable_params.get<double>("sperm_poissons_ratio_");
     shear_modulus_ = valid_mutable_params.get<double>("shear_modulus");
     density_ = valid_mutable_params.get<double>("density");
 
     // Check invariants: All material properties must be positive. Time step size must be positive.
-    MUNDY_THROW_ASSERT(youngs_modulus_ > 0.0, std::invalid_argument,
+    MUNDY_THROW_ASSERT(sperm_youngs_modulus_ > 0.0, std::invalid_argument,
                        "ComputeCenterlineTwistSpringConstraintForce: Young's modulus must be greater than zero.");
-    MUNDY_THROW_ASSERT(poissons_ratio_ > 0.0, std::invalid_argument,
+    MUNDY_THROW_ASSERT(sperm_poissons_ratio_ > 0.0, std::invalid_argument,
                        "ComputeCenterlineTwistSpringConstraintForce: Poisson's ratio must be greater than zero.");
     MUNDY_THROW_ASSERT(shear_modulus_ > 0.0, std::invalid_argument,
                        "ComputeCenterlineTwistSpringConstraintForce: Shear modulus must be greater than zero.");
@@ -942,8 +925,8 @@ class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMeth
     stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
     stk::mesh::Field<double> &edge_binormal_field = *edge_binormal_field_ptr_;
     stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
-    const double youngs_modulus = youngs_modulus_;
-    const double poissons_ratio = poissons_ratio_;
+    const double sperm_youngs_modulus_ = sperm_youngs_modulus_;
+    const double sperm_poissons_ratio_ = sperm_poissons_ratio_;
     const double shear_modulus = shear_modulus_;
     const double density = density_;
 
@@ -1172,8 +1155,8 @@ class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMeth
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   // Material properties
-  double youngs_modulus_;
-  double poissons_ratio_;
+  double sperm_youngs_modulus_;
+  double sperm_poissons_ratio_;
   double shear_modulus_;
   double density_;
 
@@ -1195,7 +1178,6 @@ class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMeth
   //@}
 };  // ComputeSLTConstraintForce
 
-
 int main(int argc, char **argv) {
   // Initialize MPI
   stk::parallel_machine_init(&argc, &argv);
@@ -1203,7 +1185,7 @@ int main(int argc, char **argv) {
 
   // Run the simulation using the given parameters
   SpermSimulation().run(argc, argv);
-  
+
   // Finalize MPI
   Kokkos::finalize();
   stk::parallel_machine_finalize();
