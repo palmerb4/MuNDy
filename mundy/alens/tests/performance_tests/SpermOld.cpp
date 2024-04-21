@@ -83,10 +83,11 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::...::SpherocylinderSegmentSpherocylinderSegmentLinkers
-#include <mundy_math/Matrix3.hpp>                             // for mundy::math::Matrix3
-#include <mundy_math/Quaternion.hpp>                          // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>                             // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
+#include <mundy_math/Quaternion.hpp>  // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
@@ -413,18 +414,15 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
          time_step_size](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
           // Get the required input fields
           // We update the current configuration using the old.
-          const auto node_coords_ref =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coordinates_field_ref, node));
-          const auto node_velocity_ref =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_velocity_field_ref, node));
-          const auto node_acceleration_ref =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_acceleration_field_ref, node));
+          const auto node_coords_ref = mundy::mesh::vector3_field_data(node_coordinates_field_ref, node);
+          const auto node_velocity_ref = mundy::mesh::vector3_field_data(node_velocity_field_ref, node);
+          const auto node_acceleration_ref = mundy::mesh::vector3_field_data(node_acceleration_field_ref, node);
           const double node_twist_ref = stk::mesh::field_data(node_twist_field_ref, node)[0];
           const double node_twist_rate_ref = stk::mesh::field_data(node_twist_rate_field_ref, node)[0];
           const double node_twist_acceleration_ref = stk::mesh::field_data(node_twist_acceleration_field_ref, node)[0];
 
           // Get the output fields
-          auto node_coords = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coordinates_field, node));
+          auto node_coords = mundy::mesh::vector3_field_data(node_coordinates_field, node);
           double *node_twist = stk::mesh::field_data(node_twist_field, node);
 
           // Update the current configuration
@@ -452,18 +450,13 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
           stk::mesh::Entity const &node_ip1 = edge_nodes[1];
 
           // Get the required input fields
-          const auto node_i_coords =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coordinates_field, node_i));
-          const auto node_ip1_coords =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coordinates_field, node_ip1));
-          const auto edge_tangent_ref =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_tangent_field_ref, slt_edge));
+          const auto node_i_coords = mundy::mesh::vector3_field_data(node_coordinates_field, node_i);
+          const auto node_ip1_coords = mundy::mesh::vector3_field_data(node_coordinates_field, node_ip1);
+          const auto edge_tangent_ref = mundy::mesh::vector3_field_data(edge_tangent_field_ref, slt_edge);
 
           // Get the output fields
-          auto edge_tangent =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_tangent_field, slt_edge));
-          auto edge_binormal =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_binormal_field, slt_edge));
+          auto edge_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, slt_edge);
+          auto edge_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, slt_edge);
           auto edge_length = mundy::math::get_scalar_view<double>(stk::mesh::field_data(edge_length_field, slt_edge));
 
           // Compute the un-normalized edge tangent
@@ -497,13 +490,11 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
 
           // Get the required input fields
           const auto edge_im1_orientation =
-              mundy::math::get_quaternion_view<double>(stk::mesh::field_data(edge_orientation_field, element_edges[0]));
-          const auto edge_i_orientation =
-              mundy::math::get_quaternion_view<double>(stk::mesh::field_data(edge_orientation_field, element_edges[1]));
+              mundy::mesh::quaternion_field_data(edge_orientation_field, element_edges[0]);
+          const auto edge_i_orientation = mundy::mesh::quaternion_field_data(edge_orientation_field, element_edges[1]);
 
           // Get the output fields
-          auto node_curvature =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_curvature_field, element_nodes[1]));
+          auto node_curvature = mundy::mesh::vector3_field_data(node_curvature_field, element_nodes[1]);
           auto node_rotation_gradient = mundy::math::get_quaternion_view<double>(
               stk::mesh::field_data(node_rotation_gradient_field, element_nodes[1]));
 
@@ -539,38 +530,30 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
                              "SLT: Elements must have exactly 2 edges.");
 
           // Get the required input fields
-          const auto node_i_curvature =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_curvature_field, element_nodes[1]));
+          const auto node_i_curvature = mundy::mesh::vector3_field_data(node_curvature_field, element_nodes[1]);
           const auto node_i_rest_curvature =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_rest_curvature_field, element_nodes[1]));
+              mundy::mesh::vector3_field_data(node_rest_curvature_field, element_nodes[1]);
           const auto node_i_twist =
               mundy::math::get_scalar_view<double>(stk::mesh::field_data(node_twist_field, element_nodes[1]));
           const auto node_im1_twist =
               mundy::math::get_scalar_view<double>(stk::mesh::field_data(node_twist_field, element_nodes[0]));
           const auto node_i_rotation_gradient = mundy::math::get_quaternion_view<double>(
               stk::mesh::field_data(node_rotation_gradient_field, element_nodes[1]));
-          const auto edge_im1_tangent =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_tangent_field, element_edges[0]));
-          const auto edge_i_tangent =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_tangent_field, element_edges[1]));
-          const auto edge_im1_binormal =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_binormal_field, element_edges[0]));
-          const auto edge_i_binormal =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_binormal_field, element_edges[1]));
+          const auto edge_im1_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, element_edges[0]);
+          const auto edge_i_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, element_edges[1]);
+          const auto edge_im1_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, element_edges[0]);
+          const auto edge_i_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, element_edges[1]);
           const auto edge_im1_length =
               mundy::math::get_scalar_view<double>(stk::mesh::field_data(edge_length_field, element_edges[0]));
           const auto edge_i_length =
               mundy::math::get_scalar_view<double>(stk::mesh::field_data(edge_length_field, element_edges[1]));
           const auto edge_im1_orientation =
-              mundy::math::get_quaternion_view<double>(stk::mesh::field_data(edge_orientation_field, element_edges[0]));
+              mundy::mesh::quaternion_field_data(edge_orientation_field, element_edges[0]);
 
           // Get the output fields
-          auto node_im1_force =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, element_nodes[0]));
-          auto node_i_force =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, element_nodes[1]));
-          auto node_ip1_force =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, element_nodes[2]));
+          auto node_im1_force = mundy::mesh::vector3_field_data(node_force_field, element_nodes[0]);
+          auto node_i_force = mundy::mesh::vector3_field_data(node_force_field, element_nodes[1]);
+          auto node_ip1_force = mundy::mesh::vector3_field_data(node_force_field, element_nodes[2]);
           double *node_im1_twist_torque = stk::mesh::field_data(node_twist_torque_field, element_nodes[0]);
           double *node_i_twist_torque = stk::mesh::field_data(node_twist_torque_field, element_nodes[1]);
 
@@ -630,12 +613,11 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
         [&node_acceleration_field, &node_force_field, $node_twist_acceleration_field, &node_twist_torque_field,
          node_mass, node_moment_of_inertia](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
           // Get the required input fields
-          const auto node_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node));
+          const auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
           const double node_twist_torque = stk::mesh::field_data(node_twist_torque_field, node)[0];
 
           // Get the output fields
-          auto node_acceleration =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_acceleration_field, node));
+          auto node_acceleration = mundy::mesh::vector3_field_data(node_acceleration_field, node);
           double *node_twist_acceleration = stk::mesh::field_data(node_twist_acceleration_field, node);
 
           // Compute the acceleration
@@ -651,18 +633,15 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
          &node_twist_acceleration_field_ref,
          time_step_size](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
           // Get the required input fields
-          const auto node_velocity_ref =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_velocity_field_ref, node));
-          const auto node_acceleration =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_acceleration_field, node));
-          const auto node_acceleration_ref =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_acceleration_field_ref, node));
+          const auto node_velocity_ref = mundy::mesh::vector3_field_data(node_velocity_field_ref, node);
+          const auto node_acceleration = mundy::mesh::vector3_field_data(node_acceleration_field, node);
+          const auto node_acceleration_ref = mundy::mesh::vector3_field_data(node_acceleration_field_ref, node);
           const double node_twist_rate_ref = stk::mesh::field_data(node_twist_rate_field_ref, node)[0];
           const double node_twist_acceleration = stk::mesh::field_data(node_twist_acceleration_field, node)[0];
           const double node_twist_acceleration_ref = stk::mesh::field_data(node_twist_acceleration_field_ref, node)[0];
 
           // Get the output fields
-          auto node_velocity = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_velocity_field, node));
+          auto node_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node);
           double *node_twist_rate = stk::mesh::field_data(node_twist_rate_field, node);
 
           // Compute the velocity

@@ -34,8 +34,9 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Spherocylinder.hpp>  // for mundy::linkers::...::kernels::Spherocylinder
-#include <mundy_math/Vector3.hpp>            // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_math/Vector3.hpp>   // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
 
 namespace mundy {
@@ -157,9 +158,9 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
        &linkers_part_to_reduce_over](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder) {
         // Get our node and its force/torque
         const stk::mesh::Entity &node = bulk_data.begin_nodes(spherocylinder)[0];
-        auto node_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, node));
-        auto node_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node));
-        auto node_torque = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_torque_field, node));
+        auto node_coord = mundy::mesh::vector3_field_data(node_coord_field, node);
+        auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
+        auto node_torque = mundy::mesh::vector3_field_data(node_torque_field, node);
 
         // Loop over the connected constraint rank entities
         const unsigned num_constraint_rank_conn =

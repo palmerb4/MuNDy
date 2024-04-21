@@ -98,12 +98,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
     auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     sphere_part_reqs->set_part_name(associated_part_name);
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->add_field_reqs<double>(
-        node_coord_field_name, stk::topology::NODE_RANK, 3, 1);
-    sphere_part_reqs->add_field_reqs<double>(
-        node_force_field_name, stk::topology::NODE_RANK, 3, 1);
-    sphere_part_reqs->add_field_reqs<double>(
-        node_torque_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_coord_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_force_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_torque_field_name, stk::topology::NODE_RANK, 3, 1);
 
     auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     linker_part_reqs->set_part_name(associated_part_name + "_LINKER");

@@ -34,8 +34,9 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/SpherocylinderSegment.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegment
-#include <mundy_math/Vector3.hpp>                   // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
+#include <mundy_math/Vector3.hpp>   // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
@@ -181,15 +182,11 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
         const stk::mesh::Entity &left_node = bulk_data.begin_nodes(spherocylinder_segment)[0];
         const stk::mesh::Entity &right_node = bulk_data.begin_nodes(spherocylinder_segment)[1];
 
-        auto left_node_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, left_node));
-        auto right_node_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, right_node));
+        auto left_node_coord = mundy::mesh::vector3_field_data(node_coord_field, left_node);
+        auto right_node_coord = mundy::mesh::vector3_field_data(node_coord_field, right_node);
 
-        auto left_node_force =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, left_node));
-        auto right_node_force =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, right_node));
+        auto left_node_force = mundy::mesh::vector3_field_data(node_force_field, left_node);
+        auto right_node_force = mundy::mesh::vector3_field_data(node_force_field, right_node);
 
         // Loop over the connected constraint rank entities
         const unsigned num_constraint_rank_conn =

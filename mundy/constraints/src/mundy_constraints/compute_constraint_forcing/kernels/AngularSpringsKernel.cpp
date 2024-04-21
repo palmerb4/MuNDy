@@ -37,6 +37,7 @@
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 #include <mundy_mesh/BulkData.hpp>      // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 
 namespace mundy {
 
@@ -126,9 +127,9 @@ void AngularSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         const stk::mesh::Entity &node3 = nodes[2];
 
         // Fetch the required node and element field data.
-        const auto node1_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, node1));
-        const auto node2_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, node2));
-        const auto node3_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, node3));
+        const auto node1_coord = mundy::mesh::vector3_field_data(node_coord_field, node1);
+        const auto node2_coord = mundy::mesh::vector3_field_data(node_coord_field, node2);
+        const auto node3_coord = mundy::mesh::vector3_field_data(node_coord_field, node3);
         const double element_rest_angle = stk::mesh::field_data(element_rest_angle_field, angular_spring_element)[0];
         const double element_spring_constant =
             stk::mesh::field_data(element_spring_constant_field, angular_spring_element)[0];
@@ -161,9 +162,9 @@ void AngularSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         const auto force_on_3 = -force_on_1 - force_on_2;
 
         // Add the spring force to the nodes.
-        auto node1_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node1));
-        auto node2_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node2));
-        auto node3_force = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, node3));
+        auto node1_force = mundy::mesh::vector3_field_data(node_force_field, node1);
+        auto node2_force = mundy::mesh::vector3_field_data(node_force_field, node2);
+        auto node3_force = mundy::mesh::vector3_field_data(node_force_field, node3);
 
 #pragma omp atomic
         node1_force[0] += force_on_1[0];

@@ -34,8 +34,9 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SphereSphereLinker.hpp>  // for mundy::linkers::...::kernels::SphereSphereLinker
-#include <mundy_math/Vector3.hpp>    // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
+#include <mundy_math/Vector3.hpp>   // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 
 namespace mundy {
@@ -161,10 +162,8 @@ void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker
         const stk::mesh::Entity &right_sphere_node = bulk_data.begin_nodes(right_sphere_element)[0];
 
         // Get the sphere data
-        const auto left_coords =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, left_sphere_node));
-        const auto right_coords =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, right_sphere_node));
+        const auto left_coords = mundy::mesh::vector3_field_data(node_coord_field, left_sphere_node);
+        const auto right_coords = mundy::mesh::vector3_field_data(node_coord_field, right_sphere_node);
         const double left_radius = stk::mesh::field_data(element_radius_field, left_sphere_element)[0];
         const double right_radius = stk::mesh::field_data(element_radius_field, right_sphere_element)[0];
 

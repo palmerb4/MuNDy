@@ -11,8 +11,8 @@ tribits_package_define_dependencies(
   TEST_OPTIONAL_TPLS MPI
   SUBPACKAGES_DIRS_CLASSIFICATIONS_OPTREQS
     Core         core        PT  OPTIONAL
-    Mesh         mesh        PT  OPTIONAL
     Math         math        PT  OPTIONAL
+    Mesh         mesh        PT  OPTIONAL
     Meta         meta        PT  OPTIONAL
     Agents       agents      PT  OPTIONAL
     Shapes       shapes      PT  OPTIONAL

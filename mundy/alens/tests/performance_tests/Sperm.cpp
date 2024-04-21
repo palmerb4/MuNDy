@@ -71,13 +71,9 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
-#include <mundy_constraints/AngularSprings.hpp>             // for mundy::constraints::AngularSprings
-#include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
 #include <mundy_constraints/DeclareAndInitConstraints.hpp>  // for mundy::constraints::DeclareAndInitConstraints
-#include <mundy_constraints/HookeanSprings.hpp>             // for mundy::constraints::HookeanSprings
 #include <mundy_core/MakeStringArray.hpp>                   // for mundy::core::make_string_array
-#include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                      // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
@@ -85,22 +81,20 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::...::SpherocylinderSegmentSpherocylinderSegmentLinkers
-#include <mundy_math/Matrix3.hpp>                             // for mundy::math::Matrix3
-#include <mundy_math/Quaternion.hpp>                          // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>                             // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
+#include <mundy_math/Quaternion.hpp>  // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
-#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
-#include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
-#include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
-#include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
+#include <mundy_shapes/ComputeAABB.hpp>     // for mundy::shapes::ComputeAABB
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -317,12 +311,6 @@ class SpermSimulation {
     // Create the mesh requirements
     mesh_reqs_ptr_->add_part_reqs(clt_part_reqs);
 
-    // ComputeConstraintForcing fixed parameters
-    auto compute_constraint_forcing_fixed_params = Teuchos::ParameterList().set(
-        "enabled_kernel_names", mundy::core::make_string_array(mundy::constraints::HookeanSprings::get_name()));
-    mesh_reqs_ptr_->merge(
-        mundy::constraints::ComputeConstraintForcing::get_mesh_requirements(compute_constraint_forcing_fixed_params));
-
     // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
     auto compute_ssd_and_cn_fixed_params = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER"));
@@ -392,10 +380,6 @@ class SpermSimulation {
 
     // Create the class instances and populate their mutable parameters
     node_euler_ptr_ = NodeEuler::create_new_instance(bulk_data_ptr_.get(), node_euler_fixed_params);
-    compute_centerline_twist_constraint_force_ptr_ = ComputeCenterlineTwistSpringConstraintForce::create_new_instance(
-        bulk_data_ptr_.get(), compute_centerline_twist_constraint_force_fixed_params);
-    compute_constraint_forcing_ptr_ =
-        ComputeConstraintForcing::create_new_instance(bulk_data_ptr_.get(), compute_constraint_forcing_fixed_params);
     compute_ssd_and_cn_ptr_ = ComputeSignedSeparationDistanceAndContactNormal::create_new_instance(
         bulk_data_ptr_.get(), compute_ssd_and_cn_fixed_params);
     compute_aabb_ptr_ = ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params);
@@ -567,6 +551,49 @@ class SpermSimulation {
 
   void update_position_and_twist() {
     debug_print("Updating the position and twist.");
+    // x(t + dt) = x(t) + v(t) * dt + a(t) * dt^2 / 2.
+
+    // Get references to internal members so we aren't passing around *this
+    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
+    stk::mesh::Part &centerline_twist_part = *centerline_twist_part_ptr_;
+    stk::mesh::Field<double> &node_coordinates_field = *node_coordinates_field_ptr_;
+    stk::mesh::Field<double> &node_coordinates_field_old = node_coordinates_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &node_velocity_field_old = node_velocity_field_ptr_->field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &node_acceleration_field_old =
+        node_acceleration_field_ptr_->field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &node_twist_field = *node_twist_field_ptr_;
+    stk::mesh::Field<double> &node_twist_field_old = node_twist_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &node_twist_velocity_field_old =
+        node_twist_velocity_field_ptr_->field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &node_twist_acceleration_field_old =
+        node_twist_acceleration_field_ptr_->field_of_state(stk::mesh::StateN);
+    const time_step_size = timestep_size_;
+
+    // Update the position and twist of the nodes
+    auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        bulk_data, node_rank_, locally_owned_selector,
+        [&node_coordinates_field, &node_coordinates_field_old, &node_velocity_field_old, &node_acceleration_field_old,
+         &node_twist_field, &node_twist_field_old, &node_twist_velocity_field_old, &node_twist_acceleration_field_old,
+         time_step_size](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
+          // Get the required input fields
+          const auto node_coords_old = mundy::mesh::vector3_field_data(node_coordinates_field_old, node);
+          const auto node_velocity_old = mundy::mesh::vector3_field_data(node_velocity_field_old, node);
+          const auto node_acceleration_old = mundy::mesh::vector3_field_data(node_acceleration_field_old, node);
+          const double node_twist_old = stk::mesh::field_data(node_twist_field_old, node)[0];
+          const double node_twist_rate_old = stk::mesh::field_data(node_twist_rate_field_old, node)[0];
+          const double node_twist_acceleration_old = stk::mesh::field_data(node_twist_acceleration_field_old, node)[0];
+
+          // Get the output fields
+          auto node_coords = mundy::mesh::vector3_field_data(node_coordinates_field, node);
+          double *node_twist = stk::mesh::field_data(node_twist_field, node);
+
+          // Update the current configuration
+          node_coords = node_coords_old + node_velocity_old * time_step_size +
+                        0.5 * node_acceleration_old * time_step_size * time_step_size;
+          node_twist[0] = node_twist_old + node_twist_rate_old * time_step_size +
+                          0.5 * node_twist_acceleration_old * time_step_size * time_step_size;
+        });
   }
 
   void compute_aabb() {
@@ -601,14 +628,257 @@ class SpermSimulation {
 
   void compute_edge_information() {
     debug_print("Computing the edge information.");
+
+    // Get references to internal members so we aren't passing around *this
+    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
+    stk::mesh::Part &centerline_twist_part = *centerline_twist_part_ptr_;
+    stk::mesh::Field<double> &node_coordinates_field = *node_coordinates_field_ptr_;
+    stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
+    stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
+    stk::mesh::Field<double> &edge_tangent_field_old = edge_tangent_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &edge_binormal_field = *edge_binormal_field_ptr_;
+    stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
+
+    // For each edge in the centerline twist part, compute the edge tangent, binormal, and length.
+    // length^i = ||x_{i+1} - x_i||
+    // edge_tangent^i = (x_{i+1} - x_i) / length
+    // edge_binormal^i = (2 edge_tangent_old^i x edge_tangent^i) / (1 + edge_tangent_old^i dot edge_tangent^i)
+    auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        bulk_data, stk::topology::EDGE_RANK, locally_owned_selector,
+        [&node_coordinates_field, &edge_orientation_field, &edge_tangent_field, &edge_tangent_field_old,
+         &edge_binormal_field,
+         &edge_length_field](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &edge) {
+          // Get the nodes of the edge
+          stk::mesh::Entity const *edge_nodes = bulk_data.begin_nodes(edge);
+          stk::mesh::Entity const &node_i = edge_nodes[0];
+          stk::mesh::Entity const &node_ip1 = edge_nodes[1];
+
+          // Get the required input fields
+          const auto node_i_coords = mundy::mesh::vector3_field_data(node_coordinates_field, node_i);
+          const auto node_ip1_coords = mundy::mesh::vector3_field_data(node_coordinates_field, node_ip1);
+          const auto edge_tangent_old = mundy::mesh::vector3_field_data(edge_tangent_field_old, edge);
+
+          // Get the output fields
+          auto edge_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge);
+          auto edge_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, edge);
+          auto edge_length = stk::mesh::field_data(edge_length_field, edge));
+
+          // Compute the un-normalized edge tangent
+          edge_tangent = node_ip1_coords - node_i_coords;
+          edge_length[0] = mundy::math::norm(edge_tangent);
+          edge_tangent /= edge_length[0];
+
+          // Compute the edge binormal
+          edge_binormal = (2.0 * mundy::math::cross(edge_tangent_old, edge_tangent)) /
+                          (1.0 + mundy::math::dot(edge_tangent_old, edge_tangent));
+        });
   }
 
   void compute_node_curvature_and_rotation_gradient() {
     debug_print("Computing the node curvature and rotation gradient.");
+
+    // Get references to internal members so we aren't passing around *this
+    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
+    stk::mesh::Part &centerline_twist_part = *centerline_twist_part_ptr_;
+    stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
+    stk::mesh::Field<double> &node_curvature_field = *node_curvature_field_ptr_;
+    stk::mesh::Field<double> &node_rotation_gradient_field = *node_rotation_gradient_field_ptr_;
+
+    // For each element in the centerline twist part, compute the node curvature at the center node.
+    // The curvature can be computed from the edge orientations using
+    //   kappa^i = q_i - conj(q_i) = 2 * vec(q_i)
+    // where
+    //   q_i = conj(d^{i-1}) d^i is the Lagrangian rotation gradient.
+    auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        bulk_data, stk::topology::ELEMENT_RANK, locally_owned_selector,
+        [&edge_orientation_field, &node_curvature_field, &node_rotation_gradient_field](
+            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
+          // Curvature needs to "know" about the order of edges, so it's best to loop over
+          // the slt elements and not the nodes. Get the lower rank entities
+          stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
+          stk::mesh::Entity const *element_edges = bulk_data.begin_edges(element);
+
+          MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) == 3, std::logic_error,
+                             "Elements must have exactly 3 nodes.");
+          MUNDY_THROW_ASSERT(bulk_data.num_edges(element) == 2, std::logic_error,
+                             "Elements must have exactly 2 edges.");
+
+          // Get the required input fields
+          const auto edge_im1_orientation =
+              mundy::mesh::quaternion_field_data(edge_orientation_field, element_edges[0]);
+          const auto edge_i_orientation = mundy::mesh::quaternion_field_data(edge_orientation_field, element_edges[1]);
+
+          // Get the output fields
+          auto node_curvature = mundy::mesh::vector3_field_data(node_curvature_field, element_nodes[1]);
+          auto node_rotation_gradient =
+              mundy::mesh::quaternion_field_data(node_rotation_gradient_field, element_nodes[1]);
+
+          // Compute the node curvature
+          node_rotation_gradient = mundy::math::conj(edge_im1_orientation) * edge_i_orientation;
+          node_curvature = 2.0 * node_rotation_gradient.vector();
+        });
   }
 
   void compute_internal_force_and_twist_torque() {
     debug_print("Computing the internal force and twist torque.");
+
+    // Get references to internal members so we aren't passing around *this
+    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
+    stk::mesh::Part &centerline_twist_part = *centerline_twist_part_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    stk::mesh::Field<double> &node_twist_torque_field = *node_twist_torque_field_ptr_;
+    stk::mesh::Field<double> &node_curvature_field = *node_curvature_field_ptr_;
+    stk::mesh::Field<double> &node_rest_curvature_field = *node_rest_curvature_field_ptr_;
+    stk::mesh::Field<double> &node_twist_field = *node_twist_field_ptr_;
+    stk::mesh::Field<double> &node_rotation_gradient_field = *node_rotation_gradient_field_ptr_;
+    stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
+    stk::mesh::Field<double> &edge_binormal_field = *edge_binormal_field_ptr_;
+    stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
+    stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
+
+    // Compute internal force and torque induced by differences in rest and current curvature
+    auto locally_owned_selector = stk::mesh::Selector(centerline_twist_part) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        bulk_data, element_rank_, locally_owned_selector,
+        [&node_force_field, &node_twist_torque_field, &node_curvature_field, &node_rest_curvature_field,
+         &node_twist_field, &node_rotation_gradient_field, &edge_tangent_field, &edge_binormal_field,
+         &edge_length_field,
+         &edge_orientation_field](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
+          // Ok. This is a bit involved.
+          // First, we need to use the node curvature to compute the induced lagrangian torque according to the
+          // Kirchhoff rod model. Then, we need to use a convoluted map to take this torque to force and torque on the
+          // nodes.
+          //
+          // The torque induced by the curvature is
+          //  T = B (kappa - kappa_rest)
+          // where B is the diagonal matrix of bending moduli and kappa_rest is the rest curvature.
+          //
+          // To start, we set B = I
+
+          // Get the lower rank entities
+          stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
+          stk::mesh::Entity const *element_edges = bulk_data.begin_edges(element);
+          MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) == 3, std::logic_error,
+                             "SLT: Elements must have exactly 3 nodes.");
+          MUNDY_THROW_ASSERT(bulk_data.num_edges(element) == 2, std::logic_error,
+                             "SLT: Elements must have exactly 2 edges.");
+          stk::mesh::Entity &node_im1 = element_nodes[0];
+          stk::mesh::Entity &node_i = element_nodes[1];
+          stk::mesh::Entity &node_ip1 = element_nodes[2];
+          stk::mesh::Entity &edge_im1 = element_edges[0];
+          stk::mesh::Entity &edge_i = element_edges[1];
+
+          // Get the required input fields
+          const auto node_i_curvature = mundy::mesh::vector3_field_data(node_curvature_field, node_i);
+          const auto node_i_rest_curvature = mundy::mesh::vector3_field_data(node_rest_curvature_field, node_i);
+          const double node_i_twist = stk::mesh::field_data(node_twist_field, node_i)[0];
+          const double node_im1_twist = stk::mesh::field_data(node_twist_field, node_im1)[0];
+          const auto node_i_rotation_gradient =
+              mundy::mesh::quaternion_field_data(node_rotation_gradient_field, node_i);
+          const auto edge_im1_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge_im1);
+          const auto edge_i_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge_i);
+          const auto edge_im1_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, edge_im1);
+          const auto edge_i_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, edge_i);
+          const auto edge_im1_length = stk::mesh::field_data(edge_length_field, edge_im1);
+          const auto edge_i_length = stk::mesh::field_data(edge_length_field, edge_i);
+          const auto edge_im1_orientation = mundy::mesh::quaternion_field_data(edge_orientation_field, edge_im1);
+
+          // Get the output fields
+          auto node_im1_force = mundy::mesh::vector3_field_data(node_force_field, node_im1);
+          auto node_i_force = mundy::mesh::vector3_field_data(node_force_field, node_i);
+          auto node_ip1_force = mundy::mesh::vector3_field_data(node_force_field, node_ip1);
+          double *node_im1_twist_torque = stk::mesh::field_data(node_twist_torque_field, node_im1);
+          double *node_i_twist_torque = stk::mesh::field_data(node_twist_torque_field, node_i);
+
+          // Compute the torque induced by the curvature
+          // To start, the torque is in the lagrangian frame.
+          auto bending_modulus = mundy::math::Matrix3::identity();  // TODO(palmerb4): Replace with Kirchhoff rod model
+          auto bending_torque = bending_modulus * (node_i_curvature - node_i_rest_curvature);
+
+          // We'll use the bending torque as a placeholder for the rotated bending torque
+          bending_torque =
+              edge_im1_orientation * (node_i_rotation_gradient.w() * bending_torque +
+                                      mundy::math::cross(node_i_rotation_gradient.vector(), bending_torque));
+
+          // Compute the force and torque on the nodes
+          const auto tmp_force_ip1 = 1.0 / edge_i_length[0] *
+                                     (mundy::math::cross(bending_torque, edge_i_tangent) +
+                                      0.5 * mundy::math::dot(edge_i_tangent, bending_torque) *
+                                          (mundy::math::dot(edge_i_tangent, edge_i_binormal) * edge_i_tangent) -
+                                      edge_i_binormal);
+          const auto tmp_force_im1 =
+              1.0 / edge_im1_length[0] *
+              (mundy::math::cross(bending_torque, edge_im1_tangent) +
+               0.5 * mundy::math::dot(edge_im1_tangent, bending_torque) *
+                   (mundy::math::dot(edge_im1_tangent, edge_im1_binormal) * edge_im1_tangent - edge_im1_binormal));
+
+#pragma omp atomic
+          node_i_twist_torque[0] += edge_i_tangent.dot(bending_torque);
+#pragma omp atomic
+          node_im1_twist_torque[0] += -edge_im1_tangent.dot(bending_torque);
+#pragma omp atomic
+          node_ip1_force[0] += tmp_force_ip1[0];
+#pragma omp atomic
+          node_ip1_force[1] += tmp_force_ip1[1];
+#pragma omp atomic
+          node_ip1_force[2] += tmp_force_ip1[2];
+#pragma omp atomic
+          node_i_force[0] -= tmp_force_ip1[0] + tmp_force_im1[0];
+#pragma omp atomic
+          node_i_force[1] -= tmp_force_ip1[1] + tmp_force_im1[1];
+#pragma omp atomic
+          node_i_force[2] -= tmp_force_ip1[2] + tmp_force_im1[2];
+#pragma omp atomic
+          node_im1_force[0] += tmp_force_im1[0];
+#pragma omp atomic
+          node_im1_force[1] += tmp_force_im1[1];
+#pragma omp atomic
+          node_im1_force[2] += tmp_force_im1[2];
+        });
+
+    // Compute internal force induced by differences in rest and current length
+    double rest_length = sperm_rest_segment_length_;
+    stk::mesh::for_each_entity_run(
+        bulk_data, edge_rank_, locally_owned_selector,
+        [&node_force_field, &edge_tangent_field, &edge_length_field, &rest_length](const stk::mesh::BulkData &bulk_data,
+                                                                                   const stk::mesh::Entity &edge) {
+          // F_left = k (l - l_rest) tangent
+          // F_right = -k (l - l_rest) tangent
+          //
+          // k can be computed using the material properties of the rod
+          // For now, we set k = 1.
+
+          // Get the lower rank entities
+          stk::mesh::Entity const *edge_nodes = bulk_data.begin_nodes(edge);
+          MUNDY_THROW_ASSERT(bulk_data.num_nodes(edge) == 2, std::logic_error, "Edges must have exactly 2 nodes.");
+          stk::mesh::Entity &node_im1 = element_nodes[0];
+          stk::mesh::Entity &node_i = element_nodes[1];
+
+          // Get the required input fields
+          const auto edge_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge);
+          const double edge_length = stk::mesh::field_data(edge_length_field, edge)[0];
+
+          // Get the output fields
+          double *node_im1_force = stk::mesh::field_data(node_force_field, node_im1);
+          double *node_i_force = stk::mesh::field_data(node_force_field, node_i);
+
+          // Compute the internal force
+          const auto tmp_force = (edge_length - rest_length) * edge_tangent;
+#pragma omp atomic
+          node_i_force[0] += tmp_force[0];
+#pragma omp atomic
+          node_i_force[1] += tmp_force[1];
+#pragma omp atomic
+          node_i_force[2] += tmp_force[2];
+#pragma omp atomic
+          node_im1_force[0] -= tmp_force[0];
+#pragma omp atomic
+          node_im1_force[1] -= tmp_force[1];
+#pragma omp atomic
+          node_im1_force[2] -= tmp_force[2];
+        });
   }
 
   void zero_out_transient_node_fields() {
@@ -710,6 +980,7 @@ class SpermSimulation {
         rotate_field_states();
 
         // Motion from t -> t + dt.
+        // x(t + dt) = x(t) + v(t) * dt + a(t) * dt^2 / 2.
         update_position_and_twist();
 
         // Zero the node velocities, accelerations, and forces/torques for time t + dt.
@@ -793,7 +1064,6 @@ class SpermSimulation {
 
   stk::mesh::Part *centerline_twist_springs_part_ptr_;
   stk::mesh::Part *spherocylinder_segments_part_ptr_;
-  stk::mesh::Part *hookean_springs_part_ptr_;
   //@}
 
   //! \name Class instances
@@ -801,7 +1071,6 @@ class SpermSimulation {
 
   std::shared_ptr<NodeEuler> node_euler_ptr_;
   std::shared_ptr<ComputeCenterlineTwistSpringConstraintForce> compute_centerline_twist_constraint_force_ptr_;
-  std::shared_ptr<ComputeConstraintForcing> compute_constraint_forcing_ptr_;
   std::shared_ptr<ComputeSignedSeparationDistanceAndContactNormal> compute_ssd_and_cn_ptr_;
   std::shared_ptr<ComputeAABB> compute_aabb_ptr_;
   std::shared_ptr<GenerateNeighborLinkers> generate_neighbor_linkers_ptr_;
@@ -860,456 +1129,6 @@ class SpermSimulation {
   double skin_distance_ = sperm_radius_;
   //@}
 };  // SpermSimulation
-
-class ComputeCenterlineTwistSpringConstraintForce : public mundy::meta::MetaMethodExecutionInterface<void> {
- public:
-  ComputeCenterlineTwistSpringConstraintForce(mundy::mesh::BulkData *const bulk_data_ptr_,
-                                              const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
-      : bulk_data_ptr_(bulk_data_ptr_), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
-    // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                       "ComputeCenterlineTwistSpringConstraintForce: bulk_data_ptr_ cannot be a nullptr.");
-
-    // Validate the input params. Use default values for any parameter not given.
-    Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(
-        ComputeCenterlineTwistSpringConstraintForce::get_valid_fixed_params());
-
-    // Store the ComputeCenterlineTwistSpringConstraintForce part acton on by this method.,
-    centerline_twist_part_ptr_ = meta_data_ptr_->get_part(default_part_name_);
-
-    // Fetch the fields.
-    node_coordinates_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, default_node_coordinates_field_name_);
-    node_twist_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, default_node_twist_field_name_);
-    node_curvature_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, default_node_curvature_field_name_);
-    node_rest_curvature_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, default_node_rest_curvature_field_name_);
-    node_rotation_gradient_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, default_node_rotation_gradient_field_name_);
-    node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, default_node_force_field_name_);
-    node_twist_torque_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, default_node_twist_torque_field_name_);
-
-    edge_orientation_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::EDGE_RANK, default_edge_orientation_field_name_);
-    edge_tangent_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::EDGE_RANK, default_edge_tangent_field_name_);
-    edge_binormal_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::EDGE_RANK, default_edge_binormal_field_name_);
-    edge_length_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::EDGE_RANK, default_edge_length_field_name_);
-
-    element_radius_field_ptr_ =
-        meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, default_element_radius_field_name_);
-
-    auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-      MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                         "ComputeCenterlineTwistSpringConstraintForce: Field "
-                             << field_name << " cannot be a nullptr. Check that the field exists.");
-    };  // field_exists
-
-    field_exists(node_coordinates_field_ptr_, default_node_coordinates_field_name_);
-    field_exists(node_twist_field_ptr_, default_node_twist_field_name_);
-    field_exists(node_curvature_field_ptr_, default_node_curvature_field_name_);
-    field_exists(node_rest_curvature_field_ptr_, default_node_rest_curvature_field_name_);
-    field_exists(node_rotation_gradient_field_ptr_, default_node_rotation_gradient_field_name_);
-    field_exists(node_force_field_ptr_, default_node_force_field_name_);
-    field_exists(node_twist_torque_field_ptr_, default_node_twist_torque_field_name_);
-
-    field_exists(edge_orientation_field_ptr_, default_edge_orientation_field_name_);
-    field_exists(edge_tangent_field_ptr_, default_edge_tangent_field_name_);
-    field_exists(edge_binormal_field_ptr_, default_edge_binormal_field_name_);
-    field_exists(edge_length_field_ptr_, default_edge_length_field_name_);
-
-    field_exists(element_radius_field_ptr_, default_element_radius_field_name_);
-  }
-  //@}
-
-  //! \name MetaKernel interface implementation
-  //@{
-
-  /// \brief Get the requirements that this method imposes upon each particle and/or constraint.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
-  /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
-      [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
-    Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(
-        ComputeCenterlineTwistSpringConstraintForce::get_valid_fixed_params());
-
-    // We require that the CenterlineTwistSpring part exists, has a BEAM_3 topology, and has the desired
-    // node/edge/element fields.
-    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-    part_reqs->set_part_name(default_part_name_);
-    part_reqs->set_part_topology(stk::topology::BEAM_3);
-
-    // Add the node fields
-    part_reqs->add_field_reqs<double>(default_node_coordinates_field_name_, stk::topology::NODE_RANK, 3, 2);
-    part_reqs->add_field_reqs<double>(default_node_twist_field_name_, stk::topology::NODE_RANK, 1, 2);
-    part_reqs->add_field_reqs<double>(default_node_curvature_field_name_, stk::topology::NODE_RANK, 3, 1);
-    part_reqs->add_field_reqs<double>(default_node_rest_curvature_field_name_, stk::topology::NODE_RANK, 3, 1);
-    part_reqs->add_field_reqs<double>(default_node_rotation_gradient_field_name_, stk::topology::NODE_RANK, 4, 1);
-    part_reqs->add_field_reqs<double>(default_node_force_field_name_, stk::topology::NODE_RANK, 3, 1);
-    part_reqs->add_field_reqs<double>(default_node_twist_torque_field_name_, stk::topology::NODE_RANK, 1, 1);
-
-    // Add the edge fields
-    part_reqs->add_field_reqs<double>(default_edge_orientation_field_name_, stk::topology::EDGE_RANK, 4, 2);
-    part_reqs->add_field_reqs<double>(default_edge_tangent_field_name_, stk::topology::EDGE_RANK, 3, 2);
-    part_reqs->add_field_reqs<double>(default_edge_binormal_field_name_, stk::topology::EDGE_RANK, 3, 1);
-    part_reqs->add_field_reqs<double>(default_edge_length_field_name_, stk::topology::EDGE_RANK, 1, 1);
-
-    // Create the mesh requirements
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(part_reqs);
-    return mesh_reqs;
-  }
-
-  /// \brief Get the valid fixed parameters for this class and their defaults.
-  static Teuchos::ParameterList get_valid_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    return default_parameter_list;
-  }
-
-  /// \brief Get the valid mutable parameters for this class and their defaults.
-  static Teuchos::ParameterList get_valid_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
-
-    // Material properties
-    default_parameter_list.set("sperm_youngs_modulus_", default_youngs_modulus_, "Young's modulus.");
-    default_parameter_list.set("sperm_poissons_ratio_", default_poissons_ratio_, "Poisson's ratio.");
-    default_parameter_list.set("shear_modulus", default_shear_modulus_, "Shear modulus.");
-    default_parameter_list.set("density", default_density_, "Density.");
-    return default_parameter_list;
-  }
-
-  /// \brief Generate a new instance of this class.
-  ///
-  /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
-  /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<PolymorphicBaseType> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr_,
-      const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
-    return std::make_shared<ComputeCenterlineTwistSpringConstraintForce>(bulk_data_ptr_, fixed_params);
-  }
-
-  //! \name Setters
-  //@{
-
-  /// \brief Set the mutable parameters. If a parameter is not provided, we use the default value.
-  void set_mutable_params(const Teuchos::ParameterList &mutable_params) override {
-    Teuchos::ParameterList valid_mutable_params = mutable_params;
-    valid_mutable_params.validateParametersAndSetDefaults(
-        ComputeCenterlineTwistSpringConstraintForce::get_valid_mutable_params());
-
-    // Material properties
-    sperm_youngs_modulus_ = valid_mutable_params.get<double>("sperm_youngs_modulus_");
-    sperm_poissons_ratio_ = valid_mutable_params.get<double>("sperm_poissons_ratio_");
-    shear_modulus_ = valid_mutable_params.get<double>("shear_modulus");
-    density_ = valid_mutable_params.get<double>("density");
-
-    // Check invariants: All material properties must be positive. Time step size must be positive.
-    MUNDY_THROW_ASSERT(sperm_youngs_modulus_ > 0.0, std::invalid_argument,
-                       "ComputeCenterlineTwistSpringConstraintForce: Young's modulus must be greater than zero.");
-    MUNDY_THROW_ASSERT(sperm_poissons_ratio_ > 0.0, std::invalid_argument,
-                       "ComputeCenterlineTwistSpringConstraintForce: Poisson's ratio must be greater than zero.");
-    MUNDY_THROW_ASSERT(shear_modulus_ > 0.0, std::invalid_argument,
-                       "ComputeCenterlineTwistSpringConstraintForce: Shear modulus must be greater than zero.");
-    MUNDY_THROW_ASSERT(density_ > 0.0, std::invalid_argument,
-                       "ComputeCenterlineTwistSpringConstraintForce: Density must be greater than zero.");
-  }
-  //@}
-
-  //! \name Getters
-  //@{
-
-  /// \brief Get valid entity parts for the kernel.
-  /// By "valid entity parts," we mean the parts whose entities the kernel can act on.
-  std::vector<stk::mesh::Part *> get_valid_entity_parts() const override {
-    return {centerline_twist_part_ptr_};
-  }
-  //@}
-
-  //! \name Actions
-  //@{
-
-  /// \brief Run the method's core calculation.
-  void execute() {
-    // - Compute edge information (length, tangent, and binormal).
-    // - Compute node curvature
-    // - Compute internal force and torque
-
-    // Get references to internal members so we aren't passing around *this
-    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
-    stk::mesh::Part &centerline_twist_part = *centerline_twist_part_ptr_;
-    stk::mesh::Field<double> &node_coordinates_field = *node_coordinates_field_ptr_;
-    stk::mesh::Field<double> &node_twist_field = *node_twist_field_ptr_;
-    stk::mesh::Field<double> &node_curvature_field = *node_curvature_field_ptr_;
-    stk::mesh::Field<double> &node_rest_curvature_field = *node_rest_curvature_field_ptr_;
-    stk::mesh::Field<double> &node_rotation_gradient_field = *node_rotation_gradient_field_ptr_;
-    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
-    stk::mesh::Field<double> &node_twist_torque_field = *node_twist_torque_field_ptr_;
-    stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
-    stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
-    stk::mesh::Field<double> &edge_binormal_field = *edge_binormal_field_ptr_;
-    stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
-    const double sperm_youngs_modulus_ = sperm_youngs_modulus_;
-    const double sperm_poissons_ratio_ = sperm_poissons_ratio_;
-    const double shear_modulus = shear_modulus_;
-    const double density = density_;
-
-    // For some of our fields, we need to know about the reference configuration of the CenterlineTwistSpring part.
-    // This information is stored in StateN
-    // A note about states: StateNone, StateNew, and StateNP1 all refer to the same default accessed field.
-    // StateOld and StateN refer to the old state, which, in our case, is the reference configuration.
-    //
-    stk::mesh::Field<double> &node_coordinates_field_ref = node_coordinates_field.field_of_state(stk::mesh::StateN);
-    stk::mesh::Field<double> &node_twist_field_ref = node_twist_field.field_of_state(stk::mesh::StateN);
-    node_twist_acceleration_field.field_of_state(stk::mesh::StateN);
-    stk::mesh::Field<double> &edge_orientation_field_ref = edge_orientation_field.field_of_state(stk::mesh::StateN);
-    stk::mesh::Field<double> &edge_tangent_field_ref = edge_tangent_field.field_of_state(stk::mesh::StateN);
-
-    // Most of our calculations will be done on the locally owned part of the CenterlineTwistSpring part.
-    stk::mesh::Selector locally_owned_selector = centerline_twist_part & meta_data_ptr_->locally_owned_part();
-
-    // Now, evaluate the internal force f(x(t + dt))
-    // This requires updating all the fields that vary with the current configuration.
-
-    // For each edge in the CenterlineTwistSpring part, compute the edge tangent, binormal, and length.
-    // length^i = ||x_{i+1} - x_i||
-    // edge_tangent^i = (x_{i+1} - x_i) / length
-    // edge_binormal^i = (2 edge_tangent_ref^i x edge_tangent^i) / (1 + edge_tangent_ref^i dot edge_tangent^i)
-    stk::mesh::for_each_entity_run(
-        bulk_data, stk::topology::EDGE_RANK, locally_owned_selector,
-        [&node_coordinates_field, &edge_orientation_field, &edge_tangent_field, &edge_tangent_field_ref,
-         &edge_binormal_field,
-         &edge_length_field](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &centerline_twist_edge) {
-          // Get the nodes of the edge
-          stk::mesh::Entity const *edge_nodes = bulk_data.begin_nodes(centerline_twist_edge);
-          stk::mesh::Entity const &node_i = edge_nodes[0];
-          stk::mesh::Entity const &node_ip1 = edge_nodes[1];
-
-          // Get the required input fields
-          const auto node_i_coords =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coordinates_field, node_i));
-          const auto node_ip1_coords =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coordinates_field, node_ip1));
-          const auto edge_tangent_ref = mundy::math::get_vector3_view<double>(
-              stk::mesh::field_data(edge_tangent_field_ref, centerline_twist_edge));
-
-          // Get the output fields
-          auto edge_tangent =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_tangent_field, centerline_twist_edge));
-          auto edge_binormal =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_binormal_field, centerline_twist_edge));
-          auto edge_length =
-              mundy::math::get_scalar_view<double>(stk::mesh::field_data(edge_length_field, centerline_twist_edge));
-
-          // Compute the un-normalized edge tangent
-          edge_tangent = node_ip1_coords - node_i_coords;
-          edge_length[0] = mundy::math::norm(edge_tangent);
-          edge_tangent /= edge_length[0];
-
-          // Compute the edge binormal
-          edge_binormal = (2.0 * mundy::math::cross(edge_tangent_ref, edge_tangent)) /
-                          (1.0 + mundy::math::dot(edge_tangent_ref, edge_tangent));
-        });
-
-    // For each element in the CenterlineTwistSpring part, compute the node curvature at the center node.
-    // The curvature can be computed from the edge orientations using
-    //   kappa^i = q_i - conj(q_i) = 2 * vec(q_i)
-    // where
-    //   q_i = conj(d^{i-1}) d^i is the Lagrangian rotation gradient.
-    stk::mesh::for_each_entity_run(
-        bulk_data, stk::topology::ELEMENT_RANK, locally_owned_selector,
-        [&edge_orientation_field, &node_curvature_field, &node_rotation_gradient_field](
-            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &centerline_twist_element) {
-          // Curvature needs to "know" about the order of edges, so it's best to loop over the centerline_twist elements
-          // and not the nodes. Get the lower rank entities
-          stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(centerline_twist_element);
-          stk::mesh::Entity const *element_edges = bulk_data.begin_edges(centerline_twist_element);
-
-          MUNDY_THROW_ASSERT(bulk_data.num_nodes(centerline_twist_element) == 3, std::logic_error,
-                             "ComputeCenterlineTwistSpringConstraintForce: Elements must have exactly 3 nodes.");
-          MUNDY_THROW_ASSERT(bulk_data.num_edges(centerline_twist_element) == 2, std::logic_error,
-                             "ComputeCenterlineTwistSpringConstraintForce: Elements must have exactly 2 edges.");
-
-          // Get the required input fields
-          const auto edge_im1_orientation =
-              mundy::math::get_quaternion_view<double>(stk::mesh::field_data(edge_orientation_field, element_edges[0]));
-          const auto edge_i_orientation =
-              mundy::math::get_quaternion_view<double>(stk::mesh::field_data(edge_orientation_field, element_edges[1]));
-
-          // Get the output fields
-          auto node_curvature =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_curvature_field, element_nodes[1]));
-          auto node_rotation_gradient = mundy::math::get_quaternion_view<double>(
-              stk::mesh::field_data(node_rotation_gradient_field, element_nodes[1]));
-
-          // Compute the node curvature
-          node_rotation_gradient = mundy::math::conj(edge_im1_orientation) * edge_i_orientation;
-          node_curvature = 2.0 * node_rotation_gradient.vector();
-        });
-
-    // Compute internal force and torque
-    stk::mesh::for_each_entity_run(
-        bulk_data, stk::topology::ELEMENT_RANK, locally_owned_selector,
-        [&node_force_field, &&node_curvature_field, &node_rest_curvature_field, &node_rotation_gradient_field,
-         &edge_tangent_field, &edge_binormal_field, &edge_length_field, &edge_orientation_field](
-            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &centerline_twist_element) {
-          // Ok. This is a bit involved.
-          // First, we need to use the node curvature to compute the induced lagrangian torque according to the
-          // Kirchhoff rod model. Then, we need to use a convoluted map to take this torque to force and torque on the
-          // nodes.
-          //
-          // The torque induced by the curvature is
-          //  T = B (kappa - kappa_rest)
-          // where B is the diagonal matrix of bending moduli and kappa_rest is the rest curvature.
-          //
-          // To start, we set B = I
-
-          // Get the lower rank entities
-          stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(centerline_twist_element);
-          stk::mesh::Entity const *element_edges = bulk_data.begin_edges(centerline_twist_element);
-
-          MUNDY_THROW_ASSERT(bulk_data.num_nodes(centerline_twist_element) == 3, std::logic_error,
-                             "ComputeCenterlineTwistSpringConstraintForce: Elements must have exactly 3 nodes.");
-          MUNDY_THROW_ASSERT(bulk_data.num_edges(centerline_twist_element) == 2, std::logic_error,
-                             "ComputeCenterlineTwistSpringConstraintForce: Elements must have exactly 2 edges.");
-
-          // Get the required input fields
-          const auto node_i_curvature =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_curvature_field, element_nodes[1]));
-          const auto node_i_rest_curvature =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_rest_curvature_field, element_nodes[1]));
-          const auto node_i_rotation_gradient = mundy::math::get_quaternion_view<double>(
-              stk::mesh::field_data(node_rotation_gradient_field, element_nodes[1]));
-          const auto edge_im1_tangent =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_tangent_field, element_edges[0]));
-          const auto edge_i_tangent =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_tangent_field, element_edges[1]));
-          const auto edge_im1_binormal =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_binormal_field, element_edges[0]));
-          const auto edge_i_binormal =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(edge_binormal_field, element_edges[1]));
-          const auto edge_im1_length =
-              mundy::math::get_scalar_view<double>(stk::mesh::field_data(edge_length_field, element_edges[0]));
-          const auto edge_i_length =
-              mundy::math::get_scalar_view<double>(stk::mesh::field_data(edge_length_field, element_edges[1]));
-          const auto edge_im1_orientation =
-              mundy::math::get_quaternion_view<double>(stk::mesh::field_data(edge_orientation_field, element_edges[0]));
-
-          // Get the output fields
-          auto node_im1_force =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, element_nodes[0]));
-          auto node_i_force =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, element_nodes[1]));
-          auto node_ip1_force =
-              mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_force_field, element_nodes[2]));
-          double *node_im1_twist_torque = stk::mesh::field_data(node_twist_torque_field, element_nodes[0]);
-          double *node_i_twist_torque = stk::mesh::field_data(node_twist_torque_field, element_nodes[1]);
-
-          // Compute the torque induced by the curvature
-          // To start, the torque is in the lagrangian frame.
-          auto bending_modulus = mundy::math::Matrix3::identity();  // TODO(palmerb4): Replace with Kirchhoff rod model
-          auto bending_torque = bending_modulus * (node_i_curvature - node_i_rest_curvature);
-
-          // We'll use the bending torque as a placeholder for the rotated bending torque
-          bending_torque =
-              edge_im1_orientation * (node_i_rotation_gradient.w() * bending_torque +
-                                      mundy::math::cross(node_i_rotation_gradient.vector(), bending_torque));
-
-          // Compute the force and torque on the nodes
-          const auto tmp_force_ip1 = 1.0 / edge_i_length[0] *
-                                     (mundy::math::cross(bending_torque, edge_i_tangent) +
-                                      0.5 * mundy::math::dot(edge_i_tangent, bending_torque) *
-                                          (mundy::math::dot(edge_i_tangent, edge_i_binormal) * edge_i_tangent) -
-                                      edge_i_binormal);
-          const auto tmp_force_im1 =
-              1.0 / edge_im1_length[0] *
-              (mundy::math::cross(bending_torque, edge_im1_tangent) +
-               0.5 * mundy::math::dot(edge_im1_tangent, bending_torque) *
-                   (mundy::math::dot(edge_im1_tangent, edge_im1_binormal) * edge_im1_tangent - edge_im1_binormal));
-
-#pragma omp atomic
-          node_i_twist_torque[0] += edge_i_tangent.dot(bending_torque);
-#pragma omp atomic
-          node_im1_twist_torque[0] += -edge_im1_tangent.dot(bending_torque);
-#pragma omp atomic
-          node_ip1_force[0] += tmp_force_ip1[0];
-#pragma omp atomic
-          node_ip1_force[1] += tmp_force_ip1[1];
-#pragma omp atomic
-          node_ip1_force[2] += tmp_force_ip1[2];
-#pragma omp atomic
-          node_i_force[0] -= tmp_force_ip1[0] + tmp_force_im1[0];
-#pragma omp atomic
-          node_i_force[1] -= tmp_force_ip1[1] + tmp_force_im1[1];
-#pragma omp atomic
-          node_i_force[2] -= tmp_force_ip1[2] + tmp_force_im1[2];
-#pragma omp atomic
-          node_im1_force[0] += tmp_force_im1[0];
-#pragma omp atomic
-          node_im1_force[1] += tmp_force_im1[1];
-#pragma omp atomic
-          node_im1_force[2] += tmp_force_im1[2];
-        });
-  }
-  //@}
-
- private:
-  //! \name Default parameters
-  //@{
-
-  static inline double default_youngs_modulus_ = 1000.0;
-  static inline double default_poissons_ratio_ = 0.3;
-  static inline double default_shear_modulus_ = 1000.0;
-  static inline double default_density_ = 1.0;
-  static constexpr std::string_view default_part_name_ = "CENTERLINE_TWIST_SPRINGS";
-  static constexpr std::string_view default_node_coordinates_field_name_ = "NODE_COORDINATES";
-  static constexpr std::string_view default_node_twist_field_name_ = "NODE_TWIST";
-  static constexpr std::string_view default_node_curvature_field_name_ = "NODE_CURVATURE";
-  static constexpr std::string_view default_node_rest_curvature_field_name_ = "NODE_REST_CURVATURE";
-  static constexpr std::string_view default_edge_orientation_field_name_ = "EDGE_ORIENTATION";
-  static constexpr std::string_view default_edge_tangent_field_name_ = "EDGE_TANGENT";
-  static constexpr std::string_view default_edge_binormal_field_name_ = "EDGE_BINORMAL";
-  static constexpr std::string_view default_edge_length_field_name_ = "EDGE_LENGTH";
-  //@}
-
-  //! \name Internal members
-  //@{
-
-  mundy::mesh::BulkData *bulk_data_ptr_ = nullptr;
-  mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
-
-  // Material properties
-  double sperm_youngs_modulus_;
-  double sperm_poissons_ratio_;
-  double shear_modulus_;
-  double density_;
-
-  // Node rank fields
-  stk::mesh::Field<double> *node_coordinates_field_ptr_ = nullptr;
-  stk::mesh::Field<double> *node_twist_field_ptr_ = nullptr;
-  stk::mesh::Field<double> *node_curvature_field_ptr_ = nullptr;
-  stk::mesh::Field<double> *node_rest_curvature_field_ptr_ = nullptr;
-  stk::mesh::Field<double> *node_rotation_gradient_field_ptr_ = nullptr;
-
-  // Edge rank fields
-  stk::mesh::Field<double> *edge_orientation_field_ptr_ = nullptr;
-  stk::mesh::Field<double> *edge_tangent_field_ptr_ = nullptr;
-  stk::mesh::Field<double> *edge_binormal_field_ptr_ = nullptr;
-  stk::mesh::Field<double> *edge_length_field_ptr_ = nullptr;
-
-  // Element rank fields
-  stk::mesh::Field<double> *element_radius_field_ptr_ = nullptr;
-  //@}
-};  // ComputeSLTConstraintForce
 
 int main(int argc, char **argv) {
   // Initialize MPI

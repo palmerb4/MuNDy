@@ -105,16 +105,11 @@ class Sphere : public mundy::meta::MetaKernel<> {
     auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     sphere_part_reqs->set_part_name(associated_part_name);
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->add_field_reqs<double>(
-        node_force_field_name, stk::topology::NODE_RANK, 3, 1);
-    sphere_part_reqs->add_field_reqs<double>(
-        node_torque_field_name, stk::topology::NODE_RANK, 3, 1);
-    sphere_part_reqs->add_field_reqs<double>(
-        node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
-    sphere_part_reqs->add_field_reqs<double>(
-        node_omega_field_name, stk::topology::NODE_RANK, 3, 1);
-    sphere_part_reqs->add_field_reqs<double>(
-        element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_force_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_torque_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_omega_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(sphere_part_reqs);

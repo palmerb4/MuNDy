@@ -47,9 +47,10 @@
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SpherocylinderSegmentSpherocylinderSegmentLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSpherocylinderLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SpherocylinderSpherocylinderLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSpherocylinderSegmentLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SpherocylinderSpherocylinderSegmentLinkers
-#include <mundy_math/Quaternion.hpp>             // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>                // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
+#include <mundy_math/Quaternion.hpp>  // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
@@ -274,7 +275,7 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     stk::mesh::Entity sp1_node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, 1);
     ASSERT_TRUE(bulk_data_ptr->is_valid(sp1_element));
     ASSERT_TRUE(bulk_data_ptr->is_valid(sp1_node));
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, sp1_node)).set(0.0, 0.0, 0.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, sp1_node).set(0.0, 0.0, 0.0);
     stk::mesh::field_data(*radius_field_ptr, sp1_element)[0] = 1.5;
   }
   if (rank == 1 || num_ranks == 1) {
@@ -282,7 +283,7 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     stk::mesh::Entity sp2_node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, 2);
     ASSERT_TRUE(bulk_data_ptr->is_valid(sp2_element));
     ASSERT_TRUE(bulk_data_ptr->is_valid(sp2_node));
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, sp2_node)).set(1.0, 2.0, 2.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, sp2_node).set(1.0, 2.0, 2.0);
     stk::mesh::field_data(*radius_field_ptr, sp2_element)[0] = 2.0;
   }
 
@@ -294,13 +295,13 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     stk::mesh::Entity sy1_node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, 3);
     ASSERT_TRUE(bulk_data_ptr->is_valid(sy1_element));
     ASSERT_TRUE(bulk_data_ptr->is_valid(sy1_node));
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, sy1_node)).set(-1.0, 0.0, 0.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, sy1_node).set(-1.0, 0.0, 0.0);
     stk::mesh::field_data(*radius_field_ptr, sy1_element)[0] = 2.0;
     stk::mesh::field_data(*length_field_ptr, sy1_element)[0] = 5.0;
 
     // Orientate the spherocylinder to align with the y-axis.
     auto orientation = mundy::math::euler_to_quat(0.0, 0.0, M_PI / 2.0);
-    mundy::math::get_quaternion_view<double>(stk::mesh::field_data(*orientation_field_ptr, sy1_element)) = orientation;
+    mundy::mesh::quaternion_field_data(*orientation_field_ptr, sy1_element) = orientation;
     ASSERT_TRUE(is_approx_close(orientation * mundy::math::Vector3<double>{1.0, 0.0, 0.0},
                                 mundy::math::Vector3<double>{0.0, 1.0, 0.0}))
         << "Failed to orient sy1 correctly";
@@ -310,13 +311,13 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     stk::mesh::Entity sy2_node = bulk_data_ptr->get_entity(stk::topology::NODE_RANK, 4);
     ASSERT_TRUE(bulk_data_ptr->is_valid(sy2_element));
     ASSERT_TRUE(bulk_data_ptr->is_valid(sy2_node));
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, sy2_node)).set(-2.0, 0.0, 0.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, sy2_node).set(-2.0, 0.0, 0.0);
     stk::mesh::field_data(*radius_field_ptr, sy2_element)[0] = 1.5;
     stk::mesh::field_data(*length_field_ptr, sy2_element)[0] = 5.0;
 
     // Orientate the spherocylinder to align with the z-axis.
     auto orientation = mundy::math::euler_to_quat(0.0, -M_PI / 2.0, 0.0);
-    mundy::math::get_quaternion_view<double>(stk::mesh::field_data(*orientation_field_ptr, sy2_element)) = orientation;
+    mundy::mesh::quaternion_field_data(*orientation_field_ptr, sy2_element) = orientation;
     ASSERT_TRUE(is_approx_close(orientation * mundy::math::Vector3<double>{1.0, 0.0, 0.0},
                                 mundy::math::Vector3<double>{0.0, 0.0, 1.0}))
         << "Failed to orient sy2 correctly";
@@ -330,8 +331,8 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     ASSERT_TRUE(bulk_data_ptr->is_valid(seg1_element));
     ASSERT_TRUE(bulk_data_ptr->is_valid(seg1_node1));
     ASSERT_TRUE(bulk_data_ptr->is_valid(seg1_node2));
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, seg1_node1)).set(0.0, 1.5, 0.0);
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, seg1_node2)).set(1.0, 1.5, 0.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, seg1_node1).set(0.0, 1.5, 0.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, seg1_node2).set(1.0, 1.5, 0.0);
     stk::mesh::field_data(*radius_field_ptr, seg1_element)[0] = 1.5;
   }
   if (rank == 1 || num_ranks == 1) {
@@ -341,8 +342,8 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     ASSERT_TRUE(bulk_data_ptr->is_valid(seg2_element));
     ASSERT_TRUE(bulk_data_ptr->is_valid(seg2_node1));
     ASSERT_TRUE(bulk_data_ptr->is_valid(seg2_node2));
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, seg2_node1)).set(0.0, 2.0, 0.0);
-    mundy::math::get_vector3_view<double>(stk::mesh::field_data(*node_coord_field_ptr, seg2_node2)).set(1.0, 2.0, 0.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, seg2_node1).set(0.0, 2.0, 0.0);
+    mundy::mesh::vector3_field_data(*node_coord_field_ptr, seg2_node2).set(1.0, 2.0, 0.0);
     stk::mesh::field_data(*radius_field_ptr, seg2_element)[0] = 2.0;
   }
 
@@ -364,48 +365,42 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     }
 
     // Sphere-Sphere
-    const auto cn_sp1_sp2 =
-        mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sp1_sp2_linker));
+    const auto cn_sp1_sp2 = mundy::mesh::vector3_field_data(*linker_cn_field_ptr, sp1_sp2_linker);
     const double ssd_sp1_sp2 = stk::mesh::field_data(*linker_ssd_field_ptr, sp1_sp2_linker)[0];
     EXPECT_TRUE(is_approx_close(cn_sp1_sp2, mundy::math::Vector3<double>{1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0}))
         << "cn_sp1_sp2 = " << cn_sp1_sp2;
     EXPECT_DOUBLE_EQ(ssd_sp1_sp2, -0.5);
 
     // Sphere-Spherocylinder
-    const auto cn_sp1_sy1 =
-        mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sp1_sy1_linker));
+    const auto cn_sp1_sy1 = mundy::mesh::vector3_field_data(*linker_cn_field_ptr, sp1_sy1_linker);
     const double ssd_sp1_sy1 = stk::mesh::field_data(*linker_ssd_field_ptr, sp1_sy1_linker)[0];
     EXPECT_TRUE(is_approx_close(cn_sp1_sy1, mundy::math::Vector3<double>{-1.0, 0.0, 0.0}))
         << "cn_sp1_sy1 = " << cn_sp1_sy1;
     EXPECT_DOUBLE_EQ(ssd_sp1_sy1, -2.5);
 
     // Sphere-Spherocylinder Segment
-    const auto cn_sp1_seg1 =
-        mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sp1_seg1_linker));
+    const auto cn_sp1_seg1 = mundy::mesh::vector3_field_data(*linker_cn_field_ptr, sp1_seg1_linker);
     const double ssd_sp1_seg1 = stk::mesh::field_data(*linker_ssd_field_ptr, sp1_seg1_linker)[0];
     EXPECT_TRUE(is_approx_close(cn_sp1_seg1, mundy::math::Vector3<double>{0.0, 1.0, 0.0}))
         << "cn_sp1_seg1 = " << cn_sp1_seg1;
     EXPECT_DOUBLE_EQ(ssd_sp1_seg1, -1.5);
 
     // Spherocylinder Segment-Spherocylinder Segment
-    const auto cn_seg1_seg2 =
-        mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, seg1_seg2_linker));
+    const auto cn_seg1_seg2 = mundy::mesh::vector3_field_data(*linker_cn_field_ptr, seg1_seg2_linker);
     const double ssd_seg1_seg2 = stk::mesh::field_data(*linker_ssd_field_ptr, seg1_seg2_linker)[0];
     EXPECT_TRUE(is_approx_close(cn_seg1_seg2, mundy::math::Vector3<double>{0.0, 1.0, 0.0}))
         << "cn_seg1_seg2 = " << cn_seg1_seg2;
     EXPECT_DOUBLE_EQ(ssd_seg1_seg2, -3.0);
 
     // Spherocylinder-Spherocylinder
-    const auto cn_sy1_sy2 =
-        mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sy1_sy2_linker));
+    const auto cn_sy1_sy2 = mundy::mesh::vector3_field_data(*linker_cn_field_ptr, sy1_sy2_linker);
     const double ssd_sy1_sy2 = stk::mesh::field_data(*linker_ssd_field_ptr, sy1_sy2_linker)[0];
     EXPECT_TRUE(is_approx_close(cn_sy1_sy2, mundy::math::Vector3<double>{-1.0, 0.0, 0.0}))
         << "cn_sy1_sy2 = " << cn_sy1_sy2;
     EXPECT_DOUBLE_EQ(ssd_sy1_sy2, -2.5);
 
     // Spherocylinder-Spherocylinder Segment
-    const auto cn_sy1_seg1 =
-        mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sy1_seg1_linker));
+    const auto cn_sy1_seg1 = mundy::mesh::vector3_field_data(*linker_cn_field_ptr, sy1_seg1_linker);
     const double ssd_sy1_seg1 = stk::mesh::field_data(*linker_ssd_field_ptr, sy1_seg1_linker)[0];
     EXPECT_TRUE(is_approx_close(cn_sy1_seg1, mundy::math::Vector3<double>{1.0, 0.0, 0.0}))
         << "cn_sy1_seg1 = " << cn_sy1_seg1;

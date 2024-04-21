@@ -39,7 +39,8 @@
 #include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
 #include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_between_line_segments
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
+#include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
 
 namespace mundy {
 
@@ -177,9 +178,9 @@ void SpherocylinderSpherocylinderLinker::execute(
 
         // Get the spherocylinder data
         const auto spherocylinder1_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder1_node));
+            mundy::mesh::vector3_field_data(node_coord_field, spherocylinder1_node);
         const auto spherocylinder2_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder2_node));
+            mundy::mesh::vector3_field_data(node_coord_field, spherocylinder2_node);
 
         const double spherocylinder1_radius = stk::mesh::field_data(element_radius_field, spherocylinder1_element)[0];
         const double spherocylinder2_radius = stk::mesh::field_data(element_radius_field, spherocylinder2_element)[0];

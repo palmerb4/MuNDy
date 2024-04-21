@@ -38,8 +38,9 @@
 #include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
 #include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_from_point_to_line_segment
 #include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
-#include <mundy_shapes/Spheres.hpp>                // for mundy::shapes::Spheres
-#include <mundy_shapes/Spherocylinders.hpp>        // for mundy::shapes::Spherocylinders
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
+#include <mundy_shapes/Spheres.hpp>          // for mundy::shapes::Spheres
+#include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
 
 namespace mundy {
 
@@ -176,13 +177,11 @@ void SphereSpherocylinderLinker::execute(const stk::mesh::Selector &sphere_spher
         const stk::mesh::Entity &spherocylinder_node = bulk_data.begin_nodes(spherocylinder_element)[0];
 
         // Get the sphere data
-        const auto sphere_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, sphere_node));
+        const auto sphere_center_coord = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
         const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
 
         // Get the spherocylinder data
-        const auto spherocylinder_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_node));
+        const auto spherocylinder_center_coord = mundy::mesh::vector3_field_data(node_coord_field, spherocylinder_node);
         const double spherocylinder_radius = stk::mesh::field_data(element_radius_field, spherocylinder_element)[0];
         const double spherocylinder_length = stk::mesh::field_data(element_length_field, spherocylinder_element)[0];
         const auto spherocylinder_orientation = mundy::math::get_quaternion_view<double>(

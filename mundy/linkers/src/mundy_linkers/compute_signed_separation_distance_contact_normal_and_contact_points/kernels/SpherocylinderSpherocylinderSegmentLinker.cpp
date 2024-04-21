@@ -35,10 +35,11 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SpherocylinderSpherocylinderSegmentLinker.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSpherocylinderSegmentLinker
-#include <mundy_math/Quaternion.hpp>                // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>                   // for mundy::math::Vector3
-#include <mundy_math/distance/SegmentSegment.hpp>   // for mundy::math::distance::distance_sq_between_line_segments
-#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
+#include <mundy_math/Quaternion.hpp>               // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
+#include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_between_line_segments
+#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 #include <mundy_shapes/Spherocylinders.hpp>         // for mundy::shapes::Spherocylinders
 
@@ -188,8 +189,7 @@ void SpherocylinderSpherocylinderSegmentLinker::execute(
             bulk_data.begin_nodes(spherocylinder_segment_element)[1];
 
         // Get the spherocylinder data
-        const auto spherocylinder_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, spherocylinder_node));
+        const auto spherocylinder_center_coord = mundy::mesh::vector3_field_data(node_coord_field, spherocylinder_node);
         const double spherocylinder_radius = stk::mesh::field_data(element_radius_field, spherocylinder_element)[0];
         const double spherocylinder_length = stk::mesh::field_data(element_length_field, spherocylinder_element)[0];
         const auto spherocylinder_orientation = mundy::math::get_quaternion_view<double>(

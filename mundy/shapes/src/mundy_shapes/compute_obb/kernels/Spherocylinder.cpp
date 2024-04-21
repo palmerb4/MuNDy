@@ -32,9 +32,10 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_math/Quaternion.hpp>                            // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>                               // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
+#include <mundy_math/Quaternion.hpp>  // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/Spherocylinders.hpp>                     // for mundy::shapes::Spherocylinders
 #include <mundy_shapes/compute_obb/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_obb::kernels::Spherocylinder
 
@@ -150,7 +151,7 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
 
         // Node data
         const stk::mesh::Entity &node = bulk_data.begin_nodes(spherocylinder_element)[0];
-        const auto node_coord = mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, node));
+        const auto node_coord = mundy::mesh::vector3_field_data(node_coord_field, node);
 
         // Find the endpoints.
         // Note, the orientation maps the reference configuration to the current configuration and in the reference

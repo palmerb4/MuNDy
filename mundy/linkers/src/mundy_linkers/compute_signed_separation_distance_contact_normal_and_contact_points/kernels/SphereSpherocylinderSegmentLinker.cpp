@@ -34,9 +34,10 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SphereSpherocylinderSegmentLinker.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderSegmentLinker
-#include <mundy_math/Vector3.hpp>                   // for mundy::math::Vector3
-#include <mundy_math/distance/SegmentSegment.hpp>   // for mundy::math::distance::distance_sq_from_point_to_line_segment
-#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
+#include <mundy_math/Vector3.hpp>                  // for mundy::math::Vector3
+#include <mundy_math/distance/SegmentSegment.hpp>  // for mundy::math::distance::distance_sq_from_point_to_line_segment
+#include <mundy_mesh/BulkData.hpp>                 // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/Spheres.hpp>                 // for mundy::shapes::Spheres
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
@@ -169,8 +170,7 @@ void SphereSpherocylinderSegmentLinker::execute(
             bulk_data.begin_nodes(spherocylinder_segment_element)[1];
 
         // Get the sphere data
-        const auto sphere_center_coord =
-            mundy::math::get_vector3_view<double>(stk::mesh::field_data(node_coord_field, sphere_node));
+        const auto sphere_center_coord = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
         const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
 
         // Get the spherocylinder_segment data
