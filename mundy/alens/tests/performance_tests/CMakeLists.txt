@@ -58,3 +58,10 @@ tribits_add_executable(
     SpringsUpdated.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    NonInteractingSperm
+    SOURCES
+    NonInteractingSperm.cpp
+    CATEGORIES PERFORMANCE
+    )
