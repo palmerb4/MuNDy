@@ -108,12 +108,51 @@ class PartRequirements {
   /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
   PartRequirements &add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
 
+  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
+  ///
+  /// \param field_name [in] Name of the field to add to the part.
+  /// \param field_rank [in] Rank of the field to add to the part.
+  /// \param field_dimension [in] Dimension of the field to add to the part.
+  /// \param field_min_number_of_states [in] Minimum number of states for the field to add to the part.
+  ///
+  /// \tparam FieldType [in] The type of the field to add to the part.
+  template <typename FieldType>
+  PartRequirements &add_field_reqs(const std::string &field_name, const stk::topology::rank_t &field_rank,
+                                   const unsigned field_dimension, const unsigned field_min_number_of_states) {
+    return add_field_reqs(std::make_shared<FieldRequirements<FieldType>>(field_name, field_rank, field_dimension,
+                                                                         field_min_number_of_states));
+  }
+
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
   /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
   PartRequirements &add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
+
+  /// \brief Add the provided part as a subpart of this part, given that it is valid.
+  ///
+  /// \param part_name [in] Name of the sub-part to add to the part.
+  PartRequirements &add_subpart_reqs(const std::string &part_name) {
+    return add_subpart_reqs(std::make_shared<PartRequirements>(part_name));
+  }
+
+  /// \brief Add the provided part as a subpart of this part, given that it is valid.
+  ///
+  /// \param part_name [in] Name of the sub-part to add to the part.
+  /// \param part_topology [in] Topology of entities within the sub-part.
+  PartRequirements &add_subpart_reqs(const std::string &part_name, const stk::topology::topology_t &part_topology) {
+    return add_subpart_reqs(std::make_shared<PartRequirements>(part_name, part_topology));
+  }
+
+  /// \brief Add the provided part as a subpart of this part, given that it is valid.
+  ///
+  /// \param part_name [in] Name of the sub-part to add to the part.
+  /// \param part_rank [in] Maximum rank of entities within the sub-part. Can contain any element of lower rank,
+  /// regardless of topology.
+  PartRequirements &add_subpart_reqs(const std::string &part_name, const stk::topology::rank_t &part_rank) {
+    return add_subpart_reqs(std::make_shared<PartRequirements>(part_name, part_rank));
+  }
 
   /// \brief Require that an attribute with the given name be present on the part.
   ///

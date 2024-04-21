@@ -98,12 +98,9 @@ class NodeEuler : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("BODY");
     part_reqs->set_part_rank(stk::topology::ELEMENT_RANK);
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_coord_field_name,
-                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_velocity_field_name,
-                                                                                       stk::topology::NODE_RANK, 3, 1));
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(node_omega_field_name_name,
-                                                                                       stk::topology::NODE_RANK, 3, 1));
+    part_reqs->add_field_reqs<double>(node_coord_field_name, stk::topology::NODE_RANK, 3, 1);
+    part_reqs->add_field_reqs<double>(node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
+    part_reqs->add_field_reqs<double>(node_omega_field_name_name, stk::topology::NODE_RANK, 3, 1);
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(part_reqs);

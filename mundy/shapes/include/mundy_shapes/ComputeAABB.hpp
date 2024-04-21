@@ -115,7 +115,7 @@ MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_aabb::kernels::Sphere,
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_aabb::kernels::Spherocylinder,
                          mundy::shapes::ComputeAABB::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT", mundy::shapes::compute_aabb::kernels::SpherocylinderSegment,
-                          mundy::shapes::ComputeAABB::OurKernelFactory)
+                         mundy::shapes::ComputeAABB::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_SHAPES_COMPUTEAABB_HPP_

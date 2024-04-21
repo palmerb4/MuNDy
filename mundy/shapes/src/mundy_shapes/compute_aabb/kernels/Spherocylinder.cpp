@@ -139,8 +139,9 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
-      [&node_coord_field, &element_orientation_field, &element_radius_field, &element_length_field, &element_aabb_field, &buffer_distance](
-          [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_element) {
+      [&node_coord_field, &element_orientation_field, &element_radius_field, &element_length_field, &element_aabb_field,
+       &buffer_distance]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                         const stk::mesh::Entity &spherocylinder_element) {
         // Element data
         const double radius = stk::mesh::field_data(element_radius_field, spherocylinder_element)[0];
         const double length = stk::mesh::field_data(element_length_field, spherocylinder_element)[0];

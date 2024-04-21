@@ -48,6 +48,7 @@
 #include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
 #include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
+#include <mundy_core/MakeStringArray.hpp>    // for mundy::core::make_string_array
 
 namespace mundy {
 
@@ -114,8 +115,8 @@ class AttachSpheresToNodes : public mundy::meta::MetaMethodSubsetExecutionInterf
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "sphere_part_names", Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name()),
+    default_parameter_list.set(
+        "sphere_part_names", mundy::core::make_string_array(mundy::shapes::Spheres::get_name()),
         "The names of the parts to which we will add the generated spheres.");
     return default_parameter_list;
   }

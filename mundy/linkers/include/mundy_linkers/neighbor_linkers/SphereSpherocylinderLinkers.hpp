@@ -48,8 +48,8 @@ namespace neighbor_linkers {
 ///
 /// The design of this class is in accordance with the static interface requirements of mundy::agents::AgentFactory.
 ///
-/// \note This class is a constraint rank assembly part containing neighbor linkers between spheres and spherocylinders. It is a subset of
-/// the NeighborLinkers agent.
+/// \note This class is a constraint rank assembly part containing neighbor linkers between spheres and spherocylinders.
+/// It is a subset of the NeighborLinkers agent.
 class SphereSpherocylinderLinkers
     : public mundy::agents::RankedAssembly<mundy::core::make_string_literal("SPHERE_SPHEROCYLINDER_LINKERS"),
                                            stk::topology::CONSTRAINT_RANK, mundy::linkers::NeighborLinkers> {

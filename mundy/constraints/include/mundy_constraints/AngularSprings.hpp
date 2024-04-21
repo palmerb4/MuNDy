@@ -157,20 +157,18 @@ class AngularSprings {
   static constexpr std::string_view element_angular_spring_constant_field_name_ = "ELEMENT_ANGULAR_SPRING_CONSTANT";
 
   /// @brief The name of our element angular spring rest length field.
-  static constexpr std::string_view element_angular_spring_rest_angle_field_name_ =
-      "ELEMENT_ANGULAR_SPRING_REST_ANGLE";
+  static constexpr std::string_view element_angular_spring_rest_angle_field_name_ = "ELEMENT_ANGULAR_SPRING_REST_ANGLE";
 
   /// \brief Our part requirements.
   static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ = []() {
     auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs_ptr->set_part_name(std::string(name_));
     part_reqs_ptr->set_part_topology(topology_);
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_angular_spring_constant_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_angular_spring_rest_angle_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs_ptr->add_field_reqs<double>(std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1);
+    part_reqs_ptr->add_field_reqs<double>(std::string(element_angular_spring_constant_field_name_),
+                                          stk::topology::ELEMENT_RANK, 1, 1);
+    part_reqs_ptr->add_field_reqs<double>(std::string(element_angular_spring_rest_angle_field_name_),
+                                          stk::topology::ELEMENT_RANK, 1, 1);
     return part_reqs_ptr;
   }();
   //@}

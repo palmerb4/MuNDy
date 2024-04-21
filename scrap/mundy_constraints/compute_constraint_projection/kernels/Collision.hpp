@@ -92,8 +92,8 @@ class Collision : public mundy::meta::MetaKernel<> {
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name(associated_part_name);
     part_reqs->set_part_topology(stk::topology::BEAM_2);
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_reqs<double>(
+        element_lagrange_multiplier_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(part_reqs);

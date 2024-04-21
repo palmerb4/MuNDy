@@ -31,11 +31,11 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
+#include <stk_mesh/base/DumpMeshInfo.hpp>  // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
 #include <stk_mesh/base/Types.hpp>         // for stk::mesh::ConstPartVector
 #include <stk_topology/topology.hpp>       // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
-#include <stk_mesh/base/DumpMeshInfo.hpp>                 // for stk::mesh::impl::dump_all_mesh_info
 
 // Mundy libs
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
@@ -367,42 +367,48 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
     const auto cn_sp1_sp2 =
         mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sp1_sp2_linker));
     const double ssd_sp1_sp2 = stk::mesh::field_data(*linker_ssd_field_ptr, sp1_sp2_linker)[0];
-    EXPECT_TRUE(is_approx_close(cn_sp1_sp2, mundy::math::Vector3<double>{1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0})) << "cn_sp1_sp2 = " << cn_sp1_sp2;
+    EXPECT_TRUE(is_approx_close(cn_sp1_sp2, mundy::math::Vector3<double>{1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0}))
+        << "cn_sp1_sp2 = " << cn_sp1_sp2;
     EXPECT_DOUBLE_EQ(ssd_sp1_sp2, -0.5);
 
     // Sphere-Spherocylinder
     const auto cn_sp1_sy1 =
         mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sp1_sy1_linker));
     const double ssd_sp1_sy1 = stk::mesh::field_data(*linker_ssd_field_ptr, sp1_sy1_linker)[0];
-    EXPECT_TRUE(is_approx_close(cn_sp1_sy1, mundy::math::Vector3<double>{-1.0, 0.0, 0.0})) << "cn_sp1_sy1 = " << cn_sp1_sy1;
+    EXPECT_TRUE(is_approx_close(cn_sp1_sy1, mundy::math::Vector3<double>{-1.0, 0.0, 0.0}))
+        << "cn_sp1_sy1 = " << cn_sp1_sy1;
     EXPECT_DOUBLE_EQ(ssd_sp1_sy1, -2.5);
 
     // Sphere-Spherocylinder Segment
     const auto cn_sp1_seg1 =
         mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sp1_seg1_linker));
     const double ssd_sp1_seg1 = stk::mesh::field_data(*linker_ssd_field_ptr, sp1_seg1_linker)[0];
-    EXPECT_TRUE(is_approx_close(cn_sp1_seg1, mundy::math::Vector3<double>{0.0, 1.0, 0.0})) << "cn_sp1_seg1 = " << cn_sp1_seg1;
+    EXPECT_TRUE(is_approx_close(cn_sp1_seg1, mundy::math::Vector3<double>{0.0, 1.0, 0.0}))
+        << "cn_sp1_seg1 = " << cn_sp1_seg1;
     EXPECT_DOUBLE_EQ(ssd_sp1_seg1, -1.5);
 
     // Spherocylinder Segment-Spherocylinder Segment
     const auto cn_seg1_seg2 =
         mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, seg1_seg2_linker));
     const double ssd_seg1_seg2 = stk::mesh::field_data(*linker_ssd_field_ptr, seg1_seg2_linker)[0];
-    EXPECT_TRUE(is_approx_close(cn_seg1_seg2, mundy::math::Vector3<double>{0.0, 1.0, 0.0})) << "cn_seg1_seg2 = " << cn_seg1_seg2;
+    EXPECT_TRUE(is_approx_close(cn_seg1_seg2, mundy::math::Vector3<double>{0.0, 1.0, 0.0}))
+        << "cn_seg1_seg2 = " << cn_seg1_seg2;
     EXPECT_DOUBLE_EQ(ssd_seg1_seg2, -3.0);
 
     // Spherocylinder-Spherocylinder
     const auto cn_sy1_sy2 =
         mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sy1_sy2_linker));
     const double ssd_sy1_sy2 = stk::mesh::field_data(*linker_ssd_field_ptr, sy1_sy2_linker)[0];
-    EXPECT_TRUE(is_approx_close(cn_sy1_sy2, mundy::math::Vector3<double>{-1.0, 0.0, 0.0})) << "cn_sy1_sy2 = " << cn_sy1_sy2;
+    EXPECT_TRUE(is_approx_close(cn_sy1_sy2, mundy::math::Vector3<double>{-1.0, 0.0, 0.0}))
+        << "cn_sy1_sy2 = " << cn_sy1_sy2;
     EXPECT_DOUBLE_EQ(ssd_sy1_sy2, -2.5);
 
     // Spherocylinder-Spherocylinder Segment
     const auto cn_sy1_seg1 =
         mundy::math::get_vector3_view<double>(stk::mesh::field_data(*linker_cn_field_ptr, sy1_seg1_linker));
     const double ssd_sy1_seg1 = stk::mesh::field_data(*linker_ssd_field_ptr, sy1_seg1_linker)[0];
-    EXPECT_TRUE(is_approx_close(cn_sy1_seg1, mundy::math::Vector3<double>{1.0, 0.0, 0.0})) << "cn_sy1_seg1 = " << cn_sy1_seg1;
+    EXPECT_TRUE(is_approx_close(cn_sy1_seg1, mundy::math::Vector3<double>{1.0, 0.0, 0.0}))
+        << "cn_sy1_seg1 = " << cn_sy1_seg1;
     EXPECT_DOUBLE_EQ(ssd_sy1_seg1, -2.5);
   }
 }

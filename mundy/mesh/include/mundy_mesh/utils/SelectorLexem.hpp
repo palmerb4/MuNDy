@@ -103,7 +103,6 @@ class SelectorLexem {
 /// @brief A vector of selector lexems.
 typedef std::vector<SelectorLexem> SelectorLexemVector;
 
-
 /// @brief Tokenize a selector string expression into a vector of lexems.
 ///
 /// @param expression The expression to tokenize.

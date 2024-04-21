@@ -58,7 +58,8 @@ namespace mesh {
 ///  - "UNIVERSAL"        -> The universal part, which contains all entities.
 ///  - "LOCALLY_OWNED"    -> The locally owned part, which contains all entities owned by the current process.
 ///  - "GLOBALLY_SHARED"  -> The globally shared part, which contains all entities shared from another processes.
-///  - "AURA"             -> The automatically generated auto part, which contains all entities ghosted from another process.
+///  - "AURA"             -> The automatically generated auto part, which contains all entities ghosted from another
+///  process.
 ///
 /// \param bulk_data [in] BulkData object used to fetch the part names.
 /// \param selector_string [in] String containing valid selector math.

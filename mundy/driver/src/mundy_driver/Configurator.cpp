@@ -355,7 +355,7 @@ std::shared_ptr<Driver> Configurator::generate_driver() {
   meta_data_ptr_->set_coordinate_field_name(node_coordinate_field_name_);
 
   // TODO(cje): Remove later
-  stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+  // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
 
   // Here is where we might read in a restart mesh file, for now, throw an error if this is the case
   if (is_restart_) {

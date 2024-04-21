@@ -32,10 +32,10 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_math/Quaternion.hpp>                             // for mundy::math::Quaternion
-#include <mundy_math/Vector3.hpp>                                // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>                               // for mundy::mesh::BulkData
-#include <mundy_shapes/Spherocylinders.hpp>                      // for mundy::shapes::Spherocylinders
+#include <mundy_math/Quaternion.hpp>                                        // for mundy::math::Quaternion
+#include <mundy_math/Vector3.hpp>                                           // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>                                          // for mundy::mesh::BulkData
+#include <mundy_shapes/Spherocylinders.hpp>                                 // for mundy::shapes::Spherocylinders
 #include <mundy_shapes/compute_bounding_radius/kernels/Spherocylinder.hpp>  // for mundy::shapes::compute_bounding_radius::kernels::Spherocylinder
 
 namespace mundy {
@@ -62,18 +62,21 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   // Get the field pointers.
   const std::string element_radius_field_name = mundy::shapes::Spherocylinders::get_element_radius_field_name();
   const std::string element_length_field_name = mundy::shapes::Spherocylinders::get_element_length_field_name();
-  const std::string element_bounding_radius_field_name = valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
+  const std::string element_bounding_radius_field_name =
+      valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
 
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
   element_length_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_length_field_name);
-  element_bounding_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_bounding_radius_field_name);
+  element_bounding_radius_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_bounding_radius_field_name);
 
   MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
   MUNDY_THROW_ASSERT(element_length_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_length_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_bounding_radius_field_ptr_ != nullptr, std::invalid_argument,
-                     "Spherocylinder: element_bounding_radius_field_ptr cannot be a nullptr. Check that the field exists.");
+  MUNDY_THROW_ASSERT(
+      element_bounding_radius_field_ptr_ != nullptr, std::invalid_argument,
+      "Spherocylinder: element_bounding_radius_field_ptr cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =

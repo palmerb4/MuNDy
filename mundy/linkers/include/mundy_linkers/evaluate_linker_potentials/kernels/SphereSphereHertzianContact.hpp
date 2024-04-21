@@ -35,6 +35,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_core/MakeStringArray.hpp>                          // for mundy::core::make_string_array
 #include <mundy_linkers/neighbor_linkers/SphereSphereLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSphereLinkers
 #include <mundy_mesh/BulkData.hpp>                                 // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                 // for mundy::mesh::MetaData
@@ -137,17 +138,16 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
     std::string linker_signed_separation_distance_field_name =
         valid_fixed_params.get<std::string>("linker_signed_separation_distance_field_name");
 
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_linker_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_linker_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          linker_potential_force_magnitude_field_name, stk::topology::CONSTRAINT_RANK, 1, 1));
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          linker_signed_separation_distance_field_name, stk::topology::CONSTRAINT_RANK, 1, 1));
+      part_reqs->add_field_reqs<double>(linker_potential_force_magnitude_field_name, stk::topology::CONSTRAINT_RANK, 1,
+                                        1);
+      part_reqs->add_field_reqs<double>(linker_signed_separation_distance_field_name, stk::topology::CONSTRAINT_RANK, 1,
+                                        1);
 
       if (part_name == neighbor_linkers::SphereSphereLinkers::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -172,10 +172,8 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_sphere_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          element_youngs_modulus_field_name, stk::topology::ELEMENT_RANK, 1, 1));
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          element_poissons_ratio_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+      part_reqs->add_field_reqs<double>(element_youngs_modulus_field_name, stk::topology::ELEMENT_RANK, 1, 1);
+      part_reqs->add_field_reqs<double>(element_poissons_ratio_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -193,12 +191,12 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(neighbor_linkers::SphereSphereLinkers::get_name()),
-        "List of valid entity part names for the kernel.");
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_sphere_part_names", Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name()),
-        "List of valid sphere part names for the kernel.");
+    default_parameter_list.set("valid_entity_part_names",
+                               mundy::core::make_string_array(neighbor_linkers::SphereSphereLinkers::get_name()),
+                               "List of valid entity part names for the kernel.");
+    default_parameter_list.set("valid_sphere_part_names",
+                               mundy::core::make_string_array(mundy::shapes::Spheres::get_name()),
+                               "List of valid sphere part names for the kernel.");
     default_parameter_list.set(
         "linker_potential_force_magnitude_field_name",
         std::string(default_linker_potential_force_magnitude_field_name_),

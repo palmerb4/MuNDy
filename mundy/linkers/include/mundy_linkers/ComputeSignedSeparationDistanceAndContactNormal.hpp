@@ -126,22 +126,22 @@ MUNDY_REGISTER_METACLASS(
     "SPHERE_SPHERE_LINKER",
     mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSphereLinker,
     mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS(
-    "SPHERE_SPHEROCYLINDER_LINKER",
-    mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSpherocylinderLinker,
-    mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS(
-    "SPHERE_SPHEROCYLINDER_SEGMENT_LINKER",
-    mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSpherocylinderSegmentLinker,
-    mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_LINKER",
+                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
+                             SphereSpherocylinderLinker,
+                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_SEGMENT_LINKER",
+                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
+                             SphereSpherocylinderSegmentLinker,
+                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER",
                          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
                              SpherocylinderSegmentSpherocylinderSegmentLinker,
                          mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS(
-    "SPHEROCYLINDER_SPHEROCYLINDER_LINKER",
-    mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SpherocylinderSpherocylinderLinker,
-    mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SPHEROCYLINDER_LINKER",
+                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
+                             SpherocylinderSpherocylinderLinker,
+                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_LINKER",
                          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
                              SpherocylinderSpherocylinderSegmentLinker,

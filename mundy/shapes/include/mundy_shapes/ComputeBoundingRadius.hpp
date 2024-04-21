@@ -117,8 +117,9 @@ class ComputeBoundingRadius
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_bounding_radius::kernels::Sphere,
                          mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_bounding_radius::kernels::Spherocylinder,
-                        mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT", mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment,
+                         mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT",
+                         mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment,
                          mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
 //@}
 

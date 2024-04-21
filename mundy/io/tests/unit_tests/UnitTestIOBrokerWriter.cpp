@@ -112,8 +112,7 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
   mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
-  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+  mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Get fixed parameters for the IOBroker
   Teuchos::ParameterList fixed_params_iobroker;
@@ -173,8 +172,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
   mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
-  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+  mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Get fixed parameters for the IOBroker
   Teuchos::ParameterList fixed_params_iobroker;
@@ -318,8 +316,7 @@ TEST(IOBroker, WriteResultsAABBInteger) {
   mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
-  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+  mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Directly set an unsigned field on everybody
   mesh_reqs_ptr->add_field_reqs(
@@ -499,8 +496,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
   mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
-  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+  mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Directly set an unsigned field on everybody
   mesh_reqs_ptr->add_field_reqs(
@@ -656,8 +652,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
   mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
-  mesh_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-      "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1));
+  mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Directly set an unsigned field on everybody
   mesh_reqs_ptr->add_field_reqs(

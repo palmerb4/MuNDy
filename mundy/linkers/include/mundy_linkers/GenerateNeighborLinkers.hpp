@@ -31,6 +31,7 @@
 #include <Teuchos_ParameterList.hpp>  // for Teuchos::ParameterList
 
 // Mundy libs
+#include <mundy_core/MakeStringArray.hpp>                                    // for mundy::core::make_string_array
 #include <mundy_core/StringLiteral.hpp>                                      // for mundy::core::make_string_literal
 #include <mundy_linkers/generate_neighbor_linkers/techniques/STKSearch.hpp>  // for mundy::linkers::generate_neighbor_linkers::techniques::STKSearch
 #include <mundy_mesh/BulkData.hpp>                                           // for mundy::mesh::BulkData
@@ -69,9 +70,9 @@ class GenerateNeighborLinkers
   /// \brief Get the valid fixed parameters that we will forward to the techniques.
   static Teuchos::ParameterList get_valid_forwarded_technique_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
+    default_parameter_list.set(
         "specialized_neighbor_linkers_part_names",
-        Teuchos::tuple<std::string>(std::string(default_specialized_neighbor_linkers_part_name_)),
+        mundy::core::make_string_array(std::string(default_specialized_neighbor_linkers_part_name_)),
         "The part names to which we will add the generated neighbor linkers. This should be a specialization of the "
         "neighbor linkers part or the neighbor linkers part itself.");
     return default_parameter_list;

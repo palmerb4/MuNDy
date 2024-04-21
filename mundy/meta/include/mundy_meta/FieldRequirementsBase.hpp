@@ -33,10 +33,10 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
-#include <stk_mesh/base/FieldBase.hpp>    // for stk::mesh::FieldBase
-#include <stk_mesh/base/Field.hpp>    // for stk::mesh::Field
-#include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
-#include <stk_topology/topology.hpp>  // for stk::topology
+#include <stk_mesh/base/Field.hpp>      // for stk::mesh::Field
+#include <stk_mesh/base/FieldBase.hpp>  // for stk::mesh::FieldBase
+#include <stk_mesh/base/Part.hpp>       // for stk::mesh::Part
+#include <stk_topology/topology.hpp>    // for stk::topology
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
@@ -116,11 +116,11 @@ class FieldRequirementsBase {
   //@{
 
   /// \brief Declare/create the field that this class defines.
-  virtual stk::mesh::FieldBase &declare_field_on_part(mundy::mesh::MetaData* const meta_data_ptr,
-                                                       const stk::mesh::Part& part) const = 0;
+  virtual stk::mesh::FieldBase& declare_field_on_part(mundy::mesh::MetaData* const meta_data_ptr,
+                                                      const stk::mesh::Part& part) const = 0;
 
   /// \brief Declare/create the field that this class defines and assign it to the entire mesh.
-  virtual stk::mesh::FieldBase &declare_field_on_entire_mesh(mundy::mesh::MetaData* const meta_data_ptr) const = 0;
+  virtual stk::mesh::FieldBase& declare_field_on_entire_mesh(mundy::mesh::MetaData* const meta_data_ptr) const = 0;
 
   /// \brief Delete the field name constraint (if it exists).
   virtual FieldRequirementsBase& delete_field_name() = 0;

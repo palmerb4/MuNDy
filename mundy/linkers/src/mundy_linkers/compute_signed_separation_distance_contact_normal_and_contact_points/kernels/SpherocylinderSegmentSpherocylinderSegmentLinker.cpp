@@ -211,7 +211,8 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
         auto spherocylinder_segment1_contact_point = mundy::math::get_vector3_view<double>(
             stk::mesh::field_data(linker_contact_points_field, spherocylinder_segment_spherocylinder_segment_linker));
         auto spherocylinder_segment2_contact_point = mundy::math::get_vector3_view<double>(
-            stk::mesh::field_data(linker_contact_points_field, spherocylinder_segment_spherocylinder_segment_linker) + 3);
+            stk::mesh::field_data(linker_contact_points_field, spherocylinder_segment_spherocylinder_segment_linker) +
+            3);
         double *signed_separation_distance = stk::mesh::field_data(
             linker_signed_separation_distance_field, spherocylinder_segment_spherocylinder_segment_linker);
         signed_separation_distance[0] = separation_distance;

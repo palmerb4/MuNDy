@@ -98,8 +98,8 @@ class Helix : public ArchlengthCoordinateMapping {
  public:
   /// Constructor
   Helix(const size_t &num_nodes, const double &radius, const double &pitch, const double &distance_between_nodes,
-        const double &start_x, const double &start_y, const double &start_z, const double &axis_x,
-        const double &axis_y, const double &axis_z)
+        const double &start_x, const double &start_y, const double &start_z, const double &axis_x, const double &axis_y,
+        const double &axis_z)
       : num_nodes_(num_nodes),
         num_edges_(num_nodes - 1),
         radius_(radius),
@@ -153,11 +153,11 @@ class Helix : public ArchlengthCoordinateMapping {
   /// \return The corresponding coordinate.
   std::array<double, 3> get_grid_coordinate(const size_t &archlength_index) const override {
     // t = delta_t * archlength_index
-    // x_ref = a * cos(t) 
+    // x_ref = a * cos(t)
     // y_ref = a * sin(t)
     // z_ref = b * t
     //
-    // pos = start + x_ref * basis_vector0 + y_ref * basis_vector1 + z_ref * axis 
+    // pos = start + x_ref * basis_vector0 + y_ref * basis_vector1 + z_ref * axis
     const double t = delta_t_ * static_cast<double>(archlength_index);
     const double x_ref = radius_ * std::cos(t);
     const double y_ref = radius_ * std::sin(t);

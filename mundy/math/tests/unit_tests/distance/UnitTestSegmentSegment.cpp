@@ -167,8 +167,10 @@ void generate_lines_at_known_distance(RngType& rng, double& line_dist, Vector3<d
     // Randomly choose a degeneracy for the lines. Only using the first five degeneracies (0, 1, 2, 3, 4)
     degeneracy = static_cast<DegeneracyType>(static_cast<int>(rng.template rand<double>() * 4));
   }
-  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::A1_EQUALS_A2, std::invalid_argument, "A1_EQUALS_A2 is not a valid degeneracy for lines.");
-  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::B1_EQUALS_B2, std::invalid_argument, "B1_EQUALS_B2 is not a valid degeneracy for lines.");
+  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::A1_EQUALS_A2, std::invalid_argument,
+                     "A1_EQUALS_A2 is not a valid degeneracy for lines.");
+  MUNDY_THROW_ASSERT(degeneracy != DegeneracyType::B1_EQUALS_B2, std::invalid_argument,
+                     "B1_EQUALS_B2 is not a valid degeneracy for lines.");
 
   // Generate two unit vectors v1 and v2, and their cross product v3.
   // v1 and v2 will represent the orientations of the two lines, and v3 will be the direction of the line connecting
@@ -230,10 +232,10 @@ void generate_line_segments_at_known_distance(RngType& rng, double& line_dist, V
   // a12, u and b12, v, respectively.
 
   if (degeneracy == DegeneracyType::RANDOM) {
-    // Randomly choose a degeneracy for the line segments. Only using the first seven degeneracies (0, 1, 2, 3, 4, 5, 6).
+    // Randomly choose a degeneracy for the line segments. Only using the first seven degeneracies (0, 1, 2, 3, 4, 5,
+    // 6).
     degeneracy = static_cast<DegeneracyType>(static_cast<int>(rng.template rand<double>() * 6));
   }
-
 
   // Generate two unit vectors v1 and v2, and their cross product v3.
   // v1 and v2 will represent the orientations of the two lines, and v3 will be the direction of the line connecting

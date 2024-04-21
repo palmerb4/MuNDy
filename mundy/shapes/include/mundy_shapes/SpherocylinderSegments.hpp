@@ -95,9 +95,9 @@ class SpherocylinderSegments {
   /// \brief Get our mesh requirements.
   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
     // By default, we assume that the SpherocylinderSegments part is a BEAM_2 particle with a radius and two endpoints.
-    // A spherocylinder segment is distinct from a spherocylinder in that orientation and length are controlled by the endpoint locations.
-    // Segments are designed to be linked together and admit special physical interactions as a result that are not present in the spherocylinder.
-    // All SpherocylinderSegments are Shapes.
+    // A spherocylinder segment is distinct from a spherocylinder in that orientation and length are controlled by the
+    // endpoint locations. Segments are designed to be linked together and admit special physical interactions as a
+    // result that are not present in the spherocylinder. All SpherocylinderSegments are Shapes.
 
     // Declare our part as a subpart of our parent parts.
     mundy::shapes::Shapes::add_subpart_reqs(part_reqs_ptr_);
@@ -154,10 +154,8 @@ class SpherocylinderSegments {
     auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs_ptr->set_part_name(std::string(name_));
     part_reqs_ptr->set_part_topology(topology_);
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs_ptr->add_field_reqs<double>(std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1);
+    part_reqs_ptr->add_field_reqs<double>(std::string(element_radius_field_name_), stk::topology::ELEMENT_RANK, 1, 1);
     return part_reqs_ptr;
   }();
   //@}

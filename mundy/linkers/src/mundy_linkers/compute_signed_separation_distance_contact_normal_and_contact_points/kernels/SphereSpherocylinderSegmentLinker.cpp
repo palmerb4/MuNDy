@@ -93,7 +93,6 @@ SphereSpherocylinderSegmentLinker::SphereSpherocylinderSegmentLinker(mundy::mesh
   field_exists(linker_signed_separation_distance_field_ptr_, linker_signed_separation_distance_field_name);
   field_exists(linker_contact_points_field_ptr_, linker_contact_points_field_name);
 
-
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
       valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");

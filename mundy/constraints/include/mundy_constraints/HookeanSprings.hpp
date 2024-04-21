@@ -161,12 +161,11 @@ class HookeanSprings {
     auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs_ptr->set_part_name(std::string(name_));
     part_reqs_ptr->set_part_topology(topology_);
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_hookean_spring_constant_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
-    part_reqs_ptr->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        std::string(element_hookean_spring_rest_length_field_name_), stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs_ptr->add_field_reqs<double>(std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1);
+    part_reqs_ptr->add_field_reqs<double>(std::string(element_hookean_spring_constant_field_name_),
+                                          stk::topology::ELEMENT_RANK, 1, 1);
+    part_reqs_ptr->add_field_reqs<double>(std::string(element_hookean_spring_rest_length_field_name_),
+                                          stk::topology::ELEMENT_RANK, 1, 1);
     return part_reqs_ptr;
   }();
   //@}

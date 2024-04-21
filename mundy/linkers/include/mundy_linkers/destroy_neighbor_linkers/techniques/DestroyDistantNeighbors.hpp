@@ -37,6 +37,7 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
+#include <mundy_core/MakeStringArray.hpp>                     // for mundy::core::make_string_array
 #include <mundy_core/StringLiteral.hpp>                       // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/NeighborLinkers.hpp>                  // for mundy::linkers::NeighborLinkers
@@ -122,8 +123,7 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
       const std::string part_name = valid_linker_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<int>>(
-          linker_destroy_flag_field_name, stk::topology::CONSTRAINT_RANK, 1, 1));
+      part_reqs->add_field_reqs<int>(linker_destroy_flag_field_name, stk::topology::CONSTRAINT_RANK, 1, 1);
 
       if (part_name == NeighborLinkers::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -143,8 +143,7 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
       const std::string part_name = valid_connected_source_and_target_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
+      part_reqs->add_field_reqs<double>(element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1);
       mesh_reqs_ptr->add_part_reqs(part_reqs);
     }
 
@@ -154,12 +153,12 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_neighbor_linkers_part_name_)),
-        "Name of the linker entity parts potentially acted on by this meta method.");
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_connected_source_and_target_part_names", Teuchos::tuple<std::string>(std::string(universal_part_name_)),
-        "Name of the source and target parts that linker may connect to.");
+    default_parameter_list.set("valid_entity_part_names",
+                               mundy::core::make_string_array(std::string(default_neighbor_linkers_part_name_)),
+                               "Name of the linker entity parts potentially acted on by this meta method.");
+    default_parameter_list.set("valid_connected_source_and_target_part_names",
+                               mundy::core::make_string_array(std::string(universal_part_name_)),
+                               "Name of the source and target parts that linker may connect to.");
     default_parameter_list.set<std::string>("linker_destroy_flag_field_name",
                                             std::string(default_linker_destroy_flag_field_name_),
                                             "Name of the field used to flag linkers for destruction.");

@@ -203,7 +203,7 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
     for (auto &entity : {sp1_element, sp2_element, sy1_element, sy2_element, seg1_element, seg2_element}) {
       ASSERT_TRUE(bulk_data_ptr->is_valid(entity));
     }
-   
+
     // Declare the linkers
     stk::mesh::Entity sp1_sp2_linker =
         bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{sphere_sphere_linker_part_ptr});
@@ -369,7 +369,6 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
          {sp1_sp2_linker, sp1_sy1_linker, sp1_seg1_linker, seg1_seg2_linker, sy1_sy2_linker, sy1_seg1_linker}) {
       ASSERT_TRUE(bulk_data_ptr->is_valid(linker));
     }
-
 
     // Sp1-Sp2:   r1 = 1.5, r2 = 2.0, ssd = -0.5, poissons_ratio = 0.3, youngs_modulus = 1e6
     // Sp1-Sy1:   r1 = 1.5, r2 = 2.5, ssd = -0.5, poissons_ratio = 0.3, youngs_modulus = 1e6

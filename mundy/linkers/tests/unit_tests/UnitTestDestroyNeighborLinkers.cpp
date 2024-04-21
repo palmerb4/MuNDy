@@ -18,7 +18,7 @@
 // @HEADER
 
 // External libs
-#include <gtest/gtest.h>      // for TEST, ASSERT_NO_THROW, etc
+#include <gtest/gtest.h>  // for TEST, ASSERT_NO_THROW, etc
 
 // C++ core libs
 #include <memory>     // for std::shared_ptr, std::unique_ptr
@@ -41,6 +41,7 @@
 
 // Mundy libs
 #include <MundyLinkers_config.hpp>                    // for HAVE_MUNDYLINKERS_MUNDYSHAPES
+#include <mundy_core/MakeStringArray.hpp>             // for mundy::core::make_string_array
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>   // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>  // for mundy::linkers::GenerateNeighborLinkers
 #include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
@@ -84,10 +85,8 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
   Teuchos::ParameterList destroy_neighbor_linkers_fixed_params = Teuchos::ParameterList();
   destroy_neighbor_linkers_fixed_params.set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS")
       .sublist("DESTROY_DISTANT_NEIGHBORS")
-      .set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                        Teuchos::tuple<std::string>(std::string("NEIGHBOR_LINKERS")))
-      .set<Teuchos::Array<std::string>>("valid_connected_source_and_target_part_names",
-                                        Teuchos::tuple<std::string>(std::string("SPHERES")))
+      .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
+      .set("valid_connected_source_and_target_part_names", mundy::core::make_string_array("SPHERES"))
       .set("linker_destroy_flag_field_name", "LINKER_DESTROY_FLAG")
       .set("element_aabb_field_name", "ELEMENT_AABB");
 

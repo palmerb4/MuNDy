@@ -148,7 +148,7 @@ class FieldRequirements : public FieldRequirementsBase {
 
   /// \brief Declare/create the field that this class defines and assign it to a part.
   stk::mesh::Field<FieldType_t> &declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
-                                                        const stk::mesh::Part &part) const final;
+                                                       const stk::mesh::Part &part) const final;
 
   /// \brief Declare/create the field that this class defines and assign it to the entire mesh.
   stk::mesh::Field<FieldType_t> &declare_field_on_entire_mesh(mundy::mesh::MetaData *const meta_data_ptr) const final;

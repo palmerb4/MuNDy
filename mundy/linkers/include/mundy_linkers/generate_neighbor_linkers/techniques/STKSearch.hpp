@@ -37,6 +37,7 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
+#include <mundy_core/MakeStringArray.hpp>                             // for mundy::core::make_string_array
 #include <mundy_core/StringLiteral.hpp>                               // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                                // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/NeighborLinkers.hpp>                          // for mundy::linkers::NeighborLinkers
@@ -157,8 +158,7 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
             const std::string part_name = valid_entity_part_names[i];
             auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
             part_reqs->set_part_name(part_name);
-            part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-                element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1));
+            part_reqs->add_field_reqs<double>(element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1);
             mesh_reqs_ptr->add_part_reqs(part_reqs);
           }
         };  // fetch_and_add_part_reqs
@@ -189,15 +189,13 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_source_entity_part_names", Teuchos::tuple<std::string>(std::string(universal_part_name_)),
-        "Name of the source parts associated with this pairwise meta method.");
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_target_entity_part_names", Teuchos::tuple<std::string>(std::string(universal_part_name_)),
-        "Name of the target parts associated with this pairwise meta method.");
-    default_parameter_list.set<Teuchos::Array<std::string>>(
+    default_parameter_list.set("valid_source_entity_part_names", mundy::core::make_string_array(universal_part_name_),
+                               "Name of the source parts associated with this pairwise meta method.");
+    default_parameter_list.set("valid_target_entity_part_names", mundy::core::make_string_array(universal_part_name_),
+                               "Name of the target parts associated with this pairwise meta method.");
+    default_parameter_list.set(
         "specialized_neighbor_linkers_part_names",
-        Teuchos::tuple<std::string>(std::string(default_specialized_neighbor_linkers_part_name_)),
+        mundy::core::make_string_array(default_specialized_neighbor_linkers_part_name_),
         "The part names to which we will add the generated neighbor linkers. This should be a specialization of the "
         "neighbor linkers part or the neighbor linkers part itself.");
     default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),

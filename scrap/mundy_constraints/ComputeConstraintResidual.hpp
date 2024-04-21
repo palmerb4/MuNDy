@@ -94,8 +94,8 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethodSubsetExecutionI
     auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     part_reqs->set_part_name("CONSTRAINT");
     part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-    part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+    part_reqs->add_field_reqs<double>(
+        element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
     auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
     mesh_reqs->add_part_reqs(part_reqs);

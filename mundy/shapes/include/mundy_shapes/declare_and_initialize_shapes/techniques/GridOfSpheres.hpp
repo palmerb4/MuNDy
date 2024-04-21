@@ -37,6 +37,7 @@
 #include <stk_topology/topology.hpp>        // for stk::topology
 
 // Mundy libs
+#include <mundy_core/MakeStringArray.hpp>               // for mundy::core::make_string_array
 #include <mundy_core/StringLiteral.hpp>                 // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
@@ -148,9 +149,8 @@ class GridOfSpheres : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "sphere_part_names", Teuchos::tuple<std::string>(std::string(default_sphere_part_name_)),
-        "The names of the parts to which we will add the generated spheres.");
+    default_parameter_list.set("sphere_part_names", mundy::core::make_string_array(default_sphere_part_name_),
+                               "The names of the parts to which we will add the generated spheres.");
     return default_parameter_list;
   }
 

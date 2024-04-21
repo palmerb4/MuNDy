@@ -61,7 +61,7 @@ class MeshRequirements {
   /// \brief Construct a fully specified set of mesh requirements.
   ///
   /// \param comm [in] The MPI communicator.
-  explicit MeshRequirements(const stk::ParallelMachine &comm);
+  explicit MeshRequirements(const stk::ParallelMachine& comm);
   //@}
 
   //! \name Setters
@@ -73,19 +73,19 @@ class MeshRequirements {
 
   /// \brief Set the names assigned to each rank.
   /// \param entity_rank_names [in] The names assigned to each rank.
-  MeshRequirements& set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
+  MeshRequirements& set_entity_rank_names(const std::vector<std::string>& entity_rank_names);
 
   /// \brief Set the MPI communicator to be used by STK.
   /// \param comm [in] The MPI communicator.
-  MeshRequirements& set_communicator(const stk::ParallelMachine &comm);
+  MeshRequirements& set_communicator(const stk::ParallelMachine& comm);
 
   /// \brief Set the chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
   /// \param aura_option [in] The chosen Aura option.
-  MeshRequirements& set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption &aura_option);
+  MeshRequirements& set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption& aura_option);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
-  MeshRequirements& set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
+  MeshRequirements& set_field_data_manager(stk::mesh::FieldDataManager* const field_data_manager_ptr);
 
   /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
   ///
@@ -119,10 +119,25 @@ class MeshRequirements {
   /// \brief Delete the upward connectivity flag constraint (if it exists).
   MeshRequirements& delete_upward_connectivity_flag();
 
-  /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
+  /// \brief Add the provided field to the mesh, given that it is valid and does not conflict with existing fields.
   ///
-  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
+  /// \param field_req_ptr [in] Pointer to the field parameters to add to the mesh.
   MeshRequirements& add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+
+  /// \brief Add the provided field to the mesh, given that it is valid and does not conflict with existing fields.
+  ///
+  /// \param field_name [in] Name of the field to add to the mesh.
+  /// \param field_rank [in] Rank of the field to add to the mesh.
+  /// \param field_dimension [in] Dimension of the field to add to the mesh.
+  /// \param field_min_number_of_states [in] Minimum number of states for the field to add to the mesh.
+  ///
+  /// \tparam FieldType [in] The type of the field to add to the mesh.
+  template <typename FieldType>
+  MeshRequirements& add_field(const std::string& field_name, const stk::topology::rank_t field_rank,
+                              const unsigned field_dimension, const unsigned field_min_number_of_states) {
+    return add_field_reqs(std::make_shared<FieldRequirements<FieldType>>(field_name, field_rank, field_dimension,
+                                                                         field_min_number_of_states));
+  }
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
@@ -131,10 +146,32 @@ class MeshRequirements {
   /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
   MeshRequirements& add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
 
+  /// \brief Add the provided part to the mesh, given that it is valid.
+  ///
+  /// \param part_name [in] The name of the part to add to the mesh.
+  MeshRequirements& add_part(const std::string& part_name) {
+    return add_part_reqs(std::make_shared<PartRequirements>(part_name));
+  }
+  /// \brief Add the provided part to the mesh, given that it is valid.
+  ///
+  /// \param part_name [in] The name of the part to add to the mesh.
+  /// \param part_topology [in] Topology of entities within the sub-part.
+  MeshRequirements& add_part(const std::string& part_name, const stk::topology::topology_t part_topology) {
+    return add_part_reqs(std::make_shared<PartRequirements>(part_name, part_topology));
+  }
+
+  /// \brief Add the provided part to the mesh, given that it is valid.
+  ///
+  /// \param part_name [in] The name of the part to add to the mesh.
+  /// \param part_rank [in] The rank of the part to add to the mesh.
+  MeshRequirements& add_part(const std::string& part_name, const stk::topology::rank_t part_rank) {
+    return add_part_reqs(std::make_shared<PartRequirements>(part_name, part_rank));
+  }
+
   /// \brief Require that an attribute with the given name be present on the mesh.
   ///
   /// \param attribute_name [in] The name of the attribute that must be present on the mesh.
-  MeshRequirements& add_mesh_attribute(const std::string &attribute_name);
+  MeshRequirements& add_mesh_attribute(const std::string& attribute_name);
   //@}
 
   //! \name Getters
@@ -177,7 +214,7 @@ class MeshRequirements {
   mundy::mesh::BulkData::AutomaticAuraOption get_aura_option() const;
 
   /// \brief Return the field data manager.
-  stk::mesh::FieldDataManager *get_field_data_manager() const;
+  stk::mesh::FieldDataManager* get_field_data_manager() const;
 
   /// \brief Return the upper bound on the number of mesh entities that may be associated with a single bucket.
   unsigned get_bucket_capacity() const;
@@ -215,16 +252,16 @@ class MeshRequirements {
   /// \brief Merge the current requirements with another \c MeshRequirements.
   ///
   /// \param part_req_ptr [in] An \c MeshRequirements object to merge with the current object.
-  MeshRequirements& merge(const std::shared_ptr<MeshRequirements> &mesh_req_ptr);
+  MeshRequirements& merge(const std::shared_ptr<MeshRequirements>& mesh_req_ptr);
 
   /// \brief Merge the current requirements with any number of other \c MeshRequirements.
   ///
   /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c MeshRequirements objects to merge with the
   /// current object.
-  MeshRequirements& merge(const std::vector<std::shared_ptr<MeshRequirements>> &vector_of_mesh_req_ptrs);
+  MeshRequirements& merge(const std::vector<std::shared_ptr<MeshRequirements>>& vector_of_mesh_req_ptrs);
 
   /// \brief Dump the contents of \c MeshRequirements to the given stream (defaults to std::cout).
-  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;
+  void print_reqs(std::ostream& os = std::cout, int indent_level = 0) const;
 
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const;
@@ -238,7 +275,7 @@ class MeshRequirements {
   static const inline Teuchos::Array<std::string> default_entity_rank_names_ = Teuchos::Array<std::string>();
   static const inline stk::ParallelMachine default_communicator_ = stk::parallel_machine_null();
   static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
-  static constexpr stk::mesh::FieldDataManager *default_field_data_manager_ptr_ = nullptr;
+  static constexpr stk::mesh::FieldDataManager* default_field_data_manager_ptr_ = nullptr;
   static const unsigned default_bucket_capacity_;  // Unlike the others, this parameter cannot be filled inline.
   static constexpr bool default_upward_connectivity_flag_ = true;
   //@}
@@ -256,7 +293,7 @@ class MeshRequirements {
   mundy::mesh::BulkData::AutomaticAuraOption aura_option_;
 
   /// @brief Pointer to an existing field data manager.
-  stk::mesh::FieldDataManager *field_data_manager_ptr_;
+  stk::mesh::FieldDataManager* field_data_manager_ptr_;
 
   /// @brief Upper bound on the number of mesh entities that may be associated with a single bucket.
   unsigned bucket_capacity_;

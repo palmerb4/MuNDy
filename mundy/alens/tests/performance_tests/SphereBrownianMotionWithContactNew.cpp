@@ -56,8 +56,9 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_core/MakeStringArray.hpp>  // for mundy::core::make_string_array
+#include <mundy_core/StringLiteral.hpp>    // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
@@ -183,8 +184,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     valid_fixed_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_fixed_params());
 
     // Store the valid entity parts for the kernel.
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
@@ -218,15 +218,13 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
 
     // Fill the requirements using the given parameter list.
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs<double>(node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -243,9 +241,8 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
-        "Name of the parts associated with this kernel.");
+    default_parameter_list.set("valid_entity_part_names", mundy::core::make_string_array(default_part_name_),
+                               "Name of the parts associated with this kernel.");
     default_parameter_list.set(
         "node_velocity_field_name", std::string(default_node_velocity_field_name_),
         "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
@@ -451,8 +448,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     valid_fixed_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_fixed_params());
 
     // Store the valid entity parts for the kernel.
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
@@ -491,17 +487,14 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     std::string node_brownian_velocity_field_name =
         valid_fixed_params.get<std::string>("node_brownian_velocity_field_name");
     std::string node_rng_counter_field_name = valid_fixed_params.get<std::string>("node_rng_counter_field_name");
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          node_brownian_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<unsigned>>(
-          node_rng_counter_field_name, stk::topology::NODE_RANK, 1, 1));
+      part_reqs->add_field_reqs<double>(node_brownian_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
+      part_reqs->add_field_reqs<unsigned>(node_rng_counter_field_name, stk::topology::NODE_RANK, 1, 1);
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -518,9 +511,8 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
-        "Name of the parts associated with this kernel.");
+    default_parameter_list.set("valid_entity_part_names", mundy::core::make_string_array(default_part_name_),
+                               "Name of the parts associated with this kernel.");
     default_parameter_list.set(
         "node_brownian_velocity_field_name", std::string(default_node_brownian_velocity_field_name_),
         "Name of the node velocity field to be used for computing the node euler timestep of the sphere.");
@@ -817,8 +809,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     valid_fixed_params.validateParametersAndSetDefaults(LocalDragNonorientableSphere::get_valid_fixed_params());
 
     // Store the valid entity parts for the kernel.
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
       MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
@@ -856,17 +847,14 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     // Fill the requirements using the given parameter list.
     std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
     std::string node_velocity_field_name = valid_fixed_params.get<std::string>("node_velocity_field_name");
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          node_force_field_name, stk::topology::NODE_RANK, 3, 1));
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs<double>(node_force_field_name, stk::topology::NODE_RANK, 3, 1);
+      part_reqs->add_field_reqs<double>(node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -882,9 +870,8 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(std::string(default_part_name_)),
-        "Name of the parts associated with this kernel.");
+    default_parameter_list.set("valid_entity_part_names", mundy::core::make_string_array(default_part_name_),
+                               "Name of the parts associated with this kernel.");
     default_parameter_list.set("node_force_field_name", std::string(default_node_force_field_name_),
                                "Name of the node force field.");
     default_parameter_list.set("node_velocity_field_name", std::string(default_node_velocity_field_name_),
@@ -1119,20 +1106,17 @@ int main(int argc, char **argv) {
 
   // ComputeBrownianVelocity fixed parameters
   Teuchos::ParameterList compute_brownian_velocity_fixed_params;
-  compute_brownian_velocity_fixed_params
-      .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>({std::string("SPHERE")}))
+  compute_brownian_velocity_fixed_params.set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
       .set("node_rng_counter_field_name", "NODE_RNG_COUNTER")
       .set("node_brownian_velocity_field_name", "NODE_VELOCITY");
-  compute_brownian_velocity_fixed_params.sublist("SPHERE").set<Teuchos::Array<std::string>>(
-      "valid_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
+  compute_brownian_velocity_fixed_params.sublist("SPHERE").set("valid_entity_part_names",
+                                                               mundy::core::make_string_array("SPHERES"));
 
   // NodeEuler fixed parameters
   Teuchos::ParameterList node_euler_fixed_params;
-  node_euler_fixed_params
-      .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>(std::string("SPHERE")))
+  node_euler_fixed_params.set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
       .set("node_velocity_field_name", "NODE_VELOCITY");
-  node_euler_fixed_params.sublist("SPHERE").set<Teuchos::Array<std::string>>(
-      "valid_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
+  node_euler_fixed_params.sublist("SPHERE").set("valid_entity_part_names", mundy::core::make_string_array("SPHERES"));
 
   // ComputeMobility fixed parameters
   Teuchos::ParameterList compute_mobility_fixed_params;
@@ -1140,11 +1124,10 @@ int main(int argc, char **argv) {
       .set("node_force_field_name", "NODE_FORCE")
       .set("node_velocity_field_name", "NODE_VELOCITY");
   compute_mobility_fixed_params.sublist("LOCAL_DRAG")
-      .set<Teuchos::Array<std::string>>("enabled_kernel_names",
-                                        Teuchos::tuple<std::string>(std::string("NONORIENTABLE_SPHERE")));
+      .set("enabled_kernel_names", mundy::core::make_string_array("NONORIENTABLE_SPHERE"));
   compute_mobility_fixed_params.sublist("LOCAL_DRAG")
       .sublist("NONORIENTABLE_SPHERE")
-      .set<Teuchos::Array<std::string>>("valid_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
+      .set("valid_entity_part_names", mundy::core::make_string_array("SPHERES"));
 
   // DeclareAndInitShapes fixed parameters
   Teuchos::ParameterList declare_and_init_shapes_fixed_params;
@@ -1152,43 +1135,35 @@ int main(int argc, char **argv) {
 
   // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
   Teuchos::ParameterList compute_ssd_and_cn_fixed_params;
-  compute_ssd_and_cn_fixed_params
-      .set<Teuchos::Array<std::string>>("enabled_kernel_names",
-                                        Teuchos::tuple<std::string>(std::string("SPHERE_SPHERE_LINKER")))
+  compute_ssd_and_cn_fixed_params.set("enabled_kernel_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKER"))
       .set("linker_contact_normal_field_name", "LINKER_CONTACT_NORMAL")
       .set("linker_signed_separation_distance_field_name", "LINKER_SIGNED_SEPARATION_DISTANCE");
   compute_ssd_and_cn_fixed_params.sublist("SPHERE_SPHERE_LINKER")
-      .set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                        Teuchos::tuple<std::string>(std::string("SPHERE_SPHERE_LINKERS")))
-      .set<Teuchos::Array<std::string>>("valid_sphere_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
+      .set("valid_entity_part_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKERS"))
+      .set("valid_sphere_part_names", mundy::core::make_string_array("SPHERES"));
 
   // ComputeAABB fixed parameters
   Teuchos::ParameterList compute_aabb_fixed_params;
-  compute_aabb_fixed_params
-      .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>(std::string("SPHERE")))
+  compute_aabb_fixed_params.set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
       .set("element_aabb_field_name", "ELEMENT_AABB");
-  compute_aabb_fixed_params.sublist("SPHERE").set<Teuchos::Array<std::string>>(
-      "valid_entity_part_names", Teuchos::tuple<std::string>(std::string("SPHERES")));
+  compute_aabb_fixed_params.sublist("SPHERE").set("valid_entity_part_names", mundy::core::make_string_array("SPHERES"));
 
   // GenerateNeighborLinkers fixed parameters
   Teuchos::ParameterList generate_neighbor_linkers_fixed_params;
   generate_neighbor_linkers_fixed_params.set("enabled_technique_name", "STK_SEARCH")
-      .set<Teuchos::Array<std::string>>("specialized_neighbor_linkers_part_names",
-                                        Teuchos::tuple<std::string>("SPHERE_SPHERE_LINKERS"));
+      .set("specialized_neighbor_linkers_part_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKERS"));
   generate_neighbor_linkers_fixed_params.sublist("STK_SEARCH")
-      .set<Teuchos::Array<std::string>>("valid_source_entity_part_names",
-                                        Teuchos::tuple<std::string>(std::string("SPHERES")))
-      .set<Teuchos::Array<std::string>>("valid_target_entity_part_names",
-                                        Teuchos::tuple<std::string>(std::string("SPHERES")))
+      .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHERES"))
+      .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHERES"))
       .set("element_aabb_field_name", std::string("ELEMENT_AABB"));
 
   // EvaluateLinkerPotentials fixed parameters
   Teuchos::ParameterList evaluate_linker_potentials_fixed_params;
-  evaluate_linker_potentials_fixed_params.set<Teuchos::Array<std::string>>(
-      "enabled_kernel_names", Teuchos::tuple<std::string>("SPHERE_SPHERE_HERTZIAN_CONTACT"));
+  evaluate_linker_potentials_fixed_params.set("enabled_kernel_names",
+                                              mundy::core::make_string_array("SPHERE_SPHERE_HERTZIAN_CONTACT"));
   evaluate_linker_potentials_fixed_params.sublist("SPHERE_SPHERE_HERTZIAN_CONTACT")
-      .set<Teuchos::Array<std::string>>("valid_entity_part_names", Teuchos::tuple<std::string>("SPHERE_SPHERE_LINKERS"))
-      .set<Teuchos::Array<std::string>>("valid_sphere_part_names", Teuchos::tuple<std::string>("SPHERES"))
+      .set("valid_entity_part_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKERS"))
+      .set("valid_sphere_part_names", mundy::core::make_string_array("SPHERES"))
       .set("linker_potential_force_magnitude_field_name", "LINKER_POTENTIAL_FORCE_MAGNITUDE")
       .set("linker_signed_separation_distance_field_name", "LINKER_SIGNED_SEPARATION_DISTANCE")
       .set("element_youngs_modulus_field_name", "ELEMENT_YOUNGS_MODULUS")
@@ -1197,21 +1172,19 @@ int main(int argc, char **argv) {
   // LinkerPotentialForceMagnitudeReduction fixed parameters
   Teuchos::ParameterList linker_potential_force_magnitude_reduction_fixed_params;
   linker_potential_force_magnitude_reduction_fixed_params
-      .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>("SPHERE"))
+      .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
       .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS")
       .set("linker_potential_force_magnitude_field_name", "LINKER_POTENTIAL_FORCE_MAGNITUDE")
       .set("linker_contact_normal_field_name", "LINKER_CONTACT_NORMAL");
   linker_potential_force_magnitude_reduction_fixed_params.sublist("SPHERE")
-      .set<Teuchos::Array<std::string>>("valid_entity_part_names", Teuchos::tuple<std::string>("SPHERES"))
+      .set("valid_entity_part_names", mundy::core::make_string_array("SPHERES"))
       .set("node_force_field_name", "NODE_FORCE");
 
   Teuchos::ParameterList destroy_neighbor_linkers_fixed_params = Teuchos::ParameterList();
   destroy_neighbor_linkers_fixed_params.set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS")
       .sublist("DESTROY_DISTANT_NEIGHBORS")
-      .set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                        Teuchos::tuple<std::string>(std::string("NEIGHBOR_LINKERS")))
-      .set<Teuchos::Array<std::string>>("valid_connected_source_and_target_part_names",
-                                        Teuchos::tuple<std::string>(std::string("SPHERES")))
+      .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
+      .set("valid_connected_source_and_target_part_names", mundy::core::make_string_array("SPHERES"))
       .set("linker_destroy_flag_field_name", "LINKER_DESTROY_FLAG")
       .set("element_aabb_field_name", "ELEMENT_AABB");
 

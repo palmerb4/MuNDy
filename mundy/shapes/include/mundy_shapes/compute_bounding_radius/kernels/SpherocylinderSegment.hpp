@@ -35,6 +35,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_core/MakeStringArray.hpp>    // for mundy::core::make_string_array
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
 #include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
@@ -42,7 +43,7 @@
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
@@ -67,7 +68,8 @@ class SpherocylinderSegment : public mundy::meta::MetaKernel<> {
   //@{
 
   /// \brief Constructor
-  explicit SpherocylinderSegment(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  explicit SpherocylinderSegment(mundy::mesh::BulkData *const bulk_data_ptr,
+                                 const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -86,17 +88,16 @@ class SpherocylinderSegment : public mundy::meta::MetaKernel<> {
     valid_fixed_params.validateParametersAndSetDefaults(SpherocylinderSegment::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
-    std::string element_bounding_radius_field_name = valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
+    std::string element_bounding_radius_field_name =
+        valid_fixed_params.get<std::string>("element_bounding_radius_field_name");
 
-    Teuchos::Array<std::string> valid_entity_part_names =
-        valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
+    auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1));
+      part_reqs->add_field_reqs<double>(element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
       if (part_name == mundy::shapes::SpherocylinderSegments::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -113,10 +114,11 @@ class SpherocylinderSegment : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "valid_entity_part_names", Teuchos::tuple<std::string>(mundy::shapes::SpherocylinderSegments::get_name()),
-        "Name of the parts associated with this kernel.");
-    default_parameter_list.set("element_bounding_radius_field_name", std::string(default_element_bounding_radius_field_name_),
+    default_parameter_list.set("valid_entity_part_names",
+                               mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()),
+                               "Name of the parts associated with this kernel.");
+    default_parameter_list.set("element_bounding_radius_field_name",
+                               std::string(default_element_bounding_radius_field_name_),
                                "Name of the element field within which the output bounding radius will be written.");
     return default_parameter_list;
   }

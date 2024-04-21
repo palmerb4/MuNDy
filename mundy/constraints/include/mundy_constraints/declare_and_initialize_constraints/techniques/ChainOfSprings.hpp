@@ -40,6 +40,7 @@
 #include <mundy_constraints/AngularSprings.hpp>  // for mundy::constraints::AngularSprings
 #include <mundy_constraints/HookeanSprings.hpp>  // for mundy::constraints::HookeanSprings
 #include <mundy_constraints/declare_and_initialize_constraints/techniques/ArchlengthCoordinateMapping.hpp>  // for mundy::constraints::...::ArchlengthCoordinateMapping
+#include <mundy_core/MakeStringArray.hpp>               // for mundy::core::make_string_array
 #include <mundy_core/StringLiteral.hpp>                 // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
@@ -145,7 +146,7 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
 
     if (generate_hookean_springs) {
       Teuchos::Array<std::string> hookean_spring_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>(
-          "hookean_springs_part_names", Teuchos::tuple<std::string>(HookeanSprings::get_name()));
+          "hookean_springs_part_names", mundy::core::make_string_array(HookeanSprings::get_name()));
 
       for (int i = 0; i < hookean_spring_part_names.size(); i++) {
         const std::string part_name = hookean_spring_part_names[i];
@@ -164,7 +165,7 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
 
     if (generate_angular_springs) {
       Teuchos::Array<std::string> angular_spring_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>(
-          "angular_springs_part_names", Teuchos::tuple<std::string>(AngularSprings::get_name()));
+          "angular_springs_part_names", mundy::core::make_string_array(AngularSprings::get_name()));
 
       for (int i = 0; i < angular_spring_part_names.size(); i++) {
         const std::string part_name = angular_spring_part_names[i];
@@ -182,7 +183,8 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     }
 
     if (generate_spheres_at_nodes) {
-      Teuchos::Array<std::string> sphere_part_names = Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name());
+      Teuchos::Array<std::string> sphere_part_names =
+          mundy::core::make_string_array(mundy::shapes::Spheres::get_name());
       for (int i = 0; i < sphere_part_names.size(); i++) {
         const std::string part_name = sphere_part_names[i];
         if (part_name == mundy::shapes::Spheres::get_name()) {
@@ -200,7 +202,7 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
 
     if (generate_spherocylinder_segments_along_edges) {
       Teuchos::Array<std::string> spherocylinder_part_names =
-          Teuchos::tuple<std::string>(mundy::shapes::SpherocylinderSegments::get_name());
+          mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name());
       for (int i = 0; i < spherocylinder_part_names.size(); i++) {
         const std::string part_name = spherocylinder_part_names[i];
         if (part_name == mundy::shapes::SpherocylinderSegments::get_name()) {
@@ -227,20 +229,16 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     default_parameter_list.set<bool>("generate_spheres_at_nodes", false, "Whether to generate spheres at the nodes.");
     default_parameter_list.set<bool>("generate_spherocylinder_segments_along_edges", false,
                                      "Whether to generate spherocylinder segments along the edges.");
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "hookean_springs_part_names", Teuchos::tuple<std::string>(HookeanSprings::get_name()),
-        "The names of the parts to which we will add the generated hookean springs.");
-    default_parameter_list.set<Teuchos::Array<std::string>>(
-        "angular_springs_part_names", Teuchos::tuple<std::string>(AngularSprings::get_name()),
-        "The names of the parts to which we will add the generated angular springs.");
-    default_parameter_list.set<Teuchos::Array<std::string>>("sphere_part_names",
-                               Teuchos::tuple<std::string>(mundy::shapes::Spheres::get_name()),
+    default_parameter_list.set("hookean_springs_part_names", mundy::core::make_string_array(HookeanSprings::get_name()),
+                               "The names of the parts to which we will add the generated hookean springs.");
+    default_parameter_list.set("angular_springs_part_names", mundy::core::make_string_array(AngularSprings::get_name()),
+                               "The names of the parts to which we will add the generated angular springs.");
+    default_parameter_list.set("sphere_part_names", mundy::core::make_string_array(mundy::shapes::Spheres::get_name()),
                                "The names of the parts to which we will add the generated spheres.");
-    default_parameter_list.set<Teuchos::Array<std::string>>("spherocylinder_segment_part_names",
-                               Teuchos::tuple<std::string>(mundy::shapes::SpherocylinderSegments::get_name()),
+    default_parameter_list.set("spherocylinder_segment_part_names",
+                               mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()),
                                "The names of the parts to which we will add the generated spherocylinder segments.");
-                               
-    
+
     return default_parameter_list;
   }
 

@@ -42,6 +42,7 @@
 
 // Mundy libs
 #include <MundyLinkers_config.hpp>                    // for HAVE_MUNDYLINKERS_MUNDYSHAPES
+#include <mundy_core/MakeStringArray.hpp>             // for mundy::core::make_string_array
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>  // for mundy::linkers::GenerateNeighborLinkers
 #include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::Linker and  mundy::linkers::declare_family_tree_relation
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
@@ -297,8 +298,8 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   // default requirements.
   Teuchos::ParameterList compute_aabb_fixed_params = Teuchos::ParameterList();  // Use default parameters.
   Teuchos::ParameterList neighbor_linkers_fixed_params = Teuchos::ParameterList();
-  neighbor_linkers_fixed_params.set<Teuchos::Array<std::string>>(
-      "specialized_neighbor_linkers_part_names", Teuchos::tuple<std::string>(std::string("SPHERE_SPHERE_LINKERS")));
+  neighbor_linkers_fixed_params.set("specialized_neighbor_linkers_part_names",
+                                    mundy::core::make_string_array("SPHERE_SPHERE_LINKERS"));
   auto [compute_aabb_ptr, generate_neighbor_linkers_ptr, bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<mundy::shapes::ComputeAABB,
                                                                                         GenerateNeighborLinkers>(

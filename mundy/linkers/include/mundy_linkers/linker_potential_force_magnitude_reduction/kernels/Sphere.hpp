@@ -35,6 +35,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
+#include <mundy_core/MakeStringArray.hpp>     // for mundy::core::make_string_array
 #include <mundy_linkers/NeighborLinkers.hpp>  // for mundy::linkers::NeighborLinkers
 #include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>            // for mundy::mesh::MetaData
@@ -119,10 +120,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
       part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          linker_potential_force_magnitude_field_name, stk::topology::CONSTRAINT_RANK, 1, 1));
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          linker_contact_normal_field_name, stk::topology::CONSTRAINT_RANK, 3, 1));
+      part_reqs->add_field_reqs<double>(linker_potential_force_magnitude_field_name, stk::topology::CONSTRAINT_RANK, 1,
+                                        1);
+      part_reqs->add_field_reqs<double>(linker_contact_normal_field_name, stk::topology::CONSTRAINT_RANK, 3, 1);
 
       if (part_name == NeighborLinkers::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -143,8 +143,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-          node_force_field_name, stk::topology::NODE_RANK, 3, 1));
+      part_reqs->add_field_reqs<double>(node_force_field_name, stk::topology::NODE_RANK, 3, 1);
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
@@ -162,9 +161,8 @@ class Sphere : public mundy::meta::MetaKernel<> {
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
     static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                                            Teuchos::tuple<std::string>("SPHERES"),
-                                                            "List of valid entity part names for the kernel.");
+    default_parameter_list.set("valid_entity_part_names", mundy::core::make_string_array("SPHERES"),
+                               "List of valid entity part names for the kernel.");
     default_parameter_list.set("name_of_linker_part_to_reduce_over",
                                std::string(default_name_of_linker_part_to_reduce_over_),
                                "The name of the linker part that we will reduce over.");

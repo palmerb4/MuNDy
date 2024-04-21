@@ -171,6 +171,7 @@ Order of operations:
 #include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
 #include <mundy_constraints/DeclareAndInitConstraints.hpp>  // for mundy::constraints::DeclareAndInitConstraints
 #include <mundy_constraints/HookeanSprings.hpp>             // for mundy::constraints::HookeanSprings
+#include <mundy_core/MakeStringArray.hpp>                   // for mundy::core::make_string_array
 #include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
@@ -354,8 +355,8 @@ int main(int argc, char **argv) {
       std::make_shared<DoubleFieldReqs>("ELEMENT_BINDING_RATES", stk::topology::ELEMENT_RANK, 2, 1));
   custom_crosslinkers_part_reqs->add_field_reqs(
       std::make_shared<DoubleFieldReqs>("ELEMENT_UNBINDING_PROBABILITY", stk::topology::ELEMENT_RANK, 2, 1));
-  custom_crosslinkers_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<int>>(
-      "ELEMENT_CROSSLINKER_STATE_CHANGE", stk::topology::ELEMENT_RANK, 1, 1));
+  custom_crosslinkers_part_reqs->add_field_reqs<int>("ELEMENT_CROSSLINKER_STATE_CHANGE", stk::topology::ELEMENT_RANK, 1,
+                                                     1);
   mundy::shapes::Spherocylinders::add_subpart_reqs(custom_crosslinkers_part_reqs);
   mesh_reqs_ptr->merge(mundy::shapes::Spherocylinders::get_mesh_requirements());
 
@@ -372,27 +373,24 @@ int main(int argc, char **argv) {
   // ComputeConstraintForcing fixed parameters
   auto compute_constraint_forcing_fixed_params =
       Teuchos::ParameterList()
-          .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>("HOOKEAN_SPRINGS"))
+          .set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"))
           .sublist("HOOKEAN_SPRINGS")
-          .set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                            Teuchos::tuple<std::string>("HOOKEAN_SPRINGS", "CROSSLINKERS"));
+          .set("valid_entity_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "CROSSLINKERS"));
   mesh_reqs_ptr->merge(
       mundy::constraints::ComputeConstraintForcing::get_mesh_requirements(compute_constraint_forcing_fixed_params));
 
   // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
-  auto compute_ssd_and_cn_fixed_params = Teuchos::ParameterList().set<Teuchos::Array<std::string>>(
-      "enabled_kernel_names", Teuchos::tuple<std::string>(std::string("SPHERE_SPHERE_LINKER")));
+  auto compute_ssd_and_cn_fixed_params =
+      Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKER"));
   mesh_reqs_ptr->merge(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
       compute_ssd_and_cn_fixed_params));
 
   // ComputeAABB fixed parameters
   auto compute_aabb_fixed_params =
       Teuchos::ParameterList()
-          .set<Teuchos::Array<std::string>>(
-              "enabled_kernel_names", Teuchos::tuple<std::string>(std::string("SPHERE"), std::string("SPHEROCYLINDER")))
+          .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER"))
           .sublist("SPHEROCYLINDER")
-          .set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                            Teuchos::tuple<std::string>(std::string("CROSSLINKERS")));
+          .set("valid_entity_part_names", mundy::core::make_string_array("CROSSLINKERS"));
   mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
 
   // GenerateNeighborLinkers fixed parameters
@@ -400,13 +398,10 @@ int main(int argc, char **argv) {
   auto generate_sphere_sphere_neighbor_linkers_fixed_params =
       Teuchos::ParameterList()
           .set("enabled_technique_name", "STK_SEARCH")
-          .set<Teuchos::Array<std::string>>("specialized_neighbor_linkers_part_names",
-                                            Teuchos::tuple<std::string>("SPHERE_SPHERE_LINKERS"))
+          .set("specialized_neighbor_linkers_part_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKERS"))
           .sublist("STK_SEARCH")
-          .set<Teuchos::Array<std::string>>("valid_source_entity_part_names",
-                                            Teuchos::tuple<std::string>(std::string("SPHERES")))
-          .set<Teuchos::Array<std::string>>("valid_target_entity_part_names",
-                                            Teuchos::tuple<std::string>(std::string("SPHERES")));
+          .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHERES"))
+          .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHERES"));
   mesh_reqs_ptr->merge(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
       generate_sphere_sphere_neighbor_linkers_fixed_params));
 
@@ -414,26 +409,23 @@ int main(int argc, char **argv) {
   auto generate_crosslinker_sphere_neighbor_linkers_fixed_params =
       Teuchos::ParameterList()
           .set("enabled_technique_name", "STK_SEARCH")
-          .set<Teuchos::Array<std::string>>("specialized_neighbor_linkers_part_names",
-                                            Teuchos::tuple<std::string>("CROSSLINKER_SPHERE_LINKERS"))
+          .set("specialized_neighbor_linkers_part_names", mundy::core::make_string_array("CROSSLINKER_SPHERE_LINKERS"))
           .sublist("STK_SEARCH")
-          .set<Teuchos::Array<std::string>>("valid_source_entity_part_names",
-                                            Teuchos::tuple<std::string>(std::string("CROSSLINKERS")))
-          .set<Teuchos::Array<std::string>>("valid_target_entity_part_names",
-                                            Teuchos::tuple<std::string>(std::string("SPHERES")));
+          .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("CROSSLINKERS")))
+          .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHERES"));
   mesh_reqs_ptr->merge(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
       generate_crosslinker_sphere_neighbor_linkers_fixed_params));
 
   // EvaluateLinkerPotentials fixed parameters
-  auto evaluate_linker_potentials_fixed_params = Teuchos::ParameterList().set<Teuchos::Array<std::string>>(
-      "enabled_kernel_names", Teuchos::tuple<std::string>("SPHERE_SPHERE_HERTZIAN_CONTACT"));
+  auto evaluate_linker_potentials_fixed_params = Teuchos::ParameterList().set(
+      "enabled_kernel_names", mundy::core::make_string_array("SPHERE_SPHERE_HERTZIAN_CONTACT"));
   mesh_reqs_ptr->merge(
       mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
 
   // LinkerPotentialForceMagnitudeReduction fixed parameters
   auto linker_potential_force_magnitude_reduction_fixed_params =
       Teuchos::ParameterList()
-          .set<Teuchos::Array<std::string>>("enabled_kernel_names", Teuchos::tuple<std::string>("SPHERE"))
+          .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
           .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS");
   mesh_reqs_ptr->merge(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
       linker_potential_force_magnitude_reduction_fixed_params));
@@ -443,11 +435,9 @@ int main(int argc, char **argv) {
       Teuchos::ParameterList()
           .set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS")
           .sublist("DESTROY_DISTANT_NEIGHBORS")
-          .set<Teuchos::Array<std::string>>("valid_entity_part_names",
-                                            Teuchos::tuple<std::string>(std::string("NEIGHBOR_LINKERS")))
-          .set<Teuchos::Array<std::string>>(
-              "valid_connected_source_and_target_part_names",
-              Teuchos::tuple<std::string>(std::string("SPHERES"), std::string("CROSSLINKERS")));
+          .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
+          .set("valid_connected_source_and_target_part_names",
+               mundy::core::make_string_array(std::string("SPHERES"), std::string("CROSSLINKERS")));
   mesh_reqs_ptr->merge(
       mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params));
 
@@ -456,9 +446,8 @@ int main(int argc, char **argv) {
       Teuchos::ParameterList()
           .set("enabled_technique_name", "CHAIN_OF_SPRINGS")
           .sublist("CHAIN_OF_SPRINGS")
-          .set<Teuchos::Array<std::string>>("hookean_springs_part_names",
-                                            Teuchos::tuple<std::string>("HOOKEAN_SPRINGS"))
-          .set<Teuchos::Array<std::string>>("sphere_part_names", Teuchos::tuple<std::string>("SPHERES"))
+          .set("hookean_springs_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"))
+          .set("sphere_part_names", mundy::core::make_string_array("SPHERES"))
           .set<bool>("generate_hookean_springs", true)
           .set<bool>("generate_spheres_at_nodes", true);
   mesh_reqs_ptr->merge(

@@ -218,8 +218,10 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
             double potential_force_magnitude =
                 stk::mesh::field_data(linker_potential_force_magnitude_field, connected_linker)[0];
 
-            const double numerator = -mundy::math::dot(right_node_coord - contact_point, right_node_coord - left_node_coord);
-            const double denominator = mundy::math::dot(left_node_coord - contact_point, right_node_coord - left_node_coord);
+            const double numerator =
+                -mundy::math::dot(right_node_coord - contact_point, right_node_coord - left_node_coord);
+            const double denominator =
+                mundy::math::dot(left_node_coord - contact_point, right_node_coord - left_node_coord);
             const bool numerator_near_zero = std::abs(numerator) < 1e-12;      // TODO(replace with fancy tol)
             const bool denominator_near_zero = std::abs(denominator) < 1e-12;  // TODO(replace with fancy tol)
 
