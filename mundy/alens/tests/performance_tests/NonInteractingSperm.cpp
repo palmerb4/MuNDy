@@ -26,23 +26,24 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 #include <openrand/philox.h>
 
 // Trilinos libs
-#include <Kokkos_Core.hpp>                   // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
-#include <Teuchos_CommandLineProcessor.hpp>  // for Teuchos::CommandLineProcessor
-#include <Teuchos_ParameterList.hpp>         // for Teuchos::ParameterList
-#include <stk_balance/balance.hpp>           // for stk::balance::balanceStkMesh, stk::balance::BalanceSettings
-#include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
-#include <stk_mesh/base/Comm.hpp>            // for stk::mesh::comm_mesh_counts
-#include <stk_mesh/base/CreateEdges.hpp>     // for stk::mesh::create_edges
-#include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
-#include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
-#include <stk_mesh/base/FEMHelpers.hpp>      // for stk::mesh::declare_element
-#include <stk_mesh/base/Field.hpp>           // for stk::mesh::Field, stk::mesh::field_data
-#include <stk_mesh/base/FieldParallel.hpp>   // for stk::mesh::parallel_sum
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
-#include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>         // for stk::topology
-#include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
+#include <Kokkos_Core.hpp>                       // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
+#include <Teuchos_CommandLineProcessor.hpp>      // for Teuchos::CommandLineProcessor
+#include <Teuchos_ParameterList.hpp>             // for Teuchos::ParameterList
+#include <Teuchos_YamlParameterListHelpers.hpp>  // for Teuchos::getParametersFromYamlFile
+#include <stk_balance/balance.hpp>               // for stk::balance::balanceStkMesh, stk::balance::BalanceSettings
+#include <stk_io/StkMeshIoBroker.hpp>            // for stk::io::StkMeshIoBroker
+#include <stk_mesh/base/Comm.hpp>                // for stk::mesh::comm_mesh_counts
+#include <stk_mesh/base/CreateEdges.hpp>         // for stk::mesh::create_edges
+#include <stk_mesh/base/DumpMeshInfo.hpp>        // for stk::mesh::impl::dump_all_mesh_info
+#include <stk_mesh/base/Entity.hpp>              // for stk::mesh::Entity
+#include <stk_mesh/base/FEMHelpers.hpp>          // for stk::mesh::declare_element
+#include <stk_mesh/base/Field.hpp>               // for stk::mesh::Field, stk::mesh::field_data
+#include <stk_mesh/base/FieldParallel.hpp>       // for stk::mesh::parallel_sum
+#include <stk_mesh/base/ForEachEntity.hpp>       // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/Part.hpp>                // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>            // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>             // for stk::topology
+#include <stk_util/parallel/Parallel.hpp>        // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
 #include <mundy_core/MakeStringArray.hpp>  // for mundy::core::make_string_array
@@ -152,37 +153,76 @@ class SpermSimulation {
 #endif
   }
 
-  bool parse_user_inputs(int argc, char **argv) {
+  void parse_user_inputs(int argc, char **argv) {
     debug_print("Parsing user inputs.");
 
     // Parse the command line options.
-    Teuchos::CommandLineProcessor cmdp(false, true);
+    Teuchos::CommandLineProcessor cmdp(false, false);
 
-    // Optional command line arguments for controlling
-    //   Sperm initialization:
-    cmdp.setOption("num_sperm", &num_sperm_, "Number of sperm.");
-    cmdp.setOption("num_nodes_per_sperm", &num_nodes_per_sperm_, "Number of nodes per sperm.");
-    cmdp.setOption("sperm_radius", &sperm_radius_, "The radius of each sperm.");
-    cmdp.setOption("sperm_initial_segment_length", &sperm_initial_segment_length_, "Initial sperm segment length.");
-    cmdp.setOption("sperm_rest_segment_length", &sperm_rest_segment_length_, "Rest sperm segment length.");
-    cmdp.setOption("sperm_rest_curvature_twist", &sperm_rest_curvature_twist_, "Rest curvature (twist) of the sperm.");
-    cmdp.setOption("sperm_rest_curvature_bend1", &sperm_rest_curvature_bend1_,
-                   "Rest curvature (bend along the first coordinate direction) of the sperm.");
-    cmdp.setOption("sperm_rest_curvature_bend2", &sperm_rest_curvature_bend2_,
-                   "Rest curvature (bend along the second coordinate direction) of the sperm.");
+    // If we should accept the parameters directly from the command line or from a file
+    bool use_input_file = false;
+    cmdp.setOption("use_input_file", "no_use_input_file", &use_input_file, "Use an input file.");
+    bool use_input_file_found = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
+    MUNDY_THROW_ASSERT(use_input_file_found, std::invalid_argument, "Failed to parse the command line arguments.");
 
-    cmdp.setOption("sperm_density", &sperm_density_, "Density of the sperm.");
-    cmdp.setOption("sperm_youngs_modulus", &sperm_youngs_modulus_, "Young's modulus of the sperm.");
-    cmdp.setOption("sperm_poissons_ratio", &sperm_poissons_ratio_, "Poisson's ratio of the sperm.");
-    cmdp.setOption("sperm_density", &sperm_density_, "Density of the sperm.");
+    // Switch to requiring that all options must be recognized.
+    cmdp.recogniseAllOptions(true);
 
-    //   The simulation:
-    cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
-    cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
-    cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
+    if (!use_input_file) {
+      // Parse the command line options.
 
-    bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    return was_parse_successful;
+      //   Sperm initialization:
+      cmdp.setOption("num_sperm", &num_sperm_, "Number of sperm.");
+      cmdp.setOption("num_nodes_per_sperm", &num_nodes_per_sperm_, "Number of nodes per sperm.");
+      cmdp.setOption("sperm_radius", &sperm_radius_, "The radius of each sperm.");
+      cmdp.setOption("sperm_initial_segment_length", &sperm_initial_segment_length_, "Initial sperm segment length.");
+      cmdp.setOption("sperm_rest_segment_length", &sperm_rest_segment_length_, "Rest sperm segment length.");
+      cmdp.setOption("sperm_rest_curvature_twist", &sperm_rest_curvature_twist_,
+                     "Rest curvature (twist) of the sperm.");
+      cmdp.setOption("sperm_rest_curvature_bend1", &sperm_rest_curvature_bend1_,
+                     "Rest curvature (bend along the first coordinate direction) of the sperm.");
+      cmdp.setOption("sperm_rest_curvature_bend2", &sperm_rest_curvature_bend2_,
+                     "Rest curvature (bend along the second coordinate direction) of the sperm.");
+
+      cmdp.setOption("sperm_density", &sperm_density_, "Density of the sperm.");
+      cmdp.setOption("sperm_youngs_modulus", &sperm_youngs_modulus_, "Young's modulus of the sperm.");
+      cmdp.setOption("sperm_poissons_ratio", &sperm_poissons_ratio_, "Poisson's ratio of the sperm.");
+      cmdp.setOption("sperm_density", &sperm_density_, "Density of the sperm.");
+
+      //   The simulation:
+      cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
+      cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
+      cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
+
+      bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
+      MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+    } else {
+      cmdp.setOption("input_file", &input_file_name_, "The name of the input file.");
+      bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
+      MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+
+      // Read in the parameters from the parameter list.
+      Teuchos::ParameterList param_list_ = *Teuchos::getParametersFromYamlFile(input_file_name_);
+
+      num_sperm_ = param_list_.get<int>("num_sperm");
+      num_nodes_per_sperm_ = param_list_.get<int>("num_nodes_per_sperm");
+      sperm_radius_ = param_list_.get<double>("sperm_radius");
+      sperm_initial_segment_length_ = param_list_.get<double>("sperm_initial_segment_length");
+      sperm_rest_segment_length_ = param_list_.get<double>("sperm_rest_segment_length");
+      sperm_rest_curvature_twist_ = param_list_.get<double>("sperm_rest_curvature_twist");
+      sperm_rest_curvature_bend1_ = param_list_.get<double>("sperm_rest_curvature_bend1");
+      sperm_rest_curvature_bend2_ = param_list_.get<double>("sperm_rest_curvature_bend2");
+
+      sperm_density_ = param_list_.get<double>("sperm_density");
+      sperm_youngs_modulus_ = param_list_.get<double>("sperm_youngs_modulus");
+      sperm_poissons_ratio_ = param_list_.get<double>("sperm_poissons_ratio");
+      sperm_poissons_ratio_ = param_list_.get<double>("sperm_poissons_ratio");
+
+      num_time_steps_ = param_list_.get<int>("num_time_steps");
+      timestep_size_ = param_list_.get<double>("timestep_size");
+    }
+
+    check_input_parameters();
   }
 
   void check_input_parameters() {
@@ -201,6 +241,7 @@ class SpermSimulation {
 
     MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
     MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
   }
 
   void dump_user_inputs() {
@@ -221,6 +262,7 @@ class SpermSimulation {
       std::cout << "  sperm_density_: " << sperm_density_ << std::endl;
       std::cout << "  num_time_steps_: " << num_time_steps_ << std::endl;
       std::cout << "  timestep_size_: " << timestep_size_ << std::endl;
+      std::cout << "  io_frequency_: " << io_frequency_ << std::endl;
       std::cout << "##################################################" << std::endl;
     }
   }
@@ -429,9 +471,9 @@ class SpermSimulation {
         stk::mesh::EntityId spring_id = get_centerline_twist_spring_id(i);
         stk::mesh::Entity spring =
             stk::mesh::declare_element(*bulk_data_ptr_, *centerline_twist_springs_part_ptr_, spring_id, elem_node_ids);
-          MUNDY_THROW_ASSERT( bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY, std::logic_error,
-                           "The centerline twist spring with id " << spring_id << 
-                           " has an invalid topology.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY,
+                           std::logic_error,
+                           "The centerline twist spring with id " << spring_id << " has an invalid topology.");
 
         // Note, the connectivity for a SHELL_TRI_3 is as follows:
         /*                    2
@@ -448,8 +490,8 @@ class SpermSimulation {
         //
         //                  Edge #0
         */
-        // We use SHELL_TRI_3 for the centerline twist springs, so that we have access to two edges (edge #0 and #1) and three
-        // nodes. As such, our diagram is
+        // We use SHELL_TRI_3 for the centerline twist springs, so that we have access to two edges (edge #0 and #1) and
+        // three nodes. As such, our diagram is
         /*                    2
         //                    o
         //                     \
@@ -475,9 +517,17 @@ class SpermSimulation {
       // Set the node data
       for (size_t i = start_seq_node_index; i < end_seq_node_index; ++i) {
         stk::mesh::Entity node = get_node(i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
+                           "The node with id " << get_node_id(i) << " is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
+                           "The node must be a member of the centerline twist part.");
 
         mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) =
-            tail_coord + sperm_axis * i * sperm_initial_segment_length_;
+            tail_coord + sperm_axis * static_cast<double>(i) * sperm_initial_segment_length_;
+
+        std::cout << "Node " << get_node_id(i) << " has coordinates "
+                  << mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) << std::endl;
+
         mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node).set(0.0, 0.0, 0.0);
         mundy::mesh::vector3_field_data(*node_force_field_ptr_, node).set(0.0, 0.0, 0.0);
         mundy::mesh::vector3_field_data(*node_acceleration_field_ptr_, node).set(0.0, 0.0, 0.0);
@@ -490,8 +540,6 @@ class SpermSimulation {
         stk::mesh::field_data(*node_radius_field_ptr_, node)[0] = sperm_radius_;
         stk::mesh::field_data(*node_archlength_field_ptr_, node)[0] = i * sperm_initial_segment_length_;
       }
-
-
 
       // Share the nodes with the neighboring ranks.
       // Note, node sharing is symmetric. If we don't own the node that we intend to share, we need to declare it before
@@ -534,15 +582,15 @@ class SpermSimulation {
         }
       }
 
-
       bulk_data_ptr_->modification_end();
 
-      // I think topology might update post modification end
+#ifdef DEBUG
       for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
         stk::mesh::Entity spring = get_centerline_twist_spring(i);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).member(*centerline_twist_springs_part_ptr_), std::logic_error,
                            "The centerline twist spring must be a member of the centerline twist part.");
-        MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
+        MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3,
+                           std::logic_error,
                            "The centerline twist part must have SHELL_TRI_3 topology. Instead, it has topology "
                                << centerline_twist_springs_part_ptr_->topology());
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).entity_rank() == stk::topology::ELEMENT_RANK,
@@ -564,12 +612,14 @@ class SpermSimulation {
         debug_print(std::string("Num elements pre create_edges: ") +
                     std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
       }
+#endif
 
       // Create the edges and connect them to the nodes.
       // The canonical way to create and share edges is stk's create_edges method
       stk::mesh::create_edges(*bulk_data_ptr_, stk::mesh::Selector(*centerline_twist_springs_part_ptr_),
                               centerline_twist_springs_part_ptr_);
 
+#ifdef DEBUG
       {
         std::vector<size_t> entity_counts;
         stk::mesh::comm_mesh_counts(*bulk_data_ptr_, entity_counts);
@@ -580,6 +630,7 @@ class SpermSimulation {
         debug_print(std::string("Num elements post create_edges: ") +
                     std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
       }
+#endif
 
       // Populate the edge data
       stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
@@ -687,10 +738,12 @@ class SpermSimulation {
     stk::mesh::Field<double> &edge_binormal_field = *edge_binormal_field_ptr_;
     stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
 
-    // For each edge in the centerline twist part, compute the edge tangent, binormal, and length.
+    // For each edge in the centerline twist part, compute the edge tangent, binormal, length, and orientation.
     // length^i = ||x_{i+1} - x_i||
     // edge_tangent^i = (x_{i+1} - x_i) / length
     // edge_binormal^i = (2 edge_tangent_old^i x edge_tangent^i) / (1 + edge_tangent_old^i dot edge_tangent^i)
+    // edge_orientation^i = p_T
+
     auto locally_owned_selector =
         stk::mesh::Selector(centerline_twist_springs_part) & meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(
@@ -867,6 +920,23 @@ class SpermSimulation {
           double *node_im1_twist_torque = stk::mesh::field_data(node_twist_torque_field, node_im1);
           double *node_i_twist_torque = stk::mesh::field_data(node_twist_torque_field, node_i);
 
+          // For debug purposes, we'll print the input and output fields
+          std::cout << "Node " << bulk_data.identifier(node_i) << std::endl;
+          std::cout << "\t has curvature " << node_i_curvature << std::endl;
+          std::cout << "\t has rest curvature " << node_i_rest_curvature << std::endl;
+          std::cout << "\t has rotation gradient " << node_i_rotation_gradient << std::endl;
+
+          std::cout << "Edge " << bulk_data.identifier(edge_im1) << std::endl;
+          std::cout << "\t has tangent " << edge_im1_tangent << std::endl;
+          std::cout << "\t has binormal " << edge_im1_binormal << std::endl;
+          std::cout << "\t has length " << edge_im1_length << std::endl;
+          std::cout << "\t has orientation " << edge_im1_orientation << std::endl;
+
+          std::cout << "Edge " << bulk_data.identifier(edge_i) << std::endl;
+          std::cout << "\t has tangent " << edge_i_tangent << std::endl;
+          std::cout << "\t has binormal " << edge_i_binormal << std::endl;
+          std::cout << "\t has length " << edge_i_length << std::endl;
+
           // Compute the torque induced by the curvature
           // To start, the torque is in the lagrangian frame.
           auto bending_modulus =
@@ -890,6 +960,11 @@ class SpermSimulation {
                0.5 * mundy::math::dot(edge_im1_tangent, bending_torque) *
                    (mundy::math::dot(edge_im1_tangent, edge_im1_binormal) * edge_im1_tangent - edge_im1_binormal));
 
+          std::cout << "Bending modulus " << bending_modulus << std::endl;
+          std::cout << "Bending torque " << bending_torque << std::endl;
+          std::cout << "Tmp force ip1 " << tmp_force_ip1 << std::endl;
+          std::cout << "Tmp force im1 " << tmp_force_im1 << std::endl;
+
 #pragma omp atomic
           node_i_twist_torque[0] += mundy::math::dot(edge_i_tangent, bending_torque);
 #pragma omp atomic
@@ -912,6 +987,19 @@ class SpermSimulation {
           node_im1_force[1] += tmp_force_im1[1];
 #pragma omp atomic
           node_im1_force[2] += tmp_force_im1[2];
+
+          std::cout << "Node " << bulk_data.identifier(node_im1) << std::endl;
+          std::cout << "\t has force " << mundy::math::get_vector3_view<double>(node_im1_force) << std::endl;
+          std::cout << "\t has twist torque " << mundy::math::get_vector3_view<double>(node_im1_twist_torque)
+                    << std::endl;
+
+          std::cout << "Node " << bulk_data.identifier(node_i) << std::endl;
+          std::cout << "\t has force " << mundy::math::get_vector3_view<double>(node_i_force) << std::endl;
+          std::cout << "\t has twist torque " << mundy::math::get_vector3_view<double>(node_i_twist_torque)
+                    << std::endl;
+
+          std::cout << "Node " << bulk_data.identifier(node_ip1) << std::endl;
+          std::cout << "\t has force " << mundy::math::get_vector3_view<double>(node_ip1_force) << std::endl;
         });
 
     // Compute internal force induced by differences in rest and current length
@@ -1054,18 +1142,14 @@ class SpermSimulation {
     debug_print("Running the simulation.");
 
     // Preprocess
-    if (!parse_user_inputs(argc, argv)) {
-      print_rank0("Failed to parse user inputs.");
-      return;
-    }
-    check_input_parameters();
+    parse_user_inputs(argc, argv);
     dump_user_inputs();
 
     // Setup
     build_our_mesh_and_method_instances();
     fetch_fields_and_parts();
-    setup_io();
     declare_and_initialize_sperm();
+    setup_io();
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
@@ -1073,9 +1157,6 @@ class SpermSimulation {
     Kokkos::Timer timer;
     for (size_t i = 0; i < num_time_steps_; i++) {
       debug_print(std::string("Time step ") + std::to_string(i) + " of " + std::to_string(num_time_steps_));
-
-      // Rotate the field states.
-      rotate_field_states();
 
       // IO. If desired, write out the data for time t.
       if (i % io_frequency_ == 0) {
@@ -1202,6 +1283,7 @@ class SpermSimulation {
 
   //! \name User parameters
   //@{
+  std::string input_file_name_ = "input.yaml";
 
   size_t num_sperm_ = 1;
   size_t num_nodes_per_sperm_ = 10;
