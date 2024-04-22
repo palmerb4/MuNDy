@@ -954,6 +954,40 @@ KOKKOS_FUNCTION Quaternion<std::remove_const_t<T>> euler_to_quat(const T phi, co
   quat.z() = cha1 * cha2 * sha3 - sha1 * sha2 * cha3;
   return quat;
 }
+
+/// \brief Get the quaternion that perform parallel transport from vector v1 to vector v2
+/// \param[in] v1 The first vector.
+/// \param[in] v2 The second vector.
+///
+///The parallel transport quaternion from a to b is given by
+///
+/// p_a^b 
+///  = \frac{1}{\sqrt{2}} \sqrt{1 + a \cdot b} \left( 1 + \frac{a \times b}{1 + a \cdot b} \right)
+///  = \frac{1}{\sqrt{2}} \left( \sqrt{1 + a \cdot b} + \frac{a \times b}{\sqrt{1 + a \cdot b}} \right)
+///  = \sqrt{\frac{1 + a \cdot b}{2}} + \frac{1}{2} \frac{a \times b}{\sqrt{(1 + a \cdot b) / 2}}
+///
+/// This equation comes from J. Linn's 2020 "Discrete Cosserat rod kinematics constricted on the basis
+/// of the difference geometry of framed curves," and as shown above, is identical to the equation given in K. Korner's "Simple
+/// deformation measures for discrete elastic rods and ribbons."
+template <typename U, typename OtherAccessor, typename T, typename Accessor>
+  requires (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>)
+KOKKOS_FUNCTION auto quat_from_parallel_transport(const Vector3<U, OtherAccessor> &v_from, const Vector3<T, Accessor> &v_to)
+    -> Quaternion<decltype(U() * T())> {
+  // Get the quaternion that performs parallel transport from vector v_from to vector v_to
+  using CommonType = decltype(U() * T());
+  Quaternion<CommonType> quat;
+
+  // Compute the dot product and cross product
+  const auto dot_product = dot(v_from, v_to);
+  const auto cross_product = cross(v_from, v_to);
+  const double sqrt_term = std::sqrt(0.5 * (1.0 + dot_product));
+  const auto vec = 0.5 * cross_product / sqrt_term;
+  quat.w() = sqrt_term;
+  quat.x() = vec[0];
+  quat.y() = vec[1];
+  quat.z() = vec[2];
+  return quat;
+}
 //@}
 
 //! \name Quaternion<T, Accessor> views
