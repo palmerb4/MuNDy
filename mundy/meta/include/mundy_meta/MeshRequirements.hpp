@@ -133,7 +133,7 @@ class MeshRequirements {
   ///
   /// \tparam FieldType [in] The type of the field to add to the mesh.
   template <typename FieldType>
-  MeshRequirements& add_field(const std::string& field_name, const stk::topology::rank_t field_rank,
+  MeshRequirements& add_field_reqs(const std::string& field_name, const stk::topology::rank_t field_rank,
                               const unsigned field_dimension, const unsigned field_min_number_of_states) {
     return add_field_reqs(std::make_shared<FieldRequirements<FieldType>>(field_name, field_rank, field_dimension,
                                                                          field_min_number_of_states));
