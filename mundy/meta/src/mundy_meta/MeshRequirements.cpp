@@ -233,7 +233,7 @@ std::vector<std::string> MeshRequirements::get_mesh_attribute_names() {
 //{
 std::shared_ptr<mundy::mesh::BulkData> MeshRequirements::declare_mesh() const {
   MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
-                     "MeshRequirements: The MPI communicator must be ste before calling declare_mesh.\n"
+                     "MeshRequirements: The MPI communicator must be set before calling declare_mesh.\n"
                          << "The current set of requirements is:\n"
                          << get_reqs_as_a_string());
 

@@ -31,9 +31,11 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 #include <Teuchos_ParameterList.hpp>         // for Teuchos::ParameterList
 #include <stk_balance/balance.hpp>           // for stk::balance::balanceStkMesh, stk::balance::BalanceSettings
 #include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
+#include <stk_mesh/base/Comm.hpp>            // for stk::mesh::comm_mesh_counts
 #include <stk_mesh/base/CreateEdges.hpp>     // for stk::mesh::create_edges
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
+#include <stk_mesh/base/FEMHelpers.hpp>      // for stk::mesh::declare_element
 #include <stk_mesh/base/Field.hpp>           // for stk::mesh::Field, stk::mesh::field_data
 #include <stk_mesh/base/FieldParallel.hpp>   // for stk::mesh::parallel_sum
 #include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
@@ -55,6 +57,8 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 #include <mundy_meta/FieldRequirements.hpp>         // for mundy::meta::FieldRequirements
 #include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
 #include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
+
+#define DEBUG
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -227,17 +231,18 @@ class SpermSimulation {
     // Setup the mesh requirements.
     // First, we need to fetch the mesh requirements for each method, then we can create the class instances.
     // In the future, all of this will be done via the Configurator.
+    mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);
     mesh_reqs_ptr_->set_spatial_dimension(3);
     mesh_reqs_ptr_->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
     // Add custom requirements for this example. These are requirements that exceed those of the enabled methods and
     // allow us to extend the functionality offered natively by Mundy.
     //
-    // We require that the centerline twist springs part exists, has a BEAM_3 topology, and has the desired
+    // We require that the centerline twist springs part exists, has a SHELL_TRI_3 topology, and has the desired
     // node/edge/element fields.
     auto clt_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
     clt_part_reqs->set_part_name("CENTERLINE_TWIST_SPRINGS")
-        .set_part_topology(stk::topology::BEAM_3)
+        .set_part_topology(stk::topology::SHELL_TRI_3)
 
         // Add the node fields
         .add_field_reqs<double>("NODE_COORDINATES", node_rank_, 3, 2)
@@ -253,6 +258,8 @@ class SpermSimulation {
         .add_field_reqs<double>("NODE_CURVATURE", node_rank_, 3, 1)
         .add_field_reqs<double>("NODE_REST_CURVATURE", node_rank_, 3, 1)
         .add_field_reqs<double>("NODE_ROTATION_GRADIENT", node_rank_, 4, 1)
+        .add_field_reqs<double>("NODE_RADIUS", node_rank_, 1, 1)
+        .add_field_reqs<double>("NODE_ARCHLENGTH", node_rank_, 1, 1)
 
         // Add the edge fields
         .add_field_reqs<double>("EDGE_ORIENTATION", edge_rank_, 4, 2)
@@ -266,6 +273,7 @@ class SpermSimulation {
         .add_field_reqs<double>("ELEMENT_POISSONS_RATIO", element_rank_, 1, 1)
         .add_field_reqs<double>("ELEMENT_REST_LENGTH", element_rank_, 1, 1);
     mesh_reqs_ptr_->add_part_reqs(clt_part_reqs);
+    mesh_reqs_ptr_->print_reqs();
 
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
@@ -305,6 +313,7 @@ class SpermSimulation {
     node_rest_curvature_field_ptr_ = fetch_field<double>("NODE_REST_CURVATURE", node_rank_);
     node_rotation_gradient_field_ptr_ = fetch_field<double>("NODE_ROTATION_GRADIENT", node_rank_);
     node_radius_field_ptr_ = fetch_field<double>("NODE_RADIUS", node_rank_);
+    node_archlength_field_ptr_ = fetch_field<double>("NODE_ARCHLENGTH", node_rank_);
 
     edge_orientation_field_ptr_ = fetch_field<double>("EDGE_ORIENTATION", edge_rank_);
     edge_tangent_field_ptr_ = fetch_field<double>("EDGE_TANGENT", edge_rank_);
@@ -318,6 +327,8 @@ class SpermSimulation {
 
     // Fetch the parts
     centerline_twist_springs_part_ptr_ = fetch_part("CENTERLINE_TWIST_SPRINGS");
+    MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
+                       "CENTERLINE_TWIST_SPRINGS part must have SHELL_TRI_3 topology.");
   }
 
   void setup_io() {
@@ -328,7 +339,7 @@ class SpermSimulation {
 
     // Setup the IO broker
     stk_io_broker_.use_simple_fields();
-    stk_io_broker_.set_bulk_data(*bulk_data_ptr_.get());
+    stk_io_broker_.set_bulk_data(*bulk_data_ptr_);
 
     output_file_index_ = stk_io_broker_.create_output_mesh("Sperm.exo", stk::io::WRITE_RESULTS);
     stk_io_broker_.add_field(output_file_index_, *node_coord_field_ptr_);
@@ -343,6 +354,7 @@ class SpermSimulation {
     stk_io_broker_.add_field(output_file_index_, *node_rest_curvature_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *node_rotation_gradient_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *node_radius_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *node_archlength_field_ptr_);
 
     stk_io_broker_.add_field(output_file_index_, *edge_orientation_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *edge_tangent_field_ptr_);
@@ -358,7 +370,7 @@ class SpermSimulation {
   void declare_and_initialize_sperm() {
     debug_print("Declaring and initializing the sperm.");
 
-    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_.get();
+    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
 
     // Declare N spring chains with a slight shift to each chain
     for (size_t j = 0; j < num_sperm_; j++) {
@@ -402,13 +414,68 @@ class SpermSimulation {
       const size_t end_seq_node_index = start_seq_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
 
       bulk_data_ptr_->modification_begin();
-      for (size_t i = start_seq_node_index; i < end_seq_node_index; ++i) {
-        // Create the node.
-        stk::mesh::EntityId our_node_id = get_node_id(i);
-        stk::mesh::Entity node = bulk_data_ptr_->declare_node(our_node_id);
-        bulk_data_ptr_->change_entity_parts(node, stk::mesh::PartVector{centerline_twist_springs_part_ptr_});
+      // Centerline twist springs connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
+      const size_t start_element_chain_index = start_seq_node_index;
+      const size_t end_start_element_chain_index =
+          (rank == bulk_data_ptr_->parallel_size() - 1) ? end_seq_node_index - 2 : end_seq_node_index - 1;
+      for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
+        // Fetch the nodes
+        stk::mesh::EntityId left_node_id = get_node_id(i);
+        stk::mesh::EntityId center_node_id = get_node_id(i + 1);
+        stk::mesh::EntityId right_node_id = get_node_id(i + 2);
+        auto elem_node_ids = stk::mesh::EntityIdVector{left_node_id, center_node_id, right_node_id};
 
-        // Set the node's data
+        // Create the centerline twist spring and connect it to the nodes.
+        stk::mesh::EntityId spring_id = get_centerline_twist_spring_id(i);
+        stk::mesh::Entity spring =
+            stk::mesh::declare_element(*bulk_data_ptr_, *centerline_twist_springs_part_ptr_, spring_id, elem_node_ids);
+          MUNDY_THROW_ASSERT( bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY, std::logic_error,
+                           "The centerline twist spring with id " << spring_id << 
+                           " has an invalid topology.");
+
+        // Note, the connectivity for a SHELL_TRI_3 is as follows:
+        /*                    2
+        //                    o
+        //                   / \
+        //                  /   \
+        //                 /     \
+        //   Edge #2      /       \     Edge #1
+        //               /         \
+        //              /           \
+        //             /             \
+        //            o---------------o
+        //           0                 1
+        //
+        //                  Edge #0
+        */
+        // We use SHELL_TRI_3 for the centerline twist springs, so that we have access to two edges (edge #0 and #1) and three
+        // nodes. As such, our diagram is
+        /*                    2
+        //                    o
+        //                     \
+        //                      \
+        //                       \
+        //                        \     Edge #1
+        //                         \
+        //                          \
+        //                           \
+        //            o---------------o
+        //           0                 1
+        //
+        //                  Edge #0
+        */
+
+        // Populate the spring's data
+        stk::mesh::field_data(*element_radius_field_ptr_, spring)[0] = sperm_radius_;
+        stk::mesh::field_data(*element_youngs_modulus_field_ptr_, spring)[0] = sperm_youngs_modulus_;
+        stk::mesh::field_data(*element_poissons_ratio_field_ptr_, spring)[0] = sperm_poissons_ratio_;
+        stk::mesh::field_data(*element_rest_length_field_ptr_, spring)[0] = sperm_rest_segment_length_;
+      }
+
+      // Set the node data
+      for (size_t i = start_seq_node_index; i < end_seq_node_index; ++i) {
+        stk::mesh::Entity node = get_node(i);
+
         mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) =
             tail_coord + sperm_axis * i * sperm_initial_segment_length_;
         mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node).set(0.0, 0.0, 0.0);
@@ -424,39 +491,7 @@ class SpermSimulation {
         stk::mesh::field_data(*node_archlength_field_ptr_, node)[0] = i * sperm_initial_segment_length_;
       }
 
-      // Centerline twist springs connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
-      const size_t start_element_chain_index = start_seq_node_index;
-      const size_t end_start_element_chain_index =
-          (rank == bulk_data_ptr_->parallel_size() - 1) ? end_seq_node_index - 2 : end_seq_node_index - 1;
-      for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
-        // Create the centerline twist spring.
-        stk::mesh::EntityId spring_id = get_centerline_twist_spring_id(i);
-        stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id);
-        bulk_data_ptr_->change_entity_parts(spring, stk::mesh::PartVector{centerline_twist_springs_part_ptr_});
 
-        // Fetch the nodes and connect them to the spring.
-        // To map our sequential index to the node sequential index, we connect to node i, i + 1, and i + 2.
-        // Our center node is node i. Note, the node ordinals for BEAM_3 are
-        /* n1        n2
-        //   \      /
-        //    e1   e2
-        //     \  /
-        //      n3
-        */
-        stk::mesh::Entity left_node = get_node(i);
-        stk::mesh::Entity center_node = get_node(i + 1);
-        stk::mesh::Entity right_node = get_node(i + 2);
-
-        bulk_data_ptr_->declare_relation(spring, left_node, 0);
-        bulk_data_ptr_->declare_relation(spring, right_node, 1);
-        bulk_data_ptr_->declare_relation(spring, center_node, 2);
-
-        // Populate the spring's data
-        stk::mesh::field_data(*element_radius_field_ptr_, spring)[0] = sperm_radius_;
-        stk::mesh::field_data(*element_youngs_modulus_field_ptr_, spring)[0] = sperm_youngs_modulus_;
-        stk::mesh::field_data(*element_poissons_ratio_field_ptr_, spring)[0] = sperm_poissons_ratio_;
-        stk::mesh::field_data(*element_rest_length_field_ptr_, spring)[0] = sperm_rest_segment_length_;
-      }
 
       // Share the nodes with the neighboring ranks.
       // Note, node sharing is symmetric. If we don't own the node that we intend to share, we need to declare it before
@@ -498,11 +533,53 @@ class SpermSimulation {
           bulk_data_ptr_->add_node_sharing(received_last_node, rank + 1);
         }
       }
+
+
       bulk_data_ptr_->modification_end();
+
+      // I think topology might update post modification end
+      for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
+        stk::mesh::Entity spring = get_centerline_twist_spring(i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).member(*centerline_twist_springs_part_ptr_), std::logic_error,
+                           "The centerline twist spring must be a member of the centerline twist part.");
+        MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
+                           "The centerline twist part must have SHELL_TRI_3 topology. Instead, it has topology "
+                               << centerline_twist_springs_part_ptr_->topology());
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).entity_rank() == stk::topology::ELEMENT_RANK,
+                           std::logic_error,
+                           "The centerline twist spring must have element rank. Instead, it has rank "
+                               << bulk_data_ptr_->bucket(spring).entity_rank());
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() == stk::topology::SHELL_TRI_3, std::logic_error,
+                           "The centerline twist spring must have SHELL_TRI_3 topology. Instead, it has topology "
+                               << bulk_data_ptr_->bucket(spring).topology());
+      }
+
+      {
+        std::vector<size_t> entity_counts;
+        stk::mesh::comm_mesh_counts(*bulk_data_ptr_, entity_counts);
+        debug_print(std::string("Num nodes pre create_edges: ") +
+                    std::to_string(entity_counts[stk::topology::NODE_RANK]));
+        debug_print(std::string("Num edges pre create_edges: ") +
+                    std::to_string(entity_counts[stk::topology::EDGE_RANK]));
+        debug_print(std::string("Num elements pre create_edges: ") +
+                    std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
+      }
 
       // Create the edges and connect them to the nodes.
       // The canonical way to create and share edges is stk's create_edges method
-      stk::mesh::create_edges(*bulk_data_ptr_);
+      stk::mesh::create_edges(*bulk_data_ptr_, stk::mesh::Selector(*centerline_twist_springs_part_ptr_),
+                              centerline_twist_springs_part_ptr_);
+
+      {
+        std::vector<size_t> entity_counts;
+        stk::mesh::comm_mesh_counts(*bulk_data_ptr_, entity_counts);
+        debug_print(std::string("Num nodes post create_edges: ") +
+                    std::to_string(entity_counts[stk::topology::NODE_RANK]));
+        debug_print(std::string("Num edges post create_edges: ") +
+                    std::to_string(entity_counts[stk::topology::EDGE_RANK]));
+        debug_print(std::string("Num elements post create_edges: ") +
+                    std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
+      }
 
       // Populate the edge data
       stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
@@ -525,7 +602,7 @@ class SpermSimulation {
 
   void loadbalance() {
     debug_print("Load balancing the mesh.");
-    stk::balance::balanceStkMesh(balance_settings_, *bulk_data_ptr_.get());
+    stk::balance::balanceStkMesh(balance_settings_, *bulk_data_ptr_);
   }
 
   void rotate_field_states() {
@@ -598,7 +675,7 @@ class SpermSimulation {
     debug_print("Computing the edge information.");
 
     // Communicate the fields of downward connected entities.
-    stk::mesh::communicate_field_data(*bulk_data_ptr_.get(), {node_coord_field_ptr_});
+    stk::mesh::communicate_field_data(*bulk_data_ptr_, {node_coord_field_ptr_});
 
     // Get references to internal members so we aren't passing around *this
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
@@ -652,7 +729,7 @@ class SpermSimulation {
     // Communicate the fields of downward connected entities.
     // TODO(palmerb4): Technically, we could avoid this communication if we compute the edge information for locally
     // owned and ghosted edges. Computation is cheaper than communication.
-    stk::mesh::communicate_field_data(*bulk_data_ptr_.get(), {edge_orientation_field_ptr_});
+    stk::mesh::communicate_field_data(*bulk_data_ptr_, {edge_orientation_field_ptr_});
 
     // Get references to internal members so we aren't passing around *this
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
@@ -687,10 +764,12 @@ class SpermSimulation {
           // the slt elements and not the nodes. Get the lower rank entities
           stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
           stk::mesh::Entity const *element_edges = bulk_data.begin_edges(element);
-          MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) == 3, std::logic_error,
-                             "Elements must have exactly 3 nodes.");
-          MUNDY_THROW_ASSERT(bulk_data.num_edges(element) == 2, std::logic_error,
-                             "Elements must have exactly 2 edges.");
+          MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) >= 3, std::logic_error,
+                             "The element must have at least 3 nodes. Currently, the element only has "
+                                 << bulk_data.num_nodes(element) << " nodes.");
+          MUNDY_THROW_ASSERT(bulk_data.num_edges(element) >= 2, std::logic_error,
+                             "The element must have at least 2 edges. Currently, the element only has "
+                                 << bulk_data.num_edges(element) << " edges.");
           const stk::mesh::Entity &center_node = element_nodes[1];
           const stk::mesh::Entity &left_edge = element_edges[0];
           const stk::mesh::Entity &right_edge = element_edges[1];
@@ -716,9 +795,9 @@ class SpermSimulation {
     // TODO(palmerb4): Technically, we could avoid this entire communication if we compute the edge information for
     // locally owned and ghosted edges. Computation is cheaper than communication.
     stk::mesh::communicate_field_data(
-        *bulk_data_ptr_.get(), {node_curvature_field_ptr_, node_rest_curvature_field_ptr_, node_twist_field_ptr_,
-                                node_rotation_gradient_field_ptr_, edge_tangent_field_ptr_, edge_binormal_field_ptr_,
-                                edge_length_field_ptr_, edge_orientation_field_ptr_});
+        *bulk_data_ptr_, {node_curvature_field_ptr_, node_rest_curvature_field_ptr_, node_twist_field_ptr_,
+                          node_rotation_gradient_field_ptr_, edge_tangent_field_ptr_, edge_binormal_field_ptr_,
+                          edge_length_field_ptr_, edge_orientation_field_ptr_});
 
     // Get references to internal members so we aren't passing around *this
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
@@ -755,10 +834,13 @@ class SpermSimulation {
           // Get the lower rank entities
           stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
           stk::mesh::Entity const *element_edges = bulk_data.begin_edges(element);
-          MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) == 3, std::logic_error,
-                             "SLT: Elements must have exactly 3 nodes.");
-          MUNDY_THROW_ASSERT(bulk_data.num_edges(element) == 2, std::logic_error,
-                             "SLT: Elements must have exactly 2 edges.");
+          MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) >= 2, std::logic_error,
+                             "The element must have at least 2 nodes. Currently, the element only has "
+                                 << bulk_data.num_nodes(element) << " nodes.");
+          MUNDY_THROW_ASSERT(bulk_data.num_edges(element) >= 2, std::logic_error,
+                             "The element must have at least 2 edges. Currently, the element only has "
+                                 << bulk_data.num_edges(element) << " edges.");
+
           const stk::mesh::Entity &node_im1 = element_nodes[0];
           const stk::mesh::Entity &node_i = element_nodes[1];
           const stk::mesh::Entity &node_ip1 = element_nodes[2];
@@ -846,7 +928,9 @@ class SpermSimulation {
 
           // Get the lower rank entities
           stk::mesh::Entity const *edge_nodes = bulk_data.begin_nodes(edge);
-          MUNDY_THROW_ASSERT(bulk_data.num_nodes(edge) == 2, std::logic_error, "Edges must have exactly 2 nodes.");
+          MUNDY_THROW_ASSERT(bulk_data.num_nodes(edge) >= 2, std::logic_error,
+                             "The edge must have at least 2 nodes. Currently, the edge only has "
+                                 << bulk_data.num_nodes(edge) << " nodes.");
           const stk::mesh::Entity &node_im1 = edge_nodes[0];
           const stk::mesh::Entity &node_i = edge_nodes[1];
 
@@ -917,7 +1001,8 @@ class SpermSimulation {
     stk::mesh::Selector locally_owned_selector = centerline_twist_springs_part & meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(
         bulk_data, node_rank_, locally_owned_selector,
-        [&node_acceleration_field, &node_force_field, &node_twist_acceleration_field, &node_twist_torque_field, &node_radius_field,
+        [&node_acceleration_field, &node_force_field, &node_twist_acceleration_field, &node_twist_torque_field,
+         &node_radius_field,
          sperm_density]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
           // Get the required input fields
           const auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
