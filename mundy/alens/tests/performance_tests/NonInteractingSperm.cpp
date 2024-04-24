@@ -414,7 +414,8 @@ class SpermSimulation {
 
     // Declare N spring chains with a slight shift to each chain
     for (size_t j = 0; j < num_sperm_; j++) {
-      // To make our lives easier, we alogn the sperm with the z-axis, as this makes our edge orientation a unit quaternion.
+      // To make our lives easier, we alogn the sperm with the z-axis, as this makes our edge orientation a unit
+      // quaternion.
       mundy::math::Vector3<double> tail_coord(0.0, 2 * j * sperm_radius_, 0.0);
       mundy::math::Vector3<double> sperm_axis(0.0, 0.0, 1.0);
 
@@ -572,7 +573,7 @@ class SpermSimulation {
         stk::mesh::field_data(*node_twist_acceleration_field_ptr_, node)[0] = 0.0;
         mundy::mesh::vector3_field_data(*node_curvature_field_ptr_, node).set(0.0, 0.0, 0.0);
         mundy::mesh::vector3_field_data(*node_rest_curvature_field_ptr_, node)
-            .set(sperm_rest_curvature_twist_, sperm_rest_curvature_bend1_, sperm_rest_curvature_bend2_);
+            .set(sperm_rest_curvature_bend1_, sperm_rest_curvature_bend2_, sperm_rest_curvature_twist_);
         stk::mesh::field_data(*node_radius_field_ptr_, node)[0] = sperm_radius_;
         stk::mesh::field_data(*node_archlength_field_ptr_, node)[0] = i * sperm_initial_segment_length_;
       }
@@ -737,6 +738,43 @@ class SpermSimulation {
         });
   }
 
+  void propogate_rest_curvature() {
+    debug_print("Propogating the rest curvature.");
+
+    // Get references to internal members so we aren't passing around *this
+    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
+    stk::mesh::Part &centerline_twist_springs_part = *centerline_twist_springs_part_ptr_;
+    stk::mesh::Field<double> &node_rest_curvature_field = *node_rest_curvature_field_ptr_;
+    stk::mesh::Field<double> &node_archlength_field = *node_archlength_field_ptr_;
+
+    // Propogate the rest curvature of the nodes according to
+    // kappa_rest = amplitude * sin(spacial_frequency * archlength + temporal_frequency * time).
+    const double sperm_length = num_nodes_per_sperm_ * sperm_initial_segment_length_;
+    const double amplitude = 0.1;
+    const double spacial_wavelength = sperm_length / 5.0;
+    const double temporal_wavelength = 2.0 * M_PI / 10.0;
+    const double spacial_frequency = 2.0 * M_PI / spacial_wavelength;
+    const double temporal_frequency = 2.0 * M_PI / temporal_wavelength;
+    const double time = timestep_index_ * timestep_size_;
+
+    auto locally_owned_selector =
+        stk::mesh::Selector(centerline_twist_springs_part) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        bulk_data, node_rank_, locally_owned_selector,
+        [&node_rest_curvature_field, &node_archlength_field, &amplitude, &spacial_frequency, &temporal_frequency, &time](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
+          // Get the required input fields
+          const double node_archlength = stk::mesh::field_data(node_archlength_field, node)[0];
+
+          // Get the output fields
+          double *node_rest_curvature = stk::mesh::field_data(node_rest_curvature_field, node);
+
+          // Propogate the rest curvature
+          node_rest_curvature[0] =
+              amplitude * std::sin(spacial_frequency * node_archlength + temporal_frequency * time);
+        });
+  }
+
   void compute_edge_information() {
     debug_print("Computing the edge information.");
 
@@ -805,11 +843,23 @@ class SpermSimulation {
             // Compute the edge orientations
             const double cos_half_t = std::cos(0.5 * node_i_twist);
             const double sin_half_t = std::sin(0.5 * node_i_twist);
-            const auto rot_via_twist = mundy::math::Quaternion<double>(
-                cos_half_t, sin_half_t * edge_tangent[0], sin_half_t * edge_tangent[1], sin_half_t * edge_tangent[2]);
+            const auto rot_via_twist =
+                mundy::math::Quaternion<double>(cos_half_t, sin_half_t * edge_tangent_old[0],
+                                                sin_half_t * edge_tangent_old[1], sin_half_t * edge_tangent_old[2]);
             const auto rot_via_parallel_transport =
                 mundy::math::quat_from_parallel_transport(edge_tangent_old, edge_tangent);
             edge_orientation = rot_via_parallel_transport * edge_orientation_old * rot_via_twist;
+
+            // Two things to check:
+            //  1. Is the quaternion produced by the parallel transport normalized?
+            //  2. Does the application of this quaternion to the old edge tangent produce the new edge tangent?
+
+            // std::cout << "rot_via_parallel_transport: " << rot_via_parallel_transport << " has norm: " <<
+            // mundy::math::norm(rot_via_parallel_transport) << std::endl; std::cout << "rot_via_twist: " <<
+            // rot_via_twist << " has norm: " << mundy::math::norm(rot_via_twist) << std::endl; std::cout << "Edge
+            // tangent: " << edge_tangent << std::endl; std::cout << "Edge tangent?: " << rot_via_parallel_transport *
+            // edge_tangent_old
+            //           << std::endl;
           }
         });
   }
@@ -886,13 +936,14 @@ class SpermSimulation {
     // TODO(palmerb4): Technically, we could avoid this entire communication if we compute the edge information for
     // locally owned and ghosted edges. Computation is cheaper than communication.
     stk::mesh::communicate_field_data(
-        *bulk_data_ptr_, {node_curvature_field_ptr_, node_rest_curvature_field_ptr_, node_twist_field_ptr_,
-                          node_rotation_gradient_field_ptr_, edge_tangent_field_ptr_, edge_binormal_field_ptr_,
-                          edge_length_field_ptr_, edge_orientation_field_ptr_});
+        *bulk_data_ptr_, {node_radius_field_ptr_, node_curvature_field_ptr_, node_rest_curvature_field_ptr_,
+                          node_twist_field_ptr_, node_rotation_gradient_field_ptr_, edge_tangent_field_ptr_,
+                          edge_binormal_field_ptr_, edge_length_field_ptr_, edge_orientation_field_ptr_});
 
     // Get references to internal members so we aren't passing around *this
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
     stk::mesh::Part &centerline_twist_springs_part = *centerline_twist_springs_part_ptr_;
+    stk::mesh::Field<double> &node_radius_field = *node_radius_field_ptr_;
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
     stk::mesh::Field<double> &node_twist_torque_field = *node_twist_torque_field_ptr_;
     stk::mesh::Field<double> &node_curvature_field = *node_curvature_field_ptr_;
@@ -902,15 +953,19 @@ class SpermSimulation {
     stk::mesh::Field<double> &edge_binormal_field = *edge_binormal_field_ptr_;
     stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
     stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
+    const double sperm_rest_segment_length = sperm_rest_segment_length_;
+    const double sperm_youngs_modulus = sperm_youngs_modulus_;
+    const double sperm_poissons_ratio = sperm_poissons_ratio_;
 
     // Compute internal force and torque induced by differences in rest and current curvature
     auto locally_owned_selector =
         stk::mesh::Selector(centerline_twist_springs_part) & meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(
         bulk_data, element_rank_, locally_owned_selector,
-        [&node_force_field, &node_twist_torque_field, &node_curvature_field, &node_rest_curvature_field,
-         &node_rotation_gradient_field, &edge_tangent_field, &edge_binormal_field, &edge_length_field,
-         &edge_orientation_field](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
+        [&node_radius_field, &node_force_field, &node_twist_torque_field, &node_curvature_field,
+         &node_rest_curvature_field, &node_rotation_gradient_field, &edge_tangent_field, &edge_binormal_field,
+         &edge_length_field, &edge_orientation_field, &sperm_rest_segment_length, &sperm_youngs_modulus,
+         &sperm_poissons_ratio](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
           // Ok. This is a bit involved.
           // First, we need to use the node curvature to compute the induced lagrangian torque according to the
           // Kirchhoff rod model. Then, we need to use a convoluted map to take this torque to force and torque on the
@@ -918,9 +973,12 @@ class SpermSimulation {
           //
           // The torque induced by the curvature is
           //  T = B (kappa - kappa_rest)
-          // where B is the diagonal matrix of bending moduli and kappa_rest is the rest curvature.
-          //
-          // To start, we set B = I
+          // where B is the diagonal matrix of bending moduli and kappa_rest is the rest curvature. Here, the first two
+          // components of curvature are the bending curvatures and the third component is the twist curvature. The
+          // bending moduli are
+          //  B[0,0] = E * I / l_rest, B[1,1] = E * I / l_rest, B[2,2] = 2 * G * I / l_rest
+          // where l_rest is the rest length of the element, G is the shear modulus, E is the Young's modulus, and I is
+          // the moment of inertia of the cross section.
 
           // Get the lower rank entities
           stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
@@ -943,6 +1001,7 @@ class SpermSimulation {
           const auto node_i_rest_curvature = mundy::mesh::vector3_field_data(node_rest_curvature_field, node_i);
           const auto node_i_rotation_gradient =
               mundy::mesh::quaternion_field_data(node_rotation_gradient_field, node_i);
+          const auto node_radius = stk::mesh::field_data(node_radius_field, node_i)[0];
           const auto edge_im1_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge_im1);
           const auto edge_i_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge_i);
           const auto edge_im1_binormal = mundy::mesh::vector3_field_data(edge_binormal_field, edge_im1);
@@ -958,16 +1017,21 @@ class SpermSimulation {
           double *node_im1_twist_torque = stk::mesh::field_data(node_twist_torque_field, node_im1);
           double *node_i_twist_torque = stk::mesh::field_data(node_twist_torque_field, node_i);
 
-          // Compute the torque induced by the curvature
-          // To start, the torque is in the lagrangian frame.
-          auto bending_modulus =
-              mundy::math::Matrix3<double>::identity();  // TODO(palmerb4): Replace with Kirchhoff rod model
-          auto bending_torque = bending_modulus * (node_i_curvature - node_i_rest_curvature);
+          // Compute the Lagrangian torque induced by the curvature
+          auto delta_curvature = node_i_curvature - node_i_rest_curvature;
+          const double moment_of_inertia = 0.25 * M_PI * node_radius * node_radius * node_radius * node_radius;
+          const double shear_modulus = 0.5 * sperm_youngs_modulus / (1.0 + sperm_poissons_ratio);
+          const double inv_rest_segment_length = 1.0 / sperm_rest_segment_length;
+          auto bending_torque = mundy::math::Vector3<double>(
+              -inv_rest_segment_length * sperm_youngs_modulus * moment_of_inertia * delta_curvature[0],
+              -inv_rest_segment_length * sperm_youngs_modulus * moment_of_inertia * delta_curvature[1],
+              -inv_rest_segment_length * 2 * shear_modulus * moment_of_inertia *
+                  delta_curvature[2]);  // WARNING USING NEGATIVE SIGN
 
           // We'll reuse the bending torque for the rotated bending torque
           bending_torque =
-              edge_im1_orientation * (2.0 * node_i_rotation_gradient.w() * bending_torque +
-                                      2.0 * mundy::math::cross(node_i_rotation_gradient.vector(), bending_torque));
+              edge_im1_orientation * (node_i_rotation_gradient.w() * bending_torque +
+                                      mundy::math::cross(node_i_rotation_gradient.vector(), bending_torque));
 
           // Compute the force and torque on the nodes
           const auto tmp_force_ip1 = 1.0 / edge_i_length *
@@ -1006,16 +1070,16 @@ class SpermSimulation {
         });
 
     // Compute internal force induced by differences in rest and current length
-    double rest_length = sperm_rest_segment_length_;
     stk::mesh::for_each_entity_run(
         bulk_data, edge_rank_, locally_owned_selector,
-        [&node_force_field, &edge_tangent_field, &edge_length_field, &rest_length](const stk::mesh::BulkData &bulk_data,
-                                                                                   const stk::mesh::Entity &edge) {
+        [&node_radius_field, &node_force_field, &edge_tangent_field, &edge_length_field, &sperm_rest_segment_length,
+         &sperm_youngs_modulus,
+         &sperm_poissons_ratio](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &edge) {
           // F_left = k (l - l_rest) tangent
           // F_right = -k (l - l_rest) tangent
           //
-          // k can be computed using the material properties of the rod
-          // For now, we set k = 1.
+          // k can be computed using the material properties of the rod according to k = E A / l_rest where E is the
+          // Young's modulus, A is the cross-sectional area, and l_rest is the rest length of the rod.
 
           // Get the lower rank entities
           stk::mesh::Entity const *edge_nodes = bulk_data.begin_nodes(edge);
@@ -1028,13 +1092,16 @@ class SpermSimulation {
           // Get the required input fields
           const auto edge_tangent = mundy::mesh::vector3_field_data(edge_tangent_field, edge);
           const double edge_length = stk::mesh::field_data(edge_length_field, edge)[0];
+          const auto node_radius = stk::mesh::field_data(node_radius_field, node_i)[0];
 
           // Get the output fields
           double *node_im1_force = stk::mesh::field_data(node_force_field, node_im1);
           double *node_i_force = stk::mesh::field_data(node_force_field, node_i);
 
           // Compute the internal force
-          const auto right_node_force = -(edge_length - rest_length) * edge_tangent;
+          const double spring_constant =
+              sperm_youngs_modulus * M_PI * node_radius * node_radius / sperm_rest_segment_length;
+          const auto right_node_force = -spring_constant * (edge_length - sperm_rest_segment_length) * edge_tangent;
 #pragma omp atomic
           node_im1_force[0] -= right_node_force[0];
 #pragma omp atomic
@@ -1108,11 +1175,11 @@ class SpermSimulation {
           const double node_radius2 = node_radius * node_radius;
           const double node_radius3 = node_radius2 * node_radius;
           const double node_mass = 4.0 / 3.0 * M_PI * node_radius3 * sperm_density;
-          const double node_moment_of_inertia = 2.0 / 5.0 * node_mass * node_radius2;
+          const double node_mass_moment_of_inertia = 2.0 / 5.0 * node_mass * node_radius2;
 
           // Compute the acceleration
           node_acceleration = node_force / node_mass;
-          node_twist_acceleration[0] = node_twist_torque / node_moment_of_inertia;
+          node_twist_acceleration[0] = node_twist_torque / node_mass_moment_of_inertia;
         });
 
     // v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2
@@ -1141,6 +1208,38 @@ class SpermSimulation {
         });
   }
 
+  void clamp_edge1() {
+    debug_print("Clamping edge 0.");
+
+    // Clamping the first edge equates to setting the velocity and accelerations (both positional and twist) of the
+    // first two nodes to zero.
+    stk::mesh::Entity node1 = bulk_data_ptr_->get_entity(node_rank_, 1);
+    stk::mesh::Entity node2 = bulk_data_ptr_->get_entity(node_rank_, 2);
+
+    if (bulk_data_ptr_->is_valid(node1)) {
+      mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node1).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_acceleration_field_ptr_, node1).set(0.0, 0.0, 0.0);
+      stk::mesh::field_data(*node_twist_velocity_field_ptr_, node1)[0] = 0.0;
+      stk::mesh::field_data(*node_twist_acceleration_field_ptr_, node1)[0] = 0.0;
+    }
+
+    if (bulk_data_ptr_->is_valid(node2)) {
+      mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node2).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_acceleration_field_ptr_, node2).set(0.0, 0.0, 0.0);
+      stk::mesh::field_data(*node_twist_velocity_field_ptr_, node2)[0] = 0.0;
+      stk::mesh::field_data(*node_twist_acceleration_field_ptr_, node2)[0] = 0.0;
+    }
+  }
+
+  void disable_twist() {
+    debug_print("Disabling twist.");
+
+    // Set the twist, twist, velocity, and twist acceleration to zero.
+    mundy::mesh::utils::fill_field_with_value<double>(*node_twist_field_ptr_, std::array<double, 1>{0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_twist_velocity_field_ptr_, std::array<double, 1>{0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_twist_acceleration_field_ptr_, std::array<double, 1>{0.0});
+  }
+
   void run(int argc, char **argv) {
     debug_print("Running the simulation.");
 
@@ -1152,18 +1251,21 @@ class SpermSimulation {
     build_our_mesh_and_method_instances();
     fetch_fields_and_parts();
     declare_and_initialize_sperm();
+    propogate_rest_curvature();
     setup_io();
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
     Kokkos::Timer timer;
-    for (size_t i = 0; i < num_time_steps_; i++) {
-      debug_print(std::string("Time step ") + std::to_string(i) + " of " + std::to_string(num_time_steps_));
+    timestep_index_ = 0;
+    for (; timestep_index_ < num_time_steps_; timestep_index_++) {
+      debug_print(std::string("Time step ") + std::to_string(timestep_index_) + " of " +
+                  std::to_string(num_time_steps_));
 
       // IO. If desired, write out the data for time t.
-      if (i % io_frequency_ == 0) {
-        stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(i));
+      if (timestep_index_ % io_frequency_ == 0) {
+        stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(timestep_index_));
         stk_io_broker_.write_defined_output_fields(output_file_index_);
         stk_io_broker_.end_output_step(output_file_index_);
         stk_io_broker_.flush_output();
@@ -1177,6 +1279,10 @@ class SpermSimulation {
         // Motion from t -> t + dt.
         // x(t + dt) = x(t) + v(t) * dt + a(t) * dt^2 / 2.
         update_position_and_twist();
+
+        // Update the rest curvature.
+        // kappa_rest(t + dt) = amplitude * sin(spacial_frequency * archlength + temporal_frequency * (t + dt)).
+        // propogate_rest_curvature();
 
         // Zero the node velocities, accelerations, and forces/torques for time t + dt.
         zero_out_transient_node_fields();
@@ -1193,6 +1299,8 @@ class SpermSimulation {
         // Evaluate a(t + dt) = M^{-1} f(x(t + dt)).
         // Evaluate v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2.
         compute_velocity_and_acceleration();
+        // clamp_edge1();
+        disable_twist();
       }
     }
 
@@ -1221,6 +1329,7 @@ class SpermSimulation {
   std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_;
   stk::io::StkMeshIoBroker stk_io_broker_;
   size_t output_file_index_;
+  size_t timestep_index_;
   //@}
 
   //! \name Fields
@@ -1297,7 +1406,7 @@ class SpermSimulation {
   double sperm_rest_curvature_bend1_ = 0.0;
   double sperm_rest_curvature_bend2_ = 0.0;
 
-  double sperm_youngs_modulus_ = 1000.0;
+  double sperm_youngs_modulus_ = 100.0;
   double sperm_poissons_ratio_ = 0.3;
   double sperm_density_ = 1.0;
 
