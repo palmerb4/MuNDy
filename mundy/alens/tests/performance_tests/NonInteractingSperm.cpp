@@ -312,7 +312,12 @@ class SpermSimulation {
         .add_field_reqs<double>("ELEMENT_POISSONS_RATIO", element_rank_, 1, 1)
         .add_field_reqs<double>("ELEMENT_REST_LENGTH", element_rank_, 1, 1);
     mesh_reqs_ptr_->add_part_reqs(clt_part_reqs);
-    mesh_reqs_ptr_->print_reqs();
+
+#ifdef DEBUG
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      mesh_reqs_ptr_->print_reqs();
+    }
+#endif
 
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
@@ -688,9 +693,10 @@ class SpermSimulation {
     mundy::mesh::utils::fill_field_with_value<double>(*node_twist_acceleration_field_ptr_, std::array<double, 1>{0.0});
   }
 
-  void update_position_and_twist() {
-    debug_print("Updating the position and twist.");
-    // x(t + dt) = x(t) + v(t) * dt + a(t) * dt^2 / 2.
+  void update_generalized_position() {
+    debug_print("Updating the generalized position.");
+    // x(t + dt) = x(t) + dt v(t) + 0.5 dt^2 (1 - 2 beta) a(t)
+    // beta = 0.25, gamma = 0.5 -> unconditionally stable, constant-average acceleration method
 
     // No data to communicate since we only act on locally owned nodes.
 
@@ -731,10 +737,11 @@ class SpermSimulation {
           double *node_twist = stk::mesh::field_data(node_twist_field, node);
 
           // Update the current configuration
-          node_coords = node_coords_old + node_velocity_old * time_step_size +
-                        0.5 * node_acceleration_old * time_step_size * time_step_size;
-          node_twist[0] = node_twist_old + node_twist_velocity_old * time_step_size +
-                          0.5 * node_twist_acceleration_old * time_step_size * time_step_size;
+          const double beta = 0.25;
+          const double coeff = 0.5 * time_step_size * time_step_size * (1.0 - 2.0 * beta);
+          node_coords = node_coords_old + time_step_size * node_velocity_old + coeff * node_acceleration_old;
+          node_twist[0] =
+              node_twist_old + time_step_size * node_twist_velocity_old + coeff * node_twist_acceleration_old;
         });
   }
 
@@ -750,19 +757,20 @@ class SpermSimulation {
     // Propogate the rest curvature of the nodes according to
     // kappa_rest = amplitude * sin(spacial_frequency * archlength + temporal_frequency * time).
     const double sperm_length = num_nodes_per_sperm_ * sperm_initial_segment_length_;
-    const double amplitude = 0.1;
+    const double amplitude = 0.2;
     const double spacial_wavelength = sperm_length / 5.0;
-    const double temporal_wavelength = 2.0 * M_PI / 10.0;
     const double spacial_frequency = 2.0 * M_PI / spacial_wavelength;
-    const double temporal_frequency = 2.0 * M_PI / temporal_wavelength;
-    const double time = timestep_index_ * timestep_size_;
+    const double temporal_frequency = 0.1;
+    const double time = (timestep_index_ == 0)
+                            ? timestep_index_ * timestep_size_
+                            : (timestep_index_ - 5000) * timestep_size_;  // HARDCODING THE TIME OFFSET
 
     auto locally_owned_selector =
         stk::mesh::Selector(centerline_twist_springs_part) & meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(
         bulk_data, node_rank_, locally_owned_selector,
-        [&node_rest_curvature_field, &node_archlength_field, &amplitude, &spacial_frequency, &temporal_frequency, &time](
-            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
+        [&node_rest_curvature_field, &node_archlength_field, &amplitude, &spacial_frequency, &temporal_frequency,
+         &time]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
           // Get the required input fields
           const double node_archlength = stk::mesh::field_data(node_archlength_field, node)[0];
 
@@ -848,17 +856,22 @@ class SpermSimulation {
                                                 sin_half_t * edge_tangent_old[1], sin_half_t * edge_tangent_old[2]);
             const auto rot_via_parallel_transport =
                 mundy::math::quat_from_parallel_transport(edge_tangent_old, edge_tangent);
-            edge_orientation = rot_via_parallel_transport * edge_orientation_old * rot_via_twist;
+            edge_orientation = rot_via_parallel_transport * rot_via_twist * edge_orientation_old;
+            // edge_orientation = rot_via_parallel_transport * edge_orientation_old * rot_via_twist;
+
+            // TODO(palmerb4): fix the order of quaternion rotation
 
             // Two things to check:
             //  1. Is the quaternion produced by the parallel transport normalized?
             //  2. Does the application of this quaternion to the old edge tangent produce the new edge tangent?
 
-            // std::cout << "rot_via_parallel_transport: " << rot_via_parallel_transport << " has norm: " <<
-            // mundy::math::norm(rot_via_parallel_transport) << std::endl; std::cout << "rot_via_twist: " <<
-            // rot_via_twist << " has norm: " << mundy::math::norm(rot_via_twist) << std::endl; std::cout << "Edge
-            // tangent: " << edge_tangent << std::endl; std::cout << "Edge tangent?: " << rot_via_parallel_transport *
-            // edge_tangent_old
+            // std::cout << "rot_via_parallel_transport: " << rot_via_parallel_transport
+            //           << " has norm: " << mundy::math::norm(rot_via_parallel_transport) << std::endl;
+            // std::cout << "rot_via_twist: " << rot_via_twist << " has norm: " << mundy::math::norm(rot_via_twist)
+            //           << std::endl;
+            // std::cout << "Edge tangent : " << edge_tangent << std::endl;
+            // std::cout << " Edge tangent via transp: " << rot_via_parallel_transport * edge_tangent_old << std::endl;
+            // std::cout << " Edge tangent via orient: " << edge_orientation * mundy::math::Vector3<double>(0.0, 0.0, 1.0)
             //           << std::endl;
           }
         });
@@ -1132,43 +1145,63 @@ class SpermSimulation {
     compute_internal_force_and_twist_torque();
   }
 
-  void compute_velocity_and_acceleration() {
-    debug_print("Computing the velocity and acceleration.");
+  void update_generalized_position_velocity_and_acceleration() {
+    debug_print("Updating the generalized position, velocity, and acceleration.");
+    //  Prediction:
+    //   v(t + dt) = v(t) + dt (1 - gamma) a(t)
+    //   a(t + dt) = M^{-1} [ f(x(t + dt) - C v(t + dt) ]
+    //
+    //  Correction:
+    //   x(t + dt) = x(t + dt) + dt^2 beta a(t + dt)
+    //   v(t + dt) = v(t + dt) + dt gamma a(t + dt)
+    // beta = 0.25, gamma = 0.5 -> unconditionally stable, constant-average acceleration method
 
     // Get references to internal members so we aren't passing around *this
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
     stk::mesh::Part &centerline_twist_springs_part = *centerline_twist_springs_part_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
-    stk::mesh::Field<double> &node_velocity_field_ref = node_velocity_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &node_velocity_field_old = node_velocity_field.field_of_state(stk::mesh::StateN);
     stk::mesh::Field<double> &node_acceleration_field = *node_acceleration_field_ptr_;
-    stk::mesh::Field<double> &node_acceleration_field_ref = node_acceleration_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &node_acceleration_field_old = node_acceleration_field.field_of_state(stk::mesh::StateN);
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
     stk::mesh::Field<double> &node_radius_field = *node_radius_field_ptr_;
 
+    stk::mesh::Field<double> &node_twist_field = *node_twist_field_ptr_;
     stk::mesh::Field<double> &node_twist_velocity_field = *node_twist_velocity_field_ptr_;
-    stk::mesh::Field<double> &node_twist_velocity_field_ref =
+    stk::mesh::Field<double> &node_twist_velocity_field_old =
         node_twist_velocity_field.field_of_state(stk::mesh::StateN);
     stk::mesh::Field<double> &node_twist_acceleration_field = *node_twist_acceleration_field_ptr_;
-    stk::mesh::Field<double> &node_twist_acceleration_field_ref =
+    stk::mesh::Field<double> &node_twist_acceleration_field_old =
         node_twist_acceleration_field.field_of_state(stk::mesh::StateN);
     stk::mesh::Field<double> &node_twist_torque_field = *node_twist_torque_field_ptr_;
     const double time_step_size = timestep_size_;
     const double sperm_density = sperm_density_;
 
-    // a(t + dt) = M^{-1} f(x(t + dt))
+    // Solve the prediction and correction steps simultaniously
     stk::mesh::Selector locally_owned_selector = centerline_twist_springs_part & meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(
         bulk_data, node_rank_, locally_owned_selector,
-        [&node_acceleration_field, &node_force_field, &node_twist_acceleration_field, &node_twist_torque_field,
-         &node_radius_field,
-         sperm_density]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
+        [&node_coord_field, &node_velocity_field, &node_velocity_field_old, &node_acceleration_field,
+         &node_acceleration_field_old, &node_force_field, &node_radius_field, &node_twist_field,
+         &node_twist_velocity_field, &node_twist_velocity_field_old, &node_twist_acceleration_field,
+         &node_twist_acceleration_field_old, &node_twist_torque_field, &time_step_size,
+         &sperm_density]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
           // Get the required input fields
+          const double node_radius = stk::mesh::field_data(node_radius_field, node)[0];
           const auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
           const double node_twist_torque = stk::mesh::field_data(node_twist_torque_field, node)[0];
-          const double node_radius = stk::mesh::field_data(node_radius_field, node)[0];
+          const auto node_velocity_old = mundy::mesh::vector3_field_data(node_velocity_field_old, node);
+          const auto node_acceleration_old = mundy::mesh::vector3_field_data(node_acceleration_field_old, node);
+          const double node_twist_velocity_old = stk::mesh::field_data(node_twist_velocity_field_old, node)[0];
+          const double node_twist_acceleration_old = stk::mesh::field_data(node_twist_acceleration_field_old, node)[0];
 
           // Get the output fields
+          auto node_coord = mundy::mesh::vector3_field_data(node_coord_field, node);
+          auto node_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node);
           auto node_acceleration = mundy::mesh::vector3_field_data(node_acceleration_field, node);
+          double *node_twist = stk::mesh::field_data(node_twist_field, node);
+          double *node_twist_velocity = stk::mesh::field_data(node_twist_velocity_field, node);
           double *node_twist_acceleration = stk::mesh::field_data(node_twist_acceleration_field, node);
 
           // Compute the mass and moment of inertia assuming sphere mass lumping at the nodes
@@ -1177,34 +1210,33 @@ class SpermSimulation {
           const double node_mass = 4.0 / 3.0 * M_PI * node_radius3 * sperm_density;
           const double node_mass_moment_of_inertia = 2.0 / 5.0 * node_mass * node_radius2;
 
-          // Compute the acceleration
-          node_acceleration = node_force / node_mass;
-          node_twist_acceleration[0] = node_twist_torque / node_mass_moment_of_inertia;
-        });
+          // Prediction step
+          //   v(t + dt) = v(t) + dt (1 - gamma) a(t)
+          //   a(t + dt) = M^{-1} [ f(x(t + dt) - C v(t + dt) ]
+          //
+          // Here, we break C into a constant translational damping and a constant twist damping.
+          const double gamma = 0.5;
+          const double beta = 0.25;
+          const double translational_damping = 1.0;
+          const double twist_damping = 1.0;
+          const double coeff1 = (1.0 - gamma) * time_step_size;
+          const auto pred_node_velocity = node_velocity_old + coeff1 * node_acceleration_old;
+          const auto pred_node_twist_velocity = node_twist_velocity_old + coeff1 * node_twist_acceleration_old;
 
-    // v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2
-    stk::mesh::for_each_entity_run(
-        bulk_data, node_rank_, locally_owned_selector,
-        [&node_velocity_field, &node_velocity_field_ref, &node_acceleration_field, &node_acceleration_field_ref,
-         &node_twist_velocity_field, &node_twist_velocity_field_ref, &node_twist_acceleration_field,
-         &node_twist_acceleration_field_ref,
-         &time_step_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
-          // Get the required input fields
-          const auto node_velocity_ref = mundy::mesh::vector3_field_data(node_velocity_field_ref, node);
-          const auto node_acceleration = mundy::mesh::vector3_field_data(node_acceleration_field, node);
-          const auto node_acceleration_ref = mundy::mesh::vector3_field_data(node_acceleration_field_ref, node);
-          const double node_twist_velocity_ref = stk::mesh::field_data(node_twist_velocity_field_ref, node)[0];
-          const double node_twist_acceleration = stk::mesh::field_data(node_twist_acceleration_field, node)[0];
-          const double node_twist_acceleration_ref = stk::mesh::field_data(node_twist_acceleration_field_ref, node)[0];
+          node_acceleration = 1.0 / node_mass * (node_force - translational_damping * node_velocity_old);
+          node_twist_acceleration[0] =
+              1.0 / node_mass_moment_of_inertia * (node_twist_torque - twist_damping * node_twist_velocity_old);
 
-          // Get the output fields
-          auto node_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node);
-          double *node_twist_velocity = stk::mesh::field_data(node_twist_velocity_field, node);
+          // Correction step
+          //   x(t + dt) = x(t + dt) + dt^2 beta a(t + dt)
+          //   v(t + dt) = v(t + dt) + dt gamma a(t + dt)
+          const double coeff2 = time_step_size * time_step_size * beta;
+          node_coord += coeff2 * node_acceleration;
+          node_twist[0] += coeff2 * node_twist_acceleration[0];
 
-          // Compute the velocity
-          node_velocity = node_velocity_ref + 0.5 * (node_acceleration + node_acceleration_ref) * time_step_size;
-          node_twist_velocity[0] =
-              node_twist_velocity_ref + 0.5 * (node_twist_acceleration + node_twist_acceleration_ref) * time_step_size;
+          const double coeff3 = time_step_size * gamma;
+          node_velocity = pred_node_velocity + coeff3 * node_acceleration;
+          node_twist_velocity[0] = pred_node_twist_velocity + coeff3 * node_twist_acceleration[0];
         });
   }
 
@@ -1248,6 +1280,7 @@ class SpermSimulation {
     dump_user_inputs();
 
     // Setup
+    timestep_index_ = 0;
     build_our_mesh_and_method_instances();
     fetch_fields_and_parts();
     declare_and_initialize_sperm();
@@ -1258,7 +1291,6 @@ class SpermSimulation {
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
     Kokkos::Timer timer;
-    timestep_index_ = 0;
     for (; timestep_index_ < num_time_steps_; timestep_index_++) {
       debug_print(std::string("Time step ") + std::to_string(timestep_index_) + " of " +
                   std::to_string(num_time_steps_));
@@ -1276,13 +1308,15 @@ class SpermSimulation {
         // Rotate the field states.
         rotate_field_states();
 
-        // Motion from t -> t + dt.
-        // x(t + dt) = x(t) + v(t) * dt + a(t) * dt^2 / 2.
-        update_position_and_twist();
+        // Predict the motion from t -> t + dt.
+        //   x(t + dt) = x(t) + dt v(t) + 0.5 dt^2 (1 - 2 beta) a(t)
+        update_generalized_position();
 
         // Update the rest curvature.
         // kappa_rest(t + dt) = amplitude * sin(spacial_frequency * archlength + temporal_frequency * (t + dt)).
-        // propogate_rest_curvature();
+        if (timestep_index_ > 5000) {
+          propogate_rest_curvature();
+        }
 
         // Zero the node velocities, accelerations, and forces/torques for time t + dt.
         zero_out_transient_node_fields();
@@ -1296,9 +1330,20 @@ class SpermSimulation {
 
       // Compute velocity and acceleration.
       {
-        // Evaluate a(t + dt) = M^{-1} f(x(t + dt)).
-        // Evaluate v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2.
-        compute_velocity_and_acceleration();
+        // Update the position, velocity, and acceleration for t + dt.
+        //
+        //  Prediction:
+        //   v(t + dt) = v(t) + dt (1 - gamma) a(t)
+        //   a(t + dt) = M^{-1} [ f(x(t + dt) - C v(t + dt) ]
+        //
+        //  Correction:
+        //   x(t + dt) = x(t + dt) + dt^2 beta a(t + dt)
+        //   v(t + dt) = v(t + dt) + dt gamma a(t + dt)
+        //
+        // Note, the above is entirely local to a given node, so there's no need to break it into multiple loops.
+        update_generalized_position_velocity_and_acceleration();
+
+        // Apply constraints
         // clamp_edge1();
         disable_twist();
       }
@@ -1329,7 +1374,7 @@ class SpermSimulation {
   std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_;
   stk::io::StkMeshIoBroker stk_io_broker_;
   size_t output_file_index_;
-  size_t timestep_index_;
+  size_t timestep_index_ = 0;
   //@}
 
   //! \name Fields
