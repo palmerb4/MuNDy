@@ -903,6 +903,38 @@ class StickySettings {
 
   void update_positions() {
     debug_print("Updating positions.");
+
+    // Set aliases
+    double &timestep_size = timestep_size_;
+
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+
+    // Get the selector for the spheres
+    auto locally_owned_selector = stk::mesh::Selector(spheres_part) & meta_data_ptr_->locally_owned_part();
+
+    // Update the positions for all spheres based on velocity
+    stk::mesh::for_each_entity_run(
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_.get()), stk::topology::NODE_RANK, locally_owned_selector,
+        [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                                  const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_coord = stk::mesh::field_data(node_coord_field, sphere_node);
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+
+          // x(t+dt) = x(t) + dt * v(t)
+
+          node_coord[0] += timestep_size * node_velocity[0];
+          node_coord[1] += timestep_size * node_velocity[1];
+          node_coord[2] += timestep_size * node_velocity[2];
+        });
+    debug_print("Mesh contents after update_positions.");
+#ifdef DEBUG
+    // Dump the mesh info as it exists now (with fields)
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+#endif
   }
 
   void run(int argc, char **argv) {
