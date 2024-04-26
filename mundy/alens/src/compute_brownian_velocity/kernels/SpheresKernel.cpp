@@ -106,7 +106,7 @@ void SpheresKernel::execute(const stk::mesh::Selector &sphere_selector) {
   double diffusion_coeff = diffusion_coeff_;
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
       locally_owned_intersection_with_valid_entity_parts,

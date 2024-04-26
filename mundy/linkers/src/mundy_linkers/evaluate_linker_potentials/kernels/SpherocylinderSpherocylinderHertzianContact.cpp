@@ -154,7 +154,7 @@ void SpherocylinderSpherocylinderHertzianContact::execute(
       *linker_signed_separation_distance_field_ptr_;
 
   stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
+      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
       spherocylinder_spherocylinder_linker_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,

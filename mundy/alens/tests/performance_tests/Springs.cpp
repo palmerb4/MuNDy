@@ -298,7 +298,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     double timestep_size = timestep_size_;
 
     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+        stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
         locally_owned_intersection_with_valid_entity_parts,
@@ -585,7 +585,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     double beta = beta_;
 
     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+        stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
         locally_owned_intersection_with_valid_entity_parts,
@@ -930,7 +930,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     double viscosity = viscosity_;
 
     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+        stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
                                    locally_owned_intersection_with_valid_entity_parts,
                                    [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
@@ -1199,7 +1199,7 @@ class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
     stk::mesh::Field<double> &element_spring_constant_field = *element_spring_constant_field_ptr_;
 
     stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-        stk::mesh::selectIntersection(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spring_selector;
+        stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spring_selector;
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
         locally_owned_intersection_with_valid_entity_parts,
