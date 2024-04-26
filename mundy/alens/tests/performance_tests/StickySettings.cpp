@@ -195,7 +195,7 @@ Order of operations:
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
 
-#define DEBUG
+//#define DEBUG
 
 ///////////////////////////
 // StickySettings        //
@@ -251,24 +251,12 @@ class StickySettings {
       cmdp.setOption("crosslinker_spring_constant", &crosslinker_spring_constant_, "Crosslinker spring constant.");
       cmdp.setOption("crosslinker_rest_length", &crosslinker_rest_length_, "Crosslinker rest length.");
 
-      //   Crosslinker params:
-      //   cmdp.setOption("crosslinker_constant", &crosslinker_constant_, "Crosslinker spring constant.");
-      //   cmdp.setOption("crosslinker_rest_length", &crosslinker_rest_length_,
-      //                  "Crosslinker spring rest length.");
-      //   cmdp.setOption("crosslinker_left_binding_rate", &crosslinker_left_binding_rate_,
-      //                  "Crosslinkler left binding rate.");
-      //   cmdp.setOption("crosslinker_right_binding_rate", &crosslinker_right_binding_rate_,
-      //                  "Crosslinker right binding rate.");
-      //   cmdp.setOption("crosslinker_left_unbinding_rate", &crosslinker_left_unbinding_rate_,
-      //                  "Crosslinkler left unbinding rate.");
-      //   cmdp.setOption("crosslinker_right_unbinding_rate", &crosslinker_right_unbinding_rate_,
-      //                  "Crosslinker right unbinding rate.");
-
       //   The simulation:
       cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
       cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
       cmdp.setOption("kt", &kt_, "Temperature kT.");
       cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
+      cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
 
       bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
       MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
@@ -647,6 +635,11 @@ class StickySettings {
     stk_io_broker_.add_field(output_file_index_, *node_force_field_ptr_);
   }
 
+  void loadbalance() {
+    debug_print("Load balancing the mesh.");
+    stk::balance::balanceStkMesh(balance_settings_, *bulk_data_ptr_);
+  }
+
   void declare_and_initialize_sticky() {
     //////////////////////////////////////
     // Initialize the spheres and nodes //
@@ -952,6 +945,11 @@ class StickySettings {
     setup_io();
     declare_and_initialize_sticky();
 
+    // Loadbalance?
+    if (initial_loadbalance_) {
+      loadbalance();
+    }
+
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
@@ -995,6 +993,12 @@ class StickySettings {
 
       // IO. If desired, write out the data for time t.
       if (timestep_index_ % io_frequency_ == 0) {
+        // Also write out a 'log'
+        if (bulk_data_ptr_->parallel_rank() == 0) {
+          double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
+          std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps
+                    << std::endl;
+        }
         stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(timestep_index_));
         stk_io_broker_.write_defined_output_fields(output_file_index_);
         stk_io_broker_.end_output_step(output_file_index_);
@@ -1012,7 +1016,9 @@ class StickySettings {
     stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
     if (bulk_data_ptr_->parallel_rank() == 0) {
       double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps_);
+      double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
       std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
+      std::cout << "Timesteps per second: " << std::setprecision(15) << tps << std::endl;
     }
   }
 
@@ -1156,10 +1162,11 @@ class StickySettings {
   double crosslinker_right_unbinding_rate_ = 1.0;
 
   // Simulation params
+  bool initial_loadbalance_ = false;
   size_t num_time_steps_ = 100;
+  size_t io_frequency_ = 10;
   double timestep_size_ = 0.01;
   double kt_ = 1.0;
-  size_t io_frequency_ = 10;
   //@}
 };
 
