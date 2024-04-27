@@ -133,6 +133,11 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 ///
 /// STK EntityId-wise. Nodes are numbered sequentially from 1 to num_nodes. Centerline twist springs are numbered
 /// sequentially from 1 to num_nodes-2.
+///
+/// To turn this into a movie use:
+/// ffmpeg -framerate 20 -pattern_type glob -i 'mov_stiff*.png' -c:v libvpx-vp9 -b:v 0 -crf 24 -threads 16 -row-mt 1
+/// -pass 1 -f null /dev/null && ffmpeg -framerate 60 -pattern_type glob -i 'mov_stiff*.png' -c:v libvpx-vp9 -b:v 0 -crf
+/// 24 -threads 16 -row-mt 1 -pass 2 stiff_movie.webm
 class SpermSimulation {
  public:
   SpermSimulation() = default;
@@ -461,6 +466,12 @@ class SpermSimulation {
       const size_t end_seq_node_index = start_seq_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
 
       bulk_data_ptr_->modification_begin();
+      // Temporary/scatch variables
+      stk::mesh::PartVector empty;
+      stk::mesh::Permutation perm = stk::mesh::Permutation::INVALID_PERMUTATION;
+      stk::mesh::OrdinalVector scratch1, scratch2, scratch3;
+      auto spring_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_};
+
       // Centerline twist springs connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
       const size_t start_element_chain_index = start_seq_node_index;
       const size_t end_start_element_chain_index =
@@ -498,12 +509,6 @@ class SpermSimulation {
         //                  Edge #0
         */
 
-        // Temporary/scatch variables
-        stk::mesh::PartVector empty;
-        stk::mesh::Permutation perm = stk::mesh::Permutation::INVALID_PERMUTATION;
-        stk::mesh::OrdinalVector scratch1, scratch2, scratch3;
-        auto spring_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_};
-
         // Fetch the nodes
         stk::mesh::EntityId left_node_id = get_node_id(i);
         stk::mesh::EntityId center_node_id = get_node_id(i + 1);
@@ -521,24 +526,6 @@ class SpermSimulation {
           right_node = bulk_data_ptr_->declare_node(right_node_id, empty);
         }
 
-        // Fetch the edges
-        stk::mesh::EntityId left_edge_id = get_edge_id(i);
-        stk::mesh::EntityId right_edge_id = get_edge_id(i + 1);
-        stk::mesh::Entity left_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, left_edge_id);
-        stk::mesh::Entity right_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, right_edge_id);
-        if (!bulk_data_ptr_->is_valid(left_edge)) {
-          // Declare the edge and connect it to the nodes
-          left_edge = bulk_data_ptr_->declare_edge(left_edge_id, spring_part);
-          bulk_data_ptr_->declare_relation(left_edge, left_node, 0, perm, scratch1, scratch2, scratch3);
-          bulk_data_ptr_->declare_relation(left_edge, center_node, 1, perm, scratch1, scratch2, scratch3);
-        }
-        if (!bulk_data_ptr_->is_valid(right_edge)) {
-          // Declare the edge and connect it to the nodes
-          right_edge = bulk_data_ptr_->declare_edge(right_edge_id, spring_part);
-          bulk_data_ptr_->declare_relation(right_edge, center_node, 0, perm, scratch1, scratch2, scratch3);
-          bulk_data_ptr_->declare_relation(right_edge, right_node, 1, perm, scratch1, scratch2, scratch3);
-        }
-
         // Fetch the centerline twist spring and connect it to the nodes/edges
         stk::mesh::EntityId spring_id = get_centerline_twist_spring_id(i);
         stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id, spring_part);
@@ -546,8 +533,6 @@ class SpermSimulation {
         bulk_data_ptr_->declare_relation(spring, left_node, 0, perm, scratch1, scratch2, scratch3);
         bulk_data_ptr_->declare_relation(spring, center_node, 1, perm, scratch1, scratch2, scratch3);
         bulk_data_ptr_->declare_relation(spring, right_node, 2, perm, scratch1, scratch2, scratch3);
-        bulk_data_ptr_->declare_relation(spring, left_edge, 0, perm, scratch1, scratch2, scratch3);
-        bulk_data_ptr_->declare_relation(spring, right_edge, 1, perm, scratch1, scratch2, scratch3);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY,
                            std::logic_error,
                            "The centerline twist spring with id " << spring_id << " has an invalid topology.");
@@ -584,33 +569,47 @@ class SpermSimulation {
       }
 
       // Share the nodes with the neighboring ranks.
+      //
       // Note, node sharing is symmetric. If we don't own the node that we intend to share, we need to declare it before
       // marking it as shared. If we are rank 0, we share our final node with rank 1 and receive their first node. If we
       // are rank N, we share our first node with rank N - 1 and receive their final node. Otherwise, we share our first
       // and last nodes with the corresponding neighboring ranks and receive their corresponding nodes.
       if (bulk_data_ptr_->parallel_size() > 1) {
+        debug_print("Sharing nodes with neighboring ranks.");
         if (rank == 0) {
           // Share the last node with rank 1.
           stk::mesh::Entity node = get_node(end_seq_node_index - 1);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
+                             "The node with id " << get_node_id(end_seq_node_index - 1) << " is not valid.");
           bulk_data_ptr_->add_node_sharing(node, rank + 1);
 
           // Receive the first node from rank 1
           stk::mesh::EntityId received_node_id = get_node_id(end_seq_node_index);
           stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(received_node), std::logic_error,
+                             "The node with id " << received_node_id << " is not valid.");
           bulk_data_ptr_->add_node_sharing(received_node, rank + 1);
         } else if (rank == bulk_data_ptr_->parallel_size() - 1) {
           // Share the first node with rank N - 1.
           stk::mesh::Entity node = get_node(start_seq_node_index);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
+                             "The node with id " << get_node_id(start_seq_node_index) << " is not valid.");
           bulk_data_ptr_->add_node_sharing(node, rank - 1);
 
           // Receive the last node from rank N - 1.
           stk::mesh::EntityId received_node_id = get_node_id(start_seq_node_index - 1);
           stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(received_node), std::logic_error,
+                             "The node with id " << received_node_id << " is not valid.");
           bulk_data_ptr_->add_node_sharing(received_node, rank - 1);
         } else {
           // Share the first and last nodes with the corresponding neighboring ranks.
           stk::mesh::Entity first_node = get_node(start_seq_node_index);
           stk::mesh::Entity last_node = get_node(end_seq_node_index - 1);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(first_node), std::logic_error,
+                             "The node with id " << get_node_id(start_seq_node_index) << " is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(last_node), std::logic_error,
+                             "The node with id " << get_node_id(end_seq_node_index - 1) << " is not valid.");
           bulk_data_ptr_->add_node_sharing(first_node, rank - 1);
           bulk_data_ptr_->add_node_sharing(last_node, rank + 1);
 
@@ -625,6 +624,57 @@ class SpermSimulation {
       }
 
       bulk_data_ptr_->modification_end();
+
+      // Getting edge sharing right seems to work best if we do it after the nodes are shared.
+      debug_print("Declaring the edges.");
+      bulk_data_ptr_->modification_begin();
+
+      stk::topology elem_topo = stk::topology::SHELL_TRI_3;
+      stk::topology edge_topo = stk::topology::LINE_2;
+      auto spring_and_edge_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_,
+                                                        &meta_data_ptr_->get_topology_root_part(edge_topo)};
+      for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
+        // Fetch the nodes
+        stk::mesh::Entity left_node = get_node(i);
+        stk::mesh::Entity center_node = get_node(i + 1);
+        stk::mesh::Entity right_node = get_node(i + 2);
+
+        // Declare and connect the edges
+        stk::mesh::EntityId left_edge_id = get_edge_id(i);
+        stk::mesh::EntityId right_edge_id = get_edge_id(i + 1);
+        stk::mesh::Entity left_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, left_edge_id);
+        stk::mesh::Entity right_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, right_edge_id);
+        if (!bulk_data_ptr_->is_valid(left_edge)) {
+          // Declare the edge and connect it to the nodes
+          left_edge = bulk_data_ptr_->declare_edge(left_edge_id, spring_and_edge_part);
+          bulk_data_ptr_->declare_relation(left_edge, left_node, 0, perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(left_edge, center_node, 1, perm, scratch1, scratch2, scratch3);
+        }
+        if (!bulk_data_ptr_->is_valid(right_edge)) {
+          // Declare the edge and connect it to the nodes
+          right_edge = bulk_data_ptr_->declare_edge(right_edge_id, spring_and_edge_part);
+          bulk_data_ptr_->declare_relation(right_edge, center_node, 0, perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(right_edge, right_node, 1, perm, scratch1, scratch2, scratch3);
+        }
+
+        // Fetch the centerline twist spring and connect it to the edges
+        stk::mesh::Entity spring = get_centerline_twist_spring(i);
+        stk::mesh::Entity elem_nodes[3] = {left_node, center_node, right_node};
+        stk::mesh::Entity left_edge_nodes[2] = {left_node, center_node};
+        stk::mesh::Entity right_edge_nodes[2] = {center_node, right_node};
+
+        stk::mesh::Permutation left_perm =
+            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, left_edge_nodes, 0);
+        stk::mesh::Permutation right_perm =
+            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, right_edge_nodes, 1);
+        bulk_data_ptr_->declare_relation(spring, left_edge, 0, left_perm, scratch1, scratch2, scratch3);
+        bulk_data_ptr_->declare_relation(spring, right_edge, 1, right_perm, scratch1, scratch2, scratch3);
+      }
+      const bool cach_old_option = bulk_data_ptr_->use_entity_ids_for_resolving_sharing();
+      bulk_data_ptr_->set_use_entity_ids_for_resolving_sharing(false);
+      std::vector<stk::mesh::EntityRank> entity_rank_vector = {stk::topology::EDGE_RANK};
+      bulk_data_ptr_->modification_end_for_entity_creation(entity_rank_vector);
+      bulk_data_ptr_->set_use_entity_ids_for_resolving_sharing(cach_old_option);
 
 #ifdef DEBUG
       for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
@@ -757,13 +807,13 @@ class SpermSimulation {
     // Propogate the rest curvature of the nodes according to
     // kappa_rest = amplitude * sin(spacial_frequency * archlength + temporal_frequency * time).
     const double sperm_length = num_nodes_per_sperm_ * sperm_initial_segment_length_;
-    const double amplitude = 0.2;
+    const double amplitude = 0.01;
     const double spacial_wavelength = sperm_length / 5.0;
     const double spacial_frequency = 2.0 * M_PI / spacial_wavelength;
-    const double temporal_frequency = 0.1;
+    const double temporal_frequency = 0.01;
     const double time = (timestep_index_ == 0)
                             ? timestep_index_ * timestep_size_
-                            : (timestep_index_ - 5000) * timestep_size_;  // HARDCODING THE TIME OFFSET
+                            : (timestep_index_ - 5000000) * timestep_size_;  // HARDCODING THE TIME OFFSET
 
     auto locally_owned_selector =
         stk::mesh::Selector(centerline_twist_springs_part) & meta_data_ptr_->locally_owned_part();
@@ -857,9 +907,6 @@ class SpermSimulation {
             const auto rot_via_parallel_transport =
                 mundy::math::quat_from_parallel_transport(edge_tangent_old, edge_tangent);
             edge_orientation = rot_via_parallel_transport * rot_via_twist * edge_orientation_old;
-            // edge_orientation = rot_via_parallel_transport * edge_orientation_old * rot_via_twist;
-
-            // TODO(palmerb4): fix the order of quaternion rotation
 
             // Two things to check:
             //  1. Is the quaternion produced by the parallel transport normalized?
@@ -870,8 +917,9 @@ class SpermSimulation {
             // std::cout << "rot_via_twist: " << rot_via_twist << " has norm: " << mundy::math::norm(rot_via_twist)
             //           << std::endl;
             // std::cout << "Edge tangent : " << edge_tangent << std::endl;
-            // std::cout << " Edge tangent via transp: " << rot_via_parallel_transport * edge_tangent_old << std::endl;
-            // std::cout << " Edge tangent via orient: " << edge_orientation * mundy::math::Vector3<double>(0.0, 0.0, 1.0)
+            // std::cout << " Edge tangent via transp: " << rot_via_parallel_transport * edge_tangent_old <<
+            // std::endl; std::cout << " Edge tangent via orient: " << edge_orientation *
+            // mundy::math::Vector3<double>(0.0, 0.0, 1.0)
             //           << std::endl;
           }
         });
@@ -896,13 +944,13 @@ class SpermSimulation {
     // Originally this function acted on the locally owned elements of the centerline twist part, using them to fetch
     // the nodes/edges in the correct order and performing the computation. However, this assumes that the center node
     // of this element is locally owned as well. If this assumption fails, we'll end up writing the result to a shared
-    // but not locally owned node. The corresponding locally owned node on a different process won't have its curvature
-    // updated. That node is, thankfully, connected to a ghosted version of the element on this process, so we can fix
-    // this issue by looping over all elements, including ghosted ones.
+    // but not locally owned node. The corresponding locally owned node on a different process won't have its
+    // curvature updated. That node is, thankfully, connected to a ghosted version of the element on this process, so
+    // we can fix this issue by looping over all elements, including ghosted ones.
     //
     // We'll have to double check that this indeed works. I know that it will properly ensure that all locally owned
-    // nodes are updated, but we also write to some non-locally owned nodes. I want to make sure that the values in the
-    // non-locally owned nodes are updated using the locally-owned values. I think this is the case, but I want to
+    // nodes are updated, but we also write to some non-locally owned nodes. I want to make sure that the values in
+    // the non-locally owned nodes are updated using the locally-owned values. I think this is the case, but I want to
     // double check.
 
     // For each element in the centerline twist part, compute the node curvature at the center node.
@@ -986,12 +1034,12 @@ class SpermSimulation {
           //
           // The torque induced by the curvature is
           //  T = B (kappa - kappa_rest)
-          // where B is the diagonal matrix of bending moduli and kappa_rest is the rest curvature. Here, the first two
-          // components of curvature are the bending curvatures and the third component is the twist curvature. The
-          // bending moduli are
+          // where B is the diagonal matrix of bending moduli and kappa_rest is the rest curvature. Here, the first
+          // two components of curvature are the bending curvatures and the third component is the twist curvature.
+          // The bending moduli are
           //  B[0,0] = E * I / l_rest, B[1,1] = E * I / l_rest, B[2,2] = 2 * G * I / l_rest
-          // where l_rest is the rest length of the element, G is the shear modulus, E is the Young's modulus, and I is
-          // the moment of inertia of the cross section.
+          // where l_rest is the rest length of the element, G is the shear modulus, E is the Young's modulus, and I
+          // is the moment of inertia of the cross section.
 
           // Get the lower rank entities
           stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
@@ -1314,7 +1362,7 @@ class SpermSimulation {
 
         // Update the rest curvature.
         // kappa_rest(t + dt) = amplitude * sin(spacial_frequency * archlength + temporal_frequency * (t + dt)).
-        if (timestep_index_ > 5000) {
+        if (timestep_index_ > 5000000) {
           propogate_rest_curvature();
         }
 
@@ -1451,11 +1499,11 @@ class SpermSimulation {
   double sperm_rest_curvature_bend1_ = 0.0;
   double sperm_rest_curvature_bend2_ = 0.0;
 
-  double sperm_youngs_modulus_ = 100.0;
+  double sperm_youngs_modulus_ = 1000.0;
   double sperm_poissons_ratio_ = 0.3;
   double sperm_density_ = 1.0;
 
-  size_t num_time_steps_ = 100;
+  size_t num_time_steps_ = 1000;
   double timestep_size_ = 0.01;
   size_t io_frequency_ = 10;
   //@}
