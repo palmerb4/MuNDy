@@ -466,11 +466,16 @@ class SpermSimulation {
       const size_t end_seq_node_index = start_seq_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
 
       bulk_data_ptr_->modification_begin();
+     
       // Temporary/scatch variables
       stk::mesh::PartVector empty;
       stk::mesh::Permutation perm = stk::mesh::Permutation::INVALID_PERMUTATION;
       stk::mesh::OrdinalVector scratch1, scratch2, scratch3;
       auto spring_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_};
+      stk::topology elem_topo = stk::topology::SHELL_TRI_3;
+      stk::topology edge_topo = stk::topology::LINE_2;
+      auto spring_and_edge_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_,
+                                                        &meta_data_ptr_->get_topology_root_part(edge_topo)};
 
       // Centerline twist springs connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
       const size_t start_element_chain_index = start_seq_node_index;
@@ -526,10 +531,41 @@ class SpermSimulation {
           right_node = bulk_data_ptr_->declare_node(right_node_id, empty);
         }
 
-        // Fetch the centerline twist spring and connect it to the nodes/edges
+        // Declare and connect the edges
+        stk::mesh::EntityId left_edge_id = get_edge_id(i);
+        stk::mesh::EntityId right_edge_id = get_edge_id(i + 1);
+        stk::mesh::Entity left_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, left_edge_id);
+        stk::mesh::Entity right_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, right_edge_id);
+        if (!bulk_data_ptr_->is_valid(left_edge)) {
+          // Declare the edge and connect it to the nodes
+          left_edge = bulk_data_ptr_->declare_edge(left_edge_id, spring_and_edge_part);
+          bulk_data_ptr_->declare_relation(left_edge, left_node, 0, perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(left_edge, center_node, 1, perm, scratch1, scratch2, scratch3);
+        }
+        if (!bulk_data_ptr_->is_valid(right_edge)) {
+          // Declare the edge and connect it to the nodes
+          right_edge = bulk_data_ptr_->declare_edge(right_edge_id, spring_and_edge_part);
+          bulk_data_ptr_->declare_relation(right_edge, center_node, 0, perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(right_edge, right_node, 1, perm, scratch1, scratch2, scratch3);
+        }
+
+        // Fetch the centerline twist spring
         stk::mesh::EntityId spring_id = get_centerline_twist_spring_id(i);
         stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id, spring_part);
 
+        // Connect the spring to the edges
+        stk::mesh::Entity elem_nodes[3] = {left_node, center_node, right_node};
+        stk::mesh::Entity left_edge_nodes[2] = {left_node, center_node};
+        stk::mesh::Entity right_edge_nodes[2] = {center_node, right_node};
+
+        stk::mesh::Permutation left_perm =
+            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, left_edge_nodes, 0);
+        stk::mesh::Permutation right_perm =
+            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, right_edge_nodes, 1);
+        bulk_data_ptr_->declare_relation(spring, left_edge, 0, left_perm, scratch1, scratch2, scratch3);
+        bulk_data_ptr_->declare_relation(spring, right_edge, 1, right_perm, scratch1, scratch2, scratch3);
+
+        // Connect the spring to the nodes
         bulk_data_ptr_->declare_relation(spring, left_node, 0, perm, scratch1, scratch2, scratch3);
         bulk_data_ptr_->declare_relation(spring, center_node, 1, perm, scratch1, scratch2, scratch3);
         bulk_data_ptr_->declare_relation(spring, right_node, 2, perm, scratch1, scratch2, scratch3);
@@ -542,30 +578,6 @@ class SpermSimulation {
         stk::mesh::field_data(*element_youngs_modulus_field_ptr_, spring)[0] = sperm_youngs_modulus_;
         stk::mesh::field_data(*element_poissons_ratio_field_ptr_, spring)[0] = sperm_poissons_ratio_;
         stk::mesh::field_data(*element_rest_length_field_ptr_, spring)[0] = sperm_rest_segment_length_;
-      }
-
-      // Set the node data
-      for (size_t i = start_seq_node_index; i < end_seq_node_index; ++i) {
-        stk::mesh::Entity node = get_node(i);
-        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                           "The node with id " << get_node_id(i) << " is not valid.");
-        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
-                           "The node must be a member of the centerline twist part.");
-
-        mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) =
-            tail_coord + sperm_axis * static_cast<double>(i) * sperm_initial_segment_length_;
-        mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node).set(0.0, 0.0, 0.0);
-        mundy::mesh::vector3_field_data(*node_force_field_ptr_, node).set(0.0, 0.0, 0.0);
-        mundy::mesh::vector3_field_data(*node_acceleration_field_ptr_, node).set(0.0, 0.0, 0.0);
-        stk::mesh::field_data(*node_twist_field_ptr_, node)[0] = 0.0;
-        stk::mesh::field_data(*node_twist_velocity_field_ptr_, node)[0] = 0.0;
-        stk::mesh::field_data(*node_twist_torque_field_ptr_, node)[0] = 0.0;
-        stk::mesh::field_data(*node_twist_acceleration_field_ptr_, node)[0] = 0.0;
-        mundy::mesh::vector3_field_data(*node_curvature_field_ptr_, node).set(0.0, 0.0, 0.0);
-        mundy::mesh::vector3_field_data(*node_rest_curvature_field_ptr_, node)
-            .set(sperm_rest_curvature_bend1_, sperm_rest_curvature_bend2_, sperm_rest_curvature_twist_);
-        stk::mesh::field_data(*node_radius_field_ptr_, node)[0] = sperm_radius_;
-        stk::mesh::field_data(*node_archlength_field_ptr_, node)[0] = i * sperm_initial_segment_length_;
       }
 
       // Share the nodes with the neighboring ranks.
@@ -625,56 +637,29 @@ class SpermSimulation {
 
       bulk_data_ptr_->modification_end();
 
-      // Getting edge sharing right seems to work best if we do it after the nodes are shared.
-      debug_print("Declaring the edges.");
-      bulk_data_ptr_->modification_begin();
+      // Set the node data for all nodes (even the shared ones)
+      for (size_t i = start_seq_node_index - 1 * (rank > 0); i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
+        stk::mesh::Entity node = get_node(i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
+                           "The node with id " << get_node_id(i) << " is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
+                           "The node must be a member of the centerline twist part.");
 
-      stk::topology elem_topo = stk::topology::SHELL_TRI_3;
-      stk::topology edge_topo = stk::topology::LINE_2;
-      auto spring_and_edge_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_,
-                                                        &meta_data_ptr_->get_topology_root_part(edge_topo)};
-      for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {
-        // Fetch the nodes
-        stk::mesh::Entity left_node = get_node(i);
-        stk::mesh::Entity center_node = get_node(i + 1);
-        stk::mesh::Entity right_node = get_node(i + 2);
-
-        // Declare and connect the edges
-        stk::mesh::EntityId left_edge_id = get_edge_id(i);
-        stk::mesh::EntityId right_edge_id = get_edge_id(i + 1);
-        stk::mesh::Entity left_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, left_edge_id);
-        stk::mesh::Entity right_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, right_edge_id);
-        if (!bulk_data_ptr_->is_valid(left_edge)) {
-          // Declare the edge and connect it to the nodes
-          left_edge = bulk_data_ptr_->declare_edge(left_edge_id, spring_and_edge_part);
-          bulk_data_ptr_->declare_relation(left_edge, left_node, 0, perm, scratch1, scratch2, scratch3);
-          bulk_data_ptr_->declare_relation(left_edge, center_node, 1, perm, scratch1, scratch2, scratch3);
-        }
-        if (!bulk_data_ptr_->is_valid(right_edge)) {
-          // Declare the edge and connect it to the nodes
-          right_edge = bulk_data_ptr_->declare_edge(right_edge_id, spring_and_edge_part);
-          bulk_data_ptr_->declare_relation(right_edge, center_node, 0, perm, scratch1, scratch2, scratch3);
-          bulk_data_ptr_->declare_relation(right_edge, right_node, 1, perm, scratch1, scratch2, scratch3);
-        }
-
-        // Fetch the centerline twist spring and connect it to the edges
-        stk::mesh::Entity spring = get_centerline_twist_spring(i);
-        stk::mesh::Entity elem_nodes[3] = {left_node, center_node, right_node};
-        stk::mesh::Entity left_edge_nodes[2] = {left_node, center_node};
-        stk::mesh::Entity right_edge_nodes[2] = {center_node, right_node};
-
-        stk::mesh::Permutation left_perm =
-            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, left_edge_nodes, 0);
-        stk::mesh::Permutation right_perm =
-            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, right_edge_nodes, 1);
-        bulk_data_ptr_->declare_relation(spring, left_edge, 0, left_perm, scratch1, scratch2, scratch3);
-        bulk_data_ptr_->declare_relation(spring, right_edge, 1, right_perm, scratch1, scratch2, scratch3);
+        mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) =
+            tail_coord + sperm_axis * static_cast<double>(i) * sperm_initial_segment_length_;
+        mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node).set(0.0, 0.0, 0.0);
+        mundy::mesh::vector3_field_data(*node_force_field_ptr_, node).set(0.0, 0.0, 0.0);
+        mundy::mesh::vector3_field_data(*node_acceleration_field_ptr_, node).set(0.0, 0.0, 0.0);
+        stk::mesh::field_data(*node_twist_field_ptr_, node)[0] = 0.0;
+        stk::mesh::field_data(*node_twist_velocity_field_ptr_, node)[0] = 0.0;
+        stk::mesh::field_data(*node_twist_torque_field_ptr_, node)[0] = 0.0;
+        stk::mesh::field_data(*node_twist_acceleration_field_ptr_, node)[0] = 0.0;
+        mundy::mesh::vector3_field_data(*node_curvature_field_ptr_, node).set(0.0, 0.0, 0.0);
+        mundy::mesh::vector3_field_data(*node_rest_curvature_field_ptr_, node)
+            .set(sperm_rest_curvature_bend1_, sperm_rest_curvature_bend2_, sperm_rest_curvature_twist_);
+        stk::mesh::field_data(*node_radius_field_ptr_, node)[0] = sperm_radius_;
+        stk::mesh::field_data(*node_archlength_field_ptr_, node)[0] = i * sperm_initial_segment_length_;
       }
-      const bool cach_old_option = bulk_data_ptr_->use_entity_ids_for_resolving_sharing();
-      bulk_data_ptr_->set_use_entity_ids_for_resolving_sharing(false);
-      std::vector<stk::mesh::EntityRank> entity_rank_vector = {stk::topology::EDGE_RANK};
-      bulk_data_ptr_->modification_end_for_entity_creation(entity_rank_vector);
-      bulk_data_ptr_->set_use_entity_ids_for_resolving_sharing(cach_old_option);
 
 #ifdef DEBUG
       for (size_t i = start_element_chain_index; i < end_start_element_chain_index; ++i) {

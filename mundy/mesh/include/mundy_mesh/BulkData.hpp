@@ -92,14 +92,6 @@ class BulkData : public stk::mesh::BulkData {
   }
   //@}
 
-  //! \name Actions
-  //@}
-
-  /// \brief End the modification cycle for entity creation.
-  ///
-  /// This function is protected within STK, but we found that it should be accessible to the user.
-  using stk::mesh::BulkData::modification_end_for_entity_creation;
-
  protected:
   //! \name Constructor
   //@{
