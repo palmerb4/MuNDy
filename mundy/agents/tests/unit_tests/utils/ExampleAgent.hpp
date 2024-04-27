@@ -33,8 +33,8 @@
 
 // Mundy libs
 #include <mundy_agents/Agents.hpp>          // for mundy::agents::Agents
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -88,35 +88,35 @@ class ExampleAgent {
 
   /// \brief Add new part requirements to ALL members of this agent part.
   /// These modifications are reflected in our mesh requirements.
-  static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
+  static inline void add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr) {
     add_part_reqs_counter_++;
-    part_reqs_ptr_->merge(part_reqs_ptr);
+    part_reqs_ptr_->sync(part_reqs_ptr);
   }
 
   /// \brief Add sub-part requirements.
   /// These modifications are reflected in our mesh requirements.
-  static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
+  static inline void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr) {
     add_subpart_reqs_counter_++;
-    part_reqs_ptr_->add_subpart_reqs(subpart_reqs_ptr);
+    part_reqs_ptr_->add_and_sync_subpart_reqs(subpart_reqs_ptr);
   }
 
   /// \brief Get our mesh requirements.
-  static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
+  static inline std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements() {
     get_mesh_requirements_counter_++;
     // By default, we assume that the ExampleAgents part is an agent with an INVALID_TOPOLOGY.
 
     // Declare our part as a subpart of our parent parts.
-    mundy::agents::Agents::add_subpart_reqs(part_reqs_ptr_);
+    mundy::agents::Agents::add_and_sync_subpart_reqs(part_reqs_ptr_);
 
-    // Because we passed our part requirements up the chain, we can now fetch and merge all of our parent's
+    // Because we passed our part requirements up the chain, we can now fetch and sync all of our parent's
     // requirements. If done correctly, this call will result in a upward tree traversal. Our part is declared as a
     // subpart of our parent, which is declared as a subpart of its parent. This process repeated until we reach a root
     // node. The combined requirements for all parts touched in this traversal are then returned here.
     //
     // We add our part requirements directly to the mesh to account for the case where we are the root node.
-    static auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs_ptr->add_part_reqs(part_reqs_ptr_);
-    mesh_reqs_ptr->merge(mundy::agents::Agents::get_mesh_requirements());
+    static auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
+    mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs_ptr_);
+    mesh_reqs_ptr->sync(mundy::agents::Agents::get_mesh_requirements());
     return mesh_reqs_ptr;
   }
 
@@ -150,12 +150,12 @@ class ExampleAgent {
     return has_rank_counter_;
   }
 
-  /// \brief Get the number of times add_part_reqs() has been called.
+  /// \brief Get the number of times add_and_sync_part_reqs() has been called.
   static inline int get_add_part_reqs_counter() {
     return add_part_reqs_counter_;
   }
 
-  /// \brief Get the number of times add_subpart_reqs() has been called.
+  /// \brief Get the number of times add_and_sync_subpart_reqs() has been called.
   static inline int get_add_subpart_reqs_counter() {
     return add_subpart_reqs_counter_;
   }
@@ -188,10 +188,10 @@ class ExampleAgent {
   /// \brief The number of times has_rank() has been called.
   static inline int has_rank_counter_ = 0;
 
-  /// \brief The number of times add_part_reqs() has been called.
+  /// \brief The number of times add_and_sync_part_reqs() has been called.
   static inline int add_part_reqs_counter_ = 0;
 
-  /// \brief The number of times add_subpart_reqs() has been called.
+  /// \brief The number of times add_and_sync_subpart_reqs() has been called.
   static inline int add_subpart_reqs_counter_ = 0;
 
   /// \brief The number of times get_mesh_requirements() has been called.
@@ -230,8 +230,8 @@ class ExampleAgent {
   static constexpr inline bool has_rank_ = false;
 
   /// \brief Our part requirements.
-  static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ = []() {
-    auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
+  static inline std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr_ = []() {
+    auto part_reqs_ptr = std::make_shared<mundy::meta::PartReqs>();
     part_reqs_ptr->set_part_name(std::string(name_));
     part_reqs_ptr->set_part_topology(topology_);
     return part_reqs_ptr;

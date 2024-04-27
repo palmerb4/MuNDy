@@ -133,7 +133,7 @@ Configurator &Configurator::set_driver(std::shared_ptr<Driver> driver) {
 //! @name Getters
 //@{
 
-std::shared_ptr<mundy::meta::MeshRequirements> Configurator::get_mesh_requirements() {
+std::shared_ptr<mundy::meta::MeshReqs> Configurator::get_mesh_requirements() {
   return mesh_reqs_ptr_;
 }
 
@@ -312,8 +312,8 @@ Configurator &Configurator::parse_meta_method_type(const std::string &method_typ
   return *this;
 }
 
-std::shared_ptr<mundy::meta::MeshRequirements> Configurator::create_mesh_requirements() {
-  mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshRequirements>(comm_);
+std::shared_ptr<mundy::meta::MeshReqs> Configurator::create_mesh_requirements() {
+  mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshReqs>(comm_);
   mesh_reqs_ptr_->set_spatial_dimension(spatial_dimension_);
   mesh_reqs_ptr_->set_entity_rank_names(entity_rank_names_);
 
@@ -324,11 +324,11 @@ std::shared_ptr<mundy::meta::MeshRequirements> Configurator::create_mesh_require
     // Add a single requirement to the mesh, taking into account what factory it came from
     // TODO(cje): At some point having this be a single factory, or making this easier, would be nice
     if (method_type == "meta_method_execution_interface") {
-      mesh_reqs_ptr_->merge(FactoryMM::get_mesh_requirements(method_name, fixed_params));
+      mesh_reqs_ptr_->sync(FactoryMM::get_mesh_requirements(method_name, fixed_params));
     } else if (method_type == "meta_method_subset_execution_interface") {
-      mesh_reqs_ptr_->merge(FactoryMMS::get_mesh_requirements(method_name, fixed_params));
+      mesh_reqs_ptr_->sync(FactoryMMS::get_mesh_requirements(method_name, fixed_params));
     } else if (method_type == "meta_method_pairwise_subset_execution_interface") {
-      mesh_reqs_ptr_->merge(FactoryMMPS::get_mesh_requirements(method_name, fixed_params));
+      mesh_reqs_ptr_->sync(FactoryMMPS::get_mesh_requirements(method_name, fixed_params));
     }
   }
 

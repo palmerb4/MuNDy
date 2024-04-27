@@ -93,7 +93,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 #include <mundy_shapes/ComputeAABB.hpp>     // for mundy::shapes::ComputeAABB
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
@@ -283,7 +283,7 @@ class SpermSimulation {
     //
     // We require that the centerline twist springs part exists, has a BEAM_3 topology, and has the desired
     // node/edge/element fields.
-    auto clt_part_reqs = std::make_shared<mundy::meta::PartRequirements>()
+    auto clt_part_reqs = std::make_shared<mundy::meta::PartReqs>()
                              ->set_part_name("CENTERLINE_TWIST_SPRINGS")
                              .set_part_topology(stk::topology::BEAM_3)
 
@@ -309,18 +309,18 @@ class SpermSimulation {
                              .add_field_reqs<double>("EDGE_LENGTH", edge_rank_, 1, 1);
 
     // Create the mesh requirements
-    mesh_reqs_ptr_->add_part_reqs(clt_part_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(clt_part_reqs);
 
     // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
     auto compute_ssd_and_cn_fixed_params = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER"));
-    mesh_reqs_ptr_->merge(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
+    mesh_reqs_ptr_->sync(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
         compute_ssd_and_cn_fixed_params));
 
     // ComputeAABB fixed parameters
     auto compute_aabb_fixed_params =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
-    mesh_reqs_ptr_->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
+    mesh_reqs_ptr_->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
 
     // GenerateNeighborLinkers fixed parameters
     auto generate_neighbor_linkers_fixed_params =
@@ -331,26 +331,26 @@ class SpermSimulation {
             .sublist("STK_SEARCH")
             .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"))
             .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"));
-    mesh_reqs_ptr_->merge(
+    mesh_reqs_ptr_->sync(
         mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_neighbor_linkers_fixed_params));
 
     // EvaluateLinkerPotentials fixed parameters
     auto evaluate_linker_potentials_fixed_params = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
-    mesh_reqs_ptr_->merge(
+    mesh_reqs_ptr_->sync(
         mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
 
     // LinkerPotentialForceMagnitudeReduction fixed parameters
     auto linker_potential_force_magnitude_reduction_fixed_params =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
-    mesh_reqs_ptr_->merge(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
+    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
         linker_potential_force_magnitude_reduction_fixed_params));
 
     // DestroyNeighborLinkers fixed parameters
     auto destroy_neighbor_linkers_fixed_params =
         Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
-    mesh_reqs_ptr_->merge(
+    mesh_reqs_ptr_->sync(
         mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params));
 
     // DeclareAndInitConstraints fixed parameters
@@ -369,7 +369,7 @@ class SpermSimulation {
             .set<bool>("generate_angular_springs", false)
             .set<bool>("generate_spheres_at_nodes", false)
             .set<bool>("generate_spherocylinder_segments_along_edges", true);
-    mesh_reqs_ptr_->merge(mundy::constraints::DeclareAndInitConstraints::get_mesh_requirements(
+    mesh_reqs_ptr_->sync(mundy::constraints::DeclareAndInitConstraints::get_mesh_requirements(
         declare_and_init_constraints_fixed_params));
 
     // The mesh requirements are now set up, so we solidify the mesh structure.
@@ -1026,7 +1026,7 @@ class SpermSimulation {
 
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_;
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
-  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_;
+  std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
   stk::io::StkMeshIoBroker stk_io_broker_;
   size_t output_file_index_;
   bool rebuild_neighbor_list_ = true;

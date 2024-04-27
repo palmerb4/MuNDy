@@ -37,11 +37,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
 #include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -86,9 +86,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
@@ -102,7 +102,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
     std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
     // Create the requirements.
-    auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    auto sphere_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     sphere_part_reqs->set_part_name(associated_part_name);
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
     sphere_part_reqs->add_field_reqs<double>(node_force_field_name, stk::topology::NODE_RANK, 3, 1);
@@ -111,8 +111,8 @@ class Sphere : public mundy::meta::MetaKernel<> {
     sphere_part_reqs->add_field_reqs<double>(node_omega_field_name, stk::topology::NODE_RANK, 3, 1);
     sphere_part_reqs->add_field_reqs<double>(element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(sphere_part_reqs);
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshReqs>();
+    mesh_reqs->add_and_sync_part_reqs(sphere_part_reqs);
 
     return mesh_reqs;
   }

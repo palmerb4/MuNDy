@@ -24,23 +24,23 @@ add_subdirectory(utils)
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
 tribits_add_executable_and_test(
-    UnitTestFieldRequirements
+    UnitTestFieldReqs
     SOURCES
-      UnitTestFieldRequirements.cpp
+      UnitTestFieldReqs.cpp
       ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
     )
 
 tribits_add_executable_and_test(
-    UnitTestPartRequirements
+    UnitTestPartReqs
     SOURCES
-      UnitTestPartRequirements.cpp
+      UnitTestPartReqs.cpp
       ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
     )
 
 tribits_add_executable_and_test(
-    UnitTestMeshRequirements
+    UnitTestMeshReqs
     SOURCES
-      UnitTestMeshRequirements.cpp
+      UnitTestMeshReqs.cpp
       ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
     )
 

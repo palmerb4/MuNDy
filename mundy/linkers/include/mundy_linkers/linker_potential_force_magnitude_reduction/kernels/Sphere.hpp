@@ -39,12 +39,12 @@
 #include <mundy_linkers/NeighborLinkers.hpp>  // for mundy::linkers::NeighborLinkers
 #include <mundy_mesh/BulkData.hpp>            // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>            // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldReqs.hpp>   // for mundy::meta::FieldReqs
 #include <mundy_meta/MetaFactory.hpp>         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>        // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 #include <mundy_shapes/Spheres.hpp>         // for mundy::shapes::Spheres
 
 namespace mundy {
@@ -97,9 +97,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
@@ -107,7 +107,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
     valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
     // Add the requirements for the linker.
-    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
     std::string linker_potential_force_magnitude_field_name =
         valid_fixed_params.get<std::string>("linker_potential_force_magnitude_field_name");
     std::string linker_contact_normal_field_name =
@@ -117,7 +117,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
         valid_fixed_params.get<std::string>("name_of_linker_part_to_reduce_over");
     {
       const std::string part_name = name_of_linker_part_to_reduce_over;
-      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
       part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
       part_reqs->add_field_reqs<double>(linker_potential_force_magnitude_field_name, stk::topology::CONSTRAINT_RANK, 1,
@@ -126,13 +126,13 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
       if (part_name == NeighborLinkers::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        NeighborLinkers::add_part_reqs(part_reqs);
+        NeighborLinkers::add_and_sync_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        NeighborLinkers::add_subpart_reqs(part_reqs);
+        NeighborLinkers::add_and_sync_subpart_reqs(part_reqs);
       }
     }
-    mesh_reqs_ptr->merge(NeighborLinkers::get_mesh_requirements());
+    mesh_reqs_ptr->sync(NeighborLinkers::get_mesh_requirements());
 
     // Add the requirements for the connected spheres.
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
@@ -141,19 +141,19 @@ class Sphere : public mundy::meta::MetaKernel<> {
     const int num_sphere_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_sphere_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
-      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs<double>(node_force_field_name, stk::topology::NODE_RANK, 3, 1);
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_part_reqs(part_reqs);
+        mundy::shapes::Spheres::add_and_sync_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
+        mundy::shapes::Spheres::add_and_sync_subpart_reqs(part_reqs);
       }
     }
-    mesh_reqs_ptr->merge(mundy::shapes::Spheres::get_mesh_requirements());
+    mesh_reqs_ptr->sync(mundy::shapes::Spheres::get_mesh_requirements());
 
     return mesh_reqs_ptr;
   }

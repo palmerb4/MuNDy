@@ -47,7 +47,7 @@
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>                    // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -95,9 +95,9 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -113,20 +113,20 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
     Teuchos::ParameterList &compute_constraint_violation_params =
         valid_fixed_params.sublist("submethods").sublist("compute_constraint_violation");
 
-    // Collect and merge the submethod requirements.
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
+    // Collect and sync the submethod requirements.
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshReqs>();
     const std::string compute_constraint_forcing_name = compute_constraint_forcing_params.get<std::string>("name");
     const std::string compute_constraint_projection_name =
         compute_constraint_projection_params.get<std::string>("name");
     const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
     const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
-    mesh_reqs->merge(OurConstraintForcingMethodFactory::get_mesh_requirements(compute_constraint_forcing_name,
+    mesh_reqs->sync(OurConstraintForcingMethodFactory::get_mesh_requirements(compute_constraint_forcing_name,
                                                                               compute_constraint_forcing_params));
-    mesh_reqs->merge(OurConstraintProjectionMethodFactory::get_mesh_requirements(compute_constraint_projection_name,
+    mesh_reqs->sync(OurConstraintProjectionMethodFactory::get_mesh_requirements(compute_constraint_projection_name,
                                                                                  compute_constraint_projection_params));
-    mesh_reqs->merge(OurConstraintResidualMethodFactory::get_mesh_requirements(compute_constraint_residual_name,
+    mesh_reqs->sync(OurConstraintResidualMethodFactory::get_mesh_requirements(compute_constraint_residual_name,
                                                                                compute_constraint_residual_params));
-    mesh_reqs->merge(OurConstraintViolationMethodFactory::get_mesh_requirements(compute_constraint_violation_name,
+    mesh_reqs->sync(OurConstraintViolationMethodFactory::get_mesh_requirements(compute_constraint_violation_name,
                                                                                 compute_constraint_violation_params));
     return mesh_reqs;
   }

@@ -39,12 +39,12 @@
 #include <mundy_constraints/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
 #include <mundy_mesh/BulkData.hpp>                             // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                             // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>                    // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldReqs.hpp>                    // for mundy::meta::FieldReqs
 #include <mundy_meta/MetaFactory.hpp>                          // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                           // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>                         // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -81,15 +81,15 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
 
     // Fill the requirements using the given parameter list.
-    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
     std::string node_coord_field_name = valid_fixed_params.get<std::string>("node_coord_field_name");
     std::string node_normal_field_name = valid_fixed_params.get<std::string>("node_normal_field_name");
     std::string element_radius_field_name = valid_fixed_params.get<std::string>("element_radius_field_name");
@@ -100,7 +100,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
-      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
       part_reqs->set_part_topology(stk::topology::PARTICLE);
       part_reqs->add_field_reqs<double>(
@@ -111,7 +111,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
           element_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1);
       part_reqs->add_field_reqs<double>(
           element_signed_separation_dist_field_name, stk::topology::ELEMENT_RANK, 1, 1);
-      mesh_reqs_ptr->add_part_reqs(part_reqs);
+      mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs);
     }
 
     return mesh_reqs_ptr;

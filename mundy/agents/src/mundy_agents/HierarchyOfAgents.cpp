@@ -117,39 +117,39 @@ stk::topology::rank_t HierarchyOfAgents::get_rank(const agent_t agent_type) {
   return get_rank_generator_map()[agent_type]();
 }
 
-void HierarchyOfAgents::add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr,
+void HierarchyOfAgents::add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr,
                                       const std::string& name) {
   assert_is_valid(name);
   const agent_t agent_type = get_agent_type(name);
-  add_part_reqs(part_reqs_ptr, agent_type);
+  add_and_sync_part_reqs(part_reqs_ptr, agent_type);
 }
 
-void HierarchyOfAgents::add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr,
+void HierarchyOfAgents::add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr,
                                       const agent_t agent_type) {
   assert_is_valid(agent_type);
   get_add_part_reqs_generator_map()[agent_type](part_reqs_ptr);
 }
 
-void HierarchyOfAgents::add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
+void HierarchyOfAgents::add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
                                          const std::string& name) {
   assert_is_valid(name);
   const agent_t agent_type = get_agent_type(name);
-  add_subpart_reqs(subpart_reqs_ptr, agent_type);
+  add_and_sync_subpart_reqs(subpart_reqs_ptr, agent_type);
 }
 
-void HierarchyOfAgents::add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
+void HierarchyOfAgents::add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
                                          const agent_t agent_type) {
   assert_is_valid(agent_type);
   get_add_subpart_reqs_generator_map()[agent_type](subpart_reqs_ptr);
 }
 
-std::shared_ptr<mundy::meta::MeshRequirements> HierarchyOfAgents::get_mesh_requirements(const std::string& name) {
+std::shared_ptr<mundy::meta::MeshReqs> HierarchyOfAgents::get_mesh_requirements(const std::string& name) {
   assert_is_valid(name);
   const agent_t agent_type = get_agent_type(name);
   return get_mesh_requirements(agent_type);
 }
 
-std::shared_ptr<mundy::meta::MeshRequirements> HierarchyOfAgents::get_mesh_requirements(const agent_t agent_type) {
+std::shared_ptr<mundy::meta::MeshReqs> HierarchyOfAgents::get_mesh_requirements(const agent_t agent_type) {
   assert_is_valid(agent_type);
   return get_mesh_requirements_generator_map()[agent_type]();
 }

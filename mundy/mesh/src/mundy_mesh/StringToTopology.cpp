@@ -163,7 +163,7 @@ stk::topology string_to_topology(const std::string &topology_string) {
     return stk::create_superelement_topology(num_nodes);
   } else {
     MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                       "PartRequirements: The provided topology string " << topology_string << " is not valid.");
+                       "PartReqs: The provided topology string " << topology_string << " is not valid.");
   }
 }
 

@@ -119,11 +119,11 @@ mundy::mesh
   NeighborList
 
 mundy::meta
-  FieldRequirementsBase
-  FieldRequirements : FieldRequirementsBase
-  PartRequirements
+  FieldReqsBase
+  FieldReqs : FieldReqsBase
+  PartReqs
   NeighborListRequirements
-  MeshRequirements
+  MeshReqs
   HasRequirementsAndIsRegisterable
   MetaFactory
   MetaRegistry

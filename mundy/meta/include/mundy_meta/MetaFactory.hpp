@@ -43,8 +43,8 @@
 #include <mundy_core/StringLiteral.hpp>                         // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                          // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
-#include <mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshRequirementsAndIsRegisterable
-#include <mundy_meta/MeshRequirements.hpp>                      // for mundy::meta::MeshRequirements
+#include <mundy_meta/HasMeshReqsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshReqsAndIsRegisterable
+#include <mundy_meta/MeshReqs.hpp>                      // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaKernel.hpp>                            // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>    // for mundy::meta::MetaMethodSubsetExecutionInterface
 
@@ -85,7 +85,7 @@ concept IsValidRegistrationValueWrapper = requires(T registration_value_wrapper)
 /// using PolymorphicBaseType = ...;
 ///
 /// // Get the requirements generator for this class. May be nullptr.
-/// static std::shared_ptr<MeshRequirements> get_mesh_requirements();
+/// static std::shared_ptr<MeshReqs> get_mesh_requirements();
 ///
 /// // Get the valid fixed parameters for this class and their defaults.
 /// static Teuchos::ParameterList get_valid_fixed_params();
@@ -122,9 +122,9 @@ class MetaFactory {
   using NewClassGenerator =
       std::function<std::shared_ptr<PolymorphicBaseType>(mundy::mesh::BulkData* const, const Teuchos::ParameterList&)>;
 
-  /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
+  /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartReqs
   /// instances.
-  using NewRequirementsGenerator = std::function<std::shared_ptr<MeshRequirements>(const Teuchos::ParameterList&)>;
+  using NewRequirementsGenerator = std::function<std::shared_ptr<MeshReqs>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that returns a Teuchos::ParameterList.
   using NewValidParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -178,7 +178,7 @@ class MetaFactory {
   /// \param key [in] A key corresponding to a registered class.
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A default fixed
   /// parameter list is accessible via \c get_valid_fixed_params.
-  static std::shared_ptr<MeshRequirements> get_mesh_requirements(const RegistrationType& key,
+  static std::shared_ptr<MeshReqs> get_mesh_requirements(const RegistrationType& key,
                                                                  const Teuchos::ParameterList& fixed_params) {
     return get_requirement_generator_map()[key](fixed_params);
   }
@@ -228,7 +228,7 @@ class MetaFactory {
   template <typename ClassToRegister>
   static inline bool register_new_class(const RegistrationType& key) {
     // Check that the ClassToRegister has the desired interface.
-    using Checker = HasMeshRequirementsAndIsRegisterable<ClassToRegister>;
+    using Checker = HasMeshReqsAndIsRegisterable<ClassToRegister>;
     static_assert(Checker::has_get_mesh_requirements,
                   "MetaFactory: The class to register doesn't have the correct get_mesh_requirements function.\n"
                   "See the documentation of MetaFactory for more information about the expected interface.");

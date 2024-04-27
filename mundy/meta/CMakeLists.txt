@@ -15,12 +15,12 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
-  include/mundy_meta/FieldRequirementsBase.hpp
-  include/mundy_meta/FieldRequirementsFactory.hpp
-  include/mundy_meta/FieldRequirements.hpp
-  include/mundy_meta/FieldRequirementsRegistry.hpp
-  include/mundy_meta/HasMeshRequirementsAndIsRegisterable.hpp
-  include/mundy_meta/MeshRequirements.hpp
+  include/mundy_meta/FieldReqsBase.hpp
+  include/mundy_meta/FieldReqsFactory.hpp
+  include/mundy_meta/FieldReqs.hpp
+  include/mundy_meta/FieldReqsRegistry.hpp
+  include/mundy_meta/HasMeshReqsAndIsRegisterable.hpp
+  include/mundy_meta/MeshReqs.hpp
   include/mundy_meta/MetaFactory.hpp
   include/mundy_meta/MetaKernelDispatcher.hpp
   include/mundy_meta/MetaKernel.hpp
@@ -30,13 +30,13 @@ SET(NOINSTALLHEADERS
   include/mundy_meta/MetaRegistry.hpp
   include/mundy_meta/MetaTechniqueDispatcher.hpp
   include/mundy_meta/ParameterValidationHelpers.hpp
-  include/mundy_meta/PartRequirements.hpp
+  include/mundy_meta/PartReqs.hpp
   include/mundy_meta/utils/MeshGeneration.hpp
   )
 
 SET(SOURCES 
-  src/mundy_meta/PartRequirements.cpp
-  src/mundy_meta/MeshRequirements.cpp
+  src/mundy_meta/PartReqs.cpp
+  src/mundy_meta/MeshReqs.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

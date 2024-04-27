@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_FIELDREQUIREMENTSBASE_HPP_
-#define MUNDY_META_FIELDREQUIREMENTSBASE_HPP_
+#ifndef MUNDY_META_FIELDREQSBASE_HPP_
+#define MUNDY_META_FIELDREQSBASE_HPP_
 
-/// \file FieldRequirementsBase.hpp
-/// \brief Declaration of the FieldRequirementsBase class
+/// \file FieldReqsBase.hpp
+/// \brief Declaration of the FieldReqsBase class
 
 // C++ core libs
 #include <algorithm>    // for std::max
@@ -46,32 +46,32 @@ namespace mundy {
 
 namespace meta {
 
-/// \class FieldRequirementsBase
-/// \brief A consistent interface for all \c FieldRequirementsBase.
-class FieldRequirementsBase {
+/// \class FieldReqsBase
+/// \brief A consistent interface for all \c FieldReqsBase.
+class FieldReqsBase {
  public:
   //! \name Setters and Getters
   //@{
 
   /// \brief Set the required field name.
   /// \brief field_name [in] Required name of the field.
-  virtual FieldRequirementsBase& set_field_name(const std::string& field_name) = 0;
+  virtual FieldReqsBase& set_field_name(const std::string& field_name) = 0;
 
   /// \brief Set the required field rank.
   /// \brief field_rank [in] Required rank of the field.
-  virtual FieldRequirementsBase& set_field_rank(const stk::topology::rank_t& field_rank) = 0;
+  virtual FieldReqsBase& set_field_rank(const stk::topology::rank_t& field_rank) = 0;
 
   /// \brief Set the required field dimension.
   /// \brief field_dimension [in] Required dimension of the field.
-  virtual FieldRequirementsBase& set_field_dimension(const unsigned field_dimension) = 0;
+  virtual FieldReqsBase& set_field_dimension(const unsigned field_dimension) = 0;
 
   /// \brief Set the minimum required number of field states to the given value.
   /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
-  virtual FieldRequirementsBase& set_field_min_number_of_states(const unsigned field_min_number_of_states) = 0;
+  virtual FieldReqsBase& set_field_min_number_of_states(const unsigned field_min_number_of_states) = 0;
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
-  virtual FieldRequirementsBase& set_field_min_number_of_states_if_larger(
+  virtual FieldReqsBase& set_field_min_number_of_states_if_larger(
       const unsigned field_min_number_of_states) = 0;
 
   /// \brief Get if the field name is constrained or not.
@@ -123,57 +123,45 @@ class FieldRequirementsBase {
   virtual stk::mesh::FieldBase& declare_field_on_entire_mesh(mundy::mesh::MetaData* const meta_data_ptr) const = 0;
 
   /// \brief Delete the field name constraint (if it exists).
-  virtual FieldRequirementsBase& delete_field_name() = 0;
+  virtual FieldReqsBase& delete_field_name() = 0;
 
   /// \brief Delete the field rank constraint (if it exists).
-  virtual FieldRequirementsBase& delete_field_rank() = 0;
+  virtual FieldReqsBase& delete_field_rank() = 0;
 
   /// \brief Delete the field dimension constraint (if it exists).
-  virtual FieldRequirementsBase& delete_field_dimension() = 0;
+  virtual FieldReqsBase& delete_field_dimension() = 0;
 
   /// \brief Delete the field minimum number of states constraint (if it exists).
-  virtual FieldRequirementsBase& delete_field_min_number_of_states() = 0;
+  virtual FieldReqsBase& delete_field_min_number_of_states() = 0;
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means that the rank, dimension, and number of states are > 0, but as unsigned ints, this is always the
   /// case. We will however, leave this checker incase the class grows and the set of requirements is no longer
   /// automatically satisfied.
-  virtual FieldRequirementsBase& check_if_valid() = 0;
+  virtual FieldReqsBase& check_if_valid() = 0;
 
   /// \brief Require that an attribute with the given name be present on the field.
   ///
   /// \param attribute_name [in] The name of the attribute that must be present on the field.
-  virtual FieldRequirementsBase& add_field_attribute(const std::string& attribute_name) = 0;
+  virtual FieldReqsBase& add_field_attribute(const std::string& attribute_name) = 0;
 
-  /// \brief Merge the current parameters with any number of other \c FieldRequirements.
+  /// \brief Synchronize (merge and rectify differences) the current parameters with any number of other \c FieldReqs.
   ///
-  /// Here, merging two a \c FieldRequirements object with this object amounts to setting the number of states to be the
-  /// maximum over all the number of states over all the \c FieldRequirements. For this process to be valid, the given
-  /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
-  /// match the current name of this field.
+  /// Here, syncing two \c FieldReqs object amounts to setting their number of states to be the
+  /// maximum of their set min num states. For this process to be valid, the given
+  /// \c FieldReqs must have the same rank, type, and dimension. It also syncs their attributes.
   ///
-  /// \param field_req_ptr [in] A \c FieldRequirements objects to merge with the current object.
-  virtual FieldRequirementsBase& merge(const std::shared_ptr<FieldRequirementsBase>& field_req_ptr) = 0;
+  /// \param field_req_ptr [in] A \c FieldReqs objects to sync with the current object.
+  virtual FieldReqsBase& sync(std::shared_ptr<FieldReqsBase> field_req_ptr) = 0;
 
-  /// \brief Merge the current parameters with any number of other \c FieldRequirements.
-  ///
-  /// Here, merging two a \c FieldRequirements object with this object amounts to setting the number of states to be the
-  /// maximum over all the number of states over all the \c FieldRequirements. For this process to be valid, the given
-  /// \c FieldRequirements must have the same rank, type, and dimension. The name of the other fields does not need to
-  /// match the current name of this field.
-  ///
-  /// \param list_of_field_reqs [in] A list of other \c FieldRequirements objects to merge with the current object.
-  virtual FieldRequirementsBase& merge(
-      const std::vector<std::shared_ptr<FieldRequirementsBase>>& vector_of_field_req_ptrs) = 0;
-
-  /// \brief Dump the contents of \c FieldRequirements to the given stream (defaults to std::cout).
+  /// \brief Dump the contents of \c FieldReqs to the given stream (defaults to std::cout).
   virtual void print_reqs(std::ostream& os = std::cout, int indent_level = 0) const = 0;
 
   /// \brief Return a string representation of the current set of requirements.
   virtual std::string get_reqs_as_a_string() const = 0;
   //@}
-};  // FieldRequirementsBase
+};  // FieldReqsBase
 
 //}
 
@@ -183,4 +171,4 @@ class FieldRequirementsBase {
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_FIELDREQUIREMENTSBASE_HPP_
+#endif  // MUNDY_META_FIELDREQSBASE_HPP_

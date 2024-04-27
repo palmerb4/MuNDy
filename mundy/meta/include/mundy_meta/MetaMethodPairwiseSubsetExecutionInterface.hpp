@@ -36,7 +36,7 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 
 namespace mundy {
 

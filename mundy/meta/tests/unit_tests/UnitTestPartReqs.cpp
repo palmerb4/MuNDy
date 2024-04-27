@@ -39,9 +39,9 @@
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
-#include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
+#include <mundy_meta/PartReqs.hpp>       // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -50,58 +50,58 @@ namespace meta {
 namespace {
 
 /*
-Parts are defined by their name, rank (or topology), attributes, fields, and sub-parts. By default, PartRequirements
-doesn't constrain any of these, but partial requirements are allowed; for example, a PartRequirements object can
-constrain part name and rank, but not attributes. A PartRequirements object can also be used to generate a Part, given
-that the PartRequirements object is fully specified; here, fully specified only requires that the part_name is set. In
-the meantime, PartRequirements can be merged together to create a new PartRequirements object that is the union of the
-two PartRequirements objects.
+Parts are defined by their name, rank (or topology), attributes, fields, and sub-parts. By default, PartReqs
+doesn't constrain any of these, but partial requirements are allowed; for example, a PartReqs object can
+constrain part name and rank, but not attributes. A PartReqs object can also be used to generate a Part, given
+that the PartReqs object is fully specified; here, fully specified only requires that the part_name is set. In
+the meantime, PartReqs can be merged together to create a new PartReqs object that is the union of the
+two PartReqs objects.
 
-The following tests check that the PartRequirements object is working as expected. The tests are organized into
+The following tests check that the PartReqs object is working as expected. The tests are organized into
 sections based on the functionality being tested. The sections are as follows:
-  -# PartRequirements object construction
-  -# PartRequirements object setting
-  -# PartRequirements object getting
-  -# PartRequirements object deleting
-  -# PartRequirements object merging
-  -# PartRequirements object declaring
+  -# PartReqs object construction
+  -# PartReqs object setting
+  -# PartReqs object getting
+  -# PartReqs object deleting
+  -# PartReqs object merging
+  -# PartReqs object declaring
 */
 
-//! \name PartRequirements object construction
+//! \name PartReqs object construction
 //@{
 
-TEST(PartRequirementsConstruction, IsDefaultConstructible) {
-  // Check that PartRequirements is default constructible
-  ASSERT_NO_THROW(PartRequirements part_reqs);
+TEST(PartReqsConstruction, IsDefaultConstructible) {
+  // Check that PartReqs is default constructible
+  ASSERT_NO_THROW(PartReqs part_reqs);
 }
 
-TEST(PartRequirementsConstruction, IsConstructibleWithPartName) {
-  // Check that PartRequirements is constructible with a part name
-  ASSERT_NO_THROW(PartRequirements part_reqs("part_name"));
+TEST(PartReqsConstruction, IsConstructibleWithPartName) {
+  // Check that PartReqs is constructible with a part name
+  ASSERT_NO_THROW(PartReqs part_reqs("part_name"));
 }
 
-TEST(PartRequirementsConstruction, IsConstructibleWithPartNameAndRank) {
-  // Check that PartRequirements is constructible with a part name and rank
-  ASSERT_NO_THROW(PartRequirements part_reqs("part_name", stk::topology::NODE_RANK));
+TEST(PartReqsConstruction, IsConstructibleWithPartNameAndRank) {
+  // Check that PartReqs is constructible with a part name and rank
+  ASSERT_NO_THROW(PartReqs part_reqs("part_name", stk::topology::NODE_RANK));
 }
 
-TEST(PartRequirementsConstruction, IsConstructibleWithPartNameAndTopology) {
-  // Check that PartRequirements is constructible with a part name and topology
-  ASSERT_NO_THROW(PartRequirements part_reqs("part_name", stk::topology::NODE));
+TEST(PartReqsConstruction, IsConstructibleWithPartNameAndTopology) {
+  // Check that PartReqs is constructible with a part name and topology
+  ASSERT_NO_THROW(PartReqs part_reqs("part_name", stk::topology::NODE));
 }
 //@}
 
-//! \name PartRequirements object setting tests
+//! \name PartReqs object setting tests
 //@{
 
-TEST(PartRequirementsSetters, IsNameAndRankSettable) {
+TEST(PartReqsSetters, IsNameAndRankSettable) {
   // Check that the setters work.
-  // Note: PartRequirements is fully specified if the part name is set, and will throw an exception you attempt to set
+  // Note: PartReqs is fully specified if the part name is set, and will throw an exception you attempt to set
   // the part topology when the rank is already set.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
   const stk::topology::topology_t part_topology = stk::topology::NODE;
-  PartRequirements part_reqs;
+  PartReqs part_reqs;
   EXPECT_FALSE(part_reqs.constrains_part_name());
   EXPECT_FALSE(part_reqs.constrains_part_topology());
   EXPECT_FALSE(part_reqs.constrains_part_rank());
@@ -114,14 +114,14 @@ TEST(PartRequirementsSetters, IsNameAndRankSettable) {
   EXPECT_THROW(part_reqs.set_part_topology(part_topology), std::logic_error);
 }
 
-TEST(PartRequirementsSetters, IsNameAndTopologySettable) {
+TEST(PartReqsSetters, IsNameAndTopologySettable) {
   // Check that the setters work.
-  // Note: PartRequirements is fully specified if the part name is set, and will throw an exception you attempt to set
+  // Note: PartReqs is fully specified if the part name is set, and will throw an exception you attempt to set
   // the part rank when the topology is already set.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
   const stk::topology::topology_t part_topology = stk::topology::NODE;
-  PartRequirements part_reqs;
+  PartReqs part_reqs;
   EXPECT_FALSE(part_reqs.constrains_part_name());
   EXPECT_FALSE(part_reqs.constrains_part_topology());
   EXPECT_FALSE(part_reqs.constrains_part_rank());
@@ -134,7 +134,7 @@ TEST(PartRequirementsSetters, IsNameAndTopologySettable) {
   EXPECT_THROW(part_reqs.set_part_rank(part_rank), std::logic_error);
 }
 
-TEST(PartRequirementsSetters, AddFieldReqs) {
+TEST(PartReqsSetters, AddFieldReqs) {
   // Check that field requirements can be added.
 
   // Create a dummy field requirements object.
@@ -143,36 +143,36 @@ TEST(PartRequirementsSetters, AddFieldReqs) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension,
+  auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
                                                                               field_min_number_of_states);
 
-  // Create a PartRequirements object and add the field requirements.
-  PartRequirements part_reqs;
+  // Create a PartReqs object and add the field requirements.
+  PartReqs part_reqs;
   part_reqs.set_part_name("part_name");
-  part_reqs.add_field_reqs(field_reqs_ptr);
+  part_reqs.add_and_sync_field_reqs(field_reqs_ptr);
   // TODO(palmerb4): Add a getter for the field requirements and check that they are set correctly.
 }
 
-TEST(PartRequirementsSetters, AddSubpartRequirements) {
+TEST(PartReqsSetters, AddSubpartRequirements) {
   // Check that subparts can be added.
 
   // Create a dummy subpart requirements.
-  auto subpart_reqs_ptr = std::make_shared<PartRequirements>("subpart_name");
+  auto subpart_reqs_ptr = std::make_shared<PartReqs>("subpart_name");
 
-  // Create a PartRequirements object and add the subpart.
-  auto part_reqs_ptr = std::make_shared<PartRequirements>("part_name");
-  part_reqs_ptr->add_subpart_reqs(subpart_reqs_ptr);
+  // Create a PartReqs object and add the subpart.
+  auto part_reqs_ptr = std::make_shared<PartReqs>("part_name");
+  part_reqs_ptr->add_and_sync_subpart_reqs(subpart_reqs_ptr);
   // TODO(palmerb4): Add a getter for the subpart requirements and check that they are set correctly.
 }
 
-TEST(PartRequirementsSetters, AddPartAttribute) {
+TEST(PartReqsSetters, AddPartAttribute) {
   // Check that part attributes can be added.
 
   // Create a dummy part attribute.
   std::string attribute_name = "attribute_name";
 
-  // Create a PartRequirements object and add the part attribute.
-  PartRequirements part_reqs;
+  // Create a PartReqs object and add the part attribute.
+  PartReqs part_reqs;
   part_reqs.set_part_name("part_name");
   part_reqs.add_part_attribute(attribute_name);
 
@@ -183,37 +183,37 @@ TEST(PartRequirementsSetters, AddPartAttribute) {
 
 //@}
 
-//! \name PartRequirements object getting tests
+//! \name PartReqs object getting tests
 //@{
 
-TEST(PartRequirementsGetters, IsNameAndRankGettable) {
+TEST(PartReqsGetters, IsNameAndRankGettable) {
   // Check that the getters work.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
-  PartRequirements part_reqs(part_name, part_rank);
+  PartReqs part_reqs(part_name, part_rank);
   EXPECT_EQ(part_name, part_reqs.get_part_name());
   EXPECT_EQ(part_rank, part_reqs.get_part_rank());
 }
 
-TEST(PartRequirementsGetters, IsNameAndTopologyGettable) {
+TEST(PartReqsGetters, IsNameAndTopologyGettable) {
   // Check that the getters work.
   const std::string part_name = "part_name";
   const stk::topology part_topology = stk::topology::NODE;
-  PartRequirements part_reqs(part_name, part_topology);
+  PartReqs part_reqs(part_name, part_topology);
   EXPECT_EQ(part_name, part_reqs.get_part_name());
   EXPECT_EQ(part_topology, part_reqs.get_part_topology());
 }
 //@}
 
-//! \name PartRequirements object deleting tests
+//! \name PartReqs object deleting tests
 //@{
 
-TEST(PartRequirementsDeleters, DeletersWorkProperly) {
+TEST(PartReqsDeleters, DeletersWorkProperly) {
   // Check that the deleters work.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
   const stk::topology part_topology = stk::topology::NODE;
-  PartRequirements part_reqs;
+  PartReqs part_reqs;
   part_reqs.set_part_name(part_name);
   part_reqs.set_part_rank(part_rank);
   ASSERT_TRUE(part_reqs.constrains_part_name());
@@ -230,64 +230,64 @@ TEST(PartRequirementsDeleters, DeletersWorkProperly) {
 }
 //@}
 
-//! \name PartRequirements object merging tests
+//! \name PartReqs object merging tests
 //@{
 
-TEST(PartRequirementsMerge, IsNameMergable) {
-  // Check that the merge function works when both parts have the same name.
+TEST(PartReqsMerge, IsNameMergable) {
+  // Check that the sync function works when both parts have the same name.
   const std::string part_name = "part_name";
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>(part_name);
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>(part_name);
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>(part_name);
+  auto part_reqs2_ptr = std::make_shared<PartReqs>(part_name);
+  part_reqs1_ptr->sync(part_reqs2_ptr);
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_name());
 }
 
-TEST(PartRequirementsMerge, IsRankMergable) {
-  // Check that the merge function works when both parts have the same rank.
+TEST(PartReqsMerge, IsRankMergable) {
+  // Check that the sync function works when both parts have the same rank.
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>();
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>();
+  auto part_reqs1_ptr = std::make_shared<PartReqs>();
+  auto part_reqs2_ptr = std::make_shared<PartReqs>();
   part_reqs1_ptr->set_part_rank(part_rank);
   part_reqs2_ptr->set_part_rank(part_rank);
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  part_reqs1_ptr->sync(part_reqs2_ptr);
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_rank());
 }
 
-TEST(PartRequirementsMerge, IsTopologyMergable) {
-  // Check that the merge function works when both parts have the same topology.
+TEST(PartReqsMerge, IsTopologyMergable) {
+  // Check that the sync function works when both parts have the same topology.
   const stk::topology part_topology = stk::topology::NODE;
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>();
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>();
+  auto part_reqs1_ptr = std::make_shared<PartReqs>();
+  auto part_reqs2_ptr = std::make_shared<PartReqs>();
   part_reqs1_ptr->set_part_topology(part_topology);
   part_reqs2_ptr->set_part_topology(part_topology);
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  part_reqs1_ptr->sync(part_reqs2_ptr);
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_topology());
 }
 
-TEST(PartRequirementsMerge, IsNameAndRankMergable) {
-  // Check that the merge function works when both parts have the same name and rank.
+TEST(PartReqsMerge, IsNameAndRankMergable) {
+  // Check that the sync function works when both parts have the same name and rank.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>(part_name, part_rank);
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>(part_name, part_rank);
-  part_reqs1_ptr->merge(part_reqs1_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>(part_name, part_rank);
+  auto part_reqs2_ptr = std::make_shared<PartReqs>(part_name, part_rank);
+  part_reqs1_ptr->sync(part_reqs1_ptr);
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_name());
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_rank());
 }
 
-TEST(PartRequirementsMerge, IsNameAndTopologyMergable) {
-  // Check that the merge function works when both parts have the same name and topology.
+TEST(PartReqsMerge, IsNameAndTopologyMergable) {
+  // Check that the sync function works when both parts have the same name and topology.
   const std::string part_name = "part_name";
   const stk::topology part_topology = stk::topology::NODE;
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>(part_name, part_topology);
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>(part_name, part_topology);
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>(part_name, part_topology);
+  auto part_reqs2_ptr = std::make_shared<PartReqs>(part_name, part_topology);
+  part_reqs1_ptr->sync(part_reqs2_ptr);
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_name());
   EXPECT_TRUE(part_reqs1_ptr->constrains_part_topology());
 }
 
-TEST(PartRequirementsMerge, AreSubpartsMergable) {
-  /* Check that the merge function properly merges subparts.
+TEST(PartReqsMerge, AreSubpartsMergable) {
+  /* Check that the sync function properly merges subparts.
   The setup for this test is as follows:
   part1 (name=part_name)
     subpart1 (name=)
@@ -300,22 +300,22 @@ TEST(PartRequirementsMerge, AreSubpartsMergable) {
     subpart2 merged w/ subpart3 (name=B)
     subpart3 (name=C)
   */
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>("part_name");
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>("part_name");
-  auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("A");
-  auto subpart_reqs2_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs3_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs4_ptr = std::make_shared<PartRequirements>("C");
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs2_ptr);
-  part_reqs2_ptr->add_subpart_reqs(subpart_reqs3_ptr);
-  part_reqs2_ptr->add_subpart_reqs(subpart_reqs4_ptr);
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>("part_name");
+  auto part_reqs2_ptr = std::make_shared<PartReqs>("part_name");
+  auto subpart_reqs1_ptr = std::make_shared<PartReqs>("A");
+  auto subpart_reqs2_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs3_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs4_ptr = std::make_shared<PartReqs>("C");
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs1_ptr);
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs2_ptr);
+  part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs3_ptr);
+  part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs4_ptr);
+  part_reqs1_ptr->sync(part_reqs2_ptr);
   // TODO(palmerb4): Use the subpart getters to check that the subparts were merged correctly.
 }
 
-TEST(PartRequirementsMerge, AreFieldsMergable) {
-  /* Check that the merge function properly merges fields.
+TEST(PartReqsMerge, AreFieldsMergable) {
+  /* Check that the sync function properly merges fields.
   The setup for this test is as follows:
   part1 (name=part_name)
     field1 (name=a, rank=NODE, dimension=3, min_number_of_states=1)
@@ -339,32 +339,32 @@ TEST(PartRequirementsMerge, AreFieldsMergable) {
   using ExampleFieldType = double;
 
   auto field_reqs1_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
   auto field_reqs2_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
   auto field_reqs3_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
   auto field_reqs4_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
   auto field_reqs5_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the part requirements according to the diagram above.
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>("part_name");
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>("part_name");
-  part_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
-  part_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
-  part_reqs1_ptr->add_field_reqs(field_reqs3_ptr);
-  part_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
-  part_reqs2_ptr->add_field_reqs(field_reqs5_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>("part_name");
+  auto part_reqs2_ptr = std::make_shared<PartReqs>("part_name");
+  part_reqs1_ptr->add_and_sync_field_reqs(field_reqs1_ptr);
+  part_reqs1_ptr->add_and_sync_field_reqs(field_reqs2_ptr);
+  part_reqs1_ptr->add_and_sync_field_reqs(field_reqs3_ptr);
+  part_reqs2_ptr->add_and_sync_field_reqs(field_reqs4_ptr);
+  part_reqs2_ptr->add_and_sync_field_reqs(field_reqs5_ptr);
 
-  // Merge the part requirements and check that the fields were merged correctly.
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  // Synchronize (merge and rectify differences) the part requirements and check that the fields were merged correctly.
+  part_reqs1_ptr->sync(part_reqs2_ptr);
   // TODO(palmerb4): Use the field getters to check that the fields were merged correctly.
 }
 
-TEST(PartRequirementsMerge, ArePartAttributesMergable) {
-  /* Check that the merge function properly merges part attributes.
+TEST(PartReqsMerge, ArePartAttributesMergable) {
+  /* Check that the sync function properly merges part attributes.
   The setup for this test is as follows:
   part1 (name=part_name)
     attribute1 (name="attribute1")
@@ -387,16 +387,16 @@ TEST(PartRequirementsMerge, ArePartAttributesMergable) {
   std::string attribute4_name = "attribute4";
 
   // Setup the part requirements according to the diagram above.
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>("part_name");
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>("part_name");
+  auto part_reqs1_ptr = std::make_shared<PartReqs>("part_name");
+  auto part_reqs2_ptr = std::make_shared<PartReqs>("part_name");
 
   part_reqs1_ptr->add_part_attribute(attribute1_name);
   part_reqs1_ptr->add_part_attribute(attribute2_name);
   part_reqs2_ptr->add_part_attribute(attribute3_name);
   part_reqs2_ptr->add_part_attribute(attribute4_name);
 
-  // Merge the mesh requirements and check that the attributes were merged correctly.
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  part_reqs1_ptr->sync(part_reqs2_ptr);
 
   // Check that the part attributes were merged correctly.
   ASSERT_EQ(part_reqs1_ptr->get_part_attribute_names().size(), 3);
@@ -410,8 +410,8 @@ TEST(PartRequirementsMerge, ArePartAttributesMergable) {
   EXPECT_TRUE(attribute4_exists);
 }
 
-TEST(PartRequirementsMerge, AreSubpartsAndTheirFieldsMergable) {
-  /* Check that the merge function properly merges subparts and their fields.
+TEST(PartReqsMerge, AreSubpartsAndTheirFieldsMergable) {
+  /* Check that the sync function properly merges subparts and their fields.
   The setup for this test is as follows:
   part1: (name=part_name)
     subpart1 (name=A)
@@ -438,40 +438,40 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirFieldsMergable) {
 
   // Setup the dummy fields.
   using ExampleFieldType = double;
-  auto field_reqs1_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::ELEMENT_RANK, 3, 3);
-  auto field_reqs4_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 4);
-  auto field_reqs5_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 5);
-  auto field_reqs6_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("d", stk::topology::ELEMENT_RANK, 3, 6);
+  auto field_reqs1_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("c", stk::topology::ELEMENT_RANK, 3, 3);
+  auto field_reqs4_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 4);
+  auto field_reqs5_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 5);
+  auto field_reqs6_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("d", stk::topology::ELEMENT_RANK, 3, 6);
 
   // Setup the subpart requirements according to the diagram above.
-  auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("A");
-  auto subpart_reqs2_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs3_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs4_ptr = std::make_shared<PartRequirements>("C");
-  subpart_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
-  subpart_reqs2_ptr->add_field_reqs(field_reqs2_ptr);
-  subpart_reqs2_ptr->add_field_reqs(field_reqs3_ptr);
-  subpart_reqs3_ptr->add_field_reqs(field_reqs4_ptr);
-  subpart_reqs3_ptr->add_field_reqs(field_reqs5_ptr);
-  subpart_reqs4_ptr->add_field_reqs(field_reqs6_ptr);
+  auto subpart_reqs1_ptr = std::make_shared<PartReqs>("A");
+  auto subpart_reqs2_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs3_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs4_ptr = std::make_shared<PartReqs>("C");
+  subpart_reqs1_ptr->add_and_sync_field_reqs(field_reqs1_ptr);
+  subpart_reqs2_ptr->add_and_sync_field_reqs(field_reqs2_ptr);
+  subpart_reqs2_ptr->add_and_sync_field_reqs(field_reqs3_ptr);
+  subpart_reqs3_ptr->add_and_sync_field_reqs(field_reqs4_ptr);
+  subpart_reqs3_ptr->add_and_sync_field_reqs(field_reqs5_ptr);
+  subpart_reqs4_ptr->add_and_sync_field_reqs(field_reqs6_ptr);
 
   // Setup the part requirements according to the diagram above.
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>("part_name");
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>("part_name");
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs2_ptr);
-  part_reqs2_ptr->add_subpart_reqs(subpart_reqs3_ptr);
-  part_reqs2_ptr->add_subpart_reqs(subpart_reqs4_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>("part_name");
+  auto part_reqs2_ptr = std::make_shared<PartReqs>("part_name");
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs1_ptr);
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs2_ptr);
+  part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs3_ptr);
+  part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs4_ptr);
 
-  // Merge the mesh requirements and check that the attributes were merged correctly.
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  part_reqs1_ptr->sync(part_reqs2_ptr);
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
 
-TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
-  /* Check that the merge function properly merges subparts and their attributes.
+TEST(PartReqsMerge, AreSubpartsAndTheirAttributesMergable) {
+  /* Check that the sync function properly merges subparts and their attributes.
   The setup for this test is as follows:
   part1 (name=part_name)
     subpart1 (name=A)
@@ -505,10 +505,10 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   std::string attribute6_name = "attribute26";
 
   // Setup the subpart requirements according to the diagram above.
-  auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("A");
-  auto subpart_reqs2_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs3_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs4_ptr = std::make_shared<PartRequirements>("C");
+  auto subpart_reqs1_ptr = std::make_shared<PartReqs>("A");
+  auto subpart_reqs2_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs3_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs4_ptr = std::make_shared<PartReqs>("C");
   subpart_reqs1_ptr->add_part_attribute(attribute1_name);
   EXPECT_EQ(subpart_reqs1_ptr->get_part_attribute_names().size(), 1);
   subpart_reqs2_ptr->add_part_attribute(attribute2_name);
@@ -523,15 +523,15 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   EXPECT_EQ(subpart_reqs4_ptr->get_part_attribute_names().size(), 1);
 
   // Setup the part requirements according to the diagram above.
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>("part_name");
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>("part_name");
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs2_ptr);
-  part_reqs2_ptr->add_subpart_reqs(subpart_reqs3_ptr);
-  part_reqs2_ptr->add_subpart_reqs(subpart_reqs4_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>("part_name");
+  auto part_reqs2_ptr = std::make_shared<PartReqs>("part_name");
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs1_ptr);
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs2_ptr);
+  part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs3_ptr);
+  part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs4_ptr);
 
-  // Merge the mesh requirements and check that the attributes were merged correctly.
-  part_reqs1_ptr->merge(part_reqs2_ptr);
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  part_reqs1_ptr->sync(part_reqs2_ptr);
 
   // Check that the parts were merged correctly.
   const auto subpart_map = part_reqs1_ptr->get_part_subpart_map();
@@ -566,48 +566,48 @@ TEST(PartRequirementsMerge, AreSubpartsAndTheirAttributesMergable) {
   EXPECT_EQ(subpart3_attribute_names[0], attribute6_name);
 }
 
-TEST(PartRequirementsMerge, MergePropertlyHandlesNullptr) {
-  // Check that the merge function properly handles nullptrs. It should be a no-op.
+TEST(PartReqsMerge, MergePropertlyHandlesNullptr) {
+  // Check that the sync function properly handles nullptrs. It should be a no-op.
 
   // Setup the part requirements.
-  PartRequirements part_reqs("part_name");
+  PartReqs part_reqs("part_name");
 
-  // Perform the merge.
-  ASSERT_NO_THROW(part_reqs.merge(nullptr));
+  // Perform the sync.
+  ASSERT_NO_THROW(part_reqs.sync(nullptr));
 }
 
-TEST(PartRequirementsMerge, MergeProperlyHandlesConflicts) {
-  // Check that the merge function throws a logic error if the part name, rank, or topology are different.
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>();
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>();
+TEST(PartReqsMerge, MergeProperlyHandlesConflicts) {
+  // Check that the sync function throws a logic error if the part name, rank, or topology are different.
+  auto part_reqs1_ptr = std::make_shared<PartReqs>();
+  auto part_reqs2_ptr = std::make_shared<PartReqs>();
 
   // Throw if name is different.
   part_reqs1_ptr->set_part_name("part_name");
   part_reqs2_ptr->set_part_name("other_part_name");
-  EXPECT_THROW(part_reqs1_ptr->merge(part_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(part_reqs1_ptr->sync(part_reqs2_ptr), std::logic_error);
   part_reqs1_ptr->delete_part_name();
   part_reqs2_ptr->delete_part_name();
 
   // Throw if rank is different.
   part_reqs1_ptr->set_part_rank(stk::topology::ELEMENT_RANK);
   part_reqs2_ptr->set_part_rank(stk::topology::EDGE_RANK);
-  EXPECT_THROW(part_reqs1_ptr->merge(part_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(part_reqs1_ptr->sync(part_reqs2_ptr), std::logic_error);
   part_reqs1_ptr->delete_part_rank();
   part_reqs2_ptr->delete_part_rank();
 
   // Throw if topology is different.
   part_reqs1_ptr->set_part_topology(stk::topology::LINE_2);
   part_reqs2_ptr->set_part_topology(stk::topology::LINE_3);
-  EXPECT_THROW(part_reqs1_ptr->merge(part_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(part_reqs1_ptr->sync(part_reqs2_ptr), std::logic_error);
   part_reqs1_ptr->delete_part_topology();
   part_reqs2_ptr->delete_part_topology();
 }
 //@}
 
-//! \name PartRequirements object declaring tests
+//! \name PartReqs object declaring tests
 //@{
 
-TEST(PartRequirementsDeclare, DeclarePartWithName) {
+TEST(PartReqsDeclare, DeclarePartWithName) {
   // Check that the declare_part_on_mesh function properly declares a part on a mesh.
 
   // Create a dummy mesh.
@@ -615,8 +615,8 @@ TEST(PartRequirementsDeclare, DeclarePartWithName) {
   std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
-  // Declare a part on the mesh using the PartRequirements object.
-  PartRequirements part_reqs("part_name");
+  // Declare a part on the mesh using the PartReqs object.
+  PartReqs part_reqs("part_name");
   ASSERT_TRUE(part_reqs.is_fully_specified());
   ASSERT_NO_THROW(part_reqs.declare_part_on_mesh(&meta_data));
 
@@ -625,7 +625,7 @@ TEST(PartRequirementsDeclare, DeclarePartWithName) {
   ASSERT_NE(part, nullptr);
 }
 
-TEST(PartRequirementsDeclare, DeclarePartWithRank) {
+TEST(PartReqsDeclare, DeclarePartWithRank) {
   // Check that the declare_part_on_mesh function properly declares a part with a rank on a mesh.
 
   // Create a dummy mesh.
@@ -634,9 +634,9 @@ TEST(PartRequirementsDeclare, DeclarePartWithRank) {
   std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
-  // Declare a part on the mesh using the PartRequirements object.
+  // Declare a part on the mesh using the PartReqs object.
   // Note, you cannot declare a ranked part unless the spatial dimension has been set.
-  PartRequirements part_reqs("part_name", stk::topology::NODE_RANK);
+  PartReqs part_reqs("part_name", stk::topology::NODE_RANK);
   ASSERT_TRUE(part_reqs.is_fully_specified());
   ASSERT_NO_THROW(part_reqs.declare_part_on_mesh(&meta_data));
 
@@ -646,7 +646,7 @@ TEST(PartRequirementsDeclare, DeclarePartWithRank) {
   ASSERT_EQ(part->primary_entity_rank(), stk::topology::NODE_RANK);
 }
 
-TEST(PartRequirementsDeclare, DeclarePartWithTopology) {
+TEST(PartReqsDeclare, DeclarePartWithTopology) {
   // Check that the declare_part_on_mesh function properly declares a part with a topology on a mesh.
 
   // Create a dummy mesh.
@@ -655,9 +655,9 @@ TEST(PartRequirementsDeclare, DeclarePartWithTopology) {
   std::unique_ptr<mundy::mesh::BulkData> bulk_data_ptr = builder.create_bulk_data();
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
-  // Declare a part on the mesh using the PartRequirements object.
+  // Declare a part on the mesh using the PartReqs object.
   // Note, you cannot declare a ranked part unless the spatial dimension has been set.
-  PartRequirements part_reqs("part_name", stk::topology::NODE);
+  PartReqs part_reqs("part_name", stk::topology::NODE);
   ASSERT_TRUE(part_reqs.is_fully_specified());
   ASSERT_NO_THROW(part_reqs.declare_part_on_mesh(&meta_data));
 
@@ -667,7 +667,7 @@ TEST(PartRequirementsDeclare, DeclarePartWithTopology) {
   ASSERT_EQ(part->topology(), stk::topology::NODE);
 }
 
-TEST(PartRequirementsDeclare, DeclarePartWithNameAndFields) {
+TEST(PartReqsDeclare, DeclarePartWithNameAndFields) {
   // Check that the declare_part_on_part function properly declares a part with fields on a mesh.
 
   // Create a dummy mesh.
@@ -681,13 +681,13 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndFields) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension,
+  auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
                                                                               field_min_number_of_states);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
-  // Declare a part on the mesh using the PartRequirements object.
-  PartRequirements part_reqs("part_name");
-  part_reqs.add_field_reqs(field_reqs_ptr);
+  // Declare a part on the mesh using the PartReqs object.
+  PartReqs part_reqs("part_name");
+  part_reqs.add_and_sync_field_reqs(field_reqs_ptr);
   ASSERT_TRUE(part_reqs.is_fully_specified());
   ASSERT_NO_THROW(part_reqs.declare_part_on_mesh(&meta_data));
 
@@ -697,7 +697,7 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndFields) {
   ASSERT_NO_THROW(meta_data.get_field<ExampleFieldType>(field_rank, field_name));
 }
 
-TEST(PartRequirementsDeclare, DeclarePartWithNameAndSubparts) {
+TEST(PartReqsDeclare, DeclarePartWithNameAndSubparts) {
   // Check that the declare_part_on_part function properly declares a part with fields on a mesh.
 
   // Create a dummy mesh.
@@ -706,12 +706,12 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndSubparts) {
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
 
   // Create a dummy subpart requirements object.
-  auto subpart_reqs_ptr = std::make_shared<PartRequirements>("subpart_name");
+  auto subpart_reqs_ptr = std::make_shared<PartReqs>("subpart_name");
   ASSERT_TRUE(subpart_reqs_ptr->is_fully_specified());
 
-  // Declare a part on the mesh using the PartRequirements object.
-  auto part_reqs_ptr = std::make_shared<PartRequirements>("part_name");
-  part_reqs_ptr->add_subpart_reqs(subpart_reqs_ptr);
+  // Declare a part on the mesh using the PartReqs object.
+  auto part_reqs_ptr = std::make_shared<PartReqs>("part_name");
+  part_reqs_ptr->add_and_sync_subpart_reqs(subpart_reqs_ptr);
   ASSERT_TRUE(part_reqs_ptr->is_fully_specified());
   ASSERT_NO_THROW(part_reqs_ptr->declare_part_on_mesh(&meta_data));
 
@@ -722,7 +722,7 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndSubparts) {
   ASSERT_NE(subpart, nullptr);
 }
 
-TEST(PartRequirementsDeclare, DeclarePartWithNameAndAttributes) {
+TEST(PartReqsDeclare, DeclarePartWithNameAndAttributes) {
   // Check that the declare_part_on_part function properly declares a part with fields on a mesh.
 
   // Create a dummy mesh.
@@ -733,8 +733,8 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndAttributes) {
   // Create a dummy attribute requirements object.
   std::string attribute_name = "attribute_name";
 
-  // Declare a part on the mesh using the PartRequirements object.
-  PartRequirements part_reqs("part_name");
+  // Declare a part on the mesh using the PartReqs object.
+  PartReqs part_reqs("part_name");
   part_reqs.add_part_attribute(attribute_name);
   ASSERT_TRUE(part_reqs.is_fully_specified());
   ASSERT_NO_THROW(part_reqs.declare_part_on_mesh(&meta_data));
@@ -745,7 +745,7 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndAttributes) {
   ASSERT_NE(meta_data.get_attribute(*part_ptr, attribute_name), nullptr);
 }
 
-TEST(PartRequirementsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttributes) {
+TEST(PartReqsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttributes) {
   /* Check that the declare_part_on_part function properly declares a realistic part on a mesh.
   The setup for this test is as follows:
   part:
@@ -770,20 +770,20 @@ TEST(PartRequirementsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttribut
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension,
+  auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
                                                                               field_min_number_of_states);
   field_reqs_ptr->add_field_attribute(field_attribute_name);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
   // Create a dummy subpart requirements object.
-  auto subpart_reqs_ptr = std::make_shared<PartRequirements>("subpart_name");
-  subpart_reqs_ptr->add_field_reqs(field_reqs_ptr);
+  auto subpart_reqs_ptr = std::make_shared<PartReqs>("subpart_name");
+  subpart_reqs_ptr->add_and_sync_field_reqs(field_reqs_ptr);
   subpart_reqs_ptr->add_part_attribute(subpart_attribute_name);
   ASSERT_TRUE(subpart_reqs_ptr->is_fully_specified());
 
-  // Declare a part on the mesh using the PartRequirements object.
-  auto part_reqs_ptr = std::make_shared<PartRequirements>("part_name");
-  part_reqs_ptr->add_subpart_reqs(subpart_reqs_ptr);
+  // Declare a part on the mesh using the PartReqs object.
+  auto part_reqs_ptr = std::make_shared<PartReqs>("part_name");
+  part_reqs_ptr->add_and_sync_subpart_reqs(subpart_reqs_ptr);
   ASSERT_TRUE(part_reqs_ptr->is_fully_specified());
   ASSERT_NO_THROW(part_reqs_ptr->declare_part_on_mesh(&meta_data));
 

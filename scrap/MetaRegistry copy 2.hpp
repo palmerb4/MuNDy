@@ -109,7 +109,7 @@ struct MetaRegistry {
 /// registered with. The reason we use the weird "... /* FactoryToRegisterWith */" syntax is because we want to allow
 /// FactoryToRegisterWith to potentially be a templated class with multiple template arguments. In this case, the C++
 /// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
-/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
+/// want. As a result, we need to use the "..." syntax to collect those additional arguments and sync them
 /// together into the desired \c FactoryToRegisterWith using \c __VA_ARGS__.
 ///
 /// \param ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
@@ -139,7 +139,7 @@ struct MetaRegistry {
 /// registered with. The reason we use the weird "... /* FactoryToCheckWith */" syntax is because we want to allow
 /// FactoryToCheckWith to potentially be a templated class with multiple template arguments. In this case, the C++
 /// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
-/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
+/// want. As a result, we need to use the "..." syntax to collect those additional arguments and sync them
 /// together into the desired \c FactoryToCheckWith using \c __VA_ARGS__.
 ///
 /// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of

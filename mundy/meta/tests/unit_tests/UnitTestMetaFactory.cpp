@@ -39,8 +39,8 @@
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+#include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 #include <mundy_meta/MetaFactory.hpp>            // for mundy::meta::MetaFactory
 
 // Mundy test libs
@@ -58,7 +58,7 @@ namespace {
 // To avoid contaminating other tests and mundy itself, we'll use a unique registration identifier for all test
 // factories and reset the factory before and after each test.
 TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
-  // Registration of a class derived from \c HasMeshRequirementsAndIsRegisterable with \c MetaFactory should store the
+  // Registration of a class derived from \c HasMeshReqsAndIsRegisterable with \c MetaFactory should store the
   // class's identifier, instance generator, requirements generator, fixed parameters validator, and mutable parameters
   // validator.
 

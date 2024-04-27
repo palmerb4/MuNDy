@@ -79,7 +79,7 @@ TEST(Configurator, ParseParametersYAML) {
   std::cout << configurator;
 }
 
-TEST(Configurator, CreateMeshRequirements) {
+TEST(Configurator, CreateMeshReqs) {
   // This should be in the local test directory if things were set up correctly
   const std::string yaml_file = "./unit_test_configurator_basic.yaml";
 
@@ -95,7 +95,7 @@ TEST(Configurator, CreateMeshRequirements) {
   configurator.parse_parameters();
 
   // Create mesh requirements from the parameters
-  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs;
+  std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs;
   EXPECT_NO_THROW({ mesh_reqs = configurator.create_mesh_requirements(); });
 
   // Print this out to make sure it's good (can check logs for this)

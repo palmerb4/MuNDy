@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_PARTREQUIREMENTS_HPP_
-#define MUNDY_META_PARTREQUIREMENTS_HPP_
+#ifndef MUNDY_META_PARTREQS_HPP_
+#define MUNDY_META_PARTREQS_HPP_
 
-/// \file PartRequirements.hpp
-/// \brief Declaration of the PartRequirements class
+/// \file PartReqs.hpp
+/// \brief Declaration of the PartReqs class
 
 // C++ core libs
 #include <map>          // for std::map
@@ -38,34 +38,34 @@
 
 // Mundy libs
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs, mundy::meta::FieldReqsBase
 
 namespace mundy {
 
 namespace meta {
 
-/// \class PartRequirements
+/// \class PartReqs
 /// \brief A set requirements imposed upon a Part and its fields.
-class PartRequirements {
+class PartReqs {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Default construction is allowed
   /// Default construction corresponds to having no requirements.
-  PartRequirements() = default;
+  PartReqs() = default;
 
   /// \brief Fully  Constructor with partial requirements. Version 1.
   ///
   /// \param part_name [in] Name of the part.
-  explicit PartRequirements(const std::string &part_name);
+  explicit PartReqs(const std::string &part_name);
 
   /// \brief Constructor with partial requirements. Version 2.
   ///
   /// \param part_name [in] Name of the part.
   ///
   /// \param part_topology [in] Topology of entities within the part.
-  PartRequirements(const std::string &part_name, const stk::topology::topology_t &part_topology);
+  PartReqs(const std::string &part_name, const stk::topology::topology_t &part_topology);
 
   /// \brief Constructor with partial requirements. Version 3.
   ///
@@ -76,7 +76,7 @@ class PartRequirements {
   /// of topology.
   ///
   /// \param part_fields [in] Vector of field parameters for the fields defined on this part.
-  PartRequirements(const std::string &part_name, const stk::topology::rank_t &part_rank);
+  PartReqs(const std::string &part_name, const stk::topology::rank_t &part_rank);
   //@}
 
   //! \name Setters
@@ -84,29 +84,30 @@ class PartRequirements {
 
   /// \brief Set the required part name.
   /// \param part_name [in] Required name of the part.
-  PartRequirements &set_part_name(const std::string &part_name);
+  PartReqs &set_part_name(const std::string &part_name);
 
   /// \brief Set the required part topology.
   /// \param part_topology [in] Required topology of the part.
-  PartRequirements &set_part_topology(const stk::topology::topology_t &part_topology);
+  PartReqs &set_part_topology(const stk::topology::topology_t &part_topology);
 
   /// \brief Set the required part rank.
   /// \param part_rank [in] Required rank of the part.
-  PartRequirements &set_part_rank(const stk::topology::rank_t &part_rank);
+  PartReqs &set_part_rank(const stk::topology::rank_t &part_rank);
 
   /// \brief Delete the part name constraint (if it exists).
-  PartRequirements &delete_part_name();
+  PartReqs &delete_part_name();
 
   /// \brief Delete the part topology constraint (if it exists).
-  PartRequirements &delete_part_topology();
+  PartReqs &delete_part_topology();
 
   /// \brief Delete the part rank constraint (if it exists).
-  PartRequirements &delete_part_rank();
+  PartReqs &delete_part_rank();
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
+  /// If the field already exists, we sync their requirements.
   ///
   /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  PartRequirements &add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+  PartReqs &add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_req_ptr);
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
@@ -117,32 +118,33 @@ class PartRequirements {
   ///
   /// \tparam FieldType [in] The type of the field to add to the part.
   template <typename FieldType>
-  PartRequirements &add_field_reqs(const std::string &field_name, const stk::topology::rank_t &field_rank,
+  PartReqs &add_field_reqs(const std::string &field_name, const stk::topology::rank_t &field_rank,
                                    const unsigned field_dimension, const unsigned field_min_number_of_states) {
-    return add_field_reqs(std::make_shared<FieldRequirements<FieldType>>(field_name, field_rank, field_dimension,
+    return add_and_sync_field_reqs(std::make_shared<FieldReqs<FieldType>>(field_name, field_rank, field_dimension,
                                                                          field_min_number_of_states));
   }
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
+  /// If the subpart already exists, we sync their requirements. We also add all of our requirements to the subpart, to mimic inheritance.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
   /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
-  PartRequirements &add_subpart_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
+  PartReqs &add_and_sync_subpart_reqs(std::shared_ptr<PartReqs> part_req_ptr);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
   /// \param part_name [in] Name of the sub-part to add to the part.
-  PartRequirements &add_subpart_reqs(const std::string &part_name) {
-    return add_subpart_reqs(std::make_shared<PartRequirements>(part_name));
+  PartReqs &add_subpart_reqs(const std::string &part_name) {
+    return add_and_sync_subpart_reqs(std::make_shared<PartReqs>(part_name));
   }
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
   /// \param part_name [in] Name of the sub-part to add to the part.
   /// \param part_topology [in] Topology of entities within the sub-part.
-  PartRequirements &add_subpart_reqs(const std::string &part_name, const stk::topology::topology_t &part_topology) {
-    return add_subpart_reqs(std::make_shared<PartRequirements>(part_name, part_topology));
+  PartReqs &add_subpart_reqs(const std::string &part_name, const stk::topology::topology_t &part_topology) {
+    return add_and_sync_subpart_reqs(std::make_shared<PartReqs>(part_name, part_topology));
   }
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
@@ -150,14 +152,14 @@ class PartRequirements {
   /// \param part_name [in] Name of the sub-part to add to the part.
   /// \param part_rank [in] Maximum rank of entities within the sub-part. Can contain any element of lower rank,
   /// regardless of topology.
-  PartRequirements &add_subpart_reqs(const std::string &part_name, const stk::topology::rank_t &part_rank) {
-    return add_subpart_reqs(std::make_shared<PartRequirements>(part_name, part_rank));
+  PartReqs &add_subpart_reqs(const std::string &part_name, const stk::topology::rank_t &part_rank) {
+    return add_and_sync_subpart_reqs(std::make_shared<PartReqs>(part_name, part_rank));
   }
 
   /// \brief Require that an attribute with the given name be present on the part.
   ///
   /// \param attribute_name [in] The name of the attribute that must be present on the part.
-  PartRequirements &add_part_attribute(const std::string &attribute_name);
+  PartReqs &add_part_attribute(const std::string &attribute_name);
   //@}
 
   //! \name Getters
@@ -188,10 +190,10 @@ class PartRequirements {
   stk::topology::rank_t get_part_rank() const;
 
   /// \brief Return the part field map.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_part_ranked_field_map();
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> get_part_ranked_field_map();
 
   /// \brief Return the part subpart map.
-  std::map<std::string, std::shared_ptr<PartRequirements>> get_part_subpart_map();
+  std::map<std::string, std::shared_ptr<PartReqs>> get_part_subpart_map();
 
   /// \brief Return the required part attribute names.
   std::vector<std::string> get_part_attribute_names();
@@ -217,20 +219,14 @@ class PartRequirements {
   ///
   /// Here, valid means:
   ///   1. the rank of the fields does not exceed the rank of the part's topology.
-  PartRequirements &check_if_valid();
+  PartReqs &check_if_valid();
 
-  /// \brief Merge the current requirements with another \c PartRequirements.
+  /// \brief Synchronize (merge and rectify differences) the current requirements with another \c PartReqs.
   ///
-  /// \param part_req_ptr [in] An \c PartRequirements object to merge with the current object.
-  PartRequirements &merge(const std::shared_ptr<PartRequirements> &part_req_ptr);
+  /// \param part_req_ptr [in] An \c PartReqs object to sync with the current object.
+  PartReqs &sync(std::shared_ptr<PartReqs> part_req_ptr);
 
-  /// \brief Merge the current requirements with any number of other \c PartRequirements.
-  ///
-  /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c PartRequirements objects to merge with the
-  /// current object.
-  PartRequirements &merge(const std::vector<std::shared_ptr<PartRequirements>> &vector_of_part_req_ptrs);
-
-  /// \brief Dump the contents of \c PartRequirements to the given stream (defaults to std::cout).
+  /// \brief Dump the contents of \c PartReqs to the given stream (defaults to std::cout).
   void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;
 
   /// \brief Return a string representation of the current set of requirements.
@@ -260,18 +256,18 @@ class PartRequirements {
   bool is_io_part_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> part_ranked_field_maps_{
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> part_ranked_field_maps_{
       stk::topology::NUM_RANKS};
 
   /// \brief A map from subpart name to the part params of each sub-part.
-  std::map<std::string, std::shared_ptr<PartRequirements>> part_subpart_map_;
+  std::map<std::string, std::shared_ptr<PartReqs>> part_subpart_map_;
 
   /// \brief A vector of required part attribute names.
   std::vector<std::string> required_part_attribute_names_;
-};  // PartRequirements
+};  // PartReqs
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_PARTREQUIREMENTS_HPP_
+#endif  // MUNDY_META_PARTREQS_HPP_

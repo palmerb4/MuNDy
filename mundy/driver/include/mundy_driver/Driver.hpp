@@ -34,7 +34,7 @@
 
 // Mundy includes
 #include <MundyDriver_config.hpp>                                     // for HAVE_MUNDYDRIVER_*
-#include <mundy_meta/MeshRequirements.hpp>                            // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::StringBasedMetaFactory
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>                // for mundy::meta::MetaMethodExecutionInterface
 #include <mundy_meta/MetaMethodPairwiseSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
@@ -162,7 +162,7 @@ class Driver {
   unsigned spatial_dimension_ = 0;
 
   /// \brief Mundy mesh requirements pointer
-  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_ = nullptr;
+  std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_ = nullptr;
 
   /// \brief Mundy bulk data pointer
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_ = nullptr;

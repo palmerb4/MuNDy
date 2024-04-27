@@ -54,9 +54,9 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 #include <mundy_mesh/FieldViews.hpp>       // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
 #include <mundy_mesh/MetaData.hpp>         // for mundy::mesh::MetaData
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>  // for mundy::mesh::utils::fill_field_with_value
-#include <mundy_meta/FieldRequirements.hpp>         // for mundy::meta::FieldRequirements
-#include <mundy_meta/MeshRequirements.hpp>          // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>          // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldReqs.hpp>         // for mundy::meta::FieldReqs
+#include <mundy_meta/MeshReqs.hpp>          // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>          // for mundy::meta::PartReqs
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -275,7 +275,7 @@ class SpermSimulation {
     // Setup the mesh requirements.
     // First, we need to fetch the mesh requirements for each method, then we can create the class instances.
     // In the future, all of this will be done via the Configurator.
-    mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);
+    mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshReqs>(MPI_COMM_WORLD);
     mesh_reqs_ptr_->set_spatial_dimension(3);
     mesh_reqs_ptr_->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
@@ -284,7 +284,7 @@ class SpermSimulation {
     //
     // We require that the centerline twist springs part exists, has a SHELL_TRI_3 topology, and has the desired
     // node/edge/element fields.
-    auto clt_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    auto clt_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     clt_part_reqs->set_part_name("CENTERLINE_TWIST_SPRINGS")
         .set_part_topology(stk::topology::SHELL_TRI_3)
 
@@ -316,7 +316,7 @@ class SpermSimulation {
         .add_field_reqs<double>("ELEMENT_YOUNGS_MODULUS", element_rank_, 1, 1)
         .add_field_reqs<double>("ELEMENT_POISSONS_RATIO", element_rank_, 1, 1)
         .add_field_reqs<double>("ELEMENT_REST_LENGTH", element_rank_, 1, 1);
-    mesh_reqs_ptr_->add_part_reqs(clt_part_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(clt_part_reqs);
 
 #ifdef DEBUG
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
@@ -1404,7 +1404,7 @@ class SpermSimulation {
 
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_;
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
-  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_;
+  std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
   stk::io::StkMeshIoBroker stk_io_broker_;
   size_t output_file_index_;
   size_t timestep_index_ = 0;
