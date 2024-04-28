@@ -37,11 +37,11 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>       // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>        // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs, mundy::meta::FieldReqsBase
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>       // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
+#include <mundy_meta/FieldReqs.hpp>         // for mundy::meta::FieldReqs, mundy::meta::FieldReqsBase
 #include <mundy_meta/FieldReqsFactory.hpp>  // for mundy::meta::FieldReqsFactory
 #include <mundy_meta/MeshReqs.hpp>          // for mundy::meta::MeshReqs
 
@@ -68,6 +68,13 @@ MeshReqs::MeshReqs(const stk::ParallelMachine &comm) {
 MeshReqs &MeshReqs::set_spatial_dimension(const unsigned spatial_dimension) {
   spatial_dimension_ = spatial_dimension;
   spatial_dimension_is_set_ = true;
+  this->check_if_valid();
+  return *this;
+}
+
+MeshReqs &MeshReqs::set_node_coordinates_name(const std::string &node_coordinates_name) {
+  node_coordinates_name_ = node_coordinates_name;
+  node_coordinates_name_is_set_ = true;
   this->check_if_valid();
   return *this;
 }
@@ -118,6 +125,10 @@ bool MeshReqs::constrains_spatial_dimension() const {
   return spatial_dimension_is_set_;
 }
 
+bool MeshReqs::constrains_node_coordinates_name() const {
+  return node_coordinates_name_is_set_;
+}
+
 bool MeshReqs::constrains_entity_rank_names() const {
   return entity_rank_names_is_set_;
 }
@@ -147,29 +158,34 @@ bool MeshReqs::is_fully_specified() const {
 }
 
 unsigned MeshReqs::get_spatial_dimension() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_spatial_dimension(), std::logic_error,
-      "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_spatial_dimension(), std::logic_error,
+                     "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   return spatial_dimension_;
 }
 
+std::string MeshReqs::get_node_coordinates_name() const {
+  MUNDY_THROW_ASSERT(this->constrains_node_coordinates_name(), std::logic_error,
+                     "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
+  return node_coordinates_name_;
+}
+
 std::vector<std::string> MeshReqs::get_entity_rank_names() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_entity_rank_names(), std::logic_error,
-      "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_entity_rank_names(), std::logic_error,
+                     "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   return entity_rank_names_;
 }
 
 stk::ParallelMachine MeshReqs::get_communicator() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_communicator(), std::logic_error,
-      "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
+                     "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   return communicator_;
 }
 
@@ -183,34 +199,30 @@ mundy::mesh::BulkData::AutomaticAuraOption MeshReqs::get_aura_option() const {
 }
 
 stk::mesh::FieldDataManager *MeshReqs::get_field_data_manager() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_field_data_manager(), std::logic_error,
-      "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_field_data_manager(), std::logic_error,
+                     "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   return field_data_manager_ptr_;
 }
 
 unsigned MeshReqs::get_bucket_capacity() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_bucket_capacity(), std::logic_error,
-      "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_bucket_capacity(), std::logic_error,
+                     "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   return bucket_capacity_;
 }
 
 bool MeshReqs::get_upward_connectivity_flag() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_upward_connectivity_flag(), std::logic_error,
-      "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  MUNDY_THROW_ASSERT(this->constrains_upward_connectivity_flag(), std::logic_error,
+                     "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
+                         << "The current set of requirements is:\n"
+                         << get_reqs_as_a_string());
   return upward_connectivity_flag_;
 }
 
-std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>>
-MeshReqs::get_mesh_ranked_field_map() {
+std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> MeshReqs::get_mesh_ranked_field_map() {
   // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal fields.
   // This should be private and all other MeshReqs made friends. Better yet, sync should be a field function.
   return mesh_ranked_field_maps_;
@@ -231,7 +243,7 @@ std::vector<std::string> MeshReqs::get_mesh_attribute_names() {
 
 // \name Actions
 //{
-std::shared_ptr<mundy::mesh::BulkData> MeshReqs::declare_mesh() const {
+std::shared_ptr<mundy::mesh::BulkData> MeshReqs::declare_mesh() {
   MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
                      "MeshReqs: The MPI communicator must be set before calling declare_mesh.\n"
                          << "The current set of requirements is:\n"
@@ -243,25 +255,46 @@ std::shared_ptr<mundy::mesh::BulkData> MeshReqs::declare_mesh() const {
 
   if (this->constrains_spatial_dimension()) {
     mesh_builder.set_spatial_dimension(this->get_spatial_dimension());
+  } else {
+    mesh_builder.set_spatial_dimension(default_spatial_dimension_);
   }
   if (this->constrains_entity_rank_names()) {
     mesh_builder.set_entity_rank_names(this->get_entity_rank_names());
+  } else {
+    mesh_builder.set_entity_rank_names(default_entity_rank_names_);
   }
-  if (this->constrains_communicator()) {
-    mesh_builder.set_communicator(this->get_communicator());
+  if (this->constrains_aura_option()) {
+    mesh_builder.set_auto_aura_option(this->get_aura_option());
+  } else {
+    mesh_builder.set_auto_aura_option(default_aura_option_);
   }
   if (this->constrains_field_data_manager()) {
     mesh_builder.set_field_data_manager(this->get_field_data_manager());
+  } else {
+    mesh_builder.set_field_data_manager(default_field_data_manager_ptr_);
   }
   if (this->constrains_bucket_capacity()) {
     mesh_builder.set_bucket_capacity(this->get_bucket_capacity());
+  } else {
+    mesh_builder.set_bucket_capacity(default_bucket_capacity_);
   }
   if (this->constrains_upward_connectivity_flag()) {
     mesh_builder.set_upward_connectivity_flag(this->get_upward_connectivity_flag());
+  } else {
+    mesh_builder.set_upward_connectivity_flag(default_upward_connectivity_flag_);
   }
 
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_builder.create_bulk_data();
   mundy::mesh::MetaData &meta_data = bulk_data_ptr->mesh_meta_data();
+
+  // Add the node coordinates field to our mesh.
+  const std::string node_coordinates_field_name = this->constrains_node_coordinates_name()
+                                                      ? this->get_node_coordinates_name()
+                                                      : std::string(default_node_coordinates_name_);
+  const unsigned spatial_dimension =
+      this->constrains_spatial_dimension() ? this->get_spatial_dimension() : default_spatial_dimension_;
+  const unsigned num_states = 1;
+  this->add_field_reqs<double>(node_coordinates_field_name, stk::topology::NODE_RANK, spatial_dimension, num_states);
 
   // Declare the mesh's fields.
   // Loop over each rank's field map.

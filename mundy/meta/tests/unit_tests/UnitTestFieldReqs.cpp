@@ -183,7 +183,7 @@ TEST(FieldReqsDeleters, DeletersWorkProperly) {
 //! \name FieldReqs object merging tests
 //@{
 
-TEST(FieldReqsMerge, IsMergeable) {
+TEST(FieldReqsSync, IsSyncable) {
   // Check that the sync function works.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -214,15 +214,15 @@ TEST(FieldReqsMerge, IsMergeable) {
   EXPECT_EQ(other_field_reqs_ptr->get_field_type_info(), typeid(ExampleFieldType));
 }
 
-TEST(FieldReqsMerge, MergePropertlyHandlesNullptr) {
-  // Check that the sync function works with a nullptr. It should do nothing.
+TEST(FieldReqsSync, SyncProperlyHandlesNullptr) {
+  // Check that the sync function throws when given a nullptr.
   using ExampleFieldType = double;
   auto main_field_reqs = mundy::meta::FieldReqs<ExampleFieldType>();
   std::shared_ptr<mundy::meta::FieldReqsBase> other_field_reqs_ptr = nullptr;
-  EXPECT_NO_THROW(main_field_reqs.sync(other_field_reqs_ptr));
+  EXPECT_THROW(main_field_reqs.sync(other_field_reqs_ptr), std::invalid_argument);
 }
 
-TEST(FieldReqsMerge, MergeProperlyHandlesConflicts) {
+TEST(FieldReqsSync, SyncProperlyHandlesConflicts) {
   // Check that the sync function works with a conflict. It should throw a logic error.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -255,7 +255,7 @@ TEST(FieldReqsMerge, MergeProperlyHandlesConflicts) {
   other_field_reqs_ptr->delete_field_min_number_of_states();
 }
 
-TEST(FieldReqsMerge, MergeProperlyHandlesDifferentTypes) {
+TEST(FieldReqsSync, SyncProperlyHandlesDifferentTypes) {
   // Check that the sync function works with a conflict. It should throw a logic error.
   using ExampleFieldType1 = double;
   using ExampleFieldType2 = int;
@@ -278,7 +278,7 @@ TEST(FieldReqsMerge, MergeProperlyHandlesDifferentTypes) {
   EXPECT_THROW(field_reqs.sync(other_field_reqs_ptr), std::logic_error);
 }
 
-TEST(FieldReqsMerge, MergeProperlyHandlesMinNumStates) {
+TEST(FieldReqsSync, SyncProperlyHandlesMinNumStates) {
   // Check that the sync function works with a conflict. It should throw a logic error.
   using ExampleFieldType = double;
   const std::string field_name = "field_name";
@@ -301,11 +301,11 @@ TEST(FieldReqsMerge, MergeProperlyHandlesMinNumStates) {
   // The sync should increase the min number of states to the maximum of the two values.
   field_reqs.sync(other_field_reqs_ptr);
   EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states + 1);
-  other_field_reqs_ptr->delete_field_min_number_of_states();
-  other_field_reqs_ptr->set_field_min_number_of_states(field_min_number_of_states - 1);
-  field_reqs.sync(other_field_reqs_ptr);
-  EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states + 1);
   EXPECT_EQ(other_field_reqs_ptr->get_field_min_num_states(), field_min_number_of_states + 1);
+  
+  other_field_reqs_ptr->set_field_min_number_of_states(field_min_number_of_states - 1);
+  EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states - 1);
+  EXPECT_EQ(other_field_reqs_ptr->get_field_min_num_states(), field_min_number_of_states - 1);
 }
 //@}
 

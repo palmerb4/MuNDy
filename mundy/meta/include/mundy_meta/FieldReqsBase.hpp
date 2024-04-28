@@ -109,7 +109,7 @@ class FieldReqsBase {
   virtual const std::type_info& get_field_type_info() const = 0;
 
   /// \brief Return the required field attribute names.
-  virtual std::vector<std::string> get_field_attribute_names() = 0;
+  virtual std::vector<std::string> get_field_attribute_names() const = 0;
   //@}
 
   //! \name Actions

@@ -39,8 +39,8 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
 #include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 
 namespace mundy {
@@ -77,8 +77,8 @@ class FieldReqs : public FieldReqsBase {
   /// \param field_dimension [in] Dimension of the field. For example, a dimension of three would be a vector.
   ///
   /// \param field_min_number_of_states [in] Minimum number of rotating states that this field will have.
-  FieldReqs(const std::string &field_name, const stk::topology::rank_t &field_rank,
-                    const unsigned field_dimension, const unsigned field_min_number_of_states);
+  FieldReqs(const std::string &field_name, const stk::topology::rank_t &field_rank, const unsigned field_dimension,
+            const unsigned field_min_number_of_states);
   //@}
 
   //! \name Setters and Getters
@@ -102,8 +102,7 @@ class FieldReqs : public FieldReqsBase {
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \param field_min_number_of_states [in] Minimum required number of states of the field.
-  FieldReqs<FieldType_t> &set_field_min_number_of_states_if_larger(
-      const unsigned field_min_number_of_states) final;
+  FieldReqs<FieldType_t> &set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) final;
 
   /// \brief Get if the field name is constrained or not.
   bool constrains_field_name() const final;
@@ -140,7 +139,7 @@ class FieldReqs : public FieldReqsBase {
   const std::type_info &get_field_type_info() const final;
 
   /// \brief Return the required field attribute names.
-  std::vector<std::string> get_field_attribute_names() final;
+  std::vector<std::string> get_field_attribute_names() const final;
   //@}
 
   //! \name Actions
@@ -194,6 +193,19 @@ class FieldReqs : public FieldReqsBase {
   //@}
 
  private:
+  //! \name Private data
+  //@{
+
+  /// \brief Pointer to the master FieldReqs object.
+  ///
+  /// FieldReqs need to be able to synchronize with other FieldReqs. In doing so,
+  /// changing one of those field reqs should directly result in all other synchronized field reqs being updated. We
+  /// choose to implement this by letting each FieldReqs class store a pointer to a master FieldReqs object. If we are
+  /// synched with another FieldReqs object, then we will forward our get requests to the master FieldReqs object. If
+  /// they, in turn, have a master FieldReqs object, then they will forward their get requests to that object. This will
+  /// continue until we reach the top of the hierarchy. Neat, right?
+  std::shared_ptr<FieldReqsBase> master_field_req_ptr_ = nullptr;
+
   /// \brief Name of the field.
   std::string field_name_;
 
@@ -209,6 +221,9 @@ class FieldReqs : public FieldReqsBase {
   /// \brief Minimum number of rotating states that this field will have.
   unsigned field_min_number_of_states_;
 
+  /// \brief If we are driven by a master FieldReqs object.
+  bool has_master_field_reqs_ = false;
+
   /// \brief If the name of the field is set or not.
   bool field_name_is_set_;
 
@@ -223,6 +238,7 @@ class FieldReqs : public FieldReqsBase {
 
   /// \brief A vector of required field attribute names.
   std::vector<std::string> required_field_attribute_names_;
+  //@}
 };  // FieldReqs
 
 //! \name template implementations
@@ -232,8 +248,7 @@ class FieldReqs : public FieldReqsBase {
 //{
 template <typename FieldType>
 FieldReqs<FieldType>::FieldReqs(const std::string &field_name, const stk::topology::rank_t &field_rank,
-                                                const unsigned field_dimension,
-                                                const unsigned field_min_number_of_states) {
+                                const unsigned field_dimension, const unsigned field_min_number_of_states) {
   this->set_field_name(field_name);
   this->set_field_rank(field_rank);
   this->set_field_dimension(field_dimension);
@@ -246,129 +261,192 @@ FieldReqs<FieldType>::FieldReqs(const std::string &field_name, const stk::topolo
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::set_field_name(const std::string &field_name) {
-  field_name_ = field_name;
-  field_name_is_set_ = true;
-  this->check_if_valid();
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->set_field_name(field_name);
+  } else {
+    field_name_ = field_name;
+    field_name_is_set_ = true;
+    this->check_if_valid();
+  }
   return *this;
 }
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::set_field_rank(const stk::topology::rank_t &field_rank) {
-  field_rank_ = field_rank;
-  field_rank_is_set_ = true;
-  this->check_if_valid();
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->set_field_rank(field_rank);
+  } else {
+    field_rank_ = field_rank;
+    field_rank_is_set_ = true;
+    this->check_if_valid();
+  }
   return *this;
 }
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::set_field_dimension(const unsigned field_dimension) {
-  field_dimension_ = field_dimension;
-  field_dimension_is_set_ = true;
-  this->check_if_valid();
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->set_field_dimension(field_dimension);
+  } else {
+    field_dimension_ = field_dimension;
+    field_dimension_is_set_ = true;
+    this->check_if_valid();
+  }
   return *this;
 }
 
 template <typename FieldType>
-FieldReqs<FieldType> &FieldReqs<FieldType>::set_field_min_number_of_states(
-    const unsigned field_min_number_of_states) {
-  field_min_number_of_states_ = field_min_number_of_states;
-  field_min_number_of_states_is_set_ = true;
-  this->check_if_valid();
+FieldReqs<FieldType> &FieldReqs<FieldType>::set_field_min_number_of_states(const unsigned field_min_number_of_states) {
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->set_field_min_number_of_states(field_min_number_of_states);
+  } else {
+    field_min_number_of_states_ = field_min_number_of_states;
+    field_min_number_of_states_is_set_ = true;
+    this->check_if_valid();
+  }
   return *this;
 }
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::set_field_min_number_of_states_if_larger(
     const unsigned field_min_number_of_states) {
-  if (this->constrains_field_min_number_of_states()) {
-    field_min_number_of_states_ = std::max(field_min_number_of_states, field_min_number_of_states_);
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->set_field_min_number_of_states_if_larger(field_min_number_of_states);
   } else {
-    field_min_number_of_states_ = field_min_number_of_states;
+    if (this->constrains_field_min_number_of_states()) {
+      field_min_number_of_states_ = std::max(field_min_number_of_states, field_min_number_of_states_);
+    } else {
+      field_min_number_of_states_ = field_min_number_of_states;
+    }
+    field_min_number_of_states_is_set_ = true;
+    this->check_if_valid();
   }
-  field_min_number_of_states_is_set_ = true;
-  this->check_if_valid();
   return *this;
 }
 
 template <typename FieldType>
 bool FieldReqs<FieldType>::constrains_field_name() const {
-  return field_name_is_set_;
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->constrains_field_name();
+  } else {
+    return field_name_is_set_;
+  }
 }
 
 template <typename FieldType>
 bool FieldReqs<FieldType>::constrains_field_rank() const {
-  return field_rank_is_set_;
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->constrains_field_rank();
+  } else {
+    return field_rank_is_set_;
+  }
 }
 
 template <typename FieldType>
 bool FieldReqs<FieldType>::constrains_field_dimension() const {
-  return field_dimension_is_set_;
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->constrains_field_dimension();
+  } else {
+    return field_dimension_is_set_;
+  }
 }
 
 template <typename FieldType>
 bool FieldReqs<FieldType>::constrains_field_min_number_of_states() const {
-  return field_min_number_of_states_is_set_;
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->constrains_field_min_number_of_states();
+  } else {
+    return field_min_number_of_states_is_set_;
+  }
 }
 
 template <typename FieldType>
 bool FieldReqs<FieldType>::is_fully_specified() const {
-  return this->constrains_field_name() && this->constrains_field_rank() && this->constrains_field_dimension() &&
-         this->constrains_field_min_number_of_states();
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->is_fully_specified();
+  } else {
+    return this->constrains_field_name() && this->constrains_field_rank() && this->constrains_field_dimension() &&
+           this->constrains_field_min_number_of_states();
+  }
 }
 
 template <typename FieldType>
 std::string FieldReqs<FieldType>::get_field_name() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_field_name(), std::logic_error,
-      "FieldReqs: Attempting to access the field name requirement even though field name is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->get_field_name();
+  } else {
+    MUNDY_THROW_ASSERT(
+        this->constrains_field_name(), std::logic_error,
+        "FieldReqs: Attempting to access the field name requirement even though field name is unconstrained.\n"
+            << "The current set of requirements is:\n"
+            << get_reqs_as_a_string());
 
-  return field_name_;
+    return field_name_;
+  }
 }
 
 template <typename FieldType>
 stk::topology::rank_t FieldReqs<FieldType>::get_field_rank() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_field_rank(), std::logic_error,
-      "FieldReqs: Attempting to access the field rank requirement even though field rank is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->get_field_rank();
+  } else {
+    MUNDY_THROW_ASSERT(
+        this->constrains_field_rank(), std::logic_error,
+        "FieldReqs: Attempting to access the field rank requirement even though field rank is unconstrained.\n"
+            << "The current set of requirements is:\n"
+            << get_reqs_as_a_string());
 
-  return field_rank_;
+    return field_rank_;
+  }
 }
 
 template <typename FieldType>
 unsigned FieldReqs<FieldType>::get_field_dimension() const {
-  MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
-                     "FieldReqs: Attempting to access the field dimension requirement even though "
-                     "field dimension is unconstrained.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->get_field_dimension();
+  } else {
+    MUNDY_THROW_ASSERT(this->constrains_field_dimension(), std::logic_error,
+                       "FieldReqs: Attempting to access the field dimension requirement even though "
+                       "field dimension is unconstrained.\n"
+                           << "The current set of requirements is:\n"
+                           << get_reqs_as_a_string());
 
-  return field_dimension_;
+    return field_dimension_;
+  }
 }
 
 template <typename FieldType>
 unsigned FieldReqs<FieldType>::get_field_min_num_states() const {
-  MUNDY_THROW_ASSERT(
-      this->constrains_field_min_number_of_states(), std::logic_error,
-      "FieldReqs: Attempting to access the field minimum number of states requirement even though field "
-      "min_number_of_states is unconstrained.\n"
-          << "The current set of requirements is:\n"
-          << get_reqs_as_a_string());
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->get_field_min_num_states();
+  } else {
+    MUNDY_THROW_ASSERT(
+        this->constrains_field_min_number_of_states(), std::logic_error,
+        "FieldReqs: Attempting to access the field minimum number of states requirement even though field "
+        "min_number_of_states is unconstrained.\n"
+            << "The current set of requirements is:\n"
+            << get_reqs_as_a_string());
 
-  return field_min_number_of_states_;
+    return field_min_number_of_states_;
+  }
 }
 
 template <typename FieldType>
 const std::type_info &FieldReqs<FieldType>::get_field_type_info() const {
-  return field_type_info_;
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->get_field_type_info();
+  } else {
+    return field_type_info_;
+  }
 }
 
 template <typename FieldType>
-std::vector<std::string> FieldReqs<FieldType>::get_field_attribute_names() {
-  return required_field_attribute_names_;
+std::vector<std::string> FieldReqs<FieldType>::get_field_attribute_names() const {
+  if (has_master_field_reqs_) {
+    return master_field_req_ptr_->get_field_attribute_names();
+  } else {
+    return required_field_attribute_names_;
+  }
 }
 //}
 
@@ -376,10 +454,9 @@ std::vector<std::string> FieldReqs<FieldType>::get_field_attribute_names() {
 //{
 
 template <typename FieldType>
-stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_part(
-    mundy::mesh::MetaData *const meta_data_ptr, const stk::mesh::Part &part) const {
-  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
-                     "FieldReqs: MetaData pointer cannot be null).");
+stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_part(mundy::mesh::MetaData *const meta_data_ptr,
+                                                                         const stk::mesh::Part &part) const {
+  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument, "FieldReqs: MetaData pointer cannot be null).");
 
   MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
                      "FieldReqs: Field name must be set before calling declare_field.\n"
@@ -404,7 +481,7 @@ stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_part(
   stk::mesh::put_field_on_mesh(field, part, this->get_field_dimension(), nullptr);
 
   // Set the field attributes.
-  for (auto const &attribute_name : required_field_attribute_names_) {
+  for (auto const &attribute_name : this->get_field_attribute_names()) {
     std::any empty_attribute;
     meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
@@ -414,8 +491,7 @@ stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_part(
 template <typename FieldType>
 stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_entire_mesh(
     mundy::mesh::MetaData *const meta_data_ptr) const {
-  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument,
-                     "FieldReqs: MetaData pointer cannot be null).");
+  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument, "FieldReqs: MetaData pointer cannot be null).");
 
   MUNDY_THROW_ASSERT(this->constrains_field_name(), std::logic_error,
                      "FieldReqs: Field name must be set before calling declare_field.\n"
@@ -440,7 +516,7 @@ stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_entire_mesh(
   stk::mesh::put_field_on_entire_mesh(field, this->get_field_dimension());
 
   // Set the field attributes.
-  for (auto const &attribute_name : required_field_attribute_names_) {
+  for (auto const &attribute_name : this->get_field_attribute_names()) {
     std::any empty_attribute;
     meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
@@ -449,30 +525,54 @@ stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_entire_mesh(
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::delete_field_name() {
-  field_name_is_set_ = false;
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->delete_field_name();
+  } else {
+    field_name_is_set_ = false;
+  }
   return *this;
 }
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::delete_field_rank() {
-  field_rank_is_set_ = false;
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->delete_field_rank();
+  } else {
+    field_rank_is_set_ = false;
+  }
   return *this;
 }
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::delete_field_dimension() {
-  field_dimension_is_set_ = false;
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->delete_field_dimension();
+  } else {
+    field_dimension_is_set_ = false;
+  }
   return *this;
 }
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::delete_field_min_number_of_states() {
-  field_min_number_of_states_is_set_ = false;
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->delete_field_min_number_of_states();
+  } else {
+    field_min_number_of_states_is_set_ = false;
+  }
   return *this;
 }
 
 template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::check_if_valid() {
+  // The only invalid state is if we have a master field reqs object but master_field_req_ptr_ is null.
+  if (has_master_field_reqs_) {
+    MUNDY_THROW_ASSERT(master_field_req_ptr_ != nullptr, std::logic_error,
+                       "FieldReqs: We have a master field reqs object but master_field_req_ptr_ is null.\n"
+                           << "The current set of requirements is:\n"
+                           << get_reqs_as_a_string());
+    master_field_req_ptr_->check_if_valid();
+  }
   return *this;
 }
 
@@ -480,94 +580,105 @@ template <typename FieldType>
 FieldReqs<FieldType> &FieldReqs<FieldType>::add_field_attribute(const std::string &attribute_name) {
   // Adding an existing attribute is perfectly fine. It's a no-op. This merely adds more responsibility to
   // the user to ensure that an they don't unintentionally edit an attribute that is used by another method.
-  const bool attribute_exists =
-      std::count(required_field_attribute_names_.begin(), required_field_attribute_names_.end(), attribute_name) > 0;
-  if (!attribute_exists) {
-    required_field_attribute_names_.push_back(attribute_name);
+  if (has_master_field_reqs_) {
+    master_field_req_ptr_->add_field_attribute(attribute_name);
+  } else {
+    const bool attribute_exists = std::count(required_field_attribute_names_.begin(),
+                                             required_field_attribute_names_.end(), attribute_name) > 0;
+    if (!attribute_exists) {
+      required_field_attribute_names_.push_back(attribute_name);
+    }
   }
   return *this;
 }
 
 template <typename FieldType>
-FieldReqs<FieldType> &FieldReqs<FieldType>::sync(
-    std::shared_ptr<FieldReqsBase> field_req_ptr) {
+FieldReqs<FieldType> &FieldReqs<FieldType>::sync(std::shared_ptr<FieldReqsBase> field_req_ptr) {
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
-  // Check if the provided pointer is valid.
-  // If it is not, then there is nothing to sync.
-  if (field_req_ptr == nullptr) {
-    return *this;
-  }
+  // Check if the given pointer points to us. If it does, then we don't need to do anything.
+  // This is a comical check, but it's necessary to prevent infinite recursion.
+  bool does_field_req_ptr_point_to_us = field_req_ptr.get() == this;
+  if (!does_field_req_ptr_point_to_us) {
+    if (has_master_field_reqs_) {
+      master_field_req_ptr_->sync(field_req_ptr);
+    } else {
+      // Check if the provided pointer is valid. Throw an error if it is not. Originally, we had this as a no-op, but now
+      // that synchronizing sets the passed in FieldReqs object to be the master, we need to ensure that the passed in
+      // object is valid.
+      MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
+                        "FieldReqs: The given FieldReqs pointer cannot be null.");
 
-  // Check if the provided parameters are valid.
-  field_req_ptr->check_if_valid();
+      // We will set the given FieldReqs object to be the master FieldReqs object, but first, we need to merge our
+      // internal state with theirs.
 
-  // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-  MUNDY_THROW_ASSERT(this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
-                     "FieldReqs: Field type mismatch between our field type and the given requirements.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+      // Check if the provided parameters are valid.
+      field_req_ptr->check_if_valid();
 
+      // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
+      MUNDY_THROW_ASSERT(this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
+                        "FieldReqs: Field type mismatch between our field type and the given requirements.\n"
+                            << "The current set of requirements is:\n"
+                            << get_reqs_as_a_string());
 
-  const bool we_constrain_field_name = this->constrains_field_name();
-  const bool they_constrain_field_name = field_req_ptr->constrains_field_name();
-  if (we_constrain_field_name && they_constrain_field_name) {
-    MUNDY_THROW_ASSERT(this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
-                       "FieldReqs: One of the inputs has incompatible name ("
-                           << field_req_ptr->get_field_name() << ").\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
-  } else if (we_constrain_field_name) {
-    field_req_ptr->set_field_name(this->get_field_name());
-  } else if (they_constrain_field_name) {
-    this->set_field_name(field_req_ptr->get_field_name());
-  }
+      const bool we_constrain_field_name = this->constrains_field_name();
+      const bool they_constrain_field_name = field_req_ptr->constrains_field_name();
+      if (we_constrain_field_name && they_constrain_field_name) {
+        MUNDY_THROW_ASSERT(this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
+                          "FieldReqs: One of the inputs has incompatible name ("
+                              << field_req_ptr->get_field_name() << ").\n"
+                              << "The current set of requirements is:\n"
+                              << get_reqs_as_a_string());
+      } else if (we_constrain_field_name) {
+        field_req_ptr->set_field_name(this->get_field_name());
+      }
 
-  const bool we_constrain_field_rank = this->constrains_field_rank();
-  const bool they_constrain_field_rank = field_req_ptr->constrains_field_rank();
-  if (we_constrain_field_rank && they_constrain_field_rank) {
-    MUNDY_THROW_ASSERT(this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
-                       "FieldReqs: One of the inputs has incompatible rank ("
-                           << field_req_ptr->get_field_rank() << ").\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
-  } else if (we_constrain_field_rank) {
-    field_req_ptr->set_field_rank(this->get_field_rank());
-  } else if (they_constrain_field_rank) {
-    this->set_field_rank(field_req_ptr->get_field_rank());
-  }
+      const bool we_constrain_field_rank = this->constrains_field_rank();
+      const bool they_constrain_field_rank = field_req_ptr->constrains_field_rank();
+      if (we_constrain_field_rank && they_constrain_field_rank) {
+        MUNDY_THROW_ASSERT(this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
+                          "FieldReqs: One of the inputs has incompatible rank ("
+                              << field_req_ptr->get_field_rank() << ").\n"
+                              << "The current set of requirements is:\n"
+                              << get_reqs_as_a_string());
+      } else if (we_constrain_field_rank) {
+        field_req_ptr->set_field_rank(this->get_field_rank());
+      }
 
-  const bool we_constrain_field_dimension = this->constrains_field_dimension();
-  const bool they_constrain_field_dimension = field_req_ptr->constrains_field_dimension();
-  if (we_constrain_field_dimension && they_constrain_field_dimension) {
-    MUNDY_THROW_ASSERT(this->get_field_dimension() == field_req_ptr->get_field_dimension(), std::invalid_argument,
-                       "FieldReqs: One of the inputs has incompatible dimension ("
-                           << field_req_ptr->get_field_dimension() << ").\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
-  } else if (we_constrain_field_dimension) {
-    field_req_ptr->set_field_dimension(this->get_field_dimension());
-  } else if (they_constrain_field_dimension) {
-    this->set_field_dimension(field_req_ptr->get_field_dimension());
-  }
+      const bool we_constrain_field_dimension = this->constrains_field_dimension();
+      const bool they_constrain_field_dimension = field_req_ptr->constrains_field_dimension();
+      if (we_constrain_field_dimension && they_constrain_field_dimension) {
+        MUNDY_THROW_ASSERT(this->get_field_dimension() == field_req_ptr->get_field_dimension(), std::invalid_argument,
+                          "FieldReqs: One of the inputs has incompatible dimension ("
+                              << field_req_ptr->get_field_dimension() << ").\n"
+                              << "The current set of requirements is:\n"
+                              << get_reqs_as_a_string());
+      } else if (we_constrain_field_dimension) {
+        field_req_ptr->set_field_dimension(this->get_field_dimension());
+      }
 
-  const bool we_constrain_field_min_number_of_states = this->constrains_field_min_number_of_states();
-  const bool they_constrain_field_min_number_of_states = field_req_ptr->constrains_field_min_number_of_states();
-  if (we_constrain_field_min_number_of_states && they_constrain_field_min_number_of_states) {
-    // Min num states is special. We take the max of the two.
-    const unsigned max_num_states = std::max(this->get_field_min_num_states(), field_req_ptr->get_field_min_num_states());
-    field_req_ptr->set_field_min_number_of_states(max_num_states);
-    this->set_field_min_number_of_states(max_num_states);
-  } else if (we_constrain_field_min_number_of_states) {
-    field_req_ptr->set_field_min_number_of_states(this->get_field_min_num_states());
-  } else if (they_constrain_field_min_number_of_states) {
-    this->set_field_min_number_of_states(field_req_ptr->get_field_min_num_states());
-  }
+      const bool we_constrain_field_min_number_of_states = this->constrains_field_min_number_of_states();
+      const bool they_constrain_field_min_number_of_states = field_req_ptr->constrains_field_min_number_of_states();
+      if (we_constrain_field_min_number_of_states && they_constrain_field_min_number_of_states) {
+        // Min num states is special. We take the max of the two.
+        const unsigned max_num_states =
+            std::max(this->get_field_min_num_states(), field_req_ptr->get_field_min_num_states());
+        field_req_ptr->set_field_min_number_of_states(max_num_states);
+        this->set_field_min_number_of_states(max_num_states);
+      } else if (we_constrain_field_min_number_of_states) {
+        field_req_ptr->set_field_min_number_of_states(this->get_field_min_num_states());
+      }
 
-  // Loop over the attribute map.
-  for (const std::string &attribute_name : field_req_ptr->get_field_attribute_names()) {
-    this->add_field_attribute(attribute_name);
+      // Loop over our attribute map and add our attributes to the given FieldReqs object.
+      for (const std::string &attribute_name : this->get_field_attribute_names()) {
+        field_req_ptr->add_field_attribute(attribute_name);
+      }
+
+      // Merge complete. Set the given FieldReqs object to be the master FieldReqs object.
+      master_field_req_ptr_ = field_req_ptr;
+      has_master_field_reqs_ = true;
+    }
   }
   return *this;
 }
@@ -606,11 +717,11 @@ void FieldReqs<FieldType>::print_reqs(std::ostream &os, int indent_level) const 
     os << indent << "  Field min number of states is not set." << std::endl;
   }
 
-  os << indent << "  Field type info: " << field_type_info_.name() << std::endl;
+  os << indent << "  Field type info: " << this->get_field_type_info().name() << std::endl;
 
   os << indent << "  Field attributes: " << std::endl;
   int attribute_count = 0;
-  for (const std::string &attribute_name : required_field_attribute_names_) {
+  for (const std::string &attribute_name : this->get_field_attribute_names()) {
     os << indent << "  Field attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
     attribute_count++;
   }

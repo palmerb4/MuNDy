@@ -39,7 +39,7 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
+#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
 #include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs, mundy::meta::FieldReqsBase
 #include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
 
@@ -71,6 +71,10 @@ class MeshReqs {
   /// \param spatial_dimension [in] The dimension of the space within which the parts and entities reside.
   MeshReqs& set_spatial_dimension(const unsigned spatial_dimension);
 
+  /// \brief Set the node coordinates name.
+  /// \param node_coordinates_name [in] The name of the node coordinates.
+  MeshReqs& set_node_coordinates_name(const std::string& node_coordinates_name);
+
   /// \brief Set the names assigned to each rank.
   /// \param entity_rank_names [in] The names assigned to each rank.
   MeshReqs& set_entity_rank_names(const std::vector<std::string>& entity_rank_names);
@@ -100,6 +104,9 @@ class MeshReqs {
 
   /// \brief Delete the spatial dimension constraint (if it exists).
   MeshReqs& delete_spatial_dimension();
+
+  /// \brief Delete the node coordinates name constraint (if it exists).
+  MeshReqs& delete_node_coordinates_name();
 
   /// \brief Delete the entity rank names constraint (if it exists).
   MeshReqs& delete_entity_rank_names();
@@ -139,17 +146,18 @@ class MeshReqs {
   ///
   /// \tparam FieldType [in] The type of the field to add to the mesh.
   template <typename FieldType>
-  MeshReqs& add_field_reqs(const std::string& field_name, const stk::topology::rank_t field_rank,
-                                   const unsigned field_dimension, const unsigned field_min_number_of_states) {
-    return add_and_sync_field_reqs(std::make_shared<FieldReqs<FieldType>>(field_name, field_rank, field_dimension,
-                                                                         field_min_number_of_states));
+  MeshReqs& add_field_reqs(const std::string& field_name, const stk::topology::rank_t& field_rank,
+                           const unsigned& field_dimension, const unsigned& field_min_number_of_states) {
+    return add_and_sync_field_reqs(
+        std::make_shared<FieldReqs<FieldType>>(field_name, field_rank, field_dimension, field_min_number_of_states));
   }
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
   ///
-  /// Whenever a part is added, we add all of our fields to it. If the part already exists, we sync the two parts with each other.
+  /// Whenever a part is added, we add all of our fields to it. If the part already exists, we sync the two parts with
+  /// each other.
   ///
   /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
   MeshReqs& add_and_sync_part_reqs(std::shared_ptr<PartReqs> part_req_ptr);
@@ -192,6 +200,9 @@ class MeshReqs {
   /// \brief Get if the spatial dimension is constrained or not.
   bool constrains_spatial_dimension() const;
 
+  /// \brief Get if the node coordinates name is constrained or not.
+  bool constrains_node_coordinates_name() const;
+
   /// \brief Get if the entity rank names are constrained or not.
   bool constrains_entity_rank_names() const;
 
@@ -215,6 +226,9 @@ class MeshReqs {
 
   /// \brief Return the dimension of the space within which the parts and entities reside.
   unsigned get_spatial_dimension() const;
+
+  /// \brief Return the node coordinates name.
+  std::string get_node_coordinates_name() const;
 
   /// \brief Return the names assigned to each rank.
   std::vector<std::string> get_entity_rank_names() const;
@@ -253,7 +267,10 @@ class MeshReqs {
   ///
   /// The only setting that must be specified before declaring the mesh is the MPI communicator; all other settings have
   /// default options which will be used if not set.
-  std::shared_ptr<mundy::mesh::BulkData> declare_mesh() const;
+  ///
+  /// Notice that this function isn't const, as it adds the node coordinates field to our mesh reqs and syncs the node
+  /// coordinates number of states.
+  std::shared_ptr<mundy::mesh::BulkData> declare_mesh();
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
@@ -278,8 +295,9 @@ class MeshReqs {
   //@{
 
   static constexpr unsigned default_spatial_dimension_ = 3;
-  static const inline Teuchos::Array<std::string> default_entity_rank_names_ = Teuchos::Array<std::string>();
-  static const inline stk::ParallelMachine default_communicator_ = stk::parallel_machine_null();
+  static constexpr std::string_view default_node_coordinates_name_ = "NODE_COORDS";
+  static const inline std::vector<std::string> default_entity_rank_names_ = {"NODE", "EDGE", "FACE", "ELEMENT",
+                                                                             "CONSTRAINT"};
   static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
   static constexpr stk::mesh::FieldDataManager* default_field_data_manager_ptr_ = nullptr;
   static const unsigned default_bucket_capacity_;  // Unlike the others, this parameter cannot be filled inline.
@@ -291,6 +309,9 @@ class MeshReqs {
 
   /// @brief The dimension of the space within which the parts and entities reside.
   unsigned spatial_dimension_;
+
+  /// @brief The name of the node coordinates.
+  std::string node_coordinates_name_;
 
   /// @brief The names assigned to each rank.
   std::vector<std::string> entity_rank_names_;
@@ -313,6 +334,9 @@ class MeshReqs {
   /// \brief If the spacial dimension is set or not.
   bool spatial_dimension_is_set_ = false;
 
+  /// \brief If the node coordinates name is set or not.
+  bool node_coordinates_name_is_set_ = false;
+
   /// \brief If the names of each rank are set or not.
   bool entity_rank_names_is_set_ = false;
 
@@ -332,8 +356,7 @@ class MeshReqs {
   bool upward_connectivity_flag_is_set_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> mesh_ranked_field_maps_{
-      stk::topology::NUM_RANKS};
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> mesh_ranked_field_maps_{stk::topology::NUM_RANKS};
 
   /// \brief A map from part name to the part params for that part.
   std::map<std::string, std::shared_ptr<PartReqs>> mesh_part_map_;

@@ -136,6 +136,11 @@ PartReqs &PartReqs::add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field
   } else {
     part_field_map.insert(std::make_pair(field_name, field_req_ptr));
   }
+
+  // Add the field to all of our subparts.
+  for (auto &[subpart_name, subpart_req_ptr] : part_subpart_map_) {
+    subpart_req_ptr->add_and_sync_field_reqs(field_req_ptr);
+  }
   return *this;
 }
 
@@ -155,6 +160,18 @@ PartReqs &PartReqs::add_and_sync_subpart_reqs(std::shared_ptr<PartReqs> part_req
     part_subpart_map_[part_req_ptr->get_part_name()]->sync(part_req_ptr);
   } else {
     part_subpart_map_.insert(std::make_pair(part_req_ptr->get_part_name(), part_req_ptr));
+
+    // Add all of our fields to the new subpart.
+    for (auto const &part_field_map : part_ranked_field_maps_) {
+      for (auto const &[field_name, field_req_ptr] : part_field_map) {
+        part_req_ptr->add_and_sync_field_reqs(field_req_ptr);
+      }
+    }
+
+    // Add all of our part attributes to the new subpart.
+    for (const std::string &attribute_name : required_part_attribute_names_) {
+      part_req_ptr->add_part_attribute(attribute_name);
+    }
   }
   return *this;
 }
@@ -166,6 +183,11 @@ PartReqs &PartReqs::add_part_attribute(const std::string &attribute_name) {
       std::count(required_part_attribute_names_.begin(), required_part_attribute_names_.end(), attribute_name) == 0;
   if (attribute_does_not_exist) {
     required_part_attribute_names_.push_back(attribute_name);
+
+    // Add the attribute to all of our subparts.
+    for (auto &[subpart_name, subpart_req_ptr] : part_subpart_map_) {
+      subpart_req_ptr->add_part_attribute(attribute_name);
+    }
   }
   return *this;
 }
