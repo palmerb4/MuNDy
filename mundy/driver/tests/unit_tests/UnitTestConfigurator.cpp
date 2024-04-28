@@ -99,7 +99,7 @@ TEST(Configurator, CreateMeshReqs) {
   EXPECT_NO_THROW({ mesh_reqs = configurator.create_mesh_requirements(); });
 
   // Print this out to make sure it's good (can check logs for this)
-  mesh_reqs->print_reqs(std::cout, 0);
+  mesh_reqs->print(std::cout, 0);
 
   // Check that we have a fully valid set of requirements
   ASSERT_TRUE(mesh_reqs->is_fully_specified());

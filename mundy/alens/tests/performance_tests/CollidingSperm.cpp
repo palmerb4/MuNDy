@@ -354,7 +354,7 @@ class SpermSimulation {
 
 #ifdef DEBUG
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
-      mesh_reqs_ptr_->print_reqs();
+      mesh_reqs_ptr_->print();
     }
 #endif
 
@@ -398,7 +398,7 @@ class SpermSimulation {
 
 #ifdef DEBUG
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
-      mesh_reqs_ptr_->print_reqs();
+      mesh_reqs_ptr_->print();
     }
 #endif
 

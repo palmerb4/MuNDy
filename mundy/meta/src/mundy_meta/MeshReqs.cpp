@@ -563,7 +563,7 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_req_ptr) {
   return *this;
 }
 
-void MeshReqs::print_reqs(std::ostream &os, int indent_level) const {
+void MeshReqs::print(std::ostream &os, int indent_level) const {
   std::string indent(indent_level * 2, ' ');
 
   os << indent << "MeshReqs: " << std::endl;
@@ -633,7 +633,7 @@ void MeshReqs::print_reqs(std::ostream &os, int indent_level) const {
     for (auto const &[field_name, field_req_ptr] : mesh_field_map) {
       os << indent << "  Mesh field " << field_count << " has name (" << field_name << "), rank (" << rank
          << "), and requirements" << std::endl;
-      field_req_ptr->print_reqs(os, indent_level + 1);
+      field_req_ptr->print(os, indent_level + 1);
       field_count++;
     }
 
@@ -644,7 +644,7 @@ void MeshReqs::print_reqs(std::ostream &os, int indent_level) const {
   int part_count = 0;
   for (auto const &[part_name, part_req_ptr] : mesh_part_map_) {
     os << "  Mesh part " << part_count << " has name (" << part_name << ") and requirements" << std::endl;
-    part_req_ptr->print_reqs(os, indent_level + 1);
+    part_req_ptr->print(os, indent_level + 1);
     part_count++;
   }
 
@@ -653,7 +653,7 @@ void MeshReqs::print_reqs(std::ostream &os, int indent_level) const {
 
 std::string MeshReqs::get_reqs_as_a_string() const {
   std::stringstream ss;
-  this->print_reqs(ss);
+  this->print(ss);
   return ss.str();
 }
 //}

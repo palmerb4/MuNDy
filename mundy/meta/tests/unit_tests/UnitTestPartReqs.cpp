@@ -567,13 +567,13 @@ TEST(PartReqsMerge, AreSubpartsAndTheirAttributesMergable) {
 }
 
 TEST(PartReqsMerge, MergePropertlyHandlesNullptr) {
-  // Check that the sync function properly handles nullptrs. It should be a no-op.
+  // Check that the sync function properly handles nullptrs. It should throw.
 
   // Setup the part requirements.
   PartReqs part_reqs("part_name");
 
   // Perform the sync.
-  ASSERT_NO_THROW(part_reqs.sync(nullptr));
+  ASSERT_THROW(part_reqs.sync(nullptr), std::invalid_argument);
 }
 
 TEST(PartReqsMerge, MergeProperlyHandlesConflicts) {

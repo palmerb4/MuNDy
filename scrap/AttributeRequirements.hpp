@@ -119,7 +119,7 @@ class AttributeRequirements {
   }
 
   /// \brief Dump the contents of \c AttributeRequirements to the given stream (defaults to std::cout).
-  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const final;
+  void print(std::ostream &os = std::cout, int indent_level = 0) const final;
 
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const final;
@@ -233,7 +233,7 @@ std::shared_ptr<AttributesBase> AttributeRequirements::create_new_instance(
   return create_new_instance(parameter_list);
 }
 
-void AttributeRequirements::print_reqs(std::ostream &os, int indent_level) const {
+void AttributeRequirements::print(std::ostream &os, int indent_level) const {
   std::string indent(indent_level * 2, ' ');
 
   os << indent << "AttributeRequirements: " << std::endl;
@@ -250,7 +250,7 @@ void AttributeRequirements::print_reqs(std::ostream &os, int indent_level) const
 
 std::string AttributeRequirements::get_reqs_as_a_string() const {
   std::stringstream ss;
-  this->print_reqs(ss);
+  this->print(ss);
   return ss.str();
 }
 //}

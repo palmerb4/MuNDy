@@ -487,7 +487,7 @@ class StickySettings {
         declare_and_init_constraints_fixed_params_));
 
     // Print the mesh requirements out
-    mesh_reqs_ptr_->print_reqs();
+    mesh_reqs_ptr_->print();
 
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();

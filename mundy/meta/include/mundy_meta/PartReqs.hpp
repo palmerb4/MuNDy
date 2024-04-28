@@ -190,13 +190,13 @@ class PartReqs {
   stk::topology::rank_t get_part_rank() const;
 
   /// \brief Return the part field map.
-  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> get_part_ranked_field_map();
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> &get_part_ranked_field_map();
 
   /// \brief Return the part subpart map.
-  std::map<std::string, std::shared_ptr<PartReqs>> get_part_subpart_map();
+  std::map<std::string, std::shared_ptr<PartReqs>> &get_part_subpart_map();
 
   /// \brief Return the required part attribute names.
-  std::vector<std::string> get_part_attribute_names();
+  std::vector<std::string> &get_part_attribute_names();
   //@}
 
   //! \name Actions
@@ -227,13 +227,32 @@ class PartReqs {
   PartReqs &sync(std::shared_ptr<PartReqs> part_req_ptr);
 
   /// \brief Dump the contents of \c PartReqs to the given stream (defaults to std::cout).
-  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const;
+  void print(std::ostream &os = std::cout, int indent_level = 0) const;
 
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const;
   //@}
 
  private:
+  //! \name Private member functions
+  //@{
+
+  /// \brief Set the master field requirements for this class.
+  PartReqs &set_master_part_reqs(std::shared_ptr<PartReqs> master_part_req_ptr);
+
+  /// \brief Get the master part requirements for this class.
+  std::shared_ptr<PartReqs> get_master_part_reqs();
+
+  /// \brief Get if the current reqs have a master part reqs.
+  bool has_master_part_reqs() const;
+  //@}
+
+  //! \name Private data
+  //@{
+
+  /// \brief Pointer to the master part requirements.
+  std::shared_ptr<PartReqs> master_part_req_ptr_ = nullptr;
+
   /// \brief Name of the part.
   std::string part_name_;
 
@@ -242,6 +261,9 @@ class PartReqs {
 
   /// \brief Rank of the part.
   stk::topology::rank_t part_rank_;
+
+  /// \brief If we are driven by a master PartReqs object.
+  bool has_master_part_reqs_ = false;
 
   /// \brief If the name of the part is set or not.
   bool part_name_is_set_ = false;
@@ -264,6 +286,7 @@ class PartReqs {
 
   /// \brief A vector of required part attribute names.
   std::vector<std::string> required_part_attribute_names_;
+  //@}
 };  // PartReqs
 
 }  // namespace meta

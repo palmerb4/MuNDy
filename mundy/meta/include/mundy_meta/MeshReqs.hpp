@@ -284,7 +284,7 @@ class MeshReqs {
   MeshReqs& sync(std::shared_ptr<MeshReqs> mesh_req_ptr);
 
   /// \brief Dump the contents of \c MeshReqs to the given stream (defaults to std::cout).
-  void print_reqs(std::ostream& os = std::cout, int indent_level = 0) const;
+  void print(std::ostream& os = std::cout, int indent_level = 0) const;
 
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const;

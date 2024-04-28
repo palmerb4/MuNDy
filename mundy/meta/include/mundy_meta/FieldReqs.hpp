@@ -139,7 +139,7 @@ class FieldReqs : public FieldReqsBase {
   const std::type_info &get_field_type_info() const final;
 
   /// \brief Return the required field attribute names.
-  std::vector<std::string> get_field_attribute_names() const final;
+  std::vector<std::string> &get_field_attribute_names() final;
   //@}
 
   //! \name Actions
@@ -186,24 +186,39 @@ class FieldReqs : public FieldReqsBase {
   FieldReqs<FieldType_t> &sync(std::shared_ptr<FieldReqsBase> field_req_ptr) final;
 
   /// \brief Dump the contents of \c FieldReqs to the given stream (defaults to std::cout).
-  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const final;
+  void print(std::ostream &os = std::cout, int indent_level = 0) const final;
 
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const final;
   //@}
 
  private:
+  //! \name Private member functions
+  //@{
+
+  /// \brief Set the master field requirements for this class.
+  FieldReqs<FieldType_t> &set_master_field_reqs(std::shared_ptr<FieldReqsBase> master_field_req_ptr) final;
+
+  /// \brief Get the master field requirements for this class.
+  std::shared_ptr<FieldReqsBase> get_master_field_reqs() final;
+
+  /// \brief Get if the current reqs have a master field reqs.
+  bool has_master_field_reqs() const final;
+  //@}
+
   //! \name Private data
   //@{
 
   /// \brief Pointer to the master FieldReqs object.
   ///
-  /// FieldReqs need to be able to synchronize with other FieldReqs. In doing so,
-  /// changing one of those field reqs should directly result in all other synchronized field reqs being updated. We
-  /// choose to implement this by letting each FieldReqs class store a pointer to a master FieldReqs object. If we are
-  /// synched with another FieldReqs object, then we will forward our get requests to the master FieldReqs object. If
-  /// they, in turn, have a master FieldReqs object, then they will forward their get requests to that object. This will
-  /// continue until we reach the top of the hierarchy. Neat, right?
+  /// FieldReqs need to be able to synchronize with other FieldReqs. In doing so, changing one of those field reqs
+  /// should directly result in all other synchronized field reqs being updated. We choose to implement this by letting
+  /// each FieldReqs class store a pointer to a master FieldReqs object.
+  ///
+  /// If we declare two FieldReqs are synced and neither of them currently has a master, then we will create a shared
+  /// master FieldReqs object from our merged requirements. If one of the two FieldReqs has a master, then the one
+  /// without a master will point to the existing master reqs. On the other hand, if both have master reqs, then we
+  /// synchronize the masters (leading to a recursion).
   std::shared_ptr<FieldReqsBase> master_field_req_ptr_ = nullptr;
 
   /// \brief Name of the field.
@@ -441,12 +456,38 @@ const std::type_info &FieldReqs<FieldType>::get_field_type_info() const {
 }
 
 template <typename FieldType>
-std::vector<std::string> FieldReqs<FieldType>::get_field_attribute_names() const {
+std::vector<std::string> &FieldReqs<FieldType>::get_field_attribute_names() {
   if (has_master_field_reqs_) {
     return master_field_req_ptr_->get_field_attribute_names();
   } else {
     return required_field_attribute_names_;
   }
+}
+//}
+
+// \name Private member functions
+//{
+
+template <typename FieldType>
+FieldReqs<FieldType> &FieldReqs<FieldType>::set_master_field_reqs(std::shared_ptr<FieldReqsBase> master_field_req_ptr) {
+  MUNDY_THROW_ASSERT(
+      !has_master_field_reqs_, std::logic_error,
+      "The master field requirements have already been set. Overriding it could lead to undefined behavior.");
+  master_field_req_ptr_ = std::move(master_field_req_ptr);
+  has_master_field_reqs_ = true;
+  return *this;
+}
+
+template <typename FieldType>
+std::shared_ptr<FieldReqsBase> FieldReqs<FieldType>::get_master_field_reqs() {
+  MUNDY_THROW_ASSERT(has_master_field_reqs_, std::logic_error,
+                     "The master field requirements have not been set. Cannot return a null pointer.");
+  return master_field_req_ptr_;
+}
+
+template <typename FieldType>
+bool FieldReqs<FieldType>::has_master_field_reqs() const {
+  return has_master_field_reqs_;
 }
 //}
 
@@ -481,7 +522,7 @@ stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_part(mundy::
   stk::mesh::put_field_on_mesh(field, part, this->get_field_dimension(), nullptr);
 
   // Set the field attributes.
-  for (auto const &attribute_name : this->get_field_attribute_names()) {
+  for (auto const &attribute_name : const_cast<FieldReqs<FieldType> *>(this)->get_field_attribute_names()) {
     std::any empty_attribute;
     meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
@@ -516,7 +557,7 @@ stk::mesh::Field<FieldType> &FieldReqs<FieldType>::declare_field_on_entire_mesh(
   stk::mesh::put_field_on_entire_mesh(field, this->get_field_dimension());
 
   // Set the field attributes.
-  for (auto const &attribute_name : this->get_field_attribute_names()) {
+  for (auto const &attribute_name : const_cast<FieldReqs<FieldType> *>(this)->get_field_attribute_names()) {
     std::any empty_attribute;
     meta_data_ptr->declare_attribute(field, attribute_name, empty_attribute);
   }
@@ -583,8 +624,8 @@ FieldReqs<FieldType> &FieldReqs<FieldType>::add_field_attribute(const std::strin
   if (has_master_field_reqs_) {
     master_field_req_ptr_->add_field_attribute(attribute_name);
   } else {
-    const bool attribute_exists = std::count(required_field_attribute_names_.begin(),
-                                             required_field_attribute_names_.end(), attribute_name) > 0;
+    const bool attribute_exists =
+        std::count(required_field_attribute_names_.begin(), required_field_attribute_names_.end(), attribute_name) > 0;
     if (!attribute_exists) {
       required_field_attribute_names_.push_back(attribute_name);
     }
@@ -597,65 +638,85 @@ FieldReqs<FieldType> &FieldReqs<FieldType>::sync(std::shared_ptr<FieldReqsBase> 
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
-  // Check if the given pointer points to us. If it does, then we don't need to do anything.
-  // This is a comical check, but it's necessary to prevent infinite recursion.
+  // Check if the provided pointer is valid. Throw an error if it is not. Originally, we had this as a no-op, but now
+  // that synchronizing sets the passed in FieldReqs object to be the master, we need to ensure that the passed in
+  // object is valid.
+  MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
+                     "FieldReqs: The given FieldReqs pointer cannot be null.");
+
+  // To prevent circular dependencies, we will check if the given FieldReqs pointer points to us. If it does, then
+  // their's nothing to do.
   bool does_field_req_ptr_point_to_us = field_req_ptr.get() == this;
   if (!does_field_req_ptr_point_to_us) {
-    if (has_master_field_reqs_) {
-      master_field_req_ptr_->sync(field_req_ptr);
+    const bool we_have_master_field_reqs = this->has_master_field_reqs();
+    const bool they_have_master_field_reqs = field_req_ptr->has_master_field_reqs();
+
+    if (we_have_master_field_reqs && they_have_master_field_reqs) {
+      // If both have master reqs, then we synchronize the masters (potentially leading to an upward tree traversal).
+      this->get_master_field_reqs()->sync(field_req_ptr->get_master_field_reqs());
+    } else if (we_have_master_field_reqs && !they_have_master_field_reqs) {
+      // If we have a master and they don't, then we set their master to be our master.
+      field_req_ptr->set_master_field_reqs(this->get_master_field_reqs());
+    } else if (!we_have_master_field_reqs && they_have_master_field_reqs) {
+      // If they have a master and we don't, then we set our master to be their master.
+      this->set_master_field_reqs(field_req_ptr->get_master_field_reqs());
     } else {
-      // Check if the provided pointer is valid. Throw an error if it is not. Originally, we had this as a no-op, but now
-      // that synchronizing sets the passed in FieldReqs object to be the master, we need to ensure that the passed in
-      // object is valid.
-      MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
-                        "FieldReqs: The given FieldReqs pointer cannot be null.");
-
-      // We will set the given FieldReqs object to be the master FieldReqs object, but first, we need to merge our
-      // internal state with theirs.
-
+      // If neither has a master, then we will create a shared master FieldReqs object from our merged requirements.
       // Check if the provided parameters are valid.
       field_req_ptr->check_if_valid();
 
+      // Use the contents of us and them to create a shared master FieldReqs object.
+      auto shared_master_field_req_ptr = std::make_shared<FieldReqs<FieldType>>();
+
       // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
       MUNDY_THROW_ASSERT(this->get_field_type_info() == field_req_ptr->get_field_type_info(), std::invalid_argument,
-                        "FieldReqs: Field type mismatch between our field type and the given requirements.\n"
-                            << "The current set of requirements is:\n"
-                            << get_reqs_as_a_string());
+                         "FieldReqs: Field type mismatch between our field type and the given requirements.\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
 
       const bool we_constrain_field_name = this->constrains_field_name();
       const bool they_constrain_field_name = field_req_ptr->constrains_field_name();
       if (we_constrain_field_name && they_constrain_field_name) {
         MUNDY_THROW_ASSERT(this->get_field_name() == field_req_ptr->get_field_name(), std::invalid_argument,
-                          "FieldReqs: One of the inputs has incompatible name ("
-                              << field_req_ptr->get_field_name() << ").\n"
-                              << "The current set of requirements is:\n"
-                              << get_reqs_as_a_string());
+                           "FieldReqs: One of the inputs has incompatible name ("
+                               << field_req_ptr->get_field_name() << ").\n"
+                               << "The current set of requirements is:\n"
+                               << get_reqs_as_a_string());
+        shared_master_field_req_ptr->set_field_name(this->get_field_name());
       } else if (we_constrain_field_name) {
-        field_req_ptr->set_field_name(this->get_field_name());
+        shared_master_field_req_ptr->set_field_name(this->get_field_name());
+      } else if (they_constrain_field_name) {
+        shared_master_field_req_ptr->set_field_name(field_req_ptr->get_field_name());
       }
 
       const bool we_constrain_field_rank = this->constrains_field_rank();
       const bool they_constrain_field_rank = field_req_ptr->constrains_field_rank();
       if (we_constrain_field_rank && they_constrain_field_rank) {
         MUNDY_THROW_ASSERT(this->get_field_rank() == field_req_ptr->get_field_rank(), std::invalid_argument,
-                          "FieldReqs: One of the inputs has incompatible rank ("
-                              << field_req_ptr->get_field_rank() << ").\n"
-                              << "The current set of requirements is:\n"
-                              << get_reqs_as_a_string());
+                           "FieldReqs: One of the inputs has incompatible rank ("
+                               << field_req_ptr->get_field_rank() << ").\n"
+                               << "The current set of requirements is:\n"
+                               << get_reqs_as_a_string());
+        shared_master_field_req_ptr->set_field_rank(this->get_field_rank());
       } else if (we_constrain_field_rank) {
-        field_req_ptr->set_field_rank(this->get_field_rank());
+        shared_master_field_req_ptr->set_field_rank(this->get_field_rank());
+      } else if (they_constrain_field_rank) {
+        shared_master_field_req_ptr->set_field_rank(field_req_ptr->get_field_rank());
       }
 
       const bool we_constrain_field_dimension = this->constrains_field_dimension();
       const bool they_constrain_field_dimension = field_req_ptr->constrains_field_dimension();
       if (we_constrain_field_dimension && they_constrain_field_dimension) {
         MUNDY_THROW_ASSERT(this->get_field_dimension() == field_req_ptr->get_field_dimension(), std::invalid_argument,
-                          "FieldReqs: One of the inputs has incompatible dimension ("
-                              << field_req_ptr->get_field_dimension() << ").\n"
-                              << "The current set of requirements is:\n"
-                              << get_reqs_as_a_string());
+                           "FieldReqs: One of the inputs has incompatible dimension ("
+                               << field_req_ptr->get_field_dimension() << ").\n"
+                               << "The current set of requirements is:\n"
+                               << get_reqs_as_a_string());
+        shared_master_field_req_ptr->set_field_dimension(this->get_field_dimension());
       } else if (we_constrain_field_dimension) {
-        field_req_ptr->set_field_dimension(this->get_field_dimension());
+        shared_master_field_req_ptr->set_field_dimension(this->get_field_dimension());
+      } else if (they_constrain_field_dimension) {
+        shared_master_field_req_ptr->set_field_dimension(field_req_ptr->get_field_dimension());
       }
 
       const bool we_constrain_field_min_number_of_states = this->constrains_field_min_number_of_states();
@@ -664,27 +725,28 @@ FieldReqs<FieldType> &FieldReqs<FieldType>::sync(std::shared_ptr<FieldReqsBase> 
         // Min num states is special. We take the max of the two.
         const unsigned max_num_states =
             std::max(this->get_field_min_num_states(), field_req_ptr->get_field_min_num_states());
-        field_req_ptr->set_field_min_number_of_states(max_num_states);
-        this->set_field_min_number_of_states(max_num_states);
+        shared_master_field_req_ptr->set_field_min_number_of_states(max_num_states);
       } else if (we_constrain_field_min_number_of_states) {
-        field_req_ptr->set_field_min_number_of_states(this->get_field_min_num_states());
+        shared_master_field_req_ptr->set_field_min_number_of_states(this->get_field_min_num_states());
+      } else if (they_constrain_field_min_number_of_states) {
+        shared_master_field_req_ptr->set_field_min_number_of_states(field_req_ptr->get_field_min_num_states());
       }
 
       // Loop over our attribute map and add our attributes to the given FieldReqs object.
       for (const std::string &attribute_name : this->get_field_attribute_names()) {
-        field_req_ptr->add_field_attribute(attribute_name);
+        shared_master_field_req_ptr->add_field_attribute(attribute_name);
       }
 
-      // Merge complete. Set the given FieldReqs object to be the master FieldReqs object.
-      master_field_req_ptr_ = field_req_ptr;
-      has_master_field_reqs_ = true;
+      // The given shared_master_field_req_ptr now contains the merged requirements. Set it as the master for both.
+      this->set_master_field_reqs(shared_master_field_req_ptr);
+      field_req_ptr->set_master_field_reqs(shared_master_field_req_ptr);
     }
   }
   return *this;
 }
 
 template <typename FieldType>
-void FieldReqs<FieldType>::print_reqs(std::ostream &os, int indent_level) const {
+void FieldReqs<FieldType>::print(std::ostream &os, int indent_level) const {
   std::string indent(indent_level * 2, ' ');
 
   os << indent << "FieldReqs: " << std::endl;
@@ -721,7 +783,7 @@ void FieldReqs<FieldType>::print_reqs(std::ostream &os, int indent_level) const 
 
   os << indent << "  Field attributes: " << std::endl;
   int attribute_count = 0;
-  for (const std::string &attribute_name : this->get_field_attribute_names()) {
+  for (const std::string &attribute_name : const_cast<FieldReqs<FieldType> *>(this)->get_field_attribute_names()) {
     os << indent << "  Field attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
     attribute_count++;
   }
@@ -732,7 +794,7 @@ void FieldReqs<FieldType>::print_reqs(std::ostream &os, int indent_level) const 
 template <typename FieldType>
 std::string FieldReqs<FieldType>::get_reqs_as_a_string() const {
   std::stringstream ss;
-  this->print_reqs(ss);
+  this->print(ss);
   return ss.str();
 }
 //}

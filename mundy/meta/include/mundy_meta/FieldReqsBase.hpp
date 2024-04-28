@@ -71,8 +71,7 @@ class FieldReqsBase {
 
   /// \brief Set the minimum required number of field states UNLESS the current minimum number of states is larger.
   /// \brief field_min_number_of_states [in] Minimum required number of states of the field.
-  virtual FieldReqsBase& set_field_min_number_of_states_if_larger(
-      const unsigned field_min_number_of_states) = 0;
+  virtual FieldReqsBase& set_field_min_number_of_states_if_larger(const unsigned field_min_number_of_states) = 0;
 
   /// \brief Get if the field name is constrained or not.
   virtual bool constrains_field_name() const = 0;
@@ -109,7 +108,7 @@ class FieldReqsBase {
   virtual const std::type_info& get_field_type_info() const = 0;
 
   /// \brief Return the required field attribute names.
-  virtual std::vector<std::string> get_field_attribute_names() const = 0;
+  virtual std::vector<std::string> &get_field_attribute_names() = 0;
   //@}
 
   //! \name Actions
@@ -156,11 +155,33 @@ class FieldReqsBase {
   virtual FieldReqsBase& sync(std::shared_ptr<FieldReqsBase> field_req_ptr) = 0;
 
   /// \brief Dump the contents of \c FieldReqs to the given stream (defaults to std::cout).
-  virtual void print_reqs(std::ostream& os = std::cout, int indent_level = 0) const = 0;
+  virtual void print(std::ostream& os = std::cout, int indent_level = 0) const = 0;
 
   /// \brief Return a string representation of the current set of requirements.
   virtual std::string get_reqs_as_a_string() const = 0;
   //@}
+
+ protected:
+  //! \name Protected member functions
+  //@{
+
+  /// \brief Set the master field requirements for this class.
+  virtual FieldReqsBase&set_master_field_reqs(std::shared_ptr<FieldReqsBase> master_field_req_ptr) = 0;
+
+  /// \brief Get the master field requirements for this class.
+  virtual std::shared_ptr<FieldReqsBase> get_master_field_reqs() = 0;
+
+  /// \brief Get if the current reqs have a master field reqs.
+  virtual bool has_master_field_reqs() const = 0;
+  //@}
+
+ private:
+  //! \name Friends <3
+  //@{
+
+  /// \brief Give FieldReqs<T> access to the protected member functions.
+  template <typename T>
+  friend class FieldReqs;
 };  // FieldReqsBase
 
 //}

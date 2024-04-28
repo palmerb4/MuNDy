@@ -143,7 +143,7 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<ComputeAABB>();
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
-  ComputeAABB::get_mesh_requirements(Teuchos::ParameterList())->print_reqs();
+  ComputeAABB::get_mesh_requirements(Teuchos::ParameterList())->print();
 
   // Fetch the multibody sphere part and add a single sphere to it.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
