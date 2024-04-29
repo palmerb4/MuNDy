@@ -151,7 +151,7 @@ class AngularSprings {
   static constexpr inline bool has_rank_ = false;
 
   /// @brief The name of our node coordinate field.
-  static constexpr std::string_view node_coord_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view node_coord_field_name_ = "NODE_COORDS";
 
   /// @brief The name of our element angular spring constant field.
   static constexpr std::string_view element_angular_spring_constant_field_name_ = "ELEMENT_ANGULAR_SPRING_CONSTANT";

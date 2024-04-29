@@ -77,7 +77,7 @@ TEST(DeclareAndInitShapes, GridOfSpheresVisualInspection) {
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   ASSERT_TRUE(meta_data_ptr != nullptr);
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
+  meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
 
   std::cout << "Successfully created DeclareAndInitShapes instance and mesh." << std::endl;
 
@@ -88,7 +88,7 @@ TEST(DeclareAndInitShapes, GridOfSpheresVisualInspection) {
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
   stk::mesh::Field<double> *element_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");

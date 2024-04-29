@@ -130,7 +130,7 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
                             "ELEMENT_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Validate and set
@@ -149,12 +149,12 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
   stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
 
   // Check that the ELEMENT_AABB is set to transient, TRANSIENT_NODE_COORDINATES is set to transient, and that
-  // NODE_COORDINATES is set to MESH
+  // NODE_COORDS is set to MESH
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   EXPECT_TRUE(check_field_role(meta_data_ptr, "ELEMENT_AABB", stk::topology::ELEMENT_RANK, Ioss::Field::TRANSIENT));
   EXPECT_TRUE(
       check_field_role(meta_data_ptr, "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, Ioss::Field::TRANSIENT));
-  EXPECT_TRUE(check_field_role(meta_data_ptr, "NODE_COORDINATES", stk::topology::NODE_RANK, Ioss::Field::MESH));
+  EXPECT_TRUE(check_field_role(meta_data_ptr, "NODE_COORDS", stk::topology::NODE_RANK, Ioss::Field::MESH));
 }
 
 // Test if we can write some initial configuration with the iobroker based on ComputeAABB
@@ -190,7 +190,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
                             "ELEMENT_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -225,7 +225,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
 
@@ -343,7 +343,7 @@ TEST(IOBroker, WriteResultsAABBInteger) {
                             "NODE_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -396,7 +396,7 @@ TEST(IOBroker, WriteResultsAABBInteger) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coordinates_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<unsigned> *node_rng_counter_field_ptr =
       meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
   stk::mesh::Field<double> *element_radius_field_ptr =
@@ -527,7 +527,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
                             "NODE_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -591,7 +591,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coordinates_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<unsigned> *node_rng_counter_field_ptr =
       meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
   stk::mesh::Field<double> *element_radius_field_ptr =
@@ -679,7 +679,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
                             "NODE_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -714,7 +714,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coordinates_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
 
   // Get the local number of entitites of all ranks (going to use to loop over and check values)
   // std::vector<size_t> entity_counts;

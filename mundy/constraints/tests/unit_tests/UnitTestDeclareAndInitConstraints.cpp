@@ -80,7 +80,7 @@ void declare_linear_and_angular_springs_and_dump_mesh(const Teuchos::ParameterLi
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   ASSERT_TRUE(meta_data_ptr != nullptr);
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
+  meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
 
   // Fetch the parts
   if (generate_hookean_springs) {

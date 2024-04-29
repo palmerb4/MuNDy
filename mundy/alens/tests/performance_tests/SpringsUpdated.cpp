@@ -961,7 +961,7 @@ class RcbSettings : public stk::balance::BalanceSettings {
     return std::string("rcb");
   }
   virtual std::string getCoordinateFieldName() const {
-    return std::string("NODE_COORDINATES");
+    return std::string("NODE_COORDS");
   }
   virtual bool shouldPrintMetrics() const {
     return false;
@@ -1194,7 +1194,7 @@ int main(int argc, char **argv) {
   MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, std::invalid_argument, "Bulk dta pointer cannot be a nullptr.");
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument, "Meta data pointer cannot be a nullptr.");
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
+  meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
 
   ///////////////////////////////////////////////////
   // Set up the mutable parameters for the classes //
@@ -1244,7 +1244,7 @@ int main(int argc, char **argv) {
   // Fetch the fields and parts //
   ////////////////////////////////
   // Node rank fields
-  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_VELOCITY");
   auto node_force_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
@@ -1280,7 +1280,7 @@ int main(int argc, char **argv) {
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
-  check_if_exists(node_coordinates_field_ptr, "NODE_COORDINATES");
+  check_if_exists(node_coordinates_field_ptr, "NODE_COORDS");
   check_if_exists(node_velocity_field_ptr, "NODE_VELOCITY");
   check_if_exists(node_force_field_ptr, "NODE_FORCE");
   check_if_exists(node_rng_counter_field_ptr, "NODE_RNG_COUNTER");

@@ -252,7 +252,7 @@ class Configurator {
       "meta_method_execution_interface", "meta_method_subset_execution_interface",
       "meta_method_pairwise_subset_execution_interface"};
 
-  static constexpr std::string_view default_node_coordinate_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view default_node_coordinate_field_name_ = "NODE_COORDS";
 
   //@}
 

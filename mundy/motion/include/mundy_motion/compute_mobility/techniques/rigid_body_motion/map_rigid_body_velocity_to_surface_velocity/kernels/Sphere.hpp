@@ -189,7 +189,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
   //@{
 
   static constexpr std::string_view default_part_name_ = "SPHERES";
-  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORDS";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   static constexpr std::string_view default_node_omega_field_name_ = "NODE_OMEGA";
   //@}

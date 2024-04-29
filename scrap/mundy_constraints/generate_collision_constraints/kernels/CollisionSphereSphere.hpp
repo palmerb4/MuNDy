@@ -188,7 +188,7 @@ class CollisionSphereSphere : public mundy::meta::MetaKWayKernel<3, void> {
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORDS";
   static constexpr std::string_view default_node_normal_field_name_ = "NODE_NORMAL";
   static constexpr std::string_view default_element_radius_field_name_ = "ELEMENT_RADIUS";
   static constexpr std::string_view default_element_signed_separation_dist_field_name_ =

@@ -323,7 +323,7 @@ class SpermSimulation {
         .set_part_topology(stk::topology::SHELL_TRI_3)
 
         // Add the node fields
-        .add_field_reqs<double>("NODE_COORDINATES", node_rank_, 3, 2)
+        .add_field_reqs<double>("NODE_COORDS", node_rank_, 3, 2)
         .add_field_reqs<double>("NODE_VELOCITY", node_rank_, 3, 2)
         .add_field_reqs<double>("NODE_FORCE", node_rank_, 3, 1)
         .add_field_reqs<double>("NODE_ACCELERATION", node_rank_, 3, 2)
@@ -405,7 +405,7 @@ class SpermSimulation {
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
     meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
-    meta_data_ptr_->set_coordinate_field_name("NODE_COORDINATES");
+    meta_data_ptr_->set_coordinate_field_name("NODE_COORDS");
     meta_data_ptr_->use_simple_fields();
     meta_data_ptr_->commit();
 
@@ -453,7 +453,7 @@ class SpermSimulation {
     debug_print("Fetching fields and parts.");
 
     // Fetch the fields
-    node_coord_field_ptr_ = fetch_field<double>("NODE_COORDINATES", node_rank_);
+    node_coord_field_ptr_ = fetch_field<double>("NODE_COORDS", node_rank_);
     node_velocity_field_ptr_ = fetch_field<double>("NODE_VELOCITY", node_rank_);
     node_force_field_ptr_ = fetch_field<double>("NODE_FORCE", node_rank_);
     node_acceleration_field_ptr_ = fetch_field<double>("NODE_ACCELERATION", node_rank_);
@@ -1683,7 +1683,7 @@ class SpermSimulation {
       return std::string("rcb");
     }
     virtual std::string getCoordinateFieldName() const {
-      return std::string("NODE_COORDINATES");
+      return std::string("NODE_COORDS");
     }
     virtual bool shouldPrintMetrics() const {
       return false;

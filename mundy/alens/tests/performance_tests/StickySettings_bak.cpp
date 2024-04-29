@@ -211,7 +211,7 @@ class RcbSettings : public stk::balance::BalanceSettings {
     return std::string("rcb");
   }
   virtual std::string getCoordinateFieldName() const {
-    return std::string("NODE_COORDINATES");
+    return std::string("NODE_COORDS");
   }
   virtual bool shouldPrintMetrics() const {
     return false;
@@ -456,7 +456,7 @@ int main(int argc, char **argv) {
   // The mesh requirements are now set up, so we solidify the mesh structure.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
+  meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
   meta_data_ptr->commit();
 
   //////////////////////////////////////////////////////////////////////
@@ -538,7 +538,7 @@ int main(int argc, char **argv) {
   // We will throw an exception if they don't exist. We're fetching them for initialization and IO purposes.
 
   // Node rank fields
-  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<int>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_VELOCITY");
   auto node_force_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
@@ -556,7 +556,7 @@ int main(int argc, char **argv) {
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
-  check_if_exists(node_coordinates_field_ptr, "NODE_COORDINATES");
+  check_if_exists(node_coordinates_field_ptr, "NODE_COORDS");
   check_if_exists(node_rng_counter_field_ptr, "NODE_RNG_COUNTER");
   check_if_exists(node_velocity_field_ptr, "NODE_VELOCITY");
   check_if_exists(node_force_field_ptr, "NODE_FORCE");

@@ -84,7 +84,7 @@ TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");

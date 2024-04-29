@@ -736,7 +736,7 @@ int main(int argc, char **argv) {
   // Start the particles at random positions with zero velocity
   // Typically, this would occur in a requirements wrapped class, but we haven't created the declare or initialize shape
   // functions.
-  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   auto node_original_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_ORIGINAL_POSITION");
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_BROWNIAN_VELOCITY");
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
@@ -746,7 +746,7 @@ int main(int argc, char **argv) {
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
-  check_if_exists(node_coordinates_field_ptr, "NODE_COORDINATES");
+  check_if_exists(node_coordinates_field_ptr, "NODE_COORDS");
   check_if_exists(node_velocity_field_ptr, "NODE_BROWNIAN_VELOCITY");
   check_if_exists(node_rng_counter_field_ptr, "NODE_RNG_COUNTER");
 

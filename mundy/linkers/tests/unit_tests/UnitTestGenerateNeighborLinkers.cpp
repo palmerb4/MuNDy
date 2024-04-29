@@ -192,7 +192,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<double> *element_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   stk::mesh::Field<double> *element_aabb_field_ptr =
@@ -308,7 +308,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<double> *element_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   stk::mesh::Field<double> *element_aabb_field_ptr =
