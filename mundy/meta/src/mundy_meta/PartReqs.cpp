@@ -67,7 +67,7 @@ PartReqs::PartReqs(const std::string &part_name, const stk::topology::rank_t &pa
 
 PartReqs &PartReqs::set_part_name(const std::string &part_name) {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->set_part_name(part_name);
+    master_part_reqs_ptr_->set_part_name(part_name);
   } else {
     part_name_ = part_name;
     part_name_is_set_ = true;
@@ -78,7 +78,7 @@ PartReqs &PartReqs::set_part_name(const std::string &part_name) {
 
 PartReqs &PartReqs::set_part_topology(const stk::topology::topology_t &part_topology) {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->set_part_topology(part_topology);
+    master_part_reqs_ptr_->set_part_topology(part_topology);
   } else {
     bool part_rank_already_set = this->constrains_part_rank();
     MUNDY_THROW_ASSERT(
@@ -96,7 +96,7 @@ PartReqs &PartReqs::set_part_topology(const stk::topology::topology_t &part_topo
 
 PartReqs &PartReqs::set_part_rank(const stk::topology::rank_t &part_rank) {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->set_part_rank(part_rank);
+    master_part_reqs_ptr_->set_part_rank(part_rank);
   } else {
     bool part_topology_already_set = this->constrains_part_topology();
     MUNDY_THROW_ASSERT(
@@ -114,7 +114,7 @@ PartReqs &PartReqs::set_part_rank(const stk::topology::rank_t &part_rank) {
 
 PartReqs &PartReqs::delete_part_name() {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->delete_part_name();
+    master_part_reqs_ptr_->delete_part_name();
   } else {
     part_name_is_set_ = false;
   }
@@ -123,7 +123,7 @@ PartReqs &PartReqs::delete_part_name() {
 
 PartReqs &PartReqs::delete_part_topology() {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->delete_part_topology();
+    master_part_reqs_ptr_->delete_part_topology();
   } else {
     part_topology_is_set_ = false;
   }
@@ -135,69 +135,69 @@ PartReqs &PartReqs::delete_part_rank() {
   return *this;
 }
 
-PartReqs &PartReqs::add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_req_ptr) {
+PartReqs &PartReqs::add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_reqs_ptr) {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->add_and_sync_field_reqs(field_req_ptr);
+    master_part_reqs_ptr_->add_and_sync_field_reqs(field_reqs_ptr);
   } else {
-    MUNDY_THROW_ASSERT(field_req_ptr != nullptr, std::invalid_argument,
+    MUNDY_THROW_ASSERT(field_reqs_ptr != nullptr, std::invalid_argument,
                        "MeshReqs: The pointer passed to add_and_sync_field_reqs cannot be a nullptr.\n"
                            << "The current set of requirements is:\n"
                            << get_reqs_as_a_string());
 
     // Check if the provided parameters are valid.
-    field_req_ptr->check_if_valid();
+    field_reqs_ptr->check_if_valid();
 
     // If a field with the same name and rank exists, attempt to sync them.
     // Otherwise, create a new field entity.
-    const std::string field_name = field_req_ptr->get_field_name();
-    const unsigned field_rank = field_req_ptr->get_field_rank();
+    const std::string field_name = field_reqs_ptr->get_field_name();
+    const unsigned field_rank = field_reqs_ptr->get_field_rank();
 
     auto &part_field_map = this->get_part_ranked_field_map()[field_rank];
     const bool name_already_exists = (part_field_map.count(field_name) != 0);
     if (name_already_exists) {
-      part_field_map[field_name]->sync(field_req_ptr);
+      part_field_map[field_name]->sync(field_reqs_ptr);
     } else {
-      part_field_map.insert(std::make_pair(field_name, field_req_ptr));
+      part_field_map.insert(std::make_pair(field_name, field_reqs_ptr));
     }
 
     // Add the field to all of our subparts.
     for (auto &[subpart_name, subpart_req_ptr] : this->get_part_subpart_map()) {
-      subpart_req_ptr->add_and_sync_field_reqs(field_req_ptr);
+      subpart_req_ptr->add_and_sync_field_reqs(field_reqs_ptr);
     }
   }
   return *this;
 }
 
-PartReqs &PartReqs::add_and_sync_subpart_reqs(std::shared_ptr<PartReqs> part_req_ptr) {
+PartReqs &PartReqs::add_and_sync_subpart_reqs(std::shared_ptr<PartReqs> part_reqs_ptr) {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->add_and_sync_subpart_reqs(part_req_ptr);
+    master_part_reqs_ptr_->add_and_sync_subpart_reqs(part_reqs_ptr);
   } else {
-    MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
+    MUNDY_THROW_ASSERT(part_reqs_ptr != nullptr, std::invalid_argument,
                        "MeshReqs: The pointer passed to add_and_sync_subpart_reqs cannot be a nullptr.\n"
                            << "The current set of requirements is:\n"
                            << get_reqs_as_a_string());
 
     // Check if the provided parameters are valid.
-    part_req_ptr->check_if_valid();
+    part_reqs_ptr->check_if_valid();
 
     // If a subpart with the same name exists, attempt to sync them.
     // Otherwise, create a new subpart entity.
-    const bool name_already_exists = (part_subpart_map_.count(part_req_ptr->get_part_name()) != 0);
+    const bool name_already_exists = (part_subpart_map_.count(part_reqs_ptr->get_part_name()) != 0);
     if (name_already_exists) {
-      part_subpart_map_[part_req_ptr->get_part_name()]->sync(part_req_ptr);
+      part_subpart_map_[part_reqs_ptr->get_part_name()]->sync(part_reqs_ptr);
     } else {
-      part_subpart_map_.insert(std::make_pair(part_req_ptr->get_part_name(), part_req_ptr));
+      part_subpart_map_.insert(std::make_pair(part_reqs_ptr->get_part_name(), part_reqs_ptr));
 
       // Add all of our fields to the new subpart.
       for (auto const &part_field_map : this->get_part_ranked_field_map()) {
-        for (auto const &[field_name, field_req_ptr] : part_field_map) {
-          part_req_ptr->add_and_sync_field_reqs(field_req_ptr);
+        for (auto const &[field_name, field_reqs_ptr] : part_field_map) {
+          part_reqs_ptr->add_and_sync_field_reqs(field_reqs_ptr);
         }
       }
 
       // Add all of our part attributes to the new subpart.
       for (const std::string &attribute_name : this->get_part_attribute_names()) {
-        part_req_ptr->add_part_attribute(attribute_name);
+        part_reqs_ptr->add_part_attribute(attribute_name);
       }
     }
   }
@@ -206,7 +206,7 @@ PartReqs &PartReqs::add_and_sync_subpart_reqs(std::shared_ptr<PartReqs> part_req
 
 PartReqs &PartReqs::add_part_attribute(const std::string &attribute_name) {
   if (has_master_part_reqs_) {
-    master_part_req_ptr_->add_part_attribute(attribute_name);
+    master_part_reqs_ptr_->add_part_attribute(attribute_name);
   } else {
     // Adding an existing attribute is perfectly fine. It's a no-op. This merely adds more responsibility to
     // the user to ensure that an they don't unintentionally edit an attribute that is used by another method.
@@ -230,7 +230,7 @@ PartReqs &PartReqs::add_part_attribute(const std::string &attribute_name) {
 
 bool PartReqs::constrains_part_name() const {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->constrains_part_name();
+    return master_part_reqs_ptr_->constrains_part_name();
   } else {
     return part_name_is_set_;
   }
@@ -238,7 +238,7 @@ bool PartReqs::constrains_part_name() const {
 
 bool PartReqs::constrains_part_topology() const {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->constrains_part_topology();
+    return master_part_reqs_ptr_->constrains_part_topology();
   } else {
     return part_topology_is_set_;
   }
@@ -246,7 +246,7 @@ bool PartReqs::constrains_part_topology() const {
 
 bool PartReqs::constrains_part_rank() const {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->constrains_part_rank();
+    return master_part_reqs_ptr_->constrains_part_rank();
   } else {
     return part_rank_is_set_;
   }
@@ -254,7 +254,7 @@ bool PartReqs::constrains_part_rank() const {
 
 bool PartReqs::is_fully_specified() const {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->is_fully_specified();
+    return master_part_reqs_ptr_->is_fully_specified();
   } else {
     return this->constrains_part_name();
   }
@@ -262,7 +262,7 @@ bool PartReqs::is_fully_specified() const {
 
 std::string PartReqs::get_part_name() const {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->get_part_name();
+    return master_part_reqs_ptr_->get_part_name();
   } else {
     MUNDY_THROW_ASSERT(
         this->constrains_part_name(), std::logic_error,
@@ -276,7 +276,7 @@ std::string PartReqs::get_part_name() const {
 
 stk::topology::topology_t PartReqs::get_part_topology() const {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->get_part_topology();
+    return master_part_reqs_ptr_->get_part_topology();
   } else {
     MUNDY_THROW_ASSERT(this->constrains_part_topology(), std::logic_error,
                        "PartReqs: Attempting to access the part topology requirement even though part "
@@ -290,7 +290,7 @@ stk::topology::topology_t PartReqs::get_part_topology() const {
 
 stk::topology::rank_t PartReqs::get_part_rank() const {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->get_part_rank();
+    return master_part_reqs_ptr_->get_part_rank();
   } else {
     MUNDY_THROW_ASSERT(
         this->constrains_part_rank(), std::logic_error,
@@ -304,7 +304,7 @@ stk::topology::rank_t PartReqs::get_part_rank() const {
 
 std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> &PartReqs::get_part_ranked_field_map() {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->get_part_ranked_field_map();
+    return master_part_reqs_ptr_->get_part_ranked_field_map();
   } else {
     // TODO(palmerb4): This is such an ugly and incorrect way to give others access to our internal fields.
     return part_ranked_field_maps_;
@@ -313,7 +313,7 @@ std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> &PartReqs::ge
 
 std::map<std::string, std::shared_ptr<PartReqs>> &PartReqs::get_part_subpart_map() {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->get_part_subpart_map();
+    return master_part_reqs_ptr_->get_part_subpart_map();
   } else {
     return part_subpart_map_;
   }
@@ -321,7 +321,7 @@ std::map<std::string, std::shared_ptr<PartReqs>> &PartReqs::get_part_subpart_map
 
 std::vector<std::string> &PartReqs::get_part_attribute_names() {
   if (has_master_part_reqs_) {
-    return master_part_req_ptr_->get_part_attribute_names();
+    return master_part_reqs_ptr_->get_part_attribute_names();
   } else {
     return required_part_attribute_names_;
   }
@@ -334,7 +334,7 @@ PartReqs &PartReqs::set_master_part_reqs(std::shared_ptr<PartReqs> master_part_r
   MUNDY_THROW_ASSERT(
       !has_master_part_reqs_, std::logic_error,
       "PartReqs: The master part requirements have already been set. Overriding it could lead to undefined behavior.");
-  master_part_req_ptr_ = std::move(master_part_req_ptr);
+  master_part_reqs_ptr_ = std::move(master_part_req_ptr);
   has_master_part_reqs_ = true;
   return *this;
 }
@@ -342,7 +342,7 @@ PartReqs &PartReqs::set_master_part_reqs(std::shared_ptr<PartReqs> master_part_r
 std::shared_ptr<PartReqs> PartReqs::get_master_part_reqs() {
   MUNDY_THROW_ASSERT(has_master_part_reqs_, std::logic_error,
                      "PartReqs: The master part requirements have not been set. Cannot return a null pointer.");
-  return master_part_req_ptr_;
+  return master_part_reqs_ptr_;
 }
 
 bool PartReqs::has_master_part_reqs() const {
@@ -381,8 +381,8 @@ stk::mesh::Part &PartReqs::declare_part_on_mesh(mundy::mesh::MetaData *const met
   // Loop over each rank's field map.
   for (auto const &part_field_map : const_cast<PartReqs *>(this)->get_part_ranked_field_map()) {
     // Loop over each field and attempt to sync it.
-    for ([[maybe_unused]] auto const &[field_name, field_req_ptr] : part_field_map) {
-      field_req_ptr->declare_field_on_part(meta_data_ptr, *part_ptr);
+    for ([[maybe_unused]] auto const &[field_name, field_reqs_ptr] : part_field_map) {
+      field_reqs_ptr->declare_field_on_part(meta_data_ptr, *part_ptr);
     }
   }
 
@@ -406,127 +406,132 @@ stk::mesh::Part &PartReqs::declare_part_on_mesh(mundy::mesh::MetaData *const met
 PartReqs &PartReqs::check_if_valid() {
   // TODO(palmerb4): What are the other requirements for validity?
 
-  // One invalid state is if we have a master part reqs object but master_part_req_ptr_ is null.
+  // One invalid state is if we have a master part reqs object but master_part_reqs_ptr_ is null.
   if (has_master_part_reqs_) {
-    MUNDY_THROW_ASSERT(master_part_req_ptr_ != nullptr, std::logic_error,
-                       "FieldReqs: We have a master field reqs object but master_part_req_ptr_ is null.\n"
+    MUNDY_THROW_ASSERT(master_part_reqs_ptr_ != nullptr, std::logic_error,
+                       "PartReqs: We have a master part reqs object but master_part_reqs_ptr_ is null.\n"
                            << "The current set of requirements is:\n"
                            << get_reqs_as_a_string());
-    master_part_req_ptr_->check_if_valid();
+    master_part_reqs_ptr_->check_if_valid();
   }
 
   return *this;
 }
 
-PartReqs &PartReqs::sync(std::shared_ptr<PartReqs> part_req_ptr) {
+PartReqs &PartReqs::sync(std::shared_ptr<PartReqs> part_reqs_ptr) {
   // TODO(palmerb4): Move this to a friend non-member function.
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
   // Check if the provided pointer is valid. Throw an error if it is not.
-  MUNDY_THROW_ASSERT(part_req_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_ASSERT(part_reqs_ptr != nullptr, std::invalid_argument,
                      "PartReqs: The given PartReqs pointer cannot be null.");
+
+  auto merge = [&](PartReqs *us_ptr, PartReqs *them_ptr, PartReqs *merged_ptr) {
+    // Check if the provided parameters are valid.
+    us_ptr->check_if_valid();
+    them_ptr->check_if_valid();
+
+    // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
+    const bool we_constrain_part_name = us_ptr->constrains_part_name();
+    const bool they_constrain_part_name = them_ptr->constrains_part_name();
+    if (we_constrain_part_name && they_constrain_part_name) {
+      MUNDY_THROW_ASSERT(us_ptr->get_part_name() == them_ptr->get_part_name(), std::invalid_argument,
+                         "PartReqs: One of the inputs has incompatible name ("
+                             << them_ptr->get_part_name() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+      merged_ptr->set_part_name(us_ptr->get_part_name());
+    } else if (we_constrain_part_name) {
+      merged_ptr->set_part_name(us_ptr->get_part_name());
+    } else if (they_constrain_part_name) {
+      merged_ptr->set_part_name(them_ptr->get_part_name());
+    }
+
+    const bool we_constrain_part_rank = us_ptr->constrains_part_rank();
+    const bool they_constrain_part_rank = them_ptr->constrains_part_rank();
+    if (we_constrain_part_rank && they_constrain_part_rank) {
+      MUNDY_THROW_ASSERT(us_ptr->get_part_rank() == them_ptr->get_part_rank(), std::invalid_argument,
+                         "PartReqs: One of the inputs has incompatible rank ("
+                             << them_ptr->get_part_rank() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+      merged_ptr->set_part_rank(us_ptr->get_part_rank());
+    } else if (we_constrain_part_rank) {
+      merged_ptr->set_part_rank(us_ptr->get_part_rank());
+    } else if (they_constrain_part_rank) {
+      merged_ptr->set_part_rank(them_ptr->get_part_rank());
+    }
+
+    const bool we_constrain_part_topology = us_ptr->constrains_part_topology();
+    const bool they_constrain_part_topology = them_ptr->constrains_part_topology();
+    if (we_constrain_part_topology && they_constrain_part_topology) {
+      MUNDY_THROW_ASSERT(us_ptr->get_part_topology() == them_ptr->get_part_topology(), std::invalid_argument,
+                         "PartReqs: One of the inputs has incompatible topology ("
+                             << them_ptr->get_part_topology() << ").\n"
+                             << "The current set of requirements is:\n"
+                             << get_reqs_as_a_string());
+      merged_ptr->set_part_topology(us_ptr->get_part_topology());
+    } else if (we_constrain_part_topology) {
+      merged_ptr->set_part_topology(us_ptr->get_part_topology());
+    } else if (they_constrain_part_topology) {
+      merged_ptr->set_part_topology(them_ptr->get_part_topology());
+    }
+
+    // Add our/their field requirements
+    for (auto &part_field_map : us_ptr->get_part_ranked_field_map()) {
+      for ([[maybe_unused]] auto &[field_name, field_reqs_ptr] : part_field_map) {
+        merged_ptr->add_and_sync_field_reqs(field_reqs_ptr);
+      }
+    }
+    for (auto &part_field_map : them_ptr->get_part_ranked_field_map()) {
+      for ([[maybe_unused]] auto &[field_name, field_reqs_ptr] : part_field_map) {
+        merged_ptr->add_and_sync_field_reqs(field_reqs_ptr);
+      }
+    }
+
+    // Add our/their subpart requirements
+    for ([[maybe_unused]] auto &[part_name, subpart_req_ptr] : us_ptr->get_part_subpart_map()) {
+      merged_ptr->add_and_sync_subpart_reqs(subpart_req_ptr);
+    }
+    for ([[maybe_unused]] auto &[part_name, subpart_req_ptr] : them_ptr->get_part_subpart_map()) {
+      merged_ptr->add_and_sync_subpart_reqs(subpart_req_ptr);
+    }
+
+    // Add our/their attribute names
+    for (const std::string &attribute_name : us_ptr->get_part_attribute_names()) {
+      merged_ptr->add_part_attribute(attribute_name);
+    }
+    for (const std::string &attribute_name : them_ptr->get_part_attribute_names()) {
+      merged_ptr->add_part_attribute(attribute_name);
+    }
+  };  // merge
 
   // To prevent circular dependencies, we will check if the given FieldReqs pointer points to us. If it does, then
   // their's nothing to do.
-  bool does_part_req_ptr_point_to_us = part_req_ptr.get() == this;
+  bool does_part_req_ptr_point_to_us = part_reqs_ptr.get() == this;
   if (!does_part_req_ptr_point_to_us) {
     const bool we_have_master_part_reqs = this->has_master_part_reqs();
-    const bool they_have_master_part_reqs = part_req_ptr->has_master_part_reqs();
+    const bool they_have_master_part_reqs = part_reqs_ptr->has_master_part_reqs();
 
     if (we_have_master_part_reqs && they_have_master_part_reqs) {
       // If both have master reqs, then we synchronize the masters (potentially leading to an upward tree traversal).
-      this->get_master_part_reqs()->sync(part_req_ptr->get_master_part_reqs());
+      this->get_master_part_reqs()->sync(part_reqs_ptr->get_master_part_reqs());
     } else if (we_have_master_part_reqs && !they_have_master_part_reqs) {
-      // If we have a master and they don't, then we set their master to be our master.
-      part_req_ptr->set_master_part_reqs(this->get_master_part_reqs());
+      // If we have a master and they don't, then we merge their requirements with our master and then set their master
+      // to be our master.
+      merge(this, part_reqs_ptr.get(), this->get_master_part_reqs().get());
+      part_reqs_ptr->set_master_part_reqs(this->get_master_part_reqs());
     } else if (!we_have_master_part_reqs && they_have_master_part_reqs) {
-      // If they have a master and we don't, then we set our master to be their master.
-      this->set_master_part_reqs(part_req_ptr->get_master_part_reqs());
+      // If they have a master and we don't, then we merge our requirements with their master and then set our master to
+      // be their master.
+      merge(part_reqs_ptr.get(), this, part_reqs_ptr->get_master_part_reqs().get());
+      this->set_master_part_reqs(part_reqs_ptr->get_master_part_reqs());
     } else {
       // If neither has a master, then we will create a shared master FieldReqs object from our merged requirements.
-      // Check if the provided parameters are valid.
-      part_req_ptr->check_if_valid();
-
-      // Use the contents of us and them to create a shared master FieldReqs object.
-      auto shared_master_part_req_ptr = std::make_shared<PartReqs>();
-
-      // Check for compatibility if both classes define a requirement, otherwise store the new requirement.
-      const bool we_constrain_part_name = this->constrains_part_name();
-      const bool they_constrain_part_name = part_req_ptr->constrains_part_name();
-      if (we_constrain_part_name && they_constrain_part_name) {
-        MUNDY_THROW_ASSERT(this->get_part_name() == part_req_ptr->get_part_name(), std::invalid_argument,
-                           "PartReqs: One of the inputs has incompatible name ("
-                               << part_req_ptr->get_part_name() << ").\n"
-                               << "The current set of requirements is:\n"
-                               << get_reqs_as_a_string());
-        shared_master_part_req_ptr->set_part_name(this->get_part_name());
-      } else if (we_constrain_part_name) {
-        shared_master_part_req_ptr->set_part_name(this->get_part_name());
-      } else if (they_constrain_part_name) {
-        shared_master_part_req_ptr->set_part_name(part_req_ptr->get_part_name());
-      }
-
-      const bool we_constrain_part_rank = this->constrains_part_rank();
-      const bool they_constrain_part_rank = part_req_ptr->constrains_part_rank();
-      if (we_constrain_part_rank && they_constrain_part_rank) {
-        MUNDY_THROW_ASSERT(this->get_part_rank() == part_req_ptr->get_part_rank(), std::invalid_argument,
-                           "PartReqs: One of the inputs has incompatible rank ("
-                               << part_req_ptr->get_part_rank() << ").\n"
-                               << "The current set of requirements is:\n"
-                               << get_reqs_as_a_string());
-        shared_master_part_req_ptr->set_part_rank(this->get_part_rank());
-      } else if (we_constrain_part_rank) {
-        shared_master_part_req_ptr->set_part_rank(this->get_part_rank());
-      } else if (they_constrain_part_rank) {
-        shared_master_part_req_ptr->set_part_rank(part_req_ptr->get_part_rank());
-      }
-
-      const bool we_constrain_part_topology = this->constrains_part_topology();
-      const bool they_constrain_part_topology = part_req_ptr->constrains_part_topology();
-      if (we_constrain_part_topology && they_constrain_part_topology) {
-        MUNDY_THROW_ASSERT(this->get_part_topology() == part_req_ptr->get_part_topology(), std::invalid_argument,
-                           "PartReqs: One of the inputs has incompatible topology ("
-                               << part_req_ptr->get_part_topology() << ").\n"
-                               << "The current set of requirements is:\n"
-                               << get_reqs_as_a_string());
-        shared_master_part_req_ptr->set_part_topology(this->get_part_topology());
-      } else if (we_constrain_part_topology) {
-        shared_master_part_req_ptr->set_part_topology(this->get_part_topology());
-      } else if (they_constrain_part_topology) {
-        shared_master_part_req_ptr->set_part_topology(part_req_ptr->get_part_topology());
-      }
-
-      // Add our/their field requirements to the given FieldReqs object.
-      for (auto &part_field_map : this->get_part_ranked_field_map()) {
-        for ([[maybe_unused]] auto &[field_name, field_req_ptr] : part_field_map) {
-          shared_master_part_req_ptr->add_and_sync_field_reqs(field_req_ptr);
-        }
-      }
-      for (auto &part_field_map : part_req_ptr->get_part_ranked_field_map()) {
-        for ([[maybe_unused]] auto &[field_name, field_req_ptr] : part_field_map) {
-          shared_master_part_req_ptr->add_and_sync_field_reqs(field_req_ptr);
-        }
-      }
-
-      // Add our/their subpart requirements to the given FieldReqs object.
-      for ([[maybe_unused]] auto &[part_name, subpart_req_ptr] : this->get_part_subpart_map()) {
-        shared_master_part_req_ptr->add_and_sync_subpart_reqs(subpart_req_ptr);
-      }
-      for ([[maybe_unused]] auto &[part_name, subpart_req_ptr] : part_req_ptr->get_part_subpart_map()) {
-        shared_master_part_req_ptr->add_and_sync_subpart_reqs(subpart_req_ptr);
-      }
-
-      // Add our/their attribute names to the given FieldReqs object.
-      for (const std::string &attribute_name : this->get_part_attribute_names()) {
-        shared_master_part_req_ptr->add_part_attribute(attribute_name);
-      }
-      for (const std::string &attribute_name : part_req_ptr->get_part_attribute_names()) {
-        shared_master_part_req_ptr->add_part_attribute(attribute_name);
-      }
-
-      // The given shared_master_part_req_ptr now contains the merged requirements. Set it as the master for both.
-      this->set_master_part_reqs(shared_master_part_req_ptr);
-      part_req_ptr->set_master_part_reqs(shared_master_part_req_ptr);
+      auto shared_master_part_reqs_ptr = std::make_shared<PartReqs>();
+      merge(this, part_reqs_ptr.get(), shared_master_part_reqs_ptr.get());
+      this->set_master_part_reqs(shared_master_part_reqs_ptr);
+      part_reqs_ptr->set_master_part_reqs(shared_master_part_reqs_ptr);
     }
   }
   return *this;
@@ -538,21 +543,18 @@ void PartReqs::print(std::ostream &os, int indent_level) const {
   os << indent << "PartReqs: " << std::endl;
 
   if (this->constrains_part_name()) {
-    os << indent << "  Part name is set." << std::endl;
     os << indent << "  Part name: " << this->get_part_name() << std::endl;
   } else {
     os << "  Part name is not set." << std::endl;
   }
 
   if (this->constrains_part_rank()) {
-    os << indent << "  Part rank is set." << std::endl;
     os << indent << "  Part rank: " << this->get_part_rank() << std::endl;
   } else {
     os << indent << "  Part rank is not set." << std::endl;
   }
 
   if (this->constrains_part_topology()) {
-    os << indent << "  Part topology is set." << std::endl;
     os << indent << "  Part topology: " << this->get_part_topology() << std::endl;
   } else {
     os << indent << "  Part topology is not set." << std::endl;
@@ -562,10 +564,10 @@ void PartReqs::print(std::ostream &os, int indent_level) const {
   int rank = 0;
   int field_count = 0;
   for (auto const &part_field_map : const_cast<PartReqs *>(this)->get_part_ranked_field_map()) {
-    for (auto const &[field_name, field_req_ptr] : part_field_map) {
+    for (auto const &[field_name, field_reqs_ptr] : part_field_map) {
       os << indent << "  Part field " << field_count << " has name (" << field_name << "), rank (" << rank
          << "), and requirements" << std::endl;
-      field_req_ptr->print(os, indent_level + 1);
+      field_reqs_ptr->print(os, indent_level + 1);
       field_count++;
     }
 

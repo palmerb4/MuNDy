@@ -151,8 +151,8 @@ class FieldReqsBase {
   /// maximum of their set min num states. For this process to be valid, the given
   /// \c FieldReqs must have the same rank, type, and dimension. It also syncs their attributes.
   ///
-  /// \param field_req_ptr [in] A \c FieldReqs objects to sync with the current object.
-  virtual FieldReqsBase& sync(std::shared_ptr<FieldReqsBase> field_req_ptr) = 0;
+  /// \param field_reqs_ptr [in] A \c FieldReqs objects to sync with the current object.
+  virtual FieldReqsBase& sync(std::shared_ptr<FieldReqsBase> field_reqs_ptr) = 0;
 
   /// \brief Dump the contents of \c FieldReqs to the given stream (defaults to std::cout).
   virtual void print(std::ostream& os = std::cout, int indent_level = 0) const = 0;

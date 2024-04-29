@@ -106,8 +106,8 @@ class PartReqs {
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   /// If the field already exists, we sync their requirements.
   ///
-  /// \param field_req_ptr [in] Pointer to the field parameters to add to the part.
-  PartReqs &add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_req_ptr);
+  /// \param field_reqs_ptr [in] Pointer to the field parameters to add to the part.
+  PartReqs &add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_reqs_ptr);
 
   /// \brief Add the provided field to the part, given that it is valid and does not conflict with existing fields.
   ///
@@ -129,8 +129,8 @@ class PartReqs {
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
-  /// \param part_req_ptr [in] Pointer to the sub-part requirements to add to the part.
-  PartReqs &add_and_sync_subpart_reqs(std::shared_ptr<PartReqs> part_req_ptr);
+  /// \param part_reqs_ptr [in] Pointer to the sub-part requirements to add to the part.
+  PartReqs &add_and_sync_subpart_reqs(std::shared_ptr<PartReqs> part_reqs_ptr);
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
   ///
@@ -223,8 +223,8 @@ class PartReqs {
 
   /// \brief Synchronize (merge and rectify differences) the current requirements with another \c PartReqs.
   ///
-  /// \param part_req_ptr [in] An \c PartReqs object to sync with the current object.
-  PartReqs &sync(std::shared_ptr<PartReqs> part_req_ptr);
+  /// \param part_reqs_ptr [in] An \c PartReqs object to sync with the current object.
+  PartReqs &sync(std::shared_ptr<PartReqs> part_reqs_ptr);
 
   /// \brief Dump the contents of \c PartReqs to the given stream (defaults to std::cout).
   void print(std::ostream &os = std::cout, int indent_level = 0) const;
@@ -251,7 +251,7 @@ class PartReqs {
   //@{
 
   /// \brief Pointer to the master part requirements.
-  std::shared_ptr<PartReqs> master_part_req_ptr_ = nullptr;
+  std::shared_ptr<PartReqs> master_part_reqs_ptr_ = nullptr;
 
   /// \brief Name of the part.
   std::string part_name_;

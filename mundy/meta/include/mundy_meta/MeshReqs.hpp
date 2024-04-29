@@ -131,8 +131,8 @@ class MeshReqs {
   /// When a field is added to the entire mesh, we also add it to all parts, which, in turn, adds it to all their
   /// subparts. If the field already exists, we sync the two fields with each other.
   ///
-  /// \param field_req_ptr [in] Pointer to the field parameters to add to the mesh.
-  MeshReqs& add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_req_ptr);
+  /// \param field_reqs_ptr [in] Pointer to the field parameters to add to the mesh.
+  MeshReqs& add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_reqs_ptr);
 
   /// \brief Add the provided field to the mesh, given that it is valid and does not conflict with existing fields.
   ///
@@ -159,8 +159,8 @@ class MeshReqs {
   /// Whenever a part is added, we add all of our fields to it. If the part already exists, we sync the two parts with
   /// each other.
   ///
-  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
-  MeshReqs& add_and_sync_part_reqs(std::shared_ptr<PartReqs> part_req_ptr);
+  /// \param part_reqs_ptr [in] Pointer to the part requirements to add to the mesh.
+  MeshReqs& add_and_sync_part_reqs(std::shared_ptr<PartReqs> part_reqs_ptr);
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
@@ -250,13 +250,13 @@ class MeshReqs {
   bool get_upward_connectivity_flag() const;
 
   /// \brief Return the mesh field map for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> get_mesh_ranked_field_map();
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> &get_mesh_ranked_field_map();
 
   /// \brief Return the mesh part map.
-  std::map<std::string, std::shared_ptr<PartReqs>> get_mesh_part_map();
+  std::map<std::string, std::shared_ptr<PartReqs>> &get_mesh_part_map();
 
   /// \brief Return the required mesh attribute names.
-  std::vector<std::string> get_mesh_attribute_names();
+  std::vector<std::string> &get_mesh_attribute_names();
   //@}
 
   //! \name Actions
@@ -280,8 +280,8 @@ class MeshReqs {
 
   /// \brief Synchronize (merge and rectify differences) the current requirements with another \c MeshReqs.
   ///
-  /// \param part_req_ptr [in] An \c MeshReqs object to sync with the current object.
-  MeshReqs& sync(std::shared_ptr<MeshReqs> mesh_req_ptr);
+  /// \param part_reqs_ptr [in] An \c MeshReqs object to sync with the current object.
+  MeshReqs& sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr);
 
   /// \brief Dump the contents of \c MeshReqs to the given stream (defaults to std::cout).
   void print(std::ostream& os = std::cout, int indent_level = 0) const;
@@ -304,8 +304,24 @@ class MeshReqs {
   static constexpr bool default_upward_connectivity_flag_ = true;
   //@}
 
-  //! \name Internal data
+  //! \name Private member functions
   //@{
+
+  /// \brief Set the master field requirements for this class.
+  MeshReqs &set_master_mesh_reqs(std::shared_ptr<MeshReqs> master_mesh_req_ptr);
+
+  /// \brief Get the master mesh requirements for this class.
+  std::shared_ptr<MeshReqs> get_master_mesh_reqs();
+
+  /// \brief Get if the current reqs have a master mesh reqs.
+  bool has_master_mesh_reqs() const;
+  //@}
+
+  //! \name Private data
+  //@{
+
+  /// \brief Pointer to the master mesh requirements.
+  std::shared_ptr<MeshReqs> master_mesh_reqs_ptr_ = nullptr;
 
   /// @brief The dimension of the space within which the parts and entities reside.
   unsigned spatial_dimension_;
@@ -330,6 +346,9 @@ class MeshReqs {
 
   /// @brief A flag specifying if upward connectivity will be enabled or not.
   bool upward_connectivity_flag_;
+
+  /// \brief If we are driven by a master MeshReqs object.
+  bool has_master_mesh_reqs_ = false;
 
   /// \brief If the spacial dimension is set or not.
   bool spatial_dimension_is_set_ = false;

@@ -426,13 +426,13 @@ TEST(MeshReqsMerge, AreMeshPartsAndTheirFieldsMergable) {
 }
 
 TEST(MeshReqsMerge, MergePropertlyHandlesNullptr) {
-  // Check that the sync function properly handles nullptrs. It should be a no-op.
+  // Check that the sync function properly handles nullptrs. It should throw an invalid argument error.
 
   // Setup the Mesh requirements.
   MeshReqs mesh_reqs(MPI_COMM_WORLD);
 
   // Perform the sync.
-  ASSERT_NO_THROW(mesh_reqs.sync(nullptr));
+  ASSERT_THROW(mesh_reqs.sync(nullptr), std::invalid_argument);
 }
 
 TEST(MeshReqsMerge, MergePropertlyHandlesConflicts) {
