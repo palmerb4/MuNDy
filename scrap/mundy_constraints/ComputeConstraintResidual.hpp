@@ -39,7 +39,7 @@
 #include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>                    // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>                    // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
@@ -78,9 +78,9 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethodSubsetExecutionI
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
@@ -91,14 +91,14 @@ class ComputeConstraintResidual : public mundy::meta::MetaMethodSubsetExecutionI
     std::string element_constraint_violation_field_name =
         valid_fixed_params.get<std::string>("element_constraint_violation_field_name");
 
-    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
     part_reqs->set_part_name("CONSTRAINT");
     part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
     part_reqs->add_field_reqs<double>(
         element_constraint_violation_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(part_reqs);
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshReqs>();
+    mesh_reqs->add_and_sync_part_reqs(part_reqs);
 
     return mesh_reqs;
   }

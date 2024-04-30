@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_HASMESHREQUIREMENTSANDISREGISTERABLE_HPP_
-#define MUNDY_META_HASMESHREQUIREMENTSANDISREGISTERABLE_HPP_
+#ifndef MUNDY_META_HASMESHREQSANDISREGISTERABLE_HPP_
+#define MUNDY_META_HASMESHREQSANDISREGISTERABLE_HPP_
 
-/// \file HasMeshRequirementsAndIsRegisterable.hpp
-/// \brief Declaration of the HasMeshRequirementsAndIsRegisterable class
+/// \file HasMeshReqsAndIsRegisterable.hpp
+/// \brief Declaration of the HasMeshReqsAndIsRegisterable class
 
 // C++ core libs
 #include <memory>       // for std::shared_ptr, std::shared_ptr
@@ -35,18 +35,18 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
 
 namespace mundy {
 
 namespace meta {
 
-/// \class HasMeshRequirementsAndIsRegisterable
+/// \class HasMeshReqsAndIsRegisterable
 /// \brief A traits class for checking if a given type has the desired static interface.
 ///
 /// \tparam T The type to check.
 template <typename T>
-struct HasMeshRequirementsAndIsRegisterable {
+struct HasMeshReqsAndIsRegisterable {
  private:
   /// TODO(palmerb4): Come C++20, we can use concepts to simplify this code. For now, we have to use SFINAE.
   /// I know it's odd to have the private functions at the top, but these are used by the public functions below.
@@ -142,13 +142,13 @@ struct HasMeshRequirementsAndIsRegisterable {
   ///
   /// The specific signature of the \c get_mesh_requirements function is:
   /// \code
-  /// static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(Teuchos::ParameterList *const
+  /// static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(Teuchos::ParameterList *const
   /// fixed_params_ptr);
   /// \endcode
   static constexpr bool has_get_mesh_requirements =
       decltype(check_get_mesh_requirements<T>(0))::value &&
       std::is_same_v<decltype(T::get_mesh_requirements(std::declval<Teuchos::ParameterList>())),
-                     std::shared_ptr<mundy::meta::MeshRequirements>>;
+                     std::shared_ptr<mundy::meta::MeshReqs>>;
 
   /// \brief Check for the existence of a \c get_valid_fixed_params function.
   /// \return \c true if \c T has a \c get_valid_fixed_params function, \c false otherwise.
@@ -199,10 +199,10 @@ struct HasMeshRequirementsAndIsRegisterable {
   /// false otherwise.
   static constexpr bool value = has_get_mesh_requirements && has_get_valid_fixed_params &&
                                 has_get_valid_mutable_params && has_polymorphic_base_type && has_create_new_instance;
-};  // HasMeshRequirementsAndIsRegisterable
+};  // HasMeshReqsAndIsRegisterable
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_HASMESHREQUIREMENTSANDISREGISTERABLE_HPP_
+#endif  // MUNDY_META_HASMESHREQSANDISREGISTERABLE_HPP_

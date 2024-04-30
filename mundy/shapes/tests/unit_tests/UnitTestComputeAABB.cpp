@@ -40,8 +40,8 @@
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+#include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 #include <mundy_shapes/ComputeAABB.hpp>          // for mundy::shapes::ComputeAABB
 
 // Mundy test libs
@@ -58,7 +58,7 @@ namespace {
 
 TEST(ComputeAABBStaticInterface, IsRegisterable) {
   // Check if ComputeAABB has the correct static interface to be compatible with MetaFactory.
-  ASSERT_TRUE(mundy::meta::HasMeshRequirementsAndIsRegisterable<ComputeAABB>::value);
+  ASSERT_TRUE(mundy::meta::HasMeshReqsAndIsRegisterable<ComputeAABB>::value);
 }
 
 TEST(ComputeAABBStaticInterface, FixedParameterDefaults) {
@@ -105,7 +105,7 @@ TEST(ComputeAABBStaticInterface, MutableParameterValidation) {
   // TODO(palmerb4): How should we perform validation tests?
 }
 
-TEST(ComputeAABBStaticInterface, GetMeshRequirementsFromDefaultParameters) {
+TEST(ComputeAABBStaticInterface, GetMeshReqsFromDefaultParameters) {
   // Attempt to get the mesh requirements using the default parameters.
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_fixed_params());
@@ -114,13 +114,13 @@ TEST(ComputeAABBStaticInterface, GetMeshRequirementsFromDefaultParameters) {
 
 TEST(ComputeAABBStaticInterface, CreateNewInstanceFromDefaultParameters) {
   // Attempt to get the mesh requirements using the default parameters.
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(ComputeAABB::get_mesh_requirements(fixed_params));
+  mesh_reqs_ptr->sync(ComputeAABB::get_mesh_requirements(fixed_params));
 
   // Create a new instance of ComputeAABB using the default parameters and the mesh generated from the mesh
   // requirements.
@@ -143,7 +143,7 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<ComputeAABB>();
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
 
-  ComputeAABB::get_mesh_requirements(Teuchos::ParameterList())->print_reqs();
+  ComputeAABB::get_mesh_requirements(Teuchos::ParameterList())->print();
 
   // Fetch the multibody sphere part and add a single sphere to it.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part("SPHERES");
@@ -159,7 +159,7 @@ TEST(ComputeAABB, PerformsAABBCalculationCorrectlyForSphere) {
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");

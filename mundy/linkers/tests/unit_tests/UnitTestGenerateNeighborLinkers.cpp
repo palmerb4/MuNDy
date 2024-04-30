@@ -48,8 +48,8 @@
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshRequirementsAndIsRegisterable
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
+#include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshReqsAndIsRegisterable
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 
@@ -67,7 +67,7 @@ technique dispatchers, so we'll want to explicitly test every piece of GenerateN
 
 Following the pattern of the ComputeAABB unit tests, we'll want to test the following:
 IsRegisterable, FixedParameterDefaults, MutableParameterDefaults, FixedParameterValidation, MutableParameterValidation,
-GetMeshRequirementsFromDefaultParameters, CreateNewInstanceFromDefaultParameters,
+GetMeshReqsFromDefaultParameters, CreateNewInstanceFromDefaultParameters,
 PerformsNeighborLinkerGenerationCorrectlyForSpheres
 */
 
@@ -76,7 +76,7 @@ PerformsNeighborLinkerGenerationCorrectlyForSpheres
 
 TEST(GenerateNeighborLinkersStaticInterface, IsRegisterable) {
   // Check if GenerateNeighborLinkers has the correct static interface to be compatible with MetaFactory.
-  ASSERT_TRUE(mundy::meta::HasMeshRequirementsAndIsRegisterable<GenerateNeighborLinkers>::value);
+  ASSERT_TRUE(mundy::meta::HasMeshReqsAndIsRegisterable<GenerateNeighborLinkers>::value);
 }
 
 TEST(GenerateNeighborLinkersStaticInterface, FixedParameterDefaults) {
@@ -124,7 +124,7 @@ TEST(GenerateNeighborLinkersStaticInterface, MutableParameterValidation) {
   // TODO(palmerb4): How should we perform validation tests?
 }
 
-TEST(GenerateNeighborLinkersStaticInterface, GetMeshRequirementsFromDefaultParameters) {
+TEST(GenerateNeighborLinkersStaticInterface, GetMeshReqsFromDefaultParameters) {
   // Attempt to get the mesh requirements using the default parameters.
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_fixed_params());
@@ -133,13 +133,13 @@ TEST(GenerateNeighborLinkersStaticInterface, GetMeshRequirementsFromDefaultParam
 
 TEST(GenerateNeighborLinkersStaticInterface, CreateNewInstanceFromDefaultParameters) {
   // Attempt to get the mesh requirements using the default parameters.
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   Teuchos::ParameterList fixed_params;
   fixed_params.validateParametersAndSetDefaults(GenerateNeighborLinkers::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(GenerateNeighborLinkers::get_mesh_requirements(fixed_params));
+  mesh_reqs_ptr->sync(GenerateNeighborLinkers::get_mesh_requirements(fixed_params));
 
   // Create a new instance of GenerateNeighborLinkers using the default parameters and the mesh generated from the mesh
   // requirements.
@@ -192,7 +192,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<double> *element_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   stk::mesh::Field<double> *element_aabb_field_ptr =
@@ -308,7 +308,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<double> *element_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   stk::mesh::Field<double> *element_aabb_field_ptr =

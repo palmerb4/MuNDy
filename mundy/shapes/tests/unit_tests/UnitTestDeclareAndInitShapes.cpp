@@ -41,8 +41,8 @@
 #include <mundy_mesh/BulkData.hpp>                // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>             // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>                // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>       // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>   // for mundy::meta::FieldRequirementsBase
+#include <mundy_meta/FieldReqs.hpp>       // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqsBase.hpp>   // for mundy::meta::FieldReqsBase
 #include <mundy_shapes/DeclareAndInitShapes.hpp>  // for mundy::shapes::DeclareAndInitShapes
 #include <mundy_shapes/declare_and_initialize_shapes/techniques/GridCoordinateMapping.hpp>  // for mundy::shapes::declare_and_initialize_shapes::techniques::GridCoordinateMapping
 
@@ -77,7 +77,7 @@ TEST(DeclareAndInitShapes, GridOfSpheresVisualInspection) {
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   ASSERT_TRUE(meta_data_ptr != nullptr);
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
+  meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
 
   std::cout << "Successfully created DeclareAndInitShapes instance and mesh." << std::endl;
 
@@ -88,7 +88,7 @@ TEST(DeclareAndInitShapes, GridOfSpheresVisualInspection) {
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
   stk::mesh::Field<double> *element_radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");

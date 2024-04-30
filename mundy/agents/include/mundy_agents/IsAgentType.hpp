@@ -33,8 +33,8 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -70,14 +70,14 @@ namespace agents {
 ///
 ///   /// \brief Add new part requirements to ALL members of this agent part.
 ///   /// These modifications are reflected in our mesh requirements.
-///   static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
+///   static inline void add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr);
 ///
 ///   /// \brief Add sub-part requirements.
 ///   /// These modifications are reflected in our mesh requirements.
-///   static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
+///   static inline void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr);
 ///
 ///   /// \brief Get the mesh requirements for the ExampleAgent.
-///   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements();
+///   static inline std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements();
 /// };  // ExampleAgent
 /// \endcode
 /// \tparam T The type to check.
@@ -177,36 +177,36 @@ struct IsAgentType {
   template <typename>
   static auto check_has_rank(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c add_part_reqs function.
+  /// \brief Helper for checking if \c U has a \c add_and_sync_part_reqs function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c add_part_reqs function, \c std::false_type
+  /// \return \c std::true_type if \c U has a \c add_and_sync_part_reqs function, \c std::false_type
   /// otherwise.
   template <typename U>
   static auto check_add_part_reqs([[maybe_unused]] int unused)
-      -> decltype(U::add_part_reqs(std::declval<std::shared_ptr<mundy::meta::PartRequirements>>()), std::true_type{});
+      -> decltype(U::add_and_sync_part_reqs(std::declval<std::shared_ptr<mundy::meta::PartReqs>>()), std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c add_part_reqs function.
+  /// \brief Helper for checking if \c U has a \c add_and_sync_part_reqs function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c add_part_reqs function.
+  /// \return \c std::false_type if \c U does not have a \c add_and_sync_part_reqs function.
   template <typename>
   static auto check_add_part_reqs(...) -> std::false_type;
 
-  /// \brief Helper for checking if \c U has a \c add_subpart_reqs function.
+  /// \brief Helper for checking if \c U has a \c add_and_sync_subpart_reqs function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::true_type if \c U has a \c add_subpart_reqs function, \c std::false_type
+  /// \return \c std::true_type if \c U has a \c add_and_sync_subpart_reqs function, \c std::false_type
   /// otherwise.
   template <typename U>
   static auto check_add_subpart_reqs([[maybe_unused]] int unused)
-      -> decltype(U::add_subpart_reqs(std::declval<std::shared_ptr<mundy::meta::PartRequirements>>()),
+      -> decltype(U::add_and_sync_subpart_reqs(std::declval<std::shared_ptr<mundy::meta::PartReqs>>()),
                   std::true_type{});
 
-  /// \brief Helper for checking if \c U has a \c add_subpart_reqs function.
+  /// \brief Helper for checking if \c U has a \c add_and_sync_subpart_reqs function.
   /// \tparam U The type to check.
   /// \param[in] unused An unused parameter to allow SFINAE to work.
-  /// \return \c std::false_type if \c U does not have a \c add_subpart_reqs function.
+  /// \return \c std::false_type if \c U does not have a \c add_and_sync_subpart_reqs function.
   template <typename>
   static auto check_add_subpart_reqs(...) -> std::false_type;
 
@@ -292,21 +292,21 @@ struct IsAgentType {
   static constexpr bool has_has_rank =
       decltype(check_has_rank<T>(0))::value && std::is_same_v<decltype(T::has_rank()), bool>;
 
-  /// \brief Check for the existence of a \c add_part_reqs function.
-  /// \return \c true if \c T has a \c add_part_reqs function, \c false otherwise.
+  /// \brief Check for the existence of a \c add_and_sync_part_reqs function.
+  /// \return \c true if \c T has a \c add_and_sync_part_reqs function, \c false otherwise.
   ///
-  /// The specific signature of the \c add_part_reqs function is:
+  /// The specific signature of the \c add_and_sync_part_reqs function is:
   /// \code
-  /// static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
+  /// static inline void add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr);
   /// \endcode
   static constexpr bool has_add_part_reqs = decltype(check_add_part_reqs<T>(0))::value;
 
-  /// \brief Check for the existence of a \c add_subpart_reqs function.
-  /// \return \c true if \c T has a \c add_subpart_reqs function, \c false otherwise.
+  /// \brief Check for the existence of a \c add_and_sync_subpart_reqs function.
+  /// \return \c true if \c T has a \c add_and_sync_subpart_reqs function, \c false otherwise.
   ///
-  /// The specific signature of the \c add_subpart_reqs function is:
+  /// The specific signature of the \c add_and_sync_subpart_reqs function is:
   /// \code
-  /// static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
+  /// static inline void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr);
   /// \endcode
   static constexpr bool has_add_subpart_reqs = decltype(check_add_subpart_reqs<T>(0))::value;
 
@@ -315,7 +315,7 @@ struct IsAgentType {
   ///
   /// The specific signature of the \c get_mesh_requirements function is:
   /// \code
-  /// static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements();
+  /// static inline std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements();
   /// \endcode
   static constexpr bool has_get_mesh_requirements = decltype(check_get_mesh_requirements<T>(0))::value;
 

@@ -40,8 +40,8 @@
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+#include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 #include <mundy_shapes/ComputeOBB.hpp>           // for mundy::shapes::ComputeOBB
 
 // Mundy test libs
@@ -84,7 +84,7 @@ TEST(ComputeOBB, PerformsOBBCalculationCorrectlyForSphere) {
 
   // Fetch the required fields.
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");

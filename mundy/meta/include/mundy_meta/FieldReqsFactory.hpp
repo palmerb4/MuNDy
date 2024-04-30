@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_FIELDREQUIREMENTSFACTORY_HPP_
-#define MUNDY_META_FIELDREQUIREMENTSFACTORY_HPP_
+#ifndef MUNDY_META_FIELDREQSFACTORY_HPP_
+#define MUNDY_META_FIELDREQSFACTORY_HPP_
 
-/// \file FieldRequirementsFactory.hpp
-/// \brief Declaration of the FieldRequirementsFactory class
+/// \file FieldReqsFactory.hpp
+/// \brief Declaration of the FieldReqsFactory class
 
 // C++ core libs
 #include <functional>   // for std::function
@@ -39,18 +39,18 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>       // for MUNDY_THROW_ASSERT
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
 
 namespace mundy {
 
 namespace meta {
 
-/// \class FieldRequirementsFactory
-/// \brief A factory containing generation routines for all of Mundy's \c FieldRequirements.
+/// \class FieldReqsFactory
+/// \brief A factory containing generation routines for all of Mundy's \c FieldReqs.
 ///
-/// The goal of \c FieldRequirementsFactory, as with most factories, is to provide an abstraction for case switches
+/// The goal of \c FieldReqsFactory, as with most factories, is to provide an abstraction for case switches
 /// between different methods. This factory is a bit different in that it always users to register different field types
-/// such that a \c FieldRequirements<FieldType> can then be generated based on the registered FieldType and its
+/// such that a \c FieldReqs<FieldType> can then be generated based on the registered FieldType and its
 /// corresponding string. This allows us to generate field requirements with custom types. Most importantly, it enables
 /// users to add their own trivially copyable field types without modifying Mundy's source code.
 ///
@@ -69,21 +69,21 @@ namespace meta {
 ///  - COMPLES_FLOAT      -> std::complex<float> // TODO(stk): Probably not right
 ///  - COMPLEX_DOUBLE     -> std::complex<double> // TODO(stk): Probably not right
 ///
-/// \note This factory does not store an instance of \c FieldRequirements; rather, it stores maps from a string to some
-/// of \c FieldRequirements's static member functions.
+/// \note This factory does not store an instance of \c FieldReqs; rather, it stores maps from a string to some
+/// of \c FieldReqs's static member functions.
 ///
 /// \note Credit where credit is due: The design for this class originates from Andreas Zimmerer and his
 /// self-registering types design (albeit with heavy modifications).
 /// https://www.jibbow.com/posts/cpp-header-only-self-registering-types/
-class FieldRequirementsFactory {
+class FieldReqsFactory {
  public:
   //! \name Typedefs
   //@{
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
-  /// \c FieldRequirementsBase.
-  using NewFieldRequirementsGenerator =
-      std::function<std::shared_ptr<FieldRequirementsBase>(const Teuchos::ParameterList&)>;
+  /// \c FieldReqsBase.
+  using NewFieldReqsGenerator =
+      std::function<std::shared_ptr<FieldReqsBase>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -114,22 +114,22 @@ class FieldRequirementsFactory {
   void register_new_field_type(const std::string& field_type_string) {
     MUNDY_THROW_ASSERT(
         is_valid_field_type_string(field_type_string), std::invalid_argument,
-        "FieldRequirementsFactory: The provided field type string " << field_type_string << " already exists.");
+        "FieldReqsFactory: The provided field type string " << field_type_string << " already exists.");
     get_instance_generator_map().insert(
-        std::make_pair(field_type_string, FieldRequirements<FieldTypeToRegister>::create_new_instance));
+        std::make_pair(field_type_string, FieldReqs<FieldTypeToRegister>::create_new_instance));
   }
 
-  /// \brief Generate a new instance of a registered \c FieldRequirements.
+  /// \brief Generate a new instance of a registered \c FieldReqs.
   ///
-  /// The registered \c FieldRequirements accessed by this function is fetched based on the provided field type string.
+  /// The registered \c FieldReqs accessed by this function is fetched based on the provided field type string.
   /// This field type string must be valid; that is, \c is_valid_field_type_string(field_type_string) must return true.
-  /// To register a \c FieldRequirements with this factory, use the provided \c register_new_field_type function.
+  /// To register a \c FieldReqs with this factory, use the provided \c register_new_field_type function.
   ///
   /// \param field_type_string [in] A field type string correspond to a registered field type.
   ///
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list is
   /// accessible via \c get_valid_params.
-  static std::shared_ptr<FieldRequirementsBase> create_new_instance(const std::string& field_type_string,
+  static std::shared_ptr<FieldReqsBase> create_new_instance(const std::string& field_type_string,
                                                                     const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[field_type_string](parameter_list);
   }
@@ -139,8 +139,8 @@ class FieldRequirementsFactory {
   //! \name Typedefs
   //@{
 
-  /// \brief A map from a string to a function for generating a new \c FieldRequirements.
-  using InstanceGeneratorMap = std::map<std::string, NewFieldRequirementsGenerator>;
+  /// \brief A map from a string to a function for generating a new \c FieldReqs.
+  using InstanceGeneratorMap = std::map<std::string, NewFieldReqsGenerator>;
   //@}
 
   //! \name Attributes
@@ -155,15 +155,15 @@ class FieldRequirementsFactory {
   //! \name Friends
   //@{
 
-  /// \brief Registratrion of new types is done through \c FieldRequirementsRegistry.
+  /// \brief Registratrion of new types is done through \c FieldReqsRegistry.
   /// This process requires friendship <3.
   template <typename AnyFieldType, std::enable_if_t<std::is_trivially_copyable<AnyFieldType>::value, bool> EnableIfType>
-  friend class FieldRequirementsRegistry;
+  friend class FieldReqsRegistry;
   //@}
-};  // FieldRequirementsFactory
+};  // FieldReqsFactory
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_FIELDREQUIREMENTSFACTORY_HPP_
+#endif  // MUNDY_META_FIELDREQSFACTORY_HPP_

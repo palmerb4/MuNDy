@@ -34,9 +34,9 @@
 #include <mundy_agents/Agents.hpp>           // for mundy::agents::Agents
 #include <mundy_agents/RankedAssembly.hpp>   // for mundy::agents::RankedAssembly
 #include <mundy_core/StringLiteral.hpp>      // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MeshRequirements.hpp>   // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
+#include <mundy_meta/MeshReqs.hpp>   // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
 
 namespace mundy {
 

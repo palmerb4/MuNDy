@@ -50,8 +50,8 @@
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>        // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
-#include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshRequirementsAndIsRegisterable
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
+#include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshReqsAndIsRegisterable
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 
@@ -102,14 +102,14 @@ bool check_field_role(std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr, cons
 // Test if we can create a new instance of the IOBroker
 TEST(IOBroker, CreateNewInstanceIOAABB) {
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
   fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  mesh_reqs_ptr->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
@@ -130,7 +130,7 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
                             "ELEMENT_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Validate and set
@@ -149,12 +149,12 @@ TEST(IOBroker, CreateNewInstanceIOAABB) {
   stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr, std::cout);
 
   // Check that the ELEMENT_AABB is set to transient, TRANSIENT_NODE_COORDINATES is set to transient, and that
-  // NODE_COORDINATES is set to MESH
+  // NODE_COORDS is set to MESH
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   EXPECT_TRUE(check_field_role(meta_data_ptr, "ELEMENT_AABB", stk::topology::ELEMENT_RANK, Ioss::Field::TRANSIENT));
   EXPECT_TRUE(
       check_field_role(meta_data_ptr, "TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, Ioss::Field::TRANSIENT));
-  EXPECT_TRUE(check_field_role(meta_data_ptr, "NODE_COORDINATES", stk::topology::NODE_RANK, Ioss::Field::MESH));
+  EXPECT_TRUE(check_field_role(meta_data_ptr, "NODE_COORDS", stk::topology::NODE_RANK, Ioss::Field::MESH));
 }
 
 // Test if we can write some initial configuration with the iobroker based on ComputeAABB
@@ -162,14 +162,14 @@ TEST(IOBroker, WriteInitialConfigAABB) {
   std::string restart_filename = "exodus_mesh_initial.exo";
 
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
   fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  mesh_reqs_ptr->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
@@ -190,7 +190,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
                             "ELEMENT_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -225,7 +225,7 @@ TEST(IOBroker, WriteInitialConfigAABB) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coord_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<double> *radius_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
 
@@ -306,21 +306,21 @@ TEST(IOBroker, WriteResultsAABBInteger) {
   std::string results_filename = "exodus_mesh_results.exo";
 
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
   fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  mesh_reqs_ptr->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Directly set an unsigned field on everybody
-  mesh_reqs_ptr->add_field_reqs(
-      std::make_shared<mundy::meta::FieldRequirements<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
+  mesh_reqs_ptr->add_and_sync_field_reqs(
+      std::make_shared<mundy::meta::FieldReqs<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
 
   // Get fixed parameters for the IOBroker
   Teuchos::ParameterList fixed_params_iobroker;
@@ -343,7 +343,7 @@ TEST(IOBroker, WriteResultsAABBInteger) {
                             "NODE_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -396,7 +396,7 @@ TEST(IOBroker, WriteResultsAABBInteger) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coordinates_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<unsigned> *node_rng_counter_field_ptr =
       meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
   stk::mesh::Field<double> *element_radius_field_ptr =
@@ -486,21 +486,21 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
   ////////////////
 
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
   fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  mesh_reqs_ptr->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Directly set an unsigned field on everybody
-  mesh_reqs_ptr->add_field_reqs(
-      std::make_shared<mundy::meta::FieldRequirements<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
+  mesh_reqs_ptr->add_and_sync_field_reqs(
+      std::make_shared<mundy::meta::FieldReqs<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
 
   ////////////////
   // Configure IOBroker
@@ -527,7 +527,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
                             "NODE_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -591,7 +591,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart1) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coordinates_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   stk::mesh::Field<unsigned> *node_rng_counter_field_ptr =
       meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
   stk::mesh::Field<double> *element_radius_field_ptr =
@@ -642,21 +642,21 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
   std::string results_filename = "exodus_mesh_restart_results.exo";
 
   // Attempt to get the mesh requirements using the default parameters of ComputeAABB
-  auto mesh_reqs_ptr = std::make_shared<meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
   // Set up a ComputeAABB function
   Teuchos::ParameterList fixed_params_sphere;
   fixed_params_sphere.validateParametersAndSetDefaults(mundy::shapes::ComputeAABB::get_valid_fixed_params());
-  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
+  mesh_reqs_ptr->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(fixed_params_sphere));
 
   // Add the TRANSIENT node coordinate field to the requirements so that we have it later
   mesh_reqs_ptr->add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", stk::topology::NODE_RANK, 3, 1);
 
   // Directly set an unsigned field on everybody
-  mesh_reqs_ptr->add_field_reqs(
-      std::make_shared<mundy::meta::FieldRequirements<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
+  mesh_reqs_ptr->add_and_sync_field_reqs(
+      std::make_shared<mundy::meta::FieldReqs<unsigned>>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
 
   // Get fixed parameters for the IOBroker
   Teuchos::ParameterList fixed_params_iobroker;
@@ -679,7 +679,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
                             "NODE_RANK fields with enabled IO.");
 
   // Set custom values for the ComputeAABB methods to work with IO
-  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDINATES");
+  fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
   fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
 
   // Set the output filename and file type
@@ -714,7 +714,7 @@ TEST(IOBroker, WriteReadRestartAABBIntegerPart2) {
 
   // Fetch the required fields to set (note that we are only going to write out some of them)
   stk::mesh::Field<double> *node_coordinates_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+      meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
 
   // Get the local number of entitites of all ranks (going to use to loop over and check values)
   // std::vector<size_t> entity_counts;

@@ -42,8 +42,8 @@
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
+#include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 
 // Mundy test libs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements

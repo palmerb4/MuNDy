@@ -19,7 +19,7 @@
 
 /* Notes:
 
-The goal of this example is to simulate the swimming motion of a multiple, non-interacting long sperm.
+The goal of this example is to simulate the swimming motion of a multiple, colliding long sperm.
 */
 
 // External libs
@@ -45,18 +45,28 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 #include <stk_util/parallel/Parallel.hpp>        // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
-#include <mundy_core/MakeStringArray.hpp>  // for mundy::core::make_string_array
-#include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
-#include <mundy_math/Matrix3.hpp>          // for mundy::math::Matrix3
-#include <mundy_math/Quaternion.hpp>       // for mundy::math::Quaternion, mundy::math::quat_from_parallel_transport
-#include <mundy_math/Vector3.hpp>          // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>         // for mundy::mesh::BulkData
-#include <mundy_mesh/FieldViews.hpp>       // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
-#include <mundy_mesh/MetaData.hpp>         // for mundy::mesh::MetaData
+#include <mundy_core/MakeStringArray.hpp>                                     // for mundy::core::make_string_array
+#include <mundy_core/throw_assert.hpp>                                        // for MUNDY_THROW_ASSERT
+#include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
+#include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
+#include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
+#include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
+#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
+#include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::...::SpherocylinderSegmentSpherocylinderSegmentLinkers
+#include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
+#include <mundy_math/Quaternion.hpp>  // for mundy::math::Quaternion, mundy::math::quat_from_parallel_transport
+#include <mundy_math/Vector3.hpp>     // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/MetaData.hpp>    // for mundy::mesh::MetaData
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>  // for mundy::mesh::utils::fill_field_with_value
 #include <mundy_meta/FieldReqs.hpp>         // for mundy::meta::FieldReqs
 #include <mundy_meta/MeshReqs.hpp>          // for mundy::meta::MeshReqs
 #include <mundy_meta/PartReqs.hpp>          // for mundy::meta::PartReqs
+#include <mundy_shapes/ComputeAABB.hpp>             // for mundy::shapes::ComputeAABB
+
+#define DEBUG
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -93,6 +103,30 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 ///
 ///       // Evaluate forces f(x(t + dt))
 ///       {
+///         // Hertzian contact
+///         {
+///             // Neighbor detection rod-rod
+///             - Check if the rod-rod neighbor list needs updated or not
+///                 - Compute the AABBs for the rods
+///                  (Using mundy's ComputeAABB function)
+///
+///                 - Delete rod-rod neighbor linkers that are too far apart
+///                  (Using the DestroyDistantNeighbors technique of mundy's DestroyNeighborLinkers function)
+///
+///                 - Generate neighbor linkers between nearby rods
+///                  (Using the GenerateNeighborLinkers function of mundy's GenerateNeighborLinkers function)
+///
+///             // Hertzian contact force evaluation
+///             - Compute the signed separation distance and contact normal between neighboring rods
+///              (Using mundy's ComputeSignedSeparationDistanceAndContactNormal function)
+///
+///             - Evaluate the Hertzian contact potential between neighboring rods
+///              (Using mundy's EvaluateLinkerPotentials function)
+///
+///             - Sum the linker potential force magnitude to get the induced node force on each rod
+///              (Using mundy's LinkerPotentialForceMagnitudeReduction function)
+///         }
+///
 ///         // Centerline twist rod model
 ///         - Compute the edge information (length, tangent, and binormal)
 ///          (By looping over all edges and computing the edge length, tangent, binormal)
@@ -324,12 +358,80 @@ class SpermSimulation {
     }
 #endif
 
+    // Add the requirements for our initialized methods to the mesh
+    // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
+    // master parameter list. Note, sublist will return a reference to the sublist with the given name.
+    auto compute_ssd_and_cn_fixed_params = Teuchos::ParameterList().set(
+        "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER"));
+    auto compute_aabb_fixed_params =
+        Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
+    auto generate_neighbor_linkers_fixed_params =
+        Teuchos::ParameterList()
+            .set("enabled_technique_name", "STK_SEARCH")
+            .set("specialized_neighbor_linkers_part_names",
+                 mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"));
+    generate_neighbor_linkers_fixed_params.sublist("STK_SEARCH")
+        .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"));
+    auto evaluate_linker_potentials_fixed_params = Teuchos::ParameterList().set(
+        "enabled_kernel_names",
+        mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
+    auto linker_potential_force_magnitude_reduction_fixed_params =
+        Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
+    auto destroy_neighbor_linkers_fixed_params =
+        Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
+
+    // Synchronize (merge and rectify differences) the requirements for each method based on the fixed parameters.
+    // For now, we will directly use the types that each method corresponds to. The configurator will
+    // fetch the static members of these methods using the configurable method factory.
+    mesh_reqs_ptr_->sync(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
+        compute_ssd_and_cn_fixed_params));
+    mesh_reqs_ptr_->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_neighbor_linkers_fixed_params));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
+    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
+        linker_potential_force_magnitude_reduction_fixed_params));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params));
+
+#ifdef DEBUG
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      mesh_reqs_ptr_->print();
+    }
+#endif
+
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
     meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
     meta_data_ptr_->set_coordinate_field_name("NODE_COORDS");
     meta_data_ptr_->use_simple_fields();
     meta_data_ptr_->commit();
+
+    // Now that the mesh is set up, we can create our method instances.
+    // For now, we will directly use the types that each method corresponds to. The configurator will
+    // fetch the static members of these methods using the configurable method factory.
+    compute_ssd_and_cn_ptr_ = mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::create_new_instance(
+        bulk_data_ptr_.get(), compute_ssd_and_cn_fixed_params);
+    compute_aabb_ptr_ =
+        mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params);
+    generate_neighbor_linkers_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), generate_neighbor_linkers_fixed_params);
+    evaluate_linker_potentials_ptr_ = mundy::linkers::EvaluateLinkerPotentials::create_new_instance(
+        bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params);
+    linker_potential_force_magnitude_reduction_ptr_ =
+        mundy::linkers::LinkerPotentialForceMagnitudeReduction::create_new_instance(
+            bulk_data_ptr_.get(), linker_potential_force_magnitude_reduction_fixed_params);
+    destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params);
+
+    // Set up the mutable parameters for the classes
+    // If a class doesn't have mutable parameters, we can skip setting them.
+
+    // ComputeAABB mutable parameters
+    auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", 0.0);
+    compute_aabb_ptr_->set_mutable_params(compute_aabb_mutable_params);
   }
 
   template <typename FieldType>
@@ -377,8 +479,13 @@ class SpermSimulation {
 
     // Fetch the parts
     centerline_twist_springs_part_ptr_ = fetch_part("CENTERLINE_TWIST_SPRINGS");
+    spherocylinder_segments_part_ptr_ = fetch_part("SPHEROCYLINDER_SEGMENTS");
+    spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_ =
+        fetch_part("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS");
     MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
                        "CENTERLINE_TWIST_SPRINGS part must have SHELL_TRI_3 topology.");
+    MUNDY_THROW_ASSERT(spherocylinder_segments_part_ptr_->topology() == stk::topology::BEAM_2, std::logic_error,
+                       "SPHEROCYLINDER_SEGMENTS part must have BEAM_2 topology.");
   }
 
   void setup_io() {
@@ -433,6 +540,8 @@ class SpermSimulation {
       size_t start_node_id = num_nodes_per_sperm_ * j + 1u;
       size_t start_edge_id = (num_nodes_per_sperm_ - 1) * j + 1u;
       size_t start_centerline_twist_spring_id = (num_nodes_per_sperm_ - 2) * j + 1u;
+      size_t start_spherocylinder_segment_spring_id =
+          (num_nodes_per_sperm_ - 1) * j + (num_nodes_per_sperm_ - 2) * num_sperm_ + 1u;
 
       auto get_node_id = [start_node_id](const size_t &seq_node_index) {
         return start_node_id + seq_node_index;
@@ -450,12 +559,20 @@ class SpermSimulation {
         return bulk_data.get_entity(stk::topology::EDGE_RANK, get_edge_id(seq_node_index));
       };
 
-      auto get_centerline_twist_spring_id = [start_centerline_twist_spring_id](const size_t &seq_spring_index) {
-        return start_centerline_twist_spring_id + seq_spring_index;
+      auto get_centerline_twist_spring_id = [start_centerline_twist_spring_id](const size_t &seq_node_index) {
+        return start_centerline_twist_spring_id + seq_node_index;
       };
 
-      auto get_centerline_twist_spring = [get_centerline_twist_spring_id, &bulk_data](const size_t &seq_spring_index) {
-        return bulk_data.get_entity(stk::topology::ELEMENT_RANK, get_centerline_twist_spring_id(seq_spring_index));
+      auto get_centerline_twist_spring = [get_centerline_twist_spring_id, &bulk_data](const size_t &seq_node_index) {
+        return bulk_data.get_entity(stk::topology::ELEMENT_RANK, get_centerline_twist_spring_id(seq_node_index));
+      };
+
+      auto get_spherocylinder_segment_id = [&start_spherocylinder_segment_spring_id](const size_t &seq_node_index) {
+        return start_spherocylinder_segment_spring_id + seq_node_index;
+      };
+
+      auto get_spherocylinder_segment = [get_spherocylinder_segment_id, &bulk_data](const size_t &seq_node_index) {
+        return bulk_data.get_entity(stk::topology::ELEMENT_RANK, get_spherocylinder_segment_id(seq_node_index));
       };
 
       // Create the springs and their connected nodes, distributing the work across the ranks.
@@ -466,16 +583,18 @@ class SpermSimulation {
       const size_t end_seq_node_index = start_seq_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
 
       bulk_data_ptr_->modification_begin();
-     
+
       // Temporary/scatch variables
       stk::mesh::PartVector empty;
-      stk::mesh::Permutation perm = stk::mesh::Permutation::INVALID_PERMUTATION;
+      stk::mesh::Permutation invalid_perm = stk::mesh::Permutation::INVALID_PERMUTATION;
       stk::mesh::OrdinalVector scratch1, scratch2, scratch3;
       auto spring_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_};
-      stk::topology elem_topo = stk::topology::SHELL_TRI_3;
+      auto spherocylinder_part = stk::mesh::PartVector{spherocylinder_segments_part_ptr_};
+      stk::topology spring_topo = stk::topology::SHELL_TRI_3;
+      stk::topology spherocylinder_topo = stk::topology::BEAM_2;
       stk::topology edge_topo = stk::topology::LINE_2;
-      auto spring_and_edge_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_,
-                                                        &meta_data_ptr_->get_topology_root_part(edge_topo)};
+      auto spring_and_edge_part =
+          stk::mesh::PartVector{centerline_twist_springs_part_ptr_, &meta_data_ptr_->get_topology_root_part(edge_topo)};
 
       // Centerline twist springs connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
       const size_t start_element_chain_index = start_seq_node_index;
@@ -531,7 +650,7 @@ class SpermSimulation {
           right_node = bulk_data_ptr_->declare_node(right_node_id, empty);
         }
 
-        // Declare and connect the edges
+        // Fetch the edges
         stk::mesh::EntityId left_edge_id = get_edge_id(i);
         stk::mesh::EntityId right_edge_id = get_edge_id(i + 1);
         stk::mesh::Entity left_edge = bulk_data_ptr_->get_entity(stk::topology::EDGE_RANK, left_edge_id);
@@ -539,14 +658,14 @@ class SpermSimulation {
         if (!bulk_data_ptr_->is_valid(left_edge)) {
           // Declare the edge and connect it to the nodes
           left_edge = bulk_data_ptr_->declare_edge(left_edge_id, spring_and_edge_part);
-          bulk_data_ptr_->declare_relation(left_edge, left_node, 0, perm, scratch1, scratch2, scratch3);
-          bulk_data_ptr_->declare_relation(left_edge, center_node, 1, perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(left_edge, left_node, 0, invalid_perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(left_edge, center_node, 1, invalid_perm, scratch1, scratch2, scratch3);
         }
         if (!bulk_data_ptr_->is_valid(right_edge)) {
           // Declare the edge and connect it to the nodes
           right_edge = bulk_data_ptr_->declare_edge(right_edge_id, spring_and_edge_part);
-          bulk_data_ptr_->declare_relation(right_edge, center_node, 0, perm, scratch1, scratch2, scratch3);
-          bulk_data_ptr_->declare_relation(right_edge, right_node, 1, perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(right_edge, center_node, 0, invalid_perm, scratch1, scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(right_edge, right_node, 1, invalid_perm, scratch1, scratch2, scratch3);
         }
 
         // Fetch the centerline twist spring
@@ -554,30 +673,80 @@ class SpermSimulation {
         stk::mesh::Entity spring = bulk_data_ptr_->declare_element(spring_id, spring_part);
 
         // Connect the spring to the edges
-        stk::mesh::Entity elem_nodes[3] = {left_node, center_node, right_node};
+        stk::mesh::Entity spring_nodes[3] = {left_node, center_node, right_node};
         stk::mesh::Entity left_edge_nodes[2] = {left_node, center_node};
         stk::mesh::Entity right_edge_nodes[2] = {center_node, right_node};
-
-        stk::mesh::Permutation left_perm =
-            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, left_edge_nodes, 0);
-        stk::mesh::Permutation right_perm =
-            bulk_data_ptr_->find_permutation(elem_topo, elem_nodes, edge_topo, right_edge_nodes, 1);
-        bulk_data_ptr_->declare_relation(spring, left_edge, 0, left_perm, scratch1, scratch2, scratch3);
-        bulk_data_ptr_->declare_relation(spring, right_edge, 1, right_perm, scratch1, scratch2, scratch3);
+        stk::mesh::Permutation left_spring_perm =
+            bulk_data_ptr_->find_permutation(spring_topo, spring_nodes, edge_topo, left_edge_nodes, 0);
+        stk::mesh::Permutation right_spring_perm =
+            bulk_data_ptr_->find_permutation(spring_topo, spring_nodes, edge_topo, right_edge_nodes, 1);
+        bulk_data_ptr_->declare_relation(spring, left_edge, 0, left_spring_perm, scratch1, scratch2, scratch3);
+        bulk_data_ptr_->declare_relation(spring, right_edge, 1, right_spring_perm, scratch1, scratch2, scratch3);
 
         // Connect the spring to the nodes
-        bulk_data_ptr_->declare_relation(spring, left_node, 0, perm, scratch1, scratch2, scratch3);
-        bulk_data_ptr_->declare_relation(spring, center_node, 1, perm, scratch1, scratch2, scratch3);
-        bulk_data_ptr_->declare_relation(spring, right_node, 2, perm, scratch1, scratch2, scratch3);
+        bulk_data_ptr_->declare_relation(spring, left_node, 0, invalid_perm, scratch1, scratch2, scratch3);
+        bulk_data_ptr_->declare_relation(spring, center_node, 1, invalid_perm, scratch1, scratch2, scratch3);
+        bulk_data_ptr_->declare_relation(spring, right_node, 2, invalid_perm, scratch1, scratch2, scratch3);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY,
                            std::logic_error,
                            "The centerline twist spring with id " << spring_id << " has an invalid topology.");
+
+        // Fetch the sphero-cylinder segments
+        stk::mesh::EntityId left_spherocylinder_segment_id = get_spherocylinder_segment_id(i);
+        stk::mesh::EntityId right_spherocylinder_segment_id = get_spherocylinder_segment_id(i + 1);
+        stk::mesh::Entity left_spherocylinder_segment =
+            bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK, left_spherocylinder_segment_id);
+        stk::mesh::Entity right_spherocylinder_segment =
+            bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK, right_spherocylinder_segment_id);
+        if (!bulk_data_ptr_->is_valid(left_spherocylinder_segment)) {
+          // Declare the spherocylinder segment and connect it to the nodes
+          left_spherocylinder_segment =
+              bulk_data_ptr_->declare_element(left_spherocylinder_segment_id, spherocylinder_part);
+          bulk_data_ptr_->declare_relation(left_spherocylinder_segment, left_node, 0, invalid_perm, scratch1, scratch2,
+                                           scratch3);
+          bulk_data_ptr_->declare_relation(left_spherocylinder_segment, center_node, 1, invalid_perm, scratch1,
+                                           scratch2, scratch3);
+        }
+        if (!bulk_data_ptr_->is_valid(right_spherocylinder_segment)) {
+          // Declare the spherocylinder segment and connect it to the nodes
+          right_spherocylinder_segment =
+              bulk_data_ptr_->declare_element(right_spherocylinder_segment_id, spherocylinder_part);
+          bulk_data_ptr_->declare_relation(right_spherocylinder_segment, center_node, 0, invalid_perm, scratch1,
+                                           scratch2, scratch3);
+          bulk_data_ptr_->declare_relation(right_spherocylinder_segment, right_node, 1, invalid_perm, scratch1,
+                                           scratch2, scratch3);
+        }
+
+        // Connect the segments to the edges
+        stk::mesh::Entity left_spherocylinder_segment_nodes[2] = {left_node, center_node};
+        stk::mesh::Entity right_spherocylinder_segment_nodes[2] = {center_node, right_node};
+        stk::mesh::Permutation left_spherocylinder_perm = bulk_data_ptr_->find_permutation(
+            spherocylinder_topo, left_spherocylinder_segment_nodes, edge_topo, left_edge_nodes, 0);
+        stk::mesh::Permutation right_spherocylinder_perm = bulk_data_ptr_->find_permutation(
+            spherocylinder_topo, right_spherocylinder_segment_nodes, edge_topo, right_edge_nodes, 1);
+        bulk_data_ptr_->declare_relation(left_spherocylinder_segment, left_edge, 0, left_spherocylinder_perm, scratch1,
+                                         scratch2, scratch3);
+        bulk_data_ptr_->declare_relation(right_spherocylinder_segment, right_edge, 0, right_spherocylinder_perm,
+                                         scratch1, scratch2, scratch3);
+
+        // Connect the segments to the nodes
+        bulk_data_ptr_->declare_relation(left_spherocylinder_segment, left_node, 0, invalid_perm, scratch1, scratch2,
+                                         scratch3);
+        bulk_data_ptr_->declare_relation(left_spherocylinder_segment, center_node, 1, invalid_perm, scratch1, scratch2,
+                                         scratch3);
+        bulk_data_ptr_->declare_relation(right_spherocylinder_segment, center_node, 0, invalid_perm, scratch1, scratch2,
+                                         scratch3);
+        bulk_data_ptr_->declare_relation(right_spherocylinder_segment, right_node, 1, invalid_perm, scratch1, scratch2,
+                                         scratch3);
 
         // Populate the spring's data
         stk::mesh::field_data(*element_radius_field_ptr_, spring)[0] = sperm_radius_;
         stk::mesh::field_data(*element_youngs_modulus_field_ptr_, spring)[0] = sperm_youngs_modulus_;
         stk::mesh::field_data(*element_poissons_ratio_field_ptr_, spring)[0] = sperm_poissons_ratio_;
         stk::mesh::field_data(*element_rest_length_field_ptr_, spring)[0] = sperm_rest_segment_length_;
+
+        // Populate the spherocylinder segment's data
+        stk::mesh::field_data(*element_radius_field_ptr_, left_spherocylinder_segment)[0] = sperm_radius_;
       }
 
       // Share the nodes with the neighboring ranks.
@@ -638,7 +807,8 @@ class SpermSimulation {
       bulk_data_ptr_->modification_end();
 
       // Set the node data for all nodes (even the shared ones)
-      for (size_t i = start_seq_node_index - 1 * (rank > 0); i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
+      for (size_t i = start_seq_node_index - 1 * (rank > 0);
+           i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
         stk::mesh::Entity node = get_node(i);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
                            "The node with id " << get_node_id(i) << " is not valid.");
@@ -780,7 +950,7 @@ class SpermSimulation {
         });
   }
 
-  void propogate_rest_curvature() {
+  void propagate_rest_curvature() {
     debug_print("Propogating the rest curvature.");
 
     // Get references to internal members so we aren't passing around *this
@@ -1178,6 +1348,39 @@ class SpermSimulation {
     compute_internal_force_and_twist_torque();
   }
 
+  void compute_hertzian_contact_force_and_torque() {
+    debug_print("Computing the Hertzian contact force and torque.");
+
+    // Check if the rod-rod neighbor list needs updated or not
+    bool rod_rod_neighbor_list_needs_updated = true;
+    if (rod_rod_neighbor_list_needs_updated) {
+      // Compute the AABBs for the rods
+      debug_print("Computing the AABBs for the rods.");
+      compute_aabb_ptr_->execute(*spherocylinder_segments_part_ptr_);
+
+      // Delete rod-rod neighbor linkers that are too far apart
+      debug_print("Deleting rod-rod neighbor linkers that are too far apart.");
+      destroy_neighbor_linkers_ptr_->execute(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
+
+      // Generate neighbor linkers between nearby rods
+      debug_print("Generating neighbor linkers between nearby rods.");
+      generate_neighbor_linkers_ptr_->execute(*spherocylinder_segments_part_ptr_, *spherocylinder_segments_part_ptr_);
+    }
+
+    // Hertzian contact force evaluation
+    // Compute the signed separation distance and contact normal between neighboring rods
+    debug_print("Computing the signed separation distance and contact normal between neighboring rods.");
+    compute_ssd_and_cn_ptr_->execute(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
+
+    // Evaluate the Hertzian contact potential between neighboring rods
+    debug_print("Evaluating the Hertzian contact potential between neighboring rods.");
+    evaluate_linker_potentials_ptr_->execute(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
+
+    // Sum the linker potential force magnitude to get the induced node force on each rod
+    debug_print("Summing the linker potential force magnitude to get the induced node force on each rod.");
+    linker_potential_force_magnitude_reduction_ptr_->execute(*spherocylinder_segments_part_ptr_);
+  }
+
   void update_generalized_position_velocity_and_acceleration() {
     debug_print("Updating the generalized position, velocity, and acceleration.");
     //  Prediction:
@@ -1317,7 +1520,7 @@ class SpermSimulation {
     build_our_mesh_and_method_instances();
     fetch_fields_and_parts();
     declare_and_initialize_sperm();
-    propogate_rest_curvature();
+    propagate_rest_curvature();
     setup_io();
 
     // Time loop
@@ -1348,7 +1551,7 @@ class SpermSimulation {
         // Update the rest curvature.
         // kappa_rest(t + dt) = amplitude * sin(spacial_frequency * archlength + temporal_frequency * (t + dt)).
         if (timestep_index_ > 5000000) {
-          propogate_rest_curvature();
+          propagate_rest_curvature();
         }
 
         // Zero the node velocities, accelerations, and forces/torques for time t + dt.
@@ -1357,7 +1560,10 @@ class SpermSimulation {
 
       // Evaluate forces f(x(t + dt)).
       {
-        // Centerline twist rod model
+        // Hertzian contact force
+        compute_hertzian_contact_force_and_torque();
+
+        // Centerline twist rod forces
         compute_centerline_twist_force_and_torque();
       }
 
@@ -1410,6 +1616,20 @@ class SpermSimulation {
   size_t timestep_index_ = 0;
   //@}
 
+  //! \name Class instances
+  //@{
+
+  // In the future, these will all become shared pointers to MetaMethods.
+  std::shared_ptr<mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::PolymorphicBaseType>
+      compute_ssd_and_cn_ptr_;
+  std::shared_ptr<mundy::shapes::ComputeAABB::PolymorphicBaseType> compute_aabb_ptr_;
+  std::shared_ptr<mundy::linkers::GenerateNeighborLinkers::PolymorphicBaseType> generate_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::linkers::EvaluateLinkerPotentials::PolymorphicBaseType> evaluate_linker_potentials_ptr_;
+  std::shared_ptr<mundy::linkers::LinkerPotentialForceMagnitudeReduction::PolymorphicBaseType>
+      linker_potential_force_magnitude_reduction_ptr_;
+  std::shared_ptr<mundy::linkers::DestroyNeighborLinkers::PolymorphicBaseType> destroy_neighbor_linkers_ptr_;
+  //@}
+
   //! \name Fields
   //@{
 
@@ -1442,6 +1662,8 @@ class SpermSimulation {
   //@{
 
   stk::mesh::Part *centerline_twist_springs_part_ptr_;
+  stk::mesh::Part *spherocylinder_segments_part_ptr_;
+  stk::mesh::Part *spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_;
   //@}
 
   //! \name Partitioning settings

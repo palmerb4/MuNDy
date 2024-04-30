@@ -72,3 +72,10 @@ tribits_add_executable(
     NonInteractingSperm.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    CollidingSperm
+    SOURCES
+    CollidingSperm.cpp
+    CATEGORIES PERFORMANCE
+    )

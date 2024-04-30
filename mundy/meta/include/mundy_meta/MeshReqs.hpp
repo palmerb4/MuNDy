@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_META_MESHREQUIREMENTS_HPP_
-#define MUNDY_META_MESHREQUIREMENTS_HPP_
+#ifndef MUNDY_META_MESHREQS_HPP_
+#define MUNDY_META_MESHREQS_HPP_
 
-/// \file MeshRequirements.hpp
-/// \brief Declaration of the MeshRequirements class
+/// \file MeshReqs.hpp
+/// \brief Declaration of the MeshReqs class
 
 // C++ core libs
 #include <map>          // for std::map
@@ -39,29 +39,29 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements, mundy::meta::FieldRequirementsBase
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_mesh/BulkData.hpp>   // for mundy::mesh::BulkData
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs, mundy::meta::FieldReqsBase
+#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
 
 namespace mundy {
 
 namespace meta {
 
-/// \class MeshRequirements
+/// \class MeshReqs
 /// \brief A set requirements imposed upon a MetaMesh, its Parts, and its Fields.
-class MeshRequirements {
+class MeshReqs {
  public:
   //! \name Constructors and destructor
   //@{
 
   /// \brief Default construction is allowed
   /// Default construction corresponds to having no requirements.
-  MeshRequirements() = default;
+  MeshReqs() = default;
 
   /// \brief Construct a fully specified set of mesh requirements.
   ///
   /// \param comm [in] The MPI communicator.
-  explicit MeshRequirements(const stk::ParallelMachine& comm);
+  explicit MeshReqs(const stk::ParallelMachine& comm);
   //@}
 
   //! \name Setters
@@ -69,62 +69,75 @@ class MeshRequirements {
 
   /// \brief Set the spatial dimension of the mash.
   /// \param spatial_dimension [in] The dimension of the space within which the parts and entities reside.
-  MeshRequirements& set_spatial_dimension(const unsigned spatial_dimension);
+  MeshReqs& set_spatial_dimension(const unsigned spatial_dimension);
+
+  /// \brief Set the node coordinates name.
+  /// \param node_coordinates_name [in] The name of the node coordinates.
+  MeshReqs& set_node_coordinates_name(const std::string& node_coordinates_name);
 
   /// \brief Set the names assigned to each rank.
   /// \param entity_rank_names [in] The names assigned to each rank.
-  MeshRequirements& set_entity_rank_names(const std::vector<std::string>& entity_rank_names);
+  MeshReqs& set_entity_rank_names(const std::vector<std::string>& entity_rank_names);
 
   /// \brief Set the MPI communicator to be used by STK.
   /// \param comm [in] The MPI communicator.
-  MeshRequirements& set_communicator(const stk::ParallelMachine& comm);
+  MeshReqs& set_communicator(const stk::ParallelMachine& comm);
 
   /// \brief Set the chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
   /// \param aura_option [in] The chosen Aura option.
-  MeshRequirements& set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption& aura_option);
+  MeshReqs& set_aura_option(const mundy::mesh::BulkData::AutomaticAuraOption& aura_option);
 
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
-  MeshRequirements& set_field_data_manager(stk::mesh::FieldDataManager* const field_data_manager_ptr);
+  MeshReqs& set_field_data_manager(stk::mesh::FieldDataManager* const field_data_manager_ptr);
 
   /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
   ///
   /// Although subject to change, the maximum bucket capacity is currently 1024 and the default capacity is 512.
   ///
   /// \param bucket_capacity [in] The bucket capacity.
-  MeshRequirements& set_bucket_capacity(const unsigned bucket_capacity);
+  MeshReqs& set_bucket_capacity(const unsigned bucket_capacity);
 
   /// \brief Set the flag specifying if upward connectivity will be enabled or not.
   /// \param enable_upward_connectivity [in] A flag specifying if upward connectivity will be enabled or not.
-  MeshRequirements& set_upward_connectivity_flag(const bool enable_upward_connectivity);
+  MeshReqs& set_upward_connectivity_flag(const bool enable_upward_connectivity);
 
   /// \brief Delete the spatial dimension constraint (if it exists).
-  MeshRequirements& delete_spatial_dimension();
+  MeshReqs& delete_spatial_dimension();
+
+  /// \brief Delete the node coordinates name constraint (if it exists).
+  MeshReqs& delete_node_coordinates_name();
 
   /// \brief Delete the entity rank names constraint (if it exists).
-  MeshRequirements& delete_entity_rank_names();
+  MeshReqs& delete_entity_rank_names();
 
   /// \brief Delete the communicator constraint (if it exists).
-  MeshRequirements& delete_communicator();
+  MeshReqs& delete_communicator();
 
   /// \brief Delete the aura option constraint (if it exists).
-  MeshRequirements& delete_aura_option();
+  MeshReqs& delete_aura_option();
 
   /// \brief Delete the field data manager constraint (if it exists).
-  MeshRequirements& delete_field_data_manager();
+  MeshReqs& delete_field_data_manager();
 
   /// \brief Delete the bucket capacity constraint (if it exists).
-  MeshRequirements& delete_bucket_capacity();
+  MeshReqs& delete_bucket_capacity();
 
   /// \brief Delete the upward connectivity flag constraint (if it exists).
-  MeshRequirements& delete_upward_connectivity_flag();
+  MeshReqs& delete_upward_connectivity_flag();
 
   /// \brief Add the provided field to the mesh, given that it is valid and does not conflict with existing fields.
   ///
-  /// \param field_req_ptr [in] Pointer to the field parameters to add to the mesh.
-  MeshRequirements& add_field_reqs(std::shared_ptr<FieldRequirementsBase> field_req_ptr);
+  /// When a field is added to the entire mesh, we also add it to all parts, which, in turn, adds it to all their
+  /// subparts. If the field already exists, we sync the two fields with each other.
+  ///
+  /// \param field_reqs_ptr [in] Pointer to the field parameters to add to the mesh.
+  MeshReqs& add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_reqs_ptr);
 
   /// \brief Add the provided field to the mesh, given that it is valid and does not conflict with existing fields.
+  ///
+  /// When a field is added to the entire mesh, we also add it to all parts, which, in turn, adds it to all their
+  /// subparts. If the field already exists, we sync the two fields with each other.
   ///
   /// \param field_name [in] Name of the field to add to the mesh.
   /// \param field_rank [in] Rank of the field to add to the mesh.
@@ -133,45 +146,52 @@ class MeshRequirements {
   ///
   /// \tparam FieldType [in] The type of the field to add to the mesh.
   template <typename FieldType>
-  MeshRequirements& add_field_reqs(const std::string& field_name, const stk::topology::rank_t field_rank,
-                              const unsigned field_dimension, const unsigned field_min_number_of_states) {
-    return add_field_reqs(std::make_shared<FieldRequirements<FieldType>>(field_name, field_rank, field_dimension,
-                                                                         field_min_number_of_states));
+  MeshReqs& add_field_reqs(const std::string& field_name, const stk::topology::rank_t& field_rank,
+                           const unsigned& field_dimension, const unsigned& field_min_number_of_states) {
+    return add_and_sync_field_reqs(
+        std::make_shared<FieldReqs<FieldType>>(field_name, field_rank, field_dimension, field_min_number_of_states));
   }
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a part? If so, encode them here.
   ///
-  /// \param part_req_ptr [in] Pointer to the part requirements to add to the mesh.
-  MeshRequirements& add_part_reqs(std::shared_ptr<PartRequirements> part_req_ptr);
+  /// Whenever a part is added, we add all of our fields to it. If the part already exists, we sync the two parts with
+  /// each other.
+  ///
+  /// \param part_reqs_ptr [in] Pointer to the part requirements to add to the mesh.
+  MeshReqs& add_and_sync_part_reqs(std::shared_ptr<PartReqs> part_reqs_ptr);
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
   /// \param part_name [in] The name of the part to add to the mesh.
-  MeshRequirements& add_part(const std::string& part_name) {
-    return add_part_reqs(std::make_shared<PartRequirements>(part_name));
+  MeshReqs& add_part_reqs(const std::string& part_name) {
+    return add_and_sync_part_reqs(std::make_shared<PartReqs>(part_name));
   }
   /// \brief Add the provided part to the mesh, given that it is valid.
+  ///
+  /// Whenever a part is added, we add all of our fields to it.
   ///
   /// \param part_name [in] The name of the part to add to the mesh.
   /// \param part_topology [in] Topology of entities within the sub-part.
-  MeshRequirements& add_part(const std::string& part_name, const stk::topology::topology_t part_topology) {
-    return add_part_reqs(std::make_shared<PartRequirements>(part_name, part_topology));
+  MeshReqs& add_part_reqs(const std::string& part_name, const stk::topology::topology_t part_topology) {
+    return add_and_sync_part_reqs(std::make_shared<PartReqs>(part_name, part_topology));
   }
 
   /// \brief Add the provided part to the mesh, given that it is valid.
   ///
+  /// Whenever a part is added, we add all of our fields to it.
+  ///
   /// \param part_name [in] The name of the part to add to the mesh.
   /// \param part_rank [in] The rank of the part to add to the mesh.
-  MeshRequirements& add_part(const std::string& part_name, const stk::topology::rank_t part_rank) {
-    return add_part_reqs(std::make_shared<PartRequirements>(part_name, part_rank));
+  MeshReqs& add_part_reqs(const std::string& part_name, const stk::topology::rank_t part_rank) {
+    return add_and_sync_part_reqs(std::make_shared<PartReqs>(part_name, part_rank));
   }
 
   /// \brief Require that an attribute with the given name be present on the mesh.
   ///
   /// \param attribute_name [in] The name of the attribute that must be present on the mesh.
-  MeshRequirements& add_mesh_attribute(const std::string& attribute_name);
+  MeshReqs& add_mesh_attribute(const std::string& attribute_name);
   //@}
 
   //! \name Getters
@@ -179,6 +199,9 @@ class MeshRequirements {
 
   /// \brief Get if the spatial dimension is constrained or not.
   bool constrains_spatial_dimension() const;
+
+  /// \brief Get if the node coordinates name is constrained or not.
+  bool constrains_node_coordinates_name() const;
 
   /// \brief Get if the entity rank names are constrained or not.
   bool constrains_entity_rank_names() const;
@@ -204,6 +227,9 @@ class MeshRequirements {
   /// \brief Return the dimension of the space within which the parts and entities reside.
   unsigned get_spatial_dimension() const;
 
+  /// \brief Return the node coordinates name.
+  std::string get_node_coordinates_name() const;
+
   /// \brief Return the names assigned to each rank.
   std::vector<std::string> get_entity_rank_names() const;
 
@@ -224,13 +250,13 @@ class MeshRequirements {
   bool get_upward_connectivity_flag() const;
 
   /// \brief Return the mesh field map for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> get_mesh_ranked_field_map();
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> &get_mesh_ranked_field_map();
 
   /// \brief Return the mesh part map.
-  std::map<std::string, std::shared_ptr<PartRequirements>> get_mesh_part_map();
+  std::map<std::string, std::shared_ptr<PartReqs>> &get_mesh_part_map();
 
   /// \brief Return the required mesh attribute names.
-  std::vector<std::string> get_mesh_attribute_names();
+  std::vector<std::string> &get_mesh_attribute_names();
   //@}
 
   //! \name Actions
@@ -241,27 +267,24 @@ class MeshRequirements {
   ///
   /// The only setting that must be specified before declaring the mesh is the MPI communicator; all other settings have
   /// default options which will be used if not set.
-  std::shared_ptr<mundy::mesh::BulkData> declare_mesh() const;
+  ///
+  /// Notice that this function isn't const, as it adds the node coordinates field to our mesh reqs and syncs the node
+  /// coordinates number of states.
+  std::shared_ptr<mundy::mesh::BulkData> declare_mesh();
 
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// Here, valid means:
   ///   - TODO(palmerb4): What are the mesh invariants set by STK?
-  MeshRequirements& check_if_valid();
+  MeshReqs& check_if_valid();
 
-  /// \brief Merge the current requirements with another \c MeshRequirements.
+  /// \brief Synchronize (merge and rectify differences) the current requirements with another \c MeshReqs.
   ///
-  /// \param part_req_ptr [in] An \c MeshRequirements object to merge with the current object.
-  MeshRequirements& merge(const std::shared_ptr<MeshRequirements>& mesh_req_ptr);
+  /// \param part_reqs_ptr [in] An \c MeshReqs object to sync with the current object.
+  MeshReqs& sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr);
 
-  /// \brief Merge the current requirements with any number of other \c MeshRequirements.
-  ///
-  /// \param vector_of_part_req_ptrs [in] A vector of pointers to other \c MeshRequirements objects to merge with the
-  /// current object.
-  MeshRequirements& merge(const std::vector<std::shared_ptr<MeshRequirements>>& vector_of_mesh_req_ptrs);
-
-  /// \brief Dump the contents of \c MeshRequirements to the given stream (defaults to std::cout).
-  void print_reqs(std::ostream& os = std::cout, int indent_level = 0) const;
+  /// \brief Dump the contents of \c MeshReqs to the given stream (defaults to std::cout).
+  void print(std::ostream& os = std::cout, int indent_level = 0) const;
 
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const;
@@ -272,16 +295,39 @@ class MeshRequirements {
   //@{
 
   static constexpr unsigned default_spatial_dimension_ = 3;
-  static const inline Teuchos::Array<std::string> default_entity_rank_names_ = Teuchos::Array<std::string>();
-  static const inline stk::ParallelMachine default_communicator_ = stk::parallel_machine_null();
+  static constexpr std::string_view default_node_coordinates_name_ = "NODE_COORDS";
+  static const inline std::vector<std::string> default_entity_rank_names_ = {"NODE", "EDGE", "FACE", "ELEMENT",
+                                                                             "CONSTRAINT"};
   static constexpr mundy::mesh::BulkData::AutomaticAuraOption default_aura_option_ = mundy::mesh::BulkData::AUTO_AURA;
   static constexpr stk::mesh::FieldDataManager* default_field_data_manager_ptr_ = nullptr;
   static const unsigned default_bucket_capacity_;  // Unlike the others, this parameter cannot be filled inline.
   static constexpr bool default_upward_connectivity_flag_ = true;
   //@}
 
+  //! \name Private member functions
+  //@{
+
+  /// \brief Set the master field requirements for this class.
+  MeshReqs &set_master_mesh_reqs(std::shared_ptr<MeshReqs> master_mesh_req_ptr);
+
+  /// \brief Get the master mesh requirements for this class.
+  std::shared_ptr<MeshReqs> get_master_mesh_reqs();
+
+  /// \brief Get if the current reqs have a master mesh reqs.
+  bool has_master_mesh_reqs() const;
+  //@}
+
+  //! \name Private data
+  //@{
+
+  /// \brief Pointer to the master mesh requirements.
+  std::shared_ptr<MeshReqs> master_mesh_reqs_ptr_ = nullptr;
+
   /// @brief The dimension of the space within which the parts and entities reside.
   unsigned spatial_dimension_;
+
+  /// @brief The name of the node coordinates.
+  std::string node_coordinates_name_;
 
   /// @brief The names assigned to each rank.
   std::vector<std::string> entity_rank_names_;
@@ -301,8 +347,14 @@ class MeshRequirements {
   /// @brief A flag specifying if upward connectivity will be enabled or not.
   bool upward_connectivity_flag_;
 
+  /// \brief If we are driven by a master MeshReqs object.
+  bool has_master_mesh_reqs_ = false;
+
   /// \brief If the spacial dimension is set or not.
   bool spatial_dimension_is_set_ = false;
+
+  /// \brief If the node coordinates name is set or not.
+  bool node_coordinates_name_is_set_ = false;
 
   /// \brief If the names of each rank are set or not.
   bool entity_rank_names_is_set_ = false;
@@ -323,18 +375,18 @@ class MeshRequirements {
   bool upward_connectivity_flag_is_set_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldRequirementsBase>>> mesh_ranked_field_maps_{
-      stk::topology::NUM_RANKS};
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> mesh_ranked_field_maps_{stk::topology::NUM_RANKS};
 
   /// \brief A map from part name to the part params for that part.
-  std::map<std::string, std::shared_ptr<PartRequirements>> mesh_part_map_;
+  std::map<std::string, std::shared_ptr<PartReqs>> mesh_part_map_;
 
   /// \brief A vector of required mesh attribute names.
   std::vector<std::string> required_mesh_attribute_names_;
-};  // MeshRequirements
+  //@}
+};  // MeshReqs
 
 }  // namespace meta
 
 }  // namespace mundy
 
-#endif  // MUNDY_META_MESHREQUIREMENTS_HPP_
+#endif  // MUNDY_META_MESHREQS_HPP_

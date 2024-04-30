@@ -189,7 +189,7 @@ Order of operations:
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
@@ -211,7 +211,7 @@ class RcbSettings : public stk::balance::BalanceSettings {
     return std::string("rcb");
   }
   virtual std::string getCoordinateFieldName() const {
-    return std::string("NODE_COORDINATES");
+    return std::string("NODE_COORDS");
   }
   virtual bool shouldPrintMetrics() const {
     return false;
@@ -297,14 +297,14 @@ int main(int argc, char **argv) {
   ////////////////////////////////////////////////////////////////////////////////////////
   // Setup the fixed parameters and generate the corresponding class instances and mesh //
   ////////////////////////////////////////////////////////////////////////////////////////
-  using DoubleFieldReqs = mundy::meta::FieldRequirements<double>;
-  using UIntFieldReqs = mundy::meta::FieldRequirements<unsigned>;
-  using BoolFieldReqs = mundy::meta::FieldRequirements<bool>;
+  using DoubleFieldReqs = mundy::meta::FieldReqs<double>;
+  using UIntFieldReqs = mundy::meta::FieldReqs<unsigned>;
+  using BoolFieldReqs = mundy::meta::FieldReqs<bool>;
 
   // Setup the mesh requirements.
   // First, we need to fetch the mesh requirements for each method, then we can create the class instances.
   // In the future, all of this will be done via the Configurator.
-  auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
@@ -318,15 +318,15 @@ int main(int argc, char **argv) {
   //     Requirements: NODE_FORCE, NODE_VELOCITY
   //   3. A method to compute the brownian velocity of the nonorientable spheres.
   //     Requirements: NODE_VELOCITY, NODE_RNG_COUNTER
-  auto custom_spheres_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
-  custom_spheres_part_reqs->add_field_reqs(std::make_shared<DoubleFieldReqs>(
+  auto custom_spheres_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+  custom_spheres_part_reqs->add_and_sync_field_reqs(std::make_shared<DoubleFieldReqs>(
       "NODE_VELOCITY", stk::topology::NODE_RANK, /* num coords = */ 3, /* num states = */ 1));
-  custom_spheres_part_reqs->add_field_reqs(
+  custom_spheres_part_reqs->add_and_sync_field_reqs(
       std::make_shared<UIntFieldReqs>("NODE_FORCE", stk::topology::NODE_RANK, 3, 1));
-  custom_spheres_part_reqs->add_field_reqs(
+  custom_spheres_part_reqs->add_and_sync_field_reqs(
       std::make_shared<UIntFieldReqs>("NODE_RNG_COUNTER", stk::topology::NODE_RANK, 1, 1));
-  mundy::shapes::Spheres::add_part_reqs(custom_spheres_part_reqs);
-  mesh_reqs_ptr->merge(mundy::shapes::Spheres::get_mesh_requirements());
+  mundy::shapes::Spheres::add_and_sync_part_reqs(custom_spheres_part_reqs);
+  mesh_reqs_ptr->sync(mundy::shapes::Spheres::get_mesh_requirements());
 
   // We add the following methods to act on the crosslinkers agent. We directly apply these requirements to all
   // crosslinkers. These methods use multi-staged approaches to reduce branching and improve performance.
@@ -346,29 +346,29 @@ int main(int argc, char **argv) {
   //   5. A method for updating the center node of the spring. If doubly bound, the center node is the midpoint of the
   //      two bound nodes. If singly bound, the center node is the bound node. If unbound, the center node is owned by
   //      the crosslinker and will diffuse randomly in space.
-  auto custom_crosslinkers_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+  auto custom_crosslinkers_part_reqs = std::make_shared<mundy::meta::PartReqs>();
   custom_crosslinkers_part_reqs->set_part_name("CROSSLINKERS");
   custom_crosslinkers_part_reqs->set_part_topology(stk::topology::BEAM_3);
-  custom_crosslinkers_part_reqs->add_field_reqs(
+  custom_crosslinkers_part_reqs->add_and_sync_field_reqs(
       std::make_shared<DoubleFieldReqs>("ELEMENT_UNBIND_RATES", stk::topology::ELEMENT_RANK, 2, 1));
-  custom_crosslinkers_part_reqs->add_field_reqs(
+  custom_crosslinkers_part_reqs->add_and_sync_field_reqs(
       std::make_shared<DoubleFieldReqs>("ELEMENT_BINDING_RATES", stk::topology::ELEMENT_RANK, 2, 1));
-  custom_crosslinkers_part_reqs->add_field_reqs(
+  custom_crosslinkers_part_reqs->add_and_sync_field_reqs(
       std::make_shared<DoubleFieldReqs>("ELEMENT_UNBINDING_PROBABILITY", stk::topology::ELEMENT_RANK, 2, 1));
   custom_crosslinkers_part_reqs->add_field_reqs<int>("ELEMENT_CROSSLINKER_STATE_CHANGE", stk::topology::ELEMENT_RANK, 1,
                                                      1);
-  mundy::shapes::Spherocylinders::add_subpart_reqs(custom_crosslinkers_part_reqs);
-  mesh_reqs_ptr->merge(mundy::shapes::Spherocylinders::get_mesh_requirements());
+  mundy::shapes::Spherocylinders::add_and_sync_subpart_reqs(custom_crosslinkers_part_reqs);
+  mesh_reqs_ptr->sync(mundy::shapes::Spherocylinders::get_mesh_requirements());
 
-  auto custom_crosslinker_sphere_linkers_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+  auto custom_crosslinker_sphere_linkers_part_reqs = std::make_shared<mundy::meta::PartReqs>();
   custom_crosslinker_sphere_linkers_part_reqs->set_part_name("CROSSLINKER_SPHERE_LINKERS");
   custom_crosslinker_sphere_linkers_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
-  custom_crosslinker_sphere_linkers_part_reqs->add_field_reqs(
+  custom_crosslinker_sphere_linkers_part_reqs->add_and_sync_field_reqs(
       std::make_shared<DoubleFieldReqs>("CONSTRAINT_BINDING_PROBABILITY", stk::topology::CONSTRAINT_RANK, 1, 1));
-  custom_crosslinker_sphere_linkers_part_reqs->add_field_reqs(
+  custom_crosslinker_sphere_linkers_part_reqs->add_and_sync_field_reqs(
       std::make_shared<BoolFieldReqs>("CONSTRAINT_PERFORM_BINDING", stk::topology::CONSTRAINT_RANK, 1, 1));
-  mundy::linkers::NeighborLinkers::add_subpart_reqs(custom_crosslinker_sphere_linkers_part_reqs);
-  mesh_reqs_ptr->merge(mundy::linkers::NeighborLinkers::get_mesh_requirements());
+  mundy::linkers::NeighborLinkers::add_and_sync_subpart_reqs(custom_crosslinker_sphere_linkers_part_reqs);
+  mesh_reqs_ptr->sync(mundy::linkers::NeighborLinkers::get_mesh_requirements());
 
   // ComputeConstraintForcing fixed parameters
   auto compute_constraint_forcing_fixed_params =
@@ -376,13 +376,13 @@ int main(int argc, char **argv) {
           .set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"))
           .sublist("HOOKEAN_SPRINGS")
           .set("valid_entity_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "CROSSLINKERS"));
-  mesh_reqs_ptr->merge(
+  mesh_reqs_ptr->sync(
       mundy::constraints::ComputeConstraintForcing::get_mesh_requirements(compute_constraint_forcing_fixed_params));
 
   // ComputeSignedSeparationDistanceAndContactNormal fixed parameters
   auto compute_ssd_and_cn_fixed_params =
       Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKER"));
-  mesh_reqs_ptr->merge(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
+  mesh_reqs_ptr->sync(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
       compute_ssd_and_cn_fixed_params));
 
   // ComputeAABB fixed parameters
@@ -391,7 +391,7 @@ int main(int argc, char **argv) {
           .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER"))
           .sublist("SPHEROCYLINDER")
           .set("valid_entity_part_names", mundy::core::make_string_array("CROSSLINKERS"));
-  mesh_reqs_ptr->merge(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
+  mesh_reqs_ptr->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params));
 
   // GenerateNeighborLinkers fixed parameters
   // First, the parameters for generating the sphere-sphere neighbor linkers
@@ -402,7 +402,7 @@ int main(int argc, char **argv) {
           .sublist("STK_SEARCH")
           .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHERES"))
           .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHERES"));
-  mesh_reqs_ptr->merge(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
+  mesh_reqs_ptr->sync(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
       generate_sphere_sphere_neighbor_linkers_fixed_params));
 
   // Next, the parameters for generating the crosslinker-sphere neighbor linkers
@@ -413,13 +413,13 @@ int main(int argc, char **argv) {
           .sublist("STK_SEARCH")
           .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("CROSSLINKERS")))
           .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHERES"));
-  mesh_reqs_ptr->merge(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
+  mesh_reqs_ptr->sync(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
       generate_crosslinker_sphere_neighbor_linkers_fixed_params));
 
   // EvaluateLinkerPotentials fixed parameters
   auto evaluate_linker_potentials_fixed_params = Teuchos::ParameterList().set(
       "enabled_kernel_names", mundy::core::make_string_array("SPHERE_SPHERE_HERTZIAN_CONTACT"));
-  mesh_reqs_ptr->merge(
+  mesh_reqs_ptr->sync(
       mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
 
   // LinkerPotentialForceMagnitudeReduction fixed parameters
@@ -427,7 +427,7 @@ int main(int argc, char **argv) {
       Teuchos::ParameterList()
           .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
           .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS");
-  mesh_reqs_ptr->merge(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
+  mesh_reqs_ptr->sync(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
       linker_potential_force_magnitude_reduction_fixed_params));
 
   // DestroyNeighborLinkers fixed parameters
@@ -438,7 +438,7 @@ int main(int argc, char **argv) {
           .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
           .set("valid_connected_source_and_target_part_names",
                mundy::core::make_string_array(std::string("SPHERES"), std::string("CROSSLINKERS")));
-  mesh_reqs_ptr->merge(
+  mesh_reqs_ptr->sync(
       mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params));
 
   // DeclareAndInitConstraints fixed parameters
@@ -450,13 +450,13 @@ int main(int argc, char **argv) {
           .set("sphere_part_names", mundy::core::make_string_array("SPHERES"))
           .set<bool>("generate_hookean_springs", true)
           .set<bool>("generate_spheres_at_nodes", true);
-  mesh_reqs_ptr->merge(
+  mesh_reqs_ptr->sync(
       mundy::constraints::DeclareAndInitConstraints::get_mesh_requirements(declare_and_init_constraints_fixed_params));
 
   // The mesh requirements are now set up, so we solidify the mesh structure.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
+  meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
   meta_data_ptr->commit();
 
   //////////////////////////////////////////////////////////////////////
@@ -538,7 +538,7 @@ int main(int argc, char **argv) {
   // We will throw an exception if they don't exist. We're fetching them for initialization and IO purposes.
 
   // Node rank fields
-  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<int>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_VELOCITY");
   auto node_force_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
@@ -556,7 +556,7 @@ int main(int argc, char **argv) {
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
-  check_if_exists(node_coordinates_field_ptr, "NODE_COORDINATES");
+  check_if_exists(node_coordinates_field_ptr, "NODE_COORDS");
   check_if_exists(node_rng_counter_field_ptr, "NODE_RNG_COUNTER");
   check_if_exists(node_velocity_field_ptr, "NODE_VELOCITY");
   check_if_exists(node_force_field_ptr, "NODE_FORCE");

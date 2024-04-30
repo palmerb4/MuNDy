@@ -44,7 +44,7 @@
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
 #include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>        // for mundy::mesh::utils::destroy_flagged_entities
-#include <mundy_meta/MeshRequirements.hpp>                    // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>                    // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
@@ -103,15 +103,15 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(DestroyDistantNeighbors::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
-    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
 
     // Add the neighbor linkers part requirements.
     Teuchos::Array<std::string> valid_linker_entity_part_names =
@@ -121,19 +121,19 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
         valid_fixed_params.get<std::string>("linker_destroy_flag_field_name");
     for (int i = 0; i < valid_linker_entity_part_names.size(); i++) {
       const std::string part_name = valid_linker_entity_part_names[i];
-      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs<int>(linker_destroy_flag_field_name, stk::topology::CONSTRAINT_RANK, 1, 1);
 
       if (part_name == NeighborLinkers::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        NeighborLinkers::add_part_reqs(part_reqs);
+        NeighborLinkers::add_and_sync_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        NeighborLinkers::add_subpart_reqs(part_reqs);
+        NeighborLinkers::add_and_sync_subpart_reqs(part_reqs);
       }
     }
-    mesh_reqs_ptr->merge(NeighborLinkers::get_mesh_requirements());
+    mesh_reqs_ptr->sync(NeighborLinkers::get_mesh_requirements());
 
     // Add our source/target element part requirements.
     std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
@@ -141,10 +141,10 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_connected_source_and_target_part_names");
     for (int i = 0; i < valid_connected_source_and_target_part_names.size(); i++) {
       const std::string part_name = valid_connected_source_and_target_part_names[i];
-      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs<double>(element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1);
-      mesh_reqs_ptr->add_part_reqs(part_reqs);
+      mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs);
     }
 
     return mesh_reqs_ptr;

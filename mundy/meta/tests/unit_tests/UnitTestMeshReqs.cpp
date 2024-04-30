@@ -39,10 +39,10 @@
 #include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>      // for mundy::meta::FieldRequirements
-#include <mundy_meta/FieldRequirementsBase.hpp>  // for mundy::meta::FieldRequirementsBase
-#include <mundy_meta/MeshRequirements.hpp>       // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>       // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
+#include <mundy_meta/MeshReqs.hpp>       // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>       // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -53,43 +53,43 @@ namespace {
 /*
 MetaMeshs are rather complex, with an assortment of requirements that must be met before a MetaMesh can be created.
 These requirements are explicitly listed in the MeshBuilder class, but they are also implicitly listed in the
-MeshRequirements class. The MeshRequirements class is a helper class that is used to collect and merge requirements
-for a MetaMesh. The MeshRequirements class can also used to generate a MetaMesh, given that the MeshRequirements object
+MeshReqs class. The MeshReqs class is a helper class that is used to collect and sync requirements
+for a MetaMesh. The MeshReqs class can also used to generate a MetaMesh, given that the MeshReqs object
 is fully specified; here, fully specified only requires that the mesh communicator is set. In the meantime,
-MeshRequirements can be merged together to create a new MeshRequirements object that is the union of the two
-MeshRequirements objects.
+MeshReqs can be merged together to create a new MeshReqs object that is the union of the two
+MeshReqs objects.
 
-The following tests check that the MeshRequirements object is working as expected. The tests are organized into
+The following tests check that the MeshReqs object is working as expected. The tests are organized into
 sections based on the functionality being tested. The sections are as follows:
-  -# MeshRequirements object construction
-  -# MeshRequirements object setting
-  -# MeshRequirements object getting
-  -# MeshRequirements object deleting
-  -# MeshRequirements object merging
-  -# MeshRequirements object declaring
+  -# MeshReqs object construction
+  -# MeshReqs object setting
+  -# MeshReqs object getting
+  -# MeshReqs object deleting
+  -# MeshReqs object merging
+  -# MeshReqs object declaring
 */
 
-//! \name MeshRequirements object construction tests
+//! \name MeshReqs object construction tests
 //@{
 
-TEST(MeshRequirementsConstruction, IsDefaultConstructible) {
-  // Check that MeshRequirements is default constructible
-  ASSERT_NO_THROW(MeshRequirements mesh_reqs);
+TEST(MeshReqsConstruction, IsDefaultConstructible) {
+  // Check that MeshReqs is default constructible
+  ASSERT_NO_THROW(MeshReqs mesh_reqs);
 }
 
-TEST(MeshRequirementsConstruction, IsConstructibleWithComm) {
-  // Check that MeshRequirements is constructible with a communicator
+TEST(MeshReqsConstruction, IsConstructibleWithComm) {
+  // Check that MeshReqs is constructible with a communicator
   stk::ParallelMachine comm = MPI_COMM_WORLD;
-  ASSERT_NO_THROW(MeshRequirements mesh_reqs(comm));
+  ASSERT_NO_THROW(MeshReqs mesh_reqs(comm));
 }
 //@}
 
-//! \name MeshRequirements object setting tests
+//! \name MeshReqs object setting tests
 //@{
 
-TEST(MeshRequirementsSetters, IsSettable) {
+TEST(MeshReqsSetters, IsSettable) {
   // Check that the setters work.
-  MeshRequirements mesh_reqs;
+  MeshReqs mesh_reqs;
   EXPECT_FALSE(mesh_reqs.constrains_spatial_dimension());
   EXPECT_FALSE(mesh_reqs.constrains_entity_rank_names());
   EXPECT_FALSE(mesh_reqs.constrains_communicator());
@@ -114,7 +114,7 @@ TEST(MeshRequirementsSetters, IsSettable) {
 }
 
 TEST(MeshRequiremesntsSetters, AddFieldReqs) {
-  // Check that the add_field_reqs method works.
+  // Check that the add_and_sync_field_reqs method works.
 
   // Create a dummy field requirements object.
   using ExampleFieldType = double;
@@ -122,40 +122,40 @@ TEST(MeshRequiremesntsSetters, AddFieldReqs) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs_ptr = std::make_shared<mundy::meta::FieldRequirements<ExampleFieldType>>(
+  auto field_reqs_ptr = std::make_shared<mundy::meta::FieldReqs<ExampleFieldType>>(
       field_name, field_rank, field_dimension, field_min_number_of_states);
 
   // Create a mesh requirements object and add the field requirements to it.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  ASSERT_NO_THROW(mesh_reqs.add_field_reqs(field_reqs_ptr));
+  MeshReqs mesh_reqs(MPI_COMM_WORLD);
+  ASSERT_NO_THROW(mesh_reqs.add_and_sync_field_reqs(field_reqs_ptr));
 
   // Check that the field requirements were added correctly.
   // TODO(palmerb4): Add a field requirements getter method so we can perform this check.
 }
 
-TEST(MeshRequirementsSetters, AddPartReqs) {
-  // Check that the add_part_reqs method works.
+TEST(MeshReqsSetters, AddPartReqs) {
+  // Check that the add_and_sync_part_reqs method works.
 
   // Create a dummy part requirements object.
   const std::string part_name = "part_name";
-  auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>(part_name);
+  auto part_reqs_ptr = std::make_shared<mundy::meta::PartReqs>(part_name);
 
   // Create a mesh requirements object and add the part requirements to it.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
-  ASSERT_NO_THROW(mesh_reqs.add_part_reqs(part_reqs_ptr));
+  MeshReqs mesh_reqs(MPI_COMM_WORLD);
+  ASSERT_NO_THROW(mesh_reqs.add_and_sync_part_reqs(part_reqs_ptr));
 
   // Check that the part requirements were added correctly.
   // TODO(palmerb4): Add a part requirements getter method so we can perform this check.
 }
 
-TEST(MeshRequirementsSetters, AddMeshAttributes) {
+TEST(MeshReqsSetters, AddMeshAttributes) {
   // Check that the add_mesh_attribute method works.
 
   // Create a dummy mesh attribute object.
   std::string attribute_name = "attribute_name";
 
   // Create a mesh requirements object and add the mesh attribute to it.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
+  MeshReqs mesh_reqs(MPI_COMM_WORLD);
   ASSERT_NO_THROW(mesh_reqs.add_mesh_attribute(attribute_name));
 
   // Check that the mesh attribute was added correctly.
@@ -164,12 +164,12 @@ TEST(MeshRequirementsSetters, AddMeshAttributes) {
 }
 //@}
 
-//! \name MeshRequirements object getting tests
+//! \name MeshReqs object getting tests
 //@{
 
-TEST(MeshRequirementsGetters, IsGettable) {
+TEST(MeshReqsGetters, IsGettable) {
   // Check that the getters work.
-  MeshRequirements mesh_reqs;
+  MeshReqs mesh_reqs;
   EXPECT_THROW(mesh_reqs.get_spatial_dimension(), std::logic_error);
   EXPECT_THROW(mesh_reqs.get_entity_rank_names(), std::logic_error);
   EXPECT_THROW(mesh_reqs.get_communicator(), std::logic_error);
@@ -194,12 +194,12 @@ TEST(MeshRequirementsGetters, IsGettable) {
 }
 //@}
 
-//! \name MeshRequirements object deleting tests
+//! \name MeshReqs object deleting tests
 //@{
 
-TEST(MeshRequirementsDeleters, IsDeletable) {
+TEST(MeshReqsDeleters, IsDeletable) {
   // Check that the deleters work.
-  MeshRequirements mesh_reqs;
+  MeshReqs mesh_reqs;
   EXPECT_FALSE(mesh_reqs.constrains_spatial_dimension());
   EXPECT_FALSE(mesh_reqs.constrains_entity_rank_names());
   EXPECT_FALSE(mesh_reqs.constrains_communicator());
@@ -238,13 +238,13 @@ TEST(MeshRequirementsDeleters, IsDeletable) {
 }
 //@}
 
-//! \name MeshRequirements object merging tests
+//! \name MeshReqs object merging tests
 //@{
 
-TEST(MeshRequirementsMerge, IsMergeable) {
-  // Check that the merge method works.
-  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>();
-  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>();
+TEST(MeshReqsMerge, IsMergeable) {
+  // Check that the sync method works.
+  auto mesh_reqs1_ptr = std::make_shared<MeshReqs>();
+  auto mesh_reqs2_ptr = std::make_shared<MeshReqs>();
   mesh_reqs1_ptr->set_spatial_dimension(3);
   mesh_reqs1_ptr->set_entity_rank_names(std::vector<std::string>());
   mesh_reqs1_ptr->set_communicator(MPI_COMM_WORLD);
@@ -252,7 +252,7 @@ TEST(MeshRequirementsMerge, IsMergeable) {
   mesh_reqs2_ptr->set_field_data_manager(nullptr);
   mesh_reqs2_ptr->set_bucket_capacity(1024);
   mesh_reqs2_ptr->set_upward_connectivity_flag(true);
-  mesh_reqs1_ptr->merge(mesh_reqs2_ptr);
+  mesh_reqs1_ptr->sync(mesh_reqs2_ptr);
   EXPECT_EQ(mesh_reqs1_ptr->get_spatial_dimension(), 3);
   EXPECT_EQ(mesh_reqs1_ptr->get_entity_rank_names(), std::vector<std::string>());
   EXPECT_EQ(mesh_reqs1_ptr->get_communicator(), MPI_COMM_WORLD);
@@ -262,8 +262,8 @@ TEST(MeshRequirementsMerge, IsMergeable) {
   EXPECT_EQ(mesh_reqs1_ptr->get_upward_connectivity_flag(), true);
 }
 
-TEST(MeshRequirementsMerge, AreFieldsMergable) {
-  /* Check that the merge properly merges fields.
+TEST(MeshReqsMerge, AreFieldsMergable) {
+  /* Check that the sync properly merges fields.
   The setup for this test is as follows:
   mesh1
     field1 (name=a, rank=NODE, dimension=3, min_number_of_states=1)
@@ -286,32 +286,32 @@ TEST(MeshRequirementsMerge, AreFieldsMergable) {
   // Setup the dummy fields.
   using ExampleFieldType = double;
   auto field_reqs1_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
   auto field_reqs2_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
   auto field_reqs3_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
   auto field_reqs4_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
   auto field_reqs5_ptr =
-      std::make_shared<FieldRequirements<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
+      std::make_shared<FieldReqs<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the mesh requirements according to the diagram above.
-  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
-  mesh_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
-  mesh_reqs1_ptr->add_field_reqs(field_reqs3_ptr);
-  mesh_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
-  mesh_reqs2_ptr->add_field_reqs(field_reqs5_ptr);
+  auto mesh_reqs1_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  auto mesh_reqs2_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  mesh_reqs1_ptr->add_and_sync_field_reqs(field_reqs1_ptr);
+  mesh_reqs1_ptr->add_and_sync_field_reqs(field_reqs2_ptr);
+  mesh_reqs1_ptr->add_and_sync_field_reqs(field_reqs3_ptr);
+  mesh_reqs2_ptr->add_and_sync_field_reqs(field_reqs4_ptr);
+  mesh_reqs2_ptr->add_and_sync_field_reqs(field_reqs5_ptr);
 
-  // Merge the mesh requirements and check that the fields were merged correctly.
-  ASSERT_NO_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr));
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the fields were merged correctly.
+  ASSERT_NO_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr));
   // TODO(palmerb4): Use the field getters to check that the fields were merged correctly.
 }
 
-TEST(MeshRequirementsMerge, AreMeshAttributesMergable) {
-  /* Check that the merge function properly merges mesh attributes.
+TEST(MeshReqsMerge, AreMeshAttributesMergable) {
+  /* Check that the sync function properly merges mesh attributes.
   The setup for this test is as follows:
   mesh1
     attribute1 (name="attribute1")
@@ -334,15 +334,15 @@ TEST(MeshRequirementsMerge, AreMeshAttributesMergable) {
   std::string attribute4_name = "attribute4";
 
   // Setup the mesh requirements according to the diagram above.
-  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs1_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  auto mesh_reqs2_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs1_ptr->add_mesh_attribute(attribute1_name);
   mesh_reqs1_ptr->add_mesh_attribute(attribute2_name);
   mesh_reqs2_ptr->add_mesh_attribute(attribute3_name);
   mesh_reqs2_ptr->add_mesh_attribute(attribute4_name);
 
-  // Merge the mesh requirements and check that the attributes were merged correctly.
-  ASSERT_NO_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr));
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  ASSERT_NO_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr));
 
   // Check that the attributes were merged correctly.
   ASSERT_EQ(mesh_reqs1_ptr->get_mesh_attribute_names().size(), 3);
@@ -359,8 +359,8 @@ TEST(MeshRequirementsMerge, AreMeshAttributesMergable) {
   EXPECT_TRUE(attribute4_exists);
 }
 
-TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
-  /* Check that the merge function properly merges mesh parts and their fields/subparts/attributes.
+TEST(MeshReqsMerge, AreMeshPartsAndTheirFieldsMergable) {
+  /* Check that the sync function properly merges mesh parts and their fields/subparts/attributes.
   The setup for this test is as follows:
   mesh1
     part1 (name=A)
@@ -389,11 +389,11 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
 
   // Setup the dummy fields.
   using ExampleFieldType = double;
-  auto field_reqs1_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 3);
-  auto field_reqs4_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::ELEMENT_RANK, 3, 4);
-  auto field_reqs5_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 5);
+  auto field_reqs1_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 3);
+  auto field_reqs4_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("b", stk::topology::ELEMENT_RANK, 3, 4);
+  auto field_reqs5_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the dummy attributes.
   std::string attribute1_name = "attribute12";
@@ -401,98 +401,98 @@ TEST(MeshRequirementsMerge, AreMeshPartsAndTheirFieldsMergable) {
   std::string attribute3_name = "attribute3";
 
   // Setup the dummy parts.
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("C");
-  part_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
-  part_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
-  part_reqs2_ptr->add_field_reqs(field_reqs3_ptr);
-  part_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
-  part_reqs2_ptr->add_field_reqs(field_reqs5_ptr);
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>("A");
+  auto part_reqs2_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs1_ptr = std::make_shared<PartReqs>("C");
+  part_reqs1_ptr->add_and_sync_field_reqs(field_reqs1_ptr);
+  part_reqs1_ptr->add_and_sync_field_reqs(field_reqs2_ptr);
+  part_reqs2_ptr->add_and_sync_field_reqs(field_reqs3_ptr);
+  part_reqs2_ptr->add_and_sync_field_reqs(field_reqs4_ptr);
+  part_reqs2_ptr->add_and_sync_field_reqs(field_reqs5_ptr);
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs1_ptr);
   part_reqs1_ptr->add_part_attribute(attribute1_name);
   part_reqs2_ptr->add_part_attribute(attribute2_name);
   part_reqs2_ptr->add_part_attribute(attribute3_name);
 
   // Setup the mesh requirements according to the diagram above.
-  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs1_ptr->add_part_reqs(part_reqs1_ptr);
-  mesh_reqs2_ptr->add_part_reqs(part_reqs2_ptr);
+  auto mesh_reqs1_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  auto mesh_reqs2_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  mesh_reqs1_ptr->add_and_sync_part_reqs(part_reqs1_ptr);
+  mesh_reqs2_ptr->add_and_sync_part_reqs(part_reqs2_ptr);
 
-  // Merge the mesh requirements and check that the parts were merged correctly.
-  ASSERT_NO_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr));
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the parts were merged correctly.
+  ASSERT_NO_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr));
   // TODO(palmerb4): Add attribute/field/part getters so we can perform this check.
 }
 
-TEST(MeshRequirementsMerge, MergePropertlyHandlesNullptr) {
-  // Check that the merge function properly handles nullptrs. It should be a no-op.
+TEST(MeshReqsMerge, MergePropertlyHandlesNullptr) {
+  // Check that the sync function properly handles nullptrs. It should throw an invalid argument error.
 
   // Setup the Mesh requirements.
-  MeshRequirements mesh_reqs(MPI_COMM_WORLD);
+  MeshReqs mesh_reqs(MPI_COMM_WORLD);
 
-  // Perform the merge.
-  ASSERT_NO_THROW(mesh_reqs.merge(nullptr));
+  // Perform the sync.
+  ASSERT_THROW(mesh_reqs.sync(nullptr), std::invalid_argument);
 }
 
-TEST(MeshRequirementsMerge, MergePropertlyHandlesConflicts) {
-  // Check that the merge function throws a logic error if any of the constrained quantities differ.
-  auto mesh_reqs1_ptr = std::make_shared<MeshRequirements>();
-  auto mesh_reqs2_ptr = std::make_shared<MeshRequirements>();
+TEST(MeshReqsMerge, MergePropertlyHandlesConflicts) {
+  // Check that the sync function throws a logic error if any of the constrained quantities differ.
+  auto mesh_reqs1_ptr = std::make_shared<MeshReqs>();
+  auto mesh_reqs2_ptr = std::make_shared<MeshReqs>();
 
   mesh_reqs1_ptr->set_spatial_dimension(3);
   mesh_reqs2_ptr->set_spatial_dimension(2);
-  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr), std::logic_error);
   mesh_reqs1_ptr->delete_spatial_dimension();
   mesh_reqs2_ptr->delete_spatial_dimension();
 
   mesh_reqs1_ptr->set_entity_rank_names(std::vector<std::string>());
   mesh_reqs2_ptr->set_entity_rank_names({"NODE", "ELEMENT"});
-  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr), std::logic_error);
   mesh_reqs1_ptr->delete_entity_rank_names();
   mesh_reqs2_ptr->delete_entity_rank_names();
 
   mesh_reqs1_ptr->set_communicator(MPI_COMM_WORLD);
   mesh_reqs2_ptr->set_communicator(MPI_COMM_NULL);
-  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr), std::logic_error);
   mesh_reqs1_ptr->delete_communicator();
   mesh_reqs2_ptr->delete_communicator();
 
   mesh_reqs1_ptr->set_aura_option(stk::mesh::BulkData::AUTO_AURA);
   mesh_reqs2_ptr->set_aura_option(stk::mesh::BulkData::NO_AUTO_AURA);
-  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr), std::logic_error);
   mesh_reqs1_ptr->delete_aura_option();
   mesh_reqs2_ptr->delete_aura_option();
 
   auto field_data_manager_ptr = std::make_unique<stk::mesh::DefaultFieldDataManager>(1, 4);
   mesh_reqs1_ptr->set_field_data_manager(nullptr);
   mesh_reqs2_ptr->set_field_data_manager(field_data_manager_ptr.get());
-  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr), std::logic_error);
   mesh_reqs1_ptr->delete_field_data_manager();
   mesh_reqs2_ptr->delete_field_data_manager();
 
   mesh_reqs1_ptr->set_bucket_capacity(1024);
   mesh_reqs2_ptr->set_bucket_capacity(512);
-  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr), std::logic_error);
   mesh_reqs1_ptr->delete_bucket_capacity();
   mesh_reqs2_ptr->delete_bucket_capacity();
 
   mesh_reqs1_ptr->set_upward_connectivity_flag(true);
   mesh_reqs2_ptr->set_upward_connectivity_flag(false);
-  EXPECT_THROW(mesh_reqs1_ptr->merge(mesh_reqs2_ptr), std::logic_error);
+  EXPECT_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr), std::logic_error);
   mesh_reqs1_ptr->delete_upward_connectivity_flag();
   mesh_reqs2_ptr->delete_upward_connectivity_flag();
 }
 //@}
 
-//! \name MeshRequirements object declaring tests
+//! \name MeshReqs object declaring tests
 //@{
 
-TEST(MeshRequirementsDeclare, DeclareMeshWithComm) {
+TEST(MeshReqsDeclare, DeclareMeshWithComm) {
   // Check that the declare function properly declares the mesh requirements.
 
   // Setup the Mesh requirements.
-  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
   ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
@@ -501,18 +501,18 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithComm) {
   EXPECT_NE(bulk_data_ptr, nullptr);
 }
 
-TEST(MeshRequirementsDeclare, DeclareMeshWithoutComm) {
+TEST(MeshReqsDeclare, DeclareMeshWithoutComm) {
   // Check that the mesh requirements throw an error if the communicator is not set.
 
   // Setup the Mesh requirements.
-  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>();
+  auto mesh_reqs_ptr = std::make_shared<MeshReqs>();
   ASSERT_FALSE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
   ASSERT_THROW(mesh_reqs_ptr->declare_mesh(), std::logic_error);
 }
 
-TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndFields) {
+TEST(MeshReqsDeclare, DeclareMeshWithCommAndFields) {
   // Check that the declare function properly declares a mesh with fields.
 
   // Create a dummy field requirements object.
@@ -521,13 +521,13 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndFields) {
   const stk::topology::rank_t field_rank = stk::topology::NODE_RANK;
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
-  auto field_reqs_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>(field_name, field_rank, field_dimension,
+  auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
                                                                               field_min_number_of_states);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
   // Setup the Mesh requirements.
-  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs_ptr->add_field_reqs(field_reqs_ptr);
+  auto mesh_reqs_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->add_and_sync_field_reqs(field_reqs_ptr);
   ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
   // Declare the mesh requirements.
@@ -537,19 +537,19 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndFields) {
   ASSERT_NO_THROW(meta_data.get_field<ExampleFieldType>(field_rank, field_name));
 }
 
-TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndDimAndParts) {
+TEST(MeshReqsDeclare, DeclareMeshWithCommAndDimAndParts) {
   // Check that the declare function properly declares a mesh with parts.
 
   // Create a dummy part requirements object.
   const std::string part_name = "part_name";
   const stk::topology::rank_t part_rank = stk::topology::NODE_RANK;
-  auto part_reqs_ptr = std::make_shared<PartRequirements>(part_name, part_rank);
+  auto part_reqs_ptr = std::make_shared<PartReqs>(part_name, part_rank);
   ASSERT_TRUE(part_reqs_ptr->is_fully_specified());
 
   // Setup the Mesh requirements.
   // Note, you cannot declare a ranked part unless the spatial dimension has been set.
-  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs_ptr->add_part_reqs(part_reqs_ptr);
+  auto mesh_reqs_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs_ptr);
   mesh_reqs_ptr->set_spatial_dimension(3);
   ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
@@ -561,14 +561,14 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndDimAndParts) {
   ASSERT_NE(part_ptr, nullptr);
 }
 
-TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndAttributes) {
+TEST(MeshReqsDeclare, DeclareMeshWithCommAndAttributes) {
   // Check that the declare function properly declares a mesh with attributes.
 
   // Create a dummy attributes.
   std::string attribute_name = "attribute";
 
   // Setup the Mesh requirements.
-  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->add_mesh_attribute(attribute_name);
   ASSERT_TRUE(mesh_reqs_ptr->is_fully_specified());
 
@@ -579,10 +579,10 @@ TEST(MeshRequirementsDeclare, DeclareMeshWithCommAndAttributes) {
   ASSERT_NE(meta_data.get_attribute(attribute_name), nullptr);
 }
 
-TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
+TEST(MeshReqsDeclare, DeclareComplexMesh) {
   // Check that the declare function works properly for a full realistic example.
 
-  /* Check that the merge function properly merges mesh parts and their fields/subparts/attributes.
+  /* Check that the sync function properly merges mesh parts and their fields/subparts/attributes.
   The setup for this test is as follows:
   mesh:
     part1 (name=A)
@@ -599,32 +599,32 @@ TEST(MeshRequirementsDeclare, DeclareComplexMesh) {
 
   // Setup the dummy fields.
   using ExampleFieldType = double;
-  auto field_reqs1_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("b", stk::topology::ELEMENT_RANK, 3, 3);
-  auto field_reqs4_ptr = std::make_shared<FieldRequirements<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 4);
+  auto field_reqs1_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("a", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("b", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("b", stk::topology::ELEMENT_RANK, 3, 3);
+  auto field_reqs4_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("c", stk::topology::NODE_RANK, 3, 4);
 
   // Setup the dummy attributes.
   std::string attribute1_name = "attribute1";
   std::string attribute2_name = "attribute2";
 
   // Setup the dummy parts.
-  auto part_reqs1_ptr = std::make_shared<PartRequirements>("A");
-  auto part_reqs2_ptr = std::make_shared<PartRequirements>("B");
-  auto subpart_reqs1_ptr = std::make_shared<PartRequirements>("C");
-  part_reqs1_ptr->add_field_reqs(field_reqs1_ptr);
-  part_reqs1_ptr->add_field_reqs(field_reqs2_ptr);
-  part_reqs1_ptr->add_subpart_reqs(subpart_reqs1_ptr);
+  auto part_reqs1_ptr = std::make_shared<PartReqs>("A");
+  auto part_reqs2_ptr = std::make_shared<PartReqs>("B");
+  auto subpart_reqs1_ptr = std::make_shared<PartReqs>("C");
+  part_reqs1_ptr->add_and_sync_field_reqs(field_reqs1_ptr);
+  part_reqs1_ptr->add_and_sync_field_reqs(field_reqs2_ptr);
+  part_reqs1_ptr->add_and_sync_subpart_reqs(subpart_reqs1_ptr);
   part_reqs1_ptr->add_part_attribute(attribute1_name);
   part_reqs1_ptr->add_part_attribute(attribute2_name);
-  part_reqs2_ptr->add_field_reqs(field_reqs3_ptr);
-  part_reqs2_ptr->add_field_reqs(field_reqs4_ptr);
+  part_reqs2_ptr->add_and_sync_field_reqs(field_reqs3_ptr);
+  part_reqs2_ptr->add_and_sync_field_reqs(field_reqs4_ptr);
   part_reqs2_ptr->add_part_attribute(attribute1_name);
 
   // Setup the mesh requirements according to the diagram above.
-  auto mesh_reqs_ptr = std::make_shared<MeshRequirements>(MPI_COMM_WORLD);
-  mesh_reqs_ptr->add_part_reqs(part_reqs1_ptr);
-  mesh_reqs_ptr->add_part_reqs(part_reqs2_ptr);
+  auto mesh_reqs_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
+  mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs1_ptr);
+  mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs2_ptr);
 
   // Declare the mesh requirements.
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();

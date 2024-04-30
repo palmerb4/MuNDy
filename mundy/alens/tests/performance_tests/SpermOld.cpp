@@ -96,7 +96,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
@@ -230,15 +230,15 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(SLT::get_valid_fixed_params());
 
     // We require that the SLT part exists, has a BEAM_3 topology, and has the desired node/edge/element fields.
-    auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
     part_reqs->set_part_name(default_part_name_);
     part_reqs->set_part_topology(stk::topology::BEAM_3);
 
@@ -265,8 +265,8 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
     part_reqs->add_field_reqs<double>(default_element_radius_field_name_, stk::topology::ELEMENT_RANK, 1, 1);
 
     // Create the mesh requirements
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(part_reqs);
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshReqs>();
+    mesh_reqs->add_and_sync_part_reqs(part_reqs);
     return mesh_reqs;
   }
 
@@ -662,7 +662,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
   static inline double default_shear_modulus_ = 1000.0;
   static inline double default_density_ = 1.0;
   static constexpr std::string_view default_part_name_ = "SLT";
-  static constexpr std::string_view default_node_coordinates_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view default_node_coordinates_field_name_ = "NODE_COORDS";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   static constexpr std::string_view default_node_twist_field_name_ = "NODE_TWIST";
   static constexpr std::string_view default_node_curvature_field_name_ = "NODE_CURVATURE";
@@ -729,7 +729,7 @@ class RcbSettings : public stk::balance::BalanceSettings {
     return std::string("rcb");
   }
   virtual std::string getCoordinateFieldName() const {
-    return std::string("NODE_COORDINATES");
+    return std::string("NODE_COORDS");
   }
   virtual bool shouldPrintMetrics() const {
     return false;
@@ -899,7 +899,7 @@ int main(int argc, char **argv) {
   MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, std::invalid_argument, "Bulk dta pointer cannot be a nullptr.");
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
   MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument, "Meta data pointer cannot be a nullptr.");
-  meta_data_ptr->set_coordinate_field_name("NODE_COORDINATES");
+  meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
 
   ///////////////////////////////////////////////////
   // Set up the mutable parameters for the classes //
@@ -942,7 +942,7 @@ int main(int argc, char **argv) {
   // Fetch the fields and parts //
   ////////////////////////////////
   // Node rank fields
-  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_VELOCITY");
   auto node_force_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
 
@@ -977,7 +977,7 @@ int main(int argc, char **argv) {
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
-  check_if_exists(node_coordinates_field_ptr, "NODE_COORDINATES");
+  check_if_exists(node_coordinates_field_ptr, "NODE_COORDS");
   check_if_exists(node_velocity_field_ptr, "NODE_VELOCITY");
   check_if_exists(node_force_field_ptr, "NODE_FORCE");
   check_if_exists(element_radius_field_ptr, "ELEMENT_RADIUS");

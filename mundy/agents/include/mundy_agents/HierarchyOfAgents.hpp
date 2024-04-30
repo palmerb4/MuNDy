@@ -95,14 +95,14 @@ using agent_t = unsigned;
 ///
 ///   /// \brief Add new part requirements to ALL members of this agent part.
 ///   /// These modifications are reflected in our mesh requirements.
-///   static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr);
+///   static inline void add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr);
 ///
 ///   /// \brief Add sub-part requirements.
 ///   /// These modifications are reflected in our mesh requirements.
-///   static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr);
+///   static inline void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr);
 ///
 ///   /// \brief Get the mesh requirements for the ExampleAgent.
-///   static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements();
+///   static inline std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements();
 /// };  // ExampleAgent
 /// \endcode
 ///
@@ -198,35 +198,35 @@ class HierarchyOfAgents {
   /// \param name [in] A string name that correspond to a registered class.
   /// \param part_reqs_ptr [in] A pointer to the part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const std::string& name);
+  static void add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr, const std::string& name);
 
   /// \brief Add new part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr, const agent_t agent_type);
+  static void add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr, const agent_t agent_type);
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param name [in] A string name that correspond to a registered class.
   /// \param subpart_reqs_ptr [in] A pointer to the sub-part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
+  static void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
                                const std::string& name);
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr,
+  static void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
                                const agent_t agent_type);
 
   /// \brief Get the mesh requirements for the specified agent.
   /// \param name [in] A string name that correspond to a registered class.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(const std::string& name);
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(const std::string& name);
 
   /// \brief Get the mesh requirements for the specified agent.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(const agent_t agent_type);
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(const agent_t agent_type);
   //@}
 
   //! \name Actions
@@ -257,10 +257,10 @@ class HierarchyOfAgents {
                   "HierarchyOfAgents: The class to register doesn't have the correct has_rank function\n"
                   "See the documentation of HierarchyOfAgents for more information about the expected interface.");
     static_assert(Checker::has_add_part_reqs,
-                  "HierarchyOfAgents: The class to register doesn't have the correct add_part_reqs function.\n"
+                  "HierarchyOfAgents: The class to register doesn't have the correct add_and_sync_part_reqs function.\n"
                   "See the documentation of HierarchyOfAgents for more information about the expected interface.");
     static_assert(Checker::has_add_subpart_reqs,
-                  "HierarchyOfAgents: The class to register doesn't have the correct add_subpart_reqs "
+                  "HierarchyOfAgents: The class to register doesn't have the correct add_and_sync_subpart_reqs "
                   "function.\n"
                   "See the documentation of HierarchyOfAgents for more information about the expected interface.");
     static_assert(Checker::has_get_mesh_requirements,
@@ -291,8 +291,8 @@ class HierarchyOfAgents {
     get_rank_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_rank));
     get_has_topology_generator_map().insert(std::make_pair(agent_type, ClassToRegister::has_topology));
     get_has_rank_generator_map().insert(std::make_pair(agent_type, ClassToRegister::has_rank));
-    get_add_part_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_part_reqs));
-    get_add_subpart_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_subpart_reqs));
+    get_add_part_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_and_sync_part_reqs));
+    get_add_subpart_reqs_generator_map().insert(std::make_pair(agent_type, ClassToRegister::add_and_sync_subpart_reqs));
     get_mesh_requirements_generator_map().insert(std::make_pair(agent_type, ClassToRegister::get_mesh_requirements));
 
     std::cout << "HierarchyOfAgents: Class " << ClassToRegister::get_name() << " registered with id "
@@ -387,12 +387,12 @@ class HierarchyOfAgents {
   /// \brief A function that returns an stk::topology::rank_t.
   using RankGenerator = std::function<stk::topology::rank_t()>;
 
-  /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartRequirements
+  /// \brief A function type that takes a parameter list and produces a vector of shared pointers to PartReqs
   /// instances.
-  using NewRequirementsGenerator = std::function<std::shared_ptr<mundy::meta::MeshRequirements>()>;
+  using NewRequirementsGenerator = std::function<std::shared_ptr<mundy::meta::MeshReqs>()>;
 
   /// \brief A function that takes in a part requirements and returns a void.
-  using AddRequirementsGenerator = std::function<void(std::shared_ptr<mundy::meta::PartRequirements>)>;
+  using AddRequirementsGenerator = std::function<void(std::shared_ptr<mundy::meta::PartReqs>)>;
 
   /// \brief A function that returns a bool.
   using BoolGenerator = std::function<bool()>;

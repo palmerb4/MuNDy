@@ -45,7 +45,7 @@
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                      // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>              // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>              // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                   // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                    // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>  // for mundy::meta::MetaMethodExecutionInterface
@@ -124,9 +124,9 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(ChainOfSprings::get_valid_fixed_params());
@@ -142,7 +142,7 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
                        std::invalid_argument,
                        "ChainOfSprings: At least one of the objects must be generated. Currently, all are turned off!");
 
-    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
 
     if (generate_hookean_springs) {
       Teuchos::Array<std::string> hookean_spring_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>(
@@ -154,13 +154,13 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
           // No specialization is required.
         } else {
           // The specialized part must be a subset of the hookean springs part.
-          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
           part_reqs->set_part_name(part_name);
-          HookeanSprings::add_subpart_reqs(part_reqs);
+          HookeanSprings::add_and_sync_subpart_reqs(part_reqs);
         }
       }
 
-      mesh_reqs_ptr->merge(HookeanSprings::get_mesh_requirements());
+      mesh_reqs_ptr->sync(HookeanSprings::get_mesh_requirements());
     }
 
     if (generate_angular_springs) {
@@ -173,13 +173,13 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
           // No specialization is required.
         } else {
           // The specialized part must be a subset of the angular springs part.
-          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
           part_reqs->set_part_name(part_name);
-          AngularSprings::add_subpart_reqs(part_reqs);
+          AngularSprings::add_and_sync_subpart_reqs(part_reqs);
         }
       }
 
-      mesh_reqs_ptr->merge(AngularSprings::get_mesh_requirements());
+      mesh_reqs_ptr->sync(AngularSprings::get_mesh_requirements());
     }
 
     if (generate_spheres_at_nodes) {
@@ -191,13 +191,13 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
           // No specialization is required.
         } else {
           // The specialized part must be a subset of the sphere part.
-          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
           part_reqs->set_part_name(part_name);
-          mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
+          mundy::shapes::Spheres::add_and_sync_subpart_reqs(part_reqs);
         }
       }
 
-      mesh_reqs_ptr->merge(mundy::shapes::Spheres::get_mesh_requirements());
+      mesh_reqs_ptr->sync(mundy::shapes::Spheres::get_mesh_requirements());
     }
 
     if (generate_spherocylinder_segments_along_edges) {
@@ -209,13 +209,13 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
           // No specialization is required.
         } else {
           // The specialized part must be a subset of the spherocylinder part.
-          auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+          auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
           part_reqs->set_part_name(part_name);
-          mundy::shapes::SpherocylinderSegments::add_subpart_reqs(part_reqs);
+          mundy::shapes::SpherocylinderSegments::add_and_sync_subpart_reqs(part_reqs);
         }
       }
 
-      mesh_reqs_ptr->merge(mundy::shapes::SpherocylinderSegments::get_mesh_requirements());
+      mesh_reqs_ptr->sync(mundy::shapes::SpherocylinderSegments::get_mesh_requirements());
     }
 
     return mesh_reqs_ptr;

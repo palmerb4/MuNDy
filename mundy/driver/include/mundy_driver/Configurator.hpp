@@ -35,7 +35,7 @@
 
 // Mundy includes
 #include <MundyDriver_config.hpp>                                     // for HAVE_MUNDYDRIVER_*
-#include <mundy_meta/MeshRequirements.hpp>                            // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::StringBasedMetaFactory
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>                // for mundy::meta::MetaMethodExecutionInterface
 #include <mundy_meta/MetaMethodPairwiseSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
@@ -167,8 +167,8 @@ class Configurator {
   //@{
 
   /// @brief Get the mesh requirements
-  /// @return std::shared_ptr<mundy::meta::MeshRequirements>
-  std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements();
+  /// @return std::shared_ptr<mundy::meta::MeshReqs>
+  std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements();
 
   //@}
 
@@ -199,8 +199,8 @@ class Configurator {
   Configurator &parse_meta_method_type(const std::string &method_type, const Teuchos::ParameterList &method_params);
 
   /// @brief Create mesh requirements from enabled meta methods
-  /// @return std::shared_ptr<mundy::meta::MeshRequirements>
-  std::shared_ptr<mundy::meta::MeshRequirements> create_mesh_requirements();
+  /// @return std::shared_ptr<mundy::meta::MeshReqs>
+  std::shared_ptr<mundy::meta::MeshReqs> create_mesh_requirements();
 
   /// @brief Generate complete simulation driver to run simulation
   ///
@@ -252,7 +252,7 @@ class Configurator {
       "meta_method_execution_interface", "meta_method_subset_execution_interface",
       "meta_method_pairwise_subset_execution_interface"};
 
-  static constexpr std::string_view default_node_coordinate_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view default_node_coordinate_field_name_ = "NODE_COORDS";
 
   //@}
 
@@ -315,7 +315,7 @@ class Configurator {
   std::shared_ptr<Driver> driver_ptr_ = nullptr;
 
   /// Associated mesh requirements
-  std::shared_ptr<mundy::meta::MeshRequirements> mesh_reqs_ptr_ = nullptr;
+  std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_ = nullptr;
 
   /// \brief Mundy bulk data pointer
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_ = nullptr;

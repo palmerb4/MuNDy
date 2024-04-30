@@ -33,9 +33,9 @@
 
 // Mundy includes
 #include <mundy_constraints/Constraints.hpp>  // for mundy::constraints::Constraints
-#include <mundy_meta/FieldRequirements.hpp>   // for mundy::meta::FieldRequirements
-#include <mundy_meta/MeshRequirements.hpp>    // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>    // for mundy::meta::PartRequirements
+#include <mundy_meta/FieldReqs.hpp>   // for mundy::meta::FieldReqs
+#include <mundy_meta/MeshReqs.hpp>    // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>    // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -82,33 +82,33 @@ class HookeanSprings {
 
   /// \brief Add new part requirements to ALL members of this agent part.
   /// These modifications are reflected in our mesh requirements.
-  static inline void add_part_reqs(std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr) {
-    part_reqs_ptr_->merge(part_reqs_ptr);
+  static inline void add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr) {
+    part_reqs_ptr_->sync(part_reqs_ptr);
   }
 
   /// \brief Add sub-part requirements.
   /// These modifications are reflected in our mesh requirements.
-  static inline void add_subpart_reqs(std::shared_ptr<mundy::meta::PartRequirements> subpart_reqs_ptr) {
-    part_reqs_ptr_->add_subpart_reqs(subpart_reqs_ptr);
+  static inline void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr) {
+    part_reqs_ptr_->add_and_sync_subpart_reqs(subpart_reqs_ptr);
   }
 
   /// \brief Get our mesh requirements.
-  static inline std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements() {
+  static inline std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements() {
     // By default, we assume that the HookeanSprings part is a beam 2 particle (an element that forms a line between two
     // nodes) with a spring constant and a rest length. All HookeanSprings are Constraints.
 
     // Declare our part as a subpart of our parent parts.
-    mundy::constraints::Constraints::add_subpart_reqs(part_reqs_ptr_);
+    mundy::constraints::Constraints::add_and_sync_subpart_reqs(part_reqs_ptr_);
 
-    // Because we passed our part requirements up the chain, we can now fetch and merge all of our parent's
+    // Because we passed our part requirements up the chain, we can now fetch and sync all of our parent's
     // requirements. If done correctly, this call will result in a upward tree traversal. Our part is declared as a
     // subpart of our parent, which is declared as a subpart of its parent. This process repeated until we reach a root
     // node. The combined requirements for all parts touched in this traversal are then returned here.
     //
     // We add our part requirements directly to the mesh to account for the case where we are the root node.
-    static auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs_ptr->add_part_reqs(part_reqs_ptr_);
-    mesh_reqs_ptr->merge(mundy::constraints::Constraints::get_mesh_requirements());
+    static auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
+    mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs_ptr_);
+    mesh_reqs_ptr->sync(mundy::constraints::Constraints::get_mesh_requirements());
     return mesh_reqs_ptr;
   }
 
@@ -147,7 +147,7 @@ class HookeanSprings {
   static constexpr inline bool has_rank_ = false;
 
   /// @brief The name of our node coordinate field.
-  static constexpr std::string_view node_coord_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view node_coord_field_name_ = "NODE_COORDS";
 
   /// @brief The name of our element hookean spring constant field.
   static constexpr std::string_view element_hookean_spring_constant_field_name_ = "ELEMENT_HOOKEAN_SPRING_CONSTANT";
@@ -157,8 +157,8 @@ class HookeanSprings {
       "ELEMENT_HOOKEAN_SPRING_REST_LENGTH";
 
   /// \brief Our part requirements.
-  static inline std::shared_ptr<mundy::meta::PartRequirements> part_reqs_ptr_ = []() {
-    auto part_reqs_ptr = std::make_shared<mundy::meta::PartRequirements>();
+  static inline std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr_ = []() {
+    auto part_reqs_ptr = std::make_shared<mundy::meta::PartReqs>();
     part_reqs_ptr->set_part_name(std::string(name_));
     part_reqs_ptr->set_part_topology(topology_);
     part_reqs_ptr->add_field_reqs<double>(std::string(node_coord_field_name_), stk::topology::NODE_RANK, 3, 1);

@@ -41,7 +41,7 @@
 #include <mundy_core/throw_assert.hpp>                                // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                                    // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                    // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>                            // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                                  // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>                // for mundy::meta::MetaMethodExecutionInterface
@@ -89,9 +89,9 @@ class MetaTechniqueDispatcher {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;

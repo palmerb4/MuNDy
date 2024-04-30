@@ -60,7 +60,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 
@@ -181,9 +181,9 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(NodeEulerSphere::get_valid_fixed_params());
@@ -196,7 +196,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
-      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs<double>(node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
       // Add a requirement to make MSD calcs easier too
@@ -204,10 +204,10 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_part_reqs(part_reqs);
+        mundy::shapes::Spheres::add_and_sync_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
+        mundy::shapes::Spheres::add_and_sync_subpart_reqs(part_reqs);
       }
     }
 
@@ -460,9 +460,9 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList()) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(ComputeBrownianVelocitySphere::get_valid_fixed_params());
@@ -475,17 +475,17 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     const int num_parts = static_cast<int>(valid_entity_part_names.size());
     for (int i = 0; i < num_parts; i++) {
       const std::string part_name = valid_entity_part_names[i];
-      auto part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+      auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
       part_reqs->add_field_reqs<double>(node_brownian_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
       part_reqs->add_field_reqs<unsigned>(node_rng_counter_field_name, stk::topology::NODE_RANK, 1, 1);
 
       if (part_name == mundy::shapes::Spheres::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_part_reqs(part_reqs);
+        mundy::shapes::Spheres::add_and_sync_part_reqs(part_reqs);
       } else {
         // Add the associated part as a subset of the sphere sphere linkers agent.
-        mundy::shapes::Spheres::add_subpart_reqs(part_reqs);
+        mundy::shapes::Spheres::add_and_sync_subpart_reqs(part_reqs);
       }
     }
 
@@ -663,7 +663,7 @@ int main(int argc, char **argv) {
   /////////////////////
   // Create the mesh //
   /////////////////////
-  auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshRequirements>(MPI_COMM_WORLD);
+  auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>(MPI_COMM_WORLD);
   mesh_reqs_ptr->set_spatial_dimension(3);
   mesh_reqs_ptr->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
 
@@ -673,14 +673,14 @@ int main(int argc, char **argv) {
       .set("node_brownian_velocity_field_name", "NODE_BROWNIAN_VELOCITY");
   compute_brownian_velocity_fixed_params.sublist("SPHERE").set("valid_entity_part_names",
                                                                mundy::core::make_string_array("SPHERES"));
-  mesh_reqs_ptr->merge(ComputeBrownianVelocity::get_mesh_requirements(compute_brownian_velocity_fixed_params));
+  mesh_reqs_ptr->sync(ComputeBrownianVelocity::get_mesh_requirements(compute_brownian_velocity_fixed_params));
 
   Teuchos::ParameterList node_euler_fixed_params;
   node_euler_fixed_params.set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
       .set("node_velocity_field_name", "NODE_BROWNIAN_VELOCITY")
       .set("node_original_position_field_name", "NODE_ORIGINAL_POSITION");
   node_euler_fixed_params.sublist("SPHERE").set("valid_entity_part_names", mundy::core::make_string_array("SPHERES"));
-  mesh_reqs_ptr->merge(NodeEuler::get_mesh_requirements(node_euler_fixed_params));
+  mesh_reqs_ptr->sync(NodeEuler::get_mesh_requirements(node_euler_fixed_params));
 
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr = mesh_reqs_ptr->declare_mesh();
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
@@ -736,7 +736,7 @@ int main(int argc, char **argv) {
   // Start the particles at random positions with zero velocity
   // Typically, this would occur in a requirements wrapped class, but we haven't created the declare or initialize shape
   // functions.
-  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDINATES");
+  auto node_coordinates_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_COORDS");
   auto node_original_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_ORIGINAL_POSITION");
   auto node_velocity_field_ptr = meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_BROWNIAN_VELOCITY");
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
@@ -746,7 +746,7 @@ int main(int argc, char **argv) {
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
-  check_if_exists(node_coordinates_field_ptr, "NODE_COORDINATES");
+  check_if_exists(node_coordinates_field_ptr, "NODE_COORDS");
   check_if_exists(node_velocity_field_ptr, "NODE_BROWNIAN_VELOCITY");
   check_if_exists(node_rng_counter_field_ptr, "NODE_RNG_COUNTER");
 

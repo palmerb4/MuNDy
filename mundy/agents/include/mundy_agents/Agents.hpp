@@ -33,8 +33,8 @@
 // Mundy libs
 #include <mundy_agents/Assembly.hpp>        // for mundy::agents::Assembly
 #include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 
 namespace mundy {
 
