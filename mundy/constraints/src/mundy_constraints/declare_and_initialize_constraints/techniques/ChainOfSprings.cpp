@@ -306,6 +306,14 @@ void ChainOfSprings::execute() {
       stk::mesh::EntityId received_node_id = get_node_id(end_node_index);
       stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
       bulk_data_ptr_->add_node_sharing(received_node, rank + 1);
+
+      // Populate the data for the received nodes
+      bulk_data_ptr_->change_entity_parts(received_node, element_part_ptrs_);
+      double *const node_coords = stk::mesh::field_data(*node_coord_field_ptr_, received_node);
+      const auto [coord_x, coord_y, coord_z] = coordinate_map_ptr_->get_grid_coordinate({end_node_index});
+      node_coords[0] = coord_x;
+      node_coords[1] = coord_y;
+      node_coords[2] = coord_z;
     } else if (rank == bulk_data_ptr_->parallel_size() - 1) {
       // Share the first node with rank N - 1.
       stk::mesh::Entity node = get_node(start_node_index);
@@ -315,6 +323,14 @@ void ChainOfSprings::execute() {
       stk::mesh::EntityId received_node_id = get_node_id(start_node_index - 1);
       stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
       bulk_data_ptr_->add_node_sharing(received_node, rank - 1);
+
+      // Populate the data for the received nodes
+      bulk_data_ptr_->change_entity_parts(received_node, element_part_ptrs_);
+      double *const node_coords = stk::mesh::field_data(*node_coord_field_ptr_, received_node);
+      const auto [coord_x, coord_y, coord_z] = coordinate_map_ptr_->get_grid_coordinate({start_node_index - 1});
+      node_coords[0] = coord_x;
+      node_coords[1] = coord_y;
+      node_coords[2] = coord_z;
     } else {
       // Share the first and last nodes with the corresponding neighboring ranks.
       stk::mesh::Entity first_node = get_node(start_node_index);
@@ -329,6 +345,22 @@ void ChainOfSprings::execute() {
       stk::mesh::Entity received_last_node = bulk_data_ptr_->declare_node(received_last_node_id);
       bulk_data_ptr_->add_node_sharing(received_first_node, rank - 1);
       bulk_data_ptr_->add_node_sharing(received_last_node, rank + 1);
+
+      // Populate the data for the received nodes
+      bulk_data_ptr_->change_entity_parts(received_first_node, element_part_ptrs_);
+      bulk_data_ptr_->change_entity_parts(received_last_node, element_part_ptrs_);
+      double *const first_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, received_first_node);
+      const auto [first_coord_x, first_coord_y, first_coord_z] =
+          coordinate_map_ptr_->get_grid_coordinate({start_node_index - 1});
+      first_node_coords[0] = first_coord_x;
+      first_node_coords[1] = first_coord_y;
+      first_node_coords[2] = first_coord_z;
+      double *const last_node_coords = stk::mesh::field_data(*node_coord_field_ptr_, received_last_node);
+      const auto [last_coord_x, last_coord_y, last_coord_z] =
+          coordinate_map_ptr_->get_grid_coordinate({end_node_index});
+      last_node_coords[0] = last_coord_x;
+      last_node_coords[1] = last_coord_y;
+      last_node_coords[2] = last_coord_z;
     }
   }
 
