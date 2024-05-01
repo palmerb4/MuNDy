@@ -175,6 +175,7 @@ Order of operations:
 #include <mundy_core/MakeStringArray.hpp>                   // for mundy::core::make_string_array
 #include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_io/IOBroker.hpp>         // for mundy::io::IOBroker
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
@@ -196,7 +197,7 @@ Order of operations:
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
 
-#define DEBUG
+// #define DEBUG
 
 ///////////////////////////
 // StickySettings        //
@@ -286,6 +287,7 @@ class StickySettings {
       cmdp.setOption("kt", &kt_, "Temperature kT.");
       cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
       cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
+      cmdp.setOption("use_stk_io", "use_mundy_io", &use_stk_io_, "Use STK IO.");
 
       bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
       MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
@@ -382,7 +384,8 @@ class StickySettings {
         ->add_field_reqs<double>("NODE_VELOCITY", node_rank_, 3, 1)
         // Add the node fields
         .add_field_reqs<double>("NODE_FORCE", node_rank_, 3, 1)
-        .add_field_reqs<unsigned>("NODE_RNG_COUNTER", node_rank_, 1, 1);
+        .add_field_reqs<unsigned>("NODE_RNG_COUNTER", node_rank_, 1, 1)
+        .add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", node_rank_, 3, 1);
     // Add to the spheres part
     mundy::shapes::Spheres::add_and_sync_part_reqs(custom_sphere_part_reqs);
     mesh_reqs_ptr_->sync(mundy::shapes::Spheres::get_mesh_requirements());
@@ -646,8 +649,8 @@ class StickySettings {
     declare_and_init_constraints_ptr_->set_mutable_params(declare_and_init_constraints_mutable_params);
   }
 
-  void setup_io() {
-    debug_print("Setting up IO.");
+  void setup_io_stk() {
+    debug_print("Setting up IO (STK).");
 
     // Declare each part as an IO part
     //
@@ -663,9 +666,47 @@ class StickySettings {
     stk_io_broker_.set_bulk_data(*bulk_data_ptr_);
 
     output_file_index_ = stk_io_broker_.create_output_mesh("Sticky.exo", stk::io::WRITE_RESULTS);
+    // Simple coordinates
     stk_io_broker_.add_field(output_file_index_, *node_coord_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *node_velocity_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *node_force_field_ptr_);
+
+    // Doubly bound crosslinker information (hopefully edges)
+  }
+
+  void setup_io_mundy() {
+    debug_print("Setting up IO (mundy).");
+
+    // Create a mundy io broker via it's fixed parameters
+    Teuchos::ParameterList fixed_params_iobroker;
+
+    // Set the IO Parts
+    std::vector<std::string> default_io_part_names{"SPHERES", "SPHERE_SPHERE_LINKERS", "LEFT_BOUND_CROSSLINKERS",
+                                                   "RIGHT_BOUND_CROSSLINKERS", "DOUBLY_BOUND_CROSSLINKERS"};
+    Teuchos::Array<std::string> default_array_of_io_part_names(default_io_part_names);
+    fixed_params_iobroker.set("enabled_io_parts", default_array_of_io_part_names, "PARTS with enabled IO.");
+
+    // NODE_RANK
+    std::vector<std::string> default_io_field_node_names{"NODE_VELOCITY", "NODE_FORCE"};
+    Teuchos::Array<std::string> default_array_of_io_field_node_names(default_io_field_node_names);
+    fixed_params_iobroker.set("enabled_io_fields_node_rank", default_array_of_io_field_node_names,
+                              "NODE_RANK fields with enabled IO.");
+
+    // Set other values for the IO
+    fixed_params_iobroker.set("coordinate_field_name", "NODE_COORDS");
+    fixed_params_iobroker.set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES");
+    fixed_params_iobroker.set("exodus_database_output_filename", "Sticky.exo");
+    fixed_params_iobroker.set("parallel_io_mode", "hdf5");
+    fixed_params_iobroker.set("database_purpose", "results");
+
+    // Validate and set
+    fixed_params_iobroker.validateParametersAndSetDefaults(mundy::io::IOBroker::get_valid_fixed_params());
+
+    // Create the IO broker
+    io_broker_ptr_ = mundy::io::IOBroker::create_new_instance(bulk_data_ptr_.get(), fixed_params_iobroker);
+
+    // Print the IO broker
+    io_broker_ptr_->print_io_broker();
   }
 
   void loadbalance() {
@@ -1047,12 +1088,13 @@ class StickySettings {
     stk::mesh::Field<unsigned> &constraint_perform_binding_field = *constraint_perform_binding_field_ptr_;
     auto left_crosslinkers_selector =
         stk::mesh::Selector(*left_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    const size_t &timestep_index = timestep_index_;
 
     // Just do left bound crosslinkers to start (avoid branches)
     stk::mesh::for_each_entity_run(
         *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_.get()), stk::topology::ELEMENT_RANK,
         left_crosslinkers_selector,
-        [&crosslinker_sphere_linkers_part, &element_rng_field, &constraint_perform_binding_field](
+        [&crosslinker_sphere_linkers_part, &element_rng_field, &constraint_perform_binding_field, &timestep_index](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
           // Get all of my associated crosslinker_sphere_linkers
           const stk::mesh::Entity *constraint_rank_entities =
@@ -1075,7 +1117,7 @@ class StickySettings {
             if (is_crosslinker_sphere_linker) {
               // Fetch the stored binding probability (fake for now). 50% chance of binding to someone, 50% chance of
               // not doing anyting.
-              double binding_probability = 0.5 / num_constraint_rank_entities;
+              double binding_probability = timestep_index * 0.5 / num_constraint_rank_entities;
               cumsum += binding_probability;
               if (rand01 < cumsum) {
 #ifdef DEBUG
@@ -1303,7 +1345,11 @@ class StickySettings {
     fetch_fields_and_parts();
     instantiate_metamethods();
     set_mutable_parameters();
-    setup_io();
+    if (use_stk_io_) {
+      setup_io_stk();
+    } else {
+      setup_io_mundy();
+    }
     declare_and_initialize_sticky();
     debug_print("Mesh contents after declare_and_initialize_sticy.");
 #ifdef DEBUG
@@ -1385,7 +1431,7 @@ class StickySettings {
 #endif
       }
 
-      // IO. If desired, write out the data for time t.
+      // IO. If desired, write out the data for time t (STK or mundy)
       if (timestep_index_ % io_frequency_ == 0) {
         // Also write out a 'log'
         if (bulk_data_ptr_->parallel_rank() == 0) {
@@ -1393,10 +1439,15 @@ class StickySettings {
           std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps
                     << std::endl;
         }
-        stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(timestep_index_));
-        stk_io_broker_.write_defined_output_fields(output_file_index_);
-        stk_io_broker_.end_output_step(output_file_index_);
-        stk_io_broker_.flush_output();
+        if (use_stk_io_) {
+          stk_io_broker_.begin_output_step(output_file_index_, static_cast<double>(timestep_index_));
+          stk_io_broker_.write_defined_output_fields(output_file_index_);
+          stk_io_broker_.end_output_step(output_file_index_);
+          stk_io_broker_.flush_output();
+        } else {
+          io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
+                                                   static_cast<double>(timestep_index_));
+        }
 #ifdef DEBUG
         std::ostringstream mstream;
         mstream << "step" << timestep_index_;
@@ -1444,6 +1495,7 @@ class StickySettings {
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
   std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
   stk::io::StkMeshIoBroker stk_io_broker_;
+  std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
   size_t output_file_index_;
   size_t timestep_index_;
   //@}
@@ -1573,6 +1625,7 @@ class StickySettings {
 
   // Simulation params
   bool initial_loadbalance_ = false;
+  bool use_stk_io_ = true;
   size_t num_time_steps_ = 100;
   size_t io_frequency_ = 10;
   double timestep_size_ = 0.01;
