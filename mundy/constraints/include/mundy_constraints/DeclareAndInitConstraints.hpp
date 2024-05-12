@@ -66,27 +66,27 @@ class DeclareAndInitConstraints
 
   /// \brief Get the valid fixed parameters that we will forward to the techniques.
   static Teuchos::ParameterList get_valid_forwarded_technique_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    const static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters that we will forward to the techniques.
   static Teuchos::ParameterList get_valid_forwarded_technique_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    const static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
 
   /// \brief Get the valid fixed parameters that we require all techniques registered with our technique factory to
   /// have.
   static Teuchos::ParameterList get_valid_required_technique_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    const static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters that we require all techniques registered with our technique factory to
   /// have.
   static Teuchos::ParameterList get_valid_required_technique_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    const static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
   //@}

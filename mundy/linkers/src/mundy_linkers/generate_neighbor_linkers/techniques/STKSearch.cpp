@@ -250,11 +250,13 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
             // Move it into the specialized neighbor linkers parts.
             bulk_data_ptr_->change_entity_parts(source_constraint_entity, specialized_neighbor_linkers_part_ptrs_);
             new_linker_required[i] = false;
-            break;
+            goto end_of_loop;
           }
         }
       }
     }
+
+    end_of_loop:;
   }
 
   // Step 5: Create the neighbor linkers.

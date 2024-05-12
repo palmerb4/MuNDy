@@ -37,15 +37,14 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
-#include <mundy_linkers/Linkers.hpp>   // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
-#include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
+#include <mundy_linkers/Linkers.hpp>     // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_mesh/BulkData.hpp>       // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>     // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/MeshBuilder.hpp>    // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
 #include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
 #include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
-
-// Mundy test libs
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 
 namespace mundy {
@@ -54,24 +53,24 @@ namespace linkers {
 
 namespace {
 
-//! \name LinkerPotentialForceMagnitudeReduction functionality unit tests
+//! \name LinkerPotentialForceReduction functionality unit tests
 //@{
 
-TEST(LinkerPotentialForceMagnitudeReduction, SumOverASubsetOfLinkersConnectedToASphere) {
-  /* Check that LinkerPotentialForceMagnitudeReduction properly performs a reduction over a subset of linkers connected
+TEST(LinkerPotentialForceReduction, SumOverASubsetOfLinkersConnectedToASphere) {
+  /* Check that LinkerPotentialForceReduction properly performs a reduction over a subset of linkers connected
   to an object.
 
   For this test, we'll create one sphere and 3 linkers. Two of the linkers will be in the specified linker part and one
   will simply be a neighbor linker.
   */
 
-  // Create an instance of LinkerPotentialForceMagnitudeReduction based on committed mesh that meets the
-  // default requirements for LinkerPotentialForceMagnitudeReduction.
+  // Create an instance of LinkerPotentialForceReduction based on committed mesh that meets the
+  // default requirements for LinkerPotentialForceReduction.
   Teuchos::ParameterList fixed_params;
   fixed_params.set<std::string>("name_of_linker_part_to_reduce_over", "CUSTOM_LINKERS");
   auto [potential_force_magnitude_reduction_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<
-          LinkerPotentialForceMagnitudeReduction>({fixed_params});
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<LinkerPotentialForceReduction>(
+          {fixed_params});
   ASSERT_TRUE(potential_force_magnitude_reduction_ptr != nullptr);
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
@@ -113,34 +112,18 @@ TEST(LinkerPotentialForceMagnitudeReduction, SumOverASubsetOfLinkersConnectedToA
   // Fetch the required fields.
   stk::mesh::Field<double> *node_force_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
-  stk::mesh::Field<double> *linker_potential_force_magnitude_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
-  stk::mesh::Field<double> *linker_contact_normal_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
+  stk::mesh::Field<double> *linker_potential_force_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE");
 
   ASSERT_TRUE(node_force_field_ptr != nullptr);
-  ASSERT_TRUE(linker_potential_force_magnitude_field_ptr != nullptr);
-  ASSERT_TRUE(linker_contact_normal_field_ptr != nullptr);
+  ASSERT_TRUE(linker_potential_force_field_ptr != nullptr);
 
-  // Set the linker force magnitudes
-  // Note, at this point, only the custom linkers have the linker potential force magnitude.
-  double *linker1_potential_force_magnitude =
-      stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr, linker1);
-  linker1_potential_force_magnitude[0] = 1.0;
-  double *linker2_potential_force_magnitude =
-      stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr, linker2);
-  linker2_potential_force_magnitude[0] = 2.0;
-
-  // Set the linker contact normals
-  double *linker_contact_normal1 = stk::mesh::field_data(*linker_contact_normal_field_ptr, linker1);
-  linker_contact_normal1[0] = 0.0;
-  linker_contact_normal1[1] = 0.0;
-  linker_contact_normal1[2] = 1.0;
-
-  double *linker_contact_normal2 = stk::mesh::field_data(*linker_contact_normal_field_ptr, linker2);
-  linker_contact_normal2[0] = 1.0 / std::sqrt(2);
-  linker_contact_normal2[1] = 0.0;
-  linker_contact_normal2[2] = 1.0 / std::sqrt(2);
+  // Set the linker forces
+  // Note, at this point, only the custom linkers have the linker potential force.
+  auto linker_potential_force1 = mundy::mesh::vector3_field_data(*linker_potential_force_field_ptr, linker1);
+  auto linker_potential_force2 = mundy::mesh::vector3_field_data(*linker_potential_force_field_ptr, linker2);
+  linker_potential_force1.set(0.0, 0.0, -1.0);
+  linker_potential_force2.set(-2.0 / std::sqrt(2.0), 0.0, -2.0 / std::sqrt(2.0));
 
   // Zero out the node force field.
   double *node_force = stk::mesh::field_data(*node_force_field_ptr, sphere_node);
@@ -155,13 +138,12 @@ TEST(LinkerPotentialForceMagnitudeReduction, SumOverASubsetOfLinkersConnectedToA
   // The reduction should have been over the custom linkers, but not the more general neighbor linkers.
   const double *new_node_force = stk::mesh::field_data(*node_force_field_ptr, sphere_node);
   for (unsigned i = 0; i < 3; ++i) {
-    EXPECT_DOUBLE_EQ(new_node_force[i], -linker_contact_normal1[i] * linker1_potential_force_magnitude[0] -
-                                            linker_contact_normal2[i] * linker2_potential_force_magnitude[0]);
+    EXPECT_DOUBLE_EQ(new_node_force[i], linker_potential_force1[i] + linker_potential_force2[i]);
   }
 }
 
-TEST(LinkerPotentialForceMagnitudeReduction, CorrectlyReducesOverGhostedLinkers) {
-  /* Check that LinkerPotentialForceMagnitudeReduction properly performs a reduction over locally owned and ghosted
+TEST(LinkerPotentialForceReduction, CorrectlyReducesOverGhostedLinkers) {
+  /* Check that LinkerPotentialForceReduction properly performs a reduction over locally owned and ghosted
   linkers.
 
   For this test, we'll create a chain of spheres and linkers, with each process creating a sphere and a linker (except
@@ -169,15 +151,15 @@ TEST(LinkerPotentialForceMagnitudeReduction, CorrectlyReducesOverGhostedLinkers)
 
   o--linker--o--linker--o--linker--o--linker--o--linker--o
 
-  We'll set the potential force magnitude of locally owned linkers to the process id
+  We'll set the potential force of locally owned linkers to the process id
   */
 
-  // Create an instance of LinkerPotentialForceMagnitudeReduction based on committed mesh that meets the
-  // default requirements for LinkerPotentialForceMagnitudeReduction.
+  // Create an instance of LinkerPotentialForceReduction based on committed mesh that meets the
+  // default requirements for LinkerPotentialForceReduction.
   Teuchos::ParameterList fixed_params;
   auto [potential_force_magnitude_reduction_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<
-          LinkerPotentialForceMagnitudeReduction>({fixed_params});
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<LinkerPotentialForceReduction>(
+          {fixed_params});
   ASSERT_TRUE(potential_force_magnitude_reduction_ptr != nullptr);
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
@@ -193,14 +175,11 @@ TEST(LinkerPotentialForceMagnitudeReduction, CorrectlyReducesOverGhostedLinkers)
   // Fetch the required fields.
   stk::mesh::Field<double> *node_force_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
-  stk::mesh::Field<double> *linker_potential_force_magnitude_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
-  stk::mesh::Field<double> *linker_contact_normal_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
+  stk::mesh::Field<double> *linker_potential_force_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE");
 
   ASSERT_TRUE(node_force_field_ptr != nullptr);
-  ASSERT_TRUE(linker_potential_force_magnitude_field_ptr != nullptr);
-  ASSERT_TRUE(linker_contact_normal_field_ptr != nullptr);
+  ASSERT_TRUE(linker_potential_force_field_ptr != nullptr);
 
   // Declare the spheres and linkers.
   bulk_data_ptr->modification_begin();
@@ -245,27 +224,18 @@ TEST(LinkerPotentialForceMagnitudeReduction, CorrectlyReducesOverGhostedLinkers)
   }
   bulk_data_ptr->modification_end();
 
-  // Set the linker force magnitudes
-  if (rank < num_procs - 1) {
-    stk::mesh::Entity linker = bulk_data_ptr->get_entity(stk::topology::CONSTRAINT_RANK, rank + 1);
-    double *linker_potential_force_magnitude =
-        stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr, linker);
-    linker_potential_force_magnitude[0] = static_cast<double>(rank);
-  }
-
   // Zero out the node force field.
   double *node_force = stk::mesh::field_data(*node_force_field_ptr, sphere_node);
   for (unsigned i = 0; i < 3; ++i) {
     node_force[i] = 0.0;
   }
 
-  // Set the contact normal for the linkers from left to right.
+  // Set the contact normal for the linkers from left to right and the linker force on the left connected entity.
   if (rank < num_procs - 1) {
     stk::mesh::Entity linker = bulk_data_ptr->get_entity(stk::topology::CONSTRAINT_RANK, rank + 1);
-    double *linker_contact_normal = stk::mesh::field_data(*linker_contact_normal_field_ptr, linker);
-    linker_contact_normal[0] = 1.0;
-    linker_contact_normal[1] = 0.0;
-    linker_contact_normal[2] = 0.0;
+    const double linker_potential_force_magnitude = static_cast<double>(rank);
+    auto linker_potential_force = mundy::mesh::vector3_field_data(*linker_potential_force_field_ptr, linker);
+    linker_potential_force.set(-linker_potential_force_magnitude, 0.0, 0.0);
   }
 
   // Reduce the potential force.

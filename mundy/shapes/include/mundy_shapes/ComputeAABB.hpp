@@ -78,8 +78,7 @@ class ComputeAABB
 
   /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set(
+    static Teuchos::ParameterList default_parameter_list = Teuchos::ParameterList().set(
         "element_aabb_field_name", std::string(default_element_aabb_field_name_),
         "Name of the element field within which the output axis-aligned boundary boxes will be written.");
     return default_parameter_list;
@@ -87,9 +86,8 @@ class ComputeAABB
 
   /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("buffer_distance", default_buffer_distance_,
-                               "Buffer distance to be added to the axis-aligned boundary box.");
+    static Teuchos::ParameterList default_parameter_list = Teuchos::ParameterList().set(
+        "buffer_distance", default_buffer_distance_, "Buffer distance to be added to the axis-aligned boundary box.");
     return default_parameter_list;
   }
   //@}

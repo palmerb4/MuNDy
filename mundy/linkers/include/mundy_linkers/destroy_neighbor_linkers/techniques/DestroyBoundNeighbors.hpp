@@ -17,11 +17,11 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_LINKERS_DESTROY_NEIGHBOR_LINKERS_TECHNIQUES_DESTROYDISTANTNEIGHBORS_HPP_
-#define MUNDY_LINKERS_DESTROY_NEIGHBOR_LINKERS_TECHNIQUES_DESTROYDISTANTNEIGHBORS_HPP_
+#ifndef MUNDY_LINKERS_DESTROY_NEIGHBOR_LINKERS_TECHNIQUES_DESTROYBOUNDNEIGHBORS_HPP_
+#define MUNDY_LINKERS_DESTROY_NEIGHBOR_LINKERS_TECHNIQUES_DESTROYBOUNDNEIGHBORS_HPP_
 
-/// \file DestroyDistantNeighbors.hpp
-/// \brief Declaration of the DestroyDistantNeighbors class
+/// \file DestroyBoundNeighbors.hpp
+/// \brief Declaration of the DestroyBoundNeighbors class
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -59,25 +59,17 @@ namespace destroy_neighbor_linkers {
 
 namespace techniques {
 
-/* This class is responsible for destroying neighbor linkers between elements whose AABBs don't intersect.
+/* This class is responsible for destroying neighbor linkers between elements that are bound to one another via a shared
+low-rank entity.
 
 For now, we force the rank of the source and target entities connected to the linkers to be ELEMENT_RANK. There are
 undoubtedly use cases for allowing the source and target ranks to be arbitrary and different. However, we will not
 support that for now.
 
-Assuming that the source and target entities attached to each linker have valid, up-to-date AABBs, we simply loop over
-each neighbor linker in the given selector, fetch their connected entities and check if their AABBs intersect. If they
-don't, we destroy the neighbor linker. The only question is what is the most efficient way to destroy entities within
-STK.
-
-To perform the deletion of an entity we can directly call destroy_entity(entity_to_destroy). This cannot, however, be
-used within a for_each_entity_run loop or any loop that assumes bucket stability. The alternative is to mark the entity
-for deletion and then destroy it after the loop. This class could be used to mark entities for deletion and then we
-could implement a helper function that destroys all entities marked for deletion. Furthermore, it's unclear if
-destroy_entity is thread safe. I'll err on the side of caution and assume it's not. As such, we'll simply break the
-deletion process into two steps: marking entities for deletion in parallel and then destroying them in serial.
+We loop over each neighbor linker in the given selector, fetch the connected source and target entities, and check if
+they share low-rank entities. If they do, we destroy the neighbor linker.
 */
-class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
+class DestroyBoundNeighbors : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
   //@{
@@ -89,10 +81,10 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   //@{
 
   /// \brief No default constructor
-  DestroyDistantNeighbors() = delete;
+  DestroyBoundNeighbors() = delete;
 
   /// \brief Constructor
-  DestroyDistantNeighbors(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
+  DestroyBoundNeighbors(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaFactory static interface implementation
@@ -107,7 +99,7 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   /// will be created. You can save the result yourself if you wish to reuse it.
   static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
-    valid_fixed_params.validateParametersAndSetDefaults(DestroyDistantNeighbors::get_valid_fixed_params());
+    valid_fixed_params.validateParametersAndSetDefaults(DestroyBoundNeighbors::get_valid_fixed_params());
 
     // Fill the requirements using the given parameter list.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
@@ -135,14 +127,12 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
     mesh_reqs_ptr->sync(NeighborLinkers::get_mesh_requirements());
 
     // Add our source/target element part requirements.
-    std::string element_aabb_field_name = valid_fixed_params.get<std::string>("element_aabb_field_name");
     Teuchos::Array<std::string> valid_connected_source_and_target_part_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("valid_connected_source_and_target_part_names");
     for (int i = 0; i < valid_connected_source_and_target_part_names.size(); i++) {
       const std::string part_name = valid_connected_source_and_target_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs<double>(element_aabb_field_name, stk::topology::ELEMENT_RANK, 6, 1);
       mesh_reqs_ptr->add_and_sync_part_reqs(part_reqs);
     }
 
@@ -160,9 +150,7 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
                  mundy::core::make_string_array(std::string(universal_part_name_)),
                  "Name of the source and target parts that linker may connect to.")
             .set<std::string>("linker_destroy_flag_field_name", std::string(default_linker_destroy_flag_field_name_),
-                              "Name of the field used to flag linkers for destruction.")
-            .set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
-                 "Name of the element field containing the axis-aligned boundary boxes of source/target elements.");
+                              "Name of the field used to flag linkers for destruction.");
 
     return default_parameter_list;
   }
@@ -179,7 +167,7 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                   const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<DestroyDistantNeighbors>(bulk_data_ptr, fixed_params);
+    return std::make_shared<DestroyBoundNeighbors>(bulk_data_ptr, fixed_params);
   }
   //@}
 
@@ -213,7 +201,6 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   static constexpr std::string_view universal_part_name_ = "{UNIVERSAL}";
   static constexpr std::string_view default_linker_destroy_flag_field_name_ = "LINKER_DESTROY_FLAG";
   static constexpr std::string_view default_neighbor_linkers_part_name_ = "NEIGHBOR_LINKERS";
-  static constexpr std::string_view default_element_aabb_field_name_ = "ELEMENT_AABB";
   //@}
 
   //! \name Internal members
@@ -231,13 +218,10 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   /// \brief The valid linker entity parts.
   std::vector<stk::mesh::Part *> valid_linker_entity_part_ptrs_;
 
-  /// \brief The element aabb field pointer.
-  stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
-
   /// \brief The linker destroy flag field pointer.
   stk::mesh::Field<int> *linker_destroy_flag_field_ptr_ = nullptr;
   //@}
-};  // DestroyDistantNeighbors
+};  // DestroyBoundNeighbors
 
 }  // namespace techniques
 
@@ -247,4 +231,4 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
 
 }  // namespace mundy
 
-#endif  // MUNDY_LINKERS_DESTROY_NEIGHBOR_LINKERS_TECHNIQUES_DESTROYDISTANTNEIGHBORS_HPP_
+#endif  // MUNDY_LINKERS_DESTROY_NEIGHBOR_LINKERS_TECHNIQUES_DESTROYBOUNDNEIGHBORS_HPP_

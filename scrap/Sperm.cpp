@@ -78,7 +78,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::...::SpherocylinderSegmentSpherocylinderSegmentLinkers
 #include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
@@ -148,8 +148,8 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 ///         - Evaluate the Hertzian contact potential between neighboring rods
 ///          (Using mundy's EvaluateLinkerPotentials function)
 ///
-///         - Sum the linker potential force magnitude to get the induced node force on each rod
-///          (Using mundy's LinkerPotentialForceMagnitudeReduction function)
+///         - Sum the linker potential force to get the induced node force on each rod
+///          (Using mundy's LinkerPotentialForceReduction function)
 ///
 ///         // Centerline twist rod model
 ///         - Compute the edge information (length, tangent, and binormal)
@@ -341,11 +341,11 @@ class SpermSimulation {
     mesh_reqs_ptr_->sync(
         mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
 
-    // LinkerPotentialForceMagnitudeReduction fixed parameters
-    auto linker_potential_force_magnitude_reduction_fixed_params =
+    // LinkerPotentialForceReduction fixed parameters
+    auto linker_potential_force_reduction_fixed_params =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
-    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
-        linker_potential_force_magnitude_reduction_fixed_params));
+    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceReduction::get_mesh_requirements(
+        linker_potential_force_reduction_fixed_params));
 
     // DestroyNeighborLinkers fixed parameters
     auto destroy_neighbor_linkers_fixed_params =
@@ -387,8 +387,8 @@ class SpermSimulation {
         GenerateNeighborLinkers::create_new_instance(bulk_data_ptr_.get(), generate_neighbor_linkers_fixed_params);
     evaluate_linker_potentials_ptr_ =
         EvaluateLinkerPotentials::create_new_instance(bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params);
-    linker_potential_force_magnitude_reduction_ptr_ = LinkerPotentialForceMagnitudeReduction::create_new_instance(
-        bulk_data_ptr_.get(), linker_potential_force_magnitude_reduction_fixed_params);
+    linker_potential_force_reduction_ptr_ = LinkerPotentialForceReduction::create_new_instance(
+        bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params);
     destroy_neighbor_linkers_ptr_ =
         DestroyNeighborLinkers::create_new_instance(bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params);
     declare_and_init_constraints_ptr_ =
@@ -621,9 +621,9 @@ class SpermSimulation {
     evaluate_linker_potentials_ptr_->execute();
   }
 
-  void linker_potential_force_magnitude_reduction() {
-    debug_print("Reducing the linker potential force magnitude.");
-    linker_potential_force_magnitude_reduction_ptr_->execute();
+  void linker_potential_force_reduction() {
+    debug_print("Reducing the linker potential force.");
+    linker_potential_force_reduction_ptr_->execute();
   }
 
   void compute_edge_information() {
@@ -917,8 +917,8 @@ class SpermSimulation {
     // Evaluate the Hertzian contact potential between neighboring rods.
     evaluate_linker_potentials_ptr_->execute();
 
-    // Sum the linker potential force magnitude to get the induced node force on each rod.
-    linker_potential_force_magnitude_reduction_ptr_->execute();
+    // Sum the linker potential force to get the induced node force on each rod.
+    linker_potential_force_reduction_ptr_->execute();
   }
 
   void compute_centerline_twist_force_and_torque() {
@@ -1075,7 +1075,7 @@ class SpermSimulation {
   std::shared_ptr<ComputeAABB> compute_aabb_ptr_;
   std::shared_ptr<GenerateNeighborLinkers> generate_neighbor_linkers_ptr_;
   std::shared_ptr<EvaluateLinkerPotentials> evaluate_linker_potentials_ptr_;
-  std::shared_ptr<LinkerPotentialForceMagnitudeReduction> linker_potential_force_magnitude_reduction_ptr_;
+  std::shared_ptr<LinkerPotentialForceReduction> linker_potential_force_reduction_ptr_;
   std::shared_ptr<DestroyNeighborLinkers> destroy_neighbor_linkers_ptr_;
   std::shared_ptr<DeclareAndInitConstraints> declare_and_init_constraints_ptr_;
   //@}

@@ -51,7 +51,7 @@ The goal of this example is to simulate the swimming motion of a multiple, colli
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::...::SpherocylinderSegmentSpherocylinderSegmentLinkers
 #include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
@@ -66,7 +66,7 @@ The goal of this example is to simulate the swimming motion of a multiple, colli
 #include <mundy_meta/PartReqs.hpp>          // for mundy::meta::PartReqs
 #include <mundy_shapes/ComputeAABB.hpp>             // for mundy::shapes::ComputeAABB
 
-#define DEBUG
+// #define DEBUG
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -123,8 +123,8 @@ The goal of this example is to simulate the swimming motion of a multiple, colli
 ///             - Evaluate the Hertzian contact potential between neighboring rods
 ///              (Using mundy's EvaluateLinkerPotentials function)
 ///
-///             - Sum the linker potential force magnitude to get the induced node force on each rod
-///              (Using mundy's LinkerPotentialForceMagnitudeReduction function)
+///             - Sum the linker potential force to get the induced node force on each rod
+///              (Using mundy's LinkerPotentialForceReduction function)
 ///         }
 ///
 ///         // Centerline twist rod model
@@ -376,10 +376,11 @@ class SpermSimulation {
     auto evaluate_linker_potentials_fixed_params = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
-    auto linker_potential_force_magnitude_reduction_fixed_params =
+    auto linker_potential_force_reduction_fixed_params =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
-    auto destroy_neighbor_linkers_fixed_params =
+    auto destroy_distant_neighbor_linkers_fixed_params =
         Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
+    auto destroy_bound_neighbor_linkers_fixed_params = Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_BOUND_NEIGHBORS");
 
     // Synchronize (merge and rectify differences) the requirements for each method based on the fixed parameters.
     // For now, we will directly use the types that each method corresponds to. The configurator will
@@ -391,10 +392,12 @@ class SpermSimulation {
         mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_neighbor_linkers_fixed_params));
     mesh_reqs_ptr_->sync(
         mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
-    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
-        linker_potential_force_magnitude_reduction_fixed_params));
+    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceReduction::get_mesh_requirements(
+        linker_potential_force_reduction_fixed_params));
     mesh_reqs_ptr_->sync(
-        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params));
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_distant_neighbor_linkers_fixed_params));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_bound_neighbor_linkers_fixed_params));
 
 #ifdef DEBUG
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
@@ -420,11 +423,14 @@ class SpermSimulation {
         bulk_data_ptr_.get(), generate_neighbor_linkers_fixed_params);
     evaluate_linker_potentials_ptr_ = mundy::linkers::EvaluateLinkerPotentials::create_new_instance(
         bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params);
-    linker_potential_force_magnitude_reduction_ptr_ =
-        mundy::linkers::LinkerPotentialForceMagnitudeReduction::create_new_instance(
-            bulk_data_ptr_.get(), linker_potential_force_magnitude_reduction_fixed_params);
-    destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
-        bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params);
+    linker_potential_force_reduction_ptr_ =
+        mundy::linkers::LinkerPotentialForceReduction::create_new_instance(
+            bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params);
+    destroy_distant_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_distant_neighbor_linkers_fixed_params);
+    destroy_bound_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_bound_neighbor_linkers_fixed_params);
+    
 
     // Set up the mutable parameters for the classes
     // If a class doesn't have mutable parameters, we can skip setting them.
@@ -473,6 +479,7 @@ class SpermSimulation {
     edge_length_field_ptr_ = fetch_field<double>("EDGE_LENGTH", edge_rank_);
 
     element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
+    element_aabb_field_ptr_ = fetch_field<double>("ELEMENT_AABB", element_rank_);
     element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
     element_rest_length_field_ptr_ = fetch_field<double>("ELEMENT_REST_LENGTH", element_rank_);
@@ -493,6 +500,7 @@ class SpermSimulation {
 
     // Declare each part as an IO part
     stk::io::put_io_part_attribute(*centerline_twist_springs_part_ptr_);
+    stk::io::put_io_part_attribute(*spherocylinder_segments_part_ptr_);
 
     // Setup the IO broker
     stk_io_broker_.use_simple_fields();
@@ -519,6 +527,7 @@ class SpermSimulation {
     stk_io_broker_.add_field(output_file_index_, *edge_length_field_ptr_);
 
     stk_io_broker_.add_field(output_file_index_, *element_radius_field_ptr_);
+    stk_io_broker_.add_field(output_file_index_, *element_aabb_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *element_youngs_modulus_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *element_poissons_ratio_field_ptr_);
     stk_io_broker_.add_field(output_file_index_, *element_rest_length_field_ptr_);
@@ -531,10 +540,11 @@ class SpermSimulation {
 
     // Declare N spring chains with a slight shift to each chain
     for (size_t j = 0; j < num_sperm_; j++) {
-      // To make our lives easier, we alogn the sperm with the z-axis, as this makes our edge orientation a unit
+      // To make our lives easier, we align the sperm with the z-axis, as this makes our edge orientation a unit
       // quaternion.
-      mundy::math::Vector3<double> tail_coord(0.0, 2 * j * sperm_radius_, 0.0);
-      mundy::math::Vector3<double> sperm_axis(0.0, 0.0, 1.0);
+      const bool flip_sperm = j % 2 == 0;
+      mundy::math::Vector3<double> tail_coord(0.0, 2 * j * sperm_radius_, flip_sperm ? sperm_initial_segment_length_ * (num_nodes_per_sperm_ - 1) : 0.0);
+      mundy::math::Vector3<double> sperm_axis(0.0, 0.0, flip_sperm ? -1.0 : 1.0);
 
       // Because we are creating multiple sperm, we need to determine the node and element index ranges for each sperm.
       size_t start_node_id = num_nodes_per_sperm_ * j + 1u;
@@ -747,6 +757,9 @@ class SpermSimulation {
 
         // Populate the spherocylinder segment's data
         stk::mesh::field_data(*element_radius_field_ptr_, left_spherocylinder_segment)[0] = sperm_radius_;
+        stk::mesh::field_data(*element_radius_field_ptr_, right_spherocylinder_segment)[0] = sperm_radius_;
+        stk::mesh::field_data(*element_youngs_modulus_field_ptr_, left_spherocylinder_segment)[0] = sperm_youngs_modulus_;
+        stk::mesh::field_data(*element_youngs_modulus_field_ptr_, right_spherocylinder_segment)[0] = sperm_youngs_modulus_;
       }
 
       // Share the nodes with the neighboring ranks.
@@ -815,6 +828,8 @@ class SpermSimulation {
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
                            "The node must be a member of the centerline twist part.");
 
+
+
         mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) =
             tail_coord + sperm_axis * static_cast<double>(i) * sperm_initial_segment_length_;
         mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node).set(0.0, 0.0, 0.0);
@@ -859,20 +874,37 @@ class SpermSimulation {
 #endif
 
       // Populate the edge data
+      stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
       stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
       stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
       stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
-      const double sperm_initial_segment_length = sperm_initial_segment_length_;
       stk::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::EDGE_RANK, meta_data_ptr_->locally_owned_part(),
-          [&edge_orientation_field, &edge_tangent_field, &edge_length_field, &sperm_axis,
-           &sperm_initial_segment_length]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+          [&node_coord_field, &edge_orientation_field, &edge_tangent_field, &edge_length_field, &flip_sperm](const stk::mesh::BulkData &bulk_data,
                                           const stk::mesh::Entity &edge) {
-            // The orientation of the edge is the identity since we are currently in the reference configuration.
+            // We are currently in the reference configuration, so the orientation must map from Cartesian to reference lab frame.
+            const stk::mesh::Entity *edge_nodes = bulk_data.begin_nodes(edge);
+            const auto edge_node0_coords = mundy::mesh::vector3_field_data(node_coord_field, edge_nodes[0]);
+            const auto edge_node1_coords = mundy::mesh::vector3_field_data(node_coord_field, edge_nodes[1]);
+            mundy::math::Vector3<double> edge_tangent = edge_node1_coords - edge_node0_coords;
+            const double edge_length = mundy::math::norm(edge_tangent);
+            edge_tangent /= edge_length;
+
+            // Using the triad to generate the orientation
+            auto d1 = mundy::math::Vector3<double>(flip_sperm ? -1.0 : 1.0, 0.0, 0.0);
+            mundy::math::Vector3<double> d3 = edge_tangent;
+            mundy::math::Vector3<double> d2 = mundy::math::cross(d3, d1);
+            d2 /= mundy::math::norm(d2);
+            MUNDY_THROW_ASSERT(mundy::math::dot(d3, mundy::math::cross(d1, d2)) > 0.0, std::logic_error, "The triad is not right-handed.");
+
+            mundy::math::Matrix3<double> D;
+            D.set_column(0, d1);
+            D.set_column(1, d2);
+            D.set_column(2, d3);
             mundy::mesh::quaternion_field_data(edge_orientation_field, edge) =
-                mundy::math::Quaternion<double>::identity();
-            mundy::mesh::vector3_field_data(edge_tangent_field, edge) = sperm_axis;
-            stk::mesh::field_data(edge_length_field, edge)[0] = sperm_initial_segment_length;
+                mundy::math::rotation_matrix_to_quaternion(D);
+            mundy::mesh::vector3_field_data(edge_tangent_field, edge) = edge_tangent;
+            stk::mesh::field_data(edge_length_field, edge)[0] = edge_length;
           });
     }
   }
@@ -962,13 +994,22 @@ class SpermSimulation {
     // Propogate the rest curvature of the nodes according to
     // kappa_rest = amplitude * sin(spacial_frequency * archlength + temporal_frequency * time).
     const double sperm_length = num_nodes_per_sperm_ * sperm_initial_segment_length_;
-    const double amplitude = 0.01;
+    // const double amplitude = 0.01;
+    // const double spacial_wavelength = sperm_length / 5.0;
+    // const double spacial_frequency = 2.0 * M_PI / spacial_wavelength;
+    // const double temporal_frequency = 0.01;
+    // const double time = (timestep_index_ == 0)
+    //                         ? timestep_index_ * timestep_size_
+    //                         : (timestep_index_ - 5000000) * timestep_size_;  // HARDCODING THE TIME OFFSET
+
+
+    const double amplitude = 0.1;
     const double spacial_wavelength = sperm_length / 5.0;
     const double spacial_frequency = 2.0 * M_PI / spacial_wavelength;
-    const double temporal_frequency = 0.01;
+    const double temporal_frequency = 0.1;
     const double time = (timestep_index_ == 0)
                             ? timestep_index_ * timestep_size_
-                            : (timestep_index_ - 5000000) * timestep_size_;  // HARDCODING THE TIME OFFSET
+                            : (timestep_index_ - 5000) * timestep_size_;  // HARDCODING THE TIME OFFSET
 
     auto locally_owned_selector =
         stk::mesh::Selector(centerline_twist_springs_part) & meta_data_ptr_->locally_owned_part();
@@ -1354,17 +1395,106 @@ class SpermSimulation {
     // Check if the rod-rod neighbor list needs updated or not
     bool rod_rod_neighbor_list_needs_updated = true;
     if (rod_rod_neighbor_list_needs_updated) {
+      // Get the locally owned selectors
+      stk::mesh::Selector locally_owned_segments =
+          stk::mesh::Selector(*spherocylinder_segments_part_ptr_) & meta_data_ptr_->locally_owned_part();
+      stk::mesh::Selector locally_owned_segment_segment_linkers =
+          stk::mesh::Selector(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_) &
+          meta_data_ptr_->locally_owned_part();
+        
       // Compute the AABBs for the rods
       debug_print("Computing the AABBs for the rods.");
-      compute_aabb_ptr_->execute(*spherocylinder_segments_part_ptr_);
+      compute_aabb_ptr_->execute(locally_owned_segments);
+
+#ifdef DEBUG
+      {
+        std::vector<size_t> entity_counts;
+        stk::mesh::comm_mesh_counts(*bulk_data_ptr_, entity_counts);
+        debug_print("Entity counts pre distant neighbor linker destruction:");
+        debug_print(std::string("Num nodes: ") + std::to_string(entity_counts[stk::topology::NODE_RANK]));
+        debug_print(std::string("Num edges: ") + std::to_string(entity_counts[stk::topology::EDGE_RANK]));
+        debug_print(std::string("Num elements: ") + std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
+        debug_print(std::string("Num constraints: ") +
+                    std::to_string(entity_counts[stk::topology::CONSTRAINT_RANK]));
+      }
+#endif
 
       // Delete rod-rod neighbor linkers that are too far apart
       debug_print("Deleting rod-rod neighbor linkers that are too far apart.");
-      destroy_neighbor_linkers_ptr_->execute(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
+      Kokkos::Timer timer0;
+      destroy_distant_neighbor_linkers_ptr_->execute(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
+      debug_print("Time to destroy distant neighbor linkers: " + std::to_string(timer0.seconds()));
+
+
+#ifdef DEBUG
+      {
+        std::vector<size_t> entity_counts;
+        stk::mesh::comm_mesh_counts(*bulk_data_ptr_, entity_counts);
+        debug_print("Entity counts post distant neighbor linker destruction:");
+        debug_print(std::string("Num nodes: ") + std::to_string(entity_counts[stk::topology::NODE_RANK]));
+        debug_print(std::string("Num edges: ") + std::to_string(entity_counts[stk::topology::EDGE_RANK]));
+        debug_print(std::string("Num elements: ") + std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
+        debug_print(std::string("Num constraints: ") +
+                    std::to_string(entity_counts[stk::topology::CONSTRAINT_RANK]));
+      
+        // How many of these constraints are valid?
+        size_t local_num_valid_linkers = 0;
+        const stk::mesh::BucketVector &neighbor_linker_buckets =
+            bulk_data_ptr_->get_buckets(stk::topology::CONSTRAINT_RANK, *spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
+        for (size_t bucket_idx = 0; bucket_idx < neighbor_linker_buckets.size(); ++bucket_idx) {
+          stk::mesh::Bucket &neighbor_linker_bucket = *neighbor_linker_buckets[bucket_idx];
+          for (size_t neighbor_linker_idx = 0; neighbor_linker_idx < neighbor_linker_bucket.size(); ++neighbor_linker_idx) {
+            stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
+            if (bulk_data_ptr_->is_valid(neighbor_linker)) {
+              ++local_num_valid_linkers;
+            }
+          }
+        }
+        size_t global_num_valid_linkers = 0;
+        stk::all_reduce_sum(bulk_data_ptr_->parallel(), &local_num_valid_linkers, &global_num_valid_linkers, 1);
+        debug_print("Number of valid neighbor linkers: " + std::to_string(global_num_valid_linkers));
+
+      }
+#endif
 
       // Generate neighbor linkers between nearby rods
       debug_print("Generating neighbor linkers between nearby rods.");
-      generate_neighbor_linkers_ptr_->execute(*spherocylinder_segments_part_ptr_, *spherocylinder_segments_part_ptr_);
+      Kokkos::Timer timer1;
+      generate_neighbor_linkers_ptr_->execute(locally_owned_segments, locally_owned_segments);
+      debug_print("Time to generate neighbor linkers: " + std::to_string(timer1.seconds()));
+
+#ifdef DEBUG
+      {
+        std::vector<size_t> entity_counts;
+        stk::mesh::comm_mesh_counts(*bulk_data_ptr_, entity_counts);
+        debug_print("Entity counts pre bound neighbor linker destruction:");
+        debug_print(std::string("Num nodes: ") + std::to_string(entity_counts[stk::topology::NODE_RANK]));
+        debug_print(std::string("Num edges: ") + std::to_string(entity_counts[stk::topology::EDGE_RANK]));
+        debug_print(std::string("Num elements: ") + std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
+        debug_print(std::string("Num constraints: ") +
+                    std::to_string(entity_counts[stk::topology::CONSTRAINT_RANK]));
+      }
+#endif
+
+      // Destroy any newly created neighbor linkers that connect bound rods
+      debug_print("Destroying any newly created neighbor linkers that connect bound rods.");
+      Kokkos::Timer timer2;
+      destroy_bound_neighbor_linkers_ptr_->execute(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
+      debug_print("Time to destroy bound neighbor linkers: " + std::to_string(timer2.seconds()));
+   
+#ifdef DEBUG
+      {
+        std::vector<size_t> entity_counts;
+        stk::mesh::comm_mesh_counts(*bulk_data_ptr_, entity_counts);
+        debug_print("Entity counts post bound neighbor linker destruction:");
+        debug_print(std::string("Num nodes: ") + std::to_string(entity_counts[stk::topology::NODE_RANK]));
+        debug_print(std::string("Num edges: ") + std::to_string(entity_counts[stk::topology::EDGE_RANK]));
+        debug_print(std::string("Num elements: ") + std::to_string(entity_counts[stk::topology::ELEMENT_RANK]));
+        debug_print(std::string("Num constraints: ") +
+                    std::to_string(entity_counts[stk::topology::CONSTRAINT_RANK]));
+      }
+#endif
+   
     }
 
     // Hertzian contact force evaluation
@@ -1376,9 +1506,9 @@ class SpermSimulation {
     debug_print("Evaluating the Hertzian contact potential between neighboring rods.");
     evaluate_linker_potentials_ptr_->execute(*spherocylinder_segment_spherocylinder_segment_linkers_part_ptr_);
 
-    // Sum the linker potential force magnitude to get the induced node force on each rod
-    debug_print("Summing the linker potential force magnitude to get the induced node force on each rod.");
-    linker_potential_force_magnitude_reduction_ptr_->execute(*spherocylinder_segments_part_ptr_);
+    // Sum the linker potential force to get the induced node force on each rod
+    debug_print("Summing the linker potential force to get the induced node force on each rod.");
+    linker_potential_force_reduction_ptr_->execute(*spherocylinder_segments_part_ptr_);
   }
 
   void update_generalized_position_velocity_and_acceleration() {
@@ -1550,7 +1680,7 @@ class SpermSimulation {
 
         // Update the rest curvature.
         // kappa_rest(t + dt) = amplitude * sin(spacial_frequency * archlength + temporal_frequency * (t + dt)).
-        if (timestep_index_ > 5000000) {
+        if (timestep_index_ > 5000) {
           propagate_rest_curvature();
         }
 
@@ -1625,9 +1755,10 @@ class SpermSimulation {
   std::shared_ptr<mundy::shapes::ComputeAABB::PolymorphicBaseType> compute_aabb_ptr_;
   std::shared_ptr<mundy::linkers::GenerateNeighborLinkers::PolymorphicBaseType> generate_neighbor_linkers_ptr_;
   std::shared_ptr<mundy::linkers::EvaluateLinkerPotentials::PolymorphicBaseType> evaluate_linker_potentials_ptr_;
-  std::shared_ptr<mundy::linkers::LinkerPotentialForceMagnitudeReduction::PolymorphicBaseType>
-      linker_potential_force_magnitude_reduction_ptr_;
-  std::shared_ptr<mundy::linkers::DestroyNeighborLinkers::PolymorphicBaseType> destroy_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::linkers::LinkerPotentialForceReduction::PolymorphicBaseType>
+      linker_potential_force_reduction_ptr_;
+  std::shared_ptr<mundy::linkers::DestroyNeighborLinkers::PolymorphicBaseType> destroy_distant_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::linkers::DestroyNeighborLinkers::PolymorphicBaseType> destroy_bound_neighbor_linkers_ptr_;
   //@}
 
   //! \name Fields
@@ -1653,6 +1784,7 @@ class SpermSimulation {
   stk::mesh::Field<double> *edge_length_field_ptr_;
 
   stk::mesh::Field<double> *element_radius_field_ptr_;
+  stk::mesh::Field<double> *element_aabb_field_ptr_;
   stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
   stk::mesh::Field<double> *element_rest_length_field_ptr_;
@@ -1700,8 +1832,8 @@ class SpermSimulation {
   size_t num_sperm_ = 1;
   size_t num_nodes_per_sperm_ = 10;
   double sperm_radius_ = 0.5;
-  double sperm_initial_segment_length_ = 2 * sperm_radius_;
-  double sperm_rest_segment_length_ = 2 * sperm_radius_;
+  double sperm_initial_segment_length_ = 2.0 * sperm_radius_;
+  double sperm_rest_segment_length_ = 2.0 * sperm_radius_;
   double sperm_rest_curvature_twist_ = 0.0;
   double sperm_rest_curvature_bend1_ = 0.0;
   double sperm_rest_curvature_bend2_ = 0.0;

@@ -37,6 +37,7 @@
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_shapes/Spheres.hpp>          // for mundy::shapes::Spheres
 #include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
 
 namespace mundy {
 
@@ -66,22 +67,24 @@ SphereSpherocylinderHertzianContact::SphereSpherocylinderHertzianContact(mundy::
       valid_fixed_params.get<std::string>("element_youngs_modulus_field_name");
   const std::string element_poissons_ratio_field_name =
       valid_fixed_params.get<std::string>("element_poissons_ratio_field_name");
-
-  const std::string linker_potential_force_magnitude_field_name =
-      valid_fixed_params.get<std::string>("linker_potential_force_magnitude_field_name");
+  const std::string linker_potential_force_field_name =
+      valid_fixed_params.get<std::string>("linker_potential_force_field_name");
   const std::string linker_signed_separation_distance_field_name =
       valid_fixed_params.get<std::string>("linker_signed_separation_distance_field_name");
+  const std::string linker_contact_normal_field_name =
+      valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
 
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
   element_youngs_modulus_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_youngs_modulus_field_name);
   element_poissons_ratio_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_poissons_ratio_field_name);
-
-  linker_potential_force_magnitude_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_magnitude_field_name);
+  linker_potential_force_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_field_name);
   linker_signed_separation_distance_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_signed_separation_distance_field_name);
+  linker_contact_normal_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_normal_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
@@ -92,8 +95,9 @@ SphereSpherocylinderHertzianContact::SphereSpherocylinderHertzianContact(mundy::
   field_exists(element_radius_field_ptr_, element_radius_field_name);
   field_exists(element_youngs_modulus_field_ptr_, element_youngs_modulus_field_name);
   field_exists(element_poissons_ratio_field_ptr_, element_poissons_ratio_field_name);
-  field_exists(linker_potential_force_magnitude_field_ptr_, linker_potential_force_magnitude_field_name);
+  field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
   field_exists(linker_signed_separation_distance_field_ptr_, linker_signed_separation_distance_field_name);
+  field_exists(linker_contact_normal_field_ptr_, linker_contact_normal_field_name);
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
@@ -151,20 +155,21 @@ void SphereSpherocylinderHertzianContact::execute(const stk::mesh::Selector &sph
   const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
   const stk::mesh::Field<double> &element_youngs_modulus_field = *element_youngs_modulus_field_ptr_;
   const stk::mesh::Field<double> &element_poissons_ratio_field = *element_poissons_ratio_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_magnitude_field = *linker_potential_force_magnitude_field_ptr_;
+  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &linker_signed_separation_distance_field =
       *linker_signed_separation_distance_field_ptr_;
+  const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      sphere_spherocylinder_linker_selector;
+  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts = stk::mesh::selectUnion(valid_entity_parts_) &
+                                                                           meta_data_ptr_->locally_owned_part() &
+                                                                           sphere_spherocylinder_linker_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
       [&element_radius_field, &element_youngs_modulus_field, &element_poissons_ratio_field,
-       &linker_potential_force_magnitude_field,
-       &linker_signed_separation_distance_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                 const stk::mesh::Entity &sphere_spherocylinder_linker) {
+       &linker_potential_force_field, &linker_signed_separation_distance_field,
+       &linker_contact_normal_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                     const stk::mesh::Entity &sphere_spherocylinder_linker) {
         // Use references to avoid copying entities
         const stk::mesh::Entity &sphere_element = bulk_data.begin_elements(sphere_spherocylinder_linker)[0];
         const stk::mesh::Entity &spherocylinder_element = bulk_data.begin_elements(sphere_spherocylinder_linker)[1];
@@ -179,6 +184,8 @@ void SphereSpherocylinderHertzianContact::execute(const stk::mesh::Selector &sph
             stk::mesh::field_data(element_poissons_ratio_field, spherocylinder_element)[0];
         const double linker_signed_separation_distance =
             stk::mesh::field_data(linker_signed_separation_distance_field, sphere_spherocylinder_linker)[0];
+        const auto left_contact_normal = mundy::mesh::vector3_field_data(
+            linker_contact_normal_field, sphere_spherocylinder_linker);
 
         const double effective_radius =
             (sphere_radius * spherocylinder_radius) / (sphere_radius + spherocylinder_radius);
@@ -188,15 +195,17 @@ void SphereSpherocylinderHertzianContact::execute(const stk::mesh::Selector &sph
              spherocylinder_youngs_modulus * sphere_poissons_ratio * sphere_poissons_ratio + sphere_youngs_modulus -
              sphere_youngs_modulus * spherocylinder_poissons_ratio * spherocylinder_poissons_ratio);
 
-        // Only apply force to overlapping particles
+        // Compute the force for overlapping particles
         // Note, signed separation distance is negative when particles overlap, so delta = -signed_separation_distance.
-        double *linker_potential_force_magnitude =
-            stk::mesh::field_data(linker_potential_force_magnitude_field, sphere_spherocylinder_linker);
         const bool do_particles_overlap = linker_signed_separation_distance < 0;
-        linker_potential_force_magnitude[0] =
+        const double normal_force_magnitude =
             do_particles_overlap ? (4.0 / 3.0) * effective_youngs_modulus * std::sqrt(effective_radius) *
                                        std::pow(-linker_signed_separation_distance, 1.5)
                                  : 0.0;
+
+        // Save the contact force (Forces are equal and opposite, so we only save the left force)
+        mundy::mesh::vector3_field_data(linker_potential_force_field, sphere_spherocylinder_linker) =
+            -left_contact_normal * normal_force_magnitude;
       });
 }
 

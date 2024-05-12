@@ -146,15 +146,15 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
 
         // Populate the AABB.
         double *aabb = stk::mesh::field_data(element_aabb_field, spherocylinder_segment_element);
-        auto bottom_left = mundy::math::get_vector3_view<double>(aabb);
-        auto top_right = mundy::math::get_vector3_view<double>(aabb + 3);
+        auto min_xyz = mundy::math::get_vector3_view<double>(aabb);
+        auto max_xyz = mundy::math::get_vector3_view<double>(aabb + 3);
 
-        bottom_left[0] = std::min(left_node_coord[0], right_node_coord[0]) - radius - buffer_distance;
-        bottom_left[1] = std::min(left_node_coord[1], right_node_coord[1]) - radius - buffer_distance;
-        bottom_left[2] = std::min(left_node_coord[2], right_node_coord[2]) - radius - buffer_distance;
-        top_right[0] = std::max(left_node_coord[0], right_node_coord[0]) + radius + buffer_distance;
-        top_right[1] = std::max(left_node_coord[1], right_node_coord[1]) + radius + buffer_distance;
-        top_right[2] = std::max(left_node_coord[2], right_node_coord[2]) + radius + buffer_distance;
+        min_xyz[0] = std::min(left_node_coord[0], right_node_coord[0]) - radius - buffer_distance;
+        min_xyz[1] = std::min(left_node_coord[1], right_node_coord[1]) - radius - buffer_distance;
+        min_xyz[2] = std::min(left_node_coord[2], right_node_coord[2]) - radius - buffer_distance;
+        max_xyz[0] = std::max(left_node_coord[0], right_node_coord[0]) + radius + buffer_distance;
+        max_xyz[1] = std::max(left_node_coord[1], right_node_coord[1]) + radius + buffer_distance;
+        max_xyz[2] = std::max(left_node_coord[2], right_node_coord[2]) + radius + buffer_distance;
       });
 }
 //}

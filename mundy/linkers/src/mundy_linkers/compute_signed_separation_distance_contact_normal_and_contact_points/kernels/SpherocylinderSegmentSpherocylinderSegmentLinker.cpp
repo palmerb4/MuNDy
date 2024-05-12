@@ -215,6 +215,7 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
             3);
         double *signed_separation_distance = stk::mesh::field_data(
             linker_signed_separation_distance_field, spherocylinder_segment_spherocylinder_segment_linker);
+        
         signed_separation_distance[0] = separation_distance;
         contact_normal = left_to_right_vector * inv_distance;
         spherocylinder_segment1_contact_point = closest_point1 + spherocylinder_segment1_radius * contact_normal;

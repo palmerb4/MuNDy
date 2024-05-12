@@ -140,7 +140,7 @@ Order of operations:
 
     // Pairwise potentials
     - Evaluate the Hertzian contact potential between neighboring spheres
-    - Sum the linker potential force magnitude to get the induced node force on each sphere
+    - Sum the linker potential force to get the induced node force on each sphere
 
     // Motion
     - Compute the velocity induced by the node forces using local drag
@@ -178,7 +178,7 @@ Order of operations:
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                   // for mundy::mesh::MetaData
@@ -422,13 +422,13 @@ int main(int argc, char **argv) {
   mesh_reqs_ptr->sync(
       mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params));
 
-  // LinkerPotentialForceMagnitudeReduction fixed parameters
-  auto linker_potential_force_magnitude_reduction_fixed_params =
+  // LinkerPotentialForceReduction fixed parameters
+  auto linker_potential_force_reduction_fixed_params =
       Teuchos::ParameterList()
           .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
           .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS");
-  mesh_reqs_ptr->sync(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
-      linker_potential_force_magnitude_reduction_fixed_params));
+  mesh_reqs_ptr->sync(mundy::linkers::LinkerPotentialForceReduction::get_mesh_requirements(
+      linker_potential_force_reduction_fixed_params));
 
   // DestroyNeighborLinkers fixed parameters
   auto destroy_neighbor_linkers_fixed_params =
@@ -476,9 +476,9 @@ int main(int argc, char **argv) {
       bulk_data_ptr.get(), generate_crosslinker_sphere_neighbor_linkers_fixed_params);
   auto evaluate_linker_potentials_ptr = mundy::linkers::EvaluateLinkerPotentials::create_new_instance(
       bulk_data_ptr.get(), evaluate_linker_potentials_fixed_params);
-  auto linker_potential_force_magnitude_reduction_ptr =
-      mundy::linkers::LinkerPotentialForceMagnitudeReduction::create_new_instance(
-          bulk_data_ptr.get(), linker_potential_force_magnitude_reduction_fixed_params);
+  auto linker_potential_force_reduction_ptr =
+      mundy::linkers::LinkerPotentialForceReduction::create_new_instance(
+          bulk_data_ptr.get(), linker_potential_force_reduction_fixed_params);
   auto destroy_neighbor_linkers_ptr = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
       bulk_data_ptr.get(), destroy_neighbor_linkers_fixed_params);
   auto declare_and_init_constraints_ptr = mundy::constraints::DeclareAndInitConstraints::create_new_instance(
@@ -703,7 +703,7 @@ int main(int argc, char **argv) {
     // Potential evaluation (Hertzian contact)
     compute_ssd_and_cn_ptr->execute(sphere_sphere_linkers_part);
     evaluate_linker_potentials_ptr->execute(sphere_sphere_linkers_part);
-    linker_potential_force_magnitude_reduction_ptr->execute(spheres_part);
+    linker_potential_force_reduction_ptr->execute(spheres_part);
 
     // Computing the mobility of the nonorientable spheres
     stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()),

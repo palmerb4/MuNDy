@@ -1,6 +1,6 @@
 tribits_package_define_dependencies(
-  LIB_REQUIRED_PACKAGES MundyCore MundyMath MundyMesh MundyMeta MundyAgents
-  LIB_OPTIONAL_PACKAGES MundyShapes
+  LIB_REQUIRED_PACKAGES MundyCore MundyMath MundyMesh MundyMeta MundyAgents MundyShapes
+  LIB_OPTIONAL_PACKAGES
   TEST_REQUIRED_PACKAGES
   TEST_OPTIONAL_PACKAGES
   LIB_REQUIRED_TPLS STK Teuchos

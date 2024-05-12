@@ -79,23 +79,22 @@ class ComputeBrownianVelocity
 
   /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("node_brownian_velocity_field_name",
-                               std::string(default_node_brownian_velocity_field_name_),
-                               "Name of the node broenian velocity field.");
-    default_parameter_list.set("node_rng_counter_field_name", std::string(default_node_rng_counter_field_name_),
-                               "Name of the node rng counter for generating new parallel streams.");
+    const static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("node_brownian_velocity_field_name", std::string(default_node_brownian_velocity_field_name_),
+                 "Name of the node broenian velocity field.")
+            .set("node_rng_counter_field_name", std::string(default_node_rng_counter_field_name_),
+                 "Name of the node rng counter for generating new parallel streams.");
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("time_step_size", default_time_step_size_, "The timestep size.");
-    default_parameter_list.set("alpha", default_alpha_,
-                               "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
-    default_parameter_list.set("beta", default_beta_,
-                               "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
+    const static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("time_step_size", default_time_step_size_, "The timestep size.")
+            .set("alpha", default_alpha_, "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.")
+            .set("beta", default_beta_, "Scale for the brownian velocity such that V = beta * V0 + alpha * Vnew.");
     return default_parameter_list;
   }
   //@}

@@ -23,6 +23,7 @@ SET(NOINSTALLHEADERS
   include/mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SpherocylinderSpherocylinderLinker.hpp
   include/mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SpherocylinderSpherocylinderSegmentLinker.hpp
   include/mundy_linkers/DestroyNeighborLinkers.hpp
+  include/mundy_linkers/destroy_neighbor_linkers/techniques/DestroyBoundNeighbors.hpp
   include/mundy_linkers/destroy_neighbor_linkers/techniques/DestroyDistantNeighbors.hpp
   include/mundy_linkers/EvaluateLinkerPotentials.hpp
   include/mundy_linkers/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.hpp
@@ -33,10 +34,10 @@ SET(NOINSTALLHEADERS
   include/mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSpherocylinderSegmentHertzianContact.hpp
   include/mundy_linkers/GenerateNeighborLinkers.hpp
   include/mundy_linkers/generate_neighbor_linkers/techniques/STKSearch.hpp
-  include/mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp
-  include/mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Sphere.hpp
-  include/mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Spherocylinder.hpp
-  include/mundy_linkers/linker_potential_force_magnitude_reduction/kernels/SpherocylinderSegment.hpp
+  include/mundy_linkers/LinkerPotentialForceReduction.hpp
+  include/mundy_linkers/linker_potential_force_reduction/kernels/Sphere.hpp
+  include/mundy_linkers/linker_potential_force_reduction/kernels/Spherocylinder.hpp
+  include/mundy_linkers/linker_potential_force_reduction/kernels/SpherocylinderSegment.hpp
   include/mundy_linkers/Linkers.hpp
   include/mundy_linkers/NeighborLinkers.hpp
   include/mundy_linkers/neighbor_linkers/SphereSphereLinkers.hpp
@@ -54,6 +55,7 @@ SET(SOURCES
   src/mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SpherocylinderSegmentSpherocylinderSegmentLinker.cpp
   src/mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SpherocylinderSpherocylinderLinker.cpp
   src/mundy_linkers/compute_signed_separation_distance_contact_normal_and_contact_points/kernels/SpherocylinderSpherocylinderSegmentLinker.cpp
+  src/mundy_linkers/destroy_neighbor_linkers/techniques/DestroyBoundNeighbors.cpp
   src/mundy_linkers/destroy_neighbor_linkers/techniques/DestroyDistantNeighbors.cpp
   src/mundy_linkers/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.cpp
   src/mundy_linkers/evaluate_linker_potentials/kernels/SphereSpherocylinderHertzianContact.cpp
@@ -62,9 +64,9 @@ SET(SOURCES
   src/mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSpherocylinderHertzianContact.cpp
   src/mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSpherocylinderSegmentHertzianContact.cpp
   src/mundy_linkers/generate_neighbor_linkers/techniques/STKSearch.cpp
-  src/mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Sphere.cpp
-  src/mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Spherocylinder.cpp
-  src/mundy_linkers/linker_potential_force_magnitude_reduction/kernels/SpherocylinderSegment.cpp
+  src/mundy_linkers/linker_potential_force_reduction/kernels/Sphere.cpp
+  src/mundy_linkers/linker_potential_force_reduction/kernels/Spherocylinder.cpp
+  src/mundy_linkers/linker_potential_force_reduction/kernels/SpherocylinderSegment.cpp
 )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

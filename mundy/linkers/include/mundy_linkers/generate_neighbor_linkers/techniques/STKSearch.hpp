@@ -43,7 +43,7 @@
 #include <mundy_linkers/NeighborLinkers.hpp>                          // for mundy::linkers::NeighborLinkers
 #include <mundy_mesh/BulkData.hpp>                                    // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                    // for mundy::mesh::MetaData
-#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>                                    // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                                  // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodPairwiseSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
@@ -137,8 +137,7 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(STKSearch::get_valid_fixed_params());
 
@@ -188,18 +187,19 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("valid_source_entity_part_names", mundy::core::make_string_array(universal_part_name_),
-                               "Name of the source parts associated with this pairwise meta method.");
-    default_parameter_list.set("valid_target_entity_part_names", mundy::core::make_string_array(universal_part_name_),
-                               "Name of the target parts associated with this pairwise meta method.");
-    default_parameter_list.set(
-        "specialized_neighbor_linkers_part_names",
-        mundy::core::make_string_array(default_specialized_neighbor_linkers_part_name_),
-        "The part names to which we will add the generated neighbor linkers. This should be a specialization of the "
-        "neighbor linkers part or the neighbor linkers part itself.");
-    default_parameter_list.set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
-                               "Name of the element field containing the output axis-aligned boundary boxes.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("valid_source_entity_part_names", mundy::core::make_string_array(universal_part_name_),
+                 "Name of the source parts associated with this pairwise meta method.")
+            .set("valid_target_entity_part_names", mundy::core::make_string_array(universal_part_name_),
+                 "Name of the target parts associated with this pairwise meta method.")
+            .set("specialized_neighbor_linkers_part_names",
+                 mundy::core::make_string_array(default_specialized_neighbor_linkers_part_name_),
+                 "The part names to which we will add the generated neighbor linkers. This should be a specialization "
+                 "of the "
+                 "neighbor linkers part or the neighbor linkers part itself.")
+            .set("element_aabb_field_name", std::string(default_element_aabb_field_name_),
+                 "Name of the element field containing the output axis-aligned boundary boxes.");
     return default_parameter_list;
   }
 

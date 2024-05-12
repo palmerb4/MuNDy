@@ -272,6 +272,15 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       ASSERT_EQ(static_cast<int>(sphere_j_gid), process_rank) << "Neighbor linkers should connect neighboring spheres.";
     }
   }
+
+  // Check that we don't create duplicate neighbor linkers when re-running the neighbor linker generation.
+  generate_neighbor_linkers_ptr->execute(*spheres_part_ptr, *spheres_part_ptr);
+
+  // Get the total number of spheres and linkers. Must be called parallel synchronously.
+  std::vector<size_t> new_entity_counts;
+  stk::mesh::comm_mesh_counts(*bulk_data_ptr, new_entity_counts);
+  const size_t new_total_num_linkers = new_entity_counts[stk::topology::CONSTRAINT_RANK];
+  EXPECT_EQ(new_total_num_linkers, bulk_data_ptr->parallel_size() - 1) << "Neighbor linkers should not be duplicated.";
 }
 
 TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSpheres) {

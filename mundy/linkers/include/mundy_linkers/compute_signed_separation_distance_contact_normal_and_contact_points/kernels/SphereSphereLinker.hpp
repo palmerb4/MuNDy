@@ -39,13 +39,13 @@
 #include <mundy_linkers/neighbor_linkers/SphereSphereLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSphereLinkers
 #include <mundy_mesh/BulkData.hpp>                                 // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                 // for mundy::mesh::MetaData
-#include <mundy_meta/FieldReqs.hpp>                        // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqs.hpp>                                // for mundy::meta::FieldReqs
 #include <mundy_meta/MetaFactory.hpp>                              // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                               // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>                             // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
-#include <mundy_shapes/Spheres.hpp>         // for mundy::shapes::Spheres
+#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
+#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 
 namespace mundy {
 
@@ -146,30 +146,26 @@ class SphereSphereLinker : public mundy::meta::MetaKernel<> {
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("valid_entity_part_names",
-                               mundy::core::make_string_array(neighbor_linkers::SphereSphereLinkers::get_name()),
-                               "List of valid entity part names for the kernel.");
-
     // Soap box: Why do we allow the user to specify valid_sphere_part_names rather than simply applying requirements
     // to the SPHERES part? Well, users might not want to apply the requirements to the SPHERES part. They might want to
     // apply the requirements to a subset of the SPHERES part. Why apply the requirements of this class to all spheres
     // if it'll only be used on a subset of them?
-    default_parameter_list.set("valid_sphere_part_names",
-                               mundy::core::make_string_array(mundy::shapes::Spheres::get_name()),
-                               "List of valid sphere part names for the kernel.");
-    default_parameter_list.set(
-        "linker_signed_separation_distance_field_name",
-        std::string(default_linker_signed_separation_distance_field_name_),
-        "Name of the constraint-rank field within which the signed separation distance will be written.");
-    default_parameter_list.set("linker_contact_normal_field_name",
-                               std::string(default_linker_contact_normal_field_name_),
-                               "Name of the constraint-rank field within which the contact normal (pointing from left "
-                               "entity to right entity) will be written.");
-    default_parameter_list.set("linker_contact_points_field_name",
-                               std::string(default_linker_contact_points_field_name_),
-                               "Name of the constraint-rank field within which the contact points will be written. The "
-                               "first three entries are the left contact point and the next three the right.");
+    const static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("valid_entity_part_names",
+                 mundy::core::make_string_array(neighbor_linkers::SphereSphereLinkers::get_name()),
+                 "List of valid entity part names for the kernel.")
+            .set("valid_sphere_part_names", mundy::core::make_string_array(mundy::shapes::Spheres::get_name()),
+                 "List of valid sphere part names for the kernel.")
+            .set("linker_signed_separation_distance_field_name",
+                 std::string(default_linker_signed_separation_distance_field_name_),
+                 "Name of the constraint-rank field within which the signed separation distance will be written.")
+            .set("linker_contact_normal_field_name", std::string(default_linker_contact_normal_field_name_),
+                 "Name of the constraint-rank field within which the contact normal (pointing from left "
+                 "entity to right entity) will be written.")
+            .set("linker_contact_points_field_name", std::string(default_linker_contact_points_field_name_),
+                 "Name of the constraint-rank field within which the contact points will be written. The "
+                 "first three entries are the left contact point and the next three the right.");
     return default_parameter_list;
   }
 

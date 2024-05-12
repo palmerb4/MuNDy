@@ -51,8 +51,8 @@
             - Evaluate the Hertzian contact potential between neighboring rods
             (Using mundy's EvaluateLinkerPotentials function)
 
-            - Sum the linker potential force magnitude to get the induced node force on each rod
-            (Using mundy's LinkerPotentialForceMagnitudeReduction function)
+            - Sum the linker potential force to get the induced node force on each rod
+            (Using mundy's LinkerPotentialForceReduction function)
         }
 
         // Centerline twist rod model

@@ -32,17 +32,18 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>                                                  // for MUNDY_THROW_ASSERT
-#include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/Sphere.hpp>  // for mundy::linkers::...::kernels::Sphere
-#include <mundy_math/Vector3.hpp>                                                       // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>                                                      // for mundy::mesh::BulkData
-#include <mundy_shapes/Spheres.hpp>                                                     // for mundy::shapes::Spheres
+#include <mundy_core/throw_assert.hpp>                                        // for MUNDY_THROW_ASSERT
+#include <mundy_linkers/linker_potential_force_reduction/kernels/Sphere.hpp>  // for mundy::linkers::...::kernels::Sphere
+#include <mundy_math/Vector3.hpp>                                             // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>                                            // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_shapes/Spheres.hpp>   // for mundy::shapes::Spheres
 
 namespace mundy {
 
 namespace linkers {
 
-namespace linker_potential_force_magnitude_reduction {
+namespace linker_potential_force_reduction {
 
 namespace kernels {
 
@@ -61,26 +62,20 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
   // Get the field pointers.
-  const std::string linker_contact_normal_field_name =
-      valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
-  const std::string linker_potential_force_magnitude_field_name =
-      valid_fixed_params.get<std::string>("linker_potential_force_magnitude_field_name");
-
+  const std::string linker_potential_force_field_name =
+      valid_fixed_params.get<std::string>("linker_potential_force_field_name");
   const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
 
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
-  linker_contact_normal_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_normal_field_name);
-  linker_potential_force_magnitude_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_magnitude_field_name);
+  linker_potential_force_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
                        "Sphere: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
-  field_exists(linker_contact_normal_field_ptr_, linker_contact_normal_field_name);
-  field_exists(linker_potential_force_magnitude_field_ptr_, linker_potential_force_magnitude_field_name);
+  field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
   field_exists(node_force_field_ptr_, node_force_field_name);
 
   // Get the part pointers.
@@ -127,11 +122,10 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
   // Communicate the linker fields.
   stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-                                    {linker_contact_normal_field_ptr_, linker_potential_force_magnitude_field_ptr_});
+                                    {linker_potential_force_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
-  const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_magnitude_field = *linker_potential_force_magnitude_field_ptr_;
+  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
   stk::mesh::Part &linkers_part_to_reduce_over = *linkers_part_to_reduce_over_;
 
@@ -140,11 +134,11 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
-      [&linker_contact_normal_field, &linker_potential_force_magnitude_field, &node_force_field,
-       &linkers_part_to_reduce_over](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere) {
+      [&linker_potential_force_field, &node_force_field, &linkers_part_to_reduce_over](
+          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere) {
         // Get our node and its force
         const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere)[0];
-        double *node_force = stk::mesh::field_data(node_force_field, node);
+        auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
 
         // Loop over the connected constraint rank entities
         const unsigned num_constraint_rank_conn = bulk_data.num_connectivity(sphere, stk::topology::CONSTRAINT_RANK);
@@ -158,18 +152,15 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
           const bool is_reduction_linker = bulk_data.bucket(connected_linker).member(linkers_part_to_reduce_over);
 
           if (is_reduction_linker) {
-            // The contact normal stored on a linker points from the left element to the right element. This is
-            // important, as it means we should multiply by -1 if we are the right element.
+            // The linker force is the force on the left element. The force on the right element is equal and opposite.
+            // This is important, as it means we should multiply by -1 if we are the right element.
             const bool are_we_the_left_sphere =
                 (bulk_data.begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == sphere);
             const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
-            double *contact_normal = stk::mesh::field_data(linker_contact_normal_field, connected_linker);
-            double *potential_force_magnitude =
-                stk::mesh::field_data(linker_potential_force_magnitude_field, connected_linker);
+            const auto potential_force =
+                sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
-            node_force[0] -= sign * contact_normal[0] * potential_force_magnitude[0];
-            node_force[1] -= sign * contact_normal[1] * potential_force_magnitude[0];
-            node_force[2] -= sign * contact_normal[2] * potential_force_magnitude[0];
+            node_force += potential_force;
           }
         }
       });
@@ -178,7 +169,7 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
 
 }  // namespace kernels
 
-}  // namespace linker_potential_force_magnitude_reduction
+}  // namespace linker_potential_force_reduction
 
 }  // namespace linkers
 

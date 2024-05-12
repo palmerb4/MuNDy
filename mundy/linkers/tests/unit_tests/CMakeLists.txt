@@ -61,8 +61,8 @@ tribits_add_executable_and_test(
   )
 
 tribits_add_executable_and_test(
-  UnitTestLinkerPotentialForceMagnitudeReduction
+  UnitTestLinkerPotentialForceReduction
   SOURCES
-  UnitTestLinkerPotentialForceMagnitudeReduction.cpp
+  UnitTestLinkerPotentialForceReduction.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   )

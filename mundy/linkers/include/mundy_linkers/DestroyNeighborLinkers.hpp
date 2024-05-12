@@ -33,6 +33,7 @@
 // Mundy libs
 #include <mundy_core/StringLiteral.hpp>  // for mundy::core::make_string_literal
 #include <mundy_linkers/destroy_neighbor_linkers/techniques/DestroyDistantNeighbors.hpp>  // for mundy::linkers::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors
+#include <mundy_linkers/destroy_neighbor_linkers/techniques/DestroyBoundNeighbors.hpp>  // for mundy::linkers::destroy_neighbor_linkers::techniques::DestroyBoundNeighbors
 #include <mundy_mesh/BulkData.hpp>                                                        // for mundy::mesh::BulkData
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::GlobalMetaMethodRegistry
@@ -111,6 +112,9 @@ class DestroyNeighborLinkers
 /// @brief Register our default techniques
 MUNDY_REGISTER_METACLASS("DESTROY_DISTANT_NEIGHBORS",
                          mundy::linkers::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors,
+                         mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory)
+MUNDY_REGISTER_METACLASS("DESTROY_BOUND_NEIGHBORS",
+                         mundy::linkers::destroy_neighbor_linkers::techniques::DestroyBoundNeighbors,
                          mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory)
 
 //@}

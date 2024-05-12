@@ -86,15 +86,14 @@ class ComputeSignedSeparationDistanceAndContactNormal
 
   /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set(
-        "linker_signed_separation_distance_field_name",
-        std::string(default_linker_signed_separation_distance_field_name_),
-        "Name of the constraint-rank field within which the signed separation distance will be written.");
-    default_parameter_list.set("linker_contact_normal_field_name",
-                               std::string(default_linker_contact_normal_field_name_),
-                               "Name of the constraint-rank field within which the contact normal (pointing from left "
-                               "entity to right entity) will be written.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("linker_signed_separation_distance_field_name",
+                 std::string(default_linker_signed_separation_distance_field_name_),
+                 "Name of the constraint-rank field within which the signed separation distance will be written.")
+            .set("linker_contact_normal_field_name", std::string(default_linker_contact_normal_field_name_),
+                 "Name of the constraint-rank field within which the contact normal (pointing from left "
+                 "entity to right entity) will be written.");
     return default_parameter_list;
   }
 

@@ -40,12 +40,12 @@
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSpherocylinderSegmentLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SpherocylinderSpherocylinderSegmentLinkers
 #include <mundy_mesh/BulkData.hpp>                                                        // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                                        // for mundy::mesh::MetaData
-#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
-#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/FieldReqs.hpp>                                                       // for mundy::meta::FieldReqs
+#include <mundy_meta/MetaFactory.hpp>   // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>    // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartReqs.hpp>          // for mundy::meta::PartReqs
+#include <mundy_meta/PartReqs.hpp>                  // for mundy::meta::PartReqs
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 #include <mundy_shapes/Spherocylinders.hpp>         // for mundy::shapes::Spherocylinders
 
@@ -96,8 +96,8 @@ namespace kernels {
 /// kernel.
 /// - "valid_spherocylinder_segment_part_names" (Teuchos::Array<std::string>): The list of valid spherocylinder_segment
 /// part names for the kernel.
-/// - "linker_potential_force_magnitude_field_name" (std::string): The name of the field in which to write the linker's
-/// potential force magnitude.
+/// - "linker_potential_force_field_name" (std::string): The name of the field in which to write the linker's
+/// potential force.
 /// - "linker_signed_separation_distance_field_name" (std::string): The name of the field in which to write the signed
 /// separation distance.
 /// - "element_youngs_modulus_field_name" (std::string): The name of the field in which to read the Young's modulus.
@@ -138,10 +138,12 @@ class SpherocylinderSpherocylinderSegmentHertzianContact : public mundy::meta::M
 
     // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
-    std::string linker_potential_force_magnitude_field_name =
-        valid_fixed_params.get<std::string>("linker_potential_force_magnitude_field_name");
+    std::string linker_potential_force_field_name =
+        valid_fixed_params.get<std::string>("linker_potential_force_field_name");
     std::string linker_signed_separation_distance_field_name =
         valid_fixed_params.get<std::string>("linker_signed_separation_distance_field_name");
+    std::string linker_contact_normal_field_name =
+        valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
 
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     const int num_linker_parts = static_cast<int>(valid_entity_part_names.size());
@@ -149,10 +151,10 @@ class SpherocylinderSpherocylinderSegmentHertzianContact : public mundy::meta::M
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs<double>(linker_potential_force_magnitude_field_name, stk::topology::CONSTRAINT_RANK, 1,
-                                        1);
+      part_reqs->add_field_reqs<double>(linker_potential_force_field_name, stk::topology::CONSTRAINT_RANK, 3, 1);
       part_reqs->add_field_reqs<double>(linker_signed_separation_distance_field_name, stk::topology::CONSTRAINT_RANK, 1,
                                         1);
+      part_reqs->add_field_reqs<double>(linker_contact_normal_field_name, stk::topology::CONSTRAINT_RANK, 3, 1);
 
       if (part_name == neighbor_linkers::SpherocylinderSpherocylinderSegmentLinkers::get_name()) {
         // Add the requirements directly to spherocylinder_segment spherocylinder_segment linkers agent.
@@ -216,31 +218,29 @@ class SpherocylinderSpherocylinderSegmentHertzianContact : public mundy::meta::M
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set(
-        "valid_entity_part_names",
-        mundy::core::make_string_array(neighbor_linkers::SpherocylinderSpherocylinderSegmentLinkers::get_name()),
-        "List of valid entity part names for the kernel.");
-    default_parameter_list.set("valid_spherocylinder_part_names",
-                               mundy::core::make_string_array(mundy::shapes::Spherocylinders::get_name()),
-                               "List of valid spherocylinder part names for the kernel.");
-    default_parameter_list.set("valid_spherocylinder_segment_part_names",
-                               mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()),
-                               "List of valid spherocylinder_segment part names for the kernel.");
-    default_parameter_list.set(
-        "linker_potential_force_magnitude_field_name",
-        std::string(default_linker_potential_force_magnitude_field_name_),
-        "Name of the constraint-rank field within which the linker's potential force magnitude will be written.");
-    default_parameter_list.set(
-        "linker_signed_separation_distance_field_name",
-        std::string(default_linker_signed_separation_distance_field_name_),
-        "Name of the constraint-rank field within which the signed separation distance will be written.");
-    default_parameter_list.set("element_youngs_modulus_field_name",
-                               std::string(default_element_youngs_modulus_field_name_),
-                               "Name of the element-rank field from which the Young's modulus will be read.");
-    default_parameter_list.set("element_poissons_ratio_field_name",
-                               std::string(default_element_poissons_ratio_field_name_),
-                               "Name of the element-rank field from which the Poisson's ratio will be read.");
+    const static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("valid_entity_part_names",
+                 mundy::core::make_string_array(
+                     neighbor_linkers::SpherocylinderSpherocylinderSegmentLinkers::get_name()),
+                 "List of valid entity part names for the kernel.")
+            .set("valid_spherocylinder_part_names",
+                 mundy::core::make_string_array(mundy::shapes::Spherocylinders::get_name()),
+                 "List of valid spherocylinder part names for the kernel.")
+            .set("valid_spherocylinder_segment_part_names",
+                 mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()),
+                 "List of valid spherocylinder_segment part names for the kernel.")
+            .set("linker_potential_force_field_name", std::string(default_linker_potential_force_field_name_),
+                 "Name of the constraint-rank field within which the linker's potential force will be written.")
+            .set("linker_signed_separation_distance_field_name",
+                 std::string(default_linker_signed_separation_distance_field_name_),
+                 "Name of the constraint-rank field within which the signed separation distance will be written.")
+            .set("linker_contact_normal_field_name", std::string(default_linker_contact_normal_field_name_),
+                 "Name of the constraint-rank field within which the contact normal will be written.")
+            .set("element_youngs_modulus_field_name", std::string(default_element_youngs_modulus_field_name_),
+                 "Name of the element-rank field from which the Young's modulus will be read.")
+            .set("element_poissons_ratio_field_name", std::string(default_element_poissons_ratio_field_name_),
+                 "Name of the element-rank field from which the Poisson's ratio will be read.");
     return default_parameter_list;
   }
 
@@ -280,10 +280,10 @@ class SpherocylinderSpherocylinderSegmentHertzianContact : public mundy::meta::M
   //! \name Default parameters
   //@{
 
-  static constexpr std::string_view default_linker_potential_force_magnitude_field_name_ =
-      "LINKER_POTENTIAL_FORCE_MAGNITUDE";
+  static constexpr std::string_view default_linker_potential_force_field_name_ = "linker_potential_force";
   static constexpr std::string_view default_linker_signed_separation_distance_field_name_ =
       "LINKER_SIGNED_SEPARATION_DISTANCE";
+  static constexpr std::string_view default_linker_contact_normal_field_name_ = "LINKER_CONTACT_NORMAL";
   static constexpr std::string_view default_element_youngs_modulus_field_name_ = "ELEMENT_YOUNGS_MODULUS";
   static constexpr std::string_view default_element_poissons_ratio_field_name_ = "ELEMENT_POISSONS_RATIO";
   //@}
@@ -315,11 +315,14 @@ class SpherocylinderSpherocylinderSegmentHertzianContact : public mundy::meta::M
   /// \brief Element poisson's ratio field.
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_ = nullptr;
 
-  /// \brief Linker potential force magnitude field.
-  stk::mesh::Field<double> *linker_potential_force_magnitude_field_ptr_ = nullptr;
+  /// \brief Linker potential force field.
+  stk::mesh::Field<double> *linker_potential_force_field_ptr_ = nullptr;
 
   /// \brief Linker signed separation distance field.
   stk::mesh::Field<double> *linker_signed_separation_distance_field_ptr_ = nullptr;
+
+  /// \brief Linker contact normal field.
+  stk::mesh::Field<double> *linker_contact_normal_field_ptr_ = nullptr;
   //@}
 };  // SpherocylinderSpherocylinderSegmentHertzianContact
 

@@ -42,7 +42,7 @@
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                      // for mundy::mesh::MetaData
-#include <mundy_meta/MeshReqs.hpp>              // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>                      // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                   // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                    // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>  // for mundy::meta::MetaMethodExecutionInterface
@@ -122,8 +122,7 @@ class GridOfSpheres : public mundy::meta::MetaMethodExecutionInterface<void> {
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(GridOfSpheres::get_valid_fixed_params());
 
@@ -148,30 +147,29 @@ class GridOfSpheres : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("sphere_part_names", mundy::core::make_string_array(default_sphere_part_name_),
-                               "The names of the parts to which we will add the generated spheres.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList().set("sphere_part_names", mundy::core::make_string_array(default_sphere_part_name_),
+                                     "The names of the parts to which we will add the generated spheres.");
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("num_spheres_x", default_num_spheres_x_, "The number of spheres in the x direction.");
-    default_parameter_list.set("num_spheres_y", default_num_spheres_y_, "The number of spheres in the y direction.");
-    default_parameter_list.set("num_spheres_z", default_num_spheres_z_, "The number of spheres in the z direction.");
-    default_parameter_list.set<std::shared_ptr<GridCoordinateMapping>>(
-        "coordinate_mapping", std::make_shared<IdentityMap>(),
-        "The user-defined map function for the sphere coordinates.");
-    default_parameter_list.set("sphere_radius_lower_bound", default_sphere_radius_lower_bound_,
-                               "The lower bound on the sphere radius.");
-    default_parameter_list.set("sphere_radius_upper_bound", default_sphere_radius_upper_bound_,
-                               "The upper bound on the sphere radius.");
-    default_parameter_list.set("zmorton", default_zmorton_,
-                               "If true, we use the Z-order Morton curve to decide how to assign IDs to the spheres "
-                               "in a way that is more cache-friendly. If false, we use a simple row-major ordering.");
-    default_parameter_list.set("shuffle", default_shuffle_,
-                               "If true, we shuffle the order of the spheres post initialization.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("num_spheres_x", default_num_spheres_x_, "The number of spheres in the x direction.")
+            .set("num_spheres_y", default_num_spheres_y_, "The number of spheres in the y direction.")
+            .set("num_spheres_z", default_num_spheres_z_, "The number of spheres in the z direction.")
+            .set<std::shared_ptr<GridCoordinateMapping>>("coordinate_mapping", std::make_shared<IdentityMap>(),
+                                                         "The user-defined map function for the sphere coordinates.")
+            .set("sphere_radius_lower_bound", default_sphere_radius_lower_bound_,
+                 "The lower bound on the sphere radius.")
+            .set("sphere_radius_upper_bound", default_sphere_radius_upper_bound_,
+                 "The upper bound on the sphere radius.")
+            .set("zmorton", default_zmorton_,
+                 "If true, we use the Z-order Morton curve to decide how to assign IDs to the spheres "
+                 "in a way that is more cache-friendly. If false, we use a simple row-major ordering.")
+            .set("shuffle", default_shuffle_, "If true, we shuffle the order of the spheres post initialization.");
 
     return default_parameter_list;
   }

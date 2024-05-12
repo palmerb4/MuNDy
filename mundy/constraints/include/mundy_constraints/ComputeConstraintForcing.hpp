@@ -73,19 +73,19 @@ class ComputeConstraintForcing
 
   /// \brief Get the valid mutable parameters that we require our techniques have.
   static Teuchos::ParameterList get_valid_required_kernel_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    const static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
 
   /// \brief Get the valid fixed parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    const static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters that we will forward to our kernels.
   static Teuchos::ParameterList get_valid_forwarded_kernel_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    const static Teuchos::ParameterList default_parameter_list;
     return default_parameter_list;
   }
   //@}

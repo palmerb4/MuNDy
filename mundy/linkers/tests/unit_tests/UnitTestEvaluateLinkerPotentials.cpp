@@ -46,8 +46,9 @@
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSpherocylinderLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SpherocylinderSpherocylinderLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSpherocylinderSegmentLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SpherocylinderSpherocylinderSegmentLinkers
 #include <mundy_mesh/BulkData.hpp>                                                        // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_mesh/FieldViews.hpp>     // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/MeshBuilder.hpp>    // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
 #include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
 #include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
@@ -234,6 +235,17 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
         6, stk::mesh::ConstPartVector{spherocylinder_spherocylinder_segment_linker_part_ptr});
     mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), sy1_seg1_linker,
                                                                              sy1_element, seg1_element);
+
+    // Fill the linker contact normal with an arbitrary unit vector, we'll use [1, 2, 3] / sqrt(14).
+    stk::mesh::Field<double> *linker_contact_normal_field_ptr =
+        meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
+    ASSERT_TRUE(linker_contact_normal_field_ptr != nullptr);
+    for (auto &linker :
+         {sp1_sp2_linker, sp1_sy1_linker, sp1_seg1_linker, seg1_seg2_linker, sy1_sy2_linker, sy1_seg1_linker}) {
+      ASSERT_TRUE(bulk_data_ptr->is_valid(linker));
+      mundy::mesh::vector3_field_data(*linker_contact_normal_field_ptr, linker)
+          .set(1.0 / std::sqrt(14.0), 2.0 / std::sqrt(14.0), 3.0 / std::sqrt(14.0));
+    }
   }
   bulk_data_ptr->modification_end();
 
@@ -246,14 +258,14 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_POISSONS_RATIO");
   stk::mesh::Field<double> *linker_signed_separation_distance_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_SIGNED_SEPARATION_DISTANCE");
-  stk::mesh::Field<double> *linker_potential_force_magnitude_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
+  stk::mesh::Field<double> *linker_potential_force_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE");
 
   ASSERT_TRUE(element_radius_field_ptr != nullptr);
   ASSERT_TRUE(element_youngs_modulus_field_ptr != nullptr);
   ASSERT_TRUE(element_poissons_ratio_field_ptr != nullptr);
   ASSERT_TRUE(linker_signed_separation_distance_field_ptr != nullptr);
-  ASSERT_TRUE(linker_potential_force_magnitude_field_ptr != nullptr);
+  ASSERT_TRUE(linker_potential_force_field_ptr != nullptr);
 
   // Initialize the spheres. Only performed for local entities.
   // sp1 radius: 1.5, sp2 radius: 2.0, sy1 radius: 2.5, sy2 radius: 3.0, seg1 radius: 3.5, seg2 radius: 4.0
@@ -326,16 +338,16 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
   ASSERT_NO_THROW(evaluate_linker_potentials_ptr->execute(*neighbor_linker_part_ptr))
       << "Failed to evaluate linker potentials.";
 
-  auto check_potential_force_magnitude = [&linker_potential_force_magnitude_field_ptr](
+  auto check_potential_force_magnitude = [&linker_potential_force_field_ptr](
                                              stk::mesh::Entity linker, const double &radius1, const double &radius2,
                                              const double &ssd, const double &poissons_ratio1,
                                              const double &youngs_modulus1, const double &poissons_ratio2,
                                              const double &youngs_modulus2, const std::string &message) {
     // Check that the result is as expected.
-    const double potential_force_magnitude =
-        stk::mesh::field_data(*linker_potential_force_magnitude_field_ptr, linker)[0];
+    const auto potential_force = mundy::mesh::vector3_field_data(*linker_potential_force_field_ptr, linker);
+    const double potential_force_magnitude = mundy::math::norm(potential_force);
 
-    // The expected potential force magnitude is computed using the Hertzian contact model.
+    // The expected potential force is computed using the Hertzian contact model.
     // F = \frac{4}{3} E \sqrt{R} \delta^{3/2}
     // where:
     // - F is the contact force,

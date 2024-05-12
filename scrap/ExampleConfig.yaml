@@ -76,8 +76,8 @@ mundy:
           ]
         input_selector: "LOCALLY_OWNED & SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER"
 
-    linker_potential_force_magnitude_reduction:
-      instance_of: LINKER_POTENTIAL_FORCE_MAGNITUDE_REDUCTION
+    linker_potential_force_reduction:
+      instance_of: LINKER_POTENTIAL_FORCE_REDUCTION
       fixed_params:
         enabled_kernel_names: [SPHEROCYLINDER_SEGMENT]
 
@@ -97,7 +97,7 @@ mundy:
         enabled_technique_name: VELOCITY_VERLET
         force_block: [
             evaluate_linker_potentials, 
-            linker_potential_force_magnitude_reduction
+            linker_potential_force_reduction
         ]
 
 

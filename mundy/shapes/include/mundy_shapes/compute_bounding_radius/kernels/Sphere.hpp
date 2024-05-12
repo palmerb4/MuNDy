@@ -35,16 +35,16 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_core/MakeStringArray.hpp>    // for mundy::core::make_string_array
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
-#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
+#include <mundy_core/MakeStringArray.hpp>  // for mundy::core::make_string_array
+#include <mundy_mesh/BulkData.hpp>         // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>         // for mundy::mesh::MetaData
+#include <mundy_meta/FieldReqs.hpp>        // for mundy::meta::FieldReqs
+#include <mundy_meta/MetaFactory.hpp>      // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>       // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>     // for mundy::meta::MetaKernelRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
-#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
-#include <mundy_shapes/Spheres.hpp>         // for mundy::shapes::Spheres
+#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
+#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
 
 namespace mundy {
 
@@ -111,20 +111,19 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("valid_entity_part_names", mundy::core::make_string_array(default_part_name_),
-                               "Name of the parts associated with this kernel.");
-    default_parameter_list.set("element_bounding_radius_field_name",
-                               std::string(default_element_bounding_radius_field_name_),
-                               "Name of the element field within which the output bounding radius will be written.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("valid_entity_part_names", mundy::core::make_string_array(default_part_name_),
+                 "Name of the parts associated with this kernel.")
+            .set("element_bounding_radius_field_name", std::string(default_element_bounding_radius_field_name_),
+                 "Name of the element field within which the output bounding radius will be written.");
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("buffer_distance", default_buffer_distance_,
-                               "Buffer distance to be added to the bounding radius.");
+    static Teuchos::ParameterList default_parameter_list = Teuchos::ParameterList().set(
+        "buffer_distance", default_buffer_distance_, "Buffer distance to be added to the bounding radius.");
     return default_parameter_list;
   }
 

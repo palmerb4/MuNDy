@@ -69,8 +69,7 @@ class GenerateNeighborLinkers
 
   /// \brief Get the valid fixed parameters that we will forward to the techniques.
   static Teuchos::ParameterList get_valid_forwarded_technique_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set(
+    static Teuchos::ParameterList default_parameter_list = Teuchos::ParameterList().set(
         "specialized_neighbor_linkers_part_names",
         mundy::core::make_string_array(std::string(default_specialized_neighbor_linkers_part_name_)),
         "The part names to which we will add the generated neighbor linkers. This should be a specialization of the "

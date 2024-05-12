@@ -140,7 +140,7 @@ Order of operations:
 
     // Pairwise potentials
     - Evaluate the Hertzian contact potential between neighboring spheres
-    - Sum the linker potential force magnitude to get the induced node force on each sphere
+    - Sum the linker potential force to get the induced node force on each sphere
 
     // Motion
     - Compute the velocity induced by the node forces using local drag
@@ -179,7 +179,7 @@ Order of operations:
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                   // for mundy::mesh::MetaData
@@ -478,7 +478,7 @@ class StickySettings {
     evaluate_linker_potentials_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHERE_SPHERE_HERTZIAN_CONTACT"));
 
-    linker_potential_force_magnitude_reduction_fixed_params_ =
+    linker_potential_force_reduction_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
             .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS");
@@ -513,8 +513,8 @@ class StickySettings {
         generate_crosslinker_sphere_neighbor_linkers_fixed_params_));
     mesh_reqs_ptr_->sync(
         mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params_));
-    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceMagnitudeReduction::get_mesh_requirements(
-        linker_potential_force_magnitude_reduction_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceReduction::get_mesh_requirements(
+        linker_potential_force_reduction_fixed_params_));
     mesh_reqs_ptr_->sync(
         mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params_));
     mesh_reqs_ptr_->sync(mundy::constraints::DeclareAndInitConstraints::get_mesh_requirements(
@@ -598,9 +598,9 @@ class StickySettings {
         mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params_);
     evaluate_linker_potentials_ptr_ = mundy::linkers::EvaluateLinkerPotentials::create_new_instance(
         bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params_);
-    linker_potential_force_magnitude_reduction_ptr_ =
-        mundy::linkers::LinkerPotentialForceMagnitudeReduction::create_new_instance(
-            bulk_data_ptr_.get(), linker_potential_force_magnitude_reduction_fixed_params_);
+    linker_potential_force_reduction_ptr_ =
+        mundy::linkers::LinkerPotentialForceReduction::create_new_instance(
+            bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params_);
     destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
         bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params_);
 
@@ -1047,7 +1047,7 @@ class StickySettings {
 
     compute_ssd_and_cn_ptr_->execute(sphere_sphere_linkers_selector);
     evaluate_linker_potentials_ptr_->execute(sphere_sphere_linkers_selector);
-    linker_potential_force_magnitude_reduction_ptr_->execute(spheres_selector);
+    linker_potential_force_reduction_ptr_->execute(spheres_selector);
   }
 
   void compute_harmonic_bond_forces() {
@@ -1342,7 +1342,7 @@ class StickySettings {
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_ssd_and_cn_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> evaluate_linker_potentials_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>>
-      linker_potential_force_magnitude_reduction_ptr_;
+      linker_potential_force_reduction_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_neighbor_linkers_ptr_;
 
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>>
@@ -1361,7 +1361,7 @@ class StickySettings {
   Teuchos::ParameterList generate_sphere_sphere_neighbor_linkers_fixed_params_;
   Teuchos::ParameterList generate_crosslinker_sphere_neighbor_linkers_fixed_params_;
   Teuchos::ParameterList evaluate_linker_potentials_fixed_params_;
-  Teuchos::ParameterList linker_potential_force_magnitude_reduction_fixed_params_;
+  Teuchos::ParameterList linker_potential_force_reduction_fixed_params_;
   Teuchos::ParameterList destroy_neighbor_linkers_fixed_params_;
   Teuchos::ParameterList declare_and_init_constraints_fixed_params_;
 

@@ -80,7 +80,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceMagnitudeReduction.hpp>  // for mundy::linkers::LinkerPotentialForceMagnitudeReduction
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
 #include <mundy_linkers/neighbor_linkers/SpherocylinderSegmentSpherocylinderSegmentLinkers.hpp>  // for mundy::...::SpherocylinderSegmentSpherocylinderSegmentLinkers
 #include <mundy_math/Matrix3.hpp>     // for mundy::math::Matrix3
@@ -843,9 +843,9 @@ int main(int argc, char **argv) {
       "enabled_kernel_names",
       mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
 
-  // LinkerPotentialForceMagnitudeReduction fixed parameters
-  Teuchos::ParameterList linker_potential_force_magnitude_reduction_fixed_params;
-  linker_potential_force_magnitude_reduction_fixed_params.set("enabled_kernel_names",
+  // LinkerPotentialForceReduction fixed parameters
+  Teuchos::ParameterList linker_potential_force_reduction_fixed_params;
+  linker_potential_force_reduction_fixed_params.set("enabled_kernel_names",
                                                               mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"));
 
   // DestroyNeighborLinkers fixed parameters
@@ -868,16 +868,16 @@ int main(int argc, char **argv) {
 
   // Create the class instances and mesh based on the given fixed requirements.
   auto [compute_constraint_forcing_ptr, compute_ssd_and_cn_ptr, compute_aabb_ptr, generate_neighbor_linkers_ptr,
-        evaluate_linker_potentials_ptr, linker_potential_force_magnitude_reduction_ptr, destroy_neighbor_linkers_ptr,
+        evaluate_linker_potentials_ptr, linker_potential_force_reduction_ptr, destroy_neighbor_linkers_ptr,
         declare_and_init_constraints_ptr, bulk_data_ptr] =
       mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<
           mundy::constraints::ComputeConstraintForcing, mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal,
           mundy::shapes::ComputeAABB, mundy::linkers::GenerateNeighborLinkers, mundy::linkers::EvaluateLinkerPotentials,
-          mundy::linkers::LinkerPotentialForceMagnitudeReduction, mundy::linkers::DestroyNeighborLinkers,
+          mundy::linkers::LinkerPotentialForceReduction, mundy::linkers::DestroyNeighborLinkers,
           mundy::constraints::DeclareAndInitConstraints>(
           {node_euler_fixed_params, compute_mobility_fixed_params, compute_constraint_forcing_fixed_params,
            compute_ssd_and_cn_fixed_params, compute_aabb_fixed_params, generate_neighbor_linkers_fixed_params,
-           evaluate_linker_potentials_fixed_params, linker_potential_force_magnitude_reduction_fixed_params,
+           evaluate_linker_potentials_fixed_params, linker_potential_force_reduction_fixed_params,
            destroy_neighbor_linkers_fixed_params, declare_and_init_constraints_fixed_params});
 
   auto check_class_instance = [](auto &class_instance_ptr, const std::string &class_name) {
@@ -892,7 +892,7 @@ int main(int argc, char **argv) {
   check_class_instance(compute_aabb_ptr, "ComputeAABB");
   check_class_instance(generate_neighbor_linkers_ptr, "GenerateNeighborLinkers");
   check_class_instance(evaluate_linker_potentials_ptr, "EvaluateLinkerPotentials");
-  check_class_instance(linker_potential_force_magnitude_reduction_ptr, "LinkerPotentialForceMagnitudeReduction");
+  check_class_instance(linker_potential_force_reduction_ptr, "LinkerPotentialForceReduction");
   check_class_instance(destroy_neighbor_linkers_ptr, "DestroyNeighborLinkers");
   check_class_instance(declare_and_init_constraints_ptr, "DeclareAndInitConstraints");
 
@@ -932,7 +932,7 @@ int main(int argc, char **argv) {
   // EvaluateLinkerPotentials mutable parameters
   // Doesn't have any mutable parameters to set
 
-  // LinkerPotentialForceMagnitudeReduction mutable parameters
+  // LinkerPotentialForceReduction mutable parameters
   // Doesn't have any mutable parameters to set
 
   // DestroyNeighborLinkers mutable parameters
@@ -967,8 +967,8 @@ int main(int argc, char **argv) {
       meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
   auto linker_signed_separation_distance_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_SIGNED_SEPARATION_DISTANCE");
-  auto linker_potential_force_magnitude_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
+  auto linker_potential_force_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE");
   auto linker_destroy_flag_field_ptr =
       meta_data_ptr->get_field<int>(stk::topology::CONSTRAINT_RANK, "LINKER_DESTROY_FLAG");
 
@@ -987,7 +987,7 @@ int main(int argc, char **argv) {
   check_if_exists(element_spring_constant_field_ptr, "ELEMENT_SPRING_CONSTANT");
   check_if_exists(linker_contact_normal_field_ptr, "LINKER_CONTACT_NORMAL");
   check_if_exists(linker_signed_separation_distance_field_ptr, "LINKER_SIGNED_SEPARATION_DISTANCE");
-  check_if_exists(linker_potential_force_magnitude_field_ptr, "LINKER_POTENTIAL_FORCE_MAGNITUDE");
+  check_if_exists(linker_potential_force_field_ptr, "LINKER_POTENTIAL_FORCE");
   check_if_exists(linker_destroy_flag_field_ptr, "LINKER_DESTROY_FLAG");
   check_if_exists(element_angular_spring_rest_angle_field_ptr, "ELEMENT_ANGULAR_SPRING_REST_ANGLE");
   check_if_exists(element_angular_spring_constant_field_ptr, "ELEMENT_ANGULAR_SPRING_CONSTANT");
@@ -1041,7 +1041,7 @@ int main(int argc, char **argv) {
   stk_io_broker.add_field(output_file_index, *element_spring_constant_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_contact_normal_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_signed_separation_distance_field_ptr);
-  stk_io_broker.add_field(output_file_index, *linker_potential_force_magnitude_field_ptr);
+  stk_io_broker.add_field(output_file_index, *linker_potential_force_field_ptr);
   stk_io_broker.add_field(output_file_index, *linker_destroy_flag_field_ptr);
   stk_io_broker.add_field(output_file_index, *element_angular_spring_rest_angle_field_ptr);
   stk_io_broker.add_field(output_file_index, *element_angular_spring_constant_field_ptr);
@@ -1139,7 +1139,7 @@ int main(int argc, char **argv) {
     }
     compute_ssd_and_cn_ptr->execute(spherocylinder_segment_spherocylinder_segment_linkers_part);
     evaluate_linker_potentials_ptr->execute(spherocylinder_segment_spherocylinder_segment_linkers_part);
-    linker_potential_force_magnitude_reduction_ptr->execute(spherocylinder_segments_part);
+    linker_potential_force_reduction_ptr->execute(spherocylinder_segments_part);
 
     // Motion
     compute_mobility_ptr->execute(spheres_part);

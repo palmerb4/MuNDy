@@ -33,7 +33,7 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_linkers/linker_potential_force_magnitude_reduction/kernels/SpherocylinderSegment.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegment
+#include <mundy_linkers/linker_potential_force_reduction/kernels/SpherocylinderSegment.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegment
 #include <mundy_math/Vector3.hpp>   // for mundy::math::Vector3
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
@@ -43,7 +43,7 @@ namespace mundy {
 
 namespace linkers {
 
-namespace linker_potential_force_magnitude_reduction {
+namespace linker_potential_force_reduction {
 
 namespace kernels {
 
@@ -66,21 +66,17 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
   // Get the field pointers.
   const std::string node_coord_field_name = mundy::shapes::SpherocylinderSegments::get_node_coord_field_name();
   const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
-  const std::string linker_contact_normal_field_name =
-      valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
   const std::string linker_contact_points_field_name =
       valid_fixed_params.get<std::string>("linker_contact_points_field_name");
-  const std::string linker_potential_force_magnitude_field_name =
-      valid_fixed_params.get<std::string>("linker_potential_force_magnitude_field_name");
+  const std::string linker_potential_force_field_name =
+      valid_fixed_params.get<std::string>("linker_potential_force_field_name");
 
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
-  linker_contact_normal_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_normal_field_name);
   linker_contact_points_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_points_field_name);
-  linker_potential_force_magnitude_field_ptr_ =
-      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_magnitude_field_name);
+  linker_potential_force_field_ptr_ =
+      meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(
@@ -88,9 +84,8 @@ SpherocylinderSegment::SpherocylinderSegment(mundy::mesh::BulkData *const bulk_d
         "SpherocylinderSegment: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
-  field_exists(linker_contact_normal_field_ptr_, linker_contact_normal_field_name);
   field_exists(linker_contact_points_field_ptr_, linker_contact_points_field_name);
-  field_exists(linker_potential_force_magnitude_field_ptr_, linker_potential_force_magnitude_field_name);
+  field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
   field_exists(node_coord_field_ptr_, node_coord_field_name);
   field_exists(node_force_field_ptr_, node_force_field_name);
 
@@ -139,12 +134,11 @@ void SpherocylinderSegment::set_mutable_params(const Teuchos::ParameterList &mut
 void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_segment_selector) {
   // Communicate the linker fields.
   stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-                                    {linker_contact_normal_field_ptr_, linker_potential_force_magnitude_field_ptr_});
+                                    {linker_contact_points_field_ptr_, linker_potential_force_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
-  const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_points_field = *linker_contact_points_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_magnitude_field = *linker_potential_force_magnitude_field_ptr_;
+  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
   const stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
   stk::mesh::Part &linkers_part_to_reduce_over = *linkers_part_to_reduce_over_;
@@ -155,7 +149,7 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
-      [&linker_contact_normal_field, &linker_contact_points_field, &linker_potential_force_magnitude_field,
+      [&linker_contact_points_field, &linker_potential_force_field,
        &node_coord_field, &node_force_field, &linkers_part_to_reduce_over](
           const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_segment) {
         // Get our nodes and their force
@@ -202,18 +196,16 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
           const bool is_reduction_linker = bulk_data.bucket(connected_linker).member(linkers_part_to_reduce_over);
 
           if (is_reduction_linker) {
-            // The contact normal stored on a linker points from the left element to the right element. This is
+            // The linker force is the force on the left element. The force on the right element is equal and opposite. This is
             // important, as it means we should multiply by -1 if we are the right element.
             const bool are_we_the_left_spherocylinder_segment =
                 (bulk_data.begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == spherocylinder_segment);
-            const double sign = are_we_the_left_spherocylinder_segment ? 1.0 : -1.0;
-            auto contact_normal = mundy::math::get_vector3_view<double>(
-                stk::mesh::field_data(linker_contact_normal_field, connected_linker));
+            const double sign = are_we_the_left_spherocylinder_segment ? -1.0 : 1.0;
             auto contact_point = mundy::math::get_vector3_view<double>(
                 stk::mesh::field_data(linker_contact_points_field, connected_linker) +
                 3 * !are_we_the_left_spherocylinder_segment);
-            double potential_force_magnitude =
-                stk::mesh::field_data(linker_potential_force_magnitude_field, connected_linker)[0];
+            const auto potential_force =
+              sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
             const double numerator =
                 -mundy::math::dot(right_node_coord - contact_point, right_node_coord - left_node_coord);
@@ -222,25 +214,32 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
             const bool numerator_near_zero = std::abs(numerator) < 1e-12;      // TODO(replace with fancy tol)
             const bool denominator_near_zero = std::abs(denominator) < 1e-12;  // TODO(replace with fancy tol)
 
-            const auto contact_force = sign * contact_normal * potential_force_magnitude;
 
-            if (numerator_near_zero && denominator_near_zero) {
-              // Special case 1. Rod of length zero.
-              const double left_sf = 0.5;
-              const double right_sf = 0.5;
-              left_node_force += contact_force * left_sf;
-              right_node_force += contact_force * right_sf;
-            } else if (denominator_near_zero) {
-              // Special case 2. Perfect contact with the left node.
-              left_node_force += contact_force;
-            } else {
-              const double distance_ratio = numerator / denominator;
-              const double right_sf = 1.0 / (1.0 + distance_ratio);
-              const double left_sf = distance_ratio * right_sf;
+            const double left_sf = 0.5;
+            const double right_sf = 0.5;
+            left_node_force += potential_force * left_sf;
+            right_node_force += potential_force * right_sf;
 
-              left_node_force += contact_force * left_sf;
-              right_node_force += contact_force * right_sf;
-            }
+            // if (numerator_near_zero && denominator_near_zero) {
+            //   // Special case 1. Rod of length zero.
+            //   const double left_sf = 0.5;
+            //   const double right_sf = 0.5;
+            //   left_node_force += potential_force * left_sf;
+            //   right_node_force += potential_force * right_sf;
+            // } else if (denominator_near_zero) {
+            //   // Special case 2. Perfect contact with the left node.
+            //   left_node_force += potential_force;
+            // } else {
+            //   const double distance_ratio = numerator / denominator;
+            //   const double right_sf = 1.0 / (1.0 + distance_ratio);
+            //   const double left_sf = distance_ratio * right_sf;
+
+            //   std::cout << "right_sf: " << right_sf << std::endl;
+            //   std::cout << "left_sf: " << left_sf << std::endl;
+
+            //   left_node_force += potential_force * left_sf;
+            //   right_node_force += potential_force * right_sf;
+            // }
           }
         }
       });
@@ -249,7 +248,7 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
 
 }  // namespace kernels
 
-}  // namespace linker_potential_force_magnitude_reduction
+}  // namespace linker_potential_force_reduction
 
 }  // namespace linkers
 

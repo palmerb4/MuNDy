@@ -45,7 +45,7 @@
 #include <mundy_core/throw_assert.hpp>                  // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                      // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                      // for mundy::mesh::MetaData
-#include <mundy_meta/MeshReqs.hpp>              // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>                      // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                   // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                    // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>  // for mundy::meta::MetaMethodExecutionInterface
@@ -126,8 +126,7 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(ChainOfSprings::get_valid_fixed_params());
 
@@ -223,38 +222,28 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
 
   /// \brief Get the valid fixed parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_fixed_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set<bool>("generate_hookean_springs", true, "Whether to generate the hookean springs.");
-    default_parameter_list.set<bool>("generate_angular_springs", false, "Whether to generate the angular springs.");
-    default_parameter_list.set<bool>("generate_spheres_at_nodes", false, "Whether to generate spheres at the nodes.");
-    default_parameter_list.set<bool>("generate_spherocylinder_segments_along_edges", false,
-                                     "Whether to generate spherocylinder segments along the edges.");
-    default_parameter_list.set("hookean_springs_part_names", mundy::core::make_string_array(HookeanSprings::get_name()),
-                               "The names of the parts to which we will add the generated hookean springs.");
-    default_parameter_list.set("angular_springs_part_names", mundy::core::make_string_array(AngularSprings::get_name()),
-                               "The names of the parts to which we will add the generated angular springs.");
-    default_parameter_list.set("sphere_part_names", mundy::core::make_string_array(mundy::shapes::Spheres::get_name()),
-                               "The names of the parts to which we will add the generated spheres.");
-    default_parameter_list.set("spherocylinder_segment_part_names",
-                               mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()),
-                               "The names of the parts to which we will add the generated spherocylinder segments.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set<bool>("generate_hookean_springs", true, "Whether to generate the hookean springs.")
+            .set<bool>("generate_angular_springs", false, "Whether to generate the angular springs.")
+            .set<bool>("generate_spheres_at_nodes", false, "Whether to generate spheres at the nodes.")
+            .set<bool>("generate_spherocylinder_segments_along_edges", false,
+                       "Whether to generate spherocylinder segments along the edges.")
+            .set("hookean_springs_part_names", mundy::core::make_string_array(HookeanSprings::get_name()),
+                 "The names of the parts to which we will add the generated hookean springs.")
+            .set("angular_springs_part_names", mundy::core::make_string_array(AngularSprings::get_name()),
+                 "The names of the parts to which we will add the generated angular springs.")
+            .set("sphere_part_names", mundy::core::make_string_array(mundy::shapes::Spheres::get_name()),
+                 "The names of the parts to which we will add the generated spheres.")
+            .set("spherocylinder_segment_part_names",
+                 mundy::core::make_string_array(mundy::shapes::SpherocylinderSegments::get_name()),
+                 "The names of the parts to which we will add the generated spherocylinder segments.");
 
     return default_parameter_list;
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
-    default_parameter_list.set("num_nodes", default_num_nodes_, "The number of nodes in the chain.");
-    default_parameter_list.set<size_t>("element_id_start", 1u, "The starting ID for the elements.");
-    default_parameter_list.set<size_t>("node_id_start", 1u, "The starting ID for the nodes.");
-    default_parameter_list.set("hookean_spring_constant", 1.0, "The spring constant for the hookean springs.");
-    default_parameter_list.set("hookean_spring_rest_length", 1.0, "The rest length for the hookean springs.");
-    default_parameter_list.set("angular_spring_constant", 1.0, "The spring constant for the angular springs.");
-    default_parameter_list.set("angular_spring_rest_angle", 0.0, "The rest angle for the angular springs.");
-    default_parameter_list.set("sphere_radius", 1.0, "The radius of the spheres at the nodes.");
-    default_parameter_list.set("spherocylinder_segment_radius", 1.0, "The radius of the spherocylinder segments.");
-
     const double center_x = 0.0;
     const double center_y = 0.0;
     const double center_z = 0.0;
@@ -262,11 +251,22 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
     const double orientation_x = 1.0;
     const double orientation_y = 0.0;
     const double orientation_z = 0.0;
-    default_parameter_list.set<std::shared_ptr<ArchlengthCoordinateMapping>>(
-        "coordinate_mapping",
-        std::make_shared<StraightLine>(default_num_nodes_, center_x, center_y, center_z, length, orientation_x,
-                                       orientation_y, orientation_z),
-        "The user-defined map function for the spring coordinates.");
+    static Teuchos::ParameterList default_parameter_list =
+        Teuchos::ParameterList()
+            .set("num_nodes", default_num_nodes_, "The number of nodes in the chain.")
+            .set<size_t>("element_id_start", 1u, "The starting ID for the elements.")
+            .set<size_t>("node_id_start", 1u, "The starting ID for the nodes.")
+            .set("hookean_spring_constant", 1.0, "The spring constant for the hookean springs.")
+            .set("hookean_spring_rest_length", 1.0, "The rest length for the hookean springs.")
+            .set("angular_spring_constant", 1.0, "The spring constant for the angular springs.")
+            .set("angular_spring_rest_angle", 0.0, "The rest angle for the angular springs.")
+            .set("sphere_radius", 1.0, "The radius of the spheres at the nodes.")
+            .set("spherocylinder_segment_radius", 1.0, "The radius of the spherocylinder segments.")
+            .set<std::shared_ptr<ArchlengthCoordinateMapping>>(
+                "coordinate_mapping",
+                std::make_shared<StraightLine>(default_num_nodes_, center_x, center_y, center_z, length, orientation_x,
+                                               orientation_y, orientation_z),
+                "The user-defined map function for the spring coordinates.");
     return default_parameter_list;
   }
 
