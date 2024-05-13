@@ -184,13 +184,13 @@ class MetaTechniqueDispatcher {
   //! \name Internal methods
   //@{
 
-  /// @brief Get the valid enabled techniques and their parameters.
-  /// @param parameter_list_name [in] The name of the parameter list
-  /// @param parameter_list_to_add_to [in/out] The parameter list to add the valid enabled techniques and their
+  /// \brief Get the valid enabled techniques and their parameters.
+  /// \param parameter_list_name [in] The name of the parameter list
+  /// \param parameter_list_to_add_to [in/out] The parameter list to add the valid enabled techniques and their
   /// parameters to
-  /// @param required_parameter_list [in] The required parameters for the techniques
-  /// @param forwarded_parameter_list [in] The parameters that are forwarded to the techniques
-  /// @param get_technique_params_func [in] A function that returns the valid parameters for a technique given its name
+  /// \param required_parameter_list [in] The required parameters for the techniques
+  /// \param forwarded_parameter_list [in] The parameters that are forwarded to the techniques
+  /// \param get_technique_params_func [in] A function that returns the valid parameters for a technique given its name
   static Teuchos::ParameterList add_valid_enabled_techniques_and_technique_params_to_parameter_list(
       const std::string &parameter_list_name, Teuchos::ParameterList &parameter_list_to_add_to,
       const Teuchos::ParameterList &required_parameter_list, const Teuchos::ParameterList &forwarded_parameter_list,

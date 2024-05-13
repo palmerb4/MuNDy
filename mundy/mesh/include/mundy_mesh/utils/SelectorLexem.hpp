@@ -33,7 +33,7 @@ namespace utils {
 template <class T>
 T convert_cast(const std::string &s);
 
-/// @brief Valid token types within our Selector lexicon.
+/// \brief Valid token types within our Selector lexicon.
 enum SelectorStringToken {
   TOKEN_MINUS,
   TOKEN_LPAREN,
@@ -45,7 +45,7 @@ enum SelectorStringToken {
   TOKEN_END
 };
 
-/// @brief A selector lexem is the smallest unit of meaning in a selector string expression.
+/// \brief A selector lexem is the smallest unit of meaning in a selector string expression.
 ///
 /// From Wikipedia, "[a] lexeme is a unit of lexical meaning that underlies a set of words that
 /// are related through inflection. It is a basic abstract unit of meaning, a unit of morphological analysis in
@@ -69,17 +69,17 @@ class SelectorLexem {
   //! \name Getters
   //@{
 
-  /// @brief Get the token type of the lexem.
+  /// \brief Get the token type of the lexem.
   SelectorStringToken getToken() const {
     return m_token;
   }
 
-  /// @brief Get the string value of the lexem.
+  /// \brief Get the string value of the lexem.
   const std::string &getString() const {
     return m_value;
   }
 
-  /// @brief Get the value of the lexem as a specific type.
+  /// \brief Get the value of the lexem as a specific type.
   ///
   /// @tparam T The type to convert the value to.
   template <class T>
@@ -92,20 +92,20 @@ class SelectorLexem {
   //! \name Private data
   //@{
 
-  /// @brief The token type of the lexem.
+  /// \brief The token type of the lexem.
   SelectorStringToken m_token;
 
-  /// @brief The string value of the lexem.
+  /// \brief The string value of the lexem.
   std::string m_value;
   //@}
 };  // SelectorLexem
 
-/// @brief A vector of selector lexems.
+/// \brief A vector of selector lexems.
 typedef std::vector<SelectorLexem> SelectorLexemVector;
 
-/// @brief Tokenize a selector string expression into a vector of lexems.
+/// \brief Tokenize a selector string expression into a vector of lexems.
 ///
-/// @param expression The expression to tokenize.
+/// \param expression The expression to tokenize.
 SelectorLexemVector tokenize(const std::string &expression);
 
 }  // namespace utils

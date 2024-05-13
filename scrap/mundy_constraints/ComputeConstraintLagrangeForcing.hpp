@@ -112,7 +112,7 @@ class ComputeConstraintLagrangeForcing
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("COLLISION", mundy::constraint::COMPUTE_CONSTRAINT_LAGRANGE_FORCING::kernels::Collision,
                          mundy::constraint::ComputeConstraintLagrangeForcing::OurKernelFactory)
 //@}

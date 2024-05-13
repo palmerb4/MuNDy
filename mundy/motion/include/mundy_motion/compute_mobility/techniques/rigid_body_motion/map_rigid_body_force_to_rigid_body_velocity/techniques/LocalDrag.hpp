@@ -145,7 +145,7 @@ class LocalDrag
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE",
                          mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_force_to_rigid_body_velocity::techniques::local_drag::kernels::Sphere,

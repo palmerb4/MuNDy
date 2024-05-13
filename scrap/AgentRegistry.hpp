@@ -32,7 +32,7 @@
 #include <mundy_agents/HierarchyOfAgents.hpp>   // for mundy::agents::HierarchyOfAgents
 #include <mundy_core/attribute_unused.hpp>  // for MUNDY_ATTRIBUTE_UNUSED
 
-/// @brief A helper macro for registering a \c Agent with \c HierarchyOfAgents.
+/// \brief A helper macro for registering a \c Agent with \c HierarchyOfAgents.
 ///
 /// This macro is used to register a \c Agent with \c HierarchyOfAgents. The macro should be
 /// used in the following way:

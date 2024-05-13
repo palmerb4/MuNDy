@@ -174,7 +174,7 @@ class PartReqs {
   /// \brief Get if the part rank is constrained or not.
   bool constrains_part_rank() const;
 
-  /// @brief Get if the part is fully specified.
+  /// \brief Get if the part is fully specified.
   bool is_fully_specified() const;
 
   /// \brief Return the part name.

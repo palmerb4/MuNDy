@@ -120,7 +120,7 @@ class ComputeSignedSeparationDistanceAndContactNormal
 
 //! \name Registration
 //@{
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS(
     "SPHERE_SPHERE_LINKER",
     mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSphereLinker,

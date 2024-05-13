@@ -113,7 +113,7 @@ class LinkerPotentialForceReduction
 
 //! \name Registration
 //@{
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::linkers::linker_potential_force_reduction::kernels::Sphere,
                          mundy::linkers::LinkerPotentialForceReduction::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::linkers::linker_potential_force_reduction::kernels::Spherocylinder,

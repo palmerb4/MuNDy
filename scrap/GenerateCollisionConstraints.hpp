@@ -290,7 +290,7 @@ class GenerateCollisionConstraints : public mundy::meta::MetaMethodSubsetExecuti
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE_SPHERE", mundy::constraint::generate_collision_constraints::kernels::CollisionSphereSphere,
                          mundy::constraint::GenerateCollisionConstraints::OurThreeWayKernelFactory)
 //@}

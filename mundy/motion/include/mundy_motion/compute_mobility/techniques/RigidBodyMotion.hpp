@@ -283,7 +283,7 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 //! \name Registration
 //@{
 
-/// @brief Register our default method with our method factory.
+/// \brief Register our default method with our method factory.
 MUNDY_REGISTER_METACLASS(
     "MAP_RIGID_BODY_FORCE_TO_RIGID_BODY_VELOCITY",
     mundy::motion::compute_mobility::techniques::rigid_body_motion::MapRigidBodyForceToRigidBodyVelocity,

@@ -68,27 +68,27 @@ namespace core {
 /// \tparam StrSize The size of the string literal
 template <size_t StrSize>
 struct StringLiteral {
-  /// @brief Constructor that copies the string literal into the struct.
-  /// @param str The string literal to copy
+  /// \brief Constructor that copies the string literal into the struct.
+  /// \param str The string literal to copy
   constexpr explicit StringLiteral(const char (&str)[StrSize]) {
     std::copy_n(str, StrSize, value);
   }
 
-  /// @brief Convert the string literal to a std::string.
+  /// \brief Convert the string literal to a std::string.
   std::string to_string() const {
     return std::string(value);
   }
 
-  /// @brief The string literal's content.
+  /// \brief The string literal's content.
   char value[StrSize];
 
-  /// @brief The string literal's size.
+  /// \brief The string literal's size.
   static constexpr size_t size = StrSize;
 };  // StringLiteral
 
-/// @brief Non-member equality operator for comparing two StringLiterals.
-/// @param lhs The left-hand side of the comparison
-/// @param rhs The right-hand side of the comparison
+/// \brief Non-member equality operator for comparing two StringLiterals.
+/// \param lhs The left-hand side of the comparison
+/// \param rhs The right-hand side of the comparison
 template <size_t N>
 constexpr bool operator==(const StringLiteral<N>& lhs, const StringLiteral<N>& rhs) {
   for (size_t i = 0; i < N; ++i) {

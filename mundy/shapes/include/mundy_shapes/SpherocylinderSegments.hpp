@@ -55,7 +55,7 @@ class SpherocylinderSegments {
     return std::string(name_);
   }
 
-  /// @brief Get the names of our parent parts.
+  /// \brief Get the names of our parent parts.
   static inline std::vector<std::string> get_parent_names() {
     return {mundy::shapes::Shapes::get_name()};
   }
@@ -143,10 +143,10 @@ class SpherocylinderSegments {
   /// \brief If our part has a rank or not.
   static constexpr inline bool has_rank_ = false;
 
-  /// @brief The name of our element radius field.
+  /// \brief The name of our element radius field.
   static constexpr std::string_view element_radius_field_name_ = "ELEMENT_RADIUS";
 
-  /// @brief The name of our node coordinate field.
+  /// \brief The name of our node coordinate field.
   static constexpr std::string_view node_coord_field_name_ = "NODE_COORDS";
 
   /// \brief Our part requirements.

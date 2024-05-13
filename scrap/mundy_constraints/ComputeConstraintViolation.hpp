@@ -107,7 +107,7 @@ class ComputeConstraintViolation
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 //@{
 
 MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_VIOLATION",

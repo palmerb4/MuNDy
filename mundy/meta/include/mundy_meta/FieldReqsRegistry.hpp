@@ -47,7 +47,7 @@ struct FieldReqsRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register \c FieldTypeToRegister with the \c FieldReqsFactory.
+  /// \brief Register \c FieldTypeToRegister with the \c FieldReqsFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
@@ -62,12 +62,12 @@ struct FieldReqsRegistry {
   //! \name Member variables
   //@{
 
-  /// @brief A flag for if the given type has been registered with the \c FieldReqsFactory or not.
+  /// \brief A flag for if the given type has been registered with the \c FieldReqsFactory or not.
   static const bool is_registered;
   //@}
 };  // FieldReqsRegistry
 
-/// @brief Perform the static registration of the desired FieldReqs FieldTypes.
+/// \brief Perform the static registration of the desired FieldReqs FieldTypes.
 ///
 /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
 /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.

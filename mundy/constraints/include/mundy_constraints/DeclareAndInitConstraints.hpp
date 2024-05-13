@@ -99,7 +99,7 @@ class DeclareAndInitConstraints
 //! \name Registration
 //@{
 
-/// @brief Register our default techniques
+/// \brief Register our default techniques
 MUNDY_REGISTER_METACLASS("CHAIN_OF_SPRINGS",
                          mundy::constraints::declare_and_initialize_constraints::techniques::ChainOfSprings,
                          mundy::constraints::DeclareAndInitConstraints::OurTechniqueFactory)

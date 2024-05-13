@@ -111,7 +111,7 @@ class ComputeBoundingRadius
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_bounding_radius::kernels::Sphere,
                          mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_bounding_radius::kernels::Spherocylinder,

@@ -117,7 +117,7 @@ class ComputeBrownianVelocity
 
 //! \name Registration
 //@{
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::alens::compute_brownian_velocity::kernels::SpheresKernel,
                          mundy::alens::ComputeBrownianVelocity::OurKernelFactory)
 

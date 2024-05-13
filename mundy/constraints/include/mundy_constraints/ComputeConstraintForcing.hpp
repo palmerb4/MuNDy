@@ -105,7 +105,7 @@ class ComputeConstraintForcing
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("HOOKEAN_SPRINGS",
                          mundy::constraints::compute_constraint_forcing::kernels::HookeanSpringsKernel,
                          mundy::constraints::ComputeConstraintForcing::OurKernelFactory)

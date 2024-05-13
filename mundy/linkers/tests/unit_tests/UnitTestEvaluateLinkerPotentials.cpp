@@ -87,10 +87,46 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
     Seg1-Seg2: r1 = 3.5, r2 = 4.0, ssd = -0.5, poissons_ratio = 0.3, youngs_modulus = 1e6
   */
 
+
+// MUNDY_REGISTER_METACLASS("SPHERE_SPHERE_HERTZIAN_CONTACT",
+//                          mundy::linkers::evaluate_linker_potentials::kernels::SphereSphereHertzianContact,
+//                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+// MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT",
+//                          mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderHertzianContact,
+//                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+// MUNDY_REGISTER_METACLASS(
+//     "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+//     mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderSegmentHertzianContact,
+//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+// MUNDY_REGISTER_METACLASS(
+//     "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+//     mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact,
+//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+// MUNDY_REGISTER_METACLASS(
+//     "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT",
+//     mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderHertzianContact,
+//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+// MUNDY_REGISTER_METACLASS(
+//     "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+//     mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderSegmentHertzianContact,
+//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+
+// MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_FRICTIONAL_HERTZIAN_CONTACT",
+//                          mundy::linkers::evaluate_linker_potentials::kernels::
+//                              SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact,
+//                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+
+
+
   // Create an instance of EvaluateLinkerPotentials based on committed mesh that meets the
   // default requirements for EvaluateLinkerPotentials.
+  auto hertzian_contact_fixed_params = Teuchos::ParameterList().set("enabled_kernel_names", 
+        mundy::core::make_string_array("SPHERE_SPHERE_HERTZIAN_CONTACT", 
+        "SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT", "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT", 
+        "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+        "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT", "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
   auto [evaluate_linker_potentials_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<EvaluateLinkerPotentials>();
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<EvaluateLinkerPotentials>({hertzian_contact_fixed_params});
   ASSERT_TRUE(evaluate_linker_potentials_ptr != nullptr);
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();

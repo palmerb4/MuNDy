@@ -107,7 +107,7 @@ class ComputeAABB
 
 //! \name Registration
 //@{
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_aabb::kernels::Sphere,
                          mundy::shapes::ComputeAABB::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_aabb::kernels::Spherocylinder,

@@ -96,7 +96,7 @@ class ComputeTimeIntegration
 //! \name Registration
 //@{
 
-/// @brief Register our default techniques
+/// \brief Register our default techniques
 MUNDY_REGISTER_METACLASS("NODE_EULER", mundy::motion::compute_time_integration::techniques::NodeEuler,
                          mundy::motion::ComputeTimeIntegration::OurMethodFactory)
 

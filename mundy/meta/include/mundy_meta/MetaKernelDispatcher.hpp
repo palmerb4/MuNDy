@@ -270,8 +270,8 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   //! \name Internal methods
   //@{
 
-  /// @brief Get the valid enabled kernels and their parameters.
-  /// @param get_kernel_params_func [in] A function that returns the valid parameters for a kernel given its name
+  /// \brief Get the valid enabled kernels and their parameters.
+  /// \param get_kernel_params_func [in] A function that returns the valid parameters for a kernel given its name
   static Teuchos::ParameterList add_valid_enabled_kernels_and_kernel_params_to_parameter_list(
       const std::string &parameter_list_name, Teuchos::ParameterList &parameter_list_to_add_to,
       const Teuchos::ParameterList &required_parameter_list, const Teuchos::ParameterList &forwarded_parameter_list,

@@ -64,7 +64,7 @@ class RankedAssembly {
     return name.to_string();
   }
 
-  /// @brief Get the names of our parent parts.
+  /// \brief Get the names of our parent parts.
   static inline std::vector<std::string> get_parent_names() {
     return {ParentAgentTypes::get_name()...};
   }

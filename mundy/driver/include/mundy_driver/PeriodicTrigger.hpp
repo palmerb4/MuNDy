@@ -51,15 +51,15 @@ class PeriodicTrigger : public TriggerBase {
   //! \name Actions
   //@{
 
-  /// @brief Evaluate this trigger
-  /// @param [in] current_step
+  /// \brief Evaluate this trigger
+  /// \param [in] current_step
   /// @return TRIGGERSTATUS on fired state
   TRIGGERSTATUS evaluate_trigger(size_t current_step) override;
 
   //@}
 
  private:
-  /// @brief Number of steps between evaluation
+  /// \brief Number of steps between evaluation
   size_t n_periodic_;
 };  // PeriodicTrigger
 

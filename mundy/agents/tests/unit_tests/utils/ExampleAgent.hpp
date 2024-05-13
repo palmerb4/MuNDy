@@ -56,7 +56,7 @@ class ExampleAgent {
     return std::string(name_);
   }
 
-  /// @brief Get the names of our parent parts.
+  /// \brief Get the names of our parent parts.
   static inline std::vector<std::string> get_parent_names() {
     get_parent_names_counter_++;
     return {mundy::agents::Agents::get_name()};

@@ -409,22 +409,22 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
 //! \name Registration
 //@{
 
-/// @brief Register our default constraint forcing method with our method factory.
+/// \brief Register our default constraint forcing method with our method factory.
 MUNDY_REGISTER_METACLASS(
     "COMPUTE_CONSTRAINT_FORCING", mundy::constraint::ComputeConstraintForcing,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintForcingMethodFactory)
 
-/// @brief Register our default constraint projection method with our method factory.
+/// \brief Register our default constraint projection method with our method factory.
 MUNDY_REGISTER_METACLASS(
     "COMPUTE_CONSTRAINT_PROJECTION", mundy::constraint::ComputeConstraintProjection,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintProjectionMethodFactory)
 
-/// @brief Register our default constraint residual method with our method factory.
+/// \brief Register our default constraint residual method with our method factory.
 MUNDY_REGISTER_METACLASS(
     "COMPUTE_CONSTRAINT_RESIDUAL", mundy::constraint::ComputeConstraintResidual,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintResidualMethodFactory)
 
-/// @brief Register our default constraint violation method with our method factory.
+/// \brief Register our default constraint violation method with our method factory.
 MUNDY_REGISTER_METACLASS(
     "COMPUTE_CONSTRAINT_VIOLATION", mundy::constraint::ComputeConstraintViolation,
     mundy::motion::resolve_constraints::techniques::NonSmoothLCP::OurConstraintViolationMethodFactory)

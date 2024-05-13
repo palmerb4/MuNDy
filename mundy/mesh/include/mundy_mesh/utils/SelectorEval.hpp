@@ -178,28 +178,28 @@ class SelectorEval {
   //! \name Private data
   //@{
 
-  /// @brief The bulk data object used to fetch the part names
+  /// \brief The bulk data object used to fetch the part names
   const BulkData &bulk_data_;
 
-  /// @brief The selector expression to evaluate
+  /// \brief The selector expression to evaluate
   std::string expression_;
 
-  /// @brief A flag indicating if the syntax of the expression is valid
+  /// \brief A flag indicating if the syntax of the expression is valid
   bool is_syntax_valid_;
 
-  /// @brief A flag indicating if the parsing of the expression was successful
+  /// \brief A flag indicating if the parsing of the expression was successful
   bool did_parse_succeed_;
 
-  /// @brief The head node of the evaluation tree
+  /// \brief The head node of the evaluation tree
   SelectorNode *head_node_ptr_;
 
-  /// @brief The nodes in the evaluation tree
+  /// \brief The nodes in the evaluation tree
   std::vector<std::shared_ptr<SelectorNode>> node_ptrs_;
 
-  /// @brief The nodes in the evaluation tree that are not constant expressions
+  /// \brief The nodes in the evaluation tree that are not constant expressions
   EvalNodesType evaluation_nodes_;
 
-  /// @brief The result buffer that stores the result of each node
+  /// \brief The result buffer that stores the result of each node
   std::vector<stk::mesh::Selector> result_buffer_;
   //@}
 

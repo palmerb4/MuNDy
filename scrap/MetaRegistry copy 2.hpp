@@ -33,7 +33,7 @@
 #include <mundy_meta/MetaKernel.hpp>   // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>   // for mundy::meta::MetaMethodSubsetExecutionInterface
 
-/// @brief Register \c ClassToRegister with the \c MetaMethodFactory.
+/// \brief Register \c ClassToRegister with the \c MetaMethodFactory.
 #define MUNDY_REGISTER_TYPE(ClassToRegister, ... /* FactoryToRegisterWith */) \
   ([]() -> bool {                                                             \
     __VA_ARGS__::template register_new_class<ClassToRegister>();              \
@@ -57,7 +57,7 @@ struct MetaRegistry {
   //! \name Member variable definitions
   //@{
 
-  /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
+  /// \brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
   static const bool is_registered = false;
   //@}
 };  // MetaRegistry
@@ -66,7 +66,7 @@ struct MetaRegistry {
 
 }  // namespace mundy
 
-/// @brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
+/// \brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
 ///
 /// This macro is used to register a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory. The macro should be
 /// used in the following way:

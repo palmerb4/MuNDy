@@ -35,6 +35,7 @@
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SphereSphereHertzianContact.hpp>  // for mundy::linkers::...::kernels::SphereSphereHertzianContact
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SphereSpherocylinderHertzianContact.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderHertzianContact
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SphereSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SphereSpherocylinderSegmentHertzianContact
+#include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSegmentSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSpherocylinderHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSpherocylinderHertzianContact
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSpherocylinderSegmentHertzianContact
@@ -101,7 +102,7 @@ class EvaluateLinkerPotentials
 
 //! \name Registration
 //@{
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE_SPHERE_HERTZIAN_CONTACT",
                          mundy::linkers::evaluate_linker_potentials::kernels::SphereSphereHertzianContact,
                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
@@ -124,6 +125,11 @@ MUNDY_REGISTER_METACLASS(
     "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
     mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderSegmentHertzianContact,
     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
+
+MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_FRICTIONAL_HERTZIAN_CONTACT",
+                         mundy::linkers::evaluate_linker_potentials::kernels::
+                             SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact,
+                         mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
 //@}
 
 #endif  // MUNDY_LINKERS_EVALUATELINKERPOTENTIALS_HPP_

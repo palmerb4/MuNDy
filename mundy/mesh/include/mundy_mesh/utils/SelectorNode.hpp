@@ -60,7 +60,7 @@ class SelectorNode;
 class SelectorEval;
 class SelectorParser;
 
-/// @brief Enumerated type for the different types of operations that can be performed on selectors
+/// \brief Enumerated type for the different types of operations that can be performed on selectors
 ///
 /// Think of these operations as one step above lexical operations. For example, a lexicographical minus sign
 /// could be a subtraction operation, but it could also be a unary negation operation.
@@ -85,7 +85,7 @@ inline std::ostream& operator<<(std::ostream& stream, Opcode opcode) {
 using EvalNodesType = std::vector<SelectorNode*>;
 using NodeWeightMap = std::map<SelectorNode*, int>;
 
-/// @brief A node in the selector evaluation tree
+/// \brief A node in the selector evaluation tree
 class SelectorNode {
  public:
   //! \name Constructors and operators

@@ -102,7 +102,7 @@ class MapRigidBodyForceToRigidBodyVelocity
 //! \name Registration
 //@{
 
-/// @brief Register our default techniques
+/// \brief Register our default techniques
 MUNDY_REGISTER_METACLASS("LOCAL_DRAG",
                          mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_force_to_rigid_body_velocity::techniques::LocalDrag,

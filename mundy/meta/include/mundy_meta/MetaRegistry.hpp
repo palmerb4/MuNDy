@@ -52,7 +52,7 @@ struct MetaRegistry {
   //! \name Member variable definitions
   //@{
 
-  /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
+  /// \brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
   static inline volatile const bool is_registered MUNDY_ATTRIBUTE_UNUSED = false;
   //@}
 };  // MetaRegistry
@@ -89,7 +89,7 @@ struct MetaRegistry {
     return mundy::meta::MetaRegistry<ClassToCheck, __VA_ARGS__>::is_registered; \
   }())
 
-/// @brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
+/// \brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
 ///
 /// This macro is used to register a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory. The macro
 /// should be used in the following way:

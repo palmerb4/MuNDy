@@ -48,7 +48,7 @@ struct RegisterAgents {
   //! \name Member variable definitions
   //@{
 
-  /// @brief A flag for if the given type has been registered with \c HierarchyOfAgents or not.
+  /// \brief A flag for if the given type has been registered with \c HierarchyOfAgents or not.
   static inline volatile const bool is_registered MUNDY_ATTRIBUTE_UNUSED = false;
   //@}
 };  // RegisterAgents
@@ -57,7 +57,7 @@ struct RegisterAgents {
 
 }  // namespace mundy
 
-/// @brief A helper macro for registering a \c Agent with \c HierarchyOfAgents.
+/// \brief A helper macro for registering a \c Agent with \c HierarchyOfAgents.
 ///
 /// This macro is used to register a \c Agent with \c HierarchyOfAgents. The macro should be
 /// used in the following way:

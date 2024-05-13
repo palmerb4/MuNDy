@@ -330,7 +330,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // NodeEulerSphere
 
-/// @brief Register NodeEulerSphere with NodeEuler default kernels
+/// \brief Register NodeEulerSphere with NodeEuler default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", NodeEulerSphere, NodeEuler::OurKernelFactory)
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -638,7 +638,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // ComputeBrownianVelocitySphere
 
-/// @brief Register ComputeBrownianVelocitySphere with ComputeBrownianVelocity default kernels
+/// \brief Register ComputeBrownianVelocitySphere with ComputeBrownianVelocity default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", ComputeBrownianVelocitySphere, ComputeBrownianVelocity::OurKernelFactory)
 
 int main(int argc, char **argv) {

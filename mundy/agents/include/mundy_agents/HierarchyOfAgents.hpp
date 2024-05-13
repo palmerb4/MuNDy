@@ -321,8 +321,8 @@ class HierarchyOfAgents {
   /// \brief A helper class for generating a hierarchy of string names.
   class StringTreeNode {
    public:
-    /// @brief Construct a new StringTreeNode object
-    /// @param name [in] The name of this node.
+    /// \brief Construct a new StringTreeNode object
+    /// \param name [in] The name of this node.
     StringTreeNode(const unsigned& id, const std::string& name, const std::vector<std::string>& parent_names);
 
     /// \brief Add a child to the current node.
@@ -357,13 +357,13 @@ class HierarchyOfAgents {
     static std::shared_ptr<StringTreeNode> create_node(const unsigned& id, const std::string& name,
                                                        const std::vector<std::string>& parent_names);
 
-    /// @brief Print the tree.
+    /// \brief Print the tree.
     static void print_tree(std::ostream& os = std::cout);
 
    private:
-    /// @brief Print the tree.
-    /// @param node The node in the tree to print.
-    /// @param depth The depth of the node in the tree.
+    /// \brief Print the tree.
+    /// \param node The node in the tree to print.
+    /// \param depth The depth of the node in the tree.
     static void print_tree(std::shared_ptr<StringTreeNode> node, std::ostream& os = std::cout, int depth = 0);
 
     static inline std::map<std::string, std::shared_ptr<StringTreeNode>> root_node_map_;

@@ -41,7 +41,7 @@ namespace declare_and_initialize_constraints {
 
 namespace techniques {
 
-/// @brief An interface for mapping grid indices to coordinates.
+/// \brief An interface for mapping grid indices to coordinates.
 class ArchlengthCoordinateMapping {
  public:
   /// \brief Virtual destructor.
@@ -53,7 +53,7 @@ class ArchlengthCoordinateMapping {
   virtual std::array<double, 3> get_grid_coordinate(const size_t &archlength_index) const = 0;
 };  // class ArchlengthCoordinateMapping
 
-/// @brief Straight line with given center, length, and orientation.
+/// \brief Straight line with given center, length, and orientation.
 class StraightLine : public ArchlengthCoordinateMapping {
  public:
   /// Constructor
@@ -93,7 +93,7 @@ class StraightLine : public ArchlengthCoordinateMapping {
   double orientation_z_;
 };  // class StraightLine
 
-/// @brief Helix with given start, radius, pitch, and center axis descretized into fixed-size segments.
+/// \brief Helix with given start, radius, pitch, and center axis descretized into fixed-size segments.
 class Helix : public ArchlengthCoordinateMapping {
  public:
   /// Constructor

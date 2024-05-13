@@ -61,11 +61,11 @@ class TriggerBase {
   //! \name Actions
   //@{
 
-  /// @brief Check the status of a trigger
+  /// \brief Check the status of a trigger
   ///
   /// This check if the trigger fires, or has already been run this step. This means that once we evaluate a unique
   /// trigger, we can reuse the last status for this timestep, and not evaluate it again.
-  /// @param [in] current_step
+  /// \param [in] current_step
   /// @return
   virtual TRIGGERSTATUS trigger_check(size_t current_step) {
     if (current_step == last_evaluated_step_) {
@@ -80,21 +80,21 @@ class TriggerBase {
   //@}
 
  protected:
-  /// @brief Explicit constructors with parameters
-  /// @param mutable_params
+  /// \brief Explicit constructors with parameters
+  /// \param mutable_params
   explicit TriggerBase([[maybe_unused]] const Teuchos::ParameterList& mutable_params) {
   }
 
-  /// @brief Evaluate this trigger (must be implemented by inheriting class)
-  /// @param [in] current_step
+  /// \brief Evaluate this trigger (must be implemented by inheriting class)
+  /// \param [in] current_step
   /// @return TRIGGERSTATUS on fired state
   virtual TRIGGERSTATUS evaluate_trigger(size_t current_step) = 0;
 
  private:
-  /// @brief Last evaluated step
+  /// \brief Last evaluated step
   size_t last_evaluated_step_ = 0;
 
-  /// @brief Last evaluated status
+  /// \brief Last evaluated status
   TRIGGERSTATUS last_status_ = TRIGGERSTATUS::FIRED;
 };  // TriggerBase
 

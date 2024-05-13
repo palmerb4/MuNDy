@@ -85,7 +85,7 @@ class FieldReqsBase {
   /// \brief Get if the field minimum number of states is constrained or not.
   virtual bool constrains_field_min_number_of_states() const = 0;
 
-  /// @brief Get if the field is fully specified.
+  /// \brief Get if the field is fully specified.
   virtual bool is_fully_specified() const = 0;
 
   /// \brief Return the field name.

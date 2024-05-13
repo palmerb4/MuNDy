@@ -96,7 +96,7 @@ class ComputeMobility : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
 //! \name Registration
 //@{
 
-/// @brief Register our default techniques
+/// \brief Register our default techniques
 MUNDY_REGISTER_METACLASS("RIGID_BODY_MOTION", mundy::motion::compute_mobility::techniques::RigidBodyMotion,
                          mundy::motion::ComputeMobility::OurMethodFactory)
 

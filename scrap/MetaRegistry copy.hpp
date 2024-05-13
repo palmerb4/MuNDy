@@ -50,7 +50,7 @@ struct MetaRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register \c ClassToRegister with the \c MetaMethodFactory.
+  /// \brief Register \c ClassToRegister with the \c MetaMethodFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
@@ -59,7 +59,7 @@ struct MetaRegistry {
     return true;
   }
 
-  /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
+  /// \brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
   static const bool is_registered;
   //@}
 };  // MetaRegistry
@@ -76,7 +76,7 @@ const bool MetaRegistry<ClassToRegister, FactoryToRegisterWith>::is_registered =
 
 }  // namespace mundy
 
-/// @brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
+/// \brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
 ///
 /// This macro is used to register a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory. The macro should be
 /// used in the following way:

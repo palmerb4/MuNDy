@@ -325,7 +325,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // NodeEulerSphere
 
-/// @brief Register NodeEulerSphere with NodeEuler default kernels
+/// \brief Register NodeEulerSphere with NodeEuler default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", NodeEulerSphere, NodeEuler::OurKernelFactory)
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -608,7 +608,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // ComputeBrownianVelocitySphere
 
-/// @brief Register ComputeBrownianVelocitySphere with ComputeBrownianVelocity default kernels
+/// \brief Register ComputeBrownianVelocitySphere with ComputeBrownianVelocity default kernels
 MUNDY_REGISTER_METACLASS("SPHERE", ComputeBrownianVelocitySphere, ComputeBrownianVelocity::OurKernelFactory)
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -737,7 +737,7 @@ class LocalDrag
   //@}
 };  // LocalDrag
 
-/// @brief Register LocalDrag with ComputeMobility's technique factory
+/// \brief Register LocalDrag with ComputeMobility's technique factory
 MUNDY_REGISTER_METACLASS("LOCAL_DRAG", LocalDrag, ComputeMobility::OurTechniqueFactory)
 
 class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
@@ -941,7 +941,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // LocalDragNonorientableSphere
 
-/// @brief Register LocalDragNonorientableSphere with LocalDrag's kernel factory
+/// \brief Register LocalDragNonorientableSphere with LocalDrag's kernel factory
 MUNDY_REGISTER_METACLASS("NONORIENTABLE_SPHERE", LocalDragNonorientableSphere, LocalDrag::OurKernelFactory)
 
 ///////////////////////////

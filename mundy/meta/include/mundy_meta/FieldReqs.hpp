@@ -116,7 +116,7 @@ class FieldReqs : public FieldReqsBase {
   /// \brief Get if the field minimum number of states is constrained or not.
   bool constrains_field_min_number_of_states() const final;
 
-  /// @brief Get if the field is fully specified.
+  /// \brief Get if the field is fully specified.
   bool is_fully_specified() const final;
 
   /// \brief Return the field name.

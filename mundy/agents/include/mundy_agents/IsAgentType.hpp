@@ -53,7 +53,7 @@ namespace agents {
 ///   /// \brief Get the name of our part.
 ///   static constexpr inline std::string get_name();
 ///
-///   /// @brief Get the names of our parent parts.
+///   /// \brief Get the names of our parent parts.
 ///   static constexpr inline std::vector<std::string> get_parent_names();
 ///
 ///   /// \brief Get the topology of our part. (throws if the part doesn't constrain rank)

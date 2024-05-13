@@ -35,7 +35,7 @@ namespace declare_and_initialize_shapes {
 
 namespace techniques {
 
-/// @brief An interface for mapping grid indices to coordinates.
+/// \brief An interface for mapping grid indices to coordinates.
 class GridCoordinateMapping {
  public:
   /// \brief Virtual destructor.
@@ -47,7 +47,7 @@ class GridCoordinateMapping {
   virtual std::array<double, 3> get_grid_coordinate(const std::array<size_t, 3> &grid_index) const = 0;
 };  // class GridCoordinateMapping
 
-/// @brief The identity map, which maps grid indices to themselves.
+/// \brief The identity map, which maps grid indices to themselves.
 class IdentityMap : public GridCoordinateMapping {
  public:
   /// \brief Get the grid coordinate corresponding to a given grid index.
@@ -101,7 +101,7 @@ class ScaledGridCoordinateMapping : public GridCoordinateMapping {
   double max_z_;
 };  // class ScaledGridCoordinateMapping
 
-/// @brief Levi's function in 3D applied to a 2D grid with Nx x Ny points. We ignore the k-th index.
+/// \brief Levi's function in 3D applied to a 2D grid with Nx x Ny points. We ignore the k-th index.
 /// @details Given a grid index $(i,j)$, we map it to the coordinate $(x,y)$\in[0,2]\times[0,2]$ using the formula
 /// $$x = \frac{2i}{N_x}, \quad y = \frac{2j}{N_y}$$. We then compute their z coordinate using
 /// $$z(x,y)= \sin^2(3 \pi x) + (x - 1)^2 \left(1 + \sin^2(3 \pi y) \right) + (y - 1)^2 \left(1 + \sin^2(2 \pi x)

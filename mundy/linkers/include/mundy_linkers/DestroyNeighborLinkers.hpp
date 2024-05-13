@@ -109,7 +109,7 @@ class DestroyNeighborLinkers
 //! \name Registration
 //@{
 
-/// @brief Register our default techniques
+/// \brief Register our default techniques
 MUNDY_REGISTER_METACLASS("DESTROY_DISTANT_NEIGHBORS",
                          mundy::linkers::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors,
                          mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory)

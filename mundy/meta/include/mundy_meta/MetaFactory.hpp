@@ -331,7 +331,7 @@ class MetaFactory {
 //! \name Type specializations for a MetaFactory with string registration types
 //@{
 
-/// @brief A class that providers a non-template type-compatable wrapper for strings.
+/// \brief A class that providers a non-template type-compatable wrapper for strings.
 ///
 /// Designed to satisfy the requirements of \c MetaFactory's IsValidRegistrationValueWrapper concept.
 /// @tparam StrSize
@@ -339,8 +339,8 @@ template <size_t StrSize>
 struct RegistrationStringValueWrapper : public mundy::core::StringLiteral<StrSize> {
   using Type = std::string;
 
-  /// @brief Constructor that forwards the string literal to the base class.
-  /// @param str The string literal to forward.
+  /// \brief Constructor that forwards the string literal to the base class.
+  /// \param str The string literal to forward.
   constexpr explicit RegistrationStringValueWrapper(const char (&str)[StrSize])
       : mundy::core::StringLiteral<StrSize>(str) {
   }
@@ -350,9 +350,9 @@ struct RegistrationStringValueWrapper : public mundy::core::StringLiteral<StrSiz
   }
 };  // RegistrationStringValueWrapper
 
-/// @brief A helper function for generating a \c RegistrationStringValueWrapper from a string.
+/// \brief A helper function for generating a \c RegistrationStringValueWrapper from a string.
 /// @tparam StrSize
-/// @param str The string to wrap.
+/// \param str The string to wrap.
 ///
 /// Usage example (also works inside of a template):
 /// \code{.cpp}
@@ -363,7 +363,7 @@ constexpr RegistrationStringValueWrapper<StrSize> make_registration_string(const
   return RegistrationStringValueWrapper<StrSize>(str);
 }
 
-/// @brief A type specialization of \c MetaFactory that uses a string as the registration identifier. See \c MetaFactory
+/// \brief A type specialization of \c MetaFactory that uses a string as the registration identifier. See \c MetaFactory
 /// for details.
 /// @tparam PolymorphicBaseType
 /// @tparam registration_string_value_wrapper

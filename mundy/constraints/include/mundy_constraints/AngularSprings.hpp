@@ -55,7 +55,7 @@ class AngularSprings {
     return std::string(name_);
   }
 
-  /// @brief Get the names of our parent parts.
+  /// \brief Get the names of our parent parts.
   static inline std::vector<std::string> get_parent_names() {
     return {mundy::constraints::Constraints::get_name()};
   }
@@ -150,13 +150,13 @@ class AngularSprings {
   /// \brief If our part has a rank or not.
   static constexpr inline bool has_rank_ = false;
 
-  /// @brief The name of our node coordinate field.
+  /// \brief The name of our node coordinate field.
   static constexpr std::string_view node_coord_field_name_ = "NODE_COORDS";
 
-  /// @brief The name of our element angular spring constant field.
+  /// \brief The name of our element angular spring constant field.
   static constexpr std::string_view element_angular_spring_constant_field_name_ = "ELEMENT_ANGULAR_SPRING_CONSTANT";
 
-  /// @brief The name of our element angular spring rest length field.
+  /// \brief The name of our element angular spring rest length field.
   static constexpr std::string_view element_angular_spring_rest_angle_field_name_ = "ELEMENT_ANGULAR_SPRING_REST_ANGLE";
 
   /// \brief Our part requirements.

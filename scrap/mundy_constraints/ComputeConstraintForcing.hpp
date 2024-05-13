@@ -107,7 +107,7 @@ class ComputeConstraintForcing
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("COMPUTE_CONSTRAINT_FORCING",
                          mundy::constraint::compute_constraint_forcing::kernels::Collision,
                          mundy::constraint::ComputeConstraintForcing::OurKernelFactory)

@@ -81,7 +81,7 @@ class AttributeRequirements {
   /// \brief Get if the attribute name is constrained or not.
   bool constrains_attribute_name() const final;
 
-  /// @brief Get if the attribute is fully specified (aka, the name is set).
+  /// \brief Get if the attribute is fully specified (aka, the name is set).
   bool is_fully_specified() const final;
 
   /// \brief Return the attribute name.

@@ -221,7 +221,7 @@ class MeshReqs {
   /// \brief Get if the upward connectivity flag is constrained or not.
   bool constrains_upward_connectivity_flag() const;
 
-  /// @brief Get if the mesh is fully specified.
+  /// \brief Get if the mesh is fully specified.
   bool is_fully_specified() const;
 
   /// \brief Return the dimension of the space within which the parts and entities reside.
@@ -323,28 +323,28 @@ class MeshReqs {
   /// \brief Pointer to the master mesh requirements.
   std::shared_ptr<MeshReqs> master_mesh_reqs_ptr_ = nullptr;
 
-  /// @brief The dimension of the space within which the parts and entities reside.
+  /// \brief The dimension of the space within which the parts and entities reside.
   unsigned spatial_dimension_;
 
-  /// @brief The name of the node coordinates.
+  /// \brief The name of the node coordinates.
   std::string node_coordinates_name_;
 
-  /// @brief The names assigned to each rank.
+  /// \brief The names assigned to each rank.
   std::vector<std::string> entity_rank_names_;
 
-  /// @brief The MPI communicator to be used by STK.
+  /// \brief The MPI communicator to be used by STK.
   stk::ParallelMachine communicator_;
 
-  /// @brief The chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
+  /// \brief The chosen Aura option. For example, mundy::mesh::BulkData::AUTO_AURA.
   mundy::mesh::BulkData::AutomaticAuraOption aura_option_;
 
-  /// @brief Pointer to an existing field data manager.
+  /// \brief Pointer to an existing field data manager.
   stk::mesh::FieldDataManager* field_data_manager_ptr_;
 
-  /// @brief Upper bound on the number of mesh entities that may be associated with a single bucket.
+  /// \brief Upper bound on the number of mesh entities that may be associated with a single bucket.
   unsigned bucket_capacity_;
 
-  /// @brief A flag specifying if upward connectivity will be enabled or not.
+  /// \brief A flag specifying if upward connectivity will be enabled or not.
   bool upward_connectivity_flag_;
 
   /// \brief If we are driven by a master MeshReqs object.
