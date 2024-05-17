@@ -177,18 +177,18 @@ Order of operations:
 #include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_io/IOBroker.hpp>         // for mundy::io::IOBroker
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
-#include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
-#include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
-#include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
-#include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
-#include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                                   // for mundy::mesh::MetaData
-#include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>               // for mundy::mesh::utils::destroy_flagged_entities
-#include <mundy_mesh/utils/FillFieldWithValue.hpp>                   // for mundy::mesh::utils::fill_field_with_value
-#include <mundy_meta/MetaFactory.hpp>                                // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                                 // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaKernelDispatcher.hpp>                       // for mundy::meta::MetaKernelDispatcher
+#include <mundy_linkers/DestroyNeighborLinkers.hpp>           // for mundy::linkers::DestroyNeighborLinkers
+#include <mundy_linkers/EvaluateLinkerPotentials.hpp>         // for mundy::linkers::EvaluateLinkerPotentials
+#include <mundy_linkers/GenerateNeighborLinkers.hpp>          // for mundy::linkers::GenerateNeighborLinkers
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>    // for mundy::linkers::LinkerPotentialForceReduction
+#include <mundy_linkers/NeighborLinkers.hpp>                  // for mundy::linkers::NeighborLinkers
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
+#include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>        // for mundy::mesh::utils::destroy_flagged_entities
+#include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
@@ -277,9 +277,13 @@ class StickySettings {
       cmdp.setOption("backbone_spring_constant", &backbone_spring_constant_, "Backbone spring constant.");
       cmdp.setOption("backbone_spring_rest_length", &backbone_spring_rest_length_, "Backbone rest length.");
 
-      //   Crosslinker spring:
+      //   Crosslinker (spring and other):
       cmdp.setOption("crosslinker_spring_constant", &crosslinker_spring_constant_, "Crosslinker spring constant.");
       cmdp.setOption("crosslinker_rest_length", &crosslinker_rest_length_, "Crosslinker rest length.");
+      cmdp.setOption("crosslinker_left_binding_rate", &crosslinker_left_binding_rate_,
+                     "Crosslinker left binding rate.");
+      cmdp.setOption("crosslinker_right_binding_rate", &crosslinker_right_binding_rate_,
+                     "Crosslinker right binding rate.");
 
       //   The simulation:
       cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
@@ -352,9 +356,11 @@ class StickySettings {
       std::cout << "BACKBONE SPRINGS:" << std::endl;
       std::cout << "  backbone_spring_constant: " << backbone_spring_constant_ << std::endl;
       std::cout << "  backbone_spring_rest_length: " << backbone_spring_rest_length_ << std::endl;
-      std::cout << "CROSSLINKER SPRINGS:" << std::endl;
+      std::cout << "CROSSLINKERS:" << std::endl;
       std::cout << "  crosslinker_spring_constant: " << crosslinker_spring_constant_ << std::endl;
       std::cout << "  crosslinker_rest_length: " << crosslinker_rest_length_ << std::endl;
+      std::cout << "  crosslinker_left_binding_rate: " << crosslinker_left_binding_rate_ << std::endl;
+      std::cout << "  crosslinker_right_binding_rate: " << crosslinker_right_binding_rate_ << std::endl;
       std::cout << "##################################################" << std::endl;
     }
   }
@@ -449,6 +455,9 @@ class StickySettings {
     compute_ssd_and_cn_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHERE_SPHERE_LINKER", "SPHERE_SPHEROCYLINDER_SEGMENT_LINKER"));
+    // // Add the ability to find a signed separation distance for a croslsinker_sphere_linker
+    // compute_ssd_and_cn_fixed_params_.sublist("SPHERE_SPHEROCYLINDER_SEGMENT_LINKER")
+    //     .set("valid_entity_part_names", mundy::core::make_string_array("CROSSLINKER_SPHERE_LINKERS"));
 
     compute_aabb_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER_SEGMENT"));
@@ -561,9 +570,11 @@ class StickySettings {
     element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
     element_rng_field_ptr_ = fetch_field<unsigned>("ELEMENT_RNG_COUNTER", element_rank_);
+    element_binding_rates_field_ptr_ = fetch_field<double>("ELEMENT_BINDING_RATES", element_rank_);
 
     constraint_perform_binding_field_ptr_ = fetch_field<unsigned>("CONSTRAINT_PERFORM_BINDING", constraint_rank_);
     linker_destroy_flag_field_ptr_ = fetch_field<int>("LINKER_DESTROY_FLAG", constraint_rank_);
+    constraint_binding_probability_field_ptr_ = fetch_field<double>("CONSTRAINT_BINDING_PROBABILITY", constraint_rank_);
 
     // Fetch the parts
     spheres_part_ptr_ = fetch_part("SPHERES");
@@ -595,9 +606,8 @@ class StickySettings {
         mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params_);
     evaluate_linker_potentials_ptr_ = mundy::linkers::EvaluateLinkerPotentials::create_new_instance(
         bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params_);
-    linker_potential_force_reduction_ptr_ =
-        mundy::linkers::LinkerPotentialForceReduction::create_new_instance(
-            bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params_);
+    linker_potential_force_reduction_ptr_ = mundy::linkers::LinkerPotentialForceReduction::create_new_instance(
+        bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params_);
     destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
         bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params_);
 
@@ -822,6 +832,8 @@ class StickySettings {
       stk::mesh::field_data(*element_hookean_spring_constant_field_ptr_, crosslinker)[0] = crosslinker_spring_constant_;
       stk::mesh::field_data(*element_hookean_spring_rest_length_field_ptr_, crosslinker)[0] = crosslinker_rest_length_;
       stk::mesh::field_data(*element_radius_field_ptr_, crosslinker)[0] = crosslinker_rest_length_;
+      stk::mesh::field_data(*element_binding_rates_field_ptr_, crosslinker)[0] = crosslinker_left_binding_rate_;
+      stk::mesh::field_data(*element_binding_rates_field_ptr_, crosslinker)[1] = crosslinker_right_binding_rate_;
     }
     bulk_data_ptr_->modification_end();
 
@@ -957,6 +969,119 @@ class StickySettings {
       // We need an equivalent function to remove the self-interacting crosslink_sphere_linkers.
       destroy_crosslinker_sphere_linker_self_interactions();
     }
+  }
+
+  /// \brief Compute the Z-partition function score for left-bound crosslinkers
+  void compute_z_partition() {
+    debug_print("****************");
+    debug_print("Compute Z partition score.");
+
+#ifdef DEBUG
+    debug_print("Initial mesh contents before computing signed separation distance for crosslinkers.");
+    // Dump the mesh info as it exists now (with fields)
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+#endif
+
+    // TODO(cje):
+    // There is a problem here with calculating the signed separation distance directly from the crosslinker to the
+    // sphere.
+    // {
+    //   // Selectors and aliases
+    //   auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
+
+    //   // Compute the signed separation distance for crosslinker_sphere_linkers
+    //   compute_ssd_and_cn_ptr_->execute(crosslinker_sphere_linkers_selector);
+    // }
+
+    // Calculate the minimum distance directly and assign a partition score without any intermediary steps.
+    {
+      // Get the field aliases
+      const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+      const stk::mesh::Field<double> &crosslinker_binding_probability = *constraint_binding_probability_field_ptr_;
+      const stk::mesh::Field<double> &crosslinker_binding_rates = *element_binding_rates_field_ptr_;
+      const stk::mesh::Field<double> &crosslinker_spring_constant = *element_hookean_spring_constant_field_ptr_;
+      const stk::mesh::Field<double> &crosslinker_spring_rest_length = *element_hookean_spring_rest_length_field_ptr_;
+      // Get part aliases
+      stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
+      stk::mesh::Part &right_bound_crosslinkers_part = *right_bound_crosslinkers_part_ptr_;
+      // Get a selector
+      const stk::mesh::Selector locally_owned_input_selector =
+          stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_) &
+          bulk_data_ptr_->mesh_meta_data().locally_owned_part();
+      // Get aliases to global variables
+      const double beta = 1.0 / kt_;
+
+      stk::mesh::for_each_entity_run(
+          *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, locally_owned_input_selector,
+          [&node_coord_field, &crosslinker_binding_probability, &crosslinker_binding_rates,
+           &crosslinker_spring_constant, &crosslinker_spring_rest_length, &left_bound_crosslinkers_part,
+           &right_bound_crosslinkers_part,
+           &beta]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
+            // Get the sphere anc crosslinker attached to the linker.
+            const stk::mesh::Entity *crosslinker_and_sphere_elements =
+                bulk_data.begin(linker, stk::topology::ELEMENT_RANK);
+            const stk::mesh::Entity &crosslinker = crosslinker_and_sphere_elements[0];
+            const stk::mesh::Entity &sphere = crosslinker_and_sphere_elements[1];
+
+            // Depending on which node is the one we should look at, figure out the separation distance.
+            const stk::mesh::Entity &sphere_node = bulk_data.begin_nodes(sphere)[0];
+            double dr[3] = {0.0, 0.0, 0.0};
+            if (bulk_data.bucket(crosslinker).member(left_bound_crosslinkers_part)) {
+              dr[0] = stk::mesh::field_data(node_coord_field, sphere_node)[0] -
+                      stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[0];
+              dr[1] = stk::mesh::field_data(node_coord_field, sphere_node)[1] -
+                      stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[1];
+              dr[2] = stk::mesh::field_data(node_coord_field, sphere_node)[2] -
+                      stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[2];
+            } else if (bulk_data.bucket(crosslinker).member(right_bound_crosslinkers_part)) {
+              MUNDY_THROW_ASSERT(false, std::logic_error, "Should not ever be here for StickySettings.");
+            }
+
+            const double dr_mag = std::sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+            // Compute the Z-partition score
+            // Z = A * exp(0.5 * beta * k * (dr - r0)^2)
+            // A = crosslinker_binding_rates
+            // beta = 1/kt
+            // k = crosslinker_spring_constant
+            // r0 = crosslinker_spring_rest_length
+            const double A = stk::mesh::field_data(crosslinker_binding_rates, crosslinker)[0];
+            const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
+            const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
+
+            const double Z = A * std::exp(0.5 * 1.0 * k * (dr_mag - r0) * (dr_mag - r0));
+
+#ifdef DEBUG
+            std::cout << "Checking crosslinker z-partition\n";
+            std::cout << "  Genx (constraint, neighbor list): " << bulk_data.identifier(linker) << std::endl;
+            std::cout << "  Crosslinker (element): " << bulk_data.identifier(crosslinker) << std::endl;
+            std::cout << "  Sphere (element): " << bulk_data.identifier(sphere) << std::endl;
+            if (bulk_data.bucket(crosslinker).member(left_bound_crosslinkers_part)) {
+              std::cout << "  Left crosslinker bound node: "
+                        << bulk_data.identifier(bulk_data.begin_nodes(crosslinker)[0]) << std::endl;
+            } else if (bulk_data.bucket(crosslinker).member(right_bound_crosslinkers_part)) {
+              std::cout << "  Left crosslinker bound node: "
+                        << bulk_data.identifier(bulk_data.begin_nodes(crosslinker)[1]) << std::endl;
+            }
+            std::cout << "  Sphere target node: " << bulk_data.identifier(sphere_node) << std::endl;
+            std::cout << "    dr: " << dr[0] << ", " << dr[1] << ", " << dr[2] << std::endl;
+            std::cout << "    dr_mag: " << dr_mag << std::endl;
+            std::cout << "    Z: " << Z << std::endl;
+#endif
+
+            // Load the Z-partition score onto the crosslinker_sphere_neighbor_linker
+            stk::mesh::field_data(crosslinker_binding_probability, linker)[0] = Z;
+          });
+    }
+
+#ifdef DEBUG
+    debug_print("Mesh contents after computing signed separation distance for crosslinkers.");
+    // Dump the mesh info as it exists now (with fields)
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+#endif
+
+    // Throw to cause us to be able to inspect the mesh
+    MUNDY_THROW_ASSERT(false, std::logic_error, "EARLY EXIT CJE.");
   }
 
   /// \brief Connect a crosslinker to a new node.
@@ -1171,16 +1296,20 @@ class StickySettings {
     // these are done, we can use the information in the crosslinkers themselves when looping.
 
     // Selectors and aliases
-    auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
+    // auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
     // stk::mesh::Field<unsigned> &constraint_perform_binding_field = *constraint_perform_binding_field_ptr_;
 
     // Compute the signed separation distance on these
-    compute_ssd_and_cn_ptr_->execute(crosslinker_sphere_linkers_selector);
+    // compute_ssd_and_cn_ptr_->execute(crosslinker_sphere_linkers_selector);
     // TODO(cje): Figure out how to get the signed separation distance for use later...
 
     // We want to loop over all LEFT_BOUND_CROSSLINKERS, RIGHT_BOUND_CROSSLINKERS, and DOUBLY_BOUND_CROSSLINKERS to
     // generate state changes. This is done to build up a list of actions that we will take later during a mesh
     // modification step.
+    {
+      // Compute the Z-partition score for each left_bound crosslinker.
+      compute_z_partition();
+    }
 
     // TODO(cje): Here is where we would compute what agents change state.
     // XXX Force a linkage to exist for a single test crosslinker.
@@ -1483,9 +1612,11 @@ class StickySettings {
   stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr_;
   stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
+  stk::mesh::Field<double> *element_binding_rates_field_ptr_;
 
   stk::mesh::Field<unsigned> *constraint_perform_binding_field_ptr_;
   stk::mesh::Field<int> *linker_destroy_flag_field_ptr_;
+  stk::mesh::Field<double> *constraint_binding_probability_field_ptr_;
 
   //@}
 
@@ -1512,8 +1643,7 @@ class StickySettings {
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_constraint_forcing_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_ssd_and_cn_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> evaluate_linker_potentials_ptr_;
-  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>>
-      linker_potential_force_reduction_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> linker_potential_force_reduction_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_neighbor_linkers_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>>
       generate_sphere_sphere_neighbor_linkers_ptr_;
