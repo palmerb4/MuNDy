@@ -881,7 +881,10 @@ class StickySettings {
     debug_print("Destroying crosslinker_sphere_linker self-interactions.");
 
     // This is very similar to what is done in DestroyDistantNeighbors, except we are doing it ourselves.
-    // We shouldn't need to communicate anything, just destroy these objects.
+
+    // Step 0:
+    // Populate the destroy field on our ghosted elements.
+    stk::mesh::communicate_field_data(*bulk_data_ptr_, {linker_destroy_flag_field_ptr_});
 
     // Step 1:
     // Loop over each locally owned linker in the selector and mark them for destruction if they self-interact.
@@ -1324,7 +1327,7 @@ class StickySettings {
     // Loop over the different crosslinkers, look at their actions, and enforce the state change.
     {
       // Call the global state change function
-      // state_change_crosslinkers();
+      state_change_crosslinkers();
     }
   }
 
@@ -1427,6 +1430,7 @@ class StickySettings {
     dump_user_inputs();
 
     // Setup
+    Kokkos::Profiling::pushRegion("Setup");
     build_our_mesh_and_method_instances();
 
 #ifdef DEBUG
@@ -1444,6 +1448,7 @@ class StickySettings {
       setup_io_mundy();
     }
     declare_and_initialize_sticky();
+    Kokkos::Profiling::popRegion();
 
 #ifdef DEBUG
     debug_print("Mesh contents after declare_and_initialize_sticy.");
@@ -1455,6 +1460,7 @@ class StickySettings {
 #endif
 
     // Loadbalance?
+    Kokkos::Profiling::pushRegion("Loadbalance");
     if (initial_loadbalance_) {
       loadbalance();
 #ifdef DEBUG
@@ -1462,17 +1468,20 @@ class StickySettings {
       stk::mesh::impl::dump_mesh_per_proc(*bulk_data_ptr_, "loadbalance");
 #endif
     }
+    Kokkos::Profiling::popRegion();
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
     Kokkos::Timer timer;
+    Kokkos::Profiling::pushRegion("MainLoop");
     for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
       debug_print("********************************");
       debug_print(std::string("Time step ") + std::to_string(timestep_index_) + " of " +
                   std::to_string(num_time_steps_));
 
       // Prepare the current configuration.
+      Kokkos::Profiling::pushRegion("ZeroTransient");
       {
         // Zero the node velocities, and forces/torques for time t.
         zero_out_transient_node_fields();
@@ -1480,14 +1489,18 @@ class StickySettings {
         // Zero out the constraint binding state changes
         zero_out_transient_constraint_fields();
       }
+      Kokkos::Profiling::popRegion();
 
       // Detect all possible neighbors in the system
+      Kokkos::Profiling::pushRegion("DetectNeighbors");
       {
         // Detect neighbors of spheres-spheres and crosslinkers-spheres
         detect_neighbors();
       }
+      Kokkos::Profiling::popRegion();
 
       // Update the state changes in the system s(t).
+      Kokkos::Profiling::pushRegion("UpdateCrosslinkerState");
       {
         // State change of every crosslinker
         update_crosslinker_state();
@@ -1498,8 +1511,10 @@ class StickySettings {
         stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
 #endif
       }
+      Kokkos::Profiling::popRegion();
 
       // Evaluate forces f(x(t)).
+      Kokkos::Profiling::pushRegion("ComputeForces");
       {
         // Hertzian forces
         compute_hertzian_contact_forces();
@@ -1513,8 +1528,10 @@ class StickySettings {
         stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
 #endif
       }
+      Kokkos::Profiling::popRegion();
 
       // Compute velocity.
+      Kokkos::Profiling::pushRegion("ComputeVelocity");
       {
         // Evaluate v(t) = Mf(t).
         compute_velocity();
@@ -1524,8 +1541,10 @@ class StickySettings {
         stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
 #endif
       }
+      Kokkos::Profiling::popRegion();
 
       // IO. If desired, write out the data for time t (STK or mundy)
+      Kokkos::Profiling::pushRegion("IO");
       if (timestep_index_ % io_frequency_ == 0) {
         // Also write out a 'log'
         if (bulk_data_ptr_->parallel_rank() == 0) {
@@ -1551,8 +1570,10 @@ class StickySettings {
         stk::mesh::impl::dump_mesh_per_proc(*bulk_data_ptr_, mstream.str());
 #endif
       }
+      Kokkos::Profiling::popRegion();
 
       // Update positions.
+      Kokkos::Profiling::pushRegion("UpdatePositions");
       {
         // Evaluate x(t + dt) = x(t) + dt * v(t).
         update_positions();
@@ -1562,7 +1583,9 @@ class StickySettings {
         stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
 #endif
       }
-    }
+      Kokkos::Profiling::popRegion();
+    }  // End of time loop
+    Kokkos::Profiling::popRegion();
 
     // Do a synchronize to force everybody to stop here, then write the time
     stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
