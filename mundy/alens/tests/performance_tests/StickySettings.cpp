@@ -1081,7 +1081,7 @@ class StickySettings {
 #endif
 
     // Throw to cause us to be able to inspect the mesh
-    MUNDY_THROW_ASSERT(false, std::logic_error, "EARLY EXIT CJE.");
+    // MUNDY_THROW_ASSERT(false, std::logic_error, "EARLY EXIT CJE.");
   }
 
   /// \brief Connect a crosslinker to a new node.
