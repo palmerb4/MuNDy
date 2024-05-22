@@ -898,6 +898,9 @@ class StickySettings {
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, locally_owned_input_selector,
+        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_.get()), 
+        stk::topology::CONSTRAINT_RANK,
+        locally_owned_input_selector,
         [&left_bound_crosslinkers_part, &right_bound_crosslinkers_part, &linker_destroy_flag_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
           // Get the sphere anc crosslinker attached to the linker.
@@ -1216,6 +1219,62 @@ class StickySettings {
           double cumsum = 0.0;
           for (unsigned j = 0; j < num_constraint_rank_entities; j++) {
             auto &constraint_rank_entity = constraint_rank_entities[j];
+            bool is_crosslinker_sphere_linker = bulk_data.bucket(crosslinker).member(crosslinker_sphere_linkers_part);
+            if (is_crosslinker_sphere_linker) {
+              // Fetch the stored binding probability (fake for now). 50% chance of binding to someone, 50% chance of
+              // not doing anyting.
+              double binding_probability = timestep_index * 0.5 / num_constraint_rank_entities;
+              cumsum += binding_probability;
+              if (rand01 < cumsum) {
+#ifdef DEBUG
+                std::cout << "Binding event\n";
+                std::cout << "  Crosslinker: " << bulk_data.identifier(crosslinker) << std::endl;
+                std::cout << "  CrosslinkerSphereLinker: " << bulk_data.identifier(constraint_rank_entity) << std::endl;
+#endif
+                // We have a binding event, set this, then bail on the for loop
+                stk::mesh::field_data(constraint_perform_binding_field, constraint_rank_entity)[0] =
+                    static_cast<unsigned>(BINDING_STATE_CHANGE::LEFT_TO_DOUBLY);
+                break;
+              }
+            }
+          }
+        });
+  }
+
+  void kmc_crosslinker_sphere_linker_binding() {
+    debug_print("****************");
+    debug_print("KMC crosslinker binding");
+
+    // Selectors and aliases
+    stk::mesh::Part &crosslinker_sphere_linkers_part = *crosslinker_sphere_linkers_part_ptr_;
+    stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
+    stk::mesh::Field<unsigned> &constraint_perform_binding_field = *constraint_perform_binding_field_ptr_;
+    const size_t &timestep_index = timestep_index_;
+    auto left_crosslinkers_selector =
+        stk::mesh::Selector(*left_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+
+    // Just do left bound crosslinkers to start (avoid branches)
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
+        [&crosslinker_sphere_linkers_part, &element_rng_field, &constraint_perform_binding_field, &timestep_index](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
+          // Get all of my associated crosslinker_sphere_linkers
+          const stk::mesh::Entity *neighbor_linkers =
+              bulk_data.begin(crosslinker, stk::topology::CONSTRAINT_RANK);
+          const unsigned num_neighbor_linkers =
+              bulk_data.num_connectivity(crosslinker, stk::topology::CONSTRAINT_RANK);
+
+          // Fetch the RNG state, get a random number out of it, and increment
+          unsigned *element_rng_counter = stk::mesh::field_data(element_rng_field, crosslinker);
+          const stk::mesh::EntityId crosslinker_gid = bulk_data.identifier(crosslinker);
+          openrand::Philox rng(crosslinker_gid, element_rng_counter[0]);
+          double rand01 = rng.rand<double>();
+          element_rng_counter[0]++;
+
+          // Loop over the attached crosslinker_sphere_linkers and bind if the rng falls in their range.
+          double cumsum = 0.0;
+          for (unsigned j = 0; j < num_neighbor_linkers; j++) {
+            auto &constraint_rank_entity = neighbor_linkers[j];
             bool is_crosslinker_sphere_linker = bulk_data.bucket(crosslinker).member(crosslinker_sphere_linkers_part);
             if (is_crosslinker_sphere_linker) {
               // Fetch the stored binding probability (fake for now). 50% chance of binding to someone, 50% chance of
