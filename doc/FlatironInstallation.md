@@ -2,7 +2,28 @@
 
 ## Basic install
 
-You need to install some dependencies as part of this, which we are going to assume go into `~/mundylib`.
+You need to install some dependencies as part of this, which we are going to assume go into `~/mundylib`. Take a look
+at Chris Edelmaier's `.bashrc` file for what modules to load for Mundy. For instance, I put the following as a function
+into my `.bashrc`.
+
+```bash
+modulealens() {
+module -q purge
+module load modules/2.2-20230808
+module load gcc/11.4.0
+module load openmpi/4.0.7
+module load hdf5/mpi-1.14.1-2
+module load intel-oneapi-mkl/2023.1.0
+module load netcdf-c/4.9.2
+module load flexiblas/3.3.0
+module load cmake/3.26.3
+#module load trilinos/mpi-14.2.0
+module load python/3.10.10
+module load llvm
+}
+```
+
+Then you can just type `modulealens` in a new shell to setup the environment.
 
 ```bash
 git clone --recursive git@github.com:palmerb4/MuNDyScratch.git
