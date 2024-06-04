@@ -66,9 +66,7 @@ void IOBroker::set_transient_fields(const Teuchos::ParameterList &valid_fixed_pa
     std::string enabled_rank_name_str = "enabled_io_fields_" + rank_name + "_rank";
     std::string rank_name_str = rank_name + "_RANK";
     std::transform(enabled_rank_name_str.begin(), enabled_rank_name_str.end(), enabled_rank_name_str.begin(),
-                   [](unsigned char c) {
-                     return std::tolower(c);
-                   });
+                   [](unsigned char c) { return std::tolower(c); });
 
     Teuchos::Array<std::string> enabled_io_fields =
         valid_fixed_params.get<Teuchos::Array<std::string>>(enabled_rank_name_str);
@@ -272,7 +270,7 @@ void IOBroker::write_io_broker(double time) {
 
 void IOBroker::write_io_broker_timestep(int timestep, double time) {
   // Create the output mesh, based on the timestep and the base name
-  std::string full_output_name = exodus_database_output_filename_base_ + "_t" + std::to_string(timestep) + ".exo";
+  std::string full_output_name = exodus_database_output_filename_base_ + "_" + std::to_string(timestep) + ".exo";
   size_t singlestep_io_index = STKioBroker_.create_output_mesh(full_output_name, database_purpose_);
 
   // Add the enabled fields to the output mesh

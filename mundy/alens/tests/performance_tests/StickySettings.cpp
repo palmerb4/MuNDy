@@ -1048,6 +1048,14 @@ class StickySettings {
               dr[2] = stk::mesh::field_data(node_coord_field, sphere_node)[2] -
                       stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[2];
               const double dr_mag = std::sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+              if (std::isnan(dr_mag)) {
+                // printf("crosslinker: dr_1 = %f, dr_2 = %f, dr_3 = %f\n",
+                //        stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[0],
+                //        stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[1],
+                //        stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[2]);
+                // printf("dr_1 = %f, dr_2 = %f, dr_3 = %f\n", dr[0], dr[1], dr[2]);
+                MUNDY_THROW_ASSERT(false, std::logic_error, "dr_mag is nan.");
+              }
 
               // Compute the Z-partition score
               // Z = A * exp(0.5 * beta * k * (dr - r0)^2)
@@ -1060,6 +1068,29 @@ class StickySettings {
               const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
 
               const double Z = A * std::exp(0.5 * 1.0 * k * (dr_mag - r0) * (dr_mag - r0));
+              if (std::isnan(dr_mag)) {
+                std::cout << "Checking crosslinker z-partition\n";
+                std::cout << "  Genx (constraint, neighbor list): " << bulk_data.identifier(linker) << std::endl;
+                std::cout << "  Crosslinker (element): " << bulk_data.identifier(crosslinker) << std::endl;
+                std::cout << "  Sphere (element): " << bulk_data.identifier(sphere) << std::endl;
+                if (bulk_data.bucket(crosslinker).member(left_bound_crosslinkers_part)) {
+                  std::cout << "  Left crosslinker bound node: "
+                            << bulk_data.identifier(bulk_data.begin_nodes(crosslinker)[0]) << std::endl;
+                } else if (bulk_data.bucket(crosslinker).member(right_bound_crosslinkers_part)) {
+                  std::cout << "  Left crosslinker bound node: "
+                            << bulk_data.identifier(bulk_data.begin_nodes(crosslinker)[1]) << std::endl;
+                }
+                std::cout << "  Sphere target node: " << bulk_data.identifier(sphere_node) << std::endl;
+                printf("sphere: r_1 = %f, r_2 = %f, r_3 = %f\n",
+                       stk::mesh::field_data(node_coord_field, sphere_node)[0],
+                       stk::mesh::field_data(node_coord_field, sphere_node)[1],
+                       stk::mesh::field_data(node_coord_field, sphere_node)[2]);
+                std::cout << "    dr: " << dr[0] << ", " << dr[1] << ", " << dr[2] << std::endl;
+                std::cout << "    dr_mag: " << dr_mag << std::endl;
+                std::cout << "    Z: " << Z << std::endl;
+                MUNDY_THROW_ASSERT(false, std::logic_error, "dr_mag is nan.");
+              }
+
               stk::mesh::field_data(constraint_state_change_probability, linker)[0] = Z;
 #ifdef DEBUG
               std::cout << "Checking crosslinker z-partition\n";
@@ -1319,7 +1350,7 @@ class StickySettings {
               double binding_probability =
                   timestep_size *
                   stk::mesh::field_data(constraint_state_change_probability_field, constraint_rank_entity)[0];
-              std::cout << "Binding probability " << binding_probability << std::endl;
+              // std::cout << "Binding probability " << binding_probability << std::endl;
               Z_tot += binding_probability;
             }
           }
@@ -1360,7 +1391,7 @@ class StickySettings {
           }
         });
 
-    // Do doubly bound crosslinkers next
+    // Loop over doubly bound crosslinkers to unattach next
     auto doubly_crosslinkers_selector =
         stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(
@@ -1405,7 +1436,6 @@ class StickySettings {
             auto &constraint_rank_entity = neighbor_linkers[j];
             bool is_crosslinker_sphere_linker =
                 bulk_data.bucket(constraint_rank_entity).member(crosslinker_sphere_linkers_part);
-            // const bool is_right_sphere_node = bulk_data.begin_nodes(constraint_rank_entity)[1] == right_sphere_node;
             const stk::mesh::Entity &linker_sphere =
                 bulk_data.begin(constraint_rank_entity, stk::topology::ELEMENT_RANK)[1];
             const bool is_right_sphere_node = bulk_data.begin_nodes(linker_sphere)[0] == right_sphere_node;
@@ -1422,7 +1452,8 @@ class StickySettings {
 #endif
                 stk::mesh::field_data(constraint_perform_state_change_field, constraint_rank_entity)[0] =
                     static_cast<unsigned>(BINDING_STATE_CHANGE::DOUBLY_TO_LEFT);
-                std::cout << "Set crosslinker to unbind" << std::endl;
+                std::cout << "Unbinding probability " << timestep_size * unbinding_probability << std::endl;
+                std::cout << "Setting crosslinker to unbind" << std::endl;
                 break;
               }
             }
@@ -1445,7 +1476,13 @@ class StickySettings {
     stk::mesh::EntityVector crosslinker_sphere_linkers;
     stk::mesh::get_selected_entities(stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_),
                                      bulk_data_ptr_->buckets(constraint_rank_), crosslinker_sphere_linkers);
+    stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
+    stk::mesh::Part &right_bound_crosslinkers_part = *right_bound_crosslinkers_part_ptr_;
+    stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
 
+    if (timestep_index_ == 1284) {
+      stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    }
     // Iterate over the entities
     for (const stk::mesh::Entity &crosslinker_sphere_linker : crosslinker_sphere_linkers) {
       // Decode the binding type enum for this entity
@@ -1462,18 +1499,22 @@ class StickySettings {
         // left_to_right.
         if (state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) {
           bind_crosslinker_to_node(bulk_data_ptr_.get(), crosslinker, sphere_node, 1);
+          std::cout << "Performing L->D for entity " << bulk_data_ptr_->identifier(crosslinker) << std::endl;
 
           // Now change the part from left to doubly bound.
           auto add_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
           auto remove_parts = stk::mesh::PartVector{left_bound_crosslinkers_part_ptr_};
           bulk_data_ptr_->change_entity_parts(crosslinker, add_parts, remove_parts);
+
         } else if (state_change_action == BINDING_STATE_CHANGE::RIGHT_TO_DOUBLY) {
+          MUNDY_THROW_ASSERT(false, std::logic_error, "Should not ever be here for StickySettings.");
           bind_crosslinker_to_node(bulk_data_ptr_.get(), crosslinker, sphere_node, 0);
 
           // Now change the part from right to doubly bound.
           auto add_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
           auto remove_parts = stk::mesh::PartVector{right_bound_crosslinkers_part_ptr_};
           bulk_data_ptr_->change_entity_parts(crosslinker, add_parts, remove_parts);
+
         } else if (state_change_action == BINDING_STATE_CHANGE::DOUBLY_TO_LEFT) {
           std::cout << "Unbinding crosslinker" << std::endl;
           unbind_crosslinker_from_node(bulk_data_ptr_.get(), crosslinker, 1);
@@ -1481,12 +1522,43 @@ class StickySettings {
           // Now change the part from right to doubly bound.
           auto remove_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
           auto add_parts = stk::mesh::PartVector{left_bound_crosslinkers_part_ptr_};
+          std::cout << "Performing D->L for entity " << bulk_data_ptr_->identifier(crosslinker) << std::endl;
           bulk_data_ptr_->change_entity_parts(crosslinker, add_parts, remove_parts);
         }
       }
     }
-
     bulk_data_ptr_->modification_end();
+    if (timestep_index_ == 1284) {
+      stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    }
+
+    auto left_crosslinkers_selector =
+        stk::mesh::Selector(*left_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
+        [&left_bound_crosslinkers_part]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                        const stk::mesh::Entity &crosslinker) {
+          const stk::mesh::Entity left_sphere_node = bulk_data.begin_nodes(crosslinker)[0];
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_node), std::logic_error, "Left node is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data.bucket(left_sphere_node).member(left_bound_crosslinkers_part), std::logic_error,
+                             "Left node is not a left bound crosslinker.");
+        });
+
+    auto doubly_crosslinkers_selector =
+        stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_crosslinkers_selector,
+        [&doubly_bound_crosslinkers_part]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                          const stk::mesh::Entity &crosslinker) {
+          const stk::mesh::Entity left_sphere_node = bulk_data.begin_nodes(crosslinker)[0];
+          const stk::mesh::Entity right_sphere_node = bulk_data.begin_nodes(crosslinker)[1];
+          const bool left_sphere_correct = bulk_data.bucket(left_sphere_node).member(doubly_bound_crosslinkers_part);
+          const bool right_sphere_correct = bulk_data.bucket(right_sphere_node).member(doubly_bound_crosslinkers_part);
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_node), std::logic_error, "Left node is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(right_sphere_node), std::logic_error, "Right node is not valid.");
+          MUNDY_THROW_ASSERT(left_sphere_correct, std::logic_error, "Left node is not a left bound crosslinker.");
+          MUNDY_THROW_ASSERT(right_sphere_correct, std::logic_error, "Right node is not a right bound crosslinker.");
+        });
   }
 
   void update_crosslinker_state() {
