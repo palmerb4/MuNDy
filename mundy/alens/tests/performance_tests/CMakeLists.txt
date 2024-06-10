@@ -87,9 +87,9 @@ tribits_add_executable(
     CATEGORIES PERFORMANCE
     )
 
-    tribits_add_executable(
-        CollidingOverdampedFrictionalSperm
-        SOURCES
-        CollidingOverdampedFrictionalSperm.cpp
-        CATEGORIES PERFORMANCE
-        )
+tribits_add_executable(
+    CollidingOverdampedFrictionalSperm
+    SOURCES
+    CollidingOverdampedFrictionalSperm.cpp
+    CATEGORIES PERFORMANCE
+    )

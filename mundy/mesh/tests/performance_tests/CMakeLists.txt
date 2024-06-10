@@ -17,5 +17,9 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(unit_tests)
-add_subdirectory(performance_tests)
+tribits_add_executable(
+  RepeatedEntityCreationAndDestruction
+    SOURCES
+    RepeatedEntityCreationAndDestruction.cpp
+    CATEGORIES PERFORMANCE
+    )
