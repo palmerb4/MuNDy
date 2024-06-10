@@ -32,9 +32,9 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                                                       // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/linker_potential_force_reduction/kernels/SpherocylinderSegment.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegment
-#include <mundy_math/Vector3.hpp>   // for mundy::math::Vector3
+#include <mundy_math/Vector3.hpp>                                                            // for mundy::math::Vector3
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
@@ -143,44 +143,27 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
   const stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
   stk::mesh::Part &linkers_part_to_reduce_over = *linkers_part_to_reduce_over_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      spherocylinder_segment_selector;
+  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts = stk::mesh::selectUnion(valid_entity_parts_) &
+                                                                           meta_data_ptr_->locally_owned_part() &
+                                                                           spherocylinder_segment_selector;
   stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
       locally_owned_intersection_with_valid_entity_parts,
-      [&linker_contact_points_field, &linker_potential_force_field,
-       &node_coord_field, &node_force_field, &linkers_part_to_reduce_over](
-          const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_segment) {
+      [&linker_contact_points_field, &linker_potential_force_field, &node_coord_field, &node_force_field,
+       &linkers_part_to_reduce_over](const stk::mesh::BulkData &bulk_data,
+                                     const stk::mesh::Entity &spherocylinder_segment) {
         // Get our nodes and their force
 
-        // The force experienced by each node is determined such that the induced center of mass force and torque are
-        // the same as that felt by a spherocylinder with the same geometry and force distribution.
-        //
-        // This requires that the force applied to each node be scaled by some scalars left_sf and right_sf, where
-        // left_sf + right_sf = 1. These scale factors will depend on the ratio of the distance from the contact point
-        // (p) to the left and right endpoints (x1, x2) of the rod. This ratio can be attained without square roots only
-        // vectors in the lab frame:
-        //  distance_ratio = (x2 - p) dot (x2 - c) / ((x1 - p) dot (x1 - c)) If we denote the
-        // where c is the center of mass of the spherocylinder. We'll assume that the spherocylinder has uniform density
-        // such that c lies at the geometric center of the rod. c = (x1 + x2) / 2
-        //  distance_ratio = (x2 - p) dot (x2 - (x1 + x2) / 2) / ((x1 - p) dot (x1 - (x1 + x2) / 2))
-        //                 = -(x2 - p) dot (x2 - x1) / ((x1 - p) dot (x2 - x1))
-        // The scale factors are given by:
-        //  left_sf = distance_ratio * right_sf
-        //  right_sf = 1 / (1 + distance_ratio)
-        // Of course, there are special degeneracies:
-        //   1. If the numerator (x2 - p) dot (x2 - x1) and denominator (x1 - p) dot (x2 - x1) are both zero, then
-        //   left_sf = right_sf = 1/2
-        //   2. If the numerator is non-zero but the denominator is zero, then left_sf = 1 and right_sf = 0
-        const stk::mesh::Entity &left_node = bulk_data.begin_nodes(spherocylinder_segment)[0];
-        const stk::mesh::Entity &right_node = bulk_data.begin_nodes(spherocylinder_segment)[1];
+        // The force experienced by each node is determine by the traspose of the map from endpoint velocity to contact
+        // point velocity.
+        const stk::mesh::Entity &node0 = bulk_data.begin_nodes(spherocylinder_segment)[0];
+        const stk::mesh::Entity &node1 = bulk_data.begin_nodes(spherocylinder_segment)[1];
 
-        auto left_node_coord = mundy::mesh::vector3_field_data(node_coord_field, left_node);
-        auto right_node_coord = mundy::mesh::vector3_field_data(node_coord_field, right_node);
+        auto pos0 = mundy::mesh::vector3_field_data(node_coord_field, node0);
+        auto pos1 = mundy::mesh::vector3_field_data(node_coord_field, node1);
 
-        auto left_node_force = mundy::mesh::vector3_field_data(node_force_field, left_node);
-        auto right_node_force = mundy::mesh::vector3_field_data(node_force_field, right_node);
+        auto force0 = mundy::mesh::vector3_field_data(node_force_field, node0);
+        auto force1 = mundy::mesh::vector3_field_data(node_force_field, node1);
 
         // Loop over the connected constraint rank entities
         const unsigned num_constraint_rank_conn =
@@ -194,52 +177,33 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
                              "SpherocylinderSegment: connected_linker is not valid.");
 
           const bool is_reduction_linker = bulk_data.bucket(connected_linker).member(linkers_part_to_reduce_over);
-
           if (is_reduction_linker) {
-            // The linker force is the force on the left element. The force on the right element is equal and opposite. This is
-            // important, as it means we should multiply by -1 if we are the right element.
+            // The linker force is the force on the left element. The force on the right element is equal and opposite.
+            // This is important, as it means we should multiply by -1 if we are the right element.
             const bool are_we_the_left_spherocylinder_segment =
                 (bulk_data.begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == spherocylinder_segment);
-            const double sign = are_we_the_left_spherocylinder_segment ? -1.0 : 1.0;
+            const double sign = are_we_the_left_spherocylinder_segment ? 1.0 : -1.0;
+            const auto potential_force =
+                sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
+
             auto contact_point = mundy::math::get_vector3_view<double>(
                 stk::mesh::field_data(linker_contact_points_field, connected_linker) +
                 3 * !are_we_the_left_spherocylinder_segment);
-            const auto potential_force =
-              sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
-            const double numerator =
-                -mundy::math::dot(right_node_coord - contact_point, right_node_coord - left_node_coord);
-            const double denominator =
-                mundy::math::dot(left_node_coord - contact_point, right_node_coord - left_node_coord);
-            const bool numerator_near_zero = std::abs(numerator) < 1e-12;      // TODO(replace with fancy tol)
-            const bool denominator_near_zero = std::abs(denominator) < 1e-12;  // TODO(replace with fancy tol)
+            // For now, we ignore the contribution to twist torque.
+            const auto left_to_cp = contact_point - pos0;
+            const auto left_to_right = pos1 - pos0;
+            const double length = mundy::math::norm(left_to_right);
+            const double inv_length = 1.0 / length;
+            const auto tangent = left_to_right * inv_length;
 
 
-            const double left_sf = 0.5;
-            const double right_sf = 0.5;
-            left_node_force += potential_force * left_sf;
-            right_node_force += potential_force * right_sf;
-
-            // if (numerator_near_zero && denominator_near_zero) {
-            //   // Special case 1. Rod of length zero.
-            //   const double left_sf = 0.5;
-            //   const double right_sf = 0.5;
-            //   left_node_force += potential_force * left_sf;
-            //   right_node_force += potential_force * right_sf;
-            // } else if (denominator_near_zero) {
-            //   // Special case 2. Perfect contact with the left node.
-            //   left_node_force += potential_force;
-            // } else {
-            //   const double distance_ratio = numerator / denominator;
-            //   const double right_sf = 1.0 / (1.0 + distance_ratio);
-            //   const double left_sf = distance_ratio * right_sf;
-
-            //   std::cout << "right_sf: " << right_sf << std::endl;
-            //   std::cout << "left_sf: " << left_sf << std::endl;
-
-            //   left_node_force += potential_force * left_sf;
-            //   right_node_force += potential_force * right_sf;
-            // }
+            const auto term1 = mundy::math::dot(tangent, potential_force) * left_to_cp * inv_length;
+            const auto term2 = mundy::math::dot(left_to_cp, tangent) * 
+              (potential_force - mundy::math::dot(tangent, potential_force) * tangent) * inv_length;
+            const auto sum = term1 - term2;
+            force0 += sum;
+            force1 += potential_force - sum;
           }
         }
       });

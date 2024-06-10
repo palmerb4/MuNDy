@@ -208,7 +208,7 @@ void SpherocylinderSegmentSpherocylinderSegmentHertzianContact::execute(
 
         // Save the contact force (Forces are equal and opposite, so we only save the left force)
         mundy::mesh::vector3_field_data(linker_potential_force_field,
-                                        spherocylinder_segment_spherocylinder_segment_linker) =
+                                        spherocylinder_segment_spherocylinder_segment_linker) +=
             -left_contact_normal * normal_force_magnitude;
       });
 }

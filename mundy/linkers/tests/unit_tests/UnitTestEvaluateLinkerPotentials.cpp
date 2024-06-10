@@ -87,46 +87,18 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
     Seg1-Seg2: r1 = 3.5, r2 = 4.0, ssd = -0.5, poissons_ratio = 0.3, youngs_modulus = 1e6
   */
 
-
-// MUNDY_REGISTER_METACLASS("SPHERE_SPHERE_HERTZIAN_CONTACT",
-//                          mundy::linkers::evaluate_linker_potentials::kernels::SphereSphereHertzianContact,
-//                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-// MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT",
-//                          mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderHertzianContact,
-//                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-// MUNDY_REGISTER_METACLASS(
-//     "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
-//     mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderSegmentHertzianContact,
-//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-// MUNDY_REGISTER_METACLASS(
-//     "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
-//     mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact,
-//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-// MUNDY_REGISTER_METACLASS(
-//     "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT",
-//     mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderHertzianContact,
-//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-// MUNDY_REGISTER_METACLASS(
-//     "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
-//     mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderSegmentHertzianContact,
-//     mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-
-// MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_FRICTIONAL_HERTZIAN_CONTACT",
-//                          mundy::linkers::evaluate_linker_potentials::kernels::
-//                              SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact,
-//                          mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-
-
-
   // Create an instance of EvaluateLinkerPotentials based on committed mesh that meets the
   // default requirements for EvaluateLinkerPotentials.
-  auto hertzian_contact_fixed_params = Teuchos::ParameterList().set("enabled_kernel_names", 
-        mundy::core::make_string_array("SPHERE_SPHERE_HERTZIAN_CONTACT", 
-        "SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT", "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT", 
-        "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
-        "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT", "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
+  auto hertzian_contact_fixed_params = Teuchos::ParameterList().set(
+      "enabled_kernel_names",
+      mundy::core::make_string_array("SPHERE_SPHERE_HERTZIAN_CONTACT", "SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT",
+                                     "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+                                     "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
+                                     "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT",
+                                     "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
   auto [evaluate_linker_potentials_ptr, bulk_data_ptr] =
-      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<EvaluateLinkerPotentials>({hertzian_contact_fixed_params});
+      mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements<EvaluateLinkerPotentials>(
+          {hertzian_contact_fixed_params});
   ASSERT_TRUE(evaluate_linker_potentials_ptr != nullptr);
   ASSERT_TRUE(bulk_data_ptr != nullptr);
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
@@ -432,6 +404,207 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
     check_potential_force_magnitude(seg1_seg2_linker, 3.5, 4.0, -0.5, 0.3, 1.0e6, 0.3, 1.0e6, "seg1_seg2_linker");
   }
 }
+
+TEST(EvaluateLinkerPotentials, FrictionalHertzianContactSlideSlipSphere) {
+  // There exists an expected value for the transition between sliding and rolling
+  // sphere shot at a table such that it contacts with the table exactly along a line
+  //
+  //  o ->    _________
+  //         |
+  //
+  //       o->_________
+  //         |
+  //
+  //          __o->_____
+  //         |
+  //
+  // The sphere is traveling to the right at an initial velocity of v0, experiences
+  // a downward gravitational force of g, and the ball/sphere have a friction factor of mu.
+  // Trickle 2003 states that the ball will initially slide and, but that at a time
+  // t = 2 v0 / (7 mu g), it will transition to rolling.
+  //
+  // For this problem, we will simulate all the dynamics ourselves with EvaluateLinkerPotentials providing the
+  // frictional hertzian contact force.
+  //
+  // Because this is a 2D problem, we'll represent the sphere's orientation using its azimuthal angle with the table.
+  //
+  // r = 1.0, rho = 1.0
+  // F = m a, m = 4/3 pi r^3 rho
+  // tau = I alpha, I = 2/5 m r^2
+  //
+  // For simplicity, we'll discretize this using velocity Verlet integration.
+  //   v(t + dt/2) = v(t) + 0.5 a(t) dt
+  //   x(t + dt) = x(t) + v(t + dt/2) dt
+  //   a(t + dt) = F(x(t + dt)) / m
+  //   v(t + dt) = v(t + dt/2) + 0.5 a(t + dt) dt
+  //
+  // Here F and tau are center of mass force and torque, respectively. The hertzian contact force is applied at the
+  // contact point, which is at the bottom of the sphere. Hence, F = F_contact - m g and tau = (-r \hat{k}) x F_contact.
+
+  // Replicate the EvaluateLinkerPotentials kernel for the frictional hertzian contact force and simplify it for our
+  // needs.
+  using Vector3 = mundy::math::Vector3<double>;
+  auto eval_hertz_with_friction =
+      [](const double &time_step_size, const double &density, const double &normal_spring_coeff,
+         const double &tang_spring_coeff, const double &normal_damping_coeff, const double &tang_damping_coeff,
+         const double &friction_coeff, const double &left_radius, const double &right_radius,
+         const double &signed_sep_dist, const Vector3 &left_cp_vel, const Vector3 &right_cp_vel,
+         const Vector3 &left_contact_normal, Vector3 &tang_disp, Vector3 &potential_force_field) {
+        if (signed_sep_dist > 0) {
+          // No contact, reset the tangential displacement
+          tang_disp.set(0.0, 0.0, 0.0);
+        } else {
+          // Compute the relative normal and tangential velocities
+          const auto rel_cp_vel = right_cp_vel - left_cp_vel;
+          const auto rel_vel_normal = mundy::math::dot(rel_cp_vel, left_contact_normal) * left_contact_normal;
+          const auto rel_vel_tang = rel_cp_vel - rel_vel_normal;
+
+          // Compute the tangential displacement (history variable)
+          // First add on the current tangential displacement, then project onto the tangent plane.
+          tang_disp += rel_vel_tang * time_step_size;
+          tang_disp -= mundy::math::dot(tang_disp, left_contact_normal) * left_contact_normal;
+          const double tang_disp_mag = mundy::math::norm(tang_disp);
+
+          // Compute the contact force
+          // Note, for LAMMPS' delta is the negative of our signed separation distance.
+          // As well, they compute the force on the RIGHT particle. We compute the force on the LEFT, introducing a
+          // negative sign.
+          const double left_mass = 4.0 / 3.0 * M_PI * left_radius * left_radius * left_radius * density;
+          const double right_mass = 4.0 / 3.0 * M_PI * right_radius * right_radius * right_radius * density;
+          const double effective_radius = (left_radius * right_radius) / (left_radius + right_radius);
+          const double effective_mass = (left_mass * right_mass) / (left_mass + right_mass);
+          // const double hertz_poly = std::sqrt(-effective_radius * signed_sep_dist);
+          const double hertz_poly = 1.0;  // Hookean contact model
+          auto normal_force = hertz_poly * (normal_spring_coeff * signed_sep_dist * left_contact_normal +
+                                            effective_mass * normal_damping_coeff * rel_vel_normal);
+          auto tang_force =
+              hertz_poly * (tang_spring_coeff * tang_disp + effective_mass * tang_damping_coeff * rel_vel_tang);
+
+          // Rescale frictional displacements and forces if needed to satisfy the Coulomb friction law
+          // Ft = min(friction_coeff*Fn, Ft)
+          const double normal_force_mag = mundy::math::norm(normal_force);
+          const double tang_force_mag = mundy::math::norm(tang_force);
+          const double scaled_normal_force_mag = friction_coeff * normal_force_mag;
+          if (tang_force_mag > scaled_normal_force_mag) {
+            if (tang_disp_mag != 0.0) {  // TODO(palmerb4): Exact comparison to 0.0 is bad. Use a tol.
+              tang_disp = (scaled_normal_force_mag / tang_force_mag) *
+                              (tang_disp + effective_mass * tang_damping_coeff * rel_vel_tang / tang_spring_coeff) -
+                          effective_mass * tang_damping_coeff * rel_vel_tang / tang_spring_coeff;
+              tang_force *= scaled_normal_force_mag / tang_force_mag;
+            } else {
+              tang_force.set(0.0, 0.0, 0.0);
+            }
+          }
+
+          // Save the contact force (Forces are equal and opposite, so we only save the left force)
+          potential_force_field += normal_force + tang_force;
+        }
+      };  // eval_hertz_with_friction
+
+  // Simulation params
+  const double time_step_size = 1.0e-4;
+  const double radius = 1.0;
+  const double density = 1.0;
+  const double friction_coeff = 0.2;
+  const double g = 9.81;
+  const double initial_vel = 2.0;
+  const double mass = 4.0 / 3.0 * M_PI * radius * radius * radius * density;
+  const double inertia = 2.0 / 5.0 * mass * radius * radius;
+
+  // Hertzian contact params
+  const double youngs_modulus = 10000.0;
+  const double poissons_ratio = 0.3;
+  const double shear_modulus = 0.5 * youngs_modulus / (1.0 + poissons_ratio);
+  const double normal_spring_coeff = 4.0 / 3.0 * shear_modulus / (1.0 - poissons_ratio);
+  const double tang_spring_coeff = 4.0 * shear_modulus / (2.0 - poissons_ratio);
+  const double normal_damping_coeff = 1.0;
+  const double tang_damping_coeff = 0.5;
+
+  // Initialize the sphere
+  mundy::math::Vector3<double> position(0.0, radius, 0.0);
+  mundy::math::Vector3<double> orientation(0.0, 0.0, 0.0);
+  mundy::math::Vector3<double> velocity(initial_vel, 0.0, 0.0);
+  mundy::math::Vector3<double> omega(0.0, 0.0, 0.0);
+  mundy::math::Vector3<double> acceleration(0.0, 0.0, 0.0);
+  mundy::math::Vector3<double> alpha(0.0, 0.0, 0.0);
+  mundy::math::Vector3<double> tang_disp(0.0, 0.0, 0.0);
+  mundy::math::Vector3<double> potential_force_field(0.0, 0.0, 0.0);
+
+  // Left is the sphere, right is the table, so the normal points down and the right velocity is zero.
+  const auto left_contact_normal = mundy::math::Vector3<double>(0.0, -1.0, 0.0);
+  const auto right_cp_vel = mundy::math::Vector3<double>(0.0, 0.0, 0.0);
+  double signed_separation_distance = position[1] - radius;
+
+  // Save the x-velocity of the sphere, the signed separation distance, and the time
+  const double max_time = 2.0;
+  const int num_steps = static_cast<int>(max_time / time_step_size);
+  std::vector<double> x_velocities(num_steps);
+  std::vector<double> signed_separation_distances(num_steps);
+  std::vector<double> times(num_steps);
+
+  double time = 0.0;
+  for (int i = 0; i < num_steps; i++) {
+    // Print the result for time t^k every 0.1 seconds
+    // if (std::fmod(time, 0.01) < time_step_size) {
+    //   std::cout << "Time: " << time << std::endl;
+    //   std::cout << "  Position: " << position << "\t Orientation: " << orientation << std::endl;
+    //   std::cout << "  Velocity: " << velocity << "\t Omega: " << omega << std::endl;
+    //   std::cout << "  Acceleration: " << acceleration << "\t Alpha: " << alpha << std::endl;
+    //   std::cout << "  Potential Force: " << potential_force_field << "\t Tangential Displacement: " << tang_disp
+    //             << std::endl;
+    //   std::cout << "  signed_separation_distance: " << signed_separation_distance << std::endl;
+    // }
+
+    // Save the x-velocity, signed separation distance, and time for time t^k
+    x_velocities[i] = velocity[0];
+    signed_separation_distances[i] = signed_separation_distance;
+    times[i] = time;
+
+    // Update the time
+    time += time_step_size;
+
+    // Get the new position and orientation
+    //   x(t + dt) = x(t) + v(t) dt + 0.5 a(t) dt^2
+    //   orientation(t + dt) = orientation(t) + omega(t) dt + 0.5 alpha(t) dt^2
+    position += velocity * time_step_size + 0.5 * acceleration * time_step_size * time_step_size;
+    orientation += omega * time_step_size + 0.5 * alpha * time_step_size * time_step_size;
+
+    // Setup the current timestep
+    signed_separation_distance = position[1] - radius;
+    potential_force_field.set(0.0, 0.0, 0.0);
+
+    // We are at time t^{k+1}. Compute F^{k+1} and tau^{k+1}
+    mundy::math::Vector3<double> left_cp_vel = velocity + mundy::math::cross(omega, radius * left_contact_normal);
+    eval_hertz_with_friction(time_step_size, density, normal_spring_coeff, tang_spring_coeff, normal_damping_coeff,
+                             tang_damping_coeff, friction_coeff, radius, radius, signed_separation_distance,
+                             left_cp_vel, right_cp_vel, left_contact_normal, tang_disp, potential_force_field);
+
+    // Update the velocity and angular velocity
+    //  v(t + dt) = v(t) + 0.5 (a(t) + a(t + dt)) dt
+    //  omega(t + dt) = omega(t) + 0.5 (alpha(t) + alpha(t + dt)) dt
+    //
+    // Use the forces and torques to get a(t + dt) and alpha(t + dt) but stored in temporary variables to avoid
+    // overwriting a(t) and alpha(t)
+    auto acceleration_next = potential_force_field / mass - mundy::math::Vector3<double>(0.0, g, 0.0);
+    auto alpha_next = mundy::math::cross(radius * left_contact_normal, potential_force_field) / inertia;
+    velocity += 0.5 * (acceleration + acceleration_next) * time_step_size;
+    omega += 0.5 * (alpha + alpha_next) * time_step_size;
+    acceleration = acceleration_next;
+    alpha = alpha_next;
+  }
+
+  // Write the results to a file. Use a buffer to speed this up.
+  std::ostringstream buffer;
+  buffer << "Time,X-Velocity,Signed_Separation_Distance" << std::endl;
+  for (int i = 0; i < num_steps; i++) {
+    buffer << times[i] << "," << x_velocities[i] << "," << signed_separation_distances[i] << std::endl;
+  }
+  std::ofstream file("frictional_hertzian_contact_slide_slip_sphere.csv");
+  file << buffer.str();
+  file.close();
+  file.close();
+}
+
 //@}
 
 }  // namespace

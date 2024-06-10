@@ -3,4 +3,8 @@
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
+// Optional packages
+#cmakedefine HAVE_MUNDYALENS_STKFMM
+#cmakedefine HAVE_MUNDYALENS_PVFMM
+
 #endif  // MUNDYAGENTS_CONFIG_HPP_

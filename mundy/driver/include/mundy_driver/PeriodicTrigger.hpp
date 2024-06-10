@@ -53,7 +53,7 @@ class PeriodicTrigger : public TriggerBase {
 
   /// \brief Evaluate this trigger
   /// \param [in] current_step
-  /// @return TRIGGERSTATUS on fired state
+  /// \return TRIGGERSTATUS on fired state
   TRIGGERSTATUS evaluate_trigger(size_t current_step) override;
 
   //@}

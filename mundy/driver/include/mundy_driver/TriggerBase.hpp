@@ -66,7 +66,7 @@ class TriggerBase {
   /// This check if the trigger fires, or has already been run this step. This means that once we evaluate a unique
   /// trigger, we can reuse the last status for this timestep, and not evaluate it again.
   /// \param [in] current_step
-  /// @return
+  /// \return
   virtual TRIGGERSTATUS trigger_check(size_t current_step) {
     if (current_step == last_evaluated_step_) {
       return last_status_;
@@ -87,7 +87,7 @@ class TriggerBase {
 
   /// \brief Evaluate this trigger (must be implemented by inheriting class)
   /// \param [in] current_step
-  /// @return TRIGGERSTATUS on fired state
+  /// \return TRIGGERSTATUS on fired state
   virtual TRIGGERSTATUS evaluate_trigger(size_t current_step) = 0;
 
  private:

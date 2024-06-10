@@ -19,4 +19,6 @@ tribits_repository_define_tpls(
   ParMETIS       "cmake/TPLs/"                                    PT
   GTest          "cmake/TPLs/"                                    PT
   OpenRAND       "cmake/TPLs/"                                    PT
+  PVFMM          "cmake/TPLs/"                                    EX
+  STKFMM         "cmake/TPLs/"                                    EX
   )

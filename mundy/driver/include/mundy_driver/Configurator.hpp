@@ -112,53 +112,53 @@ class Configurator {
 
   /// \brief Set the configuration version
   /// \param [in] configuration_version
-  /// @return
+  /// \return
   Configurator &set_configuration_version(const unsigned configuration_version);
 
   /// \brief Set the number of spatial dimensions
   /// \param [in] spatial_dimension
-  /// @return
+  /// \return
   Configurator &set_spatial_dimension(const unsigned spatial_dimension);
 
   /// \brief Set the entity rank names for the STK mesh
   /// \param [in] entity_rank_names
-  /// @return
+  /// \return
   Configurator &set_entity_rank_names(const std::vector<std::string> &entity_rank_names);
 
   /// \brief Set the MPI communicator
   /// \param [in] comm
-  /// @return
+  /// \return
   Configurator &set_communicator(const stk::ParallelMachine &comm);
 
   /// \brief Set the mastet configuration parameter list
   /// \param [in] param_list
-  /// @return
+  /// \return
   Configurator &set_param_list(const Teuchos::ParameterList &param_list);
 
   /// \brief Set the input configuration file name
   /// \param [in] input_file_name
-  /// @return
+  /// \return
   Configurator &set_input_file_name(const std::string &input_file_name);
 
   /// \brief Set the input configuration file type [YAML]
   /// \param [in] input_file_type
-  /// @return
+  /// \return
   Configurator &set_input_file_type(const std::string &input_file_type);
 
   /// \brief Set the input configuration file name and type
   /// \param [in] input_file_name
   /// \param [in] input_file_type
-  /// @return
+  /// \return
   Configurator &set_input_file(const std::string &input_file_name, const std::string &input_file_type);
 
   /// \brief Set the coordinate field name
   /// \param [in] node_coordinate_field_name
-  /// @return
+  /// \return
   Configurator &set_node_coordinate_field_name(const std::string &node_coordinate_field_name);
 
   /// \brief Set the driver if it already exists
   /// \param [in] driver
-  /// @return
+  /// \return
   Configurator &set_driver(std::shared_ptr<Driver> driver);
 
   //@}
@@ -167,7 +167,7 @@ class Configurator {
   //@{
 
   /// \brief Get the mesh requirements
-  /// @return std::shared_ptr<mundy::meta::MeshReqs>
+  /// \return std::shared_ptr<mundy::meta::MeshReqs>
   std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements();
 
   //@}
@@ -179,34 +179,34 @@ class Configurator {
   ///
   /// Parses and stores configuration information for entire simulation. This includes both the configuration (enabled
   /// MetaMethods) and their ordering (Actions).
-  /// @return
+  /// \return
   Configurator &parse_parameters();
 
   /// \brief Parse configuration section of parameters
   /// \param [in] config_params
-  /// @return
+  /// \return
   Configurator &parse_configuration(const Teuchos::ParameterList &config_params);
 
   /// \brief Parse actions section of parameters
   /// \param [in] action_params
-  /// @return
+  /// \return
   Configurator &parse_actions(const Teuchos::ParameterList &action_params);
 
   /// \brief Parse a MetaMethod type
   /// \param [in] method_type
   /// \param [in] method_params
-  /// @return
+  /// \return
   Configurator &parse_meta_method_type(const std::string &method_type, const Teuchos::ParameterList &method_params);
 
   /// \brief Create mesh requirements from enabled meta methods
-  /// @return std::shared_ptr<mundy::meta::MeshReqs>
+  /// \return std::shared_ptr<mundy::meta::MeshReqs>
   std::shared_ptr<mundy::meta::MeshReqs> create_mesh_requirements();
 
   /// \brief Generate complete simulation driver to run simulation
   ///
   /// Creates the driver if it doesn't exist. If it does exist, populate it from the enabled MetaMethods and action
   /// ordering.
-  /// @return
+  /// \return
   std::shared_ptr<Driver> generate_driver();
 
   //@}

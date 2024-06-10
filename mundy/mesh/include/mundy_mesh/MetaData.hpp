@@ -109,24 +109,24 @@ class MetaData : public stk::mesh::MetaData {
   /// \brief Attempt to remove an attribute from the provided field.
   /// \param field The given field whose attribute we are trying to remove.
   /// \param attribute_name The name of the attribute to remove.
-  /// @return A flag indicating if the attribute existed on the given field or not.
+  /// \return A flag indicating if the attribute existed on the given field or not.
   bool remove_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name);
 
   /// \brief Attempt to remove an attribute from the provided part.
   /// \param part The given part whose attribute we are trying to remove.
   /// \param attribute_name The name of the attribute to remove.
-  /// @return A flag indicating if the attribute existed on the given part or not.
+  /// \return A flag indicating if the attribute existed on the given part or not.
   bool remove_attribute(const stk::mesh::Part &part, const std::string &attribute_name);
 
   /// \brief Attempt to remove an attribute from this mesh.
   /// \param attribute_name The name of the attribute to remove.
-  /// @return A flag indicating if the attribute existed on this mesh or not.
+  /// \return A flag indicating if the attribute existed on this mesh or not.
   bool remove_attribute(const std::string &attribute_name);
 
   /// \brief Attempt to fetch a field attribute with the provided name from the given field.
   /// \param field The given field whose attribute we are trying to fetch.
   /// \param attribute_name The name of the attribute to fetch.
-  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// \return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
   /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
   /// mesh ordinal and name.
   std::any *get_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name);
@@ -134,14 +134,14 @@ class MetaData : public stk::mesh::MetaData {
   /// \brief Attempt to fetch a part attribute with the provided name from the given part.
   /// \param part The given part whose attribute we are trying to fetch.
   /// \param attribute_name The name of the attribute to fetch.
-  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// \return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
   /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
   /// mesh ordinal and name.
   std::any *get_attribute(const stk::mesh::Part &part, const std::string &attribute_name);
 
   /// \brief Attempt to fetch an attribute with the provided name from the current mesh.
   /// \param attribute_name The name of the attribute to fetch.
-  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// \return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
   /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
   /// mesh ordinal and name.
   std::any *get_attribute(const std::string &attribute_name);

@@ -18,6 +18,9 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 SET(NOINSTALLHEADERS 
   include/mundy_alens/ComputeBrownianVelocity.hpp
   include/mundy_alens/compute_brownian_velocity/kernels/SpheresKernel.hpp
+  include/mundy_alens/ComputeMobility.hpp
+  include/mundy_alens/compute_mobility/techniques/LocalDragNonOrientableSpheres.hpp
+  include/mundy_alens/compute_mobility/techniques/RPYSpheres.hpp
   )
 
 SET(SOURCES 

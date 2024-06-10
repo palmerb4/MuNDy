@@ -21,8 +21,8 @@
 #define MUNDY_LINKERS_EVALUATE_LINKER_POTENTIALS_SPHEROCYLINDERSEGMENTSPHEROCYLINDERSEGMENTFRICTIONALHERTZIANCONTACT_HPP_
 
 /// \file SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact.hpp
-/// \brief Declaration of the EvaluateLinkerPotentials's SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact
-/// kernel.
+/// \brief Declaration of the EvaluateLinkerPotentials's
+/// SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact kernel.
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -113,8 +113,8 @@ class SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact : publ
   //@{
 
   /// \brief Constructor
-  explicit SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact(mundy::mesh::BulkData *const bulk_data_ptr,
-                                                                     const Teuchos::ParameterList &fixed_params);
+  explicit SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact(
+      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params);
   //@}
 
   //! \name MetaKernel interface implementation
@@ -157,7 +157,8 @@ class SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact : publ
       part_reqs->add_field_reqs<double>(linker_potential_force_field_name, stk::topology::CONSTRAINT_RANK, 3, 1);
       part_reqs->add_field_reqs<double>(linker_signed_separation_distance_field_name, stk::topology::CONSTRAINT_RANK, 1,
                                         1);
-      part_reqs->add_field_reqs<double>(linker_tangential_displacement_field_name, stk::topology::CONSTRAINT_RANK, 3, 1);
+      part_reqs->add_field_reqs<double>(linker_tangential_displacement_field_name, stk::topology::CONSTRAINT_RANK, 3,
+                                        1);
       part_reqs->add_field_reqs<double>(linker_contact_normal_field_name, stk::topology::CONSTRAINT_RANK, 3, 1);
       part_reqs->add_field_reqs<double>(linker_contact_points_field_name, stk::topology::CONSTRAINT_RANK, 6, 2);
 
@@ -180,7 +181,9 @@ class SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact : publ
       const std::string part_name = valid_sy_seg_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
-      part_reqs->add_field_reqs<double>(node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
+      part_reqs->add_field_reqs<double>(
+          node_velocity_field_name, stk::topology::NODE_RANK, 3,
+          2);  // TODO(palmerb4): This is a temporary workaround while we wait for a fix to MeshReqs.
 
       if (part_name == mundy::shapes::SpherocylinderSegments::get_name()) {
         // Add the requirements directly to spherocylinder_segment spherocylinder_segment linkers agent.
@@ -213,12 +216,13 @@ class SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact : publ
             .set("linker_signed_separation_distance_field_name",
                  std::string(default_linker_signed_separation_distance_field_name_),
                  "Name of the constraint-rank field within which the signed separation distance will be written.")
-            .set("linker_tangential_displacement_field_name", std::string(default_linker_tangential_displacement_field_name_),
+            .set("linker_tangential_displacement_field_name",
+                 std::string(default_linker_tangential_displacement_field_name_),
                  "Name of the constraint-rank field within which the tangential displacement will be written.")
             .set("linker_contact_normal_field_name", std::string(default_linker_contact_normal_field_name_),
                  "Name of the constraint-rank field containing the left contact normal.")
             .set("linker_contact_points_field_name", std::string(default_linker_contact_points_field_name_),
-                  "Name of the constraint-rank field containing the contact points (both left and right).");
+                 "Name of the constraint-rank field containing the contact points (both left and right).");
     return default_parameter_list;
   }
 
@@ -241,7 +245,8 @@ class SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact : publ
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
                                                                   const Teuchos::ParameterList &fixed_params) {
-    return std::make_shared<SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact>(bulk_data_ptr, fixed_params);
+    return std::make_shared<SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact>(bulk_data_ptr,
+                                                                                                 fixed_params);
   }
   //@}
 
@@ -262,7 +267,8 @@ class SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact : publ
   static constexpr std::string_view default_linker_potential_force_field_name_ = "LINKER_POTENTIAL_FORCE";
   static constexpr std::string_view default_linker_signed_separation_distance_field_name_ =
       "LINKER_SIGNED_SEPARATION_DISTANCE";
-  static constexpr std::string_view default_linker_tangential_displacement_field_name_ = "LINKER_TANGENTIAL_DISPLACEMENT";
+  static constexpr std::string_view default_linker_tangential_displacement_field_name_ =
+      "LINKER_TANGENTIAL_DISPLACEMENT";
   static constexpr std::string_view default_linker_contact_normal_field_name_ = "LINKER_CONTACT_NORMAL";
   static constexpr std::string_view default_linker_contact_points_field_name_ = "LINKER_CONTACT_POINTS";
   //@}
