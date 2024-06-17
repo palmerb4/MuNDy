@@ -197,8 +197,8 @@ Order of operations:
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
 
-// #define DEBUG
-// #define DEBUGMESH
+#define DEBUG
+#define DEBUGMESH
 
 ///////////////////////////
 // StickySettings        //
@@ -293,7 +293,8 @@ class StickySettings {
       //   The simulation:
       cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
       cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
-      cmdp.setOption("kt", &kt_, "Temperature kT.");
+      cmdp.setOption("kt_brownian", &kt_brownian_, "Temperature kT for Brownian Motion.");
+      cmdp.setOption("kt_kmc", &kt_kmc_, "Temperature kT for KMC.");
       cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
       cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
       cmdp.setOption("use_stk_io", "use_mundy_io", &use_stk_io_, "Use STK IO.");
@@ -350,7 +351,8 @@ class StickySettings {
       std::cout << "  num_time_steps: " << num_time_steps_ << std::endl;
       std::cout << "  timestep_size: " << timestep_size_ << std::endl;
       std::cout << "  io_frequency: " << io_frequency_ << std::endl;
-      std::cout << "  kT: " << kt_ << std::endl;
+      std::cout << "  kT (Brownian): " << kt_brownian_ << std::endl;
+      std::cout << "  kT (KMC): " << kt_kmc_ << std::endl;
       std::cout << "BACKBONE SPHERES:" << std::endl;
       std::cout << "  num_spheres: " << num_spheres_ << std::endl;
       std::cout << "  sphere_radius: " << sphere_radius_ << std::endl;
@@ -366,6 +368,7 @@ class StickySettings {
       std::cout << "  crosslinker_rest_length: " << crosslinker_rest_length_ << std::endl;
       std::cout << "  crosslinker_left_binding_rate: " << crosslinker_left_binding_rate_ << std::endl;
       std::cout << "  crosslinker_right_binding_rate: " << crosslinker_right_binding_rate_ << std::endl;
+      std::cout << "  crosslinker_left_unbinding_rate: " << crosslinker_left_unbinding_rate_ << std::endl;
       std::cout << "  crosslinker_right_unbinding_rate: " << crosslinker_right_binding_rate_ << std::endl;
       std::cout << "##################################################" << std::endl;
     }
@@ -1023,7 +1026,7 @@ class StickySettings {
         stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_) &
         bulk_data_ptr_->mesh_meta_data().locally_owned_part();
     // Get aliases to global variables
-    const double &beta = 1.0 / kt_;
+    const double &beta = 1.0 / kt_kmc_;
     const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
 
     // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only. We also
@@ -1059,6 +1062,19 @@ class StickySettings {
                     stk::mesh::field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0])[2];
             const double dr_mag = std::sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
             if (std::isnan(dr_mag)) {
+              std::cout << "Crosslinker binding z-partition (left)\n";
+              std::cout << "  Genx (constraint, neighbor list): " << bulk_data.identifier(linker) << std::endl;
+              std::cout << "  Crosslinker (element): " << bulk_data.identifier(crosslinker) << std::endl;
+              std::cout << "  Sphere (element): " << bulk_data.identifier(sphere) << std::endl;
+              std::cout << "  Left crosslinker bound node: "
+                        << bulk_data.identifier(bulk_data.begin_nodes(crosslinker)[0]) << std::endl;
+              std::cout << "  Right crosslinker bound node: "
+                        << bulk_data.identifier(bulk_data.begin_nodes(crosslinker)[1]) << std::endl;
+              std::cout << "  Sphere target node: " << bulk_data.identifier(sphere_node) << std::endl;
+              std::cout << "    dr: " << dr[0] << ", " << dr[1] << ", " << dr[2] << std::endl;
+              std::cout << "    dr_mag: " << dr_mag << std::endl;
+              // Dump the mesh info as it exists now (with fields)
+              stk::mesh::impl::dump_all_mesh_info(bulk_data, std::cout);
               MUNDY_THROW_ASSERT(false, std::logic_error, "The separation distance is NaN.");
             }
 
@@ -1072,7 +1088,7 @@ class StickySettings {
             const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
             const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
 
-            const double Z = A * std::exp(0.5 * 1.0 * k * (dr_mag - r0) * (dr_mag - r0));
+            const double Z = A * std::exp(-0.5 * beta * k * (dr_mag - r0) * (dr_mag - r0));
 
 #ifdef DEBUG
             std::cout << "Crosslinker binding z-partition (left)\n";
@@ -1111,7 +1127,7 @@ class StickySettings {
     const stk::mesh::Selector locally_owned_input_selector = stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) &
                                                              bulk_data_ptr_->mesh_meta_data().locally_owned_part();
     // Get aliases to global variables
-    const double &beta = 1.0 / kt_;
+    const double &beta = 1.0 / kt_kmc_;
     const double &crosslinker_right_unbinding_rate = crosslinker_right_unbinding_rate_;
 
     // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only.
@@ -1523,9 +1539,9 @@ class StickySettings {
                                      bulk_data_ptr_->buckets(constraint_rank_), crosslinker_sphere_linkers);
     stk::mesh::get_selected_entities(stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_),
                                      bulk_data_ptr_->buckets(element_rank_), crosslinkers);
-    // stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
-    // stk::mesh::Part &right_bound_crosslinkers_part = *right_bound_crosslinkers_part_ptr_;
-    // stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
+    stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
+    stk::mesh::Part &right_bound_crosslinkers_part = *right_bound_crosslinkers_part_ptr_;
+    stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
 
     bulk_data_ptr_->modification_begin();
 
@@ -1584,6 +1600,34 @@ class StickySettings {
     }
     bulk_data_ptr_->modification_end();
     // bulk_data_ptr_->modification_end(stk::mesh::impl::MeshModification::modification_optimization::MOD_END_NO_SORT);
+
+    auto left_crosslinkers_selector =
+        stk::mesh::Selector(*left_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
+        [&left_bound_crosslinkers_part]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                        const stk::mesh::Entity &crosslinker) {
+          const stk::mesh::Entity left_sphere_node = bulk_data.begin_nodes(crosslinker)[0];
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_node), std::logic_error, "Left node is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data.bucket(left_sphere_node).member(left_bound_crosslinkers_part), std::logic_error,
+                             "Left node is not a left bound crosslinker.");
+        });
+
+    auto doubly_crosslinkers_selector =
+        stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_crosslinkers_selector,
+        [&doubly_bound_crosslinkers_part]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                          const stk::mesh::Entity &crosslinker) {
+          const stk::mesh::Entity left_sphere_node = bulk_data.begin_nodes(crosslinker)[0];
+          const stk::mesh::Entity right_sphere_node = bulk_data.begin_nodes(crosslinker)[1];
+          const bool left_sphere_correct = bulk_data.bucket(left_sphere_node).member(doubly_bound_crosslinkers_part);
+          const bool right_sphere_correct = bulk_data.bucket(right_sphere_node).member(doubly_bound_crosslinkers_part);
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_node), std::logic_error, "Left node is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(right_sphere_node), std::logic_error, "Right node is not valid.");
+          MUNDY_THROW_ASSERT(left_sphere_correct, std::logic_error, "Left node is not a left bound crosslinker.");
+          MUNDY_THROW_ASSERT(right_sphere_correct, std::logic_error, "Right node is not a right bound crosslinker.");
+        });
 
 #ifdef DEBUGMESH
     debug_print("Mesh contents after state_change_crosslinkers.");
@@ -1778,7 +1822,7 @@ class StickySettings {
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
     double &timestep_size = timestep_size_;
     double &sphere_drag_coeff = sphere_drag_coeff_;
-    double &kt = kt_;
+    double &kt = kt_brownian_;
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
     auto locally_owned_selector = stk::mesh::Selector(spheres_part) & meta_data_ptr_->locally_owned_part();
 
@@ -1801,6 +1845,11 @@ class StickySettings {
           node_velocity[1] += (node_force[1] + coeff * rng.randn<double>()) * inv_drag_coeff;
           node_velocity[2] += (node_force[2] + coeff * rng.randn<double>()) * inv_drag_coeff;
           node_rng_counter[0]++;
+          if (std::isnan(node_velocity[0]) || std::isnan(node_velocity[1]) || std::isnan(node_velocity[2])) {
+            // Dump the mesh info as it exists now (with fields)
+            stk::mesh::impl::dump_all_mesh_info(bulk_data, std::cout);
+            MUNDY_THROW_ASSERT(false, std::logic_error, "Node velocity is NaN in compute_velocity.");
+          }
         });
     Kokkos::Profiling::popRegion();
   }
@@ -1830,6 +1879,11 @@ class StickySettings {
           node_coord[0] += timestep_size * node_velocity[0];
           node_coord[1] += timestep_size * node_velocity[1];
           node_coord[2] += timestep_size * node_velocity[2];
+          if (std::isnan(node_coord[0]) || std::isnan(node_coord[1]) || std::isnan(node_coord[2])) {
+            // Dump the mesh info as it exists now (with fields)
+            stk::mesh::impl::dump_all_mesh_info(bulk_data, std::cout);
+            MUNDY_THROW_ASSERT(false, std::logic_error, "Node coordinate is NaN in update_positions.");
+          }
         });
     Kokkos::Profiling::popRegion();
   }
@@ -2152,7 +2206,8 @@ class StickySettings {
   size_t num_time_steps_ = 100;
   size_t io_frequency_ = 10;
   double timestep_size_ = 0.01;
-  double kt_ = 1.0;
+  double kt_brownian_ = 1.0;
+  double kt_kmc_ = 1.0;
   //@}
 };
 
