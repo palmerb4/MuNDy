@@ -1014,8 +1014,9 @@ class SpermSimulation {
           //  y''(x) = - amplitude * spacial_frequency^2
           //         * std::sin(spacial_frequency * node_archlength + temporal_frequency * time + phase);
           // clang-format on
-          const double y_prime = amplitude * spacial_frequency *
-                                 std::cos(spacial_frequency * node_archlength + 2.0 * M_PI * temporal_frequency * time + phase);
+          const double y_prime =
+              amplitude * spacial_frequency *
+              std::cos(spacial_frequency * node_archlength + 2.0 * M_PI * temporal_frequency * time + phase);
           const double y_double_prime =
               -amplitude * spacial_frequency * spacial_frequency *
               std::sin(spacial_frequency * node_archlength + 2.0 * M_PI * temporal_frequency * time + phase);
@@ -1108,7 +1109,8 @@ class SpermSimulation {
             //           << std::endl;
             // std::cout << "Edge tangent : " << edge_tangent << std::endl;
             // std::cout << " Edge tangent via transp: " << rot_via_parallel_transport * edge_tangent_old << std::endl;
-            // std::cout << " Edge tangent via orient: " << edge_orientation * mundy::math::Vector3<double>(0.0, 0.0, 1.0)
+            // std::cout << " Edge tangent via orient: " << edge_orientation * mundy::math::Vector3<double>(0.0,
+            // 0.0, 1.0)
             //           << std::endl;
           }
         });
@@ -1705,19 +1707,18 @@ class SpermSimulation {
     // then increase the Young's modulus by a factor of 10 and repeat.
     sperm_youngs_modulus_ = sperm_relaxed_youngs_modulus_;
     int ym_count = 0;
-    while (sperm_youngs_modulus_ < sperm_normal_youngs_modulus_) {
+    while (sperm_youngs_modulus_ <= sperm_normal_youngs_modulus_) {
       ym_count += 1;
       std::cout << "Young's modulus: " << sperm_youngs_modulus_ << std::endl;
-  
+
       size_t count = 0;
       double kinetic_energy = std::numeric_limits<double>::max();
-      while (kinetic_energy > 1e-6) {
+      while (count < 1000000) {
+      // while (kinetic_energy > 1e-3) {
         count += 1;
         if (count % 1000 == 0) {
-          std::cout << "Young's modulus: " << sperm_youngs_modulus_ << " |  Count: " << count << " | Kinetic energy: " << kinetic_energy << std::endl;
-        }
-        if ((count != 1) && (kinetic_energy > 1e7)) {
-          throw std::runtime_error("Kinetic energy is high. We'll assume this means that the rods exploded. Exiting.");
+          std::cout << "Young's modulus: " << sperm_youngs_modulus_ << " |  Count: " << count
+                    << " | Kinetic energy: " << kinetic_energy << std::endl;
         }
         // Prepare the current configuration.
         {
@@ -1786,7 +1787,6 @@ class SpermSimulation {
       debug_print(std::string("Time step ") + std::to_string(timestep_index_) + " of " +
                   std::to_string(num_time_steps_));
 
-
       if (timestep_index_ % 1000 == 0) {
         std::cout << "Time step " << timestep_index_ << " of " << num_time_steps_ << std::endl;
       }
@@ -1811,7 +1811,6 @@ class SpermSimulation {
 
       // Evaluate forces f(x(t + dt)).
       {
-
         // Hertzian contact force
         // compute_hertzian_contact_force_and_torque();
 
@@ -1953,7 +1952,7 @@ class SpermSimulation {
 
   // Scales
   size_t num_sperm_ = 1;
-  size_t num_nodes_per_sperm_ = 31;
+  size_t num_nodes_per_sperm_ = 3001;
   double sperm_radius_ = 0.5;
   double sperm_initial_segment_length_ = 2.0 * sperm_radius_;
   double sperm_rest_segment_length_ = 2.0 * sperm_radius_;
@@ -1962,10 +1961,12 @@ class SpermSimulation {
   double sperm_rest_curvature_bend2_ = 0.0;
 
   double sperm_youngs_modulus_ = 7692307.692;
-  double sperm_relaxed_youngs_modulus_ = sperm_youngs_modulus_ / 10;
+  double sperm_relaxed_youngs_modulus_ = sperm_youngs_modulus_ / 2.0;
   double sperm_normal_youngs_modulus_ = sperm_youngs_modulus_;
   double sperm_poissons_ratio_ = 0.3;
-  double sperm_density_ = 0.000007956;
+  // double sperm_density_ = 0.000007956;
+  double sperm_density_ = 1.0;
+
   double viscosity_ = 1;
 
   double timestep_size_ = 1e-7;

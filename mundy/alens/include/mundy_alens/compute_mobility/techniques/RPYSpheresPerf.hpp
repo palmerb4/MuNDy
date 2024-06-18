@@ -1,4 +1,4 @@
-/ @HEADER
+// @HEADER
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
@@ -27,7 +27,7 @@
 Notes on Periphery:
 
 To interface with SkellySim's Periphery, we need to understand how some of its components work.
-The LHS and RHS of the linear system associated with the periphery are computed using 
+The LHS and RHS of the linear system associated with the periphery are computed using
 LHS = periphery.matvec(x_periphery, v_periphery(x));
 
 periphery.update_RHS(v_ext_periphery);
@@ -35,7 +35,8 @@ RHS = periphery.get_RHS();
  - x is the unknown force density on both the fibers and the periphery and is computed by the hydro operator.
  - x_periphery is the subset of x restricted to the periphery.
  - v_periphery(x) is the velocity on the periphery induced by x.
- - v_ext_periphery is the velocity on the periphery induced by external contributions, such as the external force/torque on the rods.
+ - v_ext_periphery is the velocity on the periphery induced by external contributions, such as the external force/torque
+on the rods.
 
 v_periphery(x) = v_periphery(x_fibers)
 v_fiber(x) = v_fiber(x_periphery) + v_fiber(x_fibers)
@@ -44,7 +45,7 @@ Notice, self-interaction v_periphery(x_periphery) is not included; this is becau
 Unlike the rods, the periphery may not have a surface slip velocity.
 
 
-The local number of degrees of freedom in the LHS/RHS can be fetched using 
+The local number of degrees of freedom in the LHS/RHS can be fetched using
 periphery.get_local_solution_size();
 
 The target coordinates on the periphery can be fetched using
@@ -56,7 +57,6 @@ periphery.get_local_node_positions();
 
 // External libs
 #include <STKFMM/STKFMM.hpp>
-#include <mundy_alens/compute_mobility/tequniues/periphery_utils/Periphery.hpp>  // for Periphery
 
 // C++ core libs
 #include <memory>  // for std::shared_ptr, std::unique_ptr
@@ -77,8 +77,8 @@ periphery.get_local_node_positions();
 #include <mundy_meta/MetaFactory.hpp>      // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>       // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>     // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
-#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
+#include <mundy_meta/PartReqs.hpp>         // for mundy::meta::PartReqs
+#include <mundy_shapes/Spheres.hpp>        // for mundy::shapes::Spheres
 
 namespace mundy {
 
@@ -87,7 +87,8 @@ namespace alens {
 namespace compute_mobility {
 
 /// \class RPYSpheresPerf
-/// \brief Concrete implementation of \c MetaKernel for computing the hydrodynamic interaction between spheres using the RPY kernel within a periphery.
+/// \brief Concrete implementation of \c MetaKernel for computing the hydrodynamic interaction between spheres using the
+/// RPY kernel within a periphery.
 class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
@@ -101,7 +102,7 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
 
   /// \brief Constructor
   explicit RPYSpheresPerf(mundy::mesh::BulkData *const bulk_data_ptr,
-                     const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
+                          const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
@@ -115,9 +116,9 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-      MUNDY_THROW_ASSERT(
-          valid_entity_parts_.back() != nullptr, std::invalid_argument,
-          "RPYSpheresPerf: Part '" << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         "RPYSpheresPerf: Part '"
+                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -238,14 +239,13 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
     MUNDY_THROW_ASSERT(domain_length_ > 0.0, std::invalid_argument,
                        "RPYSpheresPerf: domain_length_ must be greater than zero.");
     MUNDY_THROW_ASSERT(precomputed_periphery_file_.size() > 0, std::invalid_argument,
-                        "RPYSpheresPerf: precomputed_periphery_file must be a non-empty string.");
+                       "RPYSpheresPerf: precomputed_periphery_file must be a non-empty string.");
     MUNDY_THROW_ASSERT(periphery_evaluator_ == "FMM" || periphery_evaluator_ == "DIRECT_CPU", std::invalid_argument,
-                        "RPYSpheresPerf: precomputed_periphery_evaluator must be either 'FMM' or 'DIRECT_CPU'.");
+                       "RPYSpheresPerf: precomputed_periphery_evaluator must be either 'FMM' or 'DIRECT_CPU'.");
 
     // Precompute the periphery
     periphery_ = std::make_shared<periphery_utils::Periphery>(precomputed_periphery_file_, periphery_evaluator_,
-                                                             fmm_multipole_order_,
-                                                             max_num_leaf_pts_);
+                                                              fmm_multipole_order_, max_num_leaf_pts_);
   }
   //@}
 
@@ -331,14 +331,17 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
       const double *node_force = stk::mesh::field_data(node_force_field, node);
 
       const bool coordinate_out_of_domain_in_x =
-          periodic_in_x_ ? false
-                         : ((node_coord[0] < domain_origin_[0]) || (node_coord[0] >= domain_origin_[0] + domain_length_));
+          periodic_in_x_
+              ? false
+              : ((node_coord[0] < domain_origin_[0]) || (node_coord[0] >= domain_origin_[0] + domain_length_));
       const bool coordinate_out_of_domain_in_y =
-          periodic_in_y_ ? false
-                         : ((node_coord[1] < domain_origin_[1]) || (node_coord[1] >= domain_origin_[1] + domain_length_));
+          periodic_in_y_
+              ? false
+              : ((node_coord[1] < domain_origin_[1]) || (node_coord[1] >= domain_origin_[1] + domain_length_));
       const bool coordinate_out_of_domain_in_z =
-          periodic_in_z_ ? false
-                         : ((node_coord[2] < domain_origin_[2]) || (node_coord[2] >= domain_origin_[2] + domain_length_));
+          periodic_in_z_
+              ? false
+              : ((node_coord[2] < domain_origin_[2]) || (node_coord[2] >= domain_origin_[2] + domain_length_));
       const bool coordinate_out_of_domain_in_non_periodic_direction =
           coordinate_out_of_domain_in_x || coordinate_out_of_domain_in_y || coordinate_out_of_domain_in_z;
       MUNDY_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
@@ -468,7 +471,6 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
   stk::mesh::Field<double> *element_radius_field_ptr_ = nullptr;
   //@}
 };  // RPYSpheresPerf
-
 
 }  // namespace compute_mobility
 
