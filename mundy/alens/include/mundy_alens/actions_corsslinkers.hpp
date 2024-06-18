@@ -168,6 +168,34 @@ inline double compute_z_score_constant(const double &A) {
   return A;
 }
 
+inline double compute_z_crosslinker_sphere(const mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
+                                           const stk::mesh::Entity &sphere, const double &beta,
+                                           const stk::mesh::Field<double> &crosslinker_right_binding_rate,
+                                           const stk::mesh::Field<double> &crosslinker_spring_constant,
+                                           const stk::mesh::Field<double> &crosslinker_spring_rest_length,
+                                           const stk::mesh::Field<double> &node_coord_field,
+                                           const stk::mesh::Part &left_bound_crosslinkers_part) {
+  // We need to figure out if this is a self-interaction or not. Since we are a left-bound crosslinker.
+  const stk::mesh::Entity &sphere_node = bulk_data.begin_nodes(sphere)[0];
+
+  // Depending on which node is the one we should look at, figure out the separation distance.
+  const auto dr = mundy::mesh::vector3_field_data(node_coord_field, sphere_node) -
+                  mundy::mesh::vector3_field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0]);
+  const double dr_mag = mundy::math::norm(dr);
+
+  // Compute the Z-partition score
+  // Z = A * exp(0.5 * beta * k * (dr - r0)^2)
+  // A = crosslinker_binding_rates
+  // beta = 1/kt
+  // k = crosslinker_spring_constant
+  // r0 = crosslinker_spring_rest_length
+  const double A = crosslinker_right_binding_rate;
+  const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
+  const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
+
+  Z = compute_z_score_harmonic(A, beta, k, dr_mag, r0);
+
+  return Z;
 }  // namespace crosslinkers
 
 }  // namespace alens
