@@ -140,6 +140,34 @@ inline bool bind_crosslinker_to_node(const mundy::mesh::BulkData &bulk_data, con
   return true;
 }
 
+/// \brief Compute the Z-partition function score for a harmonic potential at temperature kT.
+///
+/// This function computes the Z-partition function score for a simple harmonic potential at temperature kT. The
+/// partition function is given by:
+///
+/// Z = A * exp(-0.5 * beta * k * (dr - r0)^2)
+///
+/// \param A Combined binding rate constant.
+/// \param beta Inverse of the thermal energy.
+/// \param k Spring constant.
+/// \param dr Spring separation distance.
+/// \param r0 Spring rest length.
+inline double compute_z_score_harmonic(const double &A, const double &beta, const double &k, const double &dr,
+                                       const double &r0) {
+  return A * std::exp(-0.5 * beta * k * (dr_mag - r0) * (dr_mag - r0));
+}
+
+/// \brief Compute the Z-partition function score for a constant off-rate.
+///
+/// This functino computes the Z-parition score for constant unbinding rate. The partition function is given by:
+///
+/// Z = A
+///
+/// \param A Combined unbinding rate constant.
+inline double compute_z_score_constant(const double &A) {
+  return A;
+}
+
 }  // namespace crosslinkers
 
 }  // namespace alens
