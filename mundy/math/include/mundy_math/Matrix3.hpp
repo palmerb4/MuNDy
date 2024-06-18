@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -34,7 +34,7 @@
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
 #include <mundy_math/Array.hpp>         // for mundy::math::Array
-#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
 #include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
@@ -840,7 +840,7 @@ KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix3<T, Acce
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
-                              const std::common_type_t<T, U>& tol = get_default_tolerance<std::common_type_t<T, U>>()) {
+                              const std::common_type_t<T, U>& tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
   using CommonType = std::common_type_t<T, U>;
   if constexpr (std::is_floating_point_v<CommonType>) {
     // For floating-point types, compare with a tolerance
@@ -859,6 +859,17 @@ KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matri
            (mat1(4) == mat2(4)) && (mat1(5) == mat2(5)) && (mat1(6) == mat2(6)) && (mat1(7) == mat2(7)) &&
            (mat1(8) == mat2(8));
   }
+}
+
+/// \brief Matrix-matrix equality (element-wise within a relaxed tolerance)
+/// \param[in] mat1 The first matrix.
+/// \param[in] mat2 The second matrix.
+/// \param[in] tol The tolerance (default is determined by the given type).
+template <typename U, typename OtherAccessor, typename T, typename Accessor>
+KOKKOS_FUNCTION bool is_approx_close(
+    const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
+    const std::common_type_t<T, U>& tol = get_relaxed_zero_tolerance<std::common_type_t<T, U>>()) {
+  return is_close(mat1, mat2, tol);
 }
 //@}
 

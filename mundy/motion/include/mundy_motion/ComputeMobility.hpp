@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -96,7 +96,7 @@ class ComputeMobility : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
 //! \name Registration
 //@{
 
-/// @brief Register our default techniques
+/// \brief Register our default techniques
 MUNDY_REGISTER_METACLASS("RIGID_BODY_MOTION", mundy::motion::compute_mobility::techniques::RigidBodyMotion,
                          mundy::motion::ComputeMobility::OurMethodFactory)
 

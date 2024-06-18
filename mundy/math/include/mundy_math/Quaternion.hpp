@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -31,7 +31,7 @@
 #include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
 #include <mundy_math/Array.hpp>         // for mundy::math::Array
 #include <mundy_math/Matrix3.hpp>       // for mundy::math::Matrix3
-#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_default_tolerance
+#include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
 #include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
@@ -656,12 +656,23 @@ KOKKOS_FUNCTION std::ostream &operator<<(std::ostream &os, const Quaternion<T, A
 /// \param[in] tol The tolerance.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
 KOKKOS_FUNCTION bool is_close(const Quaternion<U, OtherAccessor> &quat1, const Quaternion<T, Accessor> &quat2,
-                              const std::common_type_t<T, U> &tol = get_default_tolerance<std::common_type_t<T, U>>()) {
+                              const std::common_type_t<T, U> &tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
   using CommonType = std::common_type_t<T, U>;
   return std::abs(static_cast<CommonType>(quat1[0]) - static_cast<CommonType>(quat2[0])) < tol &&
          std::abs(static_cast<CommonType>(quat1[1]) - static_cast<CommonType>(quat2[1])) < tol &&
          std::abs(static_cast<CommonType>(quat1[2]) - static_cast<CommonType>(quat2[2])) < tol &&
          std::abs(static_cast<CommonType>(quat1[3]) - static_cast<CommonType>(quat2[3])) < tol;
+}
+
+/// \brief Quaternion-quaternion equality (element-wise within a relaxed tolerance)
+/// \param[in] quat1 The first quaternion.
+/// \param[in] quat2 The second quaternion.
+/// \param[in] tol The tolerance.
+template <typename U, typename OtherAccessor, typename T, typename Accessor>
+KOKKOS_FUNCTION bool is_approx_close(
+    const Quaternion<U, OtherAccessor> &quat1, const Quaternion<T, Accessor> &quat2,
+    const std::common_type_t<T, U> &tol = get_relaxed_zero_tolerance<std::common_type_t<T, U>>()) {
+  return is_close(quat1, quat2, tol);
 }
 //@}
 
@@ -941,6 +952,40 @@ KOKKOS_FUNCTION Quaternion<std::remove_const_t<T>> euler_to_quat(const T phi, co
   quat.x() = sha1 * cha2 * cha3 - cha1 * sha2 * sha3;
   quat.y() = cha1 * sha2 * cha3 + sha1 * cha2 * sha3;
   quat.z() = cha1 * cha2 * sha3 - sha1 * sha2 * cha3;
+  return quat;
+}
+
+/// \brief Get the quaternion that perform parallel transport from vector v1 to vector v2
+/// \param[in] v1 The first vector.
+/// \param[in] v2 The second vector.
+///
+///The parallel transport quaternion from a to b is given by
+///
+/// p_a^b 
+///  = \frac{1}{\sqrt{2}} \sqrt{1 + a \cdot b} \left( 1 + \frac{a \times b}{1 + a \cdot b} \right)
+///  = \frac{1}{\sqrt{2}} \left( \sqrt{1 + a \cdot b} + \frac{a \times b}{\sqrt{1 + a \cdot b}} \right)
+///  = \sqrt{\frac{1 + a \cdot b}{2}} + \frac{1}{2} \frac{a \times b}{\sqrt{(1 + a \cdot b) / 2}}
+///
+/// This equation comes from J. Linn's 2020 "Discrete Cosserat rod kinematics constricted on the basis
+/// of the difference geometry of framed curves," and as shown above, is identical to the equation given in K. Korner's "Simple
+/// deformation measures for discrete elastic rods and ribbons."
+template <typename U, typename OtherAccessor, typename T, typename Accessor>
+  requires (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>)
+KOKKOS_FUNCTION auto quat_from_parallel_transport(const Vector3<U, OtherAccessor> &v_from, const Vector3<T, Accessor> &v_to)
+    -> Quaternion<decltype(U() * T())> {
+  // Get the quaternion that performs parallel transport from vector v_from to vector v_to
+  using CommonType = decltype(U() * T());
+  Quaternion<CommonType> quat;
+
+  // Compute the dot product and cross product
+  const auto dot_product = dot(v_from, v_to);
+  const auto cross_product = cross(v_from, v_to);
+  const double sqrt_term = std::sqrt(0.5 * (1.0 + dot_product));
+  const auto vec = 0.5 * cross_product / sqrt_term;
+  quat.w() = sqrt_term;
+  quat.x() = vec[0];
+  quat.y() = vec[1];
+  quat.z() = vec[2];
   return quat;
 }
 //@}

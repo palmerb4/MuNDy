@@ -1,6 +1,6 @@
-#ifndef MUNDYCORE_CONFIG_H
-#define MUNDYCORE_CONFIG_H
+#ifndef MUNDYCORE_CONFIG_HPP_
+#define MUNDYCORE_CONFIG_HPP_
 
 // Declare special variables, especially those related to optional features, TPLs, and workarounds.
 
-#endif  // MUNDYCORE_CONFIG_H
+#endif  // MUNDYCORE_CONFIG_HPP_

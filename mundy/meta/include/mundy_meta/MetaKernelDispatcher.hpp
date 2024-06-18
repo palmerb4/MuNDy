@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -30,19 +30,18 @@
 #include <vector>     // for std::vector
 
 // Trilinos libs
-#include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
-#include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
-#include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
-#include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
-#include <stk_topology/topology.hpp>        // for stk::topology
+#include <Teuchos_ParameterList.hpp>   // for Teuchos::ParameterList
+#include <stk_mesh/base/Entity.hpp>    // for stk::mesh::Entity
+#include <stk_mesh/base/Part.hpp>      // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
 #include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
@@ -108,8 +107,8 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   //@{
 
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
-  using OurKernelFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<void>,
-                                                               kernel_factory_registration_string_value_wrapper>;
+  using OurKernelFactory =
+      mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<>, kernel_factory_registration_string_value_wrapper>;
   //@}
 
   //! \name Constructors and destructor
@@ -130,9 +129,9 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -154,14 +153,14 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
       }
     }
 
-    // Get the requirements for each kernel and merge them.
+    // Get the requirements for each kernel and sync them.
     Teuchos::Array<std::string> enabled_kernel_names =
         valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
-    auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshReqs>();
     for (const std::string &kernel_name : enabled_kernel_names) {
       std::cout << "kernel_name: " << kernel_name << std::endl;
       Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
-      mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
+      mesh_requirements_ptr->sync(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
     }
 
     return mesh_requirements_ptr;
@@ -261,21 +260,18 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   /// \brief The names of the enabled kernels.
   Teuchos::Array<std::string> enabled_kernel_names_;
 
-  /// \brief The entity rank that the kernels acts on.
-  stk::topology::rank_t kernel_entity_rank_ = stk::topology::INVALID_RANK;
-
   /// \brief The valid entity parts for the kernel.
   std::vector<stk::mesh::Part *> valid_entity_parts_;
 
   /// \brief Vector of kernels, one for each active kernel.
-  std::vector<std::shared_ptr<mundy::meta::MetaKernel<void>>> kernel_ptrs_;
+  std::vector<std::shared_ptr<mundy::meta::MetaKernel<>>> kernel_ptrs_;
   //@}
 
   //! \name Internal methods
   //@{
 
-  /// @brief Get the valid enabled kernels and their parameters.
-  /// @param get_kernel_params_func [in] A function that returns the valid parameters for a kernel given its name
+  /// \brief Get the valid enabled kernels and their parameters.
+  /// \param get_kernel_params_func [in] A function that returns the valid parameters for a kernel given its name
   static Teuchos::ParameterList add_valid_enabled_kernels_and_kernel_params_to_parameter_list(
       const std::string &parameter_list_name, Teuchos::ParameterList &parameter_list_to_add_to,
       const Teuchos::ParameterList &required_parameter_list, const Teuchos::ParameterList &forwarded_parameter_list,
@@ -340,8 +336,7 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_fixed_params());
 
   // Populate our internal members.
-  enabled_kernel_names_ =
-      valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
+  enabled_kernel_names_ = valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
   num_active_kernels_ = static_cast<int>(enabled_kernel_names_.size());
   if (num_active_kernels_ > 0) {
     kernel_ptrs_.reserve(num_active_kernels_);
@@ -351,9 +346,9 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       const std::string kernel_name = enabled_kernel_names_[i];
       Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
 
-      // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels, and
-      // the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in the
-      // kernel sublists and forward them to the current kernel.
+      // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels,
+      // and the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in
+      // the kernel sublists and forward them to the current kernel.
       for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
         const std::string &param_name = valid_fixed_params.name(i);
         const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
@@ -363,14 +358,6 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       }
 
       kernel_ptrs_.push_back(OurKernelFactory::create_new_instance(kernel_name, bulk_data_ptr_, kernel_params));
-
-      // Store the entity rank and ensure that it is the same for all kernels.
-      if (i == 0) {
-        kernel_entity_rank_ = kernel_ptrs_[0]->get_entity_rank();
-      } else {
-        MUNDY_THROW_ASSERT(kernel_ptrs_[i]->get_entity_rank() == kernel_entity_rank_, std::invalid_argument,
-                           "MetaKernelDispatcher: All kernels in a dispatcher must act on entities of the same rank.");
-      }
 
       // Get the valid entity parts for the kernel.
       auto valid_entity_parts_i = kernel_ptrs_[i]->get_valid_entity_parts();
@@ -392,9 +379,23 @@ void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_
   valid_mutable_params.validateParametersAndSetDefaults(
       MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::get_valid_mutable_params());
 
-  // Parse the parameters
+  // Populate our internal members.
   for (int i = 0; i < num_active_kernels_; i++) {
-    Teuchos::ParameterList &kernel_params = valid_mutable_params.sublist(enabled_kernel_names_[i]);
+    // Create the kernel and store it in the kernel_ptrs_ vector.
+    const std::string kernel_name = enabled_kernel_names_[i];
+    Teuchos::ParameterList &kernel_params = valid_mutable_params.sublist(kernel_name);
+
+    // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels,
+    // and the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in
+    // the kernel sublists and forward them to the current kernel.
+    for (Teuchos::ParameterList::ConstIterator i = valid_mutable_params.begin(); i != valid_mutable_params.end(); i++) {
+      const std::string &param_name = valid_mutable_params.name(i);
+      const Teuchos::ParameterEntry &param_entry = valid_mutable_params.getEntry(param_name);
+      if (!valid_mutable_params.isSublist(param_name) && param_name != "enabled_kernel_names") {
+        kernel_params.setEntry(param_name, param_entry);
+      }
+    }
+
     kernel_ptrs_[i]->set_mutable_params(kernel_params);
   }
 }
@@ -418,32 +419,16 @@ template <typename DerivedType,
           mundy::meta::RegistrationStringValueWrapper kernel_factory_registration_string_value_wrapper>
 void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::execute(
     const stk::mesh::Selector &input_selector) {
-  for (int i = 0; i < num_active_kernels_; i++) {
-    kernel_ptrs_[i]->setup();
-  }
+  const bool is_safe_to_loop_over_entities = bulk_data_ptr_->in_synchronized_state();
+  MUNDY_THROW_ASSERT(
+      is_safe_to_loop_over_entities, std::logic_error,
+      "MetaKernelDispatcher: The bulk data must NOT be in a modification cycle to execute kernels. "
+      "Kernel dispatcher loops over entities in a way that assumes bucket stability, but that need not "
+      "be the case during a modification cycle. For example, changing entity parts within a kernel "
+      "could cause the entity to change buckets. This is a potentially dangerous operation, so we forbid it.");
 
   for (int i = 0; i < num_active_kernels_; i++) {
-    // For each kernel, we only want to evaluate the kernel ONCE for each entity in our valid entity parts.
-    // We do so via taking the union of our valid entity parts and the input selector.
-    auto kernel_ptr_i = kernel_ptrs_[i];
-    auto valid_entity_parts_i = kernel_ptr_i->get_valid_entity_parts();
-
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-        stk::mesh::Selector(meta_data_ptr_->locally_owned_part()) & input_selector;
-    for (auto *part_ptr_i : valid_entity_parts_i) {
-      locally_owned_intersection_with_valid_entity_parts &= *part_ptr_i;
-    }
-
-    stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), kernel_entity_rank_,
-        locally_owned_intersection_with_valid_entity_parts,
-        [&kernel_ptr_i]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &entity) {
-          kernel_ptr_i->execute(entity);
-        });
-  }
-
-  for (int i = 0; i < num_active_kernels_; i++) {
-    kernel_ptrs_[i]->finalize();
+    kernel_ptrs_[i]->execute(input_selector);
   }
 }
 //}

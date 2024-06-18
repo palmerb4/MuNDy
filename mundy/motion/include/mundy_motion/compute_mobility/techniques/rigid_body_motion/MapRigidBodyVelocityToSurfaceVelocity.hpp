@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -70,7 +70,6 @@ class MapRigidBodyVelocityToSurfaceVelocity
   }
   //@}
 
-
   //! \name MetaKernelDispatcher static interface implementation
   //@{
 
@@ -125,7 +124,7 @@ class MapRigidBodyVelocityToSurfaceVelocity
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE",
                          mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_velocity_to_surface_velocity::kernels::Sphere,

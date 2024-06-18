@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -62,86 +62,86 @@ class MetaData : public stk::mesh::MetaData {
   //! \name Actions
   //@{
 
-  /// @brief Declare an attribute on the given field.
-  /// @param field The field which should contain the given attribute.
-  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
+  /// \brief Declare an attribute on the given field.
+  /// \param field The field which should contain the given attribute.
+  /// \param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
   /// field.
-  /// @param attribute_data The given attribute's data.
+  /// \param attribute_data The given attribute's data.
   void declare_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name,
                          const std::any &attribute_data);
 
-  /// @brief Declare an attribute on the given field.
-  /// @param field The field which should contain the given attribute.
-  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
+  /// \brief Declare an attribute on the given field.
+  /// \param field The field which should contain the given attribute.
+  /// \param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
   /// field.
-  /// @param attribute_data The given attribute's data.
+  /// \param attribute_data The given attribute's data.
   void declare_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name,
                          const std::any &&attribute_data);
 
-  /// @brief Declare an attribute on the given part.
-  /// @param part The part which should contain the given attribute.
-  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
+  /// \brief Declare an attribute on the given part.
+  /// \param part The part which should contain the given attribute.
+  /// \param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
   /// part.
-  /// @param attribute_data The given attribute's data.
+  /// \param attribute_data The given attribute's data.
   void declare_attribute(const stk::mesh::Part &part, const std::string &attribute_name,
                          const std::any &attribute_data);
 
-  /// @brief Declare an attribute on the given part.
-  /// @param part The part which should contain the given attribute.
-  /// @param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
+  /// \brief Declare an attribute on the given part.
+  /// \param part The part which should contain the given attribute.
+  /// \param attribute_name The given attribute's name. Must have a unique name not shared by other attributes on the
   /// part.
-  /// @param attribute_data The given attribute's data.
+  /// \param attribute_data The given attribute's data.
   void declare_attribute(const stk::mesh::Part &part, const std::string &attribute_name,
                          const std::any &&attribute_data);
 
-  /// @brief Declare an attribute on the mesh itself.
-  /// @param attribute_name The name of the attribute to declare. Must have a unique name not shared by other attributes
+  /// \brief Declare an attribute on the mesh itself.
+  /// \param attribute_name The name of the attribute to declare. Must have a unique name not shared by other attributes
   /// on the mesh.
-  /// @param attribute_data The given attribute's data.
+  /// \param attribute_data The given attribute's data.
   void declare_attribute(const std::string &attribute_name, const std::any &attribute_data);
 
-  /// @brief Declare an attribute on the mesh itself.
-  /// @param attribute_name The name of the attribute to declare. Must have a unique name not shared by other attributes
+  /// \brief Declare an attribute on the mesh itself.
+  /// \param attribute_name The name of the attribute to declare. Must have a unique name not shared by other attributes
   /// on the mesh.
-  /// @param attribute_data The given attribute's data.
+  /// \param attribute_data The given attribute's data.
   void declare_attribute(const std::string &attribute_name, const std::any &&attribute_data);
 
-  /// @brief Attempt to remove an attribute from the provided field.
-  /// @param field The given field whose attribute we are trying to remove.
-  /// @param attribute_name The name of the attribute to remove.
-  /// @return A flag indicating if the attribute existed on the given field or not.
+  /// \brief Attempt to remove an attribute from the provided field.
+  /// \param field The given field whose attribute we are trying to remove.
+  /// \param attribute_name The name of the attribute to remove.
+  /// \return A flag indicating if the attribute existed on the given field or not.
   bool remove_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name);
 
-  /// @brief Attempt to remove an attribute from the provided part.
-  /// @param part The given part whose attribute we are trying to remove.
-  /// @param attribute_name The name of the attribute to remove.
-  /// @return A flag indicating if the attribute existed on the given part or not.
+  /// \brief Attempt to remove an attribute from the provided part.
+  /// \param part The given part whose attribute we are trying to remove.
+  /// \param attribute_name The name of the attribute to remove.
+  /// \return A flag indicating if the attribute existed on the given part or not.
   bool remove_attribute(const stk::mesh::Part &part, const std::string &attribute_name);
 
-  /// @brief Attempt to remove an attribute from this mesh.
-  /// @param attribute_name The name of the attribute to remove.
-  /// @return A flag indicating if the attribute existed on this mesh or not.
+  /// \brief Attempt to remove an attribute from this mesh.
+  /// \param attribute_name The name of the attribute to remove.
+  /// \return A flag indicating if the attribute existed on this mesh or not.
   bool remove_attribute(const std::string &attribute_name);
 
-  /// @brief Attempt to fetch a field attribute with the provided name from the given field.
-  /// @param field The given field whose attribute we are trying to fetch.
-  /// @param attribute_name The name of the attribute to fetch.
-  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// \brief Attempt to fetch a field attribute with the provided name from the given field.
+  /// \param field The given field whose attribute we are trying to fetch.
+  /// \param attribute_name The name of the attribute to fetch.
+  /// \return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
   /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
   /// mesh ordinal and name.
   std::any *get_attribute(const stk::mesh::FieldBase &field, const std::string &attribute_name);
 
-  /// @brief Attempt to fetch a part attribute with the provided name from the given part.
-  /// @param part The given part whose attribute we are trying to fetch.
-  /// @param attribute_name The name of the attribute to fetch.
-  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// \brief Attempt to fetch a part attribute with the provided name from the given part.
+  /// \param part The given part whose attribute we are trying to fetch.
+  /// \param attribute_name The name of the attribute to fetch.
+  /// \return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
   /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
   /// mesh ordinal and name.
   std::any *get_attribute(const stk::mesh::Part &part, const std::string &attribute_name);
 
-  /// @brief Attempt to fetch an attribute with the provided name from the current mesh.
-  /// @param attribute_name The name of the attribute to fetch.
-  /// @return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
+  /// \brief Attempt to fetch an attribute with the provided name from the current mesh.
+  /// \param attribute_name The name of the attribute to fetch.
+  /// \return A pointer to the internally maintained attribute data if it exists, nullptr otherwise.
   /// TODO(palmerb4): This should return a formal stk::mesh::Attribute which wraps the std::any and stores the attribute
   /// mesh ordinal and name.
   std::any *get_attribute(const std::string &attribute_name);

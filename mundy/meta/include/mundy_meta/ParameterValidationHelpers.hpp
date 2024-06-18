@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -34,25 +34,25 @@ namespace mundy {
 
 namespace meta {
 
-/// @brief A struct that holds the configuration of a parameter.
+/// \brief A struct that holds the configuration of a parameter.
 /// @tparam ValueType The type of the parameter's value.
 template <typename ValueType>
 struct ParamConfig {
-  /// @brief The name of the parameter.
+  /// \brief The name of the parameter.
   std::string name;
 
-  /// @brief The default value of the parameter.
+  /// \brief The default value of the parameter.
   ValueType default_value;
 
-  /// @brief The documentation string of the parameter.
+  /// \brief The documentation string of the parameter.
   std::string doc_string = "";
 };  // struct ParamConfig
 
-/// @brief A function that checks if a parameter is in the parameter list (with the correct type) and sets its default
+/// \brief A function that checks if a parameter is in the parameter list (with the correct type) and sets its default
 /// value if it is not.
 /// @tparam ValueType The type of the parameter's value.
-/// @param params_ptr The pointer to the parameter list.
-/// @param config The configuration of the parameter.
+/// \param params_ptr The pointer to the parameter list.
+/// \param config The configuration of the parameter.
 template <typename ValueType>
 void check_parameter_and_set_default(Teuchos::ParameterList *const params_ptr, const ParamConfig<ValueType> &config) {
   if (params_ptr->isParameter(config.name)) {
@@ -67,11 +67,11 @@ void check_parameter_and_set_default(Teuchos::ParameterList *const params_ptr, c
   }
 }
 
-/// @brief A function that checks if a parameter is in the parameter list and has the correct type. Throws an exception
+/// \brief A function that checks if a parameter is in the parameter list and has the correct type. Throws an exception
 /// if it is not.
 /// @tparam ValueType The type of the parameter's value.
-/// @param params_ptr The pointer to the parameter list.
-/// @param name The name of the parameter.
+/// \param params_ptr The pointer to the parameter list.
+/// \param name The name of the parameter.
 template <typename ValueType>
 void check_required_parameter(Teuchos::ParameterList *const params_ptr, const std::string &name) {
   MUNDY_THROW_ASSERT(params_ptr->isParameter(name), std::invalid_argument,

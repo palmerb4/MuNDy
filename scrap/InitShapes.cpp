@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -36,17 +36,17 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
-#include <mundy_constraint/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
+#include <mundy_constraints/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>                          // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>                    // for mundy::meta::PartReqs
 
 namespace mundy {
 
-namespace constraint {
+namespace constraints {
 
 // \name Constructors and destructor
 //{
@@ -443,6 +443,6 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
 }
 //}
 
-}  // namespace constraint
+}  // namespace constraints
 
 }  // namespace mundy

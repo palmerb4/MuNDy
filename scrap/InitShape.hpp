@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -41,7 +41,7 @@
 #include <mundy_core/throw_assert.hpp>           // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKWayKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>        // for mundy::meta::MetaMethodSubsetExecutionInterface
@@ -49,7 +49,7 @@
 
 namespace mundy {
 
-namespace constraint {
+namespace constraints {
 
 /// \class InitShape
 /// \brief Method for generating and initializing entities of the given shape in various configurations
@@ -83,9 +83,9 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -93,7 +93,7 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
 
     Teuchos::ParameterList &shapes_sublist = valid_fixed_params.sublist("shapes");
     const unsigned num_specified_shapes = shapes_sublist.get<int>("count");
-    auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+    auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshReqs>();
     for (int i = 0; i < num_specified_kernels; i++) {
       Teuchos::ParameterList &shape_params = shapes_sublist.sublist("shape_" + std::to_string(i));
       const std::string part_name = shape_params.get<std::string>("part_name");
@@ -104,7 +104,7 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
         Teuchos::ParameterList &kernel_params = config_sublist.sublist("config_kernel_" + std::to_string(i));
         const std::string kernel_name = kernel_params.get<std::string>("name");
 
-        mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
+        mesh_requirements_ptr->sync(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
       }
     }
 
@@ -129,7 +129,7 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
 
       Teuchos::ParameterList &shapes_sublist = valid_fixed_params.sublist("shapes");
       const unsigned num_specified_shapes = shapes_sublist.get<int>("count");
-      auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshRequirements>();
+      auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshReqs>();
       for (int i = 0; i < num_specified_kernels; i++) {
         Teuchos::ParameterList &shape_params = shapes_sublist.sublist("shape_" + std::to_string(i));
         const std::string part_name = shape_params.get<std::string>("part_name");
@@ -140,7 +140,7 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
           Teuchos::ParameterList &kernel_params = config_sublist.sublist("config_kernel_" + std::to_string(i));
           const std::string kernel_name = kernel_params.get<std::string>("name");
 
-          mesh_requirements_ptr->merge(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
+          mesh_requirements_ptr->sync(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
         }
       }
 
@@ -249,11 +249,11 @@ class InitShape : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
   std::vector<stk::mesh::Part *> shape_part_ptr_vector_;
 
   /// \brief Map from kernel name to kernel instance.
-  std::map<std::string_view, std::shared_ptr<mundy::meta::MetaKernel<void>>> kernel_map_;
+  std::map<std::string_view, std::shared_ptr<mundy::meta::MetaKernel<>>> kernel_map_;
   //@}
 };  // InitShape
 
-}  // namespace constraint
+}  // namespace constraints
 
 }  // namespace mundy
 

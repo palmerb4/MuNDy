@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -43,7 +43,7 @@
 #include <mundy_meta/MetaKernel.hpp>    // for mundy::meta::MetaKernel, mundy::meta::MetaKernelBase
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>                    // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -128,9 +128,9 @@ class PairwisePotential : public mundy::meta::MetaMethodSubsetExecutionInterface
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;

@@ -75,10 +75,10 @@ Rules (that will one day be hard-coded into a single data structure):
 
 mundy::
   meta::
-    FieldRequirements
-    FieldRequirementsBase
-    FieldRequirementsFactory
-    FieldRequirementsRegistry
+    FieldReqs
+    FieldReqsBase
+    FieldReqsFactory
+    FieldReqsRegistry
     MeshBuilder
     MetaKernel
     MetaKernelFactory
@@ -89,7 +89,7 @@ mundy::
     MetaMethodSubsetExecutionInterface
     MetaMethodFactory
     MetaMethodRegistry
-    PartRequirements      
+    PartReqs      
   methods:: 
     ComputeAABB
     compute_aabb::
@@ -230,18 +230,18 @@ mundy::
     (D) MeshBuilder
     (Attributes need to be inherited) MetaData
   meta::
-    (D) FieldRequirements
-    (D) FieldRequirementsBase
-    (D) FieldRequirementsFactory
-    (D) FieldRequirementsRegistry
-    (D) HasMeshRequirementsAndIsRegisterable
-    (D) MeshRequirements
+    (D) FieldReqs
+    (D) FieldReqsBase
+    (D) FieldReqsFactory
+    (D) FieldReqsRegistry
+    (D) HasMeshReqsAndIsRegisterable
+    (D) MeshReqs
     (D) MetaFactory
     (D) MetaKernel
     (D) MetaKWayKernel
     (D) MetaMethodSubsetExecutionInterface
     (D) MetaRegistry
-    (D) PartRequirements      
+    (D) PartReqs      
   methods:: 
     (D) ComputeAABB
     (D) ComputeBoundingRadius
@@ -487,7 +487,7 @@ a sphere part and if you are a sub-part of the sphere part then you automaticall
 types such that we can generate the set of parts for those multibody types and have them be subparts of their parent type. 
 
 To be honest, the current design almost achieves this. Colored spheres are spheres, so they can be used with the sphere kernel so long as you list their kernels as being 
-sphere kernels. PartRequirements allowed subparting. The ColoredSphere kernels could explicitly identify the ColoredSpheres are subparts of Spheres. THE PART REQUIREMENTS
+sphere kernels. PartReqs allowed subparting. The ColoredSphere kernels could explicitly identify the ColoredSpheres are subparts of Spheres. THE PART REQUIREMENTS
 CAN ENCODE THE MULTIBODY TYPE AND WE CAN USE THEM TO CREATE THE MULTIBODY INHERITANCE TREE! Ok, this is a big big change but I'm happy we figured it out.
 
 Not every kernel has a multibody type associated with it. I could have kernels for acting on a grid that perform different actions based on topology. Kernels are meant to 
@@ -620,18 +620,18 @@ Unlike MetaMethodSubsetExecutionInterface or MetaKernel, each multibody_data con
 The current TODO:
 (DONE) 1. Use the multibody factory to fetch the correct kernels
 2. (Done) Store the multibody type on the parts 
-  (Done) 2.1. Update the PartRequirements to support part attributes and field attributes
+  (Done) 2.1. Update the PartReqs to support part attributes and field attributes
   2.2. (Done) Replace details_static_declare_mesh_requirements with the old style
 3. (Done) Update the valid parameters of every Method to reflect the changes to multibody kernels. 
   3.1. (Done) ComputeAABB.hpp somewhat reflects this change but not ComputeAABB.cpp.
-4. (Done) Change the part requirements to use the provided parameters. These are not MeshRequirements. 
+4. (Done) Change the part requirements to use the provided parameters. These are not MeshReqs. 
   4.1. (Done) If a field name is not provided, use the default.
   4.2. (Done) Assign mesh fields, attributes, parts, subparts, and all fields.
 4. (Done) A PartVector should be passed into the execute command rather than passing the names to the Params. We'll 
    find the intersection of that PartVector and each multibody type to choose the correct kernel. 
 5. (Done) Update the constructors of each kernel and method to populate their temporaries with defaults. 
 6. Store the neighbor list as a mesh attribute. 
-  6.1. (Done) Instead of returning PartRequirements we should return MeshRequirements, which stores a vector of PartRequirements and any mesh attributes.
+  6.1. (Done) Instead of returning PartReqs we should return MeshReqs, which stores a vector of PartReqs and any mesh attributes.
 7. Introduce a parent multibody type for Bodies and Constraints. Instantiate the part for these parents and declare the subparts. 
 8. GenerateCollisionConstraints (execute function needs updated to actually generate the collision constraints)
 9. MapSurfaceForceToRigidBodyForce (address todo in execute function)
@@ -659,9 +659,9 @@ execute function since multiple execute calls shouldn't be allowed between setup
 Unit tests: 
 1. BulkDataGeneration: BulkData generation and destruction.
 2. MetaDataAttributes: Add attributes to the MetaData and make sure they are moved/copied the correct amount of times.
-3. BadField/Part/MeshRequirements: Attempt to give Field/Part/MeshRequirements some poor quality inputs and check out the errors.
-4. MergeField/Part/MeshRequirements: Do Field/Part/MeshRequirements merge properly.
-5. DeclareField/Part/MeshRequirements: Do Fields/Parts/Meshs get generated correctly.
+3. BadField/Part/MeshReqs: Attempt to give Field/Part/MeshReqs some poor quality inputs and check out the errors.
+4. MergeField/Part/MeshReqs: Do Field/Part/MeshReqs sync properly.
+5. DeclareField/Part/MeshReqs: Do Fields/Parts/Meshs get generated correctly.
 6. BadMetaMethod/BadMetaKernel: Implement an incorrect meta class and check out the error messages.
 7. RegisterClassWithFactory: Test MetaRegistry to see if we can break it.
 8. ValidateComputeAABB/OBB/BoundingShere: Ensure that ComputeAABB/OBB/BoundingSphere can output an expected result for a sphere or rod.
@@ -671,8 +671,8 @@ Unit tests:
 
 
 Switching to a Masala-esk design.
-  HasMeshRequirementsAndIsRegisterable is now a type attribute class that uses SFINAE to check if the given type has the desired interface. 
+  HasMeshReqsAndIsRegisterable is now a type attribute class that uses SFINAE to check if the given type has the desired interface. 
   With this change, we no longer use CRTP to enforce the static interface; rather, the interface is enforced via static_asserts whenever someone tries to 
-  register a class with the MetaFactory. This significantly reduced the complexity of the interaction between HasMeshRequirementsAndIsRegisterable, MetaMethodSubsetExecutionInterface, and MetaKernel.
+  register a class with the MetaFactory. This significantly reduced the complexity of the interaction between HasMeshReqsAndIsRegisterable, MetaMethodSubsetExecutionInterface, and MetaKernel.
   Now, MetaMethodSubsetExecutionInterface and MetaKernel are pure virtual interfaces and it's much easier for users (and us) to make their own custom interfaces.
 

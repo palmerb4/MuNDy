@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_meta/PartRequirements.hpp>  // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
 
 namespace mundy {
 

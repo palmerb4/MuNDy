@@ -17,6 +17,8 @@
 # **********************************************************************************************************************
 # @HEADER
 
+add_subdirectory(distance)
+
 # Here, we attempt to organize unit tests logically by dependencies (not by spelling). Simple classes are tested first 
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.

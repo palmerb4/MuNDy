@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_AGENT_AGENTREGISTRY_HPP_
-#define MUNDY_AGENT_AGENTREGISTRY_HPP_
+#ifndef MUNDY_AGENTS_AGENTREGISTRY_HPP_
+#define MUNDY_AGENTS_AGENTREGISTRY_HPP_
 
 /// \file Registry.hpp
 /// \brief Declaration of the Registry class
@@ -29,12 +29,12 @@
 #include <utility>      // for std::pair
 
 // Mundy libs
-#include <mundy_agent/AgentHierarchy.hpp>   // for mundy::agent::AgentHierarchy
+#include <mundy_agents/HierarchyOfAgents.hpp>   // for mundy::agents::HierarchyOfAgents
 #include <mundy_core/attribute_unused.hpp>  // for MUNDY_ATTRIBUTE_UNUSED
 
-/// @brief A helper macro for registering a \c Agent with \c AgentHierarchy.
+/// \brief A helper macro for registering a \c Agent with \c HierarchyOfAgents.
 ///
-/// This macro is used to register a \c Agent with \c AgentHierarchy. The macro should be
+/// This macro is used to register a \c Agent with \c HierarchyOfAgents. The macro should be
 /// used in the following way:
 ///
 /// \code{.cpp}
@@ -73,6 +73,6 @@
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
 #define MUNDY_REGISTER_AGENT(... /* ClassToRegister */)                              \
   static volatile bool TOKENPASTE2(__registered__, __LINE__) MUNDY_ATTRIBUTE_UNUSED = \
-      mundy::agent::AgentHierarchy::register_new_class<__VA_ARGS__>();
+      mundy::agents::HierarchyOfAgents::register_new_class<__VA_ARGS__>();
 
-#endif  // MUNDY_AGENT_AGENTREGISTRY_HPP_
+#endif  // MUNDY_AGENTS_AGENTREGISTRY_HPP_

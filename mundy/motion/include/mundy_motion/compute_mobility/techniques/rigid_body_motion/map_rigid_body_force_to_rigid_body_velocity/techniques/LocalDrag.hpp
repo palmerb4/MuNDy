@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -45,7 +45,7 @@
 #include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartRequirements.hpp>                    // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>                    // for mundy::meta::PartReqs
 #include <mundy_motion/compute_mobility/techniques/rigid_body_motion/map_rigid_body_force_to_rigid_body_velocity/techniques/local_drag/kernels/Sphere.hpp>  // for mundy::motion::...::kernels::Sphere
 
 namespace mundy {
@@ -79,7 +79,6 @@ class LocalDrag
             bulk_data_ptr, fixed_params) {
   }
   //@}
-
 
   //! \name MetaKernelDispatcher static interface implementation
   //@{
@@ -146,7 +145,7 @@ class LocalDrag
 //! \name Registration
 //@{
 
-/// @brief Register our default kernels
+/// \brief Register our default kernels
 MUNDY_REGISTER_METACLASS("SPHERE",
                          mundy::motion::compute_mobility::techniques::rigid_body_motion::
                              map_rigid_body_force_to_rigid_body_velocity::techniques::local_drag::kernels::Sphere,

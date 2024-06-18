@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -39,7 +39,7 @@
 #include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshRequirements.hpp>  // for mundy::meta::MeshRequirements
+#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>      // for mundy::meta::GlobalMetaMethodRegistry
@@ -63,8 +63,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
   //@{
 
   using PolymorphicBaseType = mundy::meta::MetaMethodSubsetExecutionInterface<void>;
-  using OurKernelFactory =
-      mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<void>, registration_string_wrapper>;
+  using OurKernelFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaKernel<>, registration_string_wrapper>;
   using OurMethodFactory = mundy::meta::StringBasedMetaFactory<mundy::meta::MetaMethodSubsetExecutionInterface<void>,
                                                                registration_string_wrapper>;
   //@}
@@ -137,12 +136,12 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     get_mesh_requirements_counter_++;
-    std::shared_ptr<mundy::meta::MeshRequirements> mesh_requirements_ptr;
+    std::shared_ptr<mundy::meta::MeshReqs> mesh_requirements_ptr;
     return mesh_requirements_ptr;
   }
 

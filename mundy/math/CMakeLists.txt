@@ -14,14 +14,14 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # We don't recommend typing these by hand. Use 
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
-
-SET(HEADERS 
-  include/mundy_math/Array.hpp
+SET(NOINSTALLHEADERS 
   include/mundy_math/Accessor.hpp
+  include/mundy_math/Array.hpp
+  include/mundy_math/distance/SegmentSegment.hpp
+  include/mundy_math/Matrix3.hpp
   include/mundy_math/Quaternion.hpp
   include/mundy_math/Tolerance.hpp
   include/mundy_math/Vector3.hpp
-  include/mundy_math/Matrix3.hpp
   )
 
 SET(SOURCES 
@@ -37,9 +37,12 @@ tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #
 
 # Add a standard library
-tribits_add_library(
+mundy_tribits_add_library(
   mundy_math
-  HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  NOINSTALLHEADERS ${NOINSTALLHEADERS}
+  DIRECTORIES include/mundy_math
+  FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )
 

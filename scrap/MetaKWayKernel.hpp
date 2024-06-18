@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
-#include <mundy_meta/PartRequirements.hpp>                      // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>                      // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -79,19 +79,11 @@ class MetaKWayKernel {
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  virtual void setup() = 0;
-
   /// \brief Run the kernel's core calculation.
   /// For example, calculate the force on an entity.
   /// \param entity_array The array of entities to act on.
   /// \param args The additional arguments to the kernel's core calculation.
   virtual ReturnType execute(const std::array<stk::mesh::Entity, K> &entity_array, Args... args) = 0;
-
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  virtual void finalize() = 0;
   //@}
 };  // MetaKWayKernel
 

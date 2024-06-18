@@ -8,27 +8,31 @@ echo "Using TPL dir: $TPL_ROOT_DIR"
 echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
 
 cmake \
--DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
+-DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RELEASE} \
 -DCMAKE_CXX_COMPILER=mpicxx \
--DCMAKE_CXX_FLAGS="-O0 -g -march=native -Wall -Wextra -Wdouble-promotion -Wconversion" \
+-DCMAKE_CXX_FLAGS="-O3 -march=native -Wall -Wextra -Wdouble-promotion -Wconversion" \
 -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/envs/MundyScratch} \
 -DTPL_ENABLE_MPI=ON \
 -DKokkos_ENABLE_SERIAL=ON \
 -DKokkos_ENABLE_OPENMP=OFF \
 -DKokkos_ENABLE_CUDA=OFF \
--DMundy_ENABLE_MundyAgent=ON \
+-DMundy_ENABLE_MundyAgents=ON \
+-DMundy_ENABLE_MundyAlens=ON \
 -DMundy_ENABLE_MundyBalance=OFF \
--DMundy_ENABLE_MundyConstraint=OFF \
+-DMundy_ENABLE_MundyDriver=ON \
+-DMundy_ENABLE_MundyConstraints=ON \
 -DMundy_ENABLE_MundyCore=ON \
--DMundy_ENABLE_MundyIo=OFF \
--DMundy_ENABLE_MundyLinker=ON \
+-DMundy_ENABLE_MundyIo=ON \
+-DMundy_ENABLE_MundyLinkers=ON \
 -DMundy_ENABLE_MundyMath=ON \
 -DMundy_ENABLE_MundyMesh=ON \
 -DMundy_ENABLE_MundyMeta=ON \
 -DMundy_ENABLE_MundyMotion=OFF \
--DMundy_ENABLE_MundyShape=ON \
+-DMundy_ENABLE_MundyShapes=ON \
 -DMundy_ENABLE_TESTS=ON \
 -DMundy_ENABLE_GTest=ON \
+-DMundy_ENABLE_STKFMM=ON \
+-DMundy_ENABLE_PVFMM=ON \
 -DMundy_TEST_CATEGORIES="BASIC;CONTINUOUS;NIGHTLY;HEAVY;PERFORMANCE" \
 -DTPL_GTest_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_OpenRAND_DIR:PATH=${TPL_ROOT_DIR} \

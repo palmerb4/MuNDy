@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -37,11 +37,11 @@
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldRequirements.hpp>  // for mundy::meta::FieldRequirements
+#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
 #include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartRequirements.hpp>   // for mundy::meta::PartRequirements
+#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -59,12 +59,12 @@ namespace kernels {
 
 /// \class Sphere
 /// \brief Concrete implementation of \c MetaKernel for computing the axis aligned boundary box of spheres.
-class Sphere : public mundy::meta::MetaKernel<void> {
+class Sphere : public mundy::meta::MetaKernel<> {
  public:
   //! \name Typedefs
   //@{
 
-  using PolymorphicBaseType = mundy::meta::MetaKernel<void>;
+  using PolymorphicBaseType = mundy::meta::MetaKernel<>;
   //@}
 
   //! \name Constructors and destructor
@@ -82,9 +82,9 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
   ///
-  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshRequirements
+  /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshRequirements> get_mesh_requirements(
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
       [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     validate_fixed_parameters_and_set_defaults(&valid_fixed_params);
@@ -95,23 +95,20 @@ class Sphere : public mundy::meta::MetaKernel<void> {
     std::string node_omega_field_name = valid_fixed_params.get<std::string>("node_omega_field_name");
     std::string associated_part_name = valid_fixed_params.get<std::string>("part_name");
 
-    auto sphere_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    auto sphere_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     sphere_part_reqs->set_part_name(associated_part_name);
     sphere_part_reqs->set_part_topology(stk::topology::PARTICLE);
-    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_coord_field_name, stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_velocity_field_name, stk::topology::NODE_RANK, 3, 1));
-    sphere_part_reqs->add_field_reqs(std::make_shared<mundy::meta::FieldRequirements<double>>(
-        node_omega_field_name, stk::topology::NODE_RANK, 3, 1));
+    sphere_part_reqs->add_field_reqs<double>(node_coord_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_velocity_field_name, stk::topology::NODE_RANK, 3, 1);
+    sphere_part_reqs->add_field_reqs<double>(node_omega_field_name, stk::topology::NODE_RANK, 3, 1);
 
-    auto linker_part_reqs = std::make_shared<mundy::meta::PartRequirements>();
+    auto linker_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     linker_part_reqs->set_part_name(associated_part_name + "_LINKER");
     linker_part_reqs->set_part_rank(stk::topology::CONSTRAINT_RANK);
 
-    auto mesh_reqs = std::make_shared<mundy::meta::MeshRequirements>();
-    mesh_reqs->add_part_reqs(sphere_part_reqs);
-    mesh_reqs->add_part_reqs(linker_part_reqs);
+    auto mesh_reqs = std::make_shared<mundy::meta::MeshReqs>();
+    mesh_reqs->add_and_sync_part_reqs(sphere_part_reqs);
+    mesh_reqs->add_and_sync_part_reqs(linker_part_reqs);
 
     return mesh_reqs;
   }
@@ -170,8 +167,8 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   ///
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A
   /// default fixed parameter list is accessible via \c get_fixed_valid_params.
-  static std::shared_ptr<mundy::meta::MetaKernel<void>> create_new_instance(
-      mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<PolymorphicBaseType> create_new_instance(mundy::mesh::BulkData *const bulk_data_ptr,
+                                                                  const Teuchos::ParameterList &fixed_params) {
     return std::make_shared<Sphere>(bulk_data_ptr, fixed_params);
   }
 
@@ -182,17 +179,9 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //! \name Actions
   //@{
 
-  /// \brief Setup the kernel's core calculations.
-  /// For example, communicate information to the GPU, populate ghosts, or zero out fields.
-  void setup() override;
-
   /// \brief Run the kernel's core calculation.
   /// \param sphere_element [in] The sphere element acted on by the kernel.
-  void execute(const stk::mesh::Entity &sphere_element) override;
-
-  /// \brief Finalize the kernel's core calculations.
-  /// For example, communicate between ghosts, perform reductions over shared entities, or swap internal variables.
-  void finalize() override;
+  KOKKOS_INLINE_FUNCTION void execute(const stk::mesh::Entity &sphere_element) const override;
   //@}
 
  private:
@@ -200,7 +189,7 @@ class Sphere : public mundy::meta::MetaKernel<void> {
   //@{
 
   static constexpr std::string_view default_part_name_ = "SPHERES";
-  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORDINATES";
+  static constexpr std::string_view default_node_coord_field_name_ = "NODE_COORDS";
   static constexpr std::string_view default_node_velocity_field_name_ = "NODE_VELOCITY";
   static constexpr std::string_view default_node_omega_field_name_ = "NODE_OMEGA";
   //@}

@@ -35,6 +35,10 @@ set(${PROJECT_NAME}_TRIBITS_DIR
   "TriBITS base directory (default assumes in TriBITS source tree)")
 include("${${PROJECT_NAME}_TRIBITS_DIR}/TriBITS.cmake")
 
+# Pull in our custom TriBITS functions
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MundyTribitsInstallDirectories.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MundyTribitsAddLibrary.cmake")
+
 # Mundy only has one project so just enable it :-)
 set(${PROJECT_NAME}_ENABLE_Mundy ON CACHE BOOL "" FORCE)
 

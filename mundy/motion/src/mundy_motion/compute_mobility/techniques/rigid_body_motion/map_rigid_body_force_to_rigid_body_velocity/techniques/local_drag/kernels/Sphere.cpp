@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -109,10 +109,8 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 
 // \name Actions
 //{
-void Sphere::setup() {
-}
 
-void Sphere::execute(const stk::mesh::Entity &sphere_element) {
+void Sphere::execute(const stk::mesh::Entity &sphere_element) const {
   // Fetch the sphere's fields.
   const stk::mesh::Entity center_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
 
@@ -136,9 +134,6 @@ void Sphere::execute(const stk::mesh::Entity &sphere_element) {
   node_omega[0] = drag_rot_inv * node_torque[0];
   node_omega[1] = drag_rot_inv * node_torque[1];
   node_omega[2] = drag_rot_inv * node_torque[2];
-}
-
-void Sphere::finalize() {
 }
 //}
 

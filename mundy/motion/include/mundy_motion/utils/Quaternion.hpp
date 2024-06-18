@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -166,12 +166,12 @@ struct Quaternion {
   }
 
   /**
-   * @brief rotate the quaternion itself based on rotational velocity omega
+   * \brief rotate the quaternion itself based on rotational velocity omega
    *
    * Delong, JCP, 2015, Appendix A eq1, not linearized
-   * @param q
-   * @param omega rotational velocity
-   * @param dt time interval
+   * \param q
+   * \param omega rotational velocity
+   * \param dt time interval
    */
   void rotate_self(const stk::math::Vec<double, 3> &rot_vel, const double dt) {
     const double rot_vel_norm =
@@ -195,12 +195,12 @@ struct Quaternion {
   }
 
   /**
-   * @brief rotate the quaternion itself based on rotational velocity omega
+   * \brief rotate the quaternion itself based on rotational velocity omega
    *
    * Delong, JCP, 2015, Appendix A eq1, not linearized
-   * @param q
-   * @param omega rotational velocity
-   * @param dt time interval
+   * \param q
+   * \param omega rotational velocity
+   * \param dt time interval
    */
   void rotate_self(const double rot_vel_x, const double rot_vel_y, const double rot_vel_z, const double dt) {
     const double rot_vel_norm = sqrt(rot_vel_x * rot_vel_x + rot_vel_y * rot_vel_y + rot_vel_z * rot_vel_z);

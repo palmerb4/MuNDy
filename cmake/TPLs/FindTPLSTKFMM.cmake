@@ -1,0 +1,28 @@
+tribits_tpl_allow_pre_find_package(STKFMM STKFMM_ALLOW_PREFIND)
+
+if (STKFMM_ALLOW_PREFIND)
+  find_package(STKFMM)
+
+  if (STKFMM_FOUND)
+    # Tell TriBITS that we found STKFMM and there no need to look any further
+    set(TPL_STKFMM_INCLUDE_DIRS ${STKFMM_INCLUDE_DIRS} CACHE PATH "...")
+    set(TPL_STKFMM_LIBRARIES ${STKFMM_LIBRARIES} CACHE FILEPATH "...")
+    set(TPL_STKFMM_LIBRARY_DIRS ${STKFMM_LIB_DIR} CACHE PATH "...")
+
+    # Print out the results
+    message(STATUS "Found STKFMM: ${STKFMM_VERSION}")
+    message(STATUS "  STKFMM_LIB_DIR: ${STKFMM_LIB_DIR}")
+    message(STATUS "  STKFMM_INCLUDE_DIR: ${STKFMM_INCLUDE_DIR}")
+    message(STATUS "  TPL_STKFMM_INCLUDE_DIRS: ${TPL_STKFMM_INCLUDE_DIRS}")
+    message(STATUS "  TPL_STKFMM_LIBRARIES: ${TPL_STKFMM_LIBRARIES}")
+    message(STATUS "  TPL_STKFMM_LIBRARY_DIRS: ${TPL_STKFMM_LIBRARY_DIRS}")
+  endif()
+
+endif()
+
+
+set(REQUIRED_HEADERS STKFMM/STKFMM.h)
+set(REQUIRED_LIBS_NAMES STKFMM_STATIC)
+tribits_tpl_find_include_dirs_and_libraries( STKFMM
+  REQUIRED_HEADERS ${REQUIRED_HEADERS}
+  REQUIRED_LIBS_NAMES ${REQUIRED_LIBS_NAMES} )

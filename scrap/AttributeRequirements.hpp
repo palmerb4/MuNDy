@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -81,7 +81,7 @@ class AttributeRequirements {
   /// \brief Get if the attribute name is constrained or not.
   bool constrains_attribute_name() const final;
 
-  /// @brief Get if the attribute is fully specified (aka, the name is set).
+  /// \brief Get if the attribute is fully specified (aka, the name is set).
   bool is_fully_specified() const final;
 
   /// \brief Return the attribute name.
@@ -108,7 +108,7 @@ class AttributeRequirements {
   /// \brief Ensure that the current set of parameters is valid.
   ///
   /// TODO(palmerb4): Is it even possible for an AttributeRequirements object to be invalid?
-  void check_if_valid() const final;
+  void check_if_valid() final;
 
   /// \brief Generate new instance of this class, constructed using the given parameter list.
   std::shared_ptr<AttributesBase> create_new_instance(const Teuchos::ParameterList &parameter_list) const final;
@@ -119,7 +119,7 @@ class AttributeRequirements {
   }
 
   /// \brief Dump the contents of \c AttributeRequirements to the given stream (defaults to std::cout).
-  void print_reqs(std::ostream &os = std::cout, int indent_level = 0) const final;
+  void print(std::ostream &os = std::cout, int indent_level = 0) const final;
 
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const final;
@@ -233,7 +233,7 @@ std::shared_ptr<AttributesBase> AttributeRequirements::create_new_instance(
   return create_new_instance(parameter_list);
 }
 
-void AttributeRequirements::print_reqs(std::ostream &os, int indent_level) const {
+void AttributeRequirements::print(std::ostream &os, int indent_level) const {
   std::string indent(indent_level * 2, ' ');
 
   os << indent << "AttributeRequirements: " << std::endl;
@@ -250,7 +250,7 @@ void AttributeRequirements::print_reqs(std::ostream &os, int indent_level) const
 
 std::string AttributeRequirements::get_reqs_as_a_string() const {
   std::stringstream ss;
-  this->print_reqs(ss);
+  this->print(ss);
   return ss.str();
 }
 //}

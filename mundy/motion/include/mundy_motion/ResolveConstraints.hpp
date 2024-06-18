@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -97,7 +97,7 @@ class ResolveConstraints : public mundy::meta::MetaMethodSubsetExecutionDispatch
 //! \name Registration
 //@{
 
-/// @brief Register our default techniques
+/// \brief Register our default techniques
 MUNDY_REGISTER_METACLASS("NONSMOOTH_LCP", mundy::motion::resolve_constraints::techniques::NonSmoothLCP,
                          mundy::motion::ResolveConstraints::OurMethodFactory)
 

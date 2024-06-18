@@ -23,7 +23,7 @@ mundy::search
 mundy::io
   (Various methods for writing out agents that are not supported by stk::io. For example, a NURBS surface.)
 
-mundy::shape
+mundy::shapes
   type:: (all derived from Shape)
     PointParticle
     ThinLine2
@@ -62,7 +62,7 @@ mundy::constraint
   Constraint
   ConstraintFactory
   ConstraintRegistry
-  GenerateAndAttachCollisionConstraints (depends on mundy::shape)
+  GenerateAndAttachCollisionConstraints (depends on mundy::shapes)
   UpdateConstraints : MetaKernelDispatcher
     kernels: (all derived from MetaKernel)
       Collision
@@ -80,7 +80,7 @@ mundy::constraint
        kernels: (all derived from MetaKernel)
        ...
 
-mundy::pairwise (depends on mundy::shape)
+mundy::pairwise (depends on mundy::shapes)
   EvaluatePairwiseInteractions
   LenardJonesPotential : MetaKernelDispatcher
     kernels: (all derived from MetaTwoWayKernel)
@@ -98,7 +98,7 @@ mundy::pairwise (depends on mundy::shape)
     kernels: (all derived from MetaTwoWayKernel)
       ...
 
-mundy::motion (depends on mundy::shape and mundy::constraint)
+mundy::motion (depends on mundy::shapes and mundy::constraint)
   utils::
     Quaternion
   TimeIntegration : MetaMethodDispatcher
@@ -119,11 +119,11 @@ mundy::mesh
   NeighborList
 
 mundy::meta
-  FieldRequirementsBase
-  FieldRequirements : FieldRequirementsBase
-  PartRequirements
+  FieldReqsBase
+  FieldReqs : FieldReqsBase
+  PartReqs
   NeighborListRequirements
-  MeshRequirements
+  MeshReqs
   HasRequirementsAndIsRegisterable
   MetaFactory
   MetaRegistry

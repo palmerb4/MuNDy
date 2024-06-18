@@ -14,8 +14,7 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # We don't recommend typing these by hand. Use 
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
-
-SET(HEADERS 
+SET(NOINSTALLHEADERS 
   include/mundy_motion/ResolveConstraints.hpp
   include/mundy_motion/compute_time_integration/techniques/NodeEuler.hpp
   include/mundy_motion/compute_mobility/techniques/rigid_body_motion/MapSurfaceForceToRigidBodyForce.hpp
@@ -59,9 +58,12 @@ tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 #
 
 # Add a standard library
-tribits_add_library(
+mundy_tribits_add_library(
   mundy_motion
-  HEADERS ${HEADERS} ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
+  NOINSTALLHEADERS ${NOINSTALLHEADERS}
+  DIRECTORIES include/mundy_motion
+  FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )
 

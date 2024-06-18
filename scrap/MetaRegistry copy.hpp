@@ -2,7 +2,7 @@
 // **********************************************************************************************************************
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
-//                                           Copyright 2023 Flatiron Institute
+//                                           Copyright 2024 Flatiron Institute
 //                                                 Author: Bryce Palmer
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
@@ -50,7 +50,7 @@ struct MetaRegistry {
   //! \name Actions
   //@{
 
-  /// @brief Register \c ClassToRegister with the \c MetaMethodFactory.
+  /// \brief Register \c ClassToRegister with the \c MetaMethodFactory.
   ///
   /// \note When the program is started, one of the first steps is to initialize static objects. Even if is_registered
   /// appears to be unused, static storage duration guarantees that this variable won’t be optimized away.
@@ -59,7 +59,7 @@ struct MetaRegistry {
     return true;
   }
 
-  /// @brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
+  /// \brief A flag for if the given type has been registered with the \c MetaMethodFactory or not.
   static const bool is_registered;
   //@}
 };  // MetaRegistry
@@ -76,7 +76,7 @@ const bool MetaRegistry<ClassToRegister, FactoryToRegisterWith>::is_registered =
 
 }  // namespace mundy
 
-/// @brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
+/// \brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
 ///
 /// This macro is used to register a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory. The macro should be
 /// used in the following way:
@@ -119,7 +119,7 @@ const bool MetaRegistry<ClassToRegister, FactoryToRegisterWith>::is_registered =
 /// registered with. The reason we use the weird "... /* FactoryToRegisterWith */" syntax is because we want to allow
 /// FactoryToRegisterWith to potentially be a templated class with multiple template arguments. In this case, the C++
 /// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
-/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
+/// want. As a result, we need to use the "..." syntax to collect those additional arguments and sync them
 /// together into the desired \c FactoryToRegisterWith using \c __VA_ARGS__.
 ///
 /// \param ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
@@ -142,7 +142,7 @@ const bool MetaRegistry<ClassToRegister, FactoryToRegisterWith>::is_registered =
 /// registered with. The reason we use the weird "... /* FactoryToCheckWith */" syntax is because we want to allow
 /// FactoryToCheckWith to potentially be a templated class with multiple template arguments. In this case, the C++
 /// macro system will interpret the comma in the template arguments as a macro argument separator, which is not what we
-/// want. As a result, we need to use the "..." syntax to collect those additional arguments and merge them
+/// want. As a result, we need to use the "..." syntax to collect those additional arguments and sync them
 /// together into the desired \c FactoryToCheckWith using \c __VA_ARGS__.
 ///
 /// \note This macro used a lambda function to check if the class has been registered. This ensures that each use of
