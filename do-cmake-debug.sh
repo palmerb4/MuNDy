@@ -2,23 +2,24 @@ TRILINOS_ROOT_DIR=$1
 TPL_ROOT_DIR=$2
 MUNDY_SOURCE_DIR=$3
 
-# bash ../do-cmake-release.sh /mnt/sw/nix/store/ajfmwdjwipp5rrpkq8dj4aff23ar4cix-trilinos-14.2.0 ~/envs/MundyScratch/ ../
+# bash ../do-cmake-cje.sh /mnt/sw/nix/store/ajfmwdjwipp5rrpkq8dj4aff23ar4cix-trilinos-14.2.0 ~/mundyscratch/ ../
 echo "Using Trilinos dir: $TRILINOS_ROOT_DIR"
 echo "Using TPL dir: $TPL_ROOT_DIR"
 echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
 
 cmake \
--DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RELEASE} \
+-DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
 -DCMAKE_CXX_COMPILER=mpicxx \
--DCMAKE_CXX_FLAGS="-O3 -g -march=native" \
--DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/envs/MundyScratch} \
+-DCMAKE_CXX_FLAGS="-O0 -g -march=native -Wall -Wextra -Wdouble-promotion -Wconversion -DDEBUG" \
+-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/local/lib/mundy_lib} \
 -DTPL_ENABLE_MPI=ON \
 -DKokkos_ENABLE_SERIAL=ON \
 -DKokkos_ENABLE_OPENMP=OFF \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_MundyAgents=ON \
+-DMundy_ENABLE_MundyAlens=ON \
 -DMundy_ENABLE_MundyBalance=OFF \
--DMundy_ENABLE_MundyDriver=ON \
+-DMundy_ENABLE_MunyDriver=ON \
 -DMundy_ENABLE_MundyConstraints=ON \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyIo=ON \

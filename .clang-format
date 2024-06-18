@@ -1,4 +1,3 @@
 BasedOnStyle: Google
-ColumnLimit: '120'
+ColumnLimit: "120"
 AllowShortFunctionsOnASingleLine: false
-AllowShortLambdasOnASingleLine: false
