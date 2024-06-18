@@ -55,4 +55,22 @@
     }                                                                                                \
   } while (0)
 
+/// \def MUNDY_DEBUG_THROW_ASSERT
+/// \brief Throw an exception if the given assertion is false. Only compiled in if NDEBUG is not defined.
+///
+/// This macro is a a revised version of Teuchos' \c TEUCHOS_TEST_FOR_EXCEPTION macro with improved logic. Unlike
+/// \c TEUCHOS_TEST_FOR_EXCEPTION, this macro will throw an exception if the assertion is false. If the assertion is
+/// true, nothing happens. This macro is intended to be used in place of \c TEUCHOS_TEST_FOR_EXCEPTION in order to
+/// improve code readability.
+///
+/// \param assertion_to_test The assertion to test
+/// \param exception_to_throw The exception to throw if the assertion is false
+/// \param message_to_print The message to print if the assertion is false
+#ifndef NDEBUG
+#define MUNDY_DEBUG_THROW_ASSERT(assertion_to_test, exception_to_throw, message_to_print) \
+  MUNDY_THROW_ASSERT(assertion_to_test, exception_to_throw, message_to_print)
+#else
+#define MUNDY_DEBUG_THROW_ASSERT(assertion_to_test, exception_to_throw, message_to_print)
+#endif
+
 #endif  // MUNDY_CORE_THROW_ASSERT_HPP_

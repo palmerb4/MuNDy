@@ -301,7 +301,7 @@ class RPYSpheres : public mundy::meta::MetaKernel<> {
                          : ((node_coord[2] < domain_origin[2]) || (node_coord[2] >= domain_origin[2] + domain_length));
       const bool coordinate_out_of_domain_in_non_periodic_direction =
           coordinate_out_of_domain_in_x || coordinate_out_of_domain_in_y || coordinate_out_of_domain_in_z;
-      MUNDY_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
+      MUNDY_DEBUG_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
                          "RPYSpheres: Node coordinate is out of domain. The current coordinate is "
                              << node_coord[0] << " " << node_coord[1] << " " << node_coord[2] << " and the origin is "
                              << domain_origin[0] << " " << domain_origin[1] << " " << domain_origin[2]
