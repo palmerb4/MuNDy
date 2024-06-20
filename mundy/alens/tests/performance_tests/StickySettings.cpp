@@ -325,10 +325,10 @@ class StickySettings {
         stk::mesh::Selector(left_bound_crosslinkers_part) & meta_data_ptr_->locally_owned_part();
     auto doubly_crosslinkers_selector =
         stk::mesh::Selector(doubly_bound_crosslinkers_part) & meta_data_ptr_->locally_owned_part();
-    std::cout << "Num left bound crosslinkers: "
+    std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Num left bound crosslinkers: "
               << stk::mesh::count_selected_entities(left_crosslinkers_selector, bulk_data_ptr_->buckets(element_rank_))
               << std::endl;
-    std::cout << "Num doubly bound crosslinkers: "
+    std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Num doubly bound crosslinkers: "
               << stk::mesh::count_selected_entities(doubly_crosslinkers_selector,
                                                     bulk_data_ptr_->buckets(element_rank_))
               << std::endl;
@@ -1073,9 +1073,8 @@ class StickySettings {
               bool is_crosslinker_sphere_linker =
                   bulk_data.bucket(constraint_rank_entity).member(crosslinker_sphere_linkers_part);
               if (is_crosslinker_sphere_linker) {
-                const double binding_probability = 
-                    scale_factor *
-                    stk::mesh::field_data(constraint_state_change_rate_field, constraint_rank_entity)[0];
+                const double binding_probability =
+                    scale_factor * stk::mesh::field_data(constraint_state_change_rate_field, constraint_rank_entity)[0];
                 cumsum += binding_probability;
                 if (randu01 < cumsum) {
                   // We have a binding event, set this, then bail on the for loop
@@ -1163,12 +1162,11 @@ class StickySettings {
 
     // Get the vector of entities to modify
     stk::mesh::EntityVector crosslinker_sphere_linkers;
-    stk::mesh::EntityVector locally_owned_boubly_bound_crosslinkers;
+    stk::mesh::EntityVector doubly_bound_crosslinkers;
     stk::mesh::get_selected_entities(stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_),
                                      bulk_data_ptr_->buckets(constraint_rank_), crosslinker_sphere_linkers);
-    stk::mesh::get_selected_entities(
-        stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part(),
-        bulk_data_ptr_->buckets(element_rank_), locally_owned_boubly_bound_crosslinkers);
+    stk::mesh::get_selected_entities(stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_),
+                                     bulk_data_ptr_->buckets(element_rank_), doubly_bound_crosslinkers);
 
     bulk_data_ptr_->modification_begin();
 
@@ -1184,29 +1182,31 @@ class StickySettings {
         const stk::mesh::Entity &target_sphere = bulk_data_ptr_->begin_elements(crosslinker_sphere_linker)[1];
         const stk::mesh::Entity &target_sphere_node = bulk_data_ptr_->begin_nodes(target_sphere)[0];
 
-        // Check if the crosslinker is locally owned
-        const bool is_crosslinker_locally_owned = bulk_data_ptr_->bucket(crosslinker).owned();
-
         // Call the binding function
-        if ((state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) && is_crosslinker_locally_owned) {
+        if (state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) {
           // Unbind the right side of the crosslinker from the left node and bind it to the target node
           const bool bind_worked =
               bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker, target_sphere_node, 1);
           MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
 
-          std::cout << "Binding crosslinker " << bulk_data_ptr_->identifier(crosslinker) << " to node "
+          std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Binding crosslinker "
+                    << bulk_data_ptr_->identifier(crosslinker) << " to node "
                     << bulk_data_ptr_->identifier(target_sphere_node) << std::endl;
 
           // Now change the part from left to doubly bound.
-          auto add_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
-          auto remove_parts = stk::mesh::PartVector{left_bound_crosslinkers_part_ptr_};
-          bulk_data_ptr_->change_entity_parts(crosslinker, add_parts, remove_parts);
+          const bool is_crosslinker_locally_owned =
+              bulk_data_ptr_->parallel_owner_rank(crosslinker) == bulk_data_ptr_->parallel_rank();
+          if (is_crosslinker_locally_owned) {
+            auto add_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
+            auto remove_parts = stk::mesh::PartVector{left_bound_crosslinkers_part_ptr_};
+            bulk_data_ptr_->change_entity_parts(crosslinker, add_parts, remove_parts);
+          }
         }
       }
     }
 
     // Perform D->L
-    for (const stk::mesh::Entity &crosslinker : locally_owned_boubly_bound_crosslinkers) {
+    for (const stk::mesh::Entity &crosslinker : doubly_bound_crosslinkers) {
       // Decode the binding type enum for this entity
       auto state_change_action = static_cast<BINDING_STATE_CHANGE>(
           stk::mesh::field_data(*element_perform_state_change_field_ptr_, crosslinker)[0]);
@@ -1216,13 +1216,30 @@ class StickySettings {
         const bool unbind_worked = bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker, left_node, 1);
         MUNDY_THROW_ASSERT(unbind_worked, std::logic_error, "Failed to unbind crosslinker from node.");
 
-        std::cout << "Unbinding crosslinker " << bulk_data_ptr_->identifier(crosslinker) << " from node "
+        std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Unbinding crosslinker "
+                  << bulk_data_ptr_->identifier(crosslinker) << " from node "
                   << bulk_data_ptr_->identifier(bulk_data_ptr_->begin_nodes(crosslinker)[1]) << std::endl;
 
+        const bool is_crosslinker_locally_owned =
+            bulk_data_ptr_->parallel_owner_rank(crosslinker) == bulk_data_ptr_->parallel_rank();
+        const bool is_new_node_locally_owned =
+            bulk_data_ptr_->parallel_owner_rank(left_node) == bulk_data_ptr_->parallel_rank();
+        const bool is_new_node_locally_shared = bulk_data_ptr_->in_shared(left_node);
+        std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Crosslinker "
+                  << bulk_data_ptr_->identifier(crosslinker) << " is owned? " << is_crosslinker_locally_owned
+                  << std::endl;
+        std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " New node "
+                  << bulk_data_ptr_->identifier(left_node) << " is owned? " << is_new_node_locally_owned
+                  << " is shared? " << is_new_node_locally_shared << std::endl;
+
         // Now change the part from doubly to left bound.
-        auto add_parts = stk::mesh::PartVector{left_bound_crosslinkers_part_ptr_};
-        auto remove_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
-        bulk_data_ptr_->change_entity_parts(crosslinker, add_parts, remove_parts);
+        // const bool is_crosslinker_locally_owned =
+        //     bulk_data_ptr_->parallel_owner_rank(crosslinker) == bulk_data_ptr_->parallel_rank();
+        if (is_crosslinker_locally_owned) {
+          auto add_parts = stk::mesh::PartVector{left_bound_crosslinkers_part_ptr_};
+          auto remove_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
+          bulk_data_ptr_->change_entity_parts(crosslinker, add_parts, remove_parts);
+        }
       }
     }
 

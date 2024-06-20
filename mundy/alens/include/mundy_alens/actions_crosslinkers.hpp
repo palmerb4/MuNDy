@@ -76,8 +76,9 @@ inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const
                                          const int &conn_ordinal) {
   MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
                            "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
-                           "unbind_crosslinker_from_node: The crosslinker must have BEAM_2 as a base topology.");
+  // Maybe unsafe?
+  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
+  //                          "unbind_crosslinker_from_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
   const int num_nodes = bulk_data.num_nodes(crosslinker);
@@ -96,60 +97,60 @@ inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const
   return false;
 }
 
-/// \brief Connect a crosslinker to a new node.
-///
-/// If the crosslinker is already connected to to a node on the given ordinal, the operation will fail.
-///
-/// A parallel-local mesh modification operation.
-///
-/// Note, the relation-declarations must be symmetric across all sharers of the involved entities within a
-/// modification cycle.
-///
-/// \param bulk_data The bulk data object.
-/// \param crosslinker The crosslinker entity.
-/// \param new_node The new node entity.
-/// \param conn_ordinal The ordinal of the connection to the crosslinker for which the new node will be bound.
-inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
-                                     const stk::mesh::Entity &new_node, const int &conn_ordinal) {
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
-                           "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
-                           "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
-                           "bind_crosslinker_to_node: The node must have NODE_RANK.");
+// /// \brief Connect a crosslinker to a new node.
+// ///
+// /// If the crosslinker is already connected to to a node on the given ordinal, the operation will fail.
+// ///
+// /// A parallel-local mesh modification operation.
+// ///
+// /// Note, the relation-declarations must be symmetric across all sharers of the involved entities within a
+// /// modification cycle.
+// ///
+// /// \param bulk_data The bulk data object.
+// /// \param crosslinker The crosslinker entity.
+// /// \param new_node The new node entity.
+// /// \param conn_ordinal The ordinal of the connection to the crosslinker for which the new node will be bound.
+// inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
+//                                      const stk::mesh::Entity &new_node, const int &conn_ordinal) {
+//   MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+//                            "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
+//   MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
+//                            "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
+//   MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
+//                            "bind_crosslinker_to_node: The node must have NODE_RANK.");
 
-  // If a node already exists at the ordinal, we'll destroy that relation.
-  unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
+//   // If a node already exists at the ordinal, we'll destroy that relation.
+//   unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
 
-  // Check a node already exists at the ordinal
-  const int num_nodes = bulk_data.num_nodes(crosslinker);
-  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
-  stk::mesh::ConnectivityOrdinal const *node_ords = bulk_data.begin_node_ordinals(crosslinker);
-  for (int i = 0; i < num_nodes; ++i) {
-    if (node_ords[i] == conn_ordinal) {
-      // We found the node in the ordinal that we're trying to bind to. Fail the operation.
-      return false;
-    }
-  }
+//   // Check a node already exists at the ordinal
+//   const int num_nodes = bulk_data.num_nodes(crosslinker);
+//   stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
+//   stk::mesh::ConnectivityOrdinal const *node_ords = bulk_data.begin_node_ordinals(crosslinker);
+//   for (int i = 0; i < num_nodes; ++i) {
+//     if (node_ords[i] == conn_ordinal) {
+//       // We found the node in the ordinal that we're trying to bind to. Fail the operation.
+//       return false;
+//     }
+//   }
 
-  // Declare the new relation.
-  bulk_data.declare_relation(crosslinker, new_node, conn_ordinal);
+//   // Declare the new relation.
+//   bulk_data.declare_relation(crosslinker, new_node, conn_ordinal);
 
-  // Resolve sharing of the new node.
-  const bool is_crosslinker_locally_owned = bulk_data.bucket(crosslinker).owned();
-  const bool is_new_node_locally_owned = bulk_data.parallel_owner_rank(new_node);
-  if (is_crosslinker_locally_owned && !is_new_node_locally_owned) {
-    // We own the crosslinker but not the node.
-    const int rank_that_we_share_with = bulk_data.parallel_owner_rank(new_node);
-    bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
-  } else if (!is_crosslinker_locally_owned && is_new_node_locally_owned) {
-    // We don't own the crosslinker but we own the node.
-    const int rank_that_we_share_with = bulk_data.parallel_owner_rank(crosslinker);
-    bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
-  }
+//   // Resolve sharing of the new node.
+//   const bool is_crosslinker_locally_owned = bulk_data.bucket(crosslinker).owned();
+//   const bool is_new_node_locally_owned = bulk_data.parallel_owner_rank(new_node);
+//   if (is_crosslinker_locally_owned && !is_new_node_locally_owned) {
+//     // We own the crosslinker but not the node.
+//     const int rank_that_we_share_with = bulk_data.parallel_owner_rank(new_node);
+//     bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
+//   } else if (!is_crosslinker_locally_owned && is_new_node_locally_owned) {
+//     // We don't own the crosslinker but we own the node.
+//     const int rank_that_we_share_with = bulk_data.parallel_owner_rank(crosslinker);
+//     bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
+//   }
 
-  return true;
-}
+//   return true;
+// }
 
 /// \brief Connect a crosslinker to a new node and unbind the existing node.
 ///
@@ -170,10 +171,11 @@ inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk
                                                      const stk::mesh::Entity &new_node, const int &conn_ordinal) {
   MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
                            "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
-                           "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
   MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
                            "bind_crosslinker_to_node: The node must have NODE_RANK.");
+  // Maybe unsafe?
+  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
+  //                          "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
   unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
@@ -182,16 +184,27 @@ inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk
   bulk_data.declare_relation(crosslinker, new_node, conn_ordinal);
 
   // Resolve sharing of the new node.
-  const bool is_crosslinker_locally_owned = bulk_data.bucket(crosslinker).owned();
-  const bool is_new_node_locally_owned = bulk_data.parallel_owner_rank(new_node);
+  const bool is_crosslinker_locally_owned = bulk_data.parallel_owner_rank(crosslinker) == bulk_data.parallel_rank();
+  const bool is_new_node_locally_owned = bulk_data.parallel_owner_rank(new_node) == bulk_data.parallel_rank();
+  const bool is_new_node_locally_shared = bulk_data.in_shared(new_node);
   if (is_crosslinker_locally_owned && !is_new_node_locally_owned) {
     // We own the crosslinker but not the node.
+    std::cout << "Rank: " << bulk_data.parallel_rank() << " owns the crosslinker " << bulk_data.identifier(crosslinker)
+              << " but not the node " << bulk_data.identifier(new_node) << std::endl;
     const int rank_that_we_share_with = bulk_data.parallel_owner_rank(new_node);
     bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
-  } else if (!is_crosslinker_locally_owned && is_new_node_locally_owned) {
+  } else if (!is_crosslinker_locally_owned && (is_new_node_locally_owned || is_new_node_locally_shared)) {
     // We don't own the crosslinker but we own the node.
+    std::cout << "Rank: " << bulk_data.parallel_rank() << " owns the node " << bulk_data.identifier(new_node)
+              << " but not the crosslinker " << bulk_data.identifier(crosslinker) << std::endl;
     const int rank_that_we_share_with = bulk_data.parallel_owner_rank(crosslinker);
     bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
+  } else if (!is_crosslinker_locally_owned && !(is_new_node_locally_owned || is_new_node_locally_shared)) {
+    // We neither own nor share the crosslinker or the node.
+    std::cerr << "Attempting to call bind_crosslinker_to_node_unbind_existing on a crosslinker and node that are not "
+                 "locally owned or shared. This is undefined behavior."
+              << std::endl;
+    return false;
   }
 
   return true;
