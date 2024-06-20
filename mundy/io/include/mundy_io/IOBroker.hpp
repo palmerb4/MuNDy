@@ -72,7 +72,7 @@ class IOBroker {
   IOBroker(mundy::mesh::BulkData *const bulk_data_ptr, [[maybe_unused]] const Teuchos::ParameterList &fixed_params)
       : bulk_data_ptr_(bulk_data_ptr),
         meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()),
-        STKioBroker_(bulk_data_ptr->parallel()) {
+        stk_io_broker_(bulk_data_ptr->parallel()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "IOBroker: bulk_data_ptr cannot be a nullptr.");
@@ -124,9 +124,9 @@ class IOBroker {
     }
 
     // Set the stk::io::StkMeshIoBroker bulk data to our bulk data
-    STKioBroker_.set_bulk_data(*bulk_data_ptr_);
-    // Set up the parallel IO mode
-    STKioBroker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    stk_io_broker_.set_bulk_data(*bulk_data_ptr_);
+    stk_io_broker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    stk_io_broker_.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
 
     // Set the TRANSIENT fields and keep track of them.
     set_transient_fields(valid_fixed_params);
@@ -272,7 +272,7 @@ class IOBroker {
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief The stk::io::StkMeshIoBroker for output operations
-  stk::io::StkMeshIoBroker STKioBroker_;
+  stk::io::StkMeshIoBroker stk_io_broker_;
 
   /// \brief EXODUS output database filename
   std::string exodus_database_output_filename_ = "";

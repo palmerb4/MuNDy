@@ -106,7 +106,7 @@ void IOBroker::set_transient_fields(const Teuchos::ParameterList &valid_fixed_pa
 
 void IOBroker::print_field_roles() {
   stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "IO roles for fields");
-  // const stk::mesh::FieldVector &fields = STKioBroker_.meta_data().get_fields();
+  // const stk::mesh::FieldVector &fields = stk_io_broker_.meta_data().get_fields();
   const stk::mesh::FieldVector &fields = meta_data_ptr_->get_fields();
   for (size_t i = 0; i < fields.size(); ++i) {
     const Ioss::Field::RoleType *role = stk::io::get_field_role(*fields[i]);
@@ -158,9 +158,9 @@ void IOBroker::print_io_broker() {
 
 void IOBroker::finalize_io_broker() {
   // Flush the output to disk to make sure we're good
-  STKioBroker_.flush_output();
+  stk_io_broker_.flush_output();
   // Now close it
-  STKioBroker_.close_output_mesh(io_index_);
+  stk_io_broker_.close_output_mesh(io_index_);
 }
 
 void IOBroker::restart_mesh() {
@@ -169,26 +169,28 @@ void IOBroker::restart_mesh() {
   restartstream << "...RESTART enabled, input database " << exodus_database_input_filename_;
   stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), restartstream.str());
 
-  // Create a local ioBroker to not interfere with the other one that we use for output
-  stk::io::StkMeshIoBroker ioBroker(bulk_data_ptr_->parallel());
+  // Create a local stk_io_broker to not interfere with the other one that we use for output
+  stk::io::StkMeshIoBroker stk_io_broker(bulk_data_ptr_->parallel());
   // Set the bulk data in order to populate everything
-  ioBroker.set_bulk_data(*bulk_data_ptr_);
+  stk_io_broker.set_bulk_data(*bulk_data_ptr_);
+  stk_io_broker.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
+
   // Create the input mesh
-  size_t input_index = ioBroker.add_mesh_database(exodus_database_input_filename_, "exodus", stk::io::READ_RESTART);
+  size_t input_index = stk_io_broker.add_mesh_database(exodus_database_input_filename_, "exodus", stk::io::READ_RESTART);
   // Set the mesh to active, and activate it
-  ioBroker.set_active_mesh(input_index);
-  ioBroker.create_input_mesh();
+  stk_io_broker.set_active_mesh(input_index);
+  stk_io_broker.create_input_mesh();
 
   // The fields should already be set to TRANSIENT, along with pointers to them. Try to populate the bulk data.
-  ioBroker.populate_bulk_data();
+  stk_io_broker.populate_bulk_data();
 
   // Add the input fields
   for (size_t i = 0; i < enabled_io_fields_.size(); ++i) {
-    ioBroker.add_input_field(enabled_io_fields_[i]);
+    stk_io_broker.add_input_field(enabled_io_fields_[i]);
   }
   // Read the defined input fields, looking for any that are missing
   std::vector<stk::io::MeshField> missingFields;
-  ioBroker.read_defined_input_fields(ioBroker.get_max_time(), &missingFields);
+  stk_io_broker.read_defined_input_fields(stk_io_broker.get_max_time(), &missingFields);
 
   // Let the user know if there are missing fields
   if (missingFields.size() > 0) {
@@ -205,15 +207,15 @@ void IOBroker::restart_mesh() {
 
 void IOBroker::setup_io_broker() {
   // Create the output mesh
-  io_index_ = STKioBroker_.create_output_mesh(exodus_database_output_filename_, database_purpose_);
+  io_index_ = stk_io_broker_.create_output_mesh(exodus_database_output_filename_, database_purpose_);
 
   // Add the enabled fields to the output mesh
   for (size_t i = 0; i < enabled_io_fields_.size(); ++i) {
-    STKioBroker_.add_field(io_index_, *enabled_io_fields_[i]);
+    stk_io_broker_.add_field(io_index_, *enabled_io_fields_[i]);
   }
 
   // No matter what, the setup function writes an output mesh
-  STKioBroker_.write_output_mesh(io_index_);
+  stk_io_broker_.write_output_mesh(io_index_);
 }
 
 void IOBroker::synchronize_node_coordinates_from_transient() {
@@ -263,30 +265,35 @@ void IOBroker::write_io_broker(double time) {
       });
 
   // Save the IO
-  STKioBroker_.begin_output_step(io_index_, time);
-  STKioBroker_.write_defined_output_fields(io_index_);
-  STKioBroker_.end_output_step(io_index_);
+  stk_io_broker_.begin_output_step(io_index_, time);
+  stk_io_broker_.write_defined_output_fields(io_index_);
+  stk_io_broker_.end_output_step(io_index_);
 }
 
 void IOBroker::write_io_broker_timestep(int timestep, double time) {
+  // Setup StkMeshIoBroker
+  stk::io::StkMeshIoBroker stk_io_broker(bulk_data_ptr_->parallel());
+  stk_io_broker.set_bulk_data(*bulk_data_ptr_);
+  stk_io_broker.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
+  stk_io_broker.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+
   // Create the output mesh, based on the timestep and the base name
-  std::string full_output_name = exodus_database_output_filename_base_ + "_" + std::to_string(timestep) + ".exo";
-  size_t singlestep_io_index = STKioBroker_.create_output_mesh(full_output_name, database_purpose_);
+  std::string full_output_name = exodus_database_output_filename_base_ + ".e-s." + std::to_string(timestep);
+  size_t singlestep_io_index = stk_io_broker.create_output_mesh(full_output_name, database_purpose_);
 
   // Add the enabled fields to the output mesh
   for (size_t i = 0; i < enabled_io_fields_.size(); ++i) {
-    STKioBroker_.add_field(singlestep_io_index, *enabled_io_fields_[i]);
+    stk_io_broker.add_field(singlestep_io_index, *enabled_io_fields_[i]);
   }
 
   // Write the output mesh
-  STKioBroker_.write_output_mesh(singlestep_io_index);
+  stk_io_broker.write_output_mesh(singlestep_io_index);
+
   // Before we write, synchronize the TRANSIENT coordinate field
   stk::mesh::Selector locally_owned = meta_data_ptr_->locally_owned_part();
-  // Alias the coordinate fields
   auto &coordinate_field = *coordinate_field_ptr_;
   auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
-  // This is how we loop over entities and assign them to each other
-  stk::mesh::for_each_entity_run(
+    stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned,
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {
@@ -299,14 +306,15 @@ void IOBroker::write_io_broker_timestep(int timestep, double time) {
       });
 
   // Save the IO
-  STKioBroker_.begin_output_step(singlestep_io_index, time);
-  STKioBroker_.write_defined_output_fields(singlestep_io_index);
-  STKioBroker_.end_output_step(singlestep_io_index);
+  stk_io_broker.begin_output_step(singlestep_io_index, time);
+  stk_io_broker.write_defined_output_fields(singlestep_io_index);
+  stk_io_broker.end_output_step(singlestep_io_index);
 
   // Flush the output to disk to make sure we're good
-  STKioBroker_.flush_output();
+  stk_io_broker.flush_output();
+
   // Now close it
-  STKioBroker_.close_output_mesh(singlestep_io_index);
+  stk_io_broker.close_output_mesh(singlestep_io_index);
 }
 
 // }

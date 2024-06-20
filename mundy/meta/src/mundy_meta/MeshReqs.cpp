@@ -862,6 +862,22 @@ void MeshReqs::print(std::ostream &os, int indent_level) const {
   os << indent << "End of MeshReqs" << std::endl;
 }
 
+void MeshReqs::print_parts(std::ostream &os, int indent_level) const {
+  std::string indent(indent_level * 2, ' ');
+
+  os << indent << "MeshReqs: " << std::endl;
+
+  os << indent << "  Mesh Parts: " << std::endl;
+  int part_count = 0;
+  for (auto const &[part_name, part_reqs_ptr] : const_cast<MeshReqs *>(this)->get_mesh_part_map()) {
+    os << "  Mesh part " << part_count << " has name (" << part_name << ") and requirements" << std::endl;
+    part_reqs_ptr->print(os, indent_level + 1);
+    part_count++;
+  }
+
+  os << indent << "End of MeshReqs" << std::endl;
+}
+
 std::string MeshReqs::get_reqs_as_a_string() const {
   std::stringstream ss;
   this->print(ss);

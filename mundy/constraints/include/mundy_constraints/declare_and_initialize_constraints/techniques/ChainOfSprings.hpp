@@ -155,6 +155,7 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
           // The specialized part must be a subset of the hookean springs part.
           auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
           part_reqs->set_part_name(part_name);
+          part_reqs->set_part_topology(stk::topology::BEAM_2);
           HookeanSprings::add_and_sync_subpart_reqs(part_reqs);
         }
       }
@@ -174,6 +175,7 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
           // The specialized part must be a subset of the angular springs part.
           auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
           part_reqs->set_part_name(part_name);
+          part_reqs->set_part_topology(stk::topology::BEAM_3);
           AngularSprings::add_and_sync_subpart_reqs(part_reqs);
         }
       }

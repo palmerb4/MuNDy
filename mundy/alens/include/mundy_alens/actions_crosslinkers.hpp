@@ -72,22 +72,23 @@ enum BINDING_STATE_CHANGE : unsigned {
 /// \param bulk_data The bulk data object.
 /// \param crosslinker The crosslinker entity.
 /// \param conn_ordinal The ordinal of the connection to the crosslinker for which the node will be unbound.
-inline bool unbind_crosslinker_from_node(const mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
+inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
                                          const int &conn_ordinal) {
-  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
-                     "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
-  MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
-                     "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+                           "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
+                           "unbind_crosslinker_from_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
   const int num_nodes = bulk_data.num_nodes(crosslinker);
   stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
   stk::mesh::ConnectivityOrdinal const *node_ords = bulk_data.begin_node_ordinals(crosslinker);
   for (int i = 0; i < num_nodes; ++i) {
-    if (node_ords[i]; == conn_ordinal) {
-      // We found the node in the ordinal that we're trying to bind to. We'll destroy this relation.
-      bulk_data.destroy_relation(crosslinker, nodes[i], conn_ordinal);
-      return true;
+    if (node_ords[i] == conn_ordinal) {
+      // We found the node in the ordinal that we're trying to bind to. We'll attempt to destroy this relation.
+      // This doesn't mean that it was sucessfully destroyed. That's up to the bulk data object and will be returned by
+      // destroy_relation.
+      return bulk_data.destroy_relation(crosslinker, nodes[i], conn_ordinal);
     }
   }
 
@@ -96,6 +97,61 @@ inline bool unbind_crosslinker_from_node(const mundy::mesh::BulkData &bulk_data,
 }
 
 /// \brief Connect a crosslinker to a new node.
+///
+/// If the crosslinker is already connected to to a node on the given ordinal, the operation will fail.
+///
+/// A parallel-local mesh modification operation.
+///
+/// Note, the relation-declarations must be symmetric across all sharers of the involved entities within a
+/// modification cycle.
+///
+/// \param bulk_data The bulk data object.
+/// \param crosslinker The crosslinker entity.
+/// \param new_node The new node entity.
+/// \param conn_ordinal The ordinal of the connection to the crosslinker for which the new node will be bound.
+inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
+                                     const stk::mesh::Entity &new_node, const int &conn_ordinal) {
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+                           "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
+                           "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
+                           "bind_crosslinker_to_node: The node must have NODE_RANK.");
+
+  // If a node already exists at the ordinal, we'll destroy that relation.
+  unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
+
+  // Check a node already exists at the ordinal
+  const int num_nodes = bulk_data.num_nodes(crosslinker);
+  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
+  stk::mesh::ConnectivityOrdinal const *node_ords = bulk_data.begin_node_ordinals(crosslinker);
+  for (int i = 0; i < num_nodes; ++i) {
+    if (node_ords[i] == conn_ordinal) {
+      // We found the node in the ordinal that we're trying to bind to. Fail the operation.
+      return false;
+    }
+  }
+
+  // Declare the new relation.
+  bulk_data.declare_relation(crosslinker, new_node, conn_ordinal);
+
+  // Resolve sharing of the new node.
+  const bool is_crosslinker_locally_owned = bulk_data.bucket(crosslinker).owned();
+  const bool is_new_node_locally_owned = bulk_data.parallel_owner_rank(new_node);
+  if (is_crosslinker_locally_owned && !is_new_node_locally_owned) {
+    // We own the crosslinker but not the node.
+    const int rank_that_we_share_with = bulk_data.parallel_owner_rank(new_node);
+    bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
+  } else if (!is_crosslinker_locally_owned && is_new_node_locally_owned) {
+    // We don't own the crosslinker but we own the node.
+    const int rank_that_we_share_with = bulk_data.parallel_owner_rank(crosslinker);
+    bulk_data.add_node_sharing(new_node, rank_that_we_share_with);
+  }
+
+  return true;
+}
+
+/// \brief Connect a crosslinker to a new node and unbind the existing node.
 ///
 /// If the crosslinker is already connected to to a node on the given ordinal, we'll destroy that relation and replace
 /// it with the new one. We'll return a bool indicating whether the operation was successful.
@@ -109,14 +165,15 @@ inline bool unbind_crosslinker_from_node(const mundy::mesh::BulkData &bulk_data,
 /// \param crosslinker The crosslinker entity.
 /// \param new_node The new node entity.
 /// \param conn_ordinal The ordinal of the connection to the crosslinker for which the new node will be bound.
-inline bool bind_crosslinker_to_node(const mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
-                                     const stk::mesh::Entity &new_node, const int &conn_ordinal) {
-  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
-                     "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
-  MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
-                     "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
-  MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
-                     "bind_crosslinker_to_node: The node must have NODE_RANK.");
+inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk_data,
+                                                     const stk::mesh::Entity &crosslinker,
+                                                     const stk::mesh::Entity &new_node, const int &conn_ordinal) {
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+                           "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, std::logic_error,
+                           "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
+  MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
+                           "bind_crosslinker_to_node: The node must have NODE_RANK.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
   unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
@@ -140,62 +197,6 @@ inline bool bind_crosslinker_to_node(const mundy::mesh::BulkData &bulk_data, con
   return true;
 }
 
-/// \brief Compute the Z-partition function score for a harmonic potential at temperature kT.
-///
-/// This function computes the Z-partition function score for a simple harmonic potential at temperature kT. The
-/// partition function is given by:
-///
-/// Z = A * exp(-0.5 * beta * k * (dr - r0)^2)
-///
-/// \param A Combined binding rate constant.
-/// \param beta Inverse of the thermal energy.
-/// \param k Spring constant.
-/// \param dr Spring separation distance.
-/// \param r0 Spring rest length.
-inline double compute_z_score_harmonic(const double &A, const double &beta, const double &k, const double &dr,
-                                       const double &r0) {
-  return A * std::exp(-0.5 * beta * k * (dr_mag - r0) * (dr_mag - r0));
-}
-
-/// \brief Compute the Z-partition function score for a constant off-rate.
-///
-/// This functino computes the Z-parition score for constant unbinding rate. The partition function is given by:
-///
-/// Z = A
-///
-/// \param A Combined unbinding rate constant.
-inline double compute_z_score_constant(const double &A) {
-  return A;
-}
-
-inline double compute_z_crosslinker_sphere(const mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
-                                           const stk::mesh::Entity &sphere, const double &beta,
-                                           const stk::mesh::Field<double> &crosslinker_right_binding_rate,
-                                           const stk::mesh::Field<double> &crosslinker_spring_constant,
-                                           const stk::mesh::Field<double> &crosslinker_spring_rest_length,
-                                           const stk::mesh::Field<double> &node_coord_field,
-                                           const stk::mesh::Part &left_bound_crosslinkers_part) {
-  // We need to figure out if this is a self-interaction or not. Since we are a left-bound crosslinker.
-  const stk::mesh::Entity &sphere_node = bulk_data.begin_nodes(sphere)[0];
-
-  // Depending on which node is the one we should look at, figure out the separation distance.
-  const auto dr = mundy::mesh::vector3_field_data(node_coord_field, sphere_node) -
-                  mundy::mesh::vector3_field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0]);
-  const double dr_mag = mundy::math::norm(dr);
-
-  // Compute the Z-partition score
-  // Z = A * exp(0.5 * beta * k * (dr - r0)^2)
-  // A = crosslinker_binding_rates
-  // beta = 1/kt
-  // k = crosslinker_spring_constant
-  // r0 = crosslinker_spring_rest_length
-  const double A = crosslinker_right_binding_rate;
-  const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
-  const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
-
-  Z = compute_z_score_harmonic(A, beta, k, dr_mag, r0);
-
-  return Z;
 }  // namespace crosslinkers
 
 }  // namespace alens

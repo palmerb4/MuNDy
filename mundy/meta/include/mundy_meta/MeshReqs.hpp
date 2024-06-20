@@ -286,6 +286,9 @@ class MeshReqs {
   /// \brief Dump the contents of \c MeshReqs to the given stream (defaults to std::cout).
   void print(std::ostream& os = std::cout, int indent_level = 0) const;
 
+  /// \brief Dump the parts of \c MeshReqs to the given stream (defaults to std::cout).
+  void print_parts(std::ostream& os = std::cout, int indent_level = 0) const;
+
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const;
   //@}

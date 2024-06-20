@@ -543,29 +543,29 @@ void PartReqs::print(std::ostream &os, int indent_level) const {
   os << indent << "PartReqs: " << std::endl;
 
   if (this->constrains_part_name()) {
-    os << indent << "  Part name: " << this->get_part_name() << std::endl;
+    os << indent << "  name: " << this->get_part_name() << std::endl;
   } else {
-    os << "  Part name is not set." << std::endl;
+    os << indent << "  name is not set." << std::endl;
   }
 
   if (this->constrains_part_rank()) {
-    os << indent << "  Part rank: " << this->get_part_rank() << std::endl;
+    os << indent << "  rank: " << this->get_part_rank() << std::endl;
   } else {
-    os << indent << "  Part rank is not set." << std::endl;
+    os << indent << "  rank is not set." << std::endl;
   }
 
   if (this->constrains_part_topology()) {
-    os << indent << "  Part topology: " << this->get_part_topology() << std::endl;
+    os << indent << "  topology: " << this->get_part_topology() << std::endl;
   } else {
-    os << indent << "  Part topology is not set." << std::endl;
+    os << indent << "  topology is not set." << std::endl;
   }
 
-  os << indent << "  Part Fields: " << std::endl;
+  os << indent << "  Fields: " << std::endl;
   int rank = 0;
   int field_count = 0;
   for (auto const &part_field_map : const_cast<PartReqs *>(this)->get_part_ranked_field_map()) {
     for (auto const &[field_name, field_reqs_ptr] : part_field_map) {
-      os << indent << "  Part field " << field_count << " has name (" << field_name << "), rank (" << rank
+      os << indent << "  field " << field_count << " has name (" << field_name << "), rank (" << rank
          << "), and requirements" << std::endl;
       field_reqs_ptr->print(os, indent_level + 1);
       field_count++;
@@ -574,19 +574,19 @@ void PartReqs::print(std::ostream &os, int indent_level) const {
     rank++;
   }
 
-  os << indent << "  Part Subparts: " << std::endl;
+  os << indent << "  Subparts: " << std::endl;
   int subpart_count = 0;
   for (auto const &[subpart_name, subpart_req_ptr] : const_cast<PartReqs *>(this)->get_part_subpart_map()) {
-    os << indent << "  Part subpart " << subpart_count << " has name (" << subpart_name << ") and requirements"
+    os << indent << "  subpart " << subpart_count << " has name (" << subpart_name << ") and requirements"
        << std::endl;
     subpart_req_ptr->print(os, indent_level + 1);
     subpart_count++;
   }
 
-  os << indent << "  Part attributes: " << std::endl;
+  os << indent << "  Attributes: " << std::endl;
   int attribute_count = 0;
   for (const std::string &attribute_name : const_cast<PartReqs *>(this)->get_part_attribute_names()) {
-    os << indent << "  Part attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
+    os << indent << "  attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
     attribute_count++;
   }
 

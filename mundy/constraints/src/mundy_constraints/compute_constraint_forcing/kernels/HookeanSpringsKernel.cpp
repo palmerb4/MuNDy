@@ -126,33 +126,38 @@ void HookeanSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         const double *element_spring_constant = stk::mesh::field_data(element_spring_constant_field, spring_element);
 
         // Compute the separation distance and the unit vector from node1 to node2.
-        double separation[3] = {node2_coord[0] - node1_coord[0], node2_coord[1] - node1_coord[1],
-                                node2_coord[2] - node1_coord[2]};
-        const double separation_length =
-            std::sqrt(separation[0] * separation[0] + separation[1] * separation[1] + separation[2] * separation[2]);
+        double edge_tangent_left_to_right[3] = {node2_coord[0] - node1_coord[0], node2_coord[1] - node1_coord[1],
+                                                node2_coord[2] - node1_coord[2]};
+        const double edge_length = std::sqrt(edge_tangent_left_to_right[0] * edge_tangent_left_to_right[0] +
+                                             edge_tangent_left_to_right[1] * edge_tangent_left_to_right[1] +
+                                             edge_tangent_left_to_right[2] * edge_tangent_left_to_right[2]);
+        const double inv_edge_length = 1.0 / edge_length;
+        edge_tangent_left_to_right[0] *= inv_edge_length;
+        edge_tangent_left_to_right[1] *= inv_edge_length;
+        edge_tangent_left_to_right[2] *= inv_edge_length;
 
         // Compute the spring force.
-        const double spring_force_magnitude = element_spring_constant[0] * (separation_length - element_rest_length[0]);
-        const double spring_force[3] = {spring_force_magnitude * separation[0] / separation_length,
-                                        spring_force_magnitude * separation[1] / separation_length,
-                                        spring_force_magnitude * separation[2] / separation_length};
+        const double spring_force = element_spring_constant[0] * (edge_length - element_rest_length[0]);
+        const double right_node_force[3] = {-spring_force * edge_tangent_left_to_right[0],
+                                            -spring_force * edge_tangent_left_to_right[1],
+                                            -spring_force * edge_tangent_left_to_right[2]};
 
         // Add the spring force to the nodes.
         double *node1_force = stk::mesh::field_data(node_force_field, node1);
         double *node2_force = stk::mesh::field_data(node_force_field, node2);
 
 #pragma omp atomic
-        node1_force[0] += spring_force[0];
+        node1_force[0] -= right_node_force[0];
 #pragma omp atomic
-        node1_force[1] += spring_force[1];
+        node1_force[1] -= right_node_force[1];
 #pragma omp atomic
-        node1_force[2] += spring_force[2];
+        node1_force[2] -= right_node_force[2];
 #pragma omp atomic
-        node2_force[0] -= spring_force[0];
+        node2_force[0] += right_node_force[0];
 #pragma omp atomic
-        node2_force[1] -= spring_force[1];
+        node2_force[1] += right_node_force[1];
 #pragma omp atomic
-        node2_force[2] -= spring_force[2];
+        node2_force[2] += right_node_force[2];
       });
 }
 //}
