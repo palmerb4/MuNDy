@@ -318,6 +318,7 @@ class StickySettings {
   }
 
   void assert_invariant(const std::string &message = std::string()) {
+    Kokkos::Profiling::pushRegion("StickySettings::assert_invariant");
     stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
     stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
 
@@ -393,6 +394,7 @@ class StickySettings {
           MUNDY_THROW_ASSERT(right_sphere_correct, std::logic_error,
                              "Right node is not a right bound crosslinker.\n" + message);
         });
+    Kokkos::Profiling::popRegion();
   }
 
   void build_our_mesh_and_method_instances() {
@@ -969,6 +971,7 @@ class StickySettings {
             stk::mesh::field_data(constraint_state_change_probability, linker)[0] = Z;
           }
         });
+    Kokkos::Profiling::popRegion();
   }
 
   /// \brief Compute the Z-partition function score for doubly_bound crosslinkers
@@ -1010,6 +1013,7 @@ class StickySettings {
   }
 
   void kmc_crosslinker_left_to_doubly() {
+    Kokkos::Profiling::pushRegion("KMCCrosslinkerLeftToDoubly");
     // Selectors and aliases
     stk::mesh::Part &crosslinker_sphere_linkers_part = *crosslinker_sphere_linkers_part_ptr_;
     stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
@@ -1257,6 +1261,7 @@ class StickySettings {
   }
 
   void compute_hertzian_contact_forces() {
+    Kokkos::Profiling::pushRegion("ComputeHertzianContactForces");
     // Potential evaluation (Hertzian contact)
     auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
     auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
@@ -1264,6 +1269,7 @@ class StickySettings {
     compute_ssd_and_cn_ptr_->execute(sphere_sphere_linkers_selector);
     evaluate_linker_potentials_ptr_->execute(sphere_sphere_linkers_selector);
     linker_potential_force_reduction_ptr_->execute(spheres_selector);
+    Kokkos::Profiling::popRegion();
   }
 
   void compute_harmonic_bond_forces() {
