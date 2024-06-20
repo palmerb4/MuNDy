@@ -1220,21 +1220,9 @@ class StickySettings {
                   << bulk_data_ptr_->identifier(crosslinker) << " from node "
                   << bulk_data_ptr_->identifier(bulk_data_ptr_->begin_nodes(crosslinker)[1]) << std::endl;
 
+        // Now change the part from doubly to left bound.
         const bool is_crosslinker_locally_owned =
             bulk_data_ptr_->parallel_owner_rank(crosslinker) == bulk_data_ptr_->parallel_rank();
-        const bool is_new_node_locally_owned =
-            bulk_data_ptr_->parallel_owner_rank(left_node) == bulk_data_ptr_->parallel_rank();
-        const bool is_new_node_locally_shared = bulk_data_ptr_->in_shared(left_node);
-        std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Crosslinker "
-                  << bulk_data_ptr_->identifier(crosslinker) << " is owned? " << is_crosslinker_locally_owned
-                  << std::endl;
-        std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " New node "
-                  << bulk_data_ptr_->identifier(left_node) << " is owned? " << is_new_node_locally_owned
-                  << " is shared? " << is_new_node_locally_shared << std::endl;
-
-        // Now change the part from doubly to left bound.
-        // const bool is_crosslinker_locally_owned =
-        //     bulk_data_ptr_->parallel_owner_rank(crosslinker) == bulk_data_ptr_->parallel_rank();
         if (is_crosslinker_locally_owned) {
           auto add_parts = stk::mesh::PartVector{left_bound_crosslinkers_part_ptr_};
           auto remove_parts = stk::mesh::PartVector{doubly_bound_crosslinkers_part_ptr_};
