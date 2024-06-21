@@ -326,13 +326,14 @@ class StickySettings {
         stk::mesh::Selector(left_bound_crosslinkers_part) & meta_data_ptr_->locally_owned_part();
     auto doubly_crosslinkers_selector =
         stk::mesh::Selector(doubly_bound_crosslinkers_part) & meta_data_ptr_->locally_owned_part();
-    std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Num left bound crosslinkers: "
-              << stk::mesh::count_selected_entities(left_crosslinkers_selector, bulk_data_ptr_->buckets(element_rank_))
-              << std::endl;
-    std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Num doubly bound crosslinkers: "
-              << stk::mesh::count_selected_entities(doubly_crosslinkers_selector,
-                                                    bulk_data_ptr_->buckets(element_rank_))
-              << std::endl;
+    // std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Num left bound crosslinkers: "
+    //           << stk::mesh::count_selected_entities(left_crosslinkers_selector,
+    //           bulk_data_ptr_->buckets(element_rank_))
+    //           << std::endl;
+    // std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Num doubly bound crosslinkers: "
+    //           << stk::mesh::count_selected_entities(doubly_crosslinkers_selector,
+    //                                                 bulk_data_ptr_->buckets(element_rank_))
+    //           << std::endl;
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
@@ -903,7 +904,7 @@ class StickySettings {
   }
 
   void detect_neighbors() {
-    Kokkos::Profiling::pushRegion("DetectNeighbors");
+    Kokkos::Profiling::pushRegion("StickySettings::detect_neighbors");
     if (timestep_index_ % 100 == 0) {
       // ComputeAABB for everyone (assume same buffer distance)
       auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
@@ -921,7 +922,7 @@ class StickySettings {
 
   /// \brief Compute the Z-partition function score for left-bound crosslinkers
   void compute_z_partition_left_bound() {
-    Kokkos::Profiling::pushRegion("ComputeZPartitionLeftBound");
+    Kokkos::Profiling::pushRegion("StickySettings::compute_z_partition_left_bound");
 
     // Selectors and aliases
     const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
@@ -976,7 +977,7 @@ class StickySettings {
 
   /// \brief Compute the Z-partition function score for doubly_bound crosslinkers
   void compute_z_partition_doubly_bound() {
-    Kokkos::Profiling::pushRegion("ComputeZPartitionDoublyBound");
+    Kokkos::Profiling::pushRegion("StickySettings::compute_z_partition_doubly_bound");
 
     // Selectors and aliases
     const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
@@ -1001,7 +1002,7 @@ class StickySettings {
 
   /// \brief Compute the Z-partition function for everybody
   void compute_z_partition() {
-    Kokkos::Profiling::pushRegion("ComputeZPartition");
+    Kokkos::Profiling::pushRegion("StickySettings::compute_z_partition");
 
     // Compute the left-bound to doubly-bound score
     compute_z_partition_left_bound();
@@ -1013,7 +1014,7 @@ class StickySettings {
   }
 
   void kmc_crosslinker_left_to_doubly() {
-    Kokkos::Profiling::pushRegion("KMCCrosslinkerLeftToDoubly");
+    Kokkos::Profiling::pushRegion("StickySettings::kmc_crosslinker_left_to_doubly");
     // Selectors and aliases
     stk::mesh::Part &crosslinker_sphere_linkers_part = *crosslinker_sphere_linkers_part_ptr_;
     stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
@@ -1098,7 +1099,7 @@ class StickySettings {
 
   /// \brief Perform the binding of a crosslinker to a sphere (doubly to left)
   void kmc_crosslinker_doubly_to_left() {
-    Kokkos::Profiling::pushRegion("KMCCrosslinkerDoublyToLeft");
+    Kokkos::Profiling::pushRegion("StickySettings::kmc_crosslinker_doubly_to_left");
 
     // Selectors and aliases
     stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
@@ -1140,7 +1141,7 @@ class StickySettings {
   }
 
   void kmc_crosslinker_sphere_linker_sampling() {
-    Kokkos::Profiling::pushRegion("KMCCrosslinkerSphereLinkerSampling");
+    Kokkos::Profiling::pushRegion("StickySettings::kmc_crosslinker_sphere_linker_sampling");
 
     // Perform the left to doubly bound crosslinker binding calc
     kmc_crosslinker_left_to_doubly();
@@ -1158,7 +1159,7 @@ class StickySettings {
 
   /// \brief Perform the state change of the crosslinkers
   void state_change_crosslinkers() {
-    Kokkos::Profiling::pushRegion("StateChangeCrosslinkers");
+    Kokkos::Profiling::pushRegion("StickySettings::state_change_crosslinkers");
 
     // Loop over both the CROSSLINKER_SPHERE_LINKERS and the CROSSLINKERS to perform the state changes.
     stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
@@ -1171,6 +1172,9 @@ class StickySettings {
                                      bulk_data_ptr_->buckets(constraint_rank_), crosslinker_sphere_linkers);
     stk::mesh::get_selected_entities(stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_),
                                      bulk_data_ptr_->buckets(element_rank_), doubly_bound_crosslinkers);
+
+    // TODO(cje): It might be worth checking to see if we have any state changes in any threads before we crack open the
+    // modification section, as even doing that is slightly expensive.
 
     bulk_data_ptr_->modification_begin();
 
@@ -1241,7 +1245,7 @@ class StickySettings {
   }
 
   void update_crosslinker_state() {
-    Kokkos::Profiling::pushRegion("UpdateCrosslinkerState");
+    Kokkos::Profiling::pushRegion("StickySettings::update_crosslinker_state");
 
     // We want to loop over all LEFT_BOUND_CROSSLINKERS, RIGHT_BOUND_CROSSLINKERS, and DOUBLY_BOUND_CROSSLINKERS to
     // generate state changes. This is done to build up a list of actions that we will take later during a mesh
@@ -1261,7 +1265,7 @@ class StickySettings {
   }
 
   void compute_hertzian_contact_forces() {
-    Kokkos::Profiling::pushRegion("ComputeHertzianContactForces");
+    Kokkos::Profiling::pushRegion("StickySettings::compute_hertzian_contact_forces");
     // Potential evaluation (Hertzian contact)
     auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
     auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
@@ -1273,7 +1277,7 @@ class StickySettings {
   }
 
   void compute_harmonic_bond_forces() {
-    Kokkos::Profiling::pushRegion("ComputeHarmonicBondForces");
+    Kokkos::Profiling::pushRegion("StickySettings::compute_harmonic_bond_forces");
 
     // Need a compound selector for all springs, including those that are not unbound of singly bound crosslinkers.
     auto actively_bound_springs = stk::mesh::Selector(*springs_part_ptr_) -
@@ -1286,7 +1290,7 @@ class StickySettings {
 
   void compute_brownian_velocity() {
     // Compute the velocity due to brownian motion
-    Kokkos::Profiling::pushRegion("ComputeBrownianVelocity");
+    Kokkos::Profiling::pushRegion("StickySettings::compute_brownian_velocity");
 
     // Selectors and aliases
     stk::mesh::Part &spheres_part = *spheres_part_ptr_;
@@ -1323,7 +1327,7 @@ class StickySettings {
 
   void compute_external_velocity() {
     // Compute both the velocity due to external forces
-    Kokkos::Profiling::pushRegion("ComputeVelocityExternal");
+    Kokkos::Profiling::pushRegion("StickySettings::compute_external_velocity");
 
     // Selectors and aliases
     stk::mesh::Part &spheres_part = *spheres_part_ptr_;
@@ -1353,7 +1357,7 @@ class StickySettings {
   }
 
   void update_positions() {
-    Kokkos::Profiling::pushRegion("UpdatePositions");
+    Kokkos::Profiling::pushRegion("StickySettings::update_positions");
 
     // Selectors and aliases
     double &timestep_size = timestep_size_;
@@ -1386,7 +1390,7 @@ class StickySettings {
     dump_user_inputs();
 
     // Setup
-    Kokkos::Profiling::pushRegion("Setup");
+    Kokkos::Profiling::pushRegion("StickySettings::Setup");
     build_our_mesh_and_method_instances();
 
     fetch_fields_and_parts();
@@ -1399,7 +1403,7 @@ class StickySettings {
     Kokkos::Profiling::popRegion();
 
     // Loadbalance?
-    Kokkos::Profiling::pushRegion("Loadbalance");
+    Kokkos::Profiling::pushRegion("StickySettings::Loadbalance");
     if (initial_loadbalance_) {
       loadbalance();
       assert_invariant("After loadbalance");
@@ -1413,7 +1417,7 @@ class StickySettings {
     Kokkos::Profiling::pushRegion("MainLoop");
     for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
       // Prepare the current configuration.
-      Kokkos::Profiling::pushRegion("ZeroTransient");
+      Kokkos::Profiling::pushRegion("StickySettings::ZeroTransient");
       {
         // Zero the node velocities, and forces/torques for time t.
         zero_out_transient_node_fields();
@@ -1454,13 +1458,13 @@ class StickySettings {
       // Compute velocity.
       {
         // Evaluate v(t) = M fext(t) + Ubrown(t)
-        // compute_brownian_velocity();
+        compute_brownian_velocity();
         compute_external_velocity();
         assert_invariant("After compute velocity");
       }
 
       // IO. If desired, write out the data for time t (STK or mundy)
-      Kokkos::Profiling::pushRegion("IO");
+      Kokkos::Profiling::pushRegion("StickySettings::IO");
       if (timestep_index_ % io_frequency_ == 0) {
         // Also write out a 'log'
         if (bulk_data_ptr_->parallel_rank() == 0) {
@@ -1658,6 +1662,9 @@ int main(int argc, char **argv) {
 
   // Run the simulation using the given parameters
   mundy::alens::crosslinkers::StickySettings().run(argc, argv);
+
+  // Before exiting, sleep for some amount of time to force Kokkos to print better at the end.
+  std::this_thread::sleep_for(std::chrono::milliseconds(stk::parallel_machine_rank(MPI_COMM_WORLD)));
 
   Kokkos::finalize();
   stk::parallel_machine_finalize();
