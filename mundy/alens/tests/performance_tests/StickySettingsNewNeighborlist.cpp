@@ -253,6 +253,8 @@ class StickySettings {
                    "Force update of the neighbor list.");
     cmdp.setOption("force_neighborlist_update_nsteps", &force_neighborlist_update_nsteps_,
                    "Number of timesteps between updating the neighbor list (if forced).");
+    cmdp.setOption("print_neighborlist_statistics", "no_print_neighborlist_statistics", &print_neighborlist_statistics_,
+                   "Print neighbor list statistics.");
 
     //   The simulation:
     cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
@@ -950,6 +952,27 @@ class StickySettings {
     bulk_data_ptr_->modification_end();
   }
 
+  void detect_neighbors_initial() {
+    Kokkos::Profiling::pushRegion("StickySettings::detect_neighbors_initial");
+
+    // Set the timing information for the neighbor list rebuilds
+    last_neighborlist_update_step_ = 0;
+    neighborlist_update_timer_.reset();
+
+    // ComputeAABB for everyone (assume same buffer distance)
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto crosslinkers_selector = stk::mesh::Selector(*crosslinkers_part_ptr_);
+    auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
+    auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
+
+    compute_aabb_ptr_->execute(spheres_selector | crosslinkers_selector);
+    destroy_neighbor_linkers_ptr_->execute(sphere_sphere_linkers_selector | crosslinker_sphere_linkers_selector);
+    generate_sphere_sphere_neighbor_linkers_ptr_->execute(spheres_selector, spheres_selector);
+    generate_crosslinker_sphere_neighbor_linkers_ptr_->execute(crosslinkers_selector, spheres_selector);
+
+    Kokkos::Profiling::popRegion();
+  }
+
   void detect_neighbors() {
     Kokkos::Profiling::pushRegion("StickySettings::detect_neighbors");
 
@@ -971,6 +994,13 @@ class StickySettings {
     // Now do a check to see if we need to update the neighbor list.
     if (((force_neighborlist_update_) && (timestep_index_ % force_neighborlist_update_nsteps_ == 0)) ||
         update_neighbor_list_) {
+      // Read off the timing information before doing anything else and reset it
+      auto elapsed_steps = timestep_index_ - last_neighborlist_update_step_;
+      auto elapsed_time = neighborlist_update_timer_.seconds();
+      neighborlist_update_steps_times_.push_back(std::make_tuple(timestep_index_, elapsed_steps, elapsed_time));
+      last_neighborlist_update_step_ = timestep_index_;
+      neighborlist_update_timer_.reset();
+
       std::cout << "Updating NeighborList" << std::endl;
       // Reset the accumulators
       zero_out_accumulator_fields();
@@ -1405,7 +1435,7 @@ class StickySettings {
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_selector,
         [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
-            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
           double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
           double *node_force = stk::mesh::field_data(node_force_field, sphere_node);
@@ -1448,6 +1478,7 @@ class StickySettings {
   }
 
   void update_accumulators() {
+#pragma TODO This will be at the mercy of periodic boundary condition calculations.
     Kokkos::Profiling::pushRegion("StickySettings::update_accumulators");
 
     // Selectors and aliases
@@ -1498,8 +1529,9 @@ class StickySettings {
   void check_update_neighbor_list() {
     Kokkos::Profiling::pushRegion("StickySettings::check_update_neighbor_list");
 
-    // Local variable for if we should update the neighbor list
-    bool local_update_neighbor_list = false;
+    // Local variable for if we should update the neighbor list (do as an integer for now because MPI doesn't like
+    // bools)
+    int local_update_neighbor_list_int = 0;
 
     // Selectors and aliases
     stk::mesh::Part &spheres_part = *spheres_part_ptr_;
@@ -1514,7 +1546,7 @@ class StickySettings {
     // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_selector,
-        [&local_update_neighbor_list, &skin_distance2_over4, &element_corner_displacement_field](
+        [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
           // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
           double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
@@ -1532,20 +1564,22 @@ class StickySettings {
           std::cout << "  Corner 1 dr2: " << dr2_corner1 << std::endl;
 
           if (dr2_corner0 >= skin_distance2_over4 || dr2_corner1 >= skin_distance2_over4) {
-            local_update_neighbor_list = true;
+            local_update_neighbor_list_int = 1;
             std::cout << "  Setting update_neighbor_list_\n";
           }
         });
 
     // Communicate local_update_neighbor_list to all ranks. Convert to an integer first (MPI doesn't handle booleans
     // well).
-    int local_update_neighbor_list_int = local_update_neighbor_list ? 1 : 0;
     int global_update_neighbor_list_int = 0;
+    std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD)
+              << " Local NeighborList update from AABB: " << local_update_neighbor_list_int << std::endl;
     MPI_Allreduce(&local_update_neighbor_list_int, &global_update_neighbor_list_int, 1, MPI_INT, MPI_LOR,
                   MPI_COMM_WORLD);
+    // Convert back to the boolean for the global version
     update_neighbor_list_ = global_update_neighbor_list_int == 1;
 
-    std::cout << "Global NeighborList ist update from AABB: " << update_neighbor_list_ << std::endl;
+    std::cout << "Global NeighborList update from AABB: " << update_neighbor_list_ << std::endl;
 
     Kokkos::Profiling::popRegion();
   }
@@ -1575,6 +1609,10 @@ class StickySettings {
       assert_invariant("After loadbalance");
     }
     Kokkos::Profiling::popRegion();
+
+    // Run an initial detection of neighbors not using an adaptive neighborlist to set the initial state, and calculate
+    // the initial AABB for everybody.
+    detect_neighbors_initial();
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
@@ -1663,6 +1701,19 @@ class StickySettings {
     if (bulk_data_ptr_->parallel_rank() == 0) {
       double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps_);
       double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
+      std::cout << "******************Final statistics (Rank 0)**************\n";
+      if (print_neighborlist_statistics_) {
+        std::cout << "****************\n";
+        std::cout << "Neighbor list statistics\n";
+        for (auto &neighborlist_entry : neighborlist_update_steps_times_) {
+          auto [timestep, elasped_step, elapsed_time] = neighborlist_entry;
+          auto tps_nl = static_cast<double>(elasped_step) / elapsed_time;
+          std::cout << "  Rebuild timestep: " << timestep << ", elapsed_steps: " << elasped_step
+                    << ", elapsed_time: " << elapsed_time << ", tps: " << tps_nl << std::endl;
+        }
+      }
+      std::cout << "****************\n";
+      std::cout << "Simulation statistics\n";
       std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
       std::cout << "Timesteps per second: " << std::setprecision(15) << tps << std::endl;
     }
@@ -1816,6 +1867,12 @@ class StickySettings {
   bool update_neighbor_list_ = false;
   bool force_neighborlist_update_ = false;
   size_t force_neighborlist_update_nsteps_ = 10;
+  // Neighborlist rebuild information
+  size_t last_neighborlist_update_step_ = 0;
+  Kokkos::Timer neighborlist_update_timer_;
+  // [timestep, elapsed_timesteps, elapsed_time]
+  std::vector<std::tuple<size_t, size_t, double>> neighborlist_update_steps_times_;
+  bool print_neighborlist_statistics_ = false;
 
   // Simulation params
   bool initial_loadbalance_ = false;
