@@ -67,6 +67,13 @@ tribits_add_executable(
     )
 
 tribits_add_executable(
+    StickySettingsNewNeighborlist
+    SOURCES
+    StickySettingsNewNeighborlist.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+tribits_add_executable(
     NonInteractingSperm
     SOURCES
     NonInteractingSperm.cpp
