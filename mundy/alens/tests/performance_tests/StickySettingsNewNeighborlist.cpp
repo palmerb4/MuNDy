@@ -988,7 +988,6 @@ class StickySettings {
 
     // Check if we need to update the neighbor list. Eventually this will be replaced with a mesh attribute to
     // synchronize across multiple tasks. For now, make sure that the default is to not update neighbor lists.
-    update_neighbor_list_ = false;
     check_update_neighbor_list();
 
     // Now do a check to see if we need to update the neighbor list.
@@ -1001,7 +1000,6 @@ class StickySettings {
       last_neighborlist_update_step_ = timestep_index_;
       neighborlist_update_timer_.reset();
 
-      std::cout << "Updating NeighborList" << std::endl;
       // Reset the accumulators
       zero_out_accumulator_fields();
 
@@ -1502,13 +1500,6 @@ class StickySettings {
           double *element_aabb_old = stk::mesh::field_data(element_aabb_field_old, aabb_entity);
           double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
 
-          std::cout << "Updating accumulator for entity " << bulk_data.identifier(aabb_entity) << std::endl;
-          std::cout << "  Old AABB: " << element_aabb_old[0] << " " << element_aabb_old[1] << " " << element_aabb_old[2]
-                    << " " << element_aabb_old[3] << " " << element_aabb_old[4] << " " << element_aabb_old[5]
-                    << std::endl;
-          std::cout << "  New AABB: " << element_aabb[0] << " " << element_aabb[1] << " " << element_aabb[2] << " "
-                    << element_aabb[3] << " " << element_aabb[4] << " " << element_aabb[5] << std::endl;
-
           // Add the (new_aabb - old_aabb) to the corner displacement
           element_corner_displacement[0] += element_aabb[0] - element_aabb_old[0];
           element_corner_displacement[1] += element_aabb[1] - element_aabb_old[1];
@@ -1516,11 +1507,6 @@ class StickySettings {
           element_corner_displacement[3] += element_aabb[3] - element_aabb_old[3];
           element_corner_displacement[4] += element_aabb[4] - element_aabb_old[4];
           element_corner_displacement[5] += element_aabb[5] - element_aabb_old[5];
-
-          std::cout << "  New corner displacement: " << element_corner_displacement[0] << " "
-                    << element_corner_displacement[1] << " " << element_corner_displacement[2] << " "
-                    << element_corner_displacement[3] << " " << element_corner_displacement[4] << " "
-                    << element_corner_displacement[5] << std::endl;
         });
 
     Kokkos::Profiling::popRegion();
@@ -1559,27 +1545,19 @@ class StickySettings {
                                element_corner_displacement[4] * element_corner_displacement[4] +
                                element_corner_displacement[5] * element_corner_displacement[5];
 
-          std::cout << "Checking neighbor list for entity " << bulk_data.identifier(aabb_entity) << std::endl;
-          std::cout << "  Corner 0 dr2: " << dr2_corner0 << std::endl;
-          std::cout << "  Corner 1 dr2: " << dr2_corner1 << std::endl;
-
           if (dr2_corner0 >= skin_distance2_over4 || dr2_corner1 >= skin_distance2_over4) {
             local_update_neighbor_list_int = 1;
-            std::cout << "  Setting update_neighbor_list_\n";
           }
         });
 
     // Communicate local_update_neighbor_list to all ranks. Convert to an integer first (MPI doesn't handle booleans
     // well).
     int global_update_neighbor_list_int = 0;
-    std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD)
-              << " Local NeighborList update from AABB: " << local_update_neighbor_list_int << std::endl;
     MPI_Allreduce(&local_update_neighbor_list_int, &global_update_neighbor_list_int, 1, MPI_INT, MPI_LOR,
                   MPI_COMM_WORLD);
-    // Convert back to the boolean for the global version
-    update_neighbor_list_ = global_update_neighbor_list_int == 1;
-
-    std::cout << "Global NeighborList update from AABB: " << update_neighbor_list_ << std::endl;
+    // Convert back to the boolean for the global version and or it with the original value (in case somebody else set
+    // the neighbor list update 'signal').
+    update_neighbor_list_ = update_neighbor_list_ || (global_update_neighbor_list_int == 1);
 
     Kokkos::Profiling::popRegion();
   }
@@ -1638,6 +1616,11 @@ class StickySettings {
       {
         // Rotate the field states
         rotate_field_states();
+      }
+
+      // Reset the update_neighbor_list 'signal'
+      {
+        update_neighbor_list_ = false;
       }
 
       // Detect all possible neighbors in the system
