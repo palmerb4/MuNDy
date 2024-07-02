@@ -84,6 +84,20 @@ double fd_l2_norm_difference(const Kokkos::View<double *, Kokkos::LayoutLeft, Ko
   return std::sqrt(l2_norm / static_cast<double>(num_elements));
 }
 
+template <int field_dim>
+double spherical_l2_norm(const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &a,
+                         const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights) {
+  assert(a.extent(0) == field_dim * weights.extent(0));
+
+  double l2_norm = 0.0;
+  for (size_t i = 0; i < weights.extent(0); ++i) {
+    for (size_t j = 0; j < field_dim; ++j) {
+      l2_norm += a(i * field_dim + j) * a(i * field_dim + j) * weights(i);
+    }
+  }
+  return std::sqrt(l2_norm);
+}
+
 /// \brief A function for generating a quadrature rule
 using QuadGenerationFunc =
     std::function<std::array<Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace>, 3>(const int order)>;
@@ -134,6 +148,56 @@ ConvergenceResults perform_convergence_study(const double &viscosity, const Quad
 
     // Stash the error
     stashed_error.push_back(fd_l2_error);
+    stashed_num_quadrature_points.push_back(static_cast<double>(num_quadrature_points));
+  }
+
+  // Check that the error converges to zero at the expected rate
+  const double slope = compute_log_log_slope(stashed_num_quadrature_points, stashed_error);
+  return {stashed_num_quadrature_points, stashed_error, slope};
+}
+
+/// \brief Perform a self-convergence study
+/// Note, when we say "self-convergence study", we mean that we are comparing the error between a low-order and an
+/// extremely high-order quadrature rule.
+ConvergenceResults perform_self_convergence_study(const double &viscosity, const QuadGenerationFunc &quad_gen,
+                                                  const QuadInOutFunc &func, const QuadVectorFunc &input_field_gen) {
+  // Generate high-order quadrature rule
+  auto [points_ho, weights_ho, normals_ho] = quad_gen(64);
+
+  // Fetch the high_order input field and the corresponding expected results
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> input_field_ho =
+      input_field_gen(points_ho, normals_ho, weights_ho);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_results_ho("expected_results_ho",
+                                                                                    3 * weights_ho.extent(0));
+  func(viscosity, points_ho, normals_ho, weights_ho, input_field_ho, expected_results_ho);
+  const double expected_l2_norm = spherical_l2_norm<3>(expected_results_ho, weights_ho);
+
+  // Perform the self-convergence study
+  std::vector<double> stashed_num_quadrature_points;
+  std::vector<double> stashed_error;
+  for (int order = 2; order <= 32; order *= 2) {
+    // Generate the quadrature rule
+    auto [points, weights, normals] = quad_gen(order);
+    const size_t num_quadrature_points = weights.extent(0);
+
+    // Fetch the input field
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> input_field =
+        input_field_gen(points, normals, weights);
+
+    // Apply the function and compute the finite difference error
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> result_vector("result_vector",
+                                                                                3 * num_quadrature_points);
+    func(viscosity, points, normals, weights, input_field, result_vector);
+
+    // It's not trivial to find the error between the expected and current results without resorting to interpolation
+    // onto a common grid, as the locations of quadrature points for lower orders is not necessarily a subset of the
+    // higher order quadrature points. So, we'll just look at the error between the l2 norm of the current results and
+    // the high-order results. Note, this is the spherical l2 norm, not the Euclidean l2 norm.
+    const double current_l2_norm = spherical_l2_norm<3>(result_vector, weights);
+    const double l2_error = std::fabs(current_l2_norm - expected_l2_norm);
+
+    // Stash the error
+    stashed_error.push_back(l2_error);
     stashed_num_quadrature_points.push_back(static_cast<double>(num_quadrature_points));
   }
 
@@ -513,24 +577,119 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   // For now, just print the results
   std::cout << "matrix_results.slope = " << matrix_results.slope << std::endl;
   for (size_t i = 0; i < matrix_results.num_quadrature_points.size(); ++i) {
-    std::cout << "matrix_results.num_quadrature_points[" << i << "] =" << matrix_results.num_quadrature_points[i]
+    std::cout << "matrix_results.num_quadrature_points[" << i << "] = " << matrix_results.num_quadrature_points[i]
               << ", matrix_results.error[" << i << "] = " << matrix_results.error[i] << std::endl;
   }
   std::cout << "kernel_results.slope = " << kernel_results.slope << std::endl;
   for (size_t i = 0; i < kernel_results.num_quadrature_points.size(); ++i) {
-    std::cout << "kernel_results.num_quadrature_points[" << i << "] =" << kernel_results.num_quadrature_points[i]
+    std::cout << "kernel_results.num_quadrature_points[" << i << "] = " << kernel_results.num_quadrature_points[i]
               << ", kernel_results.error[" << i << "] = " << kernel_results.error[i] << std::endl;
   }
   std::cout << "matrix_ss_results.slope = " << matrix_ss_results.slope << std::endl;
   for (size_t i = 0; i < matrix_ss_results.num_quadrature_points.size(); ++i) {
-    std::cout << "matrix_ss_results.num_quadrature_points[" << i << "] =" << matrix_ss_results.num_quadrature_points[i]
+    std::cout << "matrix_ss_results.num_quadrature_points[" << i << "] = " << matrix_ss_results.num_quadrature_points[i]
               << ", matrix_ss_results.error[" << i << "] = " << matrix_ss_results.error[i] << std::endl;
   }
   std::cout << "kernel_ss_results.slope = " << kernel_ss_results.slope << std::endl;
   for (size_t i = 0; i < kernel_ss_results.num_quadrature_points.size(); ++i) {
-    std::cout << "kernel_ss_results.num_quadrature_points[" << i << "] =" << kernel_ss_results.num_quadrature_points[i]
+    std::cout << "kernel_ss_results.num_quadrature_points[" << i << "] = " << kernel_ss_results.num_quadrature_points[i]
               << ", kernel_ss_results.error[" << i << "] = " << kernel_ss_results.error[i] << std::endl;
   }
+}
+
+TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
+  // Self-convergence against the integral of a smooth function
+  // In this case, we use the smooth function
+  auto run_test_for_function =
+      [](const std::string &function_name,
+         const std::function<std::array<double, 3>(double, double, double)> &func_to_integrate) {
+        // Setup the convergence study
+        const double sphere_radius = 12.34;
+        const double viscosity = 1.0;
+
+        const QuadGenerationFunc quad_gen = SphereQuadFunctor(sphere_radius);
+        const QuadVectorFunc in_field_gen =
+            [&func_to_integrate](
+                [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
+                [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
+                [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights) {
+              Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> input_field("input_field",
+                                                                                        3 * weights.extent(0));
+              for (size_t i = 0; i < weights.extent(0); ++i) {
+                const double x = points(3 * i);
+                const double y = points(3 * i + 1);
+                const double z = points(3 * i + 2);
+                const auto result = func_to_integrate(x, y, z);
+                input_field(3 * i) = result[0];
+                input_field(3 * i + 1) = result[1];
+                input_field(3 * i + 2) = result[2];
+              }
+              return input_field;
+            };
+
+        // Run the convergence study for the stokes double layer matrix
+        const ConvergenceResults matrix_results =
+            perform_self_convergence_study(viscosity, quad_gen, apply_stokes_double_layer_matrix_wrapper, in_field_gen);
+
+        // Run the same convergence study for the stokes double layer kernel
+        const ConvergenceResults kernel_results =
+            perform_self_convergence_study(viscosity, quad_gen, apply_stokes_double_layer_kernel_wrapper, in_field_gen);
+
+        // Run the convergence study for the stokes double layer matrix with singularity subtraction
+        const ConvergenceResults matrix_ss_results = perform_self_convergence_study(
+            viscosity, quad_gen, apply_stokes_double_layer_matrix_ss_wrapper, in_field_gen);
+
+        // Run the convergence study for the stokes double layer kernel with singularity subtraction
+        const ConvergenceResults kernel_ss_results = perform_self_convergence_study(
+            viscosity, quad_gen, apply_stokes_double_layer_kernel_ss_wrapper, in_field_gen);
+
+        // For now, just print the results
+        std::cout << "###########################################################" << std::endl;
+        std::cout << "function_name = " << function_name << std::endl;
+        std::cout << "matrix_results.slope = " << matrix_results.slope << std::endl;
+        for (size_t i = 0; i < matrix_results.num_quadrature_points.size(); ++i) {
+          std::cout << "matrix_results.num_quadrature_points[" << i << "] = " << matrix_results.num_quadrature_points[i]
+                    << ", matrix_results.error[" << i << "] = " << matrix_results.error[i] << std::endl;
+        }
+        std::cout << "kernel_results.slope = " << kernel_results.slope << std::endl;
+        for (size_t i = 0; i < kernel_results.num_quadrature_points.size(); ++i) {
+          std::cout << "kernel_results.num_quadrature_points[" << i << "] = " << kernel_results.num_quadrature_points[i]
+                    << ", kernel_results.error[" << i << "] = " << kernel_results.error[i] << std::endl;
+        }
+        std::cout << "matrix_ss_results.slope = " << matrix_ss_results.slope << std::endl;
+        for (size_t i = 0; i < matrix_ss_results.num_quadrature_points.size(); ++i) {
+          std::cout << "matrix_ss_results.num_quadrature_points[" << i
+                    << "] = " << matrix_ss_results.num_quadrature_points[i] << ", matrix_ss_results.error[" << i
+                    << "] = " << matrix_ss_results.error[i] << std::endl;
+        }
+        std::cout << "kernel_ss_results.slope = " << kernel_ss_results.slope << std::endl;
+        for (size_t i = 0; i < kernel_ss_results.num_quadrature_points.size(); ++i) {
+          std::cout << "kernel_ss_results.num_quadrature_points[" << i
+                    << "] = " << kernel_ss_results.num_quadrature_points[i] << ", kernel_ss_results.error[" << i
+                    << "] = " << kernel_ss_results.error[i] << std::endl;
+        }
+      };  // run_test_for_function
+
+  run_test_for_function("f(x, y, z) = (1, 1, 1)", [](double, double, double) { return std::array{1.0, 1.0, 1.0}; });
+
+  run_test_for_function("f(x, y, z) = nhat(x, y, z)", [](double x, double y, double z) {
+    const double inv_radius = 1.0 / std::sqrt(x * x + y * y + z * z);
+    return std::array{x * inv_radius, y * inv_radius, z * inv_radius};
+  });
+
+  run_test_for_function("f(x, y, z) = sin(theta) * nhat + cos(theta) * tangent_theta + cos^2(theta) tangent_phi", 
+                        [](double x, double y, double z) {
+    const double inv_radius = 1.0 / std::sqrt(x * x + y * y + z * z);
+    const double theta = std::acos(z * inv_radius);
+    const double phi = std::atan2(y, x);
+    const double sin_theta = std::sin(theta);
+    const double cos_theta = std::cos(theta);
+    const double sin_phi = std::sin(phi);
+    const double cos_phi = std::cos(phi);
+    return std::array{sin_theta * z * inv_radius + cos_theta * cos_phi * inv_radius,
+                      sin_theta * y * inv_radius - cos_theta * sin_phi * inv_radius,
+                      sin_theta * x * inv_radius};
+  });
 }
 //@}
 
