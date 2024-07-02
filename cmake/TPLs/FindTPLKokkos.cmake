@@ -4,9 +4,9 @@ FIND_PACKAGE(Kokkos REQUIRED
       ${TPL_Kokkos_DIR}/lib/cmake/Kokkos
       ${TPL_Kokkos_DIR}
     COMPONENTS
-      ${${PACKAGE_NAME}_Belos_REQUIRED_COMPONENTS}
+      ${${PACKAGE_NAME}_Kokkos_REQUIRED_COMPONENTS}
     OPTIONAL_COMPONENTS
-      ${${PACKAGE_NAME}_Belos_OPTIONAL_COMPONENTS}
+      ${${PACKAGE_NAME}_Kokkos_OPTIONAL_COMPONENTS}
 )
 
 # Create the TriBITS-compliant <tplName>Config.cmake wrapper file

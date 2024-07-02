@@ -25,6 +25,9 @@ The goal of this example is to simulate the swimming motion of a multiple, colli
 // External libs
 #include <openrand/philox.h>
 
+// Boost
+#include <boost/math/tools/roots.hpp>
+
 // Trilinos libs
 #include <Kokkos_Core.hpp>                       // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 #include <Teuchos_CommandLineProcessor.hpp>      // for Teuchos::CommandLineProcessor
@@ -67,6 +70,82 @@ The goal of this example is to simulate the swimming motion of a multiple, colli
 #include <mundy_shapes/ComputeAABB.hpp>             // for mundy::shapes::ComputeAABB
 
 // #define DEBUG
+
+// /// \brief Function to discretize a sin wave into a series of equal length segments
+// ///
+// /// For us y = A * sin(w * x + phi) where A is the amplitude, w is the angular frequency, and phi is the phase shift.
+// ///
+// /// \param x_start Starting x value
+// /// \param num_segments Number of segments to discretize the sin wave into
+// /// \param segment_length Length of each segment.
+// /// \param amplitude Amplitude of the sin wave
+// /// \param angular_frequency Angular frequency of the sin wave
+// /// \param phase_shift Phase shift of the sin wave
+// struct ComputeSinWaveSegmentsFunctor {
+//   ComputeSinWaveSegmentsFunctor &set_x_start(const double &x_start) {
+//     x_start_ = x_start;
+//     return *this;
+//   }
+
+//   ComputeSinWaveSegmentsFunctor &set_num_segments(const size_t &num_segments) {
+//     num_segments_ = num_segments;
+//     return *this;
+//   }
+
+//   ComputeSinWaveSegmentsFunctor &set_segment_length(const double &segment_length) {
+//     segment_length_ = segment_length;
+//     return *this;
+//   }
+
+//   ComputeSinWaveSegmentsFunctor &set_amplitude(const double &amplitude) {
+//     amplitude_ = amplitude;
+//     return *this;
+//   }
+
+//   ComputeSinWaveSegmentsFunctor &set_angular_frequency(const double &angular_frequency) {
+//     angular_frequency_ = angular_frequency;
+//     return *this;
+//   }
+
+//   ComputeSinWaveSegmentsFunctor &set_phase_shift(const double &phase_shift) {
+//     phase_shift_ = phase_shift;
+//     return *this;
+//   }
+
+//   std::vector<double> operator()() const {
+//     std::vector<double> x_values = {x_start_};
+//     for (size_t i = 0; i < num_segments_; ++i) {
+//       double x_next = find_next_x(x_values.back(), segment_length_, amplitude_, angular_frequency_, phase_shift_);
+//       x_values.push_back(x_next);
+//     }
+//     return x_values;
+//   }
+
+//  private:
+//   // Function to compute the next x value using Boost's toms748 solver (better than brent's method)
+//   double find_next_x(const double &x_prev, const double &segment_length, const double &amplitude,
+//                     const double &angular_frequency, const double &phase_shift) {
+//     auto f = [&x_prev, &segment_length, &amplitude, &angular_frequency, &phase_shift](const double &x) {
+//       const double delta_x = x - x_prev;
+//       const double delta_y = amplitude * std::sin(angular_frequency * x + phase_shift) -
+//                             amplitude * std::sin(angular_frequency * x_prev + phase_shift);
+//       const double current_ell = std::sqrt(delta_x * delta_x + delta_y * delta_y);
+//       return current_ell - segment_length;
+//     };
+
+//     std::uintmax_t max_iter = 1000;
+//     const boost::math::tools::eps_tolerance<double> double_tol(boost::math::tools::digits<double>());
+//     auto [x_new, y_new] = boost::math::tools::toms748_solve(f, x_prev, x_prev + segment_length, double_tol, max_iter);
+//     return x_new;
+//   }
+
+//   double x_start_;
+//   size_t num_segments_;
+//   double segment_length_;
+//   double amplitude_;
+//   double angular_frequency_;
+//   double phase_shift_;
+// };  // ComputeSinWaveSegmentsFunctor
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -1964,8 +2043,8 @@ class SpermSimulation {
   double sperm_relaxed_youngs_modulus_ = sperm_youngs_modulus_ / 2.0;
   double sperm_normal_youngs_modulus_ = sperm_youngs_modulus_;
   double sperm_poissons_ratio_ = 0.3;
-  // double sperm_density_ = 0.000007956;
-  double sperm_density_ = 1.0;
+  double sperm_density_ = 0.000007956;
+  // double sperm_density_ = 1.0;
 
   double viscosity_ = 1;
 
