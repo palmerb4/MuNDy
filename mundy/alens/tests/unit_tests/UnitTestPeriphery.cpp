@@ -231,13 +231,15 @@ void apply_stokes_double_layer_matrix_ss_wrapper(
     const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights,
     const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_forces,
     const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_velocities) {
-  // Fill the stokes_double_layer_matrix
+  // Fill the stokes_double_layer_matrix and apply the singularity subtraction
   const size_t num_quadrature_points = weights.extent(0);
   Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> stokes_double_layer_matrix(
       "stokes_double_layer_matrix", 3 * num_quadrature_points, 3 * num_quadrature_points);
-  fill_stokes_double_layer_matrix_ss(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points,
+  fill_stokes_double_layer_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points,
                                      num_quadrature_points, points, points, normals, weights,
                                      stokes_double_layer_matrix);
+  add_singularity_subtraction(Kokkos::DefaultHostExecutionSpace(), stokes_double_layer_matrix);
+
   // Apply the stokes_double_layer_matrix to a the surface forces
   KokkosBlas::gemv(Kokkos::DefaultHostExecutionSpace(), "N", 1.0, stokes_double_layer_matrix, surface_forces, 0.0,
                    surface_velocities);
@@ -268,6 +270,20 @@ void apply_stokes_double_layer_kernel_ss_wrapper(
   apply_stokes_double_layer_kernel_ss(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points,
                                       num_quadrature_points, points, points, normals, weights, surface_forces,
                                       surface_velocities);
+}
+
+/// \brief Apply the second kind Fredholm integral operator to a function
+void apply_skfie_matrix_wrapper(
+    const double viscosity, const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
+    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
+    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights,
+    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &input_field,
+    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &output_field) {
+  const size_t num_quadrature_points = weights.extent(0);
+  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M("M", 3 * num_quadrature_points, 3 * num_quadrature_points);
+  fill_skfie_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points, num_quadrature_points, points,
+                    points, normals, weights, M);
+  KokkosBlas::gemv(Kokkos::DefaultHostExecutionSpace(), "N", 1.0, M, input_field, 0.0, output_field);
 }
 
 /// \brief A functor for generate a quadrature rule on the sphere
@@ -557,6 +573,7 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   const ConvergenceResults kernel_results = perform_convergence_study(
       viscosity, quad_gen, apply_stokes_double_layer_kernel_wrapper, in_field_gen, expected_results_gen);
 
+
   // Run the convergence study for the stokes double layer matrix with singularity subtraction
   const QuadVectorFunc new_expected_results_gen =
       []([[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
@@ -574,6 +591,10 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   const ConvergenceResults kernel_ss_results = perform_convergence_study(
       viscosity, quad_gen, apply_stokes_double_layer_kernel_ss_wrapper, in_field_gen, new_expected_results_gen);
 
+  // Run the convergence study for the second kind Fredholm integral operator
+  const ConvergenceResults skfie_results = perform_convergence_study(
+      viscosity, quad_gen, apply_skfie_matrix_wrapper, in_field_gen, new_expected_results_gen);
+  
   // For now, just print the results
   std::cout << "matrix_results.slope = " << matrix_results.slope << std::endl;
   for (size_t i = 0; i < matrix_results.num_quadrature_points.size(); ++i) {
@@ -594,6 +615,11 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   for (size_t i = 0; i < kernel_ss_results.num_quadrature_points.size(); ++i) {
     std::cout << "kernel_ss_results.num_quadrature_points[" << i << "] = " << kernel_ss_results.num_quadrature_points[i]
               << ", kernel_ss_results.error[" << i << "] = " << kernel_ss_results.error[i] << std::endl;
+  }
+  std::cout << "skfie_results.slope = " << skfie_results.slope << std::endl;
+  for (size_t i = 0; i < skfie_results.num_quadrature_points.size(); ++i) {
+    std::cout << "skfie_results.num_quadrature_points[" << i << "] = " << skfie_results.num_quadrature_points[i]
+              << ", skfie_results.error[" << i << "] = " << skfie_results.error[i] << std::endl;
   }
 }
 
@@ -643,6 +669,10 @@ TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
         const ConvergenceResults kernel_ss_results = perform_self_convergence_study(
             viscosity, quad_gen, apply_stokes_double_layer_kernel_ss_wrapper, in_field_gen);
 
+        // Run the convergence study for the second kind Fredholm integral operator
+        const ConvergenceResults skfie_results =
+            perform_self_convergence_study(viscosity, quad_gen, apply_skfie_matrix_wrapper, in_field_gen);
+
         // For now, just print the results
         std::cout << "###########################################################" << std::endl;
         std::cout << "function_name = " << function_name << std::endl;
@@ -667,6 +697,11 @@ TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
           std::cout << "kernel_ss_results.num_quadrature_points[" << i
                     << "] = " << kernel_ss_results.num_quadrature_points[i] << ", kernel_ss_results.error[" << i
                     << "] = " << kernel_ss_results.error[i] << std::endl;
+        }
+        std::cout << "skfie_results.slope = " << skfie_results.slope << std::endl;
+        for (size_t i = 0; i < skfie_results.num_quadrature_points.size(); ++i) {
+          std::cout << "skfie_results.num_quadrature_points[" << i << "] = " << skfie_results.num_quadrature_points[i]
+                    << ", skfie_results.error[" << i << "] = " << skfie_results.error[i] << std::endl;
         }
       };  // run_test_for_function
 

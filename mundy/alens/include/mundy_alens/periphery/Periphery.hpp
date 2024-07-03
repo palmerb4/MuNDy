@@ -512,7 +512,7 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
   // Compute the scale factor
   const double scale_factor = -3.0 / (4.0 * M_PI * viscosity);
   Kokkos::parallel_for(
-      "SCFIEMatrix", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
+      "DoubleLayerMatrixFill", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
       KOKKOS_LAMBDA(const size_t t, const size_t s) {
         // Compute the distance vector
         const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
@@ -553,58 +553,13 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
 ///   T is the stokes double layer kernel T_{ij} = -3 viscosity / (4*pi) * r_i * r_j * r_k * normal_k / r**5 *
 ///
 /// \param space The execution space
-/// \param[in] viscosity The viscosity
-/// \param[in] num_source_points The number of source points
-/// \param[in] num_target_points The number of target points
-/// \param[in] source_positions The positions of the source points (size num_source_points * 3)
-/// \param[in] target_positions The positions of the target points (size num_target_points * 3)
-/// \param[in] source_normals The normals of the source points (size num_source_points * 3)
-/// \param[in] quadrature_weights The quadrature weights (size num_source_points)
+/// \param[in] T The stokes double layer times weighted normal matrix to apply singularity subtraction to (size
+/// num_target_points * 3 x num_source_points * 3)
 template <class ExecutionSpace, class MemorySpace, class Layout>
-void fill_stokes_double_layer_matrix_ss([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                                        const size_t num_source_points, const size_t num_target_points,
-                                        const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                                        const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                                        const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                                        const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                                        const Kokkos::View<double **, Layout, MemorySpace> &T) {
-  // Compute the scale factor
-  const double scale_factor = -3.0 / (4.0 * M_PI * viscosity);
-  Kokkos::parallel_for(
-      "DoubleLayerMatrixFill", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
-      KOKKOS_LAMBDA(const size_t t, const size_t s) {
-        // Compute the distance vector
-        const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
-        const double dy = target_positions(3 * t + 1) - source_positions(3 * s + 1);
-        const double dz = target_positions(3 * t + 2) - source_positions(3 * s + 2);
-
-        // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
-        const double dr2 = dx * dx + dy * dy + dz * dz;
-        const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / std::sqrt(dr2);
-        const double rinv2 = rinv * rinv;
-        const double rinv5 = rinv * rinv2 * rinv2;
-
-        // Read in the surface normal at the source
-        const double normal_s0 = source_normals(3 * s + 0);
-        const double normal_s1 = source_normals(3 * s + 1);
-        const double normal_s2 = source_normals(3 * s + 2);
-
-        // tmp_vec = (r dot normal) r, scaled by -3 / (4 pi r^5 viscosity)
-        const double scaled_normal_s0 = normal_s0 * quadrature_weights(s);
-        const double scaled_normal_s1 = normal_s1 * quadrature_weights(s);
-        const double scaled_normal_s2 = normal_s2 * quadrature_weights(s);
-        const double r_dot_scaled_normal = dx * scaled_normal_s0 + dy * scaled_normal_s1 + dz * scaled_normal_s2;
-        const double tmp_vec0 = scale_factor * rinv5 * r_dot_scaled_normal * dx;
-        const double tmp_vec1 = scale_factor * rinv5 * r_dot_scaled_normal * dy;
-        const double tmp_vec2 = scale_factor * rinv5 * r_dot_scaled_normal * dz;
-
-        // T (local) = r outer tmp_vec = r outer r (r dot normal) * -3 / (4 pi r^5 viscosity)
-        // clang-format off
-        T(t * 3 + 0, s * 3 + 0) = dx * tmp_vec0; T(t * 3 + 0, s * 3 + 1) = dx * tmp_vec1; T(t * 3 + 0, s * 3 + 2) = dx * tmp_vec2;
-        T(t * 3 + 1, s * 3 + 0) = dy * tmp_vec0; T(t * 3 + 1, s * 3 + 1) = dy * tmp_vec1; T(t * 3 + 1, s * 3 + 2) = dy * tmp_vec2;
-        T(t * 3 + 2, s * 3 + 0) = dz * tmp_vec0; T(t * 3 + 2, s * 3 + 1) = dz * tmp_vec1; T(t * 3 + 2, s * 3 + 2) = dz * tmp_vec2;
-        // clang-format on
-      });
+void add_singularity_subtraction([[maybe_unused]] const ExecutionSpace &space,
+                                 const Kokkos::View<double **, Layout, MemorySpace> &T) {
+  const size_t num_source_points = T.extent(1) / 3;
+  const size_t num_target_points = T.extent(0) / 3;
 
   // Add the singularity subtraction to T
   // Create a vector that has 1 in the x-component and 0 in the y and z components for each source point
@@ -635,15 +590,15 @@ void fill_stokes_double_layer_matrix_ss([[maybe_unused]] const ExecutionSpace &s
   KokkosBlas::gemv("N", 1.0, T, e3, 0.0, w3);
 
   // Apply singularity subtraction.
-  // sum_s T_{s,t} [q_s - q_t] 
+  // sum_s T_{s,t} [q_s - q_t]
   //    = sum_s T_{s,t} q_s - sum_s T_{s,t} q_t
-  //    = sum_s T_{s,t} q_s - q1_t sum_s T_{s,t} e1_t - q2_t sum_s T_{s,t} e2_t - q3_t sum_s T_{s,t} e3_t 
+  //    = sum_s T_{s,t} q_s - q1_t sum_s T_{s,t} e1_t - q2_t sum_s T_{s,t} e2_t - q3_t sum_s T_{s,t} e3_t
   //    = sum_s T_{s,t} q_s - q1_t w1_t - q2_t w2_t - q3_t w3_t
   //
   // Note, T [q(y) - q(x)](x) is a vector of size 3.
   // w1, w2, w3 are vectors of size 3 * num_target_points
-  // sum_s T_{s,t} e1_t = T[e1](x) = w1_t where e1 is a vector of size 3 * num_source_points with 1 in the x-component and 0 in
-  // the y and z components of each source point.
+  // sum_s T_{s,t} e1_t = T[e1](x) = w1_t where e1 is a vector of size 3 * num_source_points with 1 in the x-component
+  // and 0 in the y and z components of each source point.
   //
   // q1_t w1_t - q2_t w2_t - q3_t w3_t is a vector of size 3 and equal [w1_t w2_t w3_t] [q1_t q2_t q3_t]^T,
   // which is the multiplication of a 3x3 matrix with a 3x1 vector.
@@ -653,7 +608,8 @@ void fill_stokes_double_layer_matrix_ss([[maybe_unused]] const ExecutionSpace &s
   //       [               w1_1 w2_1 w3_1               ]
   //       [                              w2_2 w2_2 w3_2]
   Kokkos::parallel_for(
-      "SCFIEMatrix", Kokkos::RangePolicy<ExecutionSpace>(0, num_source_points), KOKKOS_LAMBDA(const size_t ts) {
+      "SingularitySubtraction", Kokkos::RangePolicy<ExecutionSpace>(0, num_source_points),
+      KOKKOS_LAMBDA(const size_t ts) {
         T(ts * 3 + 0, ts * 3 + 0) -= w1(3 * ts + 0);
         T(ts * 3 + 1, ts * 3 + 0) -= w1(3 * ts + 1);
         T(ts * 3 + 2, ts * 3 + 0) -= w1(3 * ts + 2);
@@ -668,14 +624,57 @@ void fill_stokes_double_layer_matrix_ss([[maybe_unused]] const ExecutionSpace &s
       });
 }
 
+/// \brief Add the complementary matrix to the stokes double layer matrix
+///
+/// \param space The execution space
+/// \param[in] num_source_points The number of source points
+/// \param[in] num_target_points The number of target points
+/// \param[in] source_normals The normals of the source points (size num_source_points * 3)
+/// \param[in] quadrature_weights The quadrature weights (size num_source_points)
+/// \param[in] T The stokes double layer matrix (size num_target_points * 3 x num_source_points * 3)
+template <class ExecutionSpace, class MemorySpace, class Layout>
+void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space, const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
+                             const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
+                             const Kokkos::View<double **, Layout, MemorySpace> &T) {
+  const size_t num_source_points = T.extent(1) / 3;
+  const size_t num_target_points = T.extent(0) / 3;
+  
+  // Add the complementary matrix
+  Kokkos::parallel_for(
+      "ComplementaryMatrix", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
+      KOKKOS_LAMBDA(const size_t t, const size_t s) {
+        const double normal_s0 = source_normals(3 * s + 0);
+        const double normal_s1 = source_normals(3 * s + 1);
+        const double normal_s2 = source_normals(3 * s + 2);
+        const double normal_t0 = source_normals(3 * t + 0);
+        const double normal_t1 = source_normals(3 * t + 1);
+        const double normal_t2 = source_normals(3 * t + 2);
+
+        const double weighted_normal_s0 = normal_s0 * quadrature_weights(s);
+        const double weighted_normal_s1 = normal_s1 * quadrature_weights(s);
+        const double weighted_normal_s2 = normal_s2 * quadrature_weights(s);
+
+        T(t * 3 + 0, s * 3 + 0) += normal_t0 * weighted_normal_s0;
+        T(t * 3 + 0, s * 3 + 1) += normal_t0 * weighted_normal_s1;
+        T(t * 3 + 0, s * 3 + 2) += normal_t0 * weighted_normal_s2;
+        T(t * 3 + 1, s * 3 + 0) += normal_t1 * weighted_normal_s0;
+        T(t * 3 + 1, s * 3 + 1) += normal_t1 * weighted_normal_s1;
+        T(t * 3 + 1, s * 3 + 2) += normal_t1 * weighted_normal_s2;
+        T(t * 3 + 2, s * 3 + 0) += normal_t2 * weighted_normal_s0;
+        T(t * 3 + 2, s * 3 + 1) += normal_t2 * weighted_normal_s1;
+        T(t * 3 + 2, s * 3 + 2) += normal_t2 * weighted_normal_s2;
+      });
+}
+
 /// \brief Fill the second kind Fredholm integral equation matrix for Stokes flow induced by a boundary due to
 /// satisfaction of no-slip.
 ///
 /// M * f = (-1/2 I + T + N) * f = u
 ///   where
-///   I is the identity matrix
-///   T is the stokes double layer kernel T_{ij} = -3 viscosity / (4*pi) * r_i * r_j * r_k * normal_k / r**5 *
-///   quadrature_weight N is the null-space correction matrix N_{ij} = normal_i * normal_j * quadrature_weight
+///   - I is the identity matrix
+///   - T is the stokes double layer kernel T_{ij} = -3 viscosity / (4*pi) * r_i * r_j * r_k * normal_k / r**5 *
+///   quadrature_weight_j
+///   - N is the null-space correction matrix N_{ij} = normal_i * normal_j * quadrature_weight_j
 ///
 /// \param space The execution space
 /// \param[in] viscosity The viscosity
@@ -693,54 +692,15 @@ void fill_skfie_matrix([[maybe_unused]] const ExecutionSpace &space, const doubl
                        const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
                        const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
                        const Kokkos::View<double **, Layout, MemorySpace> &M) {
-  // Compute the scale factor
-  const double scale_factor = 3.0 / (4.0 * M_PI * viscosity);
-  Kokkos::parallel_for(
-      "SCFIEMatrix", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
-      KOKKOS_LAMBDA(const size_t t, const size_t s) {
-        // Compute the distance vector
-        const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
-        const double dy = target_positions(3 * t + 1) - source_positions(3 * s + 1);
-        const double dz = target_positions(3 * t + 2) - source_positions(3 * s + 2);
+  // // Fill the stokes double layer matrix
+  // fill_stokes_double_layer_matrix(space, viscosity, num_source_points, num_target_points, source_positions, target_positions,
+  //                                 source_normals, quadrature_weights, M);
 
-        // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
-        const double dr2 = dx * dx + dy * dy + dz * dz;
-        const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
-        const double rinv2 = rinv * rinv;
-        const double rinv5 = rinv * rinv2 * rinv2;
+  // // Add singularity subtraction
+  // add_singularity_subtraction(space, M);
 
-        // Read in the surface normal at the source and target
-        const double normal_s0 = source_normals(3 * s + 0);
-        const double normal_s1 = source_normals(3 * s + 1);
-        const double normal_s2 = source_normals(3 * s + 2);
-        const double normal_t0 = source_normals(3 * t + 0);
-        const double normal_t1 = source_normals(3 * t + 1);
-        const double normal_t2 = source_normals(3 * t + 2);
-
-        // tmp_vec = -3.0 * viscosity * rinv5 * r_j * r_k * normal_k * quadrature_weight_k / (4.0 * M_PI)
-        // this is (r outer r) times the normal, scaled by -3 viscosity / (4 pi r^5)
-        const double scaled_normal_s0 = normal_s0 * quadrature_weights(s);
-        const double scaled_normal_s1 = normal_s1 * quadrature_weights(s);
-        const double scaled_normal_s2 = normal_s2 * quadrature_weights(s);
-        const double tmp_vec0 = -scale_factor * rinv5 *
-                                (dx * dx * scaled_normal_s0 + dx * dy * scaled_normal_s1 + dx * dz * scaled_normal_s2);
-        const double tmp_vec1 = -scale_factor * rinv5 *
-                                (dy * dx * scaled_normal_s0 + dy * dy * scaled_normal_s1 + dy * dz * scaled_normal_s2);
-        const double tmp_vec2 = -scale_factor * rinv5 *
-                                (dz * dx * scaled_normal_s0 + dz * dy * scaled_normal_s1 + dz * dz * scaled_normal_s2);
-
-        // M (local) = r outer tmp_vec + normal_t outer scaled_normal_s * quadrature_weight - 1/2 I
-        const bool is_self_interaction = t == s;
-        M(t * 3 + 0, s * 3 + 0) = dx * tmp_vec0 + normal_t0 * scaled_normal_s0 - 0.5 * is_self_interaction;
-        M(t * 3 + 0, s * 3 + 1) = dx * tmp_vec1 + normal_t0 * scaled_normal_s1;
-        M(t * 3 + 0, s * 3 + 2) = dx * tmp_vec2 + normal_t0 * scaled_normal_s2;
-        M(t * 3 + 1, s * 3 + 0) = dy * tmp_vec0 + normal_t1 * scaled_normal_s0;
-        M(t * 3 + 1, s * 3 + 1) = dy * tmp_vec1 + normal_t1 * scaled_normal_s1 - 0.5 * is_self_interaction;
-        M(t * 3 + 1, s * 3 + 2) = dy * tmp_vec2 + normal_t1 * scaled_normal_s2;
-        M(t * 3 + 2, s * 3 + 0) = dz * tmp_vec0 + normal_t2 * scaled_normal_s0;
-        M(t * 3 + 2, s * 3 + 1) = dz * tmp_vec1 + normal_t2 * scaled_normal_s1;
-        M(t * 3 + 2, s * 3 + 2) = dz * tmp_vec2 + normal_t2 * scaled_normal_s2 - 0.5 * is_self_interaction;
-      });
+  // Add the complementary matrix
+  add_complementary_matrix(space, source_normals, quadrature_weights, M);
 }
 
 class Periphery {
