@@ -236,8 +236,7 @@ void apply_stokes_double_layer_matrix_ss_wrapper(
   Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> stokes_double_layer_matrix(
       "stokes_double_layer_matrix", 3 * num_quadrature_points, 3 * num_quadrature_points);
   fill_stokes_double_layer_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points,
-                                     num_quadrature_points, points, points, normals, weights,
-                                     stokes_double_layer_matrix);
+                                  num_quadrature_points, points, points, normals, weights, stokes_double_layer_matrix);
   add_singularity_subtraction(Kokkos::DefaultHostExecutionSpace(), stokes_double_layer_matrix);
 
   // Apply the stokes_double_layer_matrix to a the surface forces
@@ -273,16 +272,17 @@ void apply_stokes_double_layer_kernel_ss_wrapper(
 }
 
 /// \brief Apply the second kind Fredholm integral operator to a function
-void apply_skfie_matrix_wrapper(
-    const double viscosity, const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
-    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
-    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights,
-    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &input_field,
-    const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &output_field) {
+void apply_skfie_matrix_wrapper(const double viscosity,
+                                const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
+                                const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
+                                const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights,
+                                const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &input_field,
+                                const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &output_field) {
   const size_t num_quadrature_points = weights.extent(0);
-  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M("M", 3 * num_quadrature_points, 3 * num_quadrature_points);
-  fill_skfie_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points, num_quadrature_points, points,
-                    points, normals, weights, M);
+  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M("M", 3 * num_quadrature_points,
+                                                                   3 * num_quadrature_points);
+  fill_skfie_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points, num_quadrature_points,
+                    points, points, normals, weights, M);
   KokkosBlas::gemv(Kokkos::DefaultHostExecutionSpace(), "N", 1.0, M, input_field, 0.0, output_field);
 }
 
@@ -537,6 +537,112 @@ TEST(PeripheryTest, ReadWriteKokkosVectorToFromFile) {
   }
 }
 
+TEST(PeripheryTest, RPYKernelThreeSpheres) {
+  // The most accurate pseudo-analytical results for the hydrodynamic interaction between three spheres is given in
+  // Wilson 2013 Stokes flow past three spheres.
+
+  // The three spheres are located at the corners of an equilateral triangle in the x-y plane.
+  // The side length of the triangle is s * r, and the spheres have radius r.
+  /*     s1
+  //      o
+  //     / \
+  // s2 o---o s3
+  //
+  // s1 is located at x = 0, y = 0, z = 0
+  // s2 is located at x = -d/2, y = -sqrt(3)/2 * d, z = 0
+  // s3 is located at x = d/2, y = -sqrt(3)/2 * d, z = 0
+  //
+  // Apply a single force to s1 of f_s1 = (0, -6 pi mu r, 0), and zero forces to s2 and s3.
+  // We will run this test for various values of s, but RPY should only be accurate for large s.
+  //
+  // If we define U1, U2 as the component of velocity of s1 and s2 in the y-direction and
+  // Y3 as the component of velocity of s3 in the x-direction. We also let omega1, omega2, omega3
+  // denote the magnitude of rotational velocity of s1, s2, s3.
+  */
+
+  std::vector<double> s = {2.01, 2.10, 2.50, 3.00, 4.00, 6.00};
+  std::vector<double> U1 = {0.65528, 0.73857, 0.87765, 0.93905, 0.97964, 0.99581};
+  std::vector<double> U2 = {0.63461, 0.59718, 0.49545, 0.41694, 0.31859, 0.21586};
+  std::vector<double> U3 = {0.00498, 0.03517, 0.07393, 0.07824, 0.06925, 0.05078};
+  std::vector<double> Omega3 = {0.037336, 0.052035, 0.045466, 0.035022, 0.021634, 0.010159};
+
+  const double viscosity = 1.0;
+  const double radius = 12.34;
+  for (size_t i = 0; i < s.size(); i++) {
+    const double s_current = s[i];
+    const double U1_current = U1[i];
+    const double U2_current = U2[i];
+    const double U3_current = U3[i];
+    const double Omega3_current = Omega3[i];
+
+    // Setup the kokkos vectors for position, radius, force, and velocity
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> positions("positions", 9);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> radii("radii", 3);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> forces("forces", 9);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> velocities("velocities", 9);
+
+    // s1:
+    positions(0) = 0.0;
+    positions(1) = 0.0;
+    positions(2) = 0.0;
+    radii(0) = radius;
+    forces(0) = 0.0;
+    forces(1) = -6.0 * M_PI * radius;
+    forces(2) = 0.0;
+    velocities(0) = 0.0;
+    velocities(1) = 0.0;
+    velocities(2) = 0.0;
+
+    // s2:
+    positions(3) = -s_current * radius / 2.0;
+    positions(4) = -std::sqrt(3.0) * s_current * radius / 2.0;
+    positions(5) = 0.0;
+    radii(1) = radius;
+    forces(3) = 0.0;
+    forces(4) = 0.0;
+    forces(5) = 0.0;
+    velocities(3) = 0.0;
+    velocities(4) = 0.0;
+    velocities(5) = 0.0;
+
+    // s3:
+    positions(6) = s_current * radius / 2.0;
+    positions(7) = -std::sqrt(3.0) * s_current * radius / 2.0;
+    positions(8) = 0.0;
+    radii(2) = radius;
+    forces(6) = 0.0;
+    forces(7) = 0.0;
+    forces(8) = 0.0;
+    velocities(6) = 0.0;
+    velocities(7) = 0.0;
+    velocities(8) = 0.0;
+
+    // Apply the RPY kernel
+    apply_rpy_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, positions, positions, radii, radii, forces,
+                     velocities);
+
+    // Add self-interaction
+    const double inv_drag_coeff = 1.0 / (6.0 * M_PI * radius * viscosity);
+    for (size_t j = 0; j < 9; j++) {
+      velocities(j) += inv_drag_coeff * forces(j);
+    }
+
+    // Check the results
+    std::cout << "s: " << s_current << std::endl;
+    std::cout << "  U1: " << velocities(1) << " | expected: " << -U1_current
+              << ") | relative error: " << std::fabs(velocities(1) + U1_current) / std::fabs(U1_current) << std::endl;
+    std::cout << "  U2: " << velocities(4) << " | expected: " << -U2_current
+              << ") | relative error: " << std::fabs(velocities(4) + U2_current) / std::fabs(U2_current) << std::endl;
+    std::cout << "  U3: " << velocities(6) << " | expected: " << U3_current
+              << ") | relative error: " << std::fabs(velocities(6) - U3_current) / std::fabs(U3_current) << std::endl;
+  }
+}
+
+//@}
+
+//! \name Periphery tests
+//@{
+
 TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   // We have the following identity for flow exterior to a surface D:
   //   int_{partial D} n(y) dot T(x - y) dS(y) = I / 2
@@ -573,7 +679,6 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   const ConvergenceResults kernel_results = perform_convergence_study(
       viscosity, quad_gen, apply_stokes_double_layer_kernel_wrapper, in_field_gen, expected_results_gen);
 
-
   // Run the convergence study for the stokes double layer matrix with singularity subtraction
   const QuadVectorFunc new_expected_results_gen =
       []([[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
@@ -592,9 +697,9 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
       viscosity, quad_gen, apply_stokes_double_layer_kernel_ss_wrapper, in_field_gen, new_expected_results_gen);
 
   // Run the convergence study for the second kind Fredholm integral operator
-  const ConvergenceResults skfie_results = perform_convergence_study(
-      viscosity, quad_gen, apply_skfie_matrix_wrapper, in_field_gen, new_expected_results_gen);
-  
+  const ConvergenceResults skfie_results = perform_convergence_study(viscosity, quad_gen, apply_skfie_matrix_wrapper,
+                                                                     in_field_gen, new_expected_results_gen);
+
   // For now, just print the results
   std::cout << "matrix_results.slope = " << matrix_results.slope << std::endl;
   for (size_t i = 0; i < matrix_results.num_quadrature_points.size(); ++i) {
@@ -712,19 +817,19 @@ TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
     return std::array{x * inv_radius, y * inv_radius, z * inv_radius};
   });
 
-  run_test_for_function("f(x, y, z) = sin(theta) * nhat + cos(theta) * tangent_theta + cos^2(theta) tangent_phi", 
+  run_test_for_function("f(x, y, z) = sin(theta) * nhat + cos(theta) * tangent_theta + cos^2(theta) tangent_phi",
                         [](double x, double y, double z) {
-    const double inv_radius = 1.0 / std::sqrt(x * x + y * y + z * z);
-    const double theta = std::acos(z * inv_radius);
-    const double phi = std::atan2(y, x);
-    const double sin_theta = std::sin(theta);
-    const double cos_theta = std::cos(theta);
-    const double sin_phi = std::sin(phi);
-    const double cos_phi = std::cos(phi);
-    return std::array{sin_theta * z * inv_radius + cos_theta * cos_phi * inv_radius,
-                      sin_theta * y * inv_radius - cos_theta * sin_phi * inv_radius,
-                      sin_theta * x * inv_radius};
-  });
+                          const double inv_radius = 1.0 / std::sqrt(x * x + y * y + z * z);
+                          const double theta = std::acos(z * inv_radius);
+                          const double phi = std::atan2(y, x);
+                          const double sin_theta = std::sin(theta);
+                          const double cos_theta = std::cos(theta);
+                          const double sin_phi = std::sin(phi);
+                          const double cos_phi = std::cos(phi);
+                          return std::array{sin_theta * z * inv_radius + cos_theta * cos_phi * inv_radius,
+                                            sin_theta * y * inv_radius - cos_theta * sin_phi * inv_radius,
+                                            sin_theta * x * inv_radius};
+                        });
 }
 //@}
 

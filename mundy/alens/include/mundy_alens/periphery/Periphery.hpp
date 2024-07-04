@@ -285,44 +285,43 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 
 /// \brief Apply the RPY kernel to map source forces to target velocities: u_target += M f_source
 ///
+/// Note, this does not include self-interaction. If that is desired simply add 1/(6 pi mu) * f to u
+///
 /// \param space The execution space
 /// \param[in] viscosity The viscosity
-/// \param[in] num_source_points The number of source points
-/// \param[in] num_target_points The number of target points
 /// \param[in] source_positions The positions of the source points (size num_source_points x 3)
 /// \param[in] target_positions The positions of the target points (size num_target_points x 3)
-/// \param[in] source_values The source values (size num_source_points x 4 containing the force and radius)
+/// \param[in] source_forces The source values (size num_source_points x 4 containing the force and radius)
 /// \param[out] target_values The target values (size num_target_points x 6 containing the velocity and laplacian)
 template <class ExecutionSpace, class MemorySpace, class Layout>
 void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                      const size_t num_source_points, const size_t num_target_points,
                       const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
                       const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                      const Kokkos::View<double *, Layout, MemorySpace> &source_values,
-                      const Kokkos::View<double *, Layout, MemorySpace> &target_values) {
+                      const Kokkos::View<double *, Layout, MemorySpace> &source_radii,
+                      const Kokkos::View<double *, Layout, MemorySpace> &target_radii,
+                      const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
+                      const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+  const size_t num_source_points = source_positions.extent(0) / 3;
+  const size_t num_target_points = target_positions.extent(0) / 3;
+  
   // Launch the parallel kernel
   const double scale_factor = 1.0 / (8.0 * M_PI * viscosity);
   Kokkos::parallel_for(
       "RPY", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
       KOKKOS_LAMBDA(const size_t t, const size_t s) {
-        // Skip self-interaction
-        if (t == s) {
-          return;
-        }
-
         // Compute the distance vector
         const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
         const double dy = target_positions(3 * t + 1) - source_positions(3 * s + 1);
         const double dz = target_positions(3 * t + 2) - source_positions(3 * s + 2);
 
-        const double fx = source_values(4 * s + 0);
-        const double fy = source_values(4 * s + 1);
-        const double fz = source_values(4 * s + 2);
-        const double a = source_values(4 * s + 3);
+        const double fx = source_forces(3 * s + 0);
+        const double fy = source_forces(3 * s + 1);
+        const double fz = source_forces(3 * s + 2);
+        const double a = source_radii(s);
 
         const double a2_over_three = (1.0 / 3.0) * a * a;
         const double r2 = dx * dx + dy * dy + dz * dz;
-        const double rinv = 1.0 / std::sqrt(r2);
+        const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
         const double rinv3 = rinv * rinv * rinv;
         const double rinv5 = rinv * rinv * rinv3;
         const double fdotr = fx * dx + fy * dy + fz * dz;
@@ -335,17 +334,20 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double
         const double fdotr_rinv3 = fdotr * rinv3;
 
         // Velocity
-        Kokkos::atomic_add(&target_values(6 * t + 0),
-                           scale_factor * (fx * rinv + dx * fdotr_rinv3 + a2_over_three * cx));
-        Kokkos::atomic_add(&target_values(6 * t + 1),
-                           scale_factor * (fy * rinv + dy * fdotr_rinv3 + a2_over_three * cy));
-        Kokkos::atomic_add(&target_values(6 * t + 2),
-                           scale_factor * (fz * rinv + dz * fdotr_rinv3 + a2_over_three * cz));
+        const double v0 = scale_factor * (fx * rinv + dx * fdotr_rinv3 + a2_over_three * cx);
+        const double v1 = scale_factor * (fy * rinv + dy * fdotr_rinv3 + a2_over_three * cy);
+        const double v2 = scale_factor * (fz * rinv + dz * fdotr_rinv3 + a2_over_three * cz);
 
         // Laplacian
-        Kokkos::atomic_add(&target_values(6 * t + 3), 2.0 * scale_factor * cx);
-        Kokkos::atomic_add(&target_values(6 * t + 4), 2.0 * scale_factor * cy);
-        Kokkos::atomic_add(&target_values(6 * t + 5), 2.0 * scale_factor * cz);
+        const double lap0 = 2.0 * scale_factor * cx;
+        const double lap1 = 2.0 * scale_factor * cy;
+        const double lap2 = 2.0 * scale_factor * cz;
+
+        // Apply the result
+        const double lap_coeff = target_radii(t) * target_radii(t) / 6.0;
+        Kokkos::atomic_add(&target_velocities(3 * t + 0), v0 + lap_coeff * lap0);
+        Kokkos::atomic_add(&target_velocities(3 * t + 1), v1 + lap_coeff * lap1);
+        Kokkos::atomic_add(&target_velocities(3 * t + 2), v2 + lap_coeff * lap2);
       });
 }
 
@@ -692,12 +694,12 @@ void fill_skfie_matrix([[maybe_unused]] const ExecutionSpace &space, const doubl
                        const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
                        const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
                        const Kokkos::View<double **, Layout, MemorySpace> &M) {
-  // // Fill the stokes double layer matrix
-  // fill_stokes_double_layer_matrix(space, viscosity, num_source_points, num_target_points, source_positions, target_positions,
-  //                                 source_normals, quadrature_weights, M);
+  // Fill the stokes double layer matrix
+  fill_stokes_double_layer_matrix(space, viscosity, num_source_points, num_target_points, source_positions, target_positions,
+                                  source_normals, quadrature_weights, M);
 
-  // // Add singularity subtraction
-  // add_singularity_subtraction(space, M);
+  // Add singularity subtraction
+  add_singularity_subtraction(space, M);
 
   // Add the complementary matrix
   add_complementary_matrix(space, source_normals, quadrature_weights, M);
