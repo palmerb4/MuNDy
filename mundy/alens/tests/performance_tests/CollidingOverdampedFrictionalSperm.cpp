@@ -71,81 +71,124 @@ The goal of this example is to simulate the swimming motion of a multiple, colli
 
 // #define DEBUG
 
-// /// \brief Function to discretize a sin wave into a series of equal length segments
-// ///
-// /// For us y = A * sin(w * x + phi) where A is the amplitude, w is the angular frequency, and phi is the phase shift.
-// ///
-// /// \param x_start Starting x value
-// /// \param num_segments Number of segments to discretize the sin wave into
-// /// \param segment_length Length of each segment.
-// /// \param amplitude Amplitude of the sin wave
-// /// \param angular_frequency Angular frequency of the sin wave
-// /// \param phase_shift Phase shift of the sin wave
-// struct ComputeSinWaveSegmentsFunctor {
-//   ComputeSinWaveSegmentsFunctor &set_x_start(const double &x_start) {
-//     x_start_ = x_start;
-//     return *this;
-//   }
+/// \brief Get the tangent and quaternion orientation of the next segment given the curvature, tangent, and orientation
+/// of the current.
+void next_segment(const mundy::math::Vector3<double> &curvature_i, const mundy::math::Vector3<double> &tangent_im1,
+                  const mundy::math::Quaternion<double> &edge_orientation_im1,
+                  mundy::math::Vector3<double> *const tangent_i_ptr,
+                  mundy::math::Quaternion<double> *const edge_orientation_i_ptr) {
+  // Compute the current rotation gradient q_i
+  // Because $\kappa_i$ is twice the vector component of the unit quaternion $q_i$, we can compute the scalar component
+  // of $q_i$ (up to a sign) from $\kappa_i$ using $scalar(q_i) = \sqrt(1 - \|\kappa_i\|^2/4)$.
+  const double curvature_norm2 = mundy::math::norm_squared(curvature_i);
+  if (curvature_norm2 > 4.0) {
+    throw std::invalid_argument("The curvature norm squared is greater than 4.0. This is not a valid curvature.");
+  }
+  const double scalar_component = std::sqrt(1.0 - 0.25 * curvature_norm2);
+  const mundy::math::Quaternion<double> rotation_gradient_i(scalar_component, 0.5 * curvature_i[0],
+                                                            0.5 * curvature_i[1], 0.5 * curvature_i[2]);
 
-//   ComputeSinWaveSegmentsFunctor &set_num_segments(const size_t &num_segments) {
-//     num_segments_ = num_segments;
-//     return *this;
-//   }
+  // Compute D_i
+  // Now, $q_i = \overline{d^{i-1}}d^i$ but we are interested in finding $\mathcal{D} = d^i \overline{d^{i-1}} :
+  // \bd^{i-1}_I \mapsto \bd^{i}_I$. Well, $q_i = \overline{d^{i-1}}\mathcal{D}d^{i-1}$, so
+  // $\mathcal{D}_i = d^{i-1}q_i\overline{d^{i-1}}$.
+  const mundy::math::Quaternion<double> D_i =
+      edge_orientation_im1 * rotation_gradient_i * mundy::math::conjugate(edge_orientation_im1);
+  *tangent_i_ptr = D_i * tangent_im1;
 
-//   ComputeSinWaveSegmentsFunctor &set_segment_length(const double &segment_length) {
-//     segment_length_ = segment_length;
-//     return *this;
-//   }
+  // // Compute the next edge orientation
+  // // d^{i} can then be found (in a twist free configuration) using parallel transport of d^{i-1} from the current to
+  // the
+  // // new tangent.
+  // mundy::math::Quaternion<double> parallel_transport_quat =
+  //     mundy::math::quat_from_parallel_transport(tangent_im1, *tangent_i_ptr);
 
-//   ComputeSinWaveSegmentsFunctor &set_amplitude(const double &amplitude) {
-//     amplitude_ = amplitude;
-//     return *this;
-//   }
+  *edge_orientation_i_ptr = D_i * edge_orientation_im1;
+}
 
-//   ComputeSinWaveSegmentsFunctor &set_angular_frequency(const double &angular_frequency) {
-//     angular_frequency_ = angular_frequency;
-//     return *this;
-//   }
+/// \brief Function for computing the node positions of a centerline twist rod given a known curvature and segment
+/// length The curvature and segment length are paramatrized in terms of the arc length s along the rod
+std::pair<std::vector<mundy::math::Vector3<double>>, std::vector<mundy::math::Quaternion<double>>>
+compute_centerline_twist_rod_backbone(const std::function<mundy::math::Vector3<double>(const double)> &curvature_func,
+                                      const double &segment_length, const size_t &num_segments,
+                                      const mundy::math::Vector3<double> &start_position,
+                                      const mundy::math::Vector3<double> &start_tangent) {
+  // Compute the tangent and orientation of the first segment
+  mundy::math::Vector3<double> current_tangent = start_tangent;
+  mundy::math::Vector3<double> z_axis(0.0, 0.0, 1.0);
+  mundy::math::Quaternion<double> current_edge_orientation =
+      mundy::math::quat_from_parallel_transport(z_axis, current_tangent);
 
-//   ComputeSinWaveSegmentsFunctor &set_phase_shift(const double &phase_shift) {
-//     phase_shift_ = phase_shift;
-//     return *this;
-//   }
+  // Compute the node positions
+  std::vector<mundy::math::Vector3<double>> node_positions(num_segments + 1);
+  std::vector<mundy::math::Quaternion<double>> edge_orientations(num_segments);
 
-//   std::vector<double> operator()() const {
-//     std::vector<double> x_values = {x_start_};
-//     for (size_t i = 0; i < num_segments_; ++i) {
-//       double x_next = find_next_x(x_values.back(), segment_length_, amplitude_, angular_frequency_, phase_shift_);
-//       x_values.push_back(x_next);
-//     }
-//     return x_values;
-//   }
+  node_positions[0] = start_position;
+  node_positions[1] = start_position + segment_length * current_tangent;
+  edge_orientations[0] = current_edge_orientation;
+  for (size_t i = 1; i < num_segments; ++i) {
+    // Compute the curvature at the current segment
+    const double s = i * segment_length;
+    const mundy::math::Vector3<double> current_curvature = curvature_func(s);
 
-//  private:
-//   // Function to compute the next x value using Boost's toms748 solver (better than brent's method)
-//   double find_next_x(const double &x_prev, const double &segment_length, const double &amplitude,
-//                     const double &angular_frequency, const double &phase_shift) {
-//     auto f = [&x_prev, &segment_length, &amplitude, &angular_frequency, &phase_shift](const double &x) {
-//       const double delta_x = x - x_prev;
-//       const double delta_y = amplitude * std::sin(angular_frequency * x + phase_shift) -
-//                             amplitude * std::sin(angular_frequency * x_prev + phase_shift);
-//       const double current_ell = std::sqrt(delta_x * delta_x + delta_y * delta_y);
-//       return current_ell - segment_length;
-//     };
+    // Compute the tangent and orientation of the next segment
+    mundy::math::Vector3<double> next_tangent;
+    mundy::math::Quaternion<double> next_edge_orientation;
+    next_segment(current_curvature, current_tangent, current_edge_orientation, &next_tangent, &next_edge_orientation);
 
-//     std::uintmax_t max_iter = 1000;
-//     const boost::math::tools::eps_tolerance<double> double_tol(boost::math::tools::digits<double>());
-//     auto [x_new, y_new] = boost::math::tools::toms748_solve(f, x_prev, x_prev + segment_length, double_tol, max_iter);
-//     return x_new;
-//   }
+    // Compute the position of the next node
+    node_positions[i + 1] = node_positions[i] + segment_length * next_tangent;
+    edge_orientations[i] = next_edge_orientation;
 
-//   double x_start_;
-//   size_t num_segments_;
-//   double segment_length_;
-//   double amplitude_;
-//   double angular_frequency_;
-//   double phase_shift_;
-// };  // ComputeSinWaveSegmentsFunctor
+    // Update the current tangent and orientation
+    current_tangent = next_tangent;
+    current_edge_orientation = next_edge_orientation;
+  }
+
+  return std::make_pair(node_positions, edge_orientations);
+}
+
+/// \brief Function for discretizing a well-behaved function f(x) into equal length segments
+std::pair<std::vector<double>, std::vector<double>> segmentize_function(const std::function<double(double)> &f,
+                                                                        const double &x_start,
+                                                                        const size_t &num_segments,
+                                                                        const double &segment_length,
+                                                                        const std::uintmax_t &max_iter = 1000) {
+  assert(num_segments > 0);
+  const boost::math::tools::eps_tolerance<double> double_tol(boost::math::tools::digits<double>());
+
+  std::vector<double> x_values(num_segments);
+  std::vector<double> y_values(num_segments);
+
+  double x_prev = x_start;
+  double y_prev = f(x_start);
+  x_values[0] = x_prev;
+  y_values[0] = y_prev;
+
+  std::uintmax_t boost_max_iter = max_iter;
+  for (size_t i = 0; i < num_segments; ++i) {
+    auto length_error_func = [&x_prev, &y_prev, &segment_length, &f](const double &x) {
+      const double delta_x = x - x_prev;
+      const double delta_y = f(x) - f(x_prev);
+      const double current_ell = std::sqrt(delta_x * delta_x + delta_y * delta_y);
+      return current_ell - segment_length;
+    };
+    try {
+      [[maybe_unused]] auto [x_new, error] = boost::math::tools::toms748_solve(
+          length_error_func, x_prev, x_prev + segment_length, double_tol, boost_max_iter);
+      x_prev = x_new;
+      y_prev = f(x_new);
+      x_values[i] = x_prev;
+      y_values[i] = y_prev;
+    } catch (const std::exception &e) {
+      std::cerr << "Caught exception: " << e.what() << std::endl;
+      std::cerr << "Failed to find the next x value for segment " << i << " with x_prev = " << x_prev
+                << " and segment_length = " << segment_length << std::endl;
+      break;
+    }
+  }
+  return {x_values, y_values};
+}
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -628,7 +671,10 @@ class SpermSimulation {
   void declare_and_initialize_sperm() {
     debug_print("Declaring and initializing the sperm.");
 
+    // Get references to internal members so we aren't passing around *this
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
+    const double amplitude = amplitude_;
+    const double spatial_wavelength = spatial_wavelength_;
 
     // Declare N spring chains with a slight shift to each chain
     for (size_t j = 0; j < num_sperm_; j++) {
@@ -636,17 +682,47 @@ class SpermSimulation {
       // quaternion.
       // const bool is_boundary_sperm = (j == 0) || (j == num_sperm_ - 1);
       const bool is_boundary_sperm = false;
-      const double segment_length =
-          is_boundary_sperm ? 3 * sperm_initial_segment_length_ : sperm_initial_segment_length_;
+      const double segment_length = sperm_initial_segment_length_;
 
       // TODO(palmerb4): Notice that we are shifting the sperm to be separated by a diameter.
-      const bool flip_sperm = j % 2 == 0;
-      // const bool flip_sperm = false;
+      // const bool flip_sperm = j % 2 == 0;
+      const bool flip_sperm = false;
       mundy::math::Vector3<double> tail_coord(
           0.0, 2.0 * j * (2.0 * sperm_radius_),
           (flip_sperm ? segment_length * (num_nodes_per_sperm_ - 1) : 0.0) -
               (is_boundary_sperm ? sperm_initial_segment_length_ * (num_nodes_per_sperm_ - 1) : 0.0));
+      mundy::math::Vector3<double> tail_tangent(0.0, 0.0, flip_sperm ? -1.0 : 1.0);
 
+      // Compute the in-plane (y-z plane) positions of the sperm backbone.
+      openrand::Philox rng(j, 0);
+      const double phase_shift = 2.0 * M_PI * rng.rand<double>();
+      auto curvature_func = [&amplitude, &spatial_wavelength, &phase_shift](const double &x) {
+        // It's easier to compute the curvature using Euler angles
+        // const double roll = amplitude * std::sin(spatial_wavelength * x + phase_shift);
+        // const double pitch = 0.0;
+        // const double yaw = 0.0;
+        // return 2.0 * mundy::math::euler_to_quat(roll, pitch, yaw).vector();
+
+        // The curvature of a graph of y = y(x) is kappa(x) = y''(x) / (1 + y'(x)^2)^(3/2).
+        // For us
+        //  y(x) = amplitude * std::sin(spatial_wavelength * x + phase);
+        //  y'(x) = amplitude * spatial_wavelength
+        //        * std::cos(spatial_wavelength * x + phase);
+        //  y''(x) = - amplitude * spatial_wavelength^2
+        //         * std::sin(spatial_wavelength * x + phase);
+        // clang-format on
+        const double y_prime = amplitude * spatial_wavelength * std::cos(spatial_wavelength * x + phase_shift);
+        const double y_double_prime =
+            -amplitude * spatial_wavelength * spatial_wavelength * std::sin(spatial_wavelength * x + phase_shift);
+
+        // It's easier to compute the curvature using Euler angles
+        const double roll = y_double_prime / (std::pow(1.0 + y_prime * y_prime, 1.5));
+        const double pitch = 0.0;
+        const double yaw = 0.0;
+        return 2.0 * mundy::math::euler_to_quat(roll, pitch, yaw).vector();
+      };
+      const auto [node_coords_vec, edge_orientations_vec] = compute_centerline_twist_rod_backbone(
+          curvature_func, segment_length, num_nodes_per_sperm_ - 1, tail_coord, tail_tangent);
       mundy::math::Vector3<double> sperm_axis(0.0, 0.0, flip_sperm ? -1.0 : 1.0);
 
       // Because we are creating multiple sperm, we need to determine the node and element index ranges for each sperm.
@@ -656,17 +732,13 @@ class SpermSimulation {
       size_t start_spherocylinder_segment_spring_id =
           (num_nodes_per_sperm_ - 1) * j + (num_nodes_per_sperm_ - 2) * num_sperm_ + 1u;
 
-      auto get_node_id = [start_node_id](const size_t &seq_node_index) {
-        return start_node_id + seq_node_index;
-      };
+      auto get_node_id = [start_node_id](const size_t &seq_node_index) { return start_node_id + seq_node_index; };
 
       auto get_node = [get_node_id, &bulk_data](const size_t &seq_node_index) {
         return bulk_data.get_entity(stk::topology::NODE_RANK, get_node_id(seq_node_index));
       };
 
-      auto get_edge_id = [start_edge_id](const size_t &seq_node_index) {
-        return start_edge_id + seq_node_index;
-      };
+      auto get_edge_id = [start_edge_id](const size_t &seq_node_index) { return start_edge_id + seq_node_index; };
 
       auto get_edge = [get_edge_id, &bulk_data](const size_t &seq_node_index) {
         return bulk_data.get_entity(stk::topology::EDGE_RANK, get_edge_id(seq_node_index));
@@ -935,8 +1007,7 @@ class SpermSimulation {
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
                            "The node must be a member of the centerline twist part.");
 
-        mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) =
-            tail_coord + sperm_axis * static_cast<double>(i) * segment_length;
+        mundy::mesh::vector3_field_data(*node_coord_field_ptr_, node) = node_coords_vec[i];
         mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, node).set(0.0, 0.0, 0.0);
         mundy::mesh::vector3_field_data(*node_force_field_ptr_, node).set(0.0, 0.0, 0.0);
         stk::mesh::field_data(*node_twist_field_ptr_, node)[0] = 0.0;
@@ -978,40 +1049,24 @@ class SpermSimulation {
 #endif
 
       // Populate the edge data
-      stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
-      stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
-      stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
-      stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
-      stk::mesh::for_each_entity_run(
-          *bulk_data_ptr_, stk::topology::EDGE_RANK, meta_data_ptr_->locally_owned_part(),
-          [&node_coord_field, &edge_orientation_field, &edge_tangent_field, &edge_length_field, &flip_sperm](
-              const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &edge) {
-            // We are currently in the reference configuration, so the orientation must map from Cartesian to reference
-            // lab frame.
-            const stk::mesh::Entity *edge_nodes = bulk_data.begin_nodes(edge);
-            const auto edge_node0_coords = mundy::mesh::vector3_field_data(node_coord_field, edge_nodes[0]);
-            const auto edge_node1_coords = mundy::mesh::vector3_field_data(node_coord_field, edge_nodes[1]);
-            mundy::math::Vector3<double> edge_tangent = edge_node1_coords - edge_node0_coords;
-            const double edge_length = mundy::math::norm(edge_tangent);
-            edge_tangent /= edge_length;
+      const size_t start_seq_edge_index = start_seq_node_index;
+      const size_t end_seq_edge_index =
+          (rank == bulk_data_ptr_->parallel_size() - 1) ? end_seq_node_index - 1 : end_seq_node_index;
+      for (size_t i = start_seq_edge_index; i < end_seq_edge_index; ++i) {
+        // We are currently in the reference configuration, so the orientation must map from Cartesian to reference
+        // lab frame.
+        stk::mesh::Entity edge = get_edge(i);
+        const stk::mesh::Entity *edge_nodes = bulk_data.begin_nodes(edge);
+        const auto edge_node0_coords = mundy::mesh::vector3_field_data(*node_coord_field_ptr_, edge_nodes[0]);
+        const auto edge_node1_coords = mundy::mesh::vector3_field_data(*node_coord_field_ptr_, edge_nodes[1]);
+        mundy::math::Vector3<double> edge_tangent = edge_node1_coords - edge_node0_coords;
+        const double edge_length = mundy::math::norm(edge_tangent);
+        edge_tangent /= edge_length;
 
-            // Using the triad to generate the orientation
-            auto d1 = mundy::math::Vector3<double>(flip_sperm ? -1.0 : 1.0, 0.0, 0.0);
-            mundy::math::Vector3<double> d3 = edge_tangent;
-            mundy::math::Vector3<double> d2 = mundy::math::cross(d3, d1);
-            d2 /= mundy::math::norm(d2);
-            MUNDY_THROW_ASSERT(mundy::math::dot(d3, mundy::math::cross(d1, d2)) > 0.0, std::logic_error,
-                               "The triad is not right-handed.");
-
-            mundy::math::Matrix3<double> D;
-            D.set_column(0, d1);
-            D.set_column(1, d2);
-            D.set_column(2, d3);
-            mundy::mesh::quaternion_field_data(edge_orientation_field, edge) =
-                mundy::math::rotation_matrix_to_quaternion(D);
-            mundy::mesh::vector3_field_data(edge_tangent_field, edge) = edge_tangent;
-            stk::mesh::field_data(edge_length_field, edge)[0] = edge_length;
-          });
+        mundy::mesh::quaternion_field_data(*edge_orientation_field_ptr_, edge) = edge_orientations_vec[i];
+        mundy::mesh::vector3_field_data(*edge_tangent_field_ptr_, edge) = edge_tangent;
+        stk::mesh::field_data(*edge_length_field_ptr_, edge)[0] = edge_length;
+      }
     }
   }
 
@@ -1045,61 +1100,66 @@ class SpermSimulation {
     stk::mesh::Field<double> &node_archlength_field = *node_archlength_field_ptr_;
     stk::mesh::Field<int> &node_sperm_id_field = *node_sperm_id_field_ptr_;
     const double rest_segment_length = sperm_rest_segment_length_;
+    const double amplitude = amplitude_;
+    const double spatial_wavelength = spatial_wavelength_;
+    const double temporal_wavelength = temporal_wavelength_;
 
-    // Propogate the rest curvature of the nodes according to
-    // kappa_rest = amplitude * sin(spacial_frequency * archlength + temporal_frequency * time).
+    // Propagate the rest curvature of the nodes according to
+    // kappa_rest = amplitude * sin(spatial_wavelength * archlength + temporal_wavelength * time).
     const double sperm_length = num_nodes_per_sperm_ * rest_segment_length;
-    // const double amplitude = 0.01;
-    // const double spacial_wavelength = sperm_length / 5.0;
-    // const double spacial_frequency = 2.0 * M_PI / spacial_wavelength;
-    // const double temporal_frequency = 0.01;
-    // const double time = (timestep_index_ == 0)
-    //                         ? timestep_index_ * timestep_size_
-    //                         : (timestep_index_ - 5000000) * timestep_size_;  // HARDCODING THE TIME OFFSET
-
-    const double amplitude = 8.33333333333333;
-    const double spacial_wavelength = 50;
-    const double spacial_frequency = 2.0 * M_PI / spacial_wavelength;
-    const double temporal_frequency = 1;
     const double time = timestep_index_ * timestep_size_;
 
     auto locally_owned_selector =
         stk::mesh::Selector(centerline_twist_springs_part) & meta_data_ptr_->locally_owned_part();
     stk::mesh::for_each_entity_run(
         bulk_data, node_rank_, locally_owned_selector,
-        [&node_rest_curvature_field, &node_archlength_field, &node_sperm_id_field, &amplitude, &spacial_frequency,
-         &temporal_frequency,
+        [&node_rest_curvature_field, &node_archlength_field, &node_sperm_id_field, &amplitude, &spatial_wavelength,
+         &temporal_wavelength,
          &time]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
           // Get the required input fields
           const double node_archlength = stk::mesh::field_data(node_archlength_field, node)[0];
           const int node_sperm_id = stk::mesh::field_data(node_sperm_id_field, node)[0];
 
           // Get the output fields
-          double *node_rest_curvature = stk::mesh::field_data(node_rest_curvature_field, node);
+          auto node_rest_curvature = mundy::mesh::vector3_field_data(node_rest_curvature_field, node);
 
-          // Propogate the rest curvature
-          // To avoid syncronized states, we add a random number to the phase of the sine wave for each sperm.
+          // Propagate the rest curvature
+          // To avoid synchronized states, we add a random number to the phase of the sine wave for each sperm.
           // The same RNG is used for all time.
           openrand::Philox rng(node_sperm_id, 0);
           const double phase = 2.0 * M_PI * rng.rand<double>();
-          // const double phase = 0.0;
+
+          // // It's easier to compute the curvature using Euler angles
+          // const double roll = amplitude * std::sin(spatial_wavelength * node_archlength + phase + temporal_wavelength *
+          // time); const double pitch = 0.0; const double yaw = 0.0; node_rest_curvature = 2.0 *
+          // mundy::math::euler_to_quat(roll, pitch, yaw).vector();
 
           // clang-format off
+
+          // TODO(palmerb4): The following is not y(x) where x is the z-coordinate. The following is y(x) where x is the 
+          // archlength.
+
           // The curvature of a graph of y = y(x) is kappa(x) = y''(x) / (1 + y'(x)^2)^(3/2).
           // For us
-          //  y(x) = amplitude * std::sin(spacial_frequency * node_archlength + temporal_frequency * time + phase);
-          //  y'(x) = amplitude * spacial_frequency
-          //        * std::cos(spacial_frequency * node_archlength + temporal_frequency * time + phase);
-          //  y''(x) = - amplitude * spacial_frequency^2
-          //         * std::sin(spacial_frequency * node_archlength + temporal_frequency * time + phase);
+          //  y(x) = amplitude * std::sin(spatial_wavelength * node_archlength + temporal_wavelength * time + phase);
+          //  y'(x) = amplitude * spatial_wavelength
+          //        * std::cos(spatial_wavelength * node_archlength + temporal_wavelength * time + phase);
+          //  y''(x) = - amplitude * spatial_wavelength^2
+          //         * std::sin(spatial_wavelength * node_archlength + temporal_wavelength * time + phase);
           // clang-format on
           const double y_prime =
-              amplitude * spacial_frequency *
-              std::cos(spacial_frequency * node_archlength + 2.0 * M_PI * temporal_frequency * time + phase);
+              amplitude * spatial_wavelength *
+              std::cos(spatial_wavelength * node_archlength + temporal_wavelength * time + phase);
           const double y_double_prime =
-              -amplitude * spacial_frequency * spacial_frequency *
-              std::sin(spacial_frequency * node_archlength + 2.0 * M_PI * temporal_frequency * time + phase);
-          node_rest_curvature[0] = y_double_prime / (std::pow(1.0 + y_prime * y_prime, 1.5));
+              -amplitude * spatial_wavelength * spatial_wavelength *
+              std::sin(spatial_wavelength * node_archlength + temporal_wavelength * time + phase);
+          // node_rest_curvature[0] = y_double_prime / (std::pow(1.0 + y_prime * y_prime, 1.5));
+
+          // It's easier to compute the curvature using Euler angles
+          const double roll = y_double_prime / (std::pow(1.0 + y_prime * y_prime, 1.5));
+          const double pitch = 0.0;
+          const double yaw = 0.0;
+          node_rest_curvature = 2.0 * mundy::math::euler_to_quat(roll, pitch, yaw).vector();
         });
   }
 
@@ -1181,7 +1241,7 @@ class SpermSimulation {
             // Two things to check:
             //  1. Is the quaternion produced by the parallel transport normalized?
             //  2. Does the application of this quaternion to the old edge tangent produce the new edge tangent?
-
+            //
             // std::cout << "rot_via_parallel_transport: " << rot_via_parallel_transport
             //           << " has norm: " << mundy::math::norm(rot_via_parallel_transport) << std::endl;
             // std::cout << "rot_via_twist: " << rot_via_twist << " has norm: " << mundy::math::norm(rot_via_twist)
@@ -1793,7 +1853,7 @@ class SpermSimulation {
       size_t count = 0;
       double kinetic_energy = std::numeric_limits<double>::max();
       while (count < 1000000) {
-      // while (kinetic_energy > 1e-3) {
+        // while (kinetic_energy > 1e-3) {
         count += 1;
         if (count % 1000 == 0) {
           std::cout << "Young's modulus: " << sperm_youngs_modulus_ << " |  Count: " << count
@@ -1856,7 +1916,7 @@ class SpermSimulation {
     setup_io();
 
     // Equilibriate the system
-    equilibriate();
+    // equilibriate();
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
@@ -2029,7 +2089,6 @@ class SpermSimulation {
   //@{
   std::string input_file_name_ = "input.yaml";
 
-  // Scales
   size_t num_sperm_ = 1;
   size_t num_nodes_per_sperm_ = 3001;
   double sperm_radius_ = 0.5;
@@ -2040,12 +2099,16 @@ class SpermSimulation {
   double sperm_rest_curvature_bend2_ = 0.0;
 
   double sperm_youngs_modulus_ = 7692307.692;
-  double sperm_relaxed_youngs_modulus_ = sperm_youngs_modulus_ / 2.0;
+  double sperm_relaxed_youngs_modulus_ = sperm_youngs_modulus_;
   double sperm_normal_youngs_modulus_ = sperm_youngs_modulus_;
   double sperm_poissons_ratio_ = 0.3;
   double sperm_density_ = 0.000007956;
   // double sperm_density_ = 1.0;
 
+  double amplitude_ = 8.33333333333333;
+  // double amplitude_ = 30.0 * M_PI / 180.0;
+  double spatial_wavelength_ = 50;
+  double temporal_wavelength_ = 1;  // Units: seconds per oscillations
   double viscosity_ = 1;
 
   double timestep_size_ = 1e-7;

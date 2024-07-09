@@ -238,8 +238,11 @@ class IOBroker {
   /// \brief Read the RESTART file
   void restart_mesh();
 
-  /// \brief Synchronize node coordinates from TRANSIENT node coordinates
+  /// \brief Update node coordinates from the TRANSIENT node coordinates
   void synchronize_node_coordinates_from_transient();
+
+  /// \brief Copy node coordinates to TRANSIENT node coordinates
+  void synchronize_node_coordinates_to_transient();
 
   /// \brief Write to disk
   void write_io_broker(double time);

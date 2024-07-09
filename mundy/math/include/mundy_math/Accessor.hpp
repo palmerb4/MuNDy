@@ -34,8 +34,8 @@ namespace math {
 // To achieve this, Vectors, Matrices, and Quaternions will be templated by an Accessor class. In each case, an Accessor
 // needs to be copyable and provide a const [] operator. If the Accessor is able to be modified, it should also provide
 // a non-const [] operator. The signatures of these operators are as follows:
-//   KOKKOS_FUNCTION const T& operator[](unsigned idx) const;
-//   KOKKOS_FUNCTION T& operator[](unsigned idx); // Optional
+//   KOKKOS_INLINE_FUNCTION const T& operator[](unsigned idx) const;
+//   KOKKOS_INLINE_FUNCTION T& operator[](unsigned idx); // Optional
 // For Vector3, idx is 0, 1, or 2.
 // For Matrix3, it is 0, 1, 2, 3, 4, 5, 6, 7, or 8.
 // For Quaternion, it is 0, 1, 2, or 3.

@@ -106,14 +106,14 @@ class Matrix3 {
 
   /// \brief Default constructor. Assume elements are uninitialized.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_FUNCTION Matrix3()
+  KOKKOS_INLINE_FUNCTION Matrix3()
     requires HasDefaultConstructor<Accessor>
       : data_() {
   }
 
   /// \brief Constructor from a given accessor
   /// \param[in] data The accessor.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Matrix3(const Accessor& data) : data_(data) {
   }
 
@@ -128,14 +128,14 @@ class Matrix3 {
   /// \param[in] a32 The element at row 3, column 2.
   /// \param[in] a33 The element at row 3, column 3.
   /// \note This constructor is only enabled if the Accessor has a 9-argument constructor.
-  KOKKOS_FUNCTION Matrix3(const T& a11, const T& a12, const T& a13, const T& a21, const T& a22, const T& a23,
+  KOKKOS_INLINE_FUNCTION Matrix3(const T& a11, const T& a12, const T& a13, const T& a21, const T& a22, const T& a23,
                           const T& a31, const T& a32, const T& a33)
     requires Has9ArgConstructor<Accessor, T>
       : data_(a11, a12, a13, a21, a22, a23, a31, a32, a33) {
   }
 
   /// \brief Constructor to initialize all elements via initializer list
-  KOKKOS_FUNCTION Matrix3(const std::initializer_list<T>& list)
+  KOKKOS_INLINE_FUNCTION Matrix3(const std::initializer_list<T>& list)
     requires HasInitializerListConstructor<Accessor, T>
       : data_{list.begin()[0], list.begin()[1], list.begin()[2], list.begin()[3], list.begin()[4],
               list.begin()[5], list.begin()[6], list.begin()[7], list.begin()[8]} {
@@ -143,22 +143,22 @@ class Matrix3 {
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   ~Matrix3() {
   }
 
   /// \brief Deep copy constructor
-  KOKKOS_FUNCTION Matrix3(const Matrix3<T, Accessor>& other) : data_(other.data()) {
+  KOKKOS_INLINE_FUNCTION Matrix3(const Matrix3<T, Accessor>& other) : data_(other.data()) {
   }
 
   /// \brief Deep move constructor
-  KOKKOS_FUNCTION Matrix3(Matrix3<T, Accessor>&& other) : data_(std::move(other.data())) {
+  KOKKOS_INLINE_FUNCTION Matrix3(Matrix3<T, Accessor>&& other) : data_(std::move(other.data())) {
   }
 
   /// \brief Deep copy assignment operator with different accessor
   /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
   template <typename OtherAccessor>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator=(const Matrix3<T, OtherAccessor>& other)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator=(const Matrix3<T, OtherAccessor>& other)
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -176,7 +176,7 @@ class Matrix3 {
   /// \brief Deep copy assignment operator with same accessor
   /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
   /// This operator exists to avoid issues with template deduction.
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator=(const Matrix3<T, Accessor>& other)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator=(const Matrix3<T, Accessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -193,7 +193,7 @@ class Matrix3 {
 
   /// \brief Deep copy assignment operator from a single value
   /// \param[in] value The value to set all elements to.
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator=(const T value)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator=(const T value)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = value;
@@ -211,7 +211,7 @@ class Matrix3 {
   /// \brief Move assignment operator with different accessor
   /// \details Moves the data from the other vector to our data. This is only enabled if T is not const.
   template <typename OtherAccessor>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator=(Matrix3<T, OtherAccessor>&& other)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator=(Matrix3<T, OtherAccessor>&& other)
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -229,7 +229,7 @@ class Matrix3 {
   /// \brief Move assignment operator with same accessor
   /// \details Moves the data from the other vector to our data. This is only enabled if T is not const.
   /// This operator exists to avoid issues with template deduction.
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator=(Matrix3<T, Accessor>&& other)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator=(Matrix3<T, Accessor>&& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -250,28 +250,28 @@ class Matrix3 {
 
   /// \brief Element access operator via flat index
   /// \param[in] row The row index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& operator[](int index) {
     return data_[index];
   }
 
   /// \brief Const element access operator via flat index
   /// \param[in] row The row index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& operator[](int index) const {
     return data_[index];
   }
 
   /// \brief Element access operator via flat index
   /// \param[in] index The flat index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& operator()(int index) {
     return data_[index];
   }
 
   /// \brief Const element access operator via flat index
   /// \param[in] index The flat index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& operator()(int index) const {
     return data_[index];
   }
@@ -280,7 +280,7 @@ class Matrix3 {
   /// \note This operator is preferred over using m[row][col]
   /// \param[in] row The row index.
   /// \param[in] col The column index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& operator()(int row, int col) {
     return data_[row * 3 + col];
   }
@@ -289,33 +289,33 @@ class Matrix3 {
   /// \note This operator is preferred over using m[row][col]
   /// \param[in] row The row index.
   /// \param[in] col The column index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& operator()(int row, int col) const {
     return data_[row * 3 + col];
   }
 
   /// \brief Get the internal data accessor
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Accessor& data() {
     return data_;
   }
 
   /// \brief Get the internal data accessor
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const Accessor& data() const {
     return data_;
   }
 
   /// \brief Get a copy of a certain row of the matrix
   /// \param[in] row The row index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Vector3<non_const_value_type> get_row(int row) const {
     return Vector3<non_const_value_type>(data_[row * 3], data_[row * 3 + 1], data_[row * 3 + 2]);
   }
 
   /// \brief Get a copy of a certain column of the matrix
   /// \param[in] col The column index.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Vector3<non_const_value_type> get_column(int col) const {
     return Vector3<non_const_value_type>(data_[col], data_[col + 3], data_[col + 6]);
   }
@@ -334,7 +334,7 @@ class Matrix3 {
   /// \param[in] a31 The element at row 3, column 1.
   /// \param[in] a32 The element at row 3, column 2.
   /// \param[in] a33 The element at row 3, column 3.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   void set(const T& a11, const T& a12, const T& a13, const T& a21, const T& a22, const T& a23, const T& a31,
            const T& a32, const T& a33)
     requires HasNonConstAccessOperator<Accessor, T>
@@ -353,8 +353,8 @@ class Matrix3 {
   /// \brief Set all elements of the matrix using an accessor
   /// \param[in] accessor A valid accessor.
   /// \note A Matrix3 is also a valid accessor.
-  KOKKOS_FUNCTION
   template <ValidAccessor<T> OtherAccessor>
+  KOKKOS_INLINE_FUNCTION
   void set(const OtherAccessor& accessor)
     requires HasNonConstAccessOperator<Accessor, T>
   {
@@ -374,7 +374,7 @@ class Matrix3 {
   /// \param[in] ai1 The element at row i, column 1.
   /// \param[in] ai2 The element at row i, column 2.
   /// \param[in] ai3 The element at row i, column 3.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   void set_row(const int& i, const T& ai1, const T& ai2, const T& ai3)
     requires HasNonConstAccessOperator<Accessor, T>
   {
@@ -387,7 +387,7 @@ class Matrix3 {
   /// \param[in] i The row index.
   /// \param[in] row The row vector.
   template <typename OtherAccessor>
-  KOKKOS_FUNCTION void set_row(const int& i, const Vector3<T, OtherAccessor>& row)
+  KOKKOS_INLINE_FUNCTION void set_row(const int& i, const Vector3<T, OtherAccessor>& row)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[i * 3] = row[0];
@@ -400,7 +400,7 @@ class Matrix3 {
   /// \param[in] a1j The element at row 1, column j.
   /// \param[in] a2j The element at row 2, column j.
   /// \param[in] a3j The element at row 3, column j.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   void set_column(const int& j, const T& a1j, const T& a2j, const T& a3j)
     requires HasNonConstAccessOperator<Accessor, T>
   {
@@ -413,7 +413,7 @@ class Matrix3 {
   /// \param[in] j The column index.
   /// \param[in] col The column vector.
   template <typename OtherAccessor>
-  KOKKOS_FUNCTION void set_column(const int& j, const Vector3<T, OtherAccessor>& col)
+  KOKKOS_INLINE_FUNCTION void set_column(const int& j, const Vector3<T, OtherAccessor>& col)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[j] = col[0];
@@ -423,7 +423,7 @@ class Matrix3 {
 
   /// \brief Fill all elements of the matrix with a single value
   /// \param[in] value The value to set all elements to.
-  KOKKOS_FUNCTION void fill(const T& value)
+  KOKKOS_INLINE_FUNCTION void fill(const T& value)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = value;
@@ -442,13 +442,13 @@ class Matrix3 {
   //@{
 
   /// \brief Unary plus operator
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Matrix3<T> operator+() const {
     return *this;
   }
 
   /// \brief Unary minus operator
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Matrix3<T> operator-() const {
     Matrix3<T> result;
     result(0) = -data_[0];
@@ -470,7 +470,7 @@ class Matrix3 {
   /// \brief Matrix-matrix addition
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator+(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator+(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(other(0));
@@ -488,7 +488,7 @@ class Matrix3 {
   /// \brief Matrix-matrix addition
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator+=(const Matrix3<U, OtherAccessor>& other)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator+=(const Matrix3<U, OtherAccessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] += static_cast<T>(other(0));
@@ -506,7 +506,7 @@ class Matrix3 {
   /// \brief Matrix-matrix subtraction
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator-(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator-(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(other(0));
@@ -524,7 +524,7 @@ class Matrix3 {
   /// \brief Matrix-matrix subtraction
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator-=(const Matrix3<U, OtherAccessor>& other)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator-=(const Matrix3<U, OtherAccessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] -= static_cast<T>(other(0));
@@ -542,7 +542,7 @@ class Matrix3 {
   /// \brief Matrix-scalar addition
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator+(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(scalar);
@@ -560,7 +560,7 @@ class Matrix3 {
   /// \brief Matrix-scalar addition
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator+=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator+=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] += static_cast<T>(scalar);
@@ -578,7 +578,7 @@ class Matrix3 {
   /// \brief Matrix-scalar subtraction
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator-(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(scalar);
@@ -596,7 +596,7 @@ class Matrix3 {
   /// \brief Matrix-scalar subtraction
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator-=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator-=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] -= static_cast<T>(scalar);
@@ -618,7 +618,7 @@ class Matrix3 {
   /// \brief Matrix-matrix multiplication
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator*(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0, 0) = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other(0, 0)) +
@@ -654,7 +654,7 @@ class Matrix3 {
   /// \brief Matrix-matrix multiplication
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator*=(const Matrix3<U, OtherAccessor>& other)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator*=(const Matrix3<U, OtherAccessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     std::remove_const_t<T> temp[9];
@@ -693,7 +693,7 @@ class Matrix3 {
   /// \brief Matrix-vector multiplication
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other[0]) +
@@ -711,7 +711,7 @@ class Matrix3 {
   /// \brief Matrix-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator*(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(scalar);
@@ -729,7 +729,7 @@ class Matrix3 {
   /// \brief Matrix-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator*=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator*=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] *= static_cast<T>(scalar);
@@ -747,7 +747,7 @@ class Matrix3 {
   /// \brief Matrix-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator/(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator/(const U& scalar) const -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) / static_cast<CommonType>(scalar);
@@ -765,7 +765,7 @@ class Matrix3 {
   /// \brief Matrix-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Matrix3<T, Accessor>& operator/=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor>& operator/=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] /= static_cast<T>(scalar);
@@ -785,17 +785,17 @@ class Matrix3 {
   //@{
 
   /// \brief Get the identity matrix
-  KOKKOS_FUNCTION static Matrix3<T> identity() {
+  KOKKOS_INLINE_FUNCTION static Matrix3<T> identity() {
     return Matrix3<T>(T(1), T(0), T(0), T(0), T(1), T(0), T(0), T(0), T(1));
   }
 
   /// \brief Get the ones matrix
-  KOKKOS_FUNCTION static Matrix3<T> ones() {
+  KOKKOS_INLINE_FUNCTION static Matrix3<T> ones() {
     return Matrix3<T>(T(1), T(1), T(1), T(1), T(1), T(1), T(1), T(1), T(1));
   }
 
   /// \brief Get the zero matrix
-  KOKKOS_FUNCTION static Matrix3<T> zeros() {
+  KOKKOS_INLINE_FUNCTION static Matrix3<T> zeros() {
     return Matrix3<T>(T(0), T(0), T(0), T(0), T(0), T(0), T(0), T(0), T(0));
   }
   //@}
@@ -823,7 +823,7 @@ class Matrix3 {
 /// \param[in] os The output stream.
 /// \param[in] quat The quaternion.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix3<T, Accessor>& mat) {
   os << "(" << mat(0, 0) << ", " << mat(0, 1) << ", " << mat(0, 2) << ")" << std::endl;
   os << "(" << mat(1, 0) << ", " << mat(1, 1) << ", " << mat(1, 2) << ")" << std::endl;
   os << "(" << mat(2, 0) << ", " << mat(2, 1) << ", " << mat(2, 2) << ")" << std::endl;
@@ -839,7 +839,7 @@ KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix3<T, Acce
 /// \param[in] mat2 The second matrix.
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
+KOKKOS_INLINE_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
                               const std::common_type_t<T, U>& tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
   using CommonType = std::common_type_t<T, U>;
   if constexpr (std::is_floating_point_v<CommonType>) {
@@ -866,7 +866,7 @@ KOKKOS_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matri
 /// \param[in] mat2 The second matrix.
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION bool is_approx_close(
+KOKKOS_INLINE_FUNCTION bool is_approx_close(
     const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
     const std::common_type_t<T, U>& tol = get_relaxed_zero_tolerance<std::common_type_t<T, U>>()) {
   return is_close(mat1, mat2, tol);
@@ -880,7 +880,7 @@ KOKKOS_FUNCTION bool is_approx_close(
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return mat + scalar;
 }
 
@@ -888,7 +888,7 @@ KOKKOS_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor>& mat)
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return -mat + scalar;
 }
 //@}
@@ -900,7 +900,7 @@ KOKKOS_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor>& mat)
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return mat * scalar;
 }
 
@@ -908,7 +908,7 @@ KOKKOS_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor>& mat)
 /// \param[in] vec The vector.
 /// \param[in] mat The matrix.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& vec, const Matrix3<T, Accessor>& mat)
+KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& vec, const Matrix3<T, Accessor>& mat)
     -> Vector3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Vector3<CommonType> result;
@@ -931,7 +931,7 @@ KOKKOS_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& vec, const Matri
 /// \brief Matrix determinant
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto determinant(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto determinant(const Matrix3<T, Accessor>& mat) {
   return mat(0, 0) * (mat(1, 1) * mat(2, 2) - mat(1, 2) * mat(2, 1)) -
          mat(0, 1) * (mat(1, 0) * mat(2, 2) - mat(1, 2) * mat(2, 0)) +
          mat(0, 2) * (mat(1, 0) * mat(2, 1) - mat(1, 1) * mat(2, 0));
@@ -940,28 +940,28 @@ KOKKOS_FUNCTION auto determinant(const Matrix3<T, Accessor>& mat) {
 /// \brief Matrix trace
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto trace(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto trace(const Matrix3<T, Accessor>& mat) {
   return mat(0, 0) + mat(1, 1) + mat(2, 2);
 }
 
 /// \brief Sum of all elements
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto sum(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto sum(const Matrix3<T, Accessor>& mat) {
   return mat(0, 0) + mat(0, 1) + mat(0, 2) + mat(1, 0) + mat(1, 1) + mat(1, 2) + mat(2, 0) + mat(2, 1) + mat(2, 2);
 }
 
 /// \brief Product of all elements
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto product(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto product(const Matrix3<T, Accessor>& mat) {
   return mat(0, 0) * mat(0, 1) * mat(0, 2) * mat(1, 0) * mat(1, 1) * mat(1, 2) * mat(2, 0) * mat(2, 1) * mat(2, 2);
 }
 
 /// \brief Minimum element of the matrix
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto min(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto min(const Matrix3<T, Accessor>& mat) {
   // min of row 1 using ternary operator
   const T min_row1 = (mat(0, 0) < mat(0, 1)) ? ((mat(0, 0) < mat(0, 2)) ? mat(0, 0) : mat(0, 2))
                                              : ((mat(0, 1) < mat(0, 2)) ? mat(0, 1) : mat(0, 2));
@@ -978,7 +978,7 @@ KOKKOS_FUNCTION auto min(const Matrix3<T, Accessor>& mat) {
 /// \brief Maximum element of the matrix
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto max(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto max(const Matrix3<T, Accessor>& mat) {
   // max of row 1 using ternary operator
   const T max_row1 = (mat(0, 0) > mat(0, 1)) ? ((mat(0, 0) > mat(0, 2)) ? mat(0, 0) : mat(0, 2))
                                              : ((mat(0, 1) > mat(0, 2)) ? mat(0, 1) : mat(0, 2));
@@ -995,7 +995,7 @@ KOKKOS_FUNCTION auto max(const Matrix3<T, Accessor>& mat) {
 /// \brief Mean of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType mean(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION OutputType mean(const Matrix3<T, Accessor>& mat) {
   auto sum = mundy::math::sum(mat);
   return static_cast<OutputType>(sum) / OutputType(9);
 }
@@ -1003,14 +1003,14 @@ KOKKOS_FUNCTION OutputType mean(const Matrix3<T, Accessor>& mat) {
 /// \brief Mean of all elements (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType mean_f(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION OutputType mean_f(const Matrix3<T, Accessor>& mat) {
   return mean<T, Accessor, OutputType>(mat);
 }
 
 /// \brief Variance of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType variance(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION OutputType variance(const Matrix3<T, Accessor>& mat) {
   auto mat_mean = mean<T, Accessor, OutputType>(mat);
   return ((static_cast<OutputType>(mat(0)) - static_cast<OutputType>(mat_mean)) *
               (static_cast<OutputType>(mat(0)) - static_cast<OutputType>(mat_mean)) +
@@ -1036,21 +1036,21 @@ KOKKOS_FUNCTION OutputType variance(const Matrix3<T, Accessor>& mat) {
 /// \brief Variance of all elements (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType variance_f(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION OutputType variance_f(const Matrix3<T, Accessor>& mat) {
   return variance<T, Accessor, OutputType>(mat);
 }
 
 /// \brief Standard deviation of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType stddev(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION OutputType stddev(const Matrix3<T, Accessor>& mat) {
   return std::sqrt(variance<T, Accessor, OutputType>(mat));
 }
 
 /// \brief Standard deviation of all elements (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType stddev_f(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION OutputType stddev_f(const Matrix3<T, Accessor>& mat) {
   return stddev<T, Accessor, OutputType>(mat);
 }
 //@}
@@ -1061,7 +1061,7 @@ KOKKOS_FUNCTION OutputType stddev_f(const Matrix3<T, Accessor>& mat) {
 /// \brief Matrix transpose
 /// \param[in] mat The matrix.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION Matrix3<std::remove_const_t<T>> transpose(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION Matrix3<std::remove_const_t<T>> transpose(const Matrix3<T, Accessor>& mat) {
   Matrix3<std::remove_const_t<T>> result;
   result(0, 0) = mat(0, 0);
   result(0, 1) = mat(1, 0);
@@ -1082,7 +1082,7 @@ KOKKOS_FUNCTION Matrix3<std::remove_const_t<T>> transpose(const Matrix3<T, Acces
 /// double) and double otherwise.
 template <typename T, typename Accessor,
           typename OutputElementType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION Matrix3<OutputElementType> inverse(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION Matrix3<OutputElementType> inverse(const Matrix3<T, Accessor>& mat) {
   const auto det = determinant(mat);
   MUNDY_THROW_ASSERT(det != T(0), std::runtime_error, "Matrix3<T>: matrix is singular.");
 
@@ -1115,7 +1115,7 @@ KOKKOS_FUNCTION Matrix3<OutputElementType> inverse(const Matrix3<T, Accessor>& m
 /// double) and float otherwise.
 template <typename T, typename Accessor,
           typename OutputElementType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION auto inverse_f(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto inverse_f(const Matrix3<T, Accessor>& mat) {
   return inverse<T, Accessor, OutputElementType>(mat);
 }
 
@@ -1123,7 +1123,7 @@ KOKKOS_FUNCTION auto inverse_f(const Matrix3<T, Accessor>& mat) {
 /// \param[in] a The left matrix.
 /// \param[in] b The right matrix.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION auto frobenius_inner_product(const Matrix3<U, OtherAccessor>& a, const Matrix3<T, Accessor>& b) {
+KOKKOS_INLINE_FUNCTION auto frobenius_inner_product(const Matrix3<U, OtherAccessor>& a, const Matrix3<T, Accessor>& b) {
   using CommonType = std::common_type_t<T, U>;
   return static_cast<CommonType>(a(0, 0)) * static_cast<CommonType>(b(0, 0)) +
          static_cast<CommonType>(a(0, 1)) * static_cast<CommonType>(b(0, 1)) +
@@ -1144,7 +1144,7 @@ KOKKOS_FUNCTION auto frobenius_inner_product(const Matrix3<U, OtherAccessor>& a,
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION auto outer_product(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
+KOKKOS_INLINE_FUNCTION auto outer_product(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
     -> Matrix3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Matrix3<CommonType> result;
@@ -1166,13 +1166,13 @@ KOKKOS_FUNCTION auto outer_product(const Vector3<U, OtherAccessor>& a, const Vec
 
 /// \brief Matrix Frobenius norm
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto frobenius_norm(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto frobenius_norm(const Matrix3<T, Accessor>& mat) {
   return std::sqrt(frobenius_inner_product(mat, mat));
 }
 
 /// \brief Matrix infinity norm
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto infinity_norm(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto infinity_norm(const Matrix3<T, Accessor>& mat) {
   // Max absolute row sum
   const T row0_sum = std::abs(mat(0)) + std::abs(mat(1)) + std::abs(mat(2));
   const T row1_sum = std::abs(mat(3)) + std::abs(mat(4)) + std::abs(mat(5));
@@ -1184,7 +1184,7 @@ KOKKOS_FUNCTION auto infinity_norm(const Matrix3<T, Accessor>& mat) {
 
 /// \brief Matrix 1-norm
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto one_norm(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto one_norm(const Matrix3<T, Accessor>& mat) {
   // Max absolute column sum
   const T col0_sum = std::abs(mat(0)) + std::abs(mat(3)) + std::abs(mat(6));
   const T col1_sum = std::abs(mat(1)) + std::abs(mat(4)) + std::abs(mat(7));
@@ -1196,7 +1196,7 @@ KOKKOS_FUNCTION auto one_norm(const Matrix3<T, Accessor>& mat) {
 
 /// \brief Matrix 2-norm
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto two_norm(const Matrix3<T, Accessor>& mat) {
+KOKKOS_INLINE_FUNCTION auto two_norm(const Matrix3<T, Accessor>& mat) {
   return std::sqrt(frobenius_inner_product(mat, mat));
 }
 //@}
@@ -1218,7 +1218,7 @@ KOKKOS_FUNCTION auto two_norm(const Matrix3<T, Accessor>& mat) {
 ///   auto mat = get_matrix3_view<T>(data);
 /// \endcode
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION Matrix3<T, Accessor> get_matrix3_view(const Accessor& data) {
+KOKKOS_INLINE_FUNCTION Matrix3<T, Accessor> get_matrix3_view(const Accessor& data) {
   return Matrix3<T, Accessor>(data);
 }
 //@}

@@ -176,7 +176,8 @@ void IOBroker::restart_mesh() {
   stk_io_broker.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
 
   // Create the input mesh
-  size_t input_index = stk_io_broker.add_mesh_database(exodus_database_input_filename_, "exodus", stk::io::READ_RESTART);
+  size_t input_index =
+      stk_io_broker.add_mesh_database(exodus_database_input_filename_, "exodus", stk::io::READ_RESTART);
   // Set the mesh to active, and activate it
   stk_io_broker.set_active_mesh(input_index);
   stk_io_broker.create_input_mesh();
@@ -219,25 +220,23 @@ void IOBroker::setup_io_broker() {
 }
 
 void IOBroker::synchronize_node_coordinates_from_transient() {
-  // Get the locally owned part
-  stk::mesh::Selector locally_owned = meta_data_ptr_->locally_owned_part();
-  // Alias the coordinate fields
-  auto &coordinate_field = *coordinate_field_ptr_;
-  auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
-  // Check if we have the field pointers
   MUNDY_THROW_ASSERT(
       coordinate_field_ptr_ != nullptr, std::invalid_argument,
       "IOBroker::synchronize_node_coordinates_from_transient coordinate_field_ptr_ cannot be a nullptr.");
   MUNDY_THROW_ASSERT(
       transient_coordinate_field_ptr_ != nullptr, std::invalid_argument,
       "IOBroker::synchronize_node_coordinates_from_transient transient_coordinate_field_ptr_ cannot be a nullptr.");
-  // This is how we loop over entities and assign them to each other
+
+  // Use local references rather than passing around *this.
+  auto &coordinate_field = *coordinate_field_ptr_;
+  auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
+
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned,
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {
         double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
-        double *transient_coordinates =
+        const double *transient_coordinates =
             reinterpret_cast<double *>(stk::mesh::field_data(transient_coordinate_field, entity));
         coordinates[0] = transient_coordinates[0];
         coordinates[1] = transient_coordinates[1];
@@ -245,24 +244,34 @@ void IOBroker::synchronize_node_coordinates_from_transient() {
       });
 }
 
-void IOBroker::write_io_broker(double time) {
-  // Before we write, synchronize the TRANSIENT coordinate field
-  stk::mesh::Selector locally_owned = meta_data_ptr_->locally_owned_part();
-  // Alias the coordinate fields
+void IOBroker::synchronize_node_coordinates_to_transient() {
+  MUNDY_THROW_ASSERT(
+      coordinate_field_ptr_ != nullptr, std::invalid_argument,
+      "IOBroker::synchronize_node_coordinates_from_transient coordinate_field_ptr_ cannot be a nullptr.");
+  MUNDY_THROW_ASSERT(
+      transient_coordinate_field_ptr_ != nullptr, std::invalid_argument,
+      "IOBroker::synchronize_node_coordinates_from_transient transient_coordinate_field_ptr_ cannot be a nullptr.");
+
+  // Use local references rather than passing around *this.
   auto &coordinate_field = *coordinate_field_ptr_;
   auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
-  // This is how we loop over entities and assign them to each other
+
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned,
+      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {
-        double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
+        const double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
         double *transient_coordinates =
             reinterpret_cast<double *>(stk::mesh::field_data(transient_coordinate_field, entity));
         transient_coordinates[0] = coordinates[0];
         transient_coordinates[1] = coordinates[1];
         transient_coordinates[2] = coordinates[2];
       });
+}
+
+void IOBroker::write_io_broker(double time) {
+  // Before we write, synchronize the TRANSIENT coordinate field
+  synchronize_node_coordinates_to_transient();
 
   // Save the IO
   stk_io_broker_.begin_output_step(io_index_, time);
@@ -290,20 +299,7 @@ void IOBroker::write_io_broker_timestep(int timestep, double time) {
   stk_io_broker.write_output_mesh(singlestep_io_index);
 
   // Before we write, synchronize the TRANSIENT coordinate field
-  stk::mesh::Selector locally_owned = meta_data_ptr_->locally_owned_part();
-  auto &coordinate_field = *coordinate_field_ptr_;
-  auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
-    stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned,
-      [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                       const stk::mesh::Entity &entity) {
-        double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
-        double *transient_coordinates =
-            reinterpret_cast<double *>(stk::mesh::field_data(transient_coordinate_field, entity));
-        transient_coordinates[0] = coordinates[0];
-        transient_coordinates[1] = coordinates[1];
-        transient_coordinates[2] = coordinates[2];
-      });
+  synchronize_node_coordinates_to_transient();
 
   // Save the IO
   stk_io_broker.begin_output_step(singlestep_io_index, time);

@@ -104,14 +104,14 @@ class Vector3 {
 
   /// \brief Default constructor. Assume elements are uninitialized.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_FUNCTION Vector3()
+  KOKKOS_INLINE_FUNCTION Vector3()
     requires HasDefaultConstructor<Accessor>
       : data_() {
   }
 
   /// \brief Constructor from a given accessor
   /// \param[in] data The accessor.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Vector3(const Accessor& data) : data_(data) {
   }
 
@@ -120,36 +120,36 @@ class Vector3 {
   /// \param[in] y The y element.
   /// \param[in] z The z element.
   /// \note This constructor is only enabled if the Accessor has a 3-argument constructor.
-  KOKKOS_FUNCTION Vector3(const T& x, const T& y, const T& z)
+  KOKKOS_INLINE_FUNCTION Vector3(const T& x, const T& y, const T& z)
     requires Has3ArgConstructor<Accessor, T>
       : data_(x, y, z) {
   }
 
   /// \brief Constructor to initialize all elements via initializer list
   /// \param[in] list The initializer list.
-  KOKKOS_FUNCTION Vector3(const std::initializer_list<T>& list)
+  KOKKOS_INLINE_FUNCTION Vector3(const std::initializer_list<T>& list)
     requires HasInitializerListConstructor<Accessor, T>
       : data_{list.begin()[0], list.begin()[1], list.begin()[2]} {
     MUNDY_THROW_ASSERT(list.size() == 3, std::invalid_argument, "Vector3: Initializer list must have 3 elements.");
   }
 
   /// \brief Destructor
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   ~Vector3() {
   }
 
   /// \brief Deep copy constructor
-  KOKKOS_FUNCTION Vector3(const Vector3<T, Accessor>& other) : data_(other.data()) {
+  KOKKOS_INLINE_FUNCTION Vector3(const Vector3<T, Accessor>& other) : data_(other.data()) {
   }
 
   /// \brief Deep move constructor
-  KOKKOS_FUNCTION Vector3(Vector3<T, Accessor>&& other) : data_(std::move(other.data())) {
+  KOKKOS_INLINE_FUNCTION Vector3(Vector3<T, Accessor>&& other) : data_(std::move(other.data())) {
   }
 
   /// \brief Deep copy assignment operator with different accessor
   /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
   template <typename OtherAccessor>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator=(const Vector3<T, OtherAccessor>& other)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator=(const Vector3<T, OtherAccessor>& other)
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -160,7 +160,7 @@ class Vector3 {
 
   /// \brief Deep copy assignment operator with same accessor
   /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator=(const Vector3<T, Accessor>& other)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator=(const Vector3<T, Accessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -171,7 +171,7 @@ class Vector3 {
 
   /// \brief Deep copy assignment operator from a single value
   /// \param[in] value The value to set all elements to.
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator=(const T value)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator=(const T value)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = value;
@@ -183,7 +183,7 @@ class Vector3 {
   /// \brief Move assignment operator with different accessor
   /// \details Moves the data from the other vector to our data. This is only enabled if T is not const.
   template <typename OtherAccessor>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator=(Vector3<T, OtherAccessor>&& other)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator=(Vector3<T, OtherAccessor>&& other)
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -194,7 +194,7 @@ class Vector3 {
 
   /// \brief Move assignment operator with same accessor
   /// \details Moves the data from the other vector to our data. This is only enabled if T is not const.
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator=(Vector3<T, Accessor>&& other)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator=(Vector3<T, Accessor>&& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = other[0];
@@ -209,76 +209,76 @@ class Vector3 {
 
   /// \brief Element access operator via a single index
   /// \param[in] index The index of the element.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& operator[](unsigned index) {
     return data_[index];
   }
 
   /// \brief Const element access operator via a single index
   /// \param[in] index The index of the element.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& operator[](unsigned index) const {
     return data_[index];
   }
 
   /// \brief Element access operator via a single index
   /// \param[in] index The index of the element.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& operator()(unsigned index) {
     return data_[index];
   }
 
   /// \brief Const element access operator via a single index
   /// \param[in] index The index of the element.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& operator()(unsigned index) const {
     return data_[index];
   }
 
   /// \brief Get the internal data accessor
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Accessor data() {
     return data_;
   }
 
   /// \brief Get the internal data accessor
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const Accessor data() const {
     return data_;
   }
 
   /// \brief Get the x element
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& x() {
     return data_[0];
   }
 
   /// \brief Get the x element
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& x() const {
     return data_[0];
   }
 
   /// \brief Get the y element
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& y() {
     return data_[1];
   }
 
   /// \brief Get the y element
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& y() const {
     return data_[1];
   }
 
   /// \brief Get the z element
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   T& z() {
     return data_[2];
   }
 
   /// \brief Get the z element
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   const T& z() const {
     return data_[2];
   }
@@ -291,7 +291,7 @@ class Vector3 {
   /// \param[in] x The x element.
   /// \param[in] y The y element.
   /// \param[in] z The z element.
-  KOKKOS_FUNCTION void set(const T& x, const T& y, const T& z)
+  KOKKOS_INLINE_FUNCTION void set(const T& x, const T& y, const T& z)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = x;
@@ -302,8 +302,8 @@ class Vector3 {
   /// \brief Set all elements of the vector using an accessor
   /// \param[in] accessor A valid accessor.
   /// \note A Vector3 is also a valid accessor.
-  KOKKOS_FUNCTION
   template <ValidAccessor<T> OtherAccessor>
+  KOKKOS_INLINE_FUNCTION
   void set(const OtherAccessor& accessor)
     requires HasNonConstAccessOperator<Accessor, T>
   {
@@ -314,7 +314,7 @@ class Vector3 {
 
   /// \brief Set all elements of the vector to a single value
   /// \param[in] value The value to set all elements to.
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   void fill(const T& value)
     requires HasNonConstAccessOperator<Accessor, T>
   {
@@ -328,13 +328,13 @@ class Vector3 {
   //@{
 
   /// \brief Unary plus operator
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Vector3<T> operator+() const {
     return *this;
   }
 
   /// \brief Unary minus operator
-  KOKKOS_FUNCTION
+  KOKKOS_INLINE_FUNCTION
   Vector3<T> operator-() const {
     Vector3<T> result;
     result[0] = -data_[0];
@@ -350,7 +350,7 @@ class Vector3 {
   /// \brief Vector-vector addition
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator+(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator+(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(other[0]);
@@ -362,7 +362,7 @@ class Vector3 {
   /// \brief Vector-vector addition
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator+=(const Vector3<U, OtherAccessor>& other)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator+=(const Vector3<U, OtherAccessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] += static_cast<T>(other[0]);
@@ -374,7 +374,7 @@ class Vector3 {
   /// \brief Vector-vector subtraction
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION auto operator-(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator-(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(other[0]);
@@ -386,7 +386,7 @@ class Vector3 {
   /// \brief Vector-vector subtraction
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator-=(const Vector3<U, OtherAccessor>& other)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator-=(const Vector3<U, OtherAccessor>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] -= static_cast<T>(other[0]);
@@ -398,7 +398,7 @@ class Vector3 {
   /// \brief Vector-scalar addition
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator+(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(scalar);
@@ -410,7 +410,7 @@ class Vector3 {
   /// \brief Vector-scalar addition
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator+=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator+=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] += static_cast<T>(scalar);
@@ -422,7 +422,7 @@ class Vector3 {
   /// \brief Vector-scalar subtraction
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator-(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(scalar);
@@ -434,7 +434,7 @@ class Vector3 {
   /// \brief Vector-scalar subtraction
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator-=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator-=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] -= static_cast<T>(scalar);
@@ -450,7 +450,7 @@ class Vector3 {
   /// \brief Vector-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator*(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(scalar);
@@ -462,7 +462,7 @@ class Vector3 {
   /// \brief Vector-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator*=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator*=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] *= static_cast<T>(scalar);
@@ -474,7 +474,7 @@ class Vector3 {
   /// \brief Vector-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION auto operator/(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator/(const U& scalar) const -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) / static_cast<CommonType>(scalar);
@@ -486,7 +486,7 @@ class Vector3 {
   /// \brief Vector-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_FUNCTION Vector3<T, Accessor>& operator/=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Vector3<T, Accessor>& operator/=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] /= static_cast<T>(scalar);
@@ -500,12 +500,12 @@ class Vector3 {
   //@{
 
   /// \brief Get a vector of ones
-  KOKKOS_FUNCTION static Vector3<T> ones() {
+  KOKKOS_INLINE_FUNCTION static Vector3<T> ones() {
     return Vector3<T>(T(1), T(1), T(1));
   }
 
   /// \brief Get the zero vector
-  KOKKOS_FUNCTION static Vector3<T> zeros() {
+  KOKKOS_INLINE_FUNCTION static Vector3<T> zeros() {
     return Vector3<T>(T(0), T(0), T(0));
   }
   //@}
@@ -533,7 +533,7 @@ class Vector3 {
 /// \param[in] os The output stream.
 /// \param[in] quat The quaternion.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION std::ostream& operator<<(std::ostream& os, const Vector3<T, Accessor>& vec) {
   os << "(" << vec[0] << ", " << vec[1] << ", " << vec[2] << ")";
   return os;
 }
@@ -549,7 +549,7 @@ KOKKOS_FUNCTION std::ostream& operator<<(std::ostream& os, const Vector3<T, Acce
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename T>
   requires std::is_arithmetic_v<U> && std::is_arithmetic_v<T>
-KOKKOS_FUNCTION bool is_close(
+KOKKOS_INLINE_FUNCTION bool is_close(
     const U& scalar1, const T& scalar2,
     const decltype(get_comparison_tolerance<U, T>())& tol = get_comparison_tolerance<U, T>()) {
   // Our tolerance type is using the the smallest type of U and T
@@ -569,7 +569,7 @@ KOKKOS_FUNCTION bool is_close(
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename T>
   requires std::is_arithmetic_v<U> && std::is_arithmetic_v<T>
-KOKKOS_FUNCTION bool is_approx_close(
+KOKKOS_INLINE_FUNCTION bool is_approx_close(
     const U& scalar1, const T& scalar2,
     const decltype(get_relaxed_comparison_tolerance<T, U>())& tol = get_relaxed_comparison_tolerance<T, U>()) {
   return is_close(scalar1, scalar2, tol);
@@ -580,7 +580,7 @@ KOKKOS_FUNCTION bool is_approx_close(
 /// \param[in] vec2 The second vector.
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION bool is_close(
+KOKKOS_INLINE_FUNCTION bool is_close(
     const Vector3<U, OtherAccessor>& vec1, const Vector3<T, Accessor>& vec2,
     const decltype(get_comparison_tolerance<U, T>())& tol = get_comparison_tolerance<U, T>()) {
   // Our tolerance type is using the the smallest type of U and T
@@ -603,7 +603,7 @@ KOKKOS_FUNCTION bool is_close(
 /// \param[in] vec2 The second vector.
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION bool is_approx_close(
+KOKKOS_INLINE_FUNCTION bool is_approx_close(
     const Vector3<U, OtherAccessor>& vec1, const Vector3<T, Accessor>& vec2,
     const decltype(get_relaxed_comparison_tolerance<T, U>())& tol = get_relaxed_comparison_tolerance<T, U>()) {
   return is_close(vec1, vec2, tol);
@@ -617,7 +617,7 @@ KOKKOS_FUNCTION bool is_approx_close(
 /// \param[in] scalar The scalar.
 /// \param[in] vec The vector.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator+(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
   return vec + scalar;
 }
 
@@ -625,7 +625,7 @@ KOKKOS_FUNCTION auto operator+(const U& scalar, const Vector3<T, Accessor>& vec)
 /// \param[in] scalar The scalar.
 /// \param[in] vec The vector.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator-(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
   return -vec + scalar;
 }
 //@}
@@ -637,7 +637,7 @@ KOKKOS_FUNCTION auto operator-(const U& scalar, const Vector3<T, Accessor>& vec)
 /// \param[in] scalar The scalar.
 /// \param[in] vec The vector.
 template <typename U, typename T, typename Accessor>
-KOKKOS_FUNCTION auto operator*(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
   return vec * scalar;
 }
 //@}
@@ -647,44 +647,44 @@ KOKKOS_FUNCTION auto operator*(const U& scalar, const Vector3<T, Accessor>& vec)
 
 /// \brief Sum of all elements
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto sum(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto sum(const Vector3<T, Accessor>& vec) {
   return vec[0] + vec[1] + vec[2];
 }
 
 /// \brief Product of all elements
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto product(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto product(const Vector3<T, Accessor>& vec) {
   return vec[0] * vec[1] * vec[2];
 }
 
 /// \brief Minimum element
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto min(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto min(const Vector3<T, Accessor>& vec) {
   return vec[0] < vec[1] ? (vec[0] < vec[2] ? vec[0] : vec[2]) : (vec[1] < vec[2] ? vec[1] : vec[2]);
 }
 
 /// \brief Maximum element
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto max(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto max(const Vector3<T, Accessor>& vec) {
   return vec[0] > vec[1] ? (vec[0] > vec[2] ? vec[0] : vec[2]) : (vec[1] > vec[2] ? vec[1] : vec[2]);
 }
 
 /// \brief Mean of all elements (returns a double if T is an integral type, otherwise returns T)
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType mean(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType mean(const Vector3<T, Accessor>& vec) {
   auto vec_sum = sum(vec);
   return static_cast<OutputType>(vec_sum) / OutputType(3);
 }
 
 /// \brief Mean of all elements (returns a float if T is an integral type, otherwise returns T)
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType mean_f(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType mean_f(const Vector3<T, Accessor>& vec) {
   return mean<T, Accessor, OutputType>(vec);
 }
 
 /// \brief Variance of all elements (returns a double if T is an integral type, otherwise returns T)
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType variance(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType variance(const Vector3<T, Accessor>& vec) {
   OutputType vec_mean = mean<T, Accessor, OutputType>(vec);
   return ((static_cast<OutputType>(vec[0]) - vec_mean) * (static_cast<OutputType>(vec[0]) - vec_mean) +
           (static_cast<OutputType>(vec[1]) - vec_mean) * (static_cast<OutputType>(vec[1]) - vec_mean) +
@@ -694,19 +694,19 @@ KOKKOS_FUNCTION OutputType variance(const Vector3<T, Accessor>& vec) {
 
 /// \brief Variance of all elements (returns a float if T is an integral type, otherwise returns T)
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType variance_f(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType variance_f(const Vector3<T, Accessor>& vec) {
   return variance<T, Accessor, OutputType>(vec);
 }
 
 /// \brief Standard deviation of all elements (returns a double if T is an integral type, otherwise returns T)
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType stddev(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType stddev(const Vector3<T, Accessor>& vec) {
   return std::sqrt(variance<T, Accessor, OutputType>(vec));
 }
 
 /// \brief Standard deviation of all elements (returns a float if T is an integral type, otherwise returns T)
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType stddev_f(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType stddev_f(const Vector3<T, Accessor>& vec) {
   return stddev<T, Accessor, OutputType>(vec);
 }
 //@}
@@ -718,7 +718,7 @@ KOKKOS_FUNCTION OutputType stddev_f(const Vector3<T, Accessor>& vec) {
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION auto dot(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
+KOKKOS_INLINE_FUNCTION auto dot(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
     -> std::common_type_t<T, U> {
   using CommonType = std::common_type_t<T, U>;
   return static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[0]) +
@@ -730,7 +730,7 @@ KOKKOS_FUNCTION auto dot(const Vector3<U, OtherAccessor>& a, const Vector3<T, Ac
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_FUNCTION auto cross(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
+KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
     -> Vector3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Vector3<CommonType> result;
@@ -751,56 +751,56 @@ KOKKOS_FUNCTION auto cross(const Vector3<U, OtherAccessor>& a, const Vector3<T, 
 /// \brief Vector infinity norm
 /// \param[in] vec The vector.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto infinity_norm(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto infinity_norm(const Vector3<T, Accessor>& vec) {
   return max(vec);
 }
 
 /// \brief Vector 1-norm
 /// \param[in] vec The vector.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto one_norm(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto one_norm(const Vector3<T, Accessor>& vec) {
   return sum(vec);
 }
 
 /// \brief Vector 2-norm (Returns a double if T is an integral type, otherwise returns T)
 /// \param[in] vec The vector.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType two_norm(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType two_norm(const Vector3<T, Accessor>& vec) {
   return std::sqrt(static_cast<OutputType>(dot(vec, vec)));
 }
 
 /// \brief Vector 2-norm (Returns a float if T is an integral type, otherwise returns T)
 /// \param[in] vec The vector.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType two_norm_f(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType two_norm_f(const Vector3<T, Accessor>& vec) {
   return two_norm<T, Accessor, OutputType>(vec);
 }
 
 /// \brief Vector squared 2-norm
 /// \param[in] vec The vector.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto two_norm_squared(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto two_norm_squared(const Vector3<T, Accessor>& vec) {
   return dot(vec, vec);
 }
 
 /// \brief Default vector norm (2-norm, returns a double if T is an integral type, otherwise returns T)
 /// \param[in] vec The vector.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType norm(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType norm(const Vector3<T, Accessor>& vec) {
   return two_norm<T, Accessor, OutputType>(vec);
 }
 
 /// \brief Default vector norm (2-norm, returns a float if T is an integral type, otherwise returns T)
 /// \param[in] vec The vector.
 template <typename T, typename Accessor, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType norm_f(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION OutputType norm_f(const Vector3<T, Accessor>& vec) {
   return norm<T, Accessor, OutputType>(vec);
 }
 
 /// \brief Default vector norm squared (2-norm)
 /// \param[in] vec The vector.
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION auto norm_squared(const Vector3<T, Accessor>& vec) {
+KOKKOS_INLINE_FUNCTION auto norm_squared(const Vector3<T, Accessor>& vec) {
   return two_norm_squared(vec);
 }
 
@@ -809,7 +809,7 @@ KOKKOS_FUNCTION auto norm_squared(const Vector3<T, Accessor>& vec) {
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor,
           typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType minor_angle(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
+KOKKOS_INLINE_FUNCTION OutputType minor_angle(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
   return std::acos(static_cast<OutputType>(dot(a, b)) /
                    (static_cast<OutputType>(two_norm(a)) * static_cast<OutputType>(two_norm(b))));
 }
@@ -819,7 +819,7 @@ KOKKOS_FUNCTION OutputType minor_angle(const Vector3<U, OtherAccessor>& a, const
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor,
           typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType minor_angle_f(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
+KOKKOS_INLINE_FUNCTION OutputType minor_angle_f(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
   return minor_angle<U, OtherAccessor, T, Accessor, OutputType>(a, b);
 }
 
@@ -828,7 +828,7 @@ KOKKOS_FUNCTION OutputType minor_angle_f(const Vector3<U, OtherAccessor>& a, con
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor,
           typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_FUNCTION OutputType major_angle(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
+KOKKOS_INLINE_FUNCTION OutputType major_angle(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
   return OutputType(M_PI) - minor_angle<U, OtherAccessor, T, Accessor, OutputType>(a, b);
 }
 
@@ -837,7 +837,7 @@ KOKKOS_FUNCTION OutputType major_angle(const Vector3<U, OtherAccessor>& a, const
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor,
           typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_FUNCTION OutputType major_angle_f(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
+KOKKOS_INLINE_FUNCTION OutputType major_angle_f(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b) {
   return major_angle<U, OtherAccessor, T, Accessor, OutputType>(a, b);
 }
 //@}
@@ -859,7 +859,7 @@ KOKKOS_FUNCTION OutputType major_angle_f(const Vector3<U, OtherAccessor>& a, con
 ///   auto vec = get_vector3_view<T>(data);
 /// \endcode
 template <typename T, typename Accessor>
-KOKKOS_FUNCTION Vector3<T, Accessor> get_vector3_view(const Accessor& data) {
+KOKKOS_INLINE_FUNCTION Vector3<T, Accessor> get_vector3_view(const Accessor& data) {
   return Vector3<T, Accessor>(data);
 }
 //@}
