@@ -1021,14 +1021,12 @@ class StickySettings {
     const stk::mesh::Field<double> &crosslinker_spring_constant = *element_hookean_spring_constant_field_ptr_;
     const stk::mesh::Field<double> &crosslinker_spring_rest_length = *element_hookean_spring_rest_length_field_ptr_;
     stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
-    const stk::mesh::Selector locally_owned_input_selector =
-        stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_) &
-        bulk_data_ptr_->mesh_meta_data().locally_owned_part();
+    stk::mesh::Part &crosslinker_sphere_linkers_part = *crosslinker_sphere_linkers_part_ptr_;
     const double inv_kt = 1.0 / kt_kmc_;
     const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
 
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, locally_owned_input_selector,
+        *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, crosslinker_sphere_linkers_part,
         [&node_coord_field, &constraint_state_change_probability, &crosslinker_spring_constant,
          &crosslinker_spring_rest_length, &left_bound_crosslinkers_part, &inv_kt, &crosslinker_right_binding_rate](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
@@ -1074,13 +1072,11 @@ class StickySettings {
     const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     const stk::mesh::Field<double> &crosslinker_unbinding_rates = *element_unbinding_rates_field_ptr_;
     stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
-    const stk::mesh::Selector locally_owned_input_selector = stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) &
-                                                             bulk_data_ptr_->mesh_meta_data().locally_owned_part();
     const double &crosslinker_right_unbinding_rate = crosslinker_right_unbinding_rate_;
 
     // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only.
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_input_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&node_coord_field, &crosslinker_unbinding_rates, &doubly_bound_crosslinkers_part,
          &crosslinker_right_unbinding_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                             const stk::mesh::Entity &crosslinker) {
@@ -1113,12 +1109,11 @@ class StickySettings {
     stk::mesh::Field<unsigned> &constraint_perform_state_change_field = *constraint_perform_state_change_field_ptr_;
     stk::mesh::Field<double> &constraint_state_change_rate_field = *constraint_state_change_rate_field_ptr_;
     const double &timestep_size = timestep_size_;
-    auto left_crosslinkers_selector =
-        stk::mesh::Selector(*left_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
 
     // Loop over left-bound crosslinkers and decide if they bind or not
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_bound_crosslinkers_part,
         [&crosslinker_sphere_linkers_part, &element_rng_field, &constraint_perform_state_change_field,
          &element_perform_state_change_field, &constraint_state_change_rate_field,
          &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -1197,12 +1192,11 @@ class StickySettings {
     stk::mesh::Field<unsigned> &element_perform_state_change_field = *element_perform_state_change_field_ptr_;
     const stk::mesh::Field<double> &crosslinker_unbinding_rates = *element_unbinding_rates_field_ptr_;
     const double &timestep_size = timestep_size_;
-    auto doubly_crosslinkers_selector =
-        stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
 
     // This is just a loop over the doubly bound crosslinkers, since we know that the right head in is [1].
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_crosslinkers_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&element_rng_field, &element_perform_state_change_field, &crosslinker_unbinding_rates, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
           // We only have a single node, our right node, that is bound that we can unbind.
@@ -1483,13 +1477,12 @@ class StickySettings {
     stk::mesh::Field<double> &element_aabb_field_old = element_aabb_field.field_of_state(stk::mesh::StateN);
     stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
 
-    stk::mesh::Selector locally_owned_selector =
-        ((stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part)) &
-         meta_data_ptr_->locally_owned_part());
+    stk::mesh::Selector spheres_and_crosslinkers_selector =
+        (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
 
     // Update the accumulators based on the difference to the previous state
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
         [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
           // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
@@ -1522,13 +1515,12 @@ class StickySettings {
     stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
     const double &skin_distance2_over4 = skin_distance2_over4_;
 
-    stk::mesh::Selector locally_owned_selector =
-        ((stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part)) &
-         meta_data_ptr_->locally_owned_part());
+    stk::mesh::Selector spheres_and_crosslinkers_selector =
+        (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
 
     // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
         [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
           // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
@@ -1635,8 +1627,8 @@ class StickySettings {
       // Evaluate forces f(x(t)).
       {
         // Hertzian forces
-        // compute_hertzian_contact_forces();
-        // assert_invariant("After hertzian contact forces");
+        compute_hertzian_contact_forces();
+        assert_invariant("After hertzian contact forces");
 
         // Compute harmonic bond forces
         compute_harmonic_bond_forces();
@@ -1713,7 +1705,6 @@ class StickySettings {
   std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_;
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
   std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
-  stk::io::StkMeshIoBroker stk_io_broker_;
   std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
   size_t output_file_index_;
   size_t timestep_index_;

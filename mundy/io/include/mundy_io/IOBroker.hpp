@@ -125,7 +125,9 @@ class IOBroker {
 
     // Set the stk::io::StkMeshIoBroker bulk data to our bulk data
     stk_io_broker_.set_bulk_data(*bulk_data_ptr_);
-    stk_io_broker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    if (!parallel_io_mode_.empty()) {
+      stk_io_broker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    }
     stk_io_broker_.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
 
     // Set the TRANSIENT fields and keep track of them.

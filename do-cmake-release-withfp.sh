@@ -17,6 +17,7 @@ cmake \
 -DKokkos_ENABLE_OPENMP=OFF \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_MundyAgents=ON \
+-DMundy_ENABLE_MundyAlens=ON \
 -DMundy_ENABLE_MundyBalance=OFF \
 -DMundy_ENABLE_MundyDriver=ON \
 -DMundy_ENABLE_MundyConstraints=ON \
@@ -30,10 +31,13 @@ cmake \
 -DMundy_ENABLE_MundyShapes=ON \
 -DMundy_ENABLE_TESTS=ON \
 -DMundy_ENABLE_GTest=ON \
+-DMundy_ENABLE_STKFMM=ON \
+-DMundy_ENABLE_PVFMM=ON \
 -DMundy_TEST_CATEGORIES="BASIC;CONTINUOUS;NIGHTLY;HEAVY;PERFORMANCE" \
 -DTPL_GTest_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_OpenRAND_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_Kokkos_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DTPL_KokkosKernels_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_STK_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_Teuchos_DIR:PATH=${TRILINOS_ROOT_DIR} \
 ${ccache_args} \
