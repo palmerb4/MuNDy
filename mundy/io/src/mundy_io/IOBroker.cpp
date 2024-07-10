@@ -125,6 +125,7 @@ void IOBroker::print_io_broker() {
   stk::log_with_time_and_memory(bulk_data_ptr_->parallel(),
                                 "EXODUS database base: " + exodus_database_output_filename_base_);
   stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "Parallel IO mode: " + parallel_io_mode_);
+  stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "File type: " + output_file_type_);
   stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), "Coordinates field: " + coordinate_field_name_);
   stk::log_with_time_and_memory(bulk_data_ptr_->parallel(),
                                 "...(Transient) Coordinates field: " + transient_coordinate_field_name_);
@@ -176,7 +177,8 @@ void IOBroker::restart_mesh() {
   stk_io_broker.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
 
   // Create the input mesh
-  size_t input_index = stk_io_broker.add_mesh_database(exodus_database_input_filename_, "exodus", stk::io::READ_RESTART);
+  size_t input_index =
+      stk_io_broker.add_mesh_database(exodus_database_input_filename_, "exodus", stk::io::READ_RESTART);
   // Set the mesh to active, and activate it
   stk_io_broker.set_active_mesh(input_index);
   stk_io_broker.create_input_mesh();
@@ -275,7 +277,22 @@ void IOBroker::write_io_broker_timestep(int timestep, double time) {
   stk::io::StkMeshIoBroker stk_io_broker(bulk_data_ptr_->parallel());
   stk_io_broker.set_bulk_data(*bulk_data_ptr_);
   stk_io_broker.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
-  stk_io_broker.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+  if (!parallel_io_mode_.empty()) {
+    stk_io_broker.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+  }
+  if (enable_ioss_logging_) {
+    stk_io_broker.property_add(Ioss::Property("LOGGING", "ON"));
+  }
+
+  // Set up the file type for output
+  if (output_file_type_ == "netcdf") {
+  } else if (output_file_type_ == "netcdf4") {
+    stk_io_broker.property_add(Ioss::Property("FILE_TYPE", "netcdf4"));
+  } else if (output_file_type_ == "hdf5") {
+    stk_io_broker.property_add(Ioss::Property("FILE_TYPE", "hdf5"));
+  } else {
+    MUNDY_THROW_ASSERT(1 == 1, std::invalid_argument, "IOBroker: incorrect output file type: " + output_file_type_);
+  }
 
   // Create the output mesh, based on the timestep and the base name
   std::string full_output_name = exodus_database_output_filename_base_ + ".e-s." + std::to_string(timestep);
@@ -293,7 +310,7 @@ void IOBroker::write_io_broker_timestep(int timestep, double time) {
   stk::mesh::Selector locally_owned = meta_data_ptr_->locally_owned_part();
   auto &coordinate_field = *coordinate_field_ptr_;
   auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
-    stk::mesh::for_each_entity_run(
+  stk::mesh::for_each_entity_run(
       *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, locally_owned,
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {

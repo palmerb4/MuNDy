@@ -1619,9 +1619,7 @@ class StickySettings {
       }
 
       // Reset the update_neighbor_list 'signal'
-      {
-        update_neighbor_list_ = false;
-      }
+      { update_neighbor_list_ = false; }
 
       // Detect all possible neighbors in the system
       {
@@ -1688,12 +1686,17 @@ class StickySettings {
       if (print_neighborlist_statistics_) {
         std::cout << "****************\n";
         std::cout << "Neighbor list statistics\n";
+        double avg_steps_per_neighborlist_update = 0.0;
         for (auto &neighborlist_entry : neighborlist_update_steps_times_) {
           auto [timestep, elasped_step, elapsed_time] = neighborlist_entry;
           auto tps_nl = static_cast<double>(elasped_step) / elapsed_time;
           std::cout << "  Rebuild timestep: " << timestep << ", elapsed_steps: " << elasped_step
                     << ", elapsed_time: " << elapsed_time << ", tps: " << tps_nl << std::endl;
+          avg_steps_per_neighborlist_update += static_cast<double>(elasped_step);
         }
+        std::cout << "  Average steps per rebuild: "
+                  << avg_steps_per_neighborlist_update / static_cast<double>(neighborlist_update_steps_times_.size())
+                  << std::endl;
       }
       std::cout << "****************\n";
       std::cout << "Simulation statistics\n";
@@ -1843,6 +1846,8 @@ class StickySettings {
   double crosslinker_right_binding_rate_ = 1.0;
   double crosslinker_left_unbinding_rate_ = 1.0;
   double crosslinker_right_unbinding_rate_ = 1.0;
+  double crosslinker_sigma_ = 1.0;
+  double crosslinker_rcut_ = 1.0;
 
   // Flags for simulation control
   // Neighbor list

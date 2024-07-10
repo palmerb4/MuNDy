@@ -27,3 +27,11 @@ tribits_add_executable_and_test(
       ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
     NUM_MPI_PROCS 1
     )
+
+tribits_add_executable_and_test(
+    UnitTestIOBrokerMPI
+    SOURCES
+    UnitTestIOBrokerMPI.cpp
+      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    NUM_MPI_PROCS 2
+    )

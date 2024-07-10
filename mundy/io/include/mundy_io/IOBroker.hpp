@@ -49,7 +49,7 @@
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_mesh/StringToTopology.hpp>  // for mundy::mesh::string_to_rank
-#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>          // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>  // for mundy::meta::MetaMethodExecutionInterface
@@ -89,6 +89,7 @@ class IOBroker {
     coordinate_field_name_ = valid_fixed_params.get<std::string>("coordinate_field_name");
     transient_coordinate_field_name_ = valid_fixed_params.get<std::string>("transient_coordinate_field_name");
     parallel_io_mode_ = valid_fixed_params.get<std::string>("parallel_io_mode");
+    output_file_type_ = valid_fixed_params.get<std::string>("output_file_type");
     // Check the database purpose for output
     auto database_purpose = valid_fixed_params.get<std::string>("database_purpose");
     if (database_purpose == "results") {
@@ -105,6 +106,21 @@ class IOBroker {
     if (valid_fixed_params.get<std::string>("enable_restart") == "true") {
       enable_restart_ = true;
       exodus_database_input_filename_ = valid_fixed_params.get<std::string>("exodus_database_input_filename");
+    }
+
+    // Check if we are enabling IOSS logging
+    if (valid_fixed_params.get<std::string>("enable_ioss_logging") == "true") {
+      enable_ioss_logging_ = true;
+    }
+
+    // Set up the file type for output
+    if (output_file_type_ == "netcdf") {
+    } else if (output_file_type_ == "netcdf4") {
+      stk_io_broker_.property_add(Ioss::Property("FILE_TYPE", "netcdf4"));
+    } else if (output_file_type_ == "hdf5") {
+      stk_io_broker_.property_add(Ioss::Property("FILE_TYPE", "hdf5"));
+    } else {
+      MUNDY_THROW_ASSERT(1 == 1, std::invalid_argument, "IOBroker: incorrect output file type: " + output_file_type_);
     }
 
     // Set the coordinate field (tags as a Ioss::MESH role if not a restart, otherwise, need to defer setting the
@@ -125,7 +141,12 @@ class IOBroker {
 
     // Set the stk::io::StkMeshIoBroker bulk data to our bulk data
     stk_io_broker_.set_bulk_data(*bulk_data_ptr_);
-    stk_io_broker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    if (!parallel_io_mode_.empty()) {
+      stk_io_broker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    }
+    if (enable_ioss_logging_) {
+      stk_io_broker_.property_add(Ioss::Property("LOGGING", "ON"));
+    }
     stk_io_broker_.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
 
     // Set the TRANSIENT fields and keep track of them.
@@ -153,9 +174,14 @@ class IOBroker {
     default_parameter_list.set(
         "transient_coordinate_field_name", std::string(default_transient_coordinate_field_name_),
         "TRANSIENT coordinates field for entire mesh. Will be used for IO and mirrors the set COORDINATES field");
-    default_parameter_list.set("parallel_io_mode", std::string(default_parallel_io_mode_), "Parallel IO mode [hdf5].");
+    default_parameter_list.set("parallel_io_mode", std::string(default_parallel_io_mode_),
+                               "Parallel IO mode [{},netcdf4,hdf5,pnetcdf].");
+    default_parameter_list.set("output_file_type", std::string(default_file_type_),
+                               "Output file type [netcdf,netcdf4,hdf5]");
     default_parameter_list.set("database_purpose", std::string(default_database_purpose_),
                                "Database Purpose [results,restart,append]");
+    default_parameter_list.set("enable_ioss_logging", std::string(default_enable_ioss_logging_),
+                               "Enable IOSS logging on IO.");
     default_parameter_list.set("enable_restart", std::string(default_enable_restart_), "Enable RESTART.");
 
     // Create an empty vector of part names (forces it to exist)
@@ -257,9 +283,11 @@ class IOBroker {
   static constexpr std::string_view default_exodus_database_input_filename_ = "restart.exo";
   static constexpr std::string_view default_coordinate_field_name_ = "coordinates";
   static constexpr std::string_view default_transient_coordinate_field_name_ = "transient_coordinates";
-  static constexpr std::string_view default_parallel_io_mode_ = "hdf5";
+  static constexpr std::string_view default_parallel_io_mode_ = "";
   static constexpr std::string_view default_database_purpose_ = "results";
   static constexpr std::string_view default_enable_restart_ = "false";
+  static constexpr std::string_view default_enable_ioss_logging_ = "false";
+  static constexpr std::string_view default_file_type_ = "netcdf";
   //@}
 
   //! \name Internal members
@@ -286,6 +314,9 @@ class IOBroker {
   /// \brief Flag controlling if we do a RESTART or not
   bool enable_restart_ = false;
 
+  /// \brief Flat controlling if we want IOSS logging on IO
+  bool enable_ioss_logging_ = false;
+
   /// \brief COORDINATES field name
   std::string coordinate_field_name_ = "";
 
@@ -294,6 +325,9 @@ class IOBroker {
 
   /// \brief Parallel IO mode
   std::string parallel_io_mode_ = "";
+
+  /// \brief File type
+  std::string output_file_type_ = "";
 
   /// \brief Purpose of database
   stk::io::DatabasePurpose database_purpose_ = stk::io::PURPOSE_UNKNOWN;

@@ -10,13 +10,14 @@ echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
 cmake \
 -DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RELEASE} \
 -DCMAKE_CXX_COMPILER=mpicxx \
--DCMAKE_CXX_FLAGS="-O3 -g -march=native -fno-omit-frame-pointer" \
+-DCMAKE_CXX_FLAGS="-O3 -march=native -fno-omit-frame-pointer" \
 -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/mundyscratch} \
 -DTPL_ENABLE_MPI=ON \
 -DKokkos_ENABLE_SERIAL=ON \
 -DKokkos_ENABLE_OPENMP=OFF \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_MundyAgents=ON \
+-DMundy_ENABLE_MundyAlens=ON \
 -DMundy_ENABLE_MundyBalance=OFF \
 -DMundy_ENABLE_MundyDriver=ON \
 -DMundy_ENABLE_MundyConstraints=ON \
@@ -34,6 +35,7 @@ cmake \
 -DTPL_GTest_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_OpenRAND_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_Kokkos_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DTPL_KokkosKernels_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_STK_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_Teuchos_DIR:PATH=${TRILINOS_ROOT_DIR} \
 ${ccache_args} \

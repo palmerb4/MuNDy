@@ -17,8 +17,8 @@ tribits_package_define_dependencies(
     Agents       agents      PT  OPTIONAL
     Shapes       shapes      PT  OPTIONAL
     Linkers      linkers     PT  OPTIONAL
-    Io           io          PT  OPTIONAL
     Constraints  constraints  PT  OPTIONAL
+    Io           io          PT  OPTIONAL
     # Balance      balance     PT  OPTIONAL
     # Motion       motion      PT  OPTIONAL
     Alens        alens       PT  OPTIONAL
