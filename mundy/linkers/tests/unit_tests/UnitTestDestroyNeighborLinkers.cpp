@@ -48,7 +48,7 @@
 #include <mundy_mesh/BulkData.hpp>     // for mundy::mesh::BulkData
 #include <mundy_mesh/MeshBuilder.hpp>  // for mundy::mesh::MeshBuilder
 #include <mundy_mesh/MetaData.hpp>     // for mundy::mesh::MetaData
-#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
+#include <mundy_meta/FieldReqs.hpp>    // for mundy::meta::FieldReqs
 #include <mundy_meta/MetaFactory.hpp>  // for mundy::meta::MetaMethodFactory and mundy::meta::HasMeshReqsAndIsRegisterable
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 
@@ -173,12 +173,10 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
     EXPECT_EQ(total_num_linkers, bulk_data_ptr->parallel_size() - 2) << "One linker should have been destroyed.";
 
     // As a sanity check, loop over all linkers and validate that they are valid.
-    stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()), stk::topology::CONSTRAINT_RANK,
-        *neighbor_linkers_part_ptr,
-        []([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
-          EXPECT_TRUE(bulk_data.is_valid(linker));
-        });
+    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()),
+                                   stk::topology::CONSTRAINT_RANK, *neighbor_linkers_part_ptr,
+                                   []([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                      const stk::mesh::Entity &linker) { EXPECT_TRUE(bulk_data.is_valid(linker)); });
   }
 }
 

@@ -37,7 +37,7 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
+#include <mundy_mesh/MetaData.hpp>   // for mundy::mesh::MetaData
 #include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs, mundy::meta::FieldReqsBase
 
 namespace mundy {
@@ -119,13 +119,14 @@ class PartReqs {
   /// \tparam FieldType [in] The type of the field to add to the part.
   template <typename FieldType>
   PartReqs &add_field_reqs(const std::string &field_name, const stk::topology::rank_t &field_rank,
-                                   const unsigned field_dimension, const unsigned field_min_number_of_states) {
-    return add_and_sync_field_reqs(std::make_shared<FieldReqs<FieldType>>(field_name, field_rank, field_dimension,
-                                                                         field_min_number_of_states));
+                           const unsigned field_dimension, const unsigned field_min_number_of_states) {
+    return add_and_sync_field_reqs(
+        std::make_shared<FieldReqs<FieldType>>(field_name, field_rank, field_dimension, field_min_number_of_states));
   }
 
   /// \brief Add the provided part as a subpart of this part, given that it is valid.
-  /// If the subpart already exists, we sync their requirements. We also add all of our requirements to the subpart, to mimic inheritance.
+  /// If the subpart already exists, we sync their requirements. We also add all of our requirements to the subpart, to
+  /// mimic inheritance.
   ///
   /// TODO(palmerb4): Are there any restrictions on what can and cannot be a subpart? If so, encode them here.
   ///
@@ -278,8 +279,7 @@ class PartReqs {
   bool is_io_part_ = false;
 
   /// \brief A set of maps from field name to field params for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> part_ranked_field_maps_{
-      stk::topology::NUM_RANKS};
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> part_ranked_field_maps_{stk::topology::NUM_RANKS};
 
   /// \brief A map from subpart name to the part params of each sub-part.
   std::map<std::string, std::shared_ptr<PartReqs>> part_subpart_map_;

@@ -36,9 +36,9 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_mesh/BulkData.hpp>       // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>    // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
 #include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
 #include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 
@@ -197,7 +197,7 @@ TEST(FieldReqsSync, IsSyncable) {
   other_field_reqs_ptr->set_field_dimension(field_dimension);
   other_field_reqs_ptr->set_field_min_number_of_states(field_min_number_of_states);
   main_field_reqs.sync(other_field_reqs_ptr);
-  
+
   // Both field requirements should be synced (aka. merged and had their differences rectified)
   EXPECT_TRUE(main_field_reqs.is_fully_specified());
   EXPECT_EQ(main_field_reqs.get_field_name(), field_name);
@@ -302,7 +302,7 @@ TEST(FieldReqsSync, SyncProperlyHandlesMinNumStates) {
   field_reqs.sync(other_field_reqs_ptr);
   EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states + 1);
   EXPECT_EQ(other_field_reqs_ptr->get_field_min_num_states(), field_min_number_of_states + 1);
-  
+
   other_field_reqs_ptr->set_field_min_number_of_states(field_min_number_of_states - 1);
   EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states - 1);
   EXPECT_EQ(other_field_reqs_ptr->get_field_min_num_states(), field_min_number_of_states - 1);

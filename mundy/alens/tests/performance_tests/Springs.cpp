@@ -60,17 +60,17 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <mundy_core/StringLiteral.hpp>    // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>     // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
-#include <mundy_linkers/DestroyNeighborLinkers.hpp>                  // for mundy::linkers::DestroyNeighborLinkers
-#include <mundy_linkers/EvaluateLinkerPotentials.hpp>                // for mundy::linkers::EvaluateLinkerPotentials
-#include <mundy_linkers/GenerateNeighborLinkers.hpp>                 // for mundy::linkers::GenerateNeighborLinkers
-#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
-#include <mundy_linkers/NeighborLinkers.hpp>                         // for mundy::linkers::NeighborLinkers
-#include <mundy_mesh/BulkData.hpp>                                   // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>                                   // for mundy::mesh::MetaData
-#include <mundy_mesh/utils/FillFieldWithValue.hpp>                   // for mundy::mesh::utils::fill_field_with_value
-#include <mundy_meta/MetaFactory.hpp>                                // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>                                 // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaKernelDispatcher.hpp>                       // for mundy::meta::MetaKernelDispatcher
+#include <mundy_linkers/DestroyNeighborLinkers.hpp>           // for mundy::linkers::DestroyNeighborLinkers
+#include <mundy_linkers/EvaluateLinkerPotentials.hpp>         // for mundy::linkers::EvaluateLinkerPotentials
+#include <mundy_linkers/GenerateNeighborLinkers.hpp>          // for mundy::linkers::GenerateNeighborLinkers
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>    // for mundy::linkers::LinkerPotentialForceReduction
+#include <mundy_linkers/NeighborLinkers.hpp>                  // for mundy::linkers::NeighborLinkers
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>                            // for mundy::mesh::MetaData
+#include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
@@ -300,8 +300,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK,
-        intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
           double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
@@ -587,8 +586,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK,
-        intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_brownian_velocity_field, &node_rng_counter_field, &timestep_size, &diffusion_coeff, &alpha, &beta](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           double *node_brownian_velocity = stk::mesh::field_data(node_brownian_velocity_field, sphere_node);
@@ -931,8 +929,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK,
-                                   intersection_with_valid_entity_parts,
+    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
                                    [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
                                        const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
                                      const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
@@ -1201,8 +1198,7 @@ class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spring_selector;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
-        intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
         [&node_force_field, &node_coord_field, &element_rest_length_field, &element_spring_constant_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spring_element) {
           // Fetch the connected nodes.
@@ -1461,8 +1457,7 @@ int main(int argc, char **argv) {
 
   // LinkerPotentialForceReduction fixed parameters
   Teuchos::ParameterList linker_potential_force_reduction_fixed_params;
-  linker_potential_force_reduction_fixed_params
-      .set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
+  linker_potential_force_reduction_fixed_params.set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
       .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS")
       .set("linker_potential_force_magnitude_field_name", "LINKER_POTENTIAL_FORCE")
       .set("linker_contact_normal_field_name", "LINKER_CONTACT_NORMAL");
@@ -1785,8 +1780,7 @@ int main(int argc, char **argv) {
   };
   dump_mesh_info("Dumping initial mesh info.");
 #else
-  auto dump_mesh_info = []([[maybe_unused]] const std::string &message) {
-  };
+  auto dump_mesh_info = []([[maybe_unused]] const std::string &message) {};
 #endif
 
 #ifdef BROWNIAN_DEBUG_WRITE_MESH
@@ -1798,8 +1792,7 @@ int main(int argc, char **argv) {
     stk_io_broker.flush_output();
   };
 #else
-  auto write_mesh = []([[maybe_unused]] double time) {
-  };
+  auto write_mesh = []([[maybe_unused]] double time) {};
 #endif
 
   // // Write the initial mesh to file

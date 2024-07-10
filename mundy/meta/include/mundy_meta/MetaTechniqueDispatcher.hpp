@@ -41,7 +41,7 @@
 #include <mundy_core/throw_assert.hpp>                                // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                                    // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                    // for mundy::mesh::MetaData
-#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>                                    // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                                  // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>                // for mundy::meta::MetaMethodExecutionInterface
@@ -143,9 +143,7 @@ class MetaTechniqueDispatcher {
 
     return add_valid_enabled_techniques_and_technique_params_to_parameter_list(
         "fixed", parameter_list, valid_required_technique_fixed_params, valid_forwarded_technique_fixed_params,
-        [](const std::string &technique_name) {
-          return OurTechniqueFactory::get_valid_fixed_params(technique_name);
-        });
+        [](const std::string &technique_name) { return OurTechniqueFactory::get_valid_fixed_params(technique_name); });
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.

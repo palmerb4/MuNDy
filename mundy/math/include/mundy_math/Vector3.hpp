@@ -303,8 +303,7 @@ class Vector3 {
   /// \param[in] accessor A valid accessor.
   /// \note A Vector3 is also a valid accessor.
   template <ValidAccessor<T> OtherAccessor>
-  KOKKOS_INLINE_FUNCTION
-  void set(const OtherAccessor& accessor)
+  KOKKOS_INLINE_FUNCTION void set(const OtherAccessor& accessor)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = accessor[0];
@@ -350,7 +349,8 @@ class Vector3 {
   /// \brief Vector-vector addition
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator+(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator+(const Vector3<U, OtherAccessor>& other) const
+      -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(other[0]);
@@ -374,7 +374,8 @@ class Vector3 {
   /// \brief Vector-vector subtraction
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator-(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator-(const Vector3<U, OtherAccessor>& other) const
+      -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(other[0]);
@@ -617,7 +618,8 @@ KOKKOS_INLINE_FUNCTION bool is_approx_close(
 /// \param[in] scalar The scalar.
 /// \param[in] vec The vector.
 template <typename U, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar,
+                                      const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
   return vec + scalar;
 }
 
@@ -625,7 +627,8 @@ KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Vector3<T, Accessor
 /// \param[in] scalar The scalar.
 /// \param[in] vec The vector.
 template <typename U, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar,
+                                      const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
   return -vec + scalar;
 }
 //@}
@@ -637,7 +640,8 @@ KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Vector3<T, Accessor
 /// \param[in] scalar The scalar.
 /// \param[in] vec The vector.
 template <typename U, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar,
+                                      const Vector3<T, Accessor>& vec) -> Vector3<std::common_type_t<T, U>> {
   return vec * scalar;
 }
 //@}
@@ -718,8 +722,8 @@ KOKKOS_INLINE_FUNCTION OutputType stddev_f(const Vector3<T, Accessor>& vec) {
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto dot(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
-    -> std::common_type_t<T, U> {
+KOKKOS_INLINE_FUNCTION auto dot(const Vector3<U, OtherAccessor>& a,
+                                const Vector3<T, Accessor>& b) -> std::common_type_t<T, U> {
   using CommonType = std::common_type_t<T, U>;
   return static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[0]) +
          static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[1]) +
@@ -730,8 +734,8 @@ KOKKOS_INLINE_FUNCTION auto dot(const Vector3<U, OtherAccessor>& a, const Vector
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
-    -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, OtherAccessor>& a,
+                                  const Vector3<T, Accessor>& b) -> Vector3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Vector3<CommonType> result;
   result[0] = static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[2]) -

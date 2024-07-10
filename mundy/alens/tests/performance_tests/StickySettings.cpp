@@ -1437,7 +1437,7 @@ class StickySettings {
       // Update the state changes in the system s(t).;
       {
         // State change of every crosslinker
-        // update_crosslinker_state();
+        update_crosslinker_state();
         assert_invariant("After update crosslinker state");
       }
 

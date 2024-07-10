@@ -108,7 +108,7 @@ class FieldReqsBase {
   virtual const std::type_info& get_field_type_info() const = 0;
 
   /// \brief Return the required field attribute names.
-  virtual std::vector<std::string> &get_field_attribute_names() = 0;
+  virtual std::vector<std::string>& get_field_attribute_names() = 0;
   //@}
 
   //! \name Actions
@@ -166,7 +166,7 @@ class FieldReqsBase {
   //@{
 
   /// \brief Set the master field requirements for this class.
-  virtual FieldReqsBase&set_master_field_reqs(std::shared_ptr<FieldReqsBase> master_field_req_ptr) = 0;
+  virtual FieldReqsBase& set_master_field_reqs(std::shared_ptr<FieldReqsBase> master_field_req_ptr) = 0;
 
   /// \brief Get the master field requirements for this class.
   virtual std::shared_ptr<FieldReqsBase> get_master_field_reqs() = 0;

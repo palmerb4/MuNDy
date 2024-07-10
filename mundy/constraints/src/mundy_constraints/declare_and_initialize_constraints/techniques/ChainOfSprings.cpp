@@ -320,7 +320,6 @@ void ChainOfSprings::execute() {
     // Create the node.
     stk::mesh::EntityId our_node_id = get_node_id(i);
     stk::mesh::Entity node = bulk_data_ptr_->declare_node(our_node_id);
-    std::cout << "Rank " << rank << " declaring node " << our_node_id << std::endl;
     bulk_data_ptr_->change_entity_parts(node, element_part_ptrs_);
 
     // Set the node's coordinates using the given coordinate map.
@@ -345,10 +344,6 @@ void ChainOfSprings::execute() {
       // Receive the first node from rank 1. Should already be declared.
       stk::mesh::Entity received_node = get_valid_node(end_node_index);
       bulk_data_ptr_->add_node_sharing(received_node, rank + 1);
-      std::cout << "Rank " << rank << " marking node " << get_node_id(end_node_index) << " as shared with rank "
-                << rank + 1 << std::endl;
-      std::cout << "Rank " << rank << " marking node " << get_node_id(end_node_index - 1) << " as shared with rank "
-                << rank + 1 << std::endl;
 
       // Populate the data for the received nodes
       bulk_data_ptr_->change_entity_parts(received_node, element_part_ptrs_);
@@ -365,13 +360,7 @@ void ChainOfSprings::execute() {
       // Receive the last node from rank N - 1. Shouldn't be declared yet.
       stk::mesh::EntityId received_node_id = get_node_id(start_node_index - 1);
       stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
-      std::cout << "Rank " << rank << " declaring node " << received_node_id << std::endl;
       bulk_data_ptr_->add_node_sharing(received_node, rank - 1);
-
-      std::cout << "Rank " << rank << " marking node " << get_node_id(start_node_index) << " as shared with rank "
-                << rank - 1 << std::endl;
-      std::cout << "Rank " << rank << " marking node " << get_node_id(end_node_index - 1) << " as shared with rank "
-                << rank + 1 << std::endl;
 
       // Populate the data for the received nodes
       bulk_data_ptr_->change_entity_parts(received_node, element_part_ptrs_);
@@ -390,21 +379,10 @@ void ChainOfSprings::execute() {
       // Receive the corresponding nodes from the neighboring ranks.
       stk::mesh::EntityId received_first_node_id = get_node_id(start_node_index - 1);
       stk::mesh::Entity received_first_node = bulk_data_ptr_->declare_node(received_first_node_id);
-      std::cout << "Rank " << rank << " declaring node " << received_first_node_id << std::endl;
 
       stk::mesh::Entity received_last_node = get_valid_node(end_node_index);
       bulk_data_ptr_->add_node_sharing(received_first_node, rank - 1);
       bulk_data_ptr_->add_node_sharing(received_last_node, rank + 1);
-
-      std::cout << "Rank " << rank << " marking node " << get_node_id(start_node_index) << " as shared with rank "
-                << rank - 1 << std::endl;
-      std::cout << "Rank " << rank << " marking node " << get_node_id(end_node_index - 1) << " as shared with rank "
-                << rank + 1 << std::endl;
-      std::cout << "Rank " << rank << " marking node " << get_node_id(start_node_index - 1) << " as shared with rank "
-                << rank - 1 << std::endl;
-      std::cout << "Rank " << rank << " marking node " << get_node_id(end_node_index) << " as shared with rank "
-                << rank + 1 << std::endl;
-
 
       // Populate the data for the received nodes
       bulk_data_ptr_->change_entity_parts(received_first_node, element_part_ptrs_);
@@ -444,8 +422,6 @@ void ChainOfSprings::execute() {
 
       bulk_data_ptr_->declare_relation(spring, node0, 0);
       bulk_data_ptr_->declare_relation(spring, node1, 1);
-      std::cout << "rank: " << rank << " i: " << i << " spring_id: " << spring_id << " node0: " << node0 << " node1: "
-                << node1 << std::endl;
 
       // Populate the spring constants and rest lengths. For the time being, we use a single user defined value.
       stk::mesh::field_data(*element_hookean_spring_constant_field_ptr_, spring)[0] = hookean_spring_constant_;

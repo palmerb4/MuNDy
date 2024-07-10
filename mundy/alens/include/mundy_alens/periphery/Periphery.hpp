@@ -303,7 +303,7 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double
                       const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
-  
+
   // Launch the parallel kernel
   const double scale_factor = 1.0 / (8.0 * M_PI * viscosity);
   Kokkos::parallel_for(
@@ -635,12 +635,13 @@ void add_singularity_subtraction([[maybe_unused]] const ExecutionSpace &space,
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
 /// \param[in] T The stokes double layer matrix (size num_target_points * 3 x num_source_points * 3)
 template <class ExecutionSpace, class MemorySpace, class Layout>
-void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space, const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                             const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                             const Kokkos::View<double **, Layout, MemorySpace> &T) {
+void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
+                              const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
+                              const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
+                              const Kokkos::View<double **, Layout, MemorySpace> &T) {
   const size_t num_source_points = T.extent(1) / 3;
   const size_t num_target_points = T.extent(0) / 3;
-  
+
   // Add the complementary matrix
   Kokkos::parallel_for(
       "ComplementaryMatrix", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
@@ -695,8 +696,8 @@ void fill_skfie_matrix([[maybe_unused]] const ExecutionSpace &space, const doubl
                        const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
                        const Kokkos::View<double **, Layout, MemorySpace> &M) {
   // Fill the stokes double layer matrix
-  fill_stokes_double_layer_matrix(space, viscosity, num_source_points, num_target_points, source_positions, target_positions,
-                                  source_normals, quadrature_weights, M);
+  fill_stokes_double_layer_matrix(space, viscosity, num_source_points, num_target_points, source_positions,
+                                  target_positions, source_normals, quadrature_weights, M);
 
   // Add singularity subtraction
   add_singularity_subtraction(space, M);

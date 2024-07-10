@@ -35,7 +35,7 @@
 #include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
 #include <mundy_meta/MeshReqs.hpp>   // for mundy::meta::MeshReqs
 #include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
-#include <mundy_shapes/Shapes.hpp>           // for mundy::shapes::Shapes
+#include <mundy_shapes/Shapes.hpp>   // for mundy::shapes::Shapes
 
 namespace mundy {
 

@@ -1619,9 +1619,7 @@ class StickySettings {
       }
 
       // Reset the update_neighbor_list 'signal'
-      {
-        update_neighbor_list_ = false;
-      }
+      { update_neighbor_list_ = false; }
 
       // Detect all possible neighbors in the system
       {

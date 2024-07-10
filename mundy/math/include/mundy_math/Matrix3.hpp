@@ -129,7 +129,7 @@ class Matrix3 {
   /// \param[in] a33 The element at row 3, column 3.
   /// \note This constructor is only enabled if the Accessor has a 9-argument constructor.
   KOKKOS_INLINE_FUNCTION Matrix3(const T& a11, const T& a12, const T& a13, const T& a21, const T& a22, const T& a23,
-                          const T& a31, const T& a32, const T& a33)
+                                 const T& a31, const T& a32, const T& a33)
     requires Has9ArgConstructor<Accessor, T>
       : data_(a11, a12, a13, a21, a22, a23, a31, a32, a33) {
   }
@@ -354,8 +354,7 @@ class Matrix3 {
   /// \param[in] accessor A valid accessor.
   /// \note A Matrix3 is also a valid accessor.
   template <ValidAccessor<T> OtherAccessor>
-  KOKKOS_INLINE_FUNCTION
-  void set(const OtherAccessor& accessor)
+  KOKKOS_INLINE_FUNCTION void set(const OtherAccessor& accessor)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = accessor[0];
@@ -470,7 +469,8 @@ class Matrix3 {
   /// \brief Matrix-matrix addition
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator+(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator+(const Matrix3<U, OtherAccessor>& other) const
+      -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) + static_cast<CommonType>(other(0));
@@ -506,7 +506,8 @@ class Matrix3 {
   /// \brief Matrix-matrix subtraction
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator-(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator-(const Matrix3<U, OtherAccessor>& other) const
+      -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0) = static_cast<CommonType>(data_[0]) - static_cast<CommonType>(other(0));
@@ -618,7 +619,8 @@ class Matrix3 {
   /// \brief Matrix-matrix multiplication
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix3<U, OtherAccessor>& other) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix3<U, OtherAccessor>& other) const
+      -> Matrix3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
     result(0, 0) = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other(0, 0)) +
@@ -693,7 +695,8 @@ class Matrix3 {
   /// \brief Matrix-vector multiplication
   /// \param[in] other The other vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& other) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& other) const
+      -> Vector3<std::common_type_t<T, U>> {
     using CommonType = std::common_type_t<T, U>;
     Vector3<CommonType> result;
     result[0] = static_cast<CommonType>(data_[0]) * static_cast<CommonType>(other[0]) +
@@ -839,8 +842,9 @@ KOKKOS_INLINE_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix3<
 /// \param[in] mat2 The second matrix.
 /// \param[in] tol The tolerance (default is determined by the given type).
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION bool is_close(const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
-                              const std::common_type_t<T, U>& tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
+KOKKOS_INLINE_FUNCTION bool is_close(
+    const Matrix3<U, OtherAccessor>& mat1, const Matrix3<T, Accessor>& mat2,
+    const std::common_type_t<T, U>& tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
   using CommonType = std::common_type_t<T, U>;
   if constexpr (std::is_floating_point_v<CommonType>) {
     // For floating-point types, compare with a tolerance
@@ -880,7 +884,8 @@ KOKKOS_INLINE_FUNCTION bool is_approx_close(
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar,
+                                      const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return mat + scalar;
 }
 
@@ -888,7 +893,8 @@ KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Matrix3<T, Accessor
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar,
+                                      const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return -mat + scalar;
 }
 //@}
@@ -900,7 +906,8 @@ KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Matrix3<T, Accessor
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
 template <typename U, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar,
+                                      const Matrix3<T, Accessor>& mat) -> Matrix3<std::common_type_t<T, U>> {
   return mat * scalar;
 }
 
@@ -908,8 +915,8 @@ KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Matrix3<T, Accessor
 /// \param[in] vec The vector.
 /// \param[in] mat The matrix.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& vec, const Matrix3<T, Accessor>& mat)
-    -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor>& vec,
+                                      const Matrix3<T, Accessor>& mat) -> Vector3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Vector3<CommonType> result;
   result[0] = static_cast<CommonType>(vec[0]) * static_cast<CommonType>(mat(0, 0)) +
@@ -1144,8 +1151,8 @@ KOKKOS_INLINE_FUNCTION auto frobenius_inner_product(const Matrix3<U, OtherAccess
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto outer_product(const Vector3<U, OtherAccessor>& a, const Vector3<T, Accessor>& b)
-    -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto outer_product(const Vector3<U, OtherAccessor>& a,
+                                          const Vector3<T, Accessor>& b) -> Matrix3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Matrix3<CommonType> result;
   result(0, 0) = static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[0]);

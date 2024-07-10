@@ -36,7 +36,7 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
-#include <mundy_meta/MeshReqs.hpp>                    // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
@@ -134,8 +134,7 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   // The following is the BBPGD solution to the linear complementarity problem.
 
   // Fill the Lagrange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
-  stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK,
-                                 input_selector,
+  stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, input_selector,
                                  [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
                                    stk::mesh::field_data(*element_constraint_violation_field_ptr_, element)[0] = 0.0;
                                  });

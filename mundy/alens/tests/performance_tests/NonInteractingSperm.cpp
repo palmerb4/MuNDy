@@ -54,9 +54,9 @@ The goal of this example is to simulate the swimming motion of a multiple, non-i
 #include <mundy_mesh/FieldViews.hpp>       // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
 #include <mundy_mesh/MetaData.hpp>         // for mundy::mesh::MetaData
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>  // for mundy::mesh::utils::fill_field_with_value
-#include <mundy_meta/FieldReqs.hpp>         // for mundy::meta::FieldReqs
-#include <mundy_meta/MeshReqs.hpp>          // for mundy::meta::MeshReqs
-#include <mundy_meta/PartReqs.hpp>          // for mundy::meta::PartReqs
+#include <mundy_meta/FieldReqs.hpp>                 // for mundy::meta::FieldReqs
+#include <mundy_meta/MeshReqs.hpp>                  // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>                  // for mundy::meta::PartReqs
 
 /// \brief The main function for the sperm simulation broken down into digestible chunks.
 ///
@@ -434,17 +434,13 @@ class SpermSimulation {
       size_t start_edge_id = (num_nodes_per_sperm_ - 1) * j + 1u;
       size_t start_centerline_twist_spring_id = (num_nodes_per_sperm_ - 2) * j + 1u;
 
-      auto get_node_id = [start_node_id](const size_t &seq_node_index) {
-        return start_node_id + seq_node_index;
-      };
+      auto get_node_id = [start_node_id](const size_t &seq_node_index) { return start_node_id + seq_node_index; };
 
       auto get_node = [get_node_id, &bulk_data](const size_t &seq_node_index) {
         return bulk_data.get_entity(stk::topology::NODE_RANK, get_node_id(seq_node_index));
       };
 
-      auto get_edge_id = [start_edge_id](const size_t &seq_node_index) {
-        return start_edge_id + seq_node_index;
-      };
+      auto get_edge_id = [start_edge_id](const size_t &seq_node_index) { return start_edge_id + seq_node_index; };
 
       auto get_edge = [get_edge_id, &bulk_data](const size_t &seq_node_index) {
         return bulk_data.get_entity(stk::topology::EDGE_RANK, get_edge_id(seq_node_index));
@@ -466,7 +462,7 @@ class SpermSimulation {
       const size_t end_seq_node_index = start_seq_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
 
       bulk_data_ptr_->modification_begin();
-     
+
       // Temporary/scatch variables
       stk::mesh::PartVector empty;
       stk::mesh::Permutation perm = stk::mesh::Permutation::INVALID_PERMUTATION;
@@ -474,8 +470,8 @@ class SpermSimulation {
       auto spring_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_};
       stk::topology elem_topo = stk::topology::SHELL_TRI_3;
       stk::topology edge_topo = stk::topology::LINE_2;
-      auto spring_and_edge_part = stk::mesh::PartVector{centerline_twist_springs_part_ptr_,
-                                                        &meta_data_ptr_->get_topology_root_part(edge_topo)};
+      auto spring_and_edge_part =
+          stk::mesh::PartVector{centerline_twist_springs_part_ptr_, &meta_data_ptr_->get_topology_root_part(edge_topo)};
 
       // Centerline twist springs connect nodes i, i+1, and i+2. We need to start at node i=0 and end at node N - 2.
       const size_t start_element_chain_index = start_seq_node_index;
@@ -638,7 +634,8 @@ class SpermSimulation {
       bulk_data_ptr_->modification_end();
 
       // Set the node data for all nodes (even the shared ones)
-      for (size_t i = start_seq_node_index - 1 * (rank > 0); i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
+      for (size_t i = start_seq_node_index - 1 * (rank > 0);
+           i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
         stk::mesh::Entity node = get_node(i);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
                            "The node with id " << get_node_id(i) << " is not valid.");

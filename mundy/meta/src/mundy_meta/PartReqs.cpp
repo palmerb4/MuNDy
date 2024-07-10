@@ -577,8 +577,7 @@ void PartReqs::print(std::ostream &os, int indent_level) const {
   os << indent << "  Subparts: " << std::endl;
   int subpart_count = 0;
   for (auto const &[subpart_name, subpart_req_ptr] : const_cast<PartReqs *>(this)->get_part_subpart_map()) {
-    os << indent << "  subpart " << subpart_count << " has name (" << subpart_name << ") and requirements"
-       << std::endl;
+    os << indent << "  subpart " << subpart_count << " has name (" << subpart_name << ") and requirements" << std::endl;
     subpart_req_ptr->print(os, indent_level + 1);
     subpart_count++;
   }

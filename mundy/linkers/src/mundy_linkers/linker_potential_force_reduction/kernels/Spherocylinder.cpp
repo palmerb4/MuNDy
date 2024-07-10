@@ -32,10 +32,10 @@
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_core/throw_assert.hpp>                                                // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/linker_potential_force_reduction/kernels/Spherocylinder.hpp>  // for mundy::linkers::...::kernels::Spherocylinder
-#include <mundy_math/Vector3.hpp>   // for mundy::math::Vector3
-#include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
+#include <mundy_math/Vector3.hpp>                                                     // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>                                                    // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data, mundy::mesh::matrix3_field_data
 #include <mundy_shapes/Spherocylinders.hpp>  // for mundy::shapes::Spherocylinders
 
@@ -148,8 +148,8 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   stk::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
       locally_owned_or_globally_shared_intersection_with_valid_entity_parts,
-      [&linker_contact_points_field, &linker_potential_force_field,
-       &node_coord_field, &node_force_field, &node_torque_field,
+      [&linker_contact_points_field, &linker_potential_force_field, &node_coord_field, &node_force_field,
+       &node_torque_field,
        &linkers_part_to_reduce_over](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder) {
         // Get our node and its force/torque
         const stk::mesh::Entity &node = bulk_data.begin_nodes(spherocylinder)[0];
@@ -170,8 +170,8 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
           const bool is_reduction_linker = bulk_data.bucket(connected_linker).member(linkers_part_to_reduce_over);
 
           if (is_reduction_linker) {
-            // The linker force is the force on the left element. The force on the right element is equal and opposite. This is
-            // important, as it means we should multiply by -1 if we are the right element.
+            // The linker force is the force on the left element. The force on the right element is equal and opposite.
+            // This is important, as it means we should multiply by -1 if we are the right element.
             const bool are_we_the_left_spherocylinder =
                 (bulk_data.begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == spherocylinder);
             const double sign = are_we_the_left_spherocylinder ? 1.0 : -1.0;
@@ -179,7 +179,7 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
                 stk::mesh::field_data(linker_contact_points_field, connected_linker) +
                 3 * !are_we_the_left_spherocylinder);
             const auto potential_force =
-              sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
+                sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
             node_force += potential_force;
             node_torque += mundy::math::cross(contact_point - node_coord, potential_force);

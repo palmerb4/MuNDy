@@ -216,8 +216,8 @@ struct IsAgentType {
   /// \return \c std::true_type if \c U has a \c get_mesh_requirements function, \c std::false_type
   /// otherwise.
   template <typename U>
-  static auto check_get_mesh_requirements([[maybe_unused]] int unused)
-      -> decltype(U::get_mesh_requirements(), std::true_type{});
+  static auto check_get_mesh_requirements([[maybe_unused]] int unused) -> decltype(U::get_mesh_requirements(),
+                                                                                   std::true_type{});
 
   /// \brief Helper for checking if \c U has a \c get_mesh_requirements function.
   /// \tparam U The type to check.

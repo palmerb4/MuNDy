@@ -256,7 +256,7 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
       }
     }
 
-    end_of_loop:;
+  end_of_loop:;
   }
 
   // Step 5: Create the neighbor linkers.
@@ -267,9 +267,7 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   size_t num_linkers_to_create = std::reduce(new_linker_required.begin(), new_linker_required.end(), 0);
   std::vector<int> linker_offset(new_linker_required.size());
   std::partial_sum(new_linker_required.begin(), new_linker_required.end(), linker_offset.begin());
-  std::transform(linker_offset.begin(), linker_offset.end(), linker_offset.begin(), [](int val) {
-    return val - 1;
-  });
+  std::transform(linker_offset.begin(), linker_offset.end(), linker_offset.begin(), [](int val) { return val - 1; });
 
   std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
   requests[stk::topology::CONSTRAINT_RANK] = num_linkers_to_create;

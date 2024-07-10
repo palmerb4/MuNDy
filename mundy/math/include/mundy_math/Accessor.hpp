@@ -92,15 +92,11 @@ concept HasDefaultConstructor = requires { Accessor{}; };
 
 /// \brief A concept that checks if an Accessor is constructable from 3 arguments of type T
 template <typename Accessor, typename T>
-concept Has3ArgConstructor = requires(T x, T y, T z) {
-  Accessor{x, y, z};
-};
+concept Has3ArgConstructor = requires(T x, T y, T z) { Accessor{x, y, z}; };
 
 /// \brief A concept that checks if an Accessor is constructable from 4 arguments of type T
 template <typename Accessor, typename T>
-concept Has4ArgConstructor = requires(T w, T x, T y, T z) {
-  Accessor{w, x, y, z};
-};
+concept Has4ArgConstructor = requires(T w, T x, T y, T z) { Accessor{w, x, y, z}; };
 
 /// \brief A concept that checks if an Accessor is constructable from 9 arguments of type T
 template <typename Accessor, typename T>

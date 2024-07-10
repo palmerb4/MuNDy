@@ -160,9 +160,8 @@ void DestroyBoundNeighbors::execute(const stk::mesh::Selector &input_selector) {
   // Step 2: Destroy the linkers marked for destruction.
   bulk_data_ptr_->modification_begin();
   const int value_that_indicates_destruction = 1;
-  mundy::mesh::utils::destroy_flagged_entities(*bulk_data_ptr_, stk::topology::CONSTRAINT_RANK,
-                                               input_selector, linker_destroy_flag_field,
-                                               value_that_indicates_destruction);
+  mundy::mesh::utils::destroy_flagged_entities(*bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, input_selector,
+                                               linker_destroy_flag_field, value_that_indicates_destruction);
   bulk_data_ptr_->modification_end();
 }
 //}

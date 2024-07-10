@@ -36,9 +36,9 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_mesh/BulkData.hpp>       // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>    // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
 #include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
 #include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 #include <mundy_meta/MeshReqs.hpp>       // for mundy::meta::MeshReqs
@@ -285,16 +285,11 @@ TEST(MeshReqsMerge, AreFieldsMergable) {
 
   // Setup the dummy fields.
   using ExampleFieldType = double;
-  auto field_reqs1_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
-  auto field_reqs4_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
-  auto field_reqs5_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
+  auto field_reqs1_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
+  auto field_reqs4_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
+  auto field_reqs5_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the mesh requirements according to the diagram above.
   auto mesh_reqs1_ptr = std::make_shared<MeshReqs>(MPI_COMM_WORLD);
@@ -341,7 +336,8 @@ TEST(MeshReqsMerge, AreMeshAttributesMergable) {
   mesh_reqs2_ptr->add_mesh_attribute(attribute3_name);
   mesh_reqs2_ptr->add_mesh_attribute(attribute4_name);
 
-  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged
+  // correctly.
   ASSERT_NO_THROW(mesh_reqs1_ptr->sync(mesh_reqs2_ptr));
 
   // Check that the attributes were merged correctly.
@@ -522,7 +518,7 @@ TEST(MeshReqsDeclare, DeclareMeshWithCommAndFields) {
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
   auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
-                                                                              field_min_number_of_states);
+                                                                      field_min_number_of_states);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
   // Setup the Mesh requirements.

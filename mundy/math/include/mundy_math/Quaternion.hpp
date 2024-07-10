@@ -346,8 +346,7 @@ class Quaternion {
   /// \param[in] accessor A valid accessor.
   /// \note A Quaternion is also a valid accessor.
   template <ValidAccessor<T> OtherAccessor>
-  KOKKOS_INLINE_FUNCTION
-  void set(const OtherAccessor &accessor)
+  KOKKOS_INLINE_FUNCTION void set(const OtherAccessor &accessor)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     data_[0] = accessor[0];
@@ -531,7 +530,8 @@ class Quaternion {
   /// \brief Quaternion-vector multiplication (same as R * v)
   /// \param[in] vec The vector.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec) const -> Vector3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec) const
+      -> Vector3<std::common_type_t<T, U>> {
     // Quaternion-vector multiplication consists of three parts:
     // 1. The vector is converted to a quaternion with a scalar component of 0
     // 2. The quaternion-quaternion multiplication is performed
@@ -545,7 +545,8 @@ class Quaternion {
   /// \brief Quaternion-matrix multiplication
   /// \param[in] other The other matrix.
   template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat) const -> Matrix3<std::common_type_t<T, U>> {
+  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat) const
+      -> Matrix3<std::common_type_t<T, U>> {
     // Quaternion-vector multiplication consists of applying the quaternion to each column of the matrix
     using CommonType = std::common_type_t<T, U>;
     Matrix3<CommonType> result;
@@ -655,8 +656,9 @@ KOKKOS_INLINE_FUNCTION std::ostream &operator<<(std::ostream &os, const Quaterni
 /// \param[in] quat2 The second quaternion.
 /// \param[in] tol The tolerance.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION bool is_close(const Quaternion<U, OtherAccessor> &quat1, const Quaternion<T, Accessor> &quat2,
-                              const std::common_type_t<T, U> &tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
+KOKKOS_INLINE_FUNCTION bool is_close(
+    const Quaternion<U, OtherAccessor> &quat1, const Quaternion<T, Accessor> &quat2,
+    const std::common_type_t<T, U> &tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
   using CommonType = std::common_type_t<T, U>;
   return std::abs(static_cast<CommonType>(quat1[0]) - static_cast<CommonType>(quat2[0])) < tol &&
          std::abs(static_cast<CommonType>(quat1[1]) - static_cast<CommonType>(quat2[1])) < tol &&
@@ -683,8 +685,8 @@ KOKKOS_INLINE_FUNCTION bool is_approx_close(
 /// \param[in] scalar The scalar.
 /// \param[in] quat The quaternion.
 template <typename U, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator*(const U &scalar, const Quaternion<T, Accessor> &quat)
-    -> Quaternion<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const U &scalar,
+                                      const Quaternion<T, Accessor> &quat) -> Quaternion<std::common_type_t<T, U>> {
   return quat * scalar;
 }
 
@@ -692,8 +694,8 @@ KOKKOS_INLINE_FUNCTION auto operator*(const U &scalar, const Quaternion<T, Acces
 /// \param[in] vec The vector.
 /// \param[in] quat The quaternion.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec, const Quaternion<T, Accessor> &quat)
-    -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec,
+                                      const Quaternion<T, Accessor> &quat) -> Vector3<std::common_type_t<T, U>> {
   // Vector-quaternion multiplication consists of three parts:
   // 1. The vector is converted to a quaternion with a scalar component of 0
   // 2. The quaternion-quaternion multiplication is performed
@@ -708,8 +710,8 @@ KOKKOS_INLINE_FUNCTION auto operator*(const Vector3<U, OtherAccessor> &vec, cons
 /// \param[in] mat The matrix.
 /// \param[in] quat The quaternion.
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat, const Quaternion<T, Accessor> &quat)
-    -> Matrix3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto operator*(const Matrix3<U, OtherAccessor> &mat,
+                                      const Quaternion<T, Accessor> &quat) -> Matrix3<std::common_type_t<T, U>> {
   // Quaternion-vector multiplication consists of applying the quaternion to each row of the matrix
   using CommonType = std::common_type_t<T, U>;
   Matrix3<CommonType> result;
@@ -783,8 +785,8 @@ KOKKOS_INLINE_FUNCTION Quaternion<std::remove_const_t<T>> normalize(const Quater
 /// \param[in] t The interpolation parameter.
 template <typename U, typename OtherAccessor, typename T, typename Accessor, typename V>
   requires std::is_arithmetic_v<V>
-KOKKOS_INLINE_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quaternion<T, Accessor> &q2, const V t)
-    -> Quaternion<std::common_type_t<U, T, V>> {
+KOKKOS_INLINE_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quaternion<T, Accessor> &q2,
+                                  const V t) -> Quaternion<std::common_type_t<U, T, V>> {
   using CommonType = std::common_type_t<U, T, V>;
   const CommonType epsilon = CommonType(1e-6);  // Threshold for linear interpolation
 
@@ -837,7 +839,8 @@ KOKKOS_INLINE_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const 
 // /// \param[in] t The interpolation parameter.
 // template <typename U, typename OtherAccessor, typename T, typename Accessor, typename V>
 //   requires std::is_arithmetic_v<V>
-// KOKKOS_INLINE_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quaternion<T, Accessor> &q2, const V t)
+// KOKKOS_INLINE_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const Quaternion<T, Accessor> &q2, const V
+// t)
 //     -> Quaternion<decltype(U() * T() * V())> {
 //   using CommonType = decltype(U() * T() * V());
 
@@ -885,8 +888,8 @@ KOKKOS_INLINE_FUNCTION auto slerp(const Quaternion<U, OtherAccessor> &q1, const 
 /// \param[in] angle The angle.
 template <typename T, typename Accessor, typename U>
   requires std::is_arithmetic_v<U>
-KOKKOS_INLINE_FUNCTION auto axis_angle_to_quaternion(const Vector3<T, Accessor> &axis, const U &angle)
-    -> Quaternion<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto axis_angle_to_quaternion(const Vector3<T, Accessor> &axis,
+                                                     const U &angle) -> Quaternion<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   const auto half_angle = U(0.5) * angle;
   const auto sin_half_angle = std::sin(half_angle);
@@ -921,7 +924,8 @@ KOKKOS_INLINE_FUNCTION Quaternion<T> rotation_matrix_to_quaternion(const Matrix3
 /// \brief Get the rotation matrix from a quaternion
 /// \param[in] quat The quaternion.
 template <typename T, typename Accessor>
-KOKKOS_INLINE_FUNCTION Matrix3<std::remove_const_t<T>> quaternion_to_rotation_matrix(const Quaternion<T, Accessor> &quat) {
+KOKKOS_INLINE_FUNCTION Matrix3<std::remove_const_t<T>> quaternion_to_rotation_matrix(
+    const Quaternion<T, Accessor> &quat) {
   Matrix3<std::remove_const_t<T>> rot_mat;
   rot_mat(0, 0) = T(1) - T(2) * quat.y() * quat.y() - T(2) * quat.z() * quat.z();
   rot_mat(0, 1) = T(2) * quat.x() * quat.y() - T(2) * quat.w() * quat.z();
@@ -963,20 +967,20 @@ KOKKOS_INLINE_FUNCTION Quaternion<std::remove_const_t<T>> euler_to_quat(const T 
 /// \param[in] v1 The first vector.
 /// \param[in] v2 The second vector.
 ///
-///The parallel transport quaternion from a to b is given by
+/// The parallel transport quaternion from a to b is given by
 ///
-/// p_a^b 
+/// p_a^b
 ///  = \frac{1}{\sqrt{2}} \sqrt{1 + a \cdot b} \left( 1 + \frac{a \times b}{1 + a \cdot b} \right)
 ///  = \frac{1}{\sqrt{2}} \left( \sqrt{1 + a \cdot b} + \frac{a \times b}{\sqrt{1 + a \cdot b}} \right)
 ///  = \sqrt{\frac{1 + a \cdot b}{2}} + \frac{1}{2} \frac{a \times b}{\sqrt{(1 + a \cdot b) / 2}}
 ///
 /// This equation comes from J. Linn's 2020 "Discrete Cosserat rod kinematics constricted on the basis
-/// of the difference geometry of framed curves," and as shown above, is identical to the equation given in K. Korner's "Simple
-/// deformation measures for discrete elastic rods and ribbons."
+/// of the difference geometry of framed curves," and as shown above, is identical to the equation given in K. Korner's
+/// "Simple deformation measures for discrete elastic rods and ribbons."
 template <typename U, typename OtherAccessor, typename T, typename Accessor>
-  requires (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>)
-KOKKOS_INLINE_FUNCTION auto quat_from_parallel_transport(const Vector3<U, OtherAccessor> &v_from, const Vector3<T, Accessor> &v_to)
-    -> Quaternion<decltype(U() * T())> {
+  requires(std::is_arithmetic_v<T> && std::is_arithmetic_v<U>)
+KOKKOS_INLINE_FUNCTION auto quat_from_parallel_transport(
+    const Vector3<U, OtherAccessor> &v_from, const Vector3<T, Accessor> &v_to) -> Quaternion<decltype(U() * T())> {
   // Get the quaternion that performs parallel transport from vector v_from to vector v_to
   using CommonType = decltype(U() * T());
   Quaternion<CommonType> quat;

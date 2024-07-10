@@ -117,8 +117,8 @@ std::pair<std::vector<double>, std::vector<double>> segmentize_function(const st
       return current_ell - segment_length;
     };
     try {
-      [[maybe_unused]] auto [x_new, error] = boost::math::tools::toms748_solve(length_error_func, x_prev, x_prev + segment_length,
-                                                              double_tol, boost_max_iter);
+      [[maybe_unused]] auto [x_new, error] = boost::math::tools::toms748_solve(
+          length_error_func, x_prev, x_prev + segment_length, double_tol, boost_max_iter);
       x_prev = x_new;
       y_prev = f(x_new);
       x_values[i] = x_prev;
@@ -134,7 +134,8 @@ std::pair<std::vector<double>, std::vector<double>> segmentize_function(const st
 }
 
 std::pair<std::vector<double>, std::vector<double>> segment_sin_wave(const double &x_start, const size_t &num_segments,
-                                                                     const double &segment_length, const double &amplitude,
+                                                                     const double &segment_length,
+                                                                     const double &amplitude,
                                                                      const double &angular_frequency,
                                                                      const double &phase_shift) {
   auto f = [&amplitude, &angular_frequency, &phase_shift](const double &x) {

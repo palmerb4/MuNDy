@@ -245,9 +245,8 @@ void GridOfSpheres::build_zmorton_map() {
   std::vector<size_t> sequential_map(num_spheres_x_ * num_spheres_y_ * num_spheres_z_);
   std::iota(sequential_map.begin(), sequential_map.end(), 0);
 
-  std::sort(sequential_map.begin(), sequential_map.end(), [this](size_t a, size_t b) {
-    return zmorton_map_[a] < zmorton_map_[b];
-  });
+  std::sort(sequential_map.begin(), sequential_map.end(),
+            [this](size_t a, size_t b) { return zmorton_map_[a] < zmorton_map_[b]; });
 
   // Replace the ZMorton codes in the ZMorton map with their sequential versions.
   for (size_t i = 0; i < num_spheres_x_ * num_spheres_y_ * num_spheres_z_; ++i) {

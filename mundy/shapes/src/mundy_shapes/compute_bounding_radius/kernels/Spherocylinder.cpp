@@ -129,11 +129,9 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
 
   // At the end of this loop, all locally owned and ghosted entities will be up-to-date.
   stk::mesh::Selector intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) &
-      spherocylinder_selector;
+      stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_selector;
   stk::mesh::for_each_entity_run(
-      *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
-      intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
       [&element_radius_field, &element_length_field, &element_bounding_radius_field, &buffer_distance](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder_element) {
         // Element data
