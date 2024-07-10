@@ -232,7 +232,7 @@ void IOBroker::synchronize_node_coordinates_from_transient() {
   auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
 
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
+      *bulk_data_ptr_, stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {
         double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
@@ -257,7 +257,7 @@ void IOBroker::synchronize_node_coordinates_to_transient() {
   auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
 
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
+      *bulk_data_ptr_, stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {
         const double *coordinates = reinterpret_cast<double *>(stk::mesh::field_data(coordinate_field, entity));
@@ -272,6 +272,11 @@ void IOBroker::synchronize_node_coordinates_to_transient() {
 void IOBroker::write_io_broker(double time) {
   // Before we write, synchronize the TRANSIENT coordinate field
   synchronize_node_coordinates_to_transient();
+
+  // Make sure that the ghosts are up-to-date
+  std::vector<const stk::mesh::FieldBase *> const_enabled_io_fields(enabled_io_fields_.begin(),
+                                                                    enabled_io_fields_.end());
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, const_enabled_io_fields);
 
   // Save the IO
   stk_io_broker_.begin_output_step(io_index_, time);

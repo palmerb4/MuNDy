@@ -277,10 +277,10 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
     double Pi = 3.14159265358979323846;
 
     // Get the total number of local spheres
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::EntityVector local_spheres;
-    stk::mesh::get_selected_entities(locally_owned_intersection_with_valid_entity_parts,
+    stk::mesh::get_selected_entities(intersection_with_valid_entity_parts,
                                      bulk_data.buckets(stk::topology::ELEMENT_RANK), local_spheres);
     const int num_local_spheres = local_spheres.size();
 

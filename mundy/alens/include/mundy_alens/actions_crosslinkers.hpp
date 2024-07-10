@@ -74,7 +74,7 @@ inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const
   MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
                            "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
   // Maybe unsafe?
-  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, 
+  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
@@ -114,7 +114,7 @@ inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk
   MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
                            "bind_crosslinker_to_node: The node must have NODE_RANK.");
   // Maybe unsafe?
-  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, 
+  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
@@ -159,7 +159,7 @@ inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk
   MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
                            "bind_crosslinker_to_node: The node must have NODE_RANK.");
   // Maybe unsafe?
-  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2, 
+  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.

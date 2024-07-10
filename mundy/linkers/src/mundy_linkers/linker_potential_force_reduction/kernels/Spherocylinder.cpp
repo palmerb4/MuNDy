@@ -130,23 +130,24 @@ void Spherocylinder::set_mutable_params(const Teuchos::ParameterList &mutable_pa
 
 void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector) {
   // Communicate the linker fields.
-  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
+  stk::mesh::communicate_field_data(*bulk_data_ptr_,
                                     {linker_contact_points_field_ptr_, linker_potential_force_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &linker_contact_points_field = *linker_contact_points_field_ptr_;
   const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
-  const stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
-  const stk::mesh::Field<double> &node_torque_field = *node_torque_field_ptr_;
+  stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+  stk::mesh::Field<double> &node_torque_field = *node_torque_field_ptr_;
   stk::mesh::Part &linkers_part_to_reduce_over = *linkers_part_to_reduce_over_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      spherocylinder_selector;
+  // At the end of this loop, all locally owned and shared spheres will be up-to-date.
+  stk::mesh::Selector locally_owned_or_globally_shared_intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_selector &
+      (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
+      locally_owned_or_globally_shared_intersection_with_valid_entity_parts,
       [&linker_contact_points_field, &linker_potential_force_field,
        &node_coord_field, &node_force_field, &node_torque_field,
        &linkers_part_to_reduce_over](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder) {

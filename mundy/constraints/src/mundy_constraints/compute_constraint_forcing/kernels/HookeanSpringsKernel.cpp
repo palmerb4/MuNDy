@@ -30,6 +30,7 @@
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/FieldParallel.hpp>  // for stk::mesh::communicate_field_data
 
 // Mundy libs
 #include <mundy_constraints/HookeanSprings.hpp>  // for mundy::constraints::HookeanSprings
@@ -101,17 +102,21 @@ void HookeanSpringsKernel::set_mutable_params(const Teuchos::ParameterList &muta
 //{
 
 void HookeanSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
-  // Get references to internal members so we aren't passing around *this
-  stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
-  stk::mesh::Field<double> &node_coord_field = *node_coordinates_field_ptr_;
-  stk::mesh::Field<double> &element_rest_length_field = *element_rest_length_field_ptr_;
-  stk::mesh::Field<double> &element_spring_constant_field = *element_spring_constant_field_ptr_;
+  // Communicate ghosted fields.
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, {node_coordinates_field_ptr_, element_rest_length_field_ptr_,
+                                                      element_spring_constant_field_ptr_});
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spring_selector;
+  // Get references to internal members so we aren't passing around *this
+  const stk::mesh::Field<double> &node_coord_field = *node_coordinates_field_ptr_;
+  const stk::mesh::Field<double> &element_rest_length_field = *element_rest_length_field_ptr_;
+  const stk::mesh::Field<double> &element_spring_constant_field = *element_spring_constant_field_ptr_;
+  stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+  // At the end of this loop, all locally owned nodes will be up-to-date. Shared nodes will need to be summed.
+  stk::mesh::Selector intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & spring_selector;
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
       [&node_force_field, &node_coord_field, &element_rest_length_field, &element_spring_constant_field](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spring_element) {
         // Fetch the connected nodes.
@@ -159,6 +164,9 @@ void HookeanSpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
 #pragma omp atomic
         node2_force[2] += right_node_force[2];
       });
+
+  // Sum the forces on shared nodes.
+  stk::mesh::parallel_sum(*bulk_data_ptr_, {node_force_field_ptr_});
 }
 //}
 

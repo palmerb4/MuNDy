@@ -269,16 +269,19 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
   void execute(const stk::mesh::Selector &sphere_selector) {
+    // Communicate ghosted fields.
+    stk::mesh::communicate_field_data(*bulk_data_ptr_, {node_coord_field_ptr_, node_velocity_field_ptr_});
+
     // Get references to internal members so we aren't passing around *this
+    const stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
-    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
     double time_step_size = time_step_size_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-        stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+    // At the end of this loop, all locally owned and ghosted entities will be up-to-date.
+    stk::mesh::Selector intersection_with_valid_entity_parts =
+        stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
-        locally_owned_intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_coord_field, &node_velocity_field, &time_step_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
@@ -558,19 +561,21 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   /// \brief Run the kernel's core calculation.
   /// \param sphere_node [in] The sphere's node acted on by the kernel.
   void execute(const stk::mesh::Selector &sphere_selector) {
+    // Communicate ghosted fields.
+    stk::mesh::communicate_field_data(*bulk_data_ptr_, {node_rng_counter_field_ptr_});
+
     // Get references to internal members so we aren't passing around *this
+    const stk::mesh::Field<unsigned> &node_rng_counter_field = *node_rng_counter_field_ptr_;
     stk::mesh::Field<double> &node_brownian_velocity_field = *node_brownian_velocity_field_ptr_;
-    stk::mesh::Field<unsigned> &node_rng_counter_field = *node_rng_counter_field_ptr_;
     double time_step_size = time_step_size_;
     double diffusion_coeff = diffusion_coeff_;
     double alpha = alpha_;
     double beta = beta_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
-        locally_owned_intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_brownian_velocity_field, &node_rng_counter_field, &time_step_size, &diffusion_coeff, &alpha, &beta](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           double *node_brownian_velocity = stk::mesh::field_data(node_brownian_velocity_field, sphere_node);

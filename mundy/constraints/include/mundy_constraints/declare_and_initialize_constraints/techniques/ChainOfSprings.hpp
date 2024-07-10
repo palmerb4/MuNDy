@@ -320,6 +320,26 @@ class ChainOfSprings : public mundy::meta::MetaMethodExecutionInterface<void> {
   /// \brief Get the i'th spherocylinder segment in the chain.
   /// Returns an invalid entity if the element does not exist.
   stk::mesh::Entity get_spherocylinder_segment(const size_t &sequential_spherocylinder_segment_index) const;
+
+  /// \brief Get the i'th node in the chain.
+  /// Throws if the node does not exist.
+  stk::mesh::Entity get_valid_node(const size_t &sequential_node_index) const;
+
+  /// \brief Get the i'th hookean spring in the chain.
+  /// Throws if the element does not exist.
+  stk::mesh::Entity get_valid_hookean_spring(const size_t &sequential_hookean_spring_index) const;
+
+  /// \brief Get the i'th angular spring in the chain.
+  /// Throws if the element does not exist.
+  stk::mesh::Entity get_valid_angular_spring(const size_t &sequential_angular_spring_index) const;
+
+  /// \brief Get the i'th sphere in the chain.
+  /// Throws if the element does not exist.
+  stk::mesh::Entity get_valid_sphere(const size_t &sequential_sphere_index) const;
+
+  /// \brief Get the i'th spherocylinder segment in the chain.
+  /// Throws if the element does not exist.
+  stk::mesh::Entity get_valid_spherocylinder_segment(const size_t &sequential_spherocylinder_segment_index) const;
   //@}
 
   //! \name Setters

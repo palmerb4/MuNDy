@@ -138,9 +138,8 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::set_mutable_params(
 
 void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
     const stk::mesh::Selector &spherocylinder_segment_spherocylinder_segment_linker_selector) {
-  // Communicate the fields of downward connected entities.
-  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-                                    {node_coord_field_ptr_, element_radius_field_ptr_});
+  // Communicate ghosted fields.
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, {node_coord_field_ptr_, element_radius_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
@@ -149,12 +148,11 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
   stk::mesh::Field<double> &linker_contact_points_field = *linker_contact_points_field_ptr_;
   stk::mesh::Field<double> &linker_signed_separation_distance_field = *linker_signed_separation_distance_field_ptr_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      spherocylinder_segment_spherocylinder_segment_linker_selector;
+  // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
+  stk::mesh::Selector intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_segment_spherocylinder_segment_linker_selector;
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&node_coord_field, &element_radius_field, &linker_contact_normal_field, &linker_contact_points_field,
        &linker_signed_separation_distance_field](
           const stk::mesh::BulkData &bulk_data,
@@ -215,7 +213,7 @@ void SpherocylinderSegmentSpherocylinderSegmentLinker::execute(
             3);
         double *signed_separation_distance = stk::mesh::field_data(
             linker_signed_separation_distance_field, spherocylinder_segment_spherocylinder_segment_linker);
-        
+
         signed_separation_distance[0] = separation_distance;
         contact_normal = left_to_right_vector * inv_distance;
         spherocylinder_segment1_contact_point = closest_point1 + spherocylinder_segment1_radius * contact_normal;

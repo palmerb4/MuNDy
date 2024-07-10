@@ -134,7 +134,7 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   // The following is the BBPGD solution to the linear complementarity problem.
 
   // Fill the Lagrange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
-  stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
+  stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK,
                                  input_selector,
                                  [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
                                    stk::mesh::field_data(*element_constraint_violation_field_ptr_, element)[0] = 0.0;

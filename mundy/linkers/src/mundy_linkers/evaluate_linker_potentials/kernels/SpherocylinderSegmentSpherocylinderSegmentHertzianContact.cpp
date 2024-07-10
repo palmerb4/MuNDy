@@ -34,9 +34,9 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSegmentSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact
-#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
-#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
+#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
 
@@ -146,26 +146,26 @@ void SpherocylinderSegmentSpherocylinderSegmentHertzianContact::set_mutable_para
 
 void SpherocylinderSegmentSpherocylinderSegmentHertzianContact::execute(
     const stk::mesh::Selector &spherocylinder_segment_spherocylinder_segment_linker_selector) {
-  // Communicate the fields of downward connected entities.
+  // Communicate ghosted fields.
   stk::mesh::communicate_field_data(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-      {element_radius_field_ptr_, element_youngs_modulus_field_ptr_, element_poissons_ratio_field_ptr_});
+      *bulk_data_ptr_, {element_radius_field_ptr_, element_youngs_modulus_field_ptr_, element_poissons_ratio_field_ptr_,
+                        linker_signed_separation_distance_field_ptr_, linker_contact_normal_field_ptr_,
+                        linker_potential_force_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
   const stk::mesh::Field<double> &element_youngs_modulus_field = *element_youngs_modulus_field_ptr_;
   const stk::mesh::Field<double> &element_poissons_ratio_field = *element_poissons_ratio_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &linker_signed_separation_distance_field =
       *linker_signed_separation_distance_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
+  stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      spherocylinder_segment_spherocylinder_segment_linker_selector;
+  // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
+  stk::mesh::Selector intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_segment_spherocylinder_segment_linker_selector;
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&element_radius_field, &element_youngs_modulus_field, &element_poissons_ratio_field,
        &linker_potential_force_field, &linker_signed_separation_distance_field,
        &linker_contact_normal_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,

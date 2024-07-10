@@ -148,26 +148,26 @@ void SphereSpherocylinderSegmentHertzianContact::set_mutable_params(const Teucho
 
 void SphereSpherocylinderSegmentHertzianContact::execute(
     const stk::mesh::Selector &sphere_spherocylinder_segment_linker_selector) {
-  // Communicate the fields of downward connected entities.
+  // Communicate ghosted fields.
   stk::mesh::communicate_field_data(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-      {element_radius_field_ptr_, element_youngs_modulus_field_ptr_, element_poissons_ratio_field_ptr_});
+      *bulk_data_ptr_, {element_radius_field_ptr_, element_youngs_modulus_field_ptr_, element_poissons_ratio_field_ptr_,
+                        linker_signed_separation_distance_field_ptr_, linker_contact_normal_field_ptr_,
+                        linker_potential_force_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
   const stk::mesh::Field<double> &element_youngs_modulus_field = *element_youngs_modulus_field_ptr_;
   const stk::mesh::Field<double> &element_poissons_ratio_field = *element_poissons_ratio_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &linker_signed_separation_distance_field =
       *linker_signed_separation_distance_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
+  stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      sphere_spherocylinder_segment_linker_selector;
+  // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
+  stk::mesh::Selector intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & sphere_spherocylinder_segment_linker_selector;
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&element_radius_field, &element_youngs_modulus_field, &element_poissons_ratio_field,
        &linker_potential_force_field, &linker_signed_separation_distance_field,
        &linker_contact_normal_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
@@ -188,8 +188,8 @@ void SphereSpherocylinderSegmentHertzianContact::execute(
             stk::mesh::field_data(element_poissons_ratio_field, spherocylinder_segment_element)[0];
         const double linker_signed_separation_distance =
             stk::mesh::field_data(linker_signed_separation_distance_field, sphere_spherocylinder_segment_linker)[0];
-        const auto left_contact_normal = mundy::mesh::vector3_field_data(
-            linker_contact_normal_field, sphere_spherocylinder_segment_linker);
+        const auto left_contact_normal =
+            mundy::mesh::vector3_field_data(linker_contact_normal_field, sphere_spherocylinder_segment_linker);
 
         const double effective_radius =
             (sphere_radius * spherocylinder_segment_radius) / (sphere_radius + spherocylinder_segment_radius);

@@ -104,7 +104,7 @@ void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): NodeEuler should only act on the mulitbody Body type. Take the intersection.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = input_selector & stk::mesh::Selector(meta_data_ptr_->locally_owned_part());
-    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
+    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK,
                                    locally_owned_part,
                                    [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed

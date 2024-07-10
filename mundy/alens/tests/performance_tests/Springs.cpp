@@ -297,11 +297,11 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
     double timestep_size = timestep_size_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
-        locally_owned_intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK,
+        intersection_with_valid_entity_parts,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
           double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
@@ -584,11 +584,11 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     double alpha = alpha_;
     double beta = beta_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::NODE_RANK,
-        locally_owned_intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK,
+        intersection_with_valid_entity_parts,
         [&node_brownian_velocity_field, &node_rng_counter_field, &timestep_size, &diffusion_coeff, &alpha, &beta](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           double *node_brownian_velocity = stk::mesh::field_data(node_brownian_velocity_field, sphere_node);
@@ -929,10 +929,10 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
     double viscosity = viscosity_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
-                                   locally_owned_intersection_with_valid_entity_parts,
+    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK,
+                                   intersection_with_valid_entity_parts,
                                    [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
                                        const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
                                      const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
@@ -1198,11 +1198,11 @@ class ComputeConstraintForcesHookeanSpring : public mundy::meta::MetaKernel<> {
     stk::mesh::Field<double> &element_rest_length_field = *element_rest_length_field_ptr_;
     stk::mesh::Field<double> &element_spring_constant_field = *element_spring_constant_field_ptr_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & spring_selector;
     stk::mesh::for_each_entity_run(
-        *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
-        locally_owned_intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
+        intersection_with_valid_entity_parts,
         [&node_force_field, &node_coord_field, &element_rest_length_field, &element_spring_constant_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spring_element) {
           // Fetch the connected nodes.

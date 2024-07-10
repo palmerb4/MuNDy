@@ -143,17 +143,15 @@ std::vector<stk::mesh::Part *> DestroyDistantNeighbors::get_valid_entity_parts()
 
 void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector) {
   // Step 0: Populate the AABB's of our ghosted elements.
-  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), {element_aabb_field_ptr_});
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, {element_aabb_field_ptr_});
 
-  // Step 1: Loop over each locally owned linker in the input selector and mark them for destruction if the AABBs of
+  // Step 1: Loop over each linker in the input selector and mark them for destruction if the AABBs of
   // their source and target connected elements don't overlap.
   const stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
   const stk::mesh::Field<int> &linker_destroy_flag_field = *linker_destroy_flag_field_ptr_;
-  const stk::mesh::Selector locally_owned_input_selector =
-      input_selector & bulk_data_ptr_->mesh_meta_data().locally_owned_part();
 
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK, locally_owned_input_selector,
+      *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, input_selector,
       [&element_aabb_field, &linker_destroy_flag_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                         const stk::mesh::Entity &linker) {
         // Get the source and target entities of the linker.
@@ -173,9 +171,8 @@ void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector)
   // Step 2: Destroy the linkers marked for destruction.
   bulk_data_ptr_->modification_begin();
   const int value_that_indicates_destruction = 1;
-  mundy::mesh::utils::destroy_flagged_entities(*bulk_data_ptr_, stk::topology::CONSTRAINT_RANK,
-                                               locally_owned_input_selector, linker_destroy_flag_field,
-                                               value_that_indicates_destruction);
+  mundy::mesh::utils::destroy_flagged_entities(*bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, input_selector,
+                                               linker_destroy_flag_field, value_that_indicates_destruction);
   bulk_data_ptr_->modification_end();
 }
 //}

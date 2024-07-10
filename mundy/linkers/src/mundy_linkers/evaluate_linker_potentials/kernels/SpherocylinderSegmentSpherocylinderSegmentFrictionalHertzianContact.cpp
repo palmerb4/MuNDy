@@ -349,19 +349,23 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::set_mu
 
 void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execute(
     const stk::mesh::Selector &sy_seg_sy_seg_linker_selector) {
-  // Communicate the fields of downward connected entities.
-  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), {element_radius_field_ptr_});
-
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &node_coords_field = *node_coords_field_ptr_;
   const stk::mesh::Field<double> &node_velocity_field_old = node_velocity_field_ptr_->field_of_state(stk::mesh::StateN);
   const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &linker_signed_separation_distance_field =
       *linker_signed_separation_distance_field_ptr_;
   const stk::mesh::Field<double> &linker_tangential_displacement_field = *linker_tangential_displacement_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_points_field = *linker_contact_points_field_ptr_;
+  stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
+
+  // Communicate ghosted fields.
+  stk::mesh::communicate_field_data(
+      *bulk_data_ptr_,
+      {node_coords_field_ptr_, &node_velocity_field_old, element_radius_field_ptr_,
+       linker_signed_separation_distance_field_ptr_, linker_tangential_displacement_field_ptr_,
+       linker_contact_normal_field_ptr_, linker_contact_points_field_ptr_, linker_potential_force_field_ptr_});
 
   // TODO(palmerb4): For now, we hardcode some of the parameters. We'll need to take them in as mutable params.
   const double density = 1.90986;
@@ -375,12 +379,11 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
   const double tang_damping_coeff = 0.0;  // A good choice is 0.5 * normal_damping_coeff
   const double time_step_size = 0.0001;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts = stk::mesh::selectUnion(valid_entity_parts_) &
-                                                                           meta_data_ptr_->locally_owned_part() &
-                                                                           sy_seg_sy_seg_linker_selector;
+  // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
+  stk::mesh::Selector intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & sy_seg_sy_seg_linker_selector;
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&node_coords_field, &node_velocity_field_old, &element_radius_field, &linker_potential_force_field,
        &linker_signed_separation_distance_field, &linker_tangential_displacement_field, &linker_contact_normal_field,
        &linker_contact_points_field, &time_step_size, &density, &normal_spring_coeff, &tang_spring_coeff,
@@ -423,8 +426,8 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
             const auto tangent = left_to_right * inv_length;
 
             const auto term1 = mundy::math::dot(left_to_cp, rel_vel) * tangent * inv_length;
-            const auto term2 = mundy::math::dot(left_to_cp, tangent) * 
-              (rel_vel - mundy::math::dot(tangent, rel_vel) * tangent) * inv_length;
+            const auto term2 = mundy::math::dot(left_to_cp, tangent) *
+                               (rel_vel - mundy::math::dot(tangent, rel_vel) * tangent) * inv_length;
             return vel0 + term1 + term2;
           };  // get_contact_point_velocity
 
