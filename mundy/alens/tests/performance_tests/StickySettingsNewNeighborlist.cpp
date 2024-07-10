@@ -1392,11 +1392,10 @@ class StickySettings {
     double &sphere_drag_coeff = sphere_drag_coeff_;
     double &kt = kt_brownian_;
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
-    auto locally_owned_selector = stk::mesh::Selector(spheres_part) & meta_data_ptr_->locally_owned_part();
 
     // Compute the total velocity of the nonorientable spheres
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_selector,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
          &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
@@ -1427,11 +1426,10 @@ class StickySettings {
     double &timestep_size = timestep_size_;
     double &sphere_drag_coeff = sphere_drag_coeff_;
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
-    auto locally_owned_selector = stk::mesh::Selector(spheres_part) & meta_data_ptr_->locally_owned_part();
 
     // Compute the total velocity of the nonorientable spheres
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_selector,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
@@ -1455,11 +1453,10 @@ class StickySettings {
     stk::mesh::Part &spheres_part = *spheres_part_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
-    auto locally_owned_selector = stk::mesh::Selector(spheres_part) & meta_data_ptr_->locally_owned_part();
 
     // Update the positions for all spheres based on velocity
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_selector,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
