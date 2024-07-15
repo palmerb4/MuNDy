@@ -246,6 +246,15 @@ class StickySettings {
     cmdp.setOption("crosslinker_right_unbinding_rate", &crosslinker_right_unbinding_rate_,
                    "Crosslinker right unbinding rate.");
 
+    // Neighbor list
+    cmdp.setOption("skin_distance", &skin_distance_, "Neighbor list skin distance.");
+    cmdp.setOption("force_neighborlist_update", "no_force_update_neighbor_list", &force_neighborlist_update_,
+                   "Force update of the neighbor list.");
+    cmdp.setOption("force_neighborlist_update_nsteps", &force_neighborlist_update_nsteps_,
+                   "Number of timesteps between updating the neighbor list (if forced).");
+    cmdp.setOption("print_neighborlist_statistics", "no_print_neighborlist_statistics", &print_neighborlist_statistics_,
+                   "Print neighbor list statistics.");
+
     //   The simulation:
     cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
     cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
@@ -262,6 +271,11 @@ class StickySettings {
     MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
     MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
     MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
+
+    // Modify any variables into their final form
+    skin_distance2_over4_ = skin_distance_ * skin_distance_ / 4.0;
+    // Compute the cutoff radius for the crosslinker
+    crosslinker_rcut_ = crosslinker_rest_length_ + 5.0 * std::sqrt(1.0 / kt_kmc_ / crosslinker_spring_constant_);
   }
 
   void dump_user_inputs() {
@@ -275,6 +289,12 @@ class StickySettings {
       std::cout << "  io_frequency: " << io_frequency_ << std::endl;
       std::cout << "  kT (Brownian): " << kt_brownian_ << std::endl;
       std::cout << "  kT (KMC): " << kt_kmc_ << std::endl;
+
+      std::cout << "NEIGHBOR LIST:" << std::endl;
+      std::cout << "  force_update_neighborlist: " << force_neighborlist_update_ << std::endl;
+      std::cout << "  force_update_neighborlist_nsteps: " << force_neighborlist_update_nsteps_ << std::endl;
+      std::cout << "  skin_distance: " << 2.0 * std::sqrt(skin_distance2_over4_) << std::endl;
+      std::cout << "    (skin_distance2_over4): " << skin_distance2_over4_ << std::endl;
 
       std::cout << "BACKBONE SPHERES:" << std::endl;
       std::cout << "  num_spheres: " << num_spheres_ << std::endl;
@@ -291,6 +311,7 @@ class StickySettings {
       std::cout << "CROSSLINKERS:" << std::endl;
       std::cout << "  crosslinker_spring_constant: " << crosslinker_spring_constant_ << std::endl;
       std::cout << "  crosslinker_rest_length: " << crosslinker_rest_length_ << std::endl;
+      std::cout << "  crosslinker_rcut: " << crosslinker_rcut_ << std::endl;
       std::cout << "  crosslinker_left_binding_rate: " << crosslinker_left_binding_rate_ << std::endl;
       std::cout << "  crosslinker_right_binding_rate: " << crosslinker_right_binding_rate_ << std::endl;
       std::cout << "  crosslinker_left_unbinding_rate: " << crosslinker_left_unbinding_rate_ << std::endl;
@@ -443,6 +464,24 @@ class StickySettings {
     mundy::linkers::NeighborLinkers::add_and_sync_subpart_reqs(custom_crosslinker_sphere_linkers_part_reqs);
     mesh_reqs_ptr_->sync(mundy::linkers::NeighborLinkers::get_mesh_requirements());
 
+    // Add the custom neighbor list implementation to the axis-aligned bounding box. In theory, we only care if the
+    // corners of the AABB move more than skin distance/2. Set the AABB field to have an additional state that it keeps
+    // track of at the end so that we can do dr calculations trivially. This create the two element aabb fields, but
+    // also adds a second entire set of fields to the mesh.
+    //
+    // We also need an accumulator for summing up the total distance traveled by the AABB corners.
+    mesh_reqs_ptr_->add_field_reqs<double>("ELEMENT_AABB", element_rank_, 6, 2);
+    auto custom_sphere_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_sphere_aabb_accumulator_reqs->set_part_name("SPHERES")
+        .set_part_topology(stk::topology::PARTICLE)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    auto custom_crosslinker_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_crosslinker_aabb_accumulator_reqs->set_part_name("CROSSLINKERS")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_sphere_aabb_accumulator_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_crosslinker_aabb_accumulator_reqs);
+
     // Setup our fixed parameters for any of methods that we intend to use
     // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
     // master parameter list. Note, sublist will return a reference to the sublist with the given name.
@@ -561,6 +600,8 @@ class StickySettings {
     element_binding_rates_field_ptr_ = fetch_field<double>("ELEMENT_BINDING_RATES", element_rank_);
     element_unbinding_rates_field_ptr_ = fetch_field<double>("ELEMENT_UNBINDING_RATES", element_rank_);
     element_perform_state_change_field_ptr_ = fetch_field<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_);
+    element_corner_displacement_field_ptr_ = fetch_field<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_);
+    element_aabb_field_ptr_ = fetch_field<double>("ELEMENT_AABB", element_rank_);
 
     linker_destroy_flag_field_ptr_ = fetch_field<int>("LINKER_DESTROY_FLAG", constraint_rank_);
     constraint_state_change_rate_field_ptr_ =
@@ -609,8 +650,9 @@ class StickySettings {
   }
 
   void set_mutable_parameters() {
+    double skin_distance = 2.0 * std::sqrt(skin_distance2_over4_);
     // ComputeAABB mutable parameters
-    auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", 0.0);
+    auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", skin_distance);
     compute_aabb_ptr_->set_mutable_params(compute_aabb_mutable_params);
 
     // DeclareAndInitConstraints mutable parameters
@@ -666,6 +708,10 @@ class StickySettings {
 
   void loadbalance() {
     stk::balance::balanceStkMesh(balance_settings_, *bulk_data_ptr_);
+  }
+
+  void rotate_field_states() {
+    bulk_data_ptr_->update_field_data_states();
   }
 
   void declare_and_initialize_sticky() {
@@ -783,7 +829,7 @@ class StickySettings {
       stk::mesh::field_data(*element_hookean_spring_constant_field_ptr_, crosslinker)[0] = crosslinker_spring_constant_;
       stk::mesh::field_data(*element_hookean_spring_rest_length_field_ptr_, crosslinker)[0] = crosslinker_rest_length_;
       stk::mesh::field_data(*element_radius_field_ptr_, crosslinker)[0] =
-          crosslinker_rest_length_;  // This is the search radius
+          crosslinker_rcut_;  // This is the search radius. Note that the skin distance is included separately.
     }
     bulk_data_ptr_->modification_end();
   }
@@ -854,6 +900,11 @@ class StickySettings {
                                                       std::array<double, 1>{0.0});
   }
 
+  void zero_out_accumulator_fields() {
+    mundy::mesh::utils::fill_field_with_value<double>(*element_corner_displacement_field_ptr_,
+                                                      std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+  }
+
   void destroy_crosslinker_sphere_linker_self_interactions() {
     // This is very similar to what is done in DestroyDistantNeighbors, except we are doing it ourselves.
 
@@ -903,16 +954,58 @@ class StickySettings {
     bulk_data_ptr_->modification_end();
   }
 
+  void detect_neighbors_initial() {
+    Kokkos::Profiling::pushRegion("StickySettings::detect_neighbors_initial");
+
+    // Set the timing information for the neighbor list rebuilds
+    last_neighborlist_update_step_ = 0;
+    neighborlist_update_timer_.reset();
+
+    // ComputeAABB for everyone (assume same buffer distance)
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto crosslinkers_selector = stk::mesh::Selector(*crosslinkers_part_ptr_);
+    auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
+    auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
+
+    compute_aabb_ptr_->execute(spheres_selector | crosslinkers_selector);
+    destroy_neighbor_linkers_ptr_->execute(sphere_sphere_linkers_selector | crosslinker_sphere_linkers_selector);
+    generate_sphere_sphere_neighbor_linkers_ptr_->execute(spheres_selector, spheres_selector);
+    generate_crosslinker_sphere_neighbor_linkers_ptr_->execute(crosslinkers_selector, spheres_selector);
+
+    Kokkos::Profiling::popRegion();
+  }
+
   void detect_neighbors() {
     Kokkos::Profiling::pushRegion("StickySettings::detect_neighbors");
-    if (timestep_index_ % 100 == 0) {
-      // ComputeAABB for everyone (assume same buffer distance)
-      auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
-      auto crosslinkers_selector = stk::mesh::Selector(*crosslinkers_part_ptr_);
-      auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
-      auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
 
-      compute_aabb_ptr_->execute(spheres_selector | crosslinkers_selector);
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto crosslinkers_selector = stk::mesh::Selector(*crosslinkers_part_ptr_);
+    auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
+    auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
+
+    // ComputeAABB for everybody at each time step. The accumulator then always uses this updated information to
+    // calculate if we need to update the entire neighbor list.
+    compute_aabb_ptr_->execute(spheres_selector | crosslinkers_selector);
+    update_accumulators();
+
+    // Check if we need to update the neighbor list. Eventually this will be replaced with a mesh attribute to
+    // synchronize across multiple tasks. For now, make sure that the default is to not update neighbor lists.
+    check_update_neighbor_list();
+
+    // Now do a check to see if we need to update the neighbor list.
+    if (((force_neighborlist_update_) && (timestep_index_ % force_neighborlist_update_nsteps_ == 0)) ||
+        update_neighbor_list_) {
+      // Read off the timing information before doing anything else and reset it
+      auto elapsed_steps = timestep_index_ - last_neighborlist_update_step_;
+      auto elapsed_time = neighborlist_update_timer_.seconds();
+      neighborlist_update_steps_times_.push_back(std::make_tuple(timestep_index_, elapsed_steps, elapsed_time));
+      last_neighborlist_update_step_ = timestep_index_;
+      neighborlist_update_timer_.reset();
+
+      // Reset the accumulators
+      zero_out_accumulator_fields();
+
+      // Update the neighbor list
       destroy_neighbor_linkers_ptr_->execute(sphere_sphere_linkers_selector | crosslinker_sphere_linkers_selector);
       generate_sphere_sphere_neighbor_linkers_ptr_->execute(spheres_selector, spheres_selector);
       generate_crosslinker_sphere_neighbor_linkers_ptr_->execute(crosslinkers_selector, spheres_selector);
@@ -930,14 +1023,12 @@ class StickySettings {
     const stk::mesh::Field<double> &crosslinker_spring_constant = *element_hookean_spring_constant_field_ptr_;
     const stk::mesh::Field<double> &crosslinker_spring_rest_length = *element_hookean_spring_rest_length_field_ptr_;
     stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
-    const stk::mesh::Selector locally_owned_input_selector =
-        stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_) &
-        bulk_data_ptr_->mesh_meta_data().locally_owned_part();
+    stk::mesh::Part &crosslinker_sphere_linkers_part = *crosslinker_sphere_linkers_part_ptr_;
     const double inv_kt = 1.0 / kt_kmc_;
     const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
 
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, locally_owned_input_selector,
+        *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, crosslinker_sphere_linkers_part,
         [&node_coord_field, &constraint_state_change_probability, &crosslinker_spring_constant,
          &crosslinker_spring_rest_length, &left_bound_crosslinkers_part, &inv_kt, &crosslinker_right_binding_rate](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
@@ -972,6 +1063,8 @@ class StickySettings {
             stk::mesh::field_data(constraint_state_change_probability, linker)[0] = Z;
           }
         });
+    // CJE Dump the mesh here to see if the element radius is set correctly
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
     Kokkos::Profiling::popRegion();
   }
 
@@ -983,13 +1076,11 @@ class StickySettings {
     const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     const stk::mesh::Field<double> &crosslinker_unbinding_rates = *element_unbinding_rates_field_ptr_;
     stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
-    const stk::mesh::Selector locally_owned_input_selector = stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) &
-                                                             bulk_data_ptr_->mesh_meta_data().locally_owned_part();
     const double &crosslinker_right_unbinding_rate = crosslinker_right_unbinding_rate_;
 
     // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only.
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_input_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&node_coord_field, &crosslinker_unbinding_rates, &doubly_bound_crosslinkers_part,
          &crosslinker_right_unbinding_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                             const stk::mesh::Entity &crosslinker) {
@@ -1022,12 +1113,11 @@ class StickySettings {
     stk::mesh::Field<unsigned> &constraint_perform_state_change_field = *constraint_perform_state_change_field_ptr_;
     stk::mesh::Field<double> &constraint_state_change_rate_field = *constraint_state_change_rate_field_ptr_;
     const double &timestep_size = timestep_size_;
-    auto left_crosslinkers_selector =
-        stk::mesh::Selector(*left_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
 
     // Loop over left-bound crosslinkers and decide if they bind or not
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_bound_crosslinkers_part,
         [&crosslinker_sphere_linkers_part, &element_rng_field, &constraint_perform_state_change_field,
          &element_perform_state_change_field, &constraint_state_change_rate_field,
          &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -1106,12 +1196,11 @@ class StickySettings {
     stk::mesh::Field<unsigned> &element_perform_state_change_field = *element_perform_state_change_field_ptr_;
     const stk::mesh::Field<double> &crosslinker_unbinding_rates = *element_unbinding_rates_field_ptr_;
     const double &timestep_size = timestep_size_;
-    auto doubly_crosslinkers_selector =
-        stk::mesh::Selector(*doubly_bound_crosslinkers_part_ptr_) & meta_data_ptr_->locally_owned_part();
+    stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
 
     // This is just a loop over the doubly bound crosslinkers, since we know that the right head in is [1].
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_crosslinkers_selector,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&element_rng_field, &element_perform_state_change_field, &crosslinker_unbinding_rates, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
           // We only have a single node, our right node, that is bound that we can unbind.
@@ -1340,7 +1429,7 @@ class StickySettings {
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
-            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
           double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
           double *node_force = stk::mesh::field_data(node_force_field, sphere_node);
@@ -1381,6 +1470,91 @@ class StickySettings {
     Kokkos::Profiling::popRegion();
   }
 
+  void update_accumulators() {
+#pragma TODO This will be at the mercy of periodic boundary condition calculations.
+    Kokkos::Profiling::pushRegion("StickySettings::update_accumulators");
+
+    // Selectors and aliases
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Part &crosslinkers_part = *crosslinkers_part_ptr_;
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_aabb_field_old = element_aabb_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+
+    stk::mesh::Selector spheres_and_crosslinkers_selector =
+        (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
+
+    // Update the accumulators based on the difference to the previous state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
+        [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_aabb = stk::mesh::field_data(element_aabb_field, aabb_entity);
+          double *element_aabb_old = stk::mesh::field_data(element_aabb_field_old, aabb_entity);
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Add the (new_aabb - old_aabb) to the corner displacement
+          element_corner_displacement[0] += element_aabb[0] - element_aabb_old[0];
+          element_corner_displacement[1] += element_aabb[1] - element_aabb_old[1];
+          element_corner_displacement[2] += element_aabb[2] - element_aabb_old[2];
+          element_corner_displacement[3] += element_aabb[3] - element_aabb_old[3];
+          element_corner_displacement[4] += element_aabb[4] - element_aabb_old[4];
+          element_corner_displacement[5] += element_aabb[5] - element_aabb_old[5];
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void check_update_neighbor_list() {
+    Kokkos::Profiling::pushRegion("StickySettings::check_update_neighbor_list");
+
+    // Local variable for if we should update the neighbor list (do as an integer for now because MPI doesn't like
+    // bools)
+    int local_update_neighbor_list_int = 0;
+
+    // Selectors and aliases
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Part &crosslinkers_part = *crosslinkers_part_ptr_;
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+    const double &skin_distance2_over4 = skin_distance2_over4_;
+
+    stk::mesh::Selector spheres_and_crosslinkers_selector =
+        (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
+
+    // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
+        [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Compute dr2 for each corner
+          double dr2_corner0 = element_corner_displacement[0] * element_corner_displacement[0] +
+                               element_corner_displacement[1] * element_corner_displacement[1] +
+                               element_corner_displacement[2] * element_corner_displacement[2];
+          double dr2_corner1 = element_corner_displacement[3] * element_corner_displacement[3] +
+                               element_corner_displacement[4] * element_corner_displacement[4] +
+                               element_corner_displacement[5] * element_corner_displacement[5];
+
+          if (dr2_corner0 >= skin_distance2_over4 || dr2_corner1 >= skin_distance2_over4) {
+            local_update_neighbor_list_int = 1;
+          }
+        });
+
+    // Communicate local_update_neighbor_list to all ranks. Convert to an integer first (MPI doesn't handle booleans
+    // well).
+    int global_update_neighbor_list_int = 0;
+    MPI_Allreduce(&local_update_neighbor_list_int, &global_update_neighbor_list_int, 1, MPI_INT, MPI_LOR,
+                  MPI_COMM_WORLD);
+    // Convert back to the boolean for the global version and or it with the original value (in case somebody else set
+    // the neighbor list update 'signal').
+    update_neighbor_list_ = update_neighbor_list_ || (global_update_neighbor_list_int == 1);
+
+    Kokkos::Profiling::popRegion();
+  }
+
   void run(int argc, char **argv) {
     // Preprocess
     parse_user_inputs(argc, argv);
@@ -1407,6 +1581,10 @@ class StickySettings {
     }
     Kokkos::Profiling::popRegion();
 
+    // Run an initial detection of neighbors not using an adaptive neighborlist to set the initial state, and calculate
+    // the initial AABB for everybody.
+    detect_neighbors_initial();
+
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
@@ -1427,6 +1605,15 @@ class StickySettings {
       }
       Kokkos::Profiling::popRegion();
 
+      // Rotate the field states
+      {
+        // Rotate the field states
+        rotate_field_states();
+      }
+
+      // Reset the update_neighbor_list 'signal'
+      { update_neighbor_list_ = false; }
+
       // Detect all possible neighbors in the system
       {
         // Detect neighbors of spheres-spheres and crosslinkers-spheres
@@ -1444,8 +1631,8 @@ class StickySettings {
       // Evaluate forces f(x(t)).
       {
         // Hertzian forces
-        // compute_hertzian_contact_forces();
-        // assert_invariant("After hertzian contact forces");
+        compute_hertzian_contact_forces();
+        assert_invariant("After hertzian contact forces");
 
         // Compute harmonic bond forces
         compute_harmonic_bond_forces();
@@ -1488,6 +1675,19 @@ class StickySettings {
     if (bulk_data_ptr_->parallel_rank() == 0) {
       double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps_);
       double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
+      std::cout << "******************Final statistics (Rank 0)**************\n";
+      if (print_neighborlist_statistics_) {
+        std::cout << "****************\n";
+        std::cout << "Neighbor list statistics\n";
+        for (auto &neighborlist_entry : neighborlist_update_steps_times_) {
+          auto [timestep, elasped_step, elapsed_time] = neighborlist_entry;
+          auto tps_nl = static_cast<double>(elasped_step) / elapsed_time;
+          std::cout << "  Rebuild timestep: " << timestep << ", elapsed_steps: " << elasped_step
+                    << ", elapsed_time: " << elapsed_time << ", tps: " << tps_nl << std::endl;
+        }
+      }
+      std::cout << "****************\n";
+      std::cout << "Simulation statistics\n";
       std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
       std::cout << "Timesteps per second: " << std::setprecision(15) << tps << std::endl;
     }
@@ -1532,6 +1732,8 @@ class StickySettings {
   stk::mesh::Field<double> *element_binding_rates_field_ptr_;
   stk::mesh::Field<double> *element_unbinding_rates_field_ptr_;
   stk::mesh::Field<unsigned> *element_perform_state_change_field_ptr_;
+  stk::mesh::Field<double> *element_corner_displacement_field_ptr_;
+  stk::mesh::Field<double> *element_aabb_field_ptr_;
 
   stk::mesh::Field<unsigned> *constraint_perform_state_change_field_ptr_;
   stk::mesh::Field<int> *linker_destroy_flag_field_ptr_;
@@ -1627,10 +1829,25 @@ class StickySettings {
   // Crosslinker params
   double crosslinker_spring_constant_ = 100.0;
   double crosslinker_rest_length_ = 1.0;
+  double crosslinker_rcut_ = 1.0;
   double crosslinker_left_binding_rate_ = 1.0;
   double crosslinker_right_binding_rate_ = 1.0;
   double crosslinker_left_unbinding_rate_ = 1.0;
   double crosslinker_right_unbinding_rate_ = 1.0;
+
+  // Flags for simulation control
+  // Neighbor list
+  double skin_distance_ = 1.0;
+  double skin_distance2_over4_ = 1.0;
+  bool update_neighbor_list_ = false;
+  bool force_neighborlist_update_ = false;
+  size_t force_neighborlist_update_nsteps_ = 10;
+  // Neighborlist rebuild information
+  size_t last_neighborlist_update_step_ = 0;
+  Kokkos::Timer neighborlist_update_timer_;
+  // [timestep, elapsed_timesteps, elapsed_time]
+  std::vector<std::tuple<size_t, size_t, double>> neighborlist_update_steps_times_;
+  bool print_neighborlist_statistics_ = false;
 
   // Simulation params
   bool initial_loadbalance_ = false;
