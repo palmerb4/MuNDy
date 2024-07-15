@@ -209,6 +209,7 @@ namespace crosslinkers {
 class StickySettings {
  public:
   enum BINDING_STATE_CHANGE : unsigned { NONE = 0u, LEFT_TO_DOUBLY, RIGHT_TO_DOUBLY, DOUBLY_TO_LEFT, DOUBLY_TO_RIGHT };
+  enum BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
 
   StickySettings() = default;
 
@@ -222,6 +223,7 @@ class StickySettings {
   void parse_user_inputs(int argc, char **argv) {
     // Parse the command line options.
     Teuchos::CommandLineProcessor cmdp(false, true);
+    std::string crosslinker_spring_type;
 
     //   Backbone initialization:
     cmdp.setOption("num_spheres", &num_spheres_, "Number of spheres in backbone.");
@@ -236,6 +238,7 @@ class StickySettings {
     cmdp.setOption("backbone_spring_rest_length", &backbone_spring_rest_length_, "Backbone rest length.");
 
     //   Crosslinker (spring and other):
+    cmdp.setOption("crosslinker_spring_type", &crosslinker_spring_type, "Crosslinker spring type.");
     cmdp.setOption("crosslinker_spring_constant", &crosslinker_spring_constant_, "Crosslinker spring constant.");
     cmdp.setOption("crosslinker_rest_length", &crosslinker_rest_length_, "Crosslinker rest length.");
     cmdp.setOption("crosslinker_left_binding_rate", &crosslinker_left_binding_rate_, "Crosslinker left binding rate.");
@@ -276,6 +279,14 @@ class StickySettings {
     skin_distance2_over4_ = skin_distance_ * skin_distance_ / 4.0;
     // Compute the cutoff radius for the crosslinker
     crosslinker_rcut_ = crosslinker_rest_length_ + 5.0 * std::sqrt(1.0 / kt_kmc_ / crosslinker_spring_constant_);
+    // Set the type of springs we are using (hookean or fene)
+    if (crosslinker_spring_type == "harmonic") {
+      crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
+    } else if (crosslinker_spring_type == "fene") {
+      crosslinker_spring_type_ = BOND_TYPE::FENE;
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid crosslinker spring type.");
+    }
   }
 
   void dump_user_inputs() {
@@ -308,7 +319,9 @@ class StickySettings {
       std::cout << "  backbone_spring_constant: " << backbone_spring_constant_ << std::endl;
       std::cout << "  backbone_spring_rest_length: " << backbone_spring_rest_length_ << std::endl;
 
+      std::string crosslinker_spring_type = crosslinker_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene";
       std::cout << "CROSSLINKERS:" << std::endl;
+      std::cout << "  crosslinker_spring_type: " << crosslinker_spring_type << std::endl;
       std::cout << "  crosslinker_spring_constant: " << crosslinker_spring_constant_ << std::endl;
       std::cout << "  crosslinker_rest_length: " << crosslinker_rest_length_ << std::endl;
       std::cout << "  crosslinker_rcut: " << crosslinker_rcut_ << std::endl;
@@ -1026,12 +1039,14 @@ class StickySettings {
     stk::mesh::Part &crosslinker_sphere_linkers_part = *crosslinker_sphere_linkers_part_ptr_;
     const double inv_kt = 1.0 / kt_kmc_;
     const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
+    const BOND_TYPE &crosslinker_spring_type = crosslinker_spring_type_;
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, crosslinker_sphere_linkers_part,
-        [&node_coord_field, &constraint_state_change_probability, &crosslinker_spring_constant,
-         &crosslinker_spring_rest_length, &left_bound_crosslinkers_part, &inv_kt, &crosslinker_right_binding_rate](
-            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
+        [&node_coord_field, &constraint_state_change_probability, &crosslinker_spring_type,
+         &crosslinker_spring_constant, &crosslinker_spring_rest_length, &left_bound_crosslinkers_part, &inv_kt,
+         &crosslinker_right_binding_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                          const stk::mesh::Entity &linker) {
           // Get the sphere and crosslinker attached to the linker.
           const stk::mesh::Entity *crosslinker_and_sphere_elements =
               bulk_data.begin(linker, stk::topology::ELEMENT_RANK);
@@ -1059,12 +1074,16 @@ class StickySettings {
             const double A = crosslinker_right_binding_rate;
             const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
             const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
-            const double Z = A * std::exp(-0.5 * inv_kt * k * (dr_mag - r0) * (dr_mag - r0));
+#pragma TODO Move the selection of hookean or fene bonds somewhere else, for now, internal if / else
+            double Z = 0.0;
+            if (crosslinker_spring_type == BOND_TYPE::HARMONIC) {
+              Z = A * std::exp(-0.5 * inv_kt * k * (dr_mag - r0) * (dr_mag - r0));
+            } else if (crosslinker_spring_type == BOND_TYPE::FENE) {
+              Z = A * std::pow((1.0 - (dr_mag / r0) * (dr_mag / r0)), -0.5 * k * inv_kt * r0 * r0);
+            }
             stk::mesh::field_data(constraint_state_change_probability, linker)[0] = Z;
           }
         });
-    // CJE Dump the mesh here to see if the element radius is set correctly
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
     Kokkos::Profiling::popRegion();
   }
 
@@ -1827,6 +1846,7 @@ class StickySettings {
   double backbone_spring_rest_length_ = 1.0;
 
   // Crosslinker params
+  BOND_TYPE crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
   double crosslinker_spring_constant_ = 100.0;
   double crosslinker_rest_length_ = 1.0;
   double crosslinker_rcut_ = 1.0;
