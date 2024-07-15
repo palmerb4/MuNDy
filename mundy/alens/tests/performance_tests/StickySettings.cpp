@@ -1079,7 +1079,9 @@ class StickySettings {
             if (crosslinker_spring_type == BOND_TYPE::HARMONIC) {
               Z = A * std::exp(-0.5 * inv_kt * k * (dr_mag - r0) * (dr_mag - r0));
             } else if (crosslinker_spring_type == BOND_TYPE::FENE) {
-              Z = A * std::pow((1.0 - (dr_mag / r0) * (dr_mag / r0)), -0.5 * k * inv_kt * r0 * r0);
+              // Z = A * (1 - (r/r0)^2)^(0.5*beta*k*r0^2)
+              // Notice the minus sign change for this one! It matters, as FENE bonds are fundamentally different.
+              Z = A * std::pow((1.0 - (dr_mag / r0) * (dr_mag / r0)), 0.5 * k * inv_kt * r0 * r0);
             }
             stk::mesh::field_data(constraint_state_change_probability, linker)[0] = Z;
           }
