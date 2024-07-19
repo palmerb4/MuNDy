@@ -552,13 +552,16 @@ class HP1 {
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
 
     // Calculate some constants, like the total number of spheres or segments per chromosome
-    const size_t num_spheres_per_chromosome =
-        num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);
-    const size_t num_segments_per_chromosome = num_spheres_per_chromosome - 1;
+    // const size_t num_nodes_per_chromosome =
+    //     num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);
+    const size_t num_nodes_per_chromosome =
+        num_chromatin_repeats_ / 2 * (num_heterochromatin_per_repeat_ + num_euchromatin_per_repeat_) +
+        num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+    const size_t num_segments_per_chromosome = num_nodes_per_chromosome - 1;
     const double chromosome_linear_length =
         num_segments_per_chromosome * initial_sphere_separation_ + 2.0 * sphere_radius_;
 
-    std::cout << "num_spheres_per_chromosome: " << num_spheres_per_chromosome << std::endl;
+    std::cout << "num_nodes_per_chromosome: " << num_nodes_per_chromosome << std::endl;
     std::cout << "num_segments_per_chromosome: " << num_segments_per_chromosome << std::endl;
     std::cout << "chromosome_linear_length: " << chromosome_linear_length << std::endl;
 
@@ -570,7 +573,118 @@ class HP1 {
       mundy::math::Vector3<double> r_start(rng.uniform<double>(0.0, unit_cell_length_),
                                            rng.uniform<double>(0.0, unit_cell_length_),
                                            rng.uniform<double>(0.0, unit_cell_length_));
+      // Find a random unit vector direction
+      const double zrand = rng.rand<double>() - 1.0;
+      const double wrand = std::sqrt(1.0 - zrand * zrand);
+      const double trand = 2.0 * M_PI * rng.rand<double>();
+      mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+
+      // Figure out the starting indices of the nodes and elements
+      size_t start_node_id = num_nodes_per_chromosome * j + 1u;
+      size_t start_sphere_id = num_nodes_per_chromosome * j + 1u;
+
+      // Helper functions for getting the IDs of various objects
+      auto get_node_id = [start_node_id](const size_t &seq_node_index) { return start_node_id + seq_node_index; };
+
+      auto get_sphere_id = [start_sphere_id](const size_t &seq_sphere_index) {
+        return start_sphere_id + seq_sphere_index;
+      };
+
+      // Build a simple vector for a map from vertex idx to region id
+      std::vector<std::string> region_by_vidx(num_nodes_per_chromosome, "H");
+      {
+        size_t current_repeat_index = 0;
+        std::string current_region_type = "H";
+        for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
+          if (current_region_type == "H") {
+            if (current_repeat_index >= num_heterochromatin_per_repeat_) {
+              current_region_type = "E";
+              current_repeat_index = 0;
+            }
+          } else if (current_region_type == "E") {
+            if (current_repeat_index >= num_euchromatin_per_repeat_) {
+              current_region_type = "H";
+              current_repeat_index = 0;
+            }
+          }
+          region_by_vidx[i] = current_region_type;
+          current_repeat_index++;
+        }
+      }
+      std::cout << "region_by_vidx: " << std::endl;
+      for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
+        std::cout << region_by_vidx[i];
+        if (i < num_nodes_per_chromosome - 1) {
+          std::cout << " - ";
+        }
+      }
+      std::cout << std::endl;
+
+      bulk_data_ptr_->modification_begin();
+
+      // Temporary/scratch variables
+      stk::mesh::PartVector empty;
+
+      // Logically, it makes the most sense to march down the segments in a single chromosome, adjusting their part
+      // memebership as we go. Do this across the elements of the chromatin backbone.
+      const size_t start_element_segment_index = 0;
+      const size_t end_element_segment_index = num_segments_per_chromosome;
+      for (size_t segment_idx = start_element_segment_index; segment_idx < end_element_segment_index; segment_idx++) {
+        // Keep track of the vertex IDs for part memebership
+        const size_t vertex_left_idx = segment_idx;
+        const size_t vertex_right_idx = segment_idx + 1;
+        // Process the nodes for this segment
+        stk::mesh::EntityId left_node_id = get_node_id(segment_idx);
+        stk::mesh::EntityId right_node_id = get_node_id(segment_idx + 1);
+
+        stk::mesh::Entity left_node = bulk_data_ptr_->get_entity(node_rank_, left_node_id);
+        stk::mesh::Entity right_node = bulk_data_ptr_->get_entity(node_rank_, right_node_id);
+        if (!bulk_data_ptr_->is_valid(left_node)) {
+          left_node = bulk_data_ptr_->declare_node(left_node_id, empty);
+        }
+        if (!bulk_data_ptr_->is_valid(right_node)) {
+          right_node = bulk_data_ptr_->declare_node(right_node_id, empty);
+        }
+
+        // Each node is attached to a sphere that is (H)eterochromatin, (E)uchromatin, or (BS)BindingSite
+        stk::mesh::EntityId left_sphere_id = get_sphere_id(segment_idx);
+        stk::mesh::EntityId right_sphere_id = get_sphere_id(segment_idx + 1);
+        stk::mesh::Entity left_sphere = bulk_data_ptr_->get_entity(element_rank_, left_sphere_id);
+        stk::mesh::Entity right_sphere = bulk_data_ptr_->get_entity(element_rank_, right_sphere_id);
+        if (!bulk_data_ptr_->is_valid(left_sphere)) {
+          // Figure out the part we belong to
+          stk::mesh::PartVector pvector;
+          if (region_by_vidx[vertex_left_idx] == "H") {
+            pvector.push_back(h_part_ptr_);
+          } else if (region_by_vidx[vertex_left_idx] == "E") {
+            pvector.push_back(e_part_ptr_);
+          }
+          // Declare the sphere and connect to it's node
+          left_sphere = bulk_data_ptr_->declare_element(left_sphere_id, pvector);
+          bulk_data_ptr_->declare_relation(left_sphere, left_node, 0);
+        }
+        if (!bulk_data_ptr_->is_valid(right_sphere)) {
+          // Figure out the part we belong to
+          stk::mesh::PartVector pvector;
+          if (region_by_vidx[vertex_right_idx] == "H") {
+            pvector.push_back(h_part_ptr_);
+          } else if (region_by_vidx[vertex_right_idx] == "E") {
+            pvector.push_back(e_part_ptr_);
+          }
+          // Declare the sphere and connect to it's node
+          right_sphere = bulk_data_ptr_->declare_element(right_sphere_id, pvector);
+          bulk_data_ptr_->declare_relation(right_sphere, right_node, 0);
+        }
+      }
+
+      bulk_data_ptr_->modification_end();
     }
+
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+    std::cout << "############################################" << std::endl;
+    std::cout << "Initialized mesh\n";
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    std::cout << "############################################" << std::endl;
   }
 
   void debug_print_meta_data() {
@@ -1054,10 +1168,10 @@ class HP1 {
 
   // Chromatin params
   size_t num_chromosomes_ = 1;
-  size_t num_chromatin_repeats_ = 1;
+  size_t num_chromatin_repeats_ = 2;
   size_t num_euchromatin_per_repeat_ = 1;
   size_t num_heterochromatin_per_repeat_ = 1;
-  double sphere_radius_ = 1.0;
+  double sphere_radius_ = 0.5;
   double initial_sphere_separation_ = 1.0;
   double sphere_youngs_modulus_ = 1000.0;
   double sphere_poissons_ratio_ = 0.3;
