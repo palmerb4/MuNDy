@@ -337,6 +337,25 @@ class HP1 {
     mundy::linkers::NeighborLinkers::add_and_sync_subpart_reqs(custom_hp1_bs_genx_part_reqs);
     mesh_reqs_ptr_->sync(mundy::linkers::NeighborLinkers::get_mesh_requirements());
 
+    // Add the custom neighbor list implementation to the axis-aligned bounding box. In theory, we only care if the
+    // corners of the AABB move more than skin distance/2. Set the AABB field to have an additional state that it keeps
+    // track of at the end so that we can do dr calculations trivially. This create the two element aabb fields, but
+    // also adds a second entire set of fields to the mesh.
+    //
+    // We also need an accumulator for summing up the total distance traveled by the AABB corners.
+#pragma TODO right now this puts the ELEMENT_AABB on the entire mesh(elements)
+    mesh_reqs_ptr_->add_field_reqs<double>("ELEMENT_AABB", element_rank_, 6, 2);
+    auto custom_sphere_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_sphere_aabb_accumulator_reqs->set_part_name("SPHERES")
+        .set_part_topology(stk::topology::PARTICLE)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    auto custom_hp1_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_aabb_accumulator_reqs->set_part_name("HP1S")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_sphere_aabb_accumulator_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_aabb_accumulator_reqs);
+
     // Setup our fixed parameters for any of methods that we intend to use
     // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
     // master parameter list. Note, sublist will return a reference to the sublist with the given name.
@@ -358,8 +377,55 @@ class HP1 {
     // Set up the AABB for the system
     compute_aabb_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER_SEGMENT"));
-    // compute_aabb_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT")
-    //     .set("valid_entity_part_names", mundy::core::make_string_array("HP1S"));
+    compute_aabb_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT")
+        .set("valid_entity_part_names", mundy::core::make_string_array("HP1S"));
+
+    // Generate the GENX neighbor linkers between spherocylinder segments
+    generate_scs_scs_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_technique_name", "STK_SEARCH")
+            .set("specialized_neighbor_linkers_part_names",
+                 mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"));
+    generate_scs_scs_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
+        .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"));
+
+    // Genereate the GENX neighbor linkers between HP1 and H
+    generate_hp1_h_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_technique_name", "STK_SEARCH")
+            .set("specialized_neighbor_linkers_part_names", mundy::core::make_string_array("HP1_H_NEIGHBOR_GENXS"));
+    generate_hp1_h_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
+        .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("HP1S")))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("H"));
+
+    // Genereate the GENX neighbor linkers between HP1 and BS
+    generate_hp1_bs_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_technique_name", "STK_SEARCH")
+            .set("specialized_neighbor_linkers_part_names", mundy::core::make_string_array("HP1_BS_NEIGHBOR_GENXS"));
+    generate_hp1_bs_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
+        .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("HP1S")))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("BS"));
+
+    // Evaluate the scs-scs hertzian contacts
+    evaluate_linker_potentials_fixed_params_ = Teuchos::ParameterList().set(
+        "enabled_kernel_names",
+        mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
+
+    // Reduce the forces on the spherocylinder segments
+    linker_potential_force_reduction_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"))
+            .set("name_of_linker_part_to_reduce_over", "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS");
+
+    // Destroy the distance neighbors over time
+    destroy_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
+    destroy_neighbor_linkers_fixed_params_.sublist("DESTROY_DISTANT_NEIGHBORS")
+        .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
+        .set("valid_connected_source_and_target_part_names",
+             mundy::core::make_string_array(std::string("SPHEROCYLINDER_SEGMENTS"), std::string("HP1S")));
 
     // Synchronize (merge and rectify differences) the requirements for each method based on the fixed parameters.
     // For now, we will directly use the types that each method corresponds to. The configurator will
@@ -369,6 +435,18 @@ class HP1 {
     mesh_reqs_ptr_->sync(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
         compute_ssd_and_cn_fixed_params_));
     mesh_reqs_ptr_->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
+        generate_scs_scs_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_hp1_h_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_hp1_bs_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceReduction::get_mesh_requirements(
+        linker_potential_force_reduction_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params_));
 
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
@@ -378,8 +456,10 @@ class HP1 {
     meta_data_ptr_->commit();
 
 #pragma TODO CJE Remove the mesh dump so that we can see the metadata
+    std::cout << "############################################" << std::endl;
     std::cout << "Original mesh\n";
     stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    std::cout << "############################################" << std::endl;
   }
 
   template <typename FieldType>
@@ -399,12 +479,59 @@ class HP1 {
 
   void fetch_fields_and_parts() {
     // Fetch the fields
+    node_coord_field_ptr_ = fetch_field<double>("NODE_COORDS", node_rank_);
+    node_velocity_field_ptr_ = fetch_field<double>("NODE_VELOCITY", node_rank_);
+    node_force_field_ptr_ = fetch_field<double>("NODE_FORCE", node_rank_);
+    node_rng_field_ptr_ = fetch_field<unsigned>("NODE_RNG_COUNTER", node_rank_);
+
+    // Fetch the parts
+    spheres_part_ptr_ = fetch_part("SPHERES");
+    e_part_ptr_ = fetch_part("E");
+    h_part_ptr_ = fetch_part("H");
+    bs_part_ptr_ = fetch_part("BS");
+
+    hp1_part_ptr_ = fetch_part("HP1S");
+    left_hp1_part_ptr_ = fetch_part("LEFT_HP1");
+    doubly_hp1_h_part_ptr_ = fetch_part("DOUBLY_HP1_H");
+    doubly_hp1_bs_part_ptr_ = fetch_part("DOUBLY_HP1_BS");
+
+    custom_springs_part_ptr_ = fetch_part("CUSTOM_SPRINGS");
+    ee_springs_part_ptr_ = fetch_part("EESPRINGS");
+    eh_springs_part_ptr_ = fetch_part("EHSPRINGS");
+    hh_springs_part_ptr_ = fetch_part("HHSPRINGS");
   }
 
   void instantiate_metamethods() {
+    // Create the non-custom MetaMethods
+    // MetaMethodExecutionInterface
+
+    // MetaMethodSubsetExecutionInterface
+    compute_constraint_forcing_ptr_ = mundy::constraints::ComputeConstraintForcing::create_new_instance(
+        bulk_data_ptr_.get(), compute_constraint_forcing_fixed_params_);
+    compute_ssd_and_cn_ptr_ = mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::create_new_instance(
+        bulk_data_ptr_.get(), compute_ssd_and_cn_fixed_params_);
+    compute_aabb_ptr_ =
+        mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params_);
+    evaluate_linker_potentials_ptr_ = mundy::linkers::EvaluateLinkerPotentials::create_new_instance(
+        bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params_);
+    linker_potential_force_reduction_ptr_ = mundy::linkers::LinkerPotentialForceReduction::create_new_instance(
+        bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params_);
+    destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params_);
+
+    // MetaMethodPairwiseSubsetExecutionInterface
+    generate_scs_scs_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), generate_scs_scs_neighbor_linkers_fixed_params_);
+    generate_hp1_h_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), generate_hp1_h_neighbor_linkers_fixed_params_);
+    generate_hp1_bs_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), generate_hp1_bs_neighbor_linkers_fixed_params_);
   }
 
   void set_mutable_parameters() {
+    // ComputeAABB mutable parameters
+    auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", skin_distance_);
+    compute_aabb_ptr_->set_mutable_params(compute_aabb_mutable_params);
   }
 
   void setup_io_mundy() {
@@ -418,7 +545,32 @@ class HP1 {
     bulk_data_ptr_->update_field_data_states();
   }
 
-  void declare_and_initialize_sticky() {
+  void declare_and_initialize_hp1() {
+    //////////////////////////////////////
+    // Initialize the spheres and nodes //
+    //////////////////////////////////////
+    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
+
+    // Calculate some constants, like the total number of spheres or segments per chromosome
+    const size_t num_spheres_per_chromosome =
+        num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);
+    const size_t num_segments_per_chromosome = num_spheres_per_chromosome - 1;
+    const double chromosome_linear_length =
+        num_segments_per_chromosome * initial_sphere_separation_ + 2.0 * sphere_radius_;
+
+    std::cout << "num_spheres_per_chromosome: " << num_spheres_per_chromosome << std::endl;
+    std::cout << "num_segments_per_chromosome: " << num_segments_per_chromosome << std::endl;
+    std::cout << "chromosome_linear_length: " << chromosome_linear_length << std::endl;
+
+    // Declare N chromatin chains randomly in space
+    for (size_t j = 0; j < num_chromosomes_; j++) {
+      std::cout << "Initializing chromosome " << j << std::endl;
+      // Find a random place within the unit cell with a random orientatino for the chain.
+      openrand::Philox rng(j, 0);
+      mundy::math::Vector3<double> r_start(rng.uniform<double>(0.0, unit_cell_length_),
+                                           rng.uniform<double>(0.0, unit_cell_length_),
+                                           rng.uniform<double>(0.0, unit_cell_length_));
+    }
   }
 
   void debug_print_meta_data() {
@@ -647,7 +799,7 @@ class HP1 {
     instantiate_metamethods();
     set_mutable_parameters();
     setup_io_mundy();
-    declare_and_initialize_sticky();
+    declare_and_initialize_hp1();
 
     assert_invariant("After setup");
     Kokkos::Profiling::popRegion();
@@ -800,17 +952,46 @@ class HP1 {
   //! \name Fields
   //@{
 
+  stk::mesh::Field<unsigned> *node_rng_field_ptr_;
+  stk::mesh::Field<double> *node_coord_field_ptr_;
+  stk::mesh::Field<double> *node_velocity_field_ptr_;
+  stk::mesh::Field<double> *node_force_field_ptr_;
+
   //@}
 
   //! \name Parts
   //@{
 
   stk::mesh::Part *spheres_part_ptr_ = nullptr;
+  stk::mesh::Part *e_part_ptr_ = nullptr;
+  stk::mesh::Part *h_part_ptr_ = nullptr;
+  stk::mesh::Part *bs_part_ptr_ = nullptr;
+
+  stk::mesh::Part *hp1_part_ptr_ = nullptr;
+  stk::mesh::Part *left_hp1_part_ptr_ = nullptr;
+  stk::mesh::Part *doubly_hp1_h_part_ptr_ = nullptr;
+  stk::mesh::Part *doubly_hp1_bs_part_ptr_ = nullptr;
+
+  stk::mesh::Part *custom_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *ee_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *eh_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *hh_springs_part_ptr_ = nullptr;
 
   //@}
 
   //! \name MetaMethod instances
   //@{
+
+  std::shared_ptr<mundy::meta::MetaMethodExecutionInterface<void>> declare_and_init_constraints_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_aabb_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_constraint_forcing_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_ssd_and_cn_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> evaluate_linker_potentials_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> linker_potential_force_reduction_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_scs_scs_genx_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_h_genx_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_bs_genx_ptr_;
 
   //@}
 
@@ -820,6 +1001,12 @@ class HP1 {
   Teuchos::ParameterList compute_constraint_forcing_fixed_params_;
   Teuchos::ParameterList compute_ssd_and_cn_fixed_params_;
   Teuchos::ParameterList compute_aabb_fixed_params_;
+  Teuchos::ParameterList generate_scs_scs_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList generate_hp1_h_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList generate_hp1_bs_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList evaluate_linker_potentials_fixed_params_;
+  Teuchos::ParameterList linker_potential_force_reduction_fixed_params_;
+  Teuchos::ParameterList destroy_neighbor_linkers_fixed_params_;
 
   //@}
 
