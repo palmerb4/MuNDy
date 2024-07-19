@@ -1,0 +1,934 @@
+// @HEADER
+// **********************************************************************************************************************
+//
+//                                          Mundy: Multi-body Nonlocal Dynamics
+//                                           Copyright 2024 Flatiron Institute
+//                                                 Author: Bryce Palmer
+//
+// Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Mundy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Mundy. If not, see
+// <https://www.gnu.org/licenses/>.
+//
+// **********************************************************************************************************************
+// @HEADER
+
+#pragma TODO "Add a brief description of the file here."
+/* Notes:
+
+Brief note:
+We are trying to simulate the HP1 project with Hossen.
+
+*/
+
+// External libs
+#include <openrand/philox.h>
+
+// Trilinos libs
+#include <Kokkos_Core.hpp>                   // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
+#include <Teuchos_CommandLineProcessor.hpp>  // for Teuchos::CommandLineProcessor
+#include <Teuchos_ParameterList.hpp>         // for Teuchos::ParameterList
+#include <stk_balance/balance.hpp>           // for stk::balance::balanceStkMesh, stk::balance::BalanceSettings
+#include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
+#include <stk_mesh/base/Comm.hpp>            // for stk::mesh::comm_mesh_counts
+#include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
+#include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
+#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>         // for stk::topology
+#include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
+
+// Mundy libs
+#include <mundy_alens/actions_crosslinkers.hpp>             // for mundy::alens::crosslinkers...
+#include <mundy_constraints/AngularSprings.hpp>             // for mundy::constraints::AngularSprings
+#include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
+#include <mundy_constraints/DeclareAndInitConstraints.hpp>  // for mundy::constraints::DeclareAndInitConstraints
+#include <mundy_constraints/HookeanSprings.hpp>             // for mundy::constraints::HookeanSprings
+#include <mundy_core/MakeStringArray.hpp>                   // for mundy::core::make_string_array
+#include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_io/IOBroker.hpp>         // for mundy::io::IOBroker
+#include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
+#include <mundy_linkers/DestroyNeighborLinkers.hpp>         // for mundy::linkers::DestroyNeighborLinkers
+#include <mundy_linkers/EvaluateLinkerPotentials.hpp>       // for mundy::linkers::EvaluateLinkerPotentials
+#include <mundy_linkers/GenerateNeighborLinkers.hpp>        // for mundy::linkers::GenerateNeighborLinkers
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
+#include <mundy_linkers/NeighborLinkers.hpp>                // for mundy::linkers::NeighborLinkers
+#include <mundy_math/Vector3.hpp>                           // for mundy::math::Vector3
+#include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/MetaData.hpp>    // for mundy::mesh::MetaData
+#include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>        // for mundy::mesh::utils::destroy_flagged_entities
+#include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
+#include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
+#include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
+#include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
+
+namespace mundy {
+
+namespace alens {
+
+namespace crosslinkers {
+
+class HP1 {
+ public:
+  enum BINDING_STATE_CHANGE : unsigned { NONE = 0u, LEFT_TO_DOUBLY, RIGHT_TO_DOUBLY, DOUBLY_TO_LEFT, DOUBLY_TO_RIGHT };
+  enum BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
+
+  HP1() = default;
+
+  void print_rank0(auto thing_to_print, int indent_level = 0) {
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      std::string indent(indent_level * 2, ' ');
+      std::cout << indent << thing_to_print << std::endl;
+    }
+  }
+
+  void parse_user_inputs(int argc, char **argv) {
+    // Parse the command line options.
+    Teuchos::CommandLineProcessor cmdp(false, true);
+    std::string chromatin_spring_type;
+    std::string crosslinker_spring_type;
+
+    // Simulation parameters:
+    cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
+    cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
+    cmdp.setOption("kt_brownian", &kt_brownian_, "Temperature kT for Brownian Motion.");
+    cmdp.setOption("kt_kmc", &kt_kmc_, "Temperature kT for KMC.");
+    cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
+    cmdp.setOption("log_frequency", &log_frequency_, "Number of timesteps between logging.");
+    cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
+
+    // Unit cell/periodicity:
+#pragma TODO This will be replaced with the periphery radius and values eventually
+    cmdp.setOption("unit_cell_length", &unit_cell_length_, "Length of the simulation unit cell on a side (cubic).");
+
+    // Chromatin chains:
+    cmdp.setOption("num_chromosomes", &num_chromosomes_, "Number of chromosomes (chromatin chains).");
+    cmdp.setOption("num_chromatin_repeats", &num_chromatin_repeats_, "Number of chromatin repeats per chain.");
+    cmdp.setOption("num_euchromatin_per_repeat", &num_euchromatin_per_repeat_,
+                   "Number of euchromatin beads per repeat.");
+    cmdp.setOption("num_heterochromatin_per_repeat", &num_heterochromatin_per_repeat_,
+                   "Number of heterochromatin beads per repeat.");
+    cmdp.setOption("sphere_radius", &sphere_radius_, "Backbone sphere radius.");
+    cmdp.setOption("initial_sphere_separation", &initial_sphere_separation_, "Initial backbone sphere separation.");
+    cmdp.setOption("sphere_youngs_modulus", &sphere_youngs_modulus_, "Backbone sphere Youngs modulus.");
+    cmdp.setOption("sphere_poissons_ratio", &sphere_poissons_ratio_, "Backbone sphere poissons ratio.");
+    cmdp.setOption("sphere_drag_coeff", &sphere_drag_coeff_, "Backbone sphere drag coefficient.");
+
+    //  Chromatin spring:
+    cmdp.setOption("chromatin_spring_type", &chromatin_spring_type, "Chromatin spring type.");
+    cmdp.setOption("chromatin_spring_constant", &chromatin_spring_constant_, "Chromatin spring constant.");
+    cmdp.setOption("chromatin_spring_rest_length", &chromatin_spring_rest_length_, "Chromatin rest length.");
+
+    //  Crosslinker (spring and other):
+    cmdp.setOption("crosslinker_spring_type", &crosslinker_spring_type, "Crosslinker spring type.");
+    cmdp.setOption("crosslinker_spring_constant", &crosslinker_spring_constant_, "Crosslinker spring constant.");
+    cmdp.setOption("crosslinker_rest_length", &crosslinker_rest_length_, "Crosslinker rest length.");
+    cmdp.setOption("crosslinker_left_binding_rate", &crosslinker_left_binding_rate_, "Crosslinker left binding rate.");
+    cmdp.setOption("crosslinker_right_binding_rate", &crosslinker_right_binding_rate_,
+                   "Crosslinker right binding rate.");
+    cmdp.setOption("crosslinker_left_unbinding_rate", &crosslinker_left_unbinding_rate_,
+                   "Crosslinker left unbinding rate.");
+    cmdp.setOption("crosslinker_right_unbinding_rate", &crosslinker_right_unbinding_rate_,
+                   "Crosslinker right unbinding rate.");
+
+    // Neighbor list
+    cmdp.setOption("skin_distance", &skin_distance_, "Neighbor list skin distance.");
+    cmdp.setOption("force_neighborlist_update", "no_force_update_neighbor_list", &force_neighborlist_update_,
+                   "Force update of the neighbor list.");
+    cmdp.setOption("force_neighborlist_update_nsteps", &force_neighborlist_update_nsteps_,
+                   "Number of timesteps between updating the neighbor list (if forced).");
+    cmdp.setOption("print_neighborlist_statistics", "no_print_neighborlist_statistics", &print_neighborlist_statistics_,
+                   "Print neighbor list statistics.");
+
+    bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
+    MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+
+    MUNDY_THROW_ASSERT(num_chromosomes_ > 0, std::invalid_argument, "num_chromosomes_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(num_chromatin_repeats_ > 0, std::invalid_argument,
+                       "num_chromatin_repeats_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(num_euchromatin_per_repeat_ > 0, std::invalid_argument,
+                       "num_euchromatin_per_repeat_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(num_heterochromatin_per_repeat_ > 0, std::invalid_argument,
+                       "num_heterochromatin_per_repeat_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(sphere_radius_ > 0, std::invalid_argument, "sphere_radius_ must be greater than 0.");
+
+    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
+
+    // Modify any variables into their final form
+    skin_distance2_over4_ = skin_distance_ * skin_distance_ / 4.0;
+    // Compute the cutoff radius for the crosslinker
+    crosslinker_rcut_ = crosslinker_rest_length_ + 5.0 * std::sqrt(1.0 / kt_kmc_ / crosslinker_spring_constant_);
+    // Set the type of springs we are using (hookean or fene)
+    if (crosslinker_spring_type == "harmonic") {
+      crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
+    } else if (crosslinker_spring_type == "fene") {
+      crosslinker_spring_type_ = BOND_TYPE::FENE;
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for crosslinkers.");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid crosslinker spring type.");
+    }
+    if (chromatin_spring_type == "harmonic") {
+      chromatin_spring_type_ = BOND_TYPE::HARMONIC;
+    } else if (chromatin_spring_type == "fene") {
+      chromatin_spring_type_ = BOND_TYPE::FENE;
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for chromatin chains.");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid backbone spring type.");
+    }
+  }
+
+  void dump_user_inputs() {
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      std::cout << "##################################################" << std::endl;
+      std::cout << "INPUT PARAMETERS:" << std::endl;
+
+      std::cout << "SIMULATION:" << std::endl;
+      std::cout << "  num_time_steps: " << num_time_steps_ << std::endl;
+      std::cout << "  timestep_size: " << timestep_size_ << std::endl;
+      std::cout << "  io_frequency: " << io_frequency_ << std::endl;
+      std::cout << "  log_frequency: " << log_frequency_ << std::endl;
+      std::cout << "  kT (Brownian): " << kt_brownian_ << std::endl;
+      std::cout << "  kT (KMC): " << kt_kmc_ << std::endl;
+
+      std::cout << "UNIT CELL:" << std::endl;
+      std::cout << "  box_length: " << unit_cell_length_ << std::endl;
+
+      std::cout << "NEIGHBOR LIST:" << std::endl;
+      std::cout << "  force_update_neighborlist: " << force_neighborlist_update_ << std::endl;
+      std::cout << "  force_update_neighborlist_nsteps: " << force_neighborlist_update_nsteps_ << std::endl;
+      std::cout << "  skin_distance: " << 2.0 * std::sqrt(skin_distance2_over4_) << std::endl;
+      std::cout << "    (skin_distance2_over4): " << skin_distance2_over4_ << std::endl;
+
+      std::cout << "CHROMATIN CHAINS:" << std::endl;
+      std::cout << "  num_chromosomes: " << num_chromosomes_ << std::endl;
+      std::cout << "  num_chromatin_repeats: " << num_chromatin_repeats_ << std::endl;
+      std::cout << "  num_euchromatin_per_repeat: " << num_euchromatin_per_repeat_ << std::endl;
+      std::cout << "  num_heterochromatin_per_repeat: " << num_heterochromatin_per_repeat_ << std::endl;
+      std::cout << "  sphere_radius: " << sphere_radius_ << std::endl;
+      std::cout << "  initial_sphere_separation: " << initial_sphere_separation_ << std::endl;
+      std::cout << "  youngs_modulus: " << sphere_youngs_modulus_ << std::endl;
+      std::cout << "  poissons_ratio: " << sphere_poissons_ratio_ << std::endl;
+      std::cout << "  drag_coeff: " << sphere_drag_coeff_ << std::endl;
+
+      std::cout << "CHROMATIN SPRINGS:" << std::endl;
+      std::string chromatin_spring_type = chromatin_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene";
+      std::cout << "  chromatin_spring_type: " << chromatin_spring_type << std::endl;
+      std::cout << "  chromatin_spring_constant: " << chromatin_spring_constant_ << std::endl;
+      std::cout << "  chromatin_spring_rest_length: " << chromatin_spring_rest_length_ << std::endl;
+
+      std::string crosslinker_spring_type = crosslinker_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene";
+      std::cout << "CROSSLINKERS:" << std::endl;
+      std::cout << "  crosslinker_spring_type: " << crosslinker_spring_type << std::endl;
+      std::cout << "  crosslinker_spring_constant: " << crosslinker_spring_constant_ << std::endl;
+      std::cout << "  crosslinker_rest_length: " << crosslinker_rest_length_ << std::endl;
+      std::cout << "  crosslinker_rcut: " << crosslinker_rcut_ << std::endl;
+      std::cout << "  crosslinker_left_binding_rate: " << crosslinker_left_binding_rate_ << std::endl;
+      std::cout << "  crosslinker_right_binding_rate: " << crosslinker_right_binding_rate_ << std::endl;
+      std::cout << "  crosslinker_left_unbinding_rate: " << crosslinker_left_unbinding_rate_ << std::endl;
+      std::cout << "  crosslinker_right_unbinding_rate: " << crosslinker_right_binding_rate_ << std::endl;
+      std::cout << "##################################################" << std::endl;
+    }
+  }
+
+  template <typename FieldDataType, size_t field_size>
+  void print_field(const stk::mesh::Field<FieldDataType> &field) {
+    stk::mesh::BulkData &bulk_data = field.get_mesh();
+    stk::mesh::Selector selector = stk::mesh::Selector(field);
+
+    stk::mesh::EntityVector entities;
+    stk::mesh::get_selected_entities(selector, bulk_data_ptr_->buckets(field.entity_rank()), entities);
+
+    for (const stk::mesh::Entity &entity : entities) {
+      const FieldDataType *field_data = stk::mesh::field_data(field, entity);
+      std::cout << "Entity " << bulk_data.identifier(entity) << " field data: ";
+      for (size_t i = 0; i < field_size; ++i) {
+        std::cout << field_data[i] << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  void assert_invariant(const std::string &message = std::string()) {
+    Kokkos::Profiling::pushRegion("HP1::assert_invariant");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void build_our_mesh_and_method_instances() {
+    // Setup the mesh requirements.
+    // First, we need to fetch the mesh requirements for each method, then we can create the class instances.
+    // In the future, all of this will be done via the Configurator.
+    mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshReqs>(MPI_COMM_WORLD);
+    mesh_reqs_ptr_->set_spatial_dimension(3);
+    mesh_reqs_ptr_->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+
+    // Add custom requirements to the sphere part for this example. These are requirements that exceed those of the
+    // enabled methods and allow us to extend the functionality offered natively by Mundy.
+
+    // Spheres need to be modified to contain the subparts for E, H, and BindSite.
+    auto custom_sphere_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_sphere_part_reqs->add_field_reqs<double>("NODE_VELOCITY", node_rank_, 3, 1)
+        .add_field_reqs<double>("NODE_FORCE", node_rank_, 3, 1)
+        .add_field_reqs<unsigned>("NODE_RNG_COUNTER", node_rank_, 1, 1)
+        .add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", node_rank_, 3, 1)
+        .add_subpart_reqs("E", stk::topology::PARTICLE)
+        .add_subpart_reqs("H", stk::topology::PARTICLE)
+        .add_subpart_reqs("BS", stk::topology::PARTICLE);
+    mundy::shapes::Spheres::add_and_sync_part_reqs(custom_sphere_part_reqs);
+    mesh_reqs_ptr_->sync(mundy::shapes::Spheres::get_mesh_requirements());
+
+    // HP1 needs to be added to the mesh. This includes the subparts for the states of HP1. It will be added to the
+    // SpherocylinderSegment part the same was as StickySettings.
+    auto custom_hp1_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_part_reqs->set_part_name("HP1S")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ELEMENT_REALIZED_UNBINDING_RATES", element_rank_, 2, 1)
+        .add_field_reqs<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_, 2, 1)
+        .add_field_reqs<unsigned>("ELEMENT_RNG_COUNTER", element_rank_, 1, 1)
+        .add_field_reqs<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_, 1, 1)
+        .add_subpart_reqs("LEFT_HP1", stk::topology::BEAM_2)
+        .add_subpart_reqs("DOUBLY_HP1_H", stk::topology::BEAM_2)
+        .add_subpart_reqs("DOUBLY_HP1_BS", stk::topology::BEAM_2);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_part_reqs);
+
+    // Create the custom spring parts for the system.
+    auto custom_spring_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_spring_part_reqs->set_part_name("CUSTOM_SPRINGS")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
+        .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
+        .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2)
+        .add_subpart_reqs("HP1S", stk::topology::BEAM_2);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_spring_part_reqs);
+
+    // Create the generalized interaction entities that connect HP1 and (H)eterochromatin
+    //   This entity "knows" how to compute the binding probability between a crosslinker and a H and how to
+    //   perform binding between a crosslinker and a H. It is a constraint rank entitiy because it must connect
+    //   element rank entities.
+    auto custom_hp1_h_genx_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_h_genx_part_reqs->set_part_name("HP1_H_NEIGHBOR_GENXS")
+        .set_part_rank(constraint_rank_)
+        .add_field_reqs<double>("CONSTRAINT_STATE_CHANGE_PROBABILITY", constraint_rank_, 1, 1)
+        .add_field_reqs<unsigned>("CONSTRAINT_PERFORM_STATE_CHANGE", constraint_rank_, 1, 1);
+    mundy::linkers::NeighborLinkers::add_and_sync_subpart_reqs(custom_hp1_h_genx_part_reqs);
+    mesh_reqs_ptr_->sync(mundy::linkers::NeighborLinkers::get_mesh_requirements());
+    // Create the same type of entity to the binding sites on the periphery
+    auto custom_hp1_bs_genx_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_bs_genx_part_reqs->set_part_name("HP1_BS_NEIGHBOR_GENXS")
+        .set_part_rank(constraint_rank_)
+        .add_field_reqs<double>("CONSTRAINT_STATE_CHANGE_PROBABILITY", constraint_rank_, 1, 1)
+        .add_field_reqs<unsigned>("CONSTRAINT_PERFORM_STATE_CHANGE", constraint_rank_, 1, 1);
+    mundy::linkers::NeighborLinkers::add_and_sync_subpart_reqs(custom_hp1_bs_genx_part_reqs);
+    mesh_reqs_ptr_->sync(mundy::linkers::NeighborLinkers::get_mesh_requirements());
+
+    // Setup our fixed parameters for any of methods that we intend to use
+    // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
+    // master parameter list. Note, sublist will return a reference to the sublist with the given name.
+    //
+    // Compute constraint (bonded) forces for the the HOOKEAN_SPRINGS and CUSTOM_SPRINGS parts
+    //
+    // CJE Note that this adds the CUSTOM_SPRINGS part to the HOOKEAN_SPRINGS as a subpart, which I believe is what we
+    // want.
+    compute_constraint_forcing_fixed_params_ =
+        Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"));
+    compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
+        .set("valid_entity_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "CUSTOM_SPRINGS"));
+
+    // Compute the minimum distance for the SCS-SCS, HP1-H, HP1-BS interactions (SCS-SCS, S-SCS, S-SCS)
+    compute_ssd_and_cn_fixed_params_ = Teuchos::ParameterList().set(
+        "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER",
+                                                               "SPHERE_SPHEROCYLINDER_SEGMENT_LINKER"));
+
+    // Set up the AABB for the system
+    compute_aabb_fixed_params_ = Teuchos::ParameterList().set(
+        "enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER_SEGMENT"));
+    // compute_aabb_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT")
+    //     .set("valid_entity_part_names", mundy::core::make_string_array("HP1S"));
+
+    // Synchronize (merge and rectify differences) the requirements for each method based on the fixed parameters.
+    // For now, we will directly use the types that each method corresponds to. The configurator will
+    // fetch the static members of these methods using the configurable method factory.
+    mesh_reqs_ptr_->sync(
+        mundy::constraints::ComputeConstraintForcing::get_mesh_requirements(compute_constraint_forcing_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
+        compute_ssd_and_cn_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params_));
+
+    // The mesh requirements are now set up, so we solidify the mesh structure.
+    bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
+    meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
+    meta_data_ptr_->use_simple_fields();
+    meta_data_ptr_->set_coordinate_field_name("NODE_COORDS");
+    meta_data_ptr_->commit();
+
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+    std::cout << "Original mesh\n";
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+  }
+
+  template <typename FieldType>
+  stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
+    auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
+    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
+                       "Field " << field_name << " not found in the mesh meta data.");
+    return field_ptr;
+  }
+
+  stk::mesh::Part *fetch_part(const std::string &part_name) {
+    auto part_ptr = meta_data_ptr_->get_part(part_name);
+    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
+                       "Part " << part_name << " not found in the mesh meta data.");
+    return part_ptr;
+  }
+
+  void fetch_fields_and_parts() {
+    // Fetch the fields
+  }
+
+  void instantiate_metamethods() {
+  }
+
+  void set_mutable_parameters() {
+  }
+
+  void setup_io_mundy() {
+  }
+
+  void loadbalance() {
+    stk::balance::balanceStkMesh(balance_settings_, *bulk_data_ptr_);
+  }
+
+  void rotate_field_states() {
+    bulk_data_ptr_->update_field_data_states();
+  }
+
+  void declare_and_initialize_sticky() {
+  }
+
+  void debug_print_meta_data() {
+    std::cout << "############################################" << std::endl;
+    const std::vector<std::string> &rank_names = meta_data_ptr_->entity_rank_names();
+    for (size_t i = 0, e = rank_names.size(); i < e; ++i) {
+      stk::mesh::EntityRank rank = static_cast<stk::mesh::EntityRank>(i);
+      std::cout << "  All " << rank_names[i] << " entities:" << std::endl;
+
+      const stk::mesh::BucketVector &buckets = bulk_data_ptr_->buckets(rank);
+      for (stk::mesh::Bucket *bucket : buckets) {
+        std::cout << "    bucket " << bucket->bucket_id() << " parts: { ";
+        const stk::mesh::PartVector &supersets = bucket->supersets();
+        for (const stk::mesh::Part *part : supersets) {
+          std::cout << part->name() << " ";
+        }
+        std::cout << "}" << std::endl;
+      }
+    }
+
+    auto print_super_and_subsets([](const stk::mesh::Part *part) {
+      std::cout << "    part " << part->name() << " supersets: { ";
+      const stk::mesh::PartVector &supersets = part->supersets();
+      for (const stk::mesh::Part *part : supersets) {
+        std::cout << part->name() << " ";
+      }
+      std::cout << "}" << std::endl;
+      std::cout << "    part " << part->name() << " subsets: { ";
+      const stk::mesh::PartVector &subsets = part->subsets();
+      for (const stk::mesh::Part *part : subsets) {
+        std::cout << part->name() << " ";
+      }
+      std::cout << "}" << std::endl;
+    });
+
+    // print_super_and_subsets(spheres_part_ptr_);
+    // print_super_and_subsets(agents_part_ptr_);
+    // print_super_and_subsets(springs_part_ptr_);
+    // print_super_and_subsets(sphere_sphere_linkers_part_ptr_);
+    // print_super_and_subsets(crosslinker_sphere_linkers_part_ptr_);
+    // print_super_and_subsets(crosslinkers_part_ptr_);
+    // print_super_and_subsets(left_bound_crosslinkers_part_ptr_);
+    // print_super_and_subsets(right_bound_crosslinkers_part_ptr_);
+    // print_super_and_subsets(doubly_bound_crosslinkers_part_ptr_);
+    std::cout << "############################################" << std::endl;
+  }
+
+  void zero_out_transient_node_fields() {
+    // mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array<double, 3>{0.0, 0.0,
+    // 0.0}); mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array<double, 3>{0.0, 0.0,
+    // 0.0});
+  }
+
+  void zero_out_transient_element_fields() {
+    // mundy::mesh::utils::fill_field_with_value<double>(*element_binding_rates_field_ptr_,
+    //                                                   std::array<double, 2>{0.0, 0.0});
+    // mundy::mesh::utils::fill_field_with_value<double>(*element_unbinding_rates_field_ptr_,
+    //                                                   std::array<double, 2>{0.0, 0.0});
+    // mundy::mesh::utils::fill_field_with_value<unsigned>(*element_perform_state_change_field_ptr_,
+    //                                                     std::array<unsigned, 1>{0u});
+  }
+
+  void zero_out_transient_constraint_fields() {
+    // mundy::mesh::utils::fill_field_with_value<unsigned>(*constraint_perform_state_change_field_ptr_,
+    //                                                     std::array<unsigned, 1>{0u});
+    // mundy::mesh::utils::fill_field_with_value<double>(*constraint_state_change_rate_field_ptr_,
+    //                                                   std::array<double, 1>{0.0});
+  }
+
+  void zero_out_accumulator_fields() {
+    // mundy::mesh::utils::fill_field_with_value<double>(*element_corner_displacement_field_ptr_,
+    //                                                   std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+  }
+
+  void detect_neighbors_initial() {
+    Kokkos::Profiling::pushRegion("HP1::detect_neighbors_initial");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void detect_neighbors() {
+    Kokkos::Profiling::pushRegion("HP1::detect_neighbors");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Compute the Z-partition function score for left-bound crosslinkers
+  void compute_z_partition_left_bound() {
+    Kokkos::Profiling::pushRegion("HP1::compute_z_partition_left_bound");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Compute the Z-partition function score for doubly_bound crosslinkers
+  void compute_z_partition_doubly_bound() {
+    Kokkos::Profiling::pushRegion("HP1::compute_z_partition_doubly_bound");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Compute the Z-partition function for everybody
+  void compute_z_partition() {
+    Kokkos::Profiling::pushRegion("HP1::compute_z_partition");
+
+    // Compute the left-bound to doubly-bound score
+    compute_z_partition_left_bound();
+
+    // Compute the doubly-bound to left-bound score
+    compute_z_partition_doubly_bound();
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void kmc_crosslinker_left_to_doubly() {
+    Kokkos::Profiling::pushRegion("HP1::kmc_crosslinker_left_to_doubly");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Perform the binding of a crosslinker to a sphere (doubly to left)
+  void kmc_crosslinker_doubly_to_left() {
+    Kokkos::Profiling::pushRegion("HP1::kmc_crosslinker_doubly_to_left");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void kmc_crosslinker_sphere_linker_sampling() {
+    Kokkos::Profiling::pushRegion("HP1::kmc_crosslinker_sphere_linker_sampling");
+
+    // Perform the left to doubly bound crosslinker binding calc
+    kmc_crosslinker_left_to_doubly();
+
+    // Perform the doubly to left bound crosslinker binding calc
+    kmc_crosslinker_doubly_to_left();
+
+    // At this point, constraint_state_change_rate_field is only up-to-date for locally-owned entities. We need
+    // to communicate this information to all other processors.
+    // stk::mesh::communicate_field_data(
+    //     *bulk_data_ptr_, {element_perform_state_change_field_ptr_, constraint_perform_state_change_field_ptr_});
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Perform the state change of the crosslinkers
+  void state_change_crosslinkers() {
+    Kokkos::Profiling::pushRegion("HP1::state_change_crosslinkers");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_crosslinker_state() {
+    Kokkos::Profiling::pushRegion("HP1::update_crosslinker_state");
+
+    // We want to loop over all LEFT_BOUND_CROSSLINKERS, RIGHT_BOUND_CROSSLINKERS, and DOUBLY_BOUND_CROSSLINKERS to
+    // generate state changes. This is done to build up a list of actions that we will take later during a mesh
+    // modification step.
+    {
+      compute_z_partition();
+      kmc_crosslinker_sphere_linker_sampling();
+    }
+
+    // Loop over the different crosslinkers, look at their actions, and enforce the state change.
+    {
+      // Call the global state change function
+      state_change_crosslinkers();
+    }
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_hertzian_contact_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_hertzian_contact_forces");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_harmonic_bond_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_harmonic_bond_forces");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_brownian_velocity() {
+    // Compute the velocity due to brownian motion
+    Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_external_velocity() {
+    // Compute both the velocity due to external forces
+    Kokkos::Profiling::pushRegion("HP1::compute_external_velocity");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_positions() {
+    Kokkos::Profiling::pushRegion("HP1::update_positions");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_accumulators() {
+#pragma TODO This will be at the mercy of periodic boundary condition calculations.
+    Kokkos::Profiling::pushRegion("HP1::update_accumulators");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void check_update_neighbor_list() {
+    Kokkos::Profiling::pushRegion("HP1::check_update_neighbor_list");
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void run(int argc, char **argv) {
+    // Preprocess
+    parse_user_inputs(argc, argv);
+    dump_user_inputs();
+
+    // Setup
+    Kokkos::Profiling::pushRegion("HP1::Setup");
+    build_our_mesh_and_method_instances();
+
+    fetch_fields_and_parts();
+    instantiate_metamethods();
+    set_mutable_parameters();
+    setup_io_mundy();
+    declare_and_initialize_sticky();
+
+    assert_invariant("After setup");
+    Kokkos::Profiling::popRegion();
+
+    // Loadbalance?
+    Kokkos::Profiling::pushRegion("HP1::Loadbalance");
+    if (initial_loadbalance_) {
+      loadbalance();
+      assert_invariant("After loadbalance");
+    }
+    Kokkos::Profiling::popRegion();
+
+    // Run an initial detection of neighbors not using an adaptive neighborlist to set the initial state, and calculate
+    // the initial AABB for everybody.
+    detect_neighbors_initial();
+
+    // Time loop
+    print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
+
+    Kokkos::Timer timer;
+    Kokkos::Profiling::pushRegion("MainLoop");
+    for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
+      // Prepare the current configuration.
+      Kokkos::Profiling::pushRegion("HP1::ZeroTransient");
+      {
+        // Zero the node velocities, and forces/torques for time t.
+        zero_out_transient_node_fields();
+
+        // Zero out the element binding rates
+        zero_out_transient_element_fields();
+
+        // Zero out the constraint binding state changes
+        zero_out_transient_constraint_fields();
+      }
+      Kokkos::Profiling::popRegion();
+
+      // Rotate the field states
+      {
+        // Rotate the field states
+        rotate_field_states();
+      }
+
+      // Reset the update_neighbor_list 'signal'
+      { update_neighbor_list_ = false; }
+
+      // Detect all possible neighbors in the system
+      {
+        // Detect neighbors of spheres-spheres and crosslinkers-spheres
+        detect_neighbors();
+        assert_invariant("After detect neighbors");
+      }
+
+      // Update the state changes in the system s(t).;
+      {
+        // State change of every crosslinker
+        update_crosslinker_state();
+        assert_invariant("After update crosslinker state");
+      }
+
+      // Evaluate forces f(x(t)).
+      {
+        // Hertzian forces
+        compute_hertzian_contact_forces();
+        assert_invariant("After hertzian contact forces");
+
+        // Compute harmonic bond forces
+        compute_harmonic_bond_forces();
+        assert_invariant("After harmonic bond forces");
+      }
+
+      // Compute velocity.
+      {
+        // Evaluate v(t) = M fext(t) + Ubrown(t)
+        compute_brownian_velocity();
+        compute_external_velocity();
+        assert_invariant("After compute velocity");
+      }
+
+      // Logging, if desired, write to console
+      Kokkos::Profiling::pushRegion("HP1::Logging");
+      if (timestep_index_ % log_frequency_ == 0) {
+        if (bulk_data_ptr_->parallel_rank() == 0) {
+          double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
+          std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps
+                    << std::endl;
+        }
+      }
+      Kokkos::Profiling::popRegion();
+
+      // IO. If desired, write out the data for time t (STK or mundy)
+      Kokkos::Profiling::pushRegion("HP1::IO");
+      if (timestep_index_ % io_frequency_ == 0) {
+        io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
+                                                 static_cast<double>(timestep_index_));
+      }
+      Kokkos::Profiling::popRegion();
+
+      // Update positions.
+      {
+        // Evaluate x(t + dt) = x(t) + dt * v(t).
+        update_positions();
+      }
+    }  // End of time loop
+    Kokkos::Profiling::popRegion();
+
+    // Do a synchronize to force everybody to stop here, then write the time
+    stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps_);
+      double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
+      std::cout << "******************Final statistics (Rank 0)**************\n";
+      if (print_neighborlist_statistics_) {
+        std::cout << "****************\n";
+        std::cout << "Neighbor list statistics\n";
+        for (auto &neighborlist_entry : neighborlist_update_steps_times_) {
+          auto [timestep, elasped_step, elapsed_time] = neighborlist_entry;
+          auto tps_nl = static_cast<double>(elasped_step) / elapsed_time;
+          std::cout << "  Rebuild timestep: " << timestep << ", elapsed_steps: " << elasped_step
+                    << ", elapsed_time: " << elapsed_time << ", tps: " << tps_nl << std::endl;
+        }
+      }
+      std::cout << "****************\n";
+      std::cout << "Simulation statistics\n";
+      std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
+      std::cout << "Timesteps per second: " << std::setprecision(15) << tps << std::endl;
+    }
+  }
+
+ private:
+  //! \name Useful aliases
+  //@{
+
+  static constexpr auto node_rank_ = stk::topology::NODE_RANK;
+  static constexpr auto edge_rank_ = stk::topology::EDGE_RANK;
+  static constexpr auto element_rank_ = stk::topology::ELEMENT_RANK;
+  static constexpr auto constraint_rank_ = stk::topology::CONSTRAINT_RANK;
+  //@}
+
+  //! \name Internal state
+  //@{
+
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_;
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
+  std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
+  std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
+  size_t output_file_index_;
+  size_t timestep_index_;
+  //@}
+
+  //! \name Fields
+  //@{
+
+  //@}
+
+  //! \name Parts
+  //@{
+
+  stk::mesh::Part *spheres_part_ptr_ = nullptr;
+
+  //@}
+
+  //! \name MetaMethod instances
+  //@{
+
+  //@}
+
+  //! \name Fixed params for MetaMethods
+  //@{
+
+  Teuchos::ParameterList compute_constraint_forcing_fixed_params_;
+  Teuchos::ParameterList compute_ssd_and_cn_fixed_params_;
+  Teuchos::ParameterList compute_aabb_fixed_params_;
+
+  //@}
+
+  //! \name Partitioning settings
+  //@{
+
+  class RcbSettings : public stk::balance::BalanceSettings {
+   public:
+    RcbSettings() {
+    }
+    virtual ~RcbSettings() {
+    }
+
+    virtual bool isIncrementalRebalance() const {
+      return false;
+    }
+    virtual std::string getDecompMethod() const {
+      return std::string("rcb");
+    }
+    virtual std::string getCoordinateFieldName() const {
+      return std::string("NODE_COORDS");
+    }
+    virtual bool shouldPrintMetrics() const {
+      return false;
+    }
+  };  // RcbSettings
+
+  RcbSettings balance_settings_;
+  //@}
+
+  //! \name User parameters
+  //@{
+
+  // Simulation params
+  bool initial_loadbalance_ = false;
+  size_t num_time_steps_ = 100;
+  size_t io_frequency_ = 10;
+  size_t log_frequency_ = 10;
+  double timestep_size_ = 0.001;
+  double kt_brownian_ = 1.0;
+  double kt_kmc_ = 1.0;
+
+  // Unit cell/periodicity params
+  double unit_cell_length_ = 10.0;
+
+  // Chromatin params
+  size_t num_chromosomes_ = 1;
+  size_t num_chromatin_repeats_ = 1;
+  size_t num_euchromatin_per_repeat_ = 1;
+  size_t num_heterochromatin_per_repeat_ = 1;
+  double sphere_radius_ = 1.0;
+  double initial_sphere_separation_ = 1.0;
+  double sphere_youngs_modulus_ = 1000.0;
+  double sphere_poissons_ratio_ = 0.3;
+  double sphere_drag_coeff_ = 1.0;
+
+  // Chromatin spring params
+  BOND_TYPE chromatin_spring_type_ = BOND_TYPE::HARMONIC;
+  double chromatin_spring_constant_ = 100.0;
+  double chromatin_spring_rest_length_ = 1.0;
+
+  // Crosslinker params
+  BOND_TYPE crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
+  double crosslinker_spring_constant_ = 100.0;
+  double crosslinker_rest_length_ = 1.0;
+  double crosslinker_rcut_ = 1.0;
+  double crosslinker_left_binding_rate_ = 1.0;
+  double crosslinker_right_binding_rate_ = 1.0;
+  double crosslinker_left_unbinding_rate_ = 1.0;
+  double crosslinker_right_unbinding_rate_ = 1.0;
+
+  // Flags for simulation control
+  // Neighbor list
+  double skin_distance_ = 1.0;
+  double skin_distance2_over4_ = 1.0;
+  bool update_neighbor_list_ = false;
+  bool force_neighborlist_update_ = false;
+  size_t force_neighborlist_update_nsteps_ = 10;
+  // Neighborlist rebuild information
+  size_t last_neighborlist_update_step_ = 0;
+  Kokkos::Timer neighborlist_update_timer_;
+  // [timestep, elapsed_timesteps, elapsed_time]
+  std::vector<std::tuple<size_t, size_t, double>> neighborlist_update_steps_times_;
+  bool print_neighborlist_statistics_ = false;
+
+  //@}
+};  // class HP1
+
+}  // namespace crosslinkers
+
+}  // namespace alens
+
+}  // namespace mundy
+
+///////////////////////////
+// Main program          //
+///////////////////////////
+int main(int argc, char **argv) {
+  // Initialize MPI
+  stk::parallel_machine_init(&argc, &argv);
+  Kokkos::initialize(argc, argv);
+
+  // Run the simulation using the given parameters
+  mundy::alens::crosslinkers::HP1().run(argc, argv);
+
+  // Before exiting, sleep for some amount of time to force Kokkos to print better at the end.
+  std::this_thread::sleep_for(std::chrono::milliseconds(stk::parallel_machine_rank(MPI_COMM_WORLD)));
+
+  Kokkos::finalize();
+  stk::parallel_machine_finalize();
+  return 0;
+}
