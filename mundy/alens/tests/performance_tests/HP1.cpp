@@ -383,7 +383,7 @@ class HP1 {
     compute_aabb_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER_SEGMENT"));
     compute_aabb_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT")
-        .set("valid_entity_part_names", mundy::core::make_string_array("HP1S"));
+        .set("valid_entity_part_names", mundy::core::make_string_array("HP1S", "BACKBONE_SEGMENTS"));
 
     // Generate the GENX neighbor linkers between spherocylinder segments
     generate_scs_scs_neighbor_linkers_fixed_params_ =
@@ -391,7 +391,6 @@ class HP1 {
             .set("enabled_technique_name", "STK_SEARCH")
             .set("specialized_neighbor_linkers_part_names",
                  mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"));
-#pragma TODO I think this is where we are accidentally getting the hertzian contact onto the HP1 linkers.
     generate_scs_scs_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
         .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"))
         .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"));
@@ -991,6 +990,27 @@ class HP1 {
   void detect_neighbors_initial() {
     Kokkos::Profiling::pushRegion("HP1::detect_neighbors_initial");
 
+    last_neighborlist_update_step_ = 0;
+    neighborlist_update_timer_.reset();
+
+    // ComputeAABB for everyone (assume same buffer distance)
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
+    auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
+
+    compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
+    // destroy_neighbor_linkers_ptr_->execute(sphere_sphere_linkers_selector | crosslinker_sphere_linkers_selector);
+    // generate_sphere_sphere_neighbor_linkers_ptr_->execute(spheres_selector, spheres_selector);
+    // generate_crosslinker_sphere_neighbor_linkers_ptr_->execute(crosslinkers_selector, spheres_selector);
+
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+    std::cout << "############################################" << std::endl;
+    std::cout << "After initial neighbor detection\n";
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    std::cout << "############################################" << std::endl;
+
     Kokkos::Profiling::popRegion();
   }
 
@@ -1141,7 +1161,7 @@ class HP1 {
     fetch_fields_and_parts();
     instantiate_metamethods();
     set_mutable_parameters();
-    setup_io_mundy();
+    // setup_io_mundy();
     declare_and_initialize_hp1();
 
     assert_invariant("After setup");
@@ -1234,10 +1254,10 @@ class HP1 {
 
       // IO. If desired, write out the data for time t (STK or mundy)
       Kokkos::Profiling::pushRegion("HP1::IO");
-      if (timestep_index_ % io_frequency_ == 0) {
-        io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
-                                                 static_cast<double>(timestep_index_));
-      }
+      // if (timestep_index_ % io_frequency_ == 0) {
+      //   io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
+      //                                            static_cast<double>(timestep_index_));
+      // }
       Kokkos::Profiling::popRegion();
 
       // Update positions.
