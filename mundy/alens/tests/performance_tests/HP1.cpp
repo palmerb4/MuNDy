@@ -743,32 +743,75 @@ class HP1 {
     bulk_data_ptr_->modification_end();
   }
 
+  // Initialize a part for excluded volume interactions (Hertzian)
+  void initialize_excluded_volume_part_from_selector(const stk::mesh::Selector &local_selector,
+                                                     stk::mesh::Field<double> *youngs_modulus_field_ptr,
+                                                     stk::mesh::Field<double> *poissons_ratio_field_ptr,
+                                                     const double &youngs_modulus, const double &poissons_ratio) {
+    // Alias the fields for the foreach lambda
+    const stk::mesh::Field<double> &youngs_modulus_field = *youngs_modulus_field_ptr;
+    const stk::mesh::Field<double> &poissons_ratio_field = *poissons_ratio_field_ptr;
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_selector,
+        [&youngs_modulus_field, &poissons_ratio_field, &youngs_modulus, &poissons_ratio](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &local_wca) {
+          // Assign the hertzian contact parameters to the backbone segments
+          stk::mesh::field_data(youngs_modulus_field, local_wca)[0] = youngs_modulus;
+          stk::mesh::field_data(poissons_ratio_field, local_wca)[0] = poissons_ratio;
+        });  // for_each_entity_run
+  }
+
+  // Initialize a spring part to a common spring constant and rest length
+  void initialize_spring_part_from_selector(const stk::mesh::Selector &local_selector,
+                                            stk::mesh::Field<double> *spring_constant_field_ptr,
+                                            stk::mesh::Field<double> *spring_rest_length_field_ptr,
+                                            const double &spring_constant, const double &spring_rest_length) {
+    // Initialize the spring constants on the backbone for every EE spring
+    const stk::mesh::Field<double> &spring_constant_field = *spring_constant_field_ptr;
+    const stk::mesh::Field<double> &spring_rest_length_field = *spring_rest_length_field_ptr;
+
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_selector,
+        [&spring_constant_field, &spring_rest_length_field, &spring_constant, &spring_rest_length](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &local_spring) {
+          // Assign the hertzian contact parameters to the backbone segments
+          stk::mesh::field_data(spring_constant_field, local_spring)[0] = spring_constant;
+          stk::mesh::field_data(spring_rest_length_field, local_spring)[0] = spring_rest_length;
+        });  // for_each_entity_run
+  }
+
   // Initialize the chromatin backbone and HP1 linkers based on part membership
   //
   // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
   // parts.
   void initialize_chromatin_backbone_and_hp1() {
-    double &youngs_modulus = backbone_youngs_modulus_;
-    double &poissons_ratio = backbone_poissons_ratio_;
-
+    // Get parts for composed selectors we ar eusing
     stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
     stk::mesh::Part &eh_springs_part = *eh_springs_part_ptr_;
     stk::mesh::Part &hh_springs_part = *hh_springs_part_ptr_;
-    const stk::mesh::Selector local_backbone_segments =
-        (ee_springs_part | eh_springs_part | hh_springs_part) & bulk_data_ptr_->mesh_meta_data().locally_owned_part();
-
-    const stk::mesh::Field<double> &element_youngs_modulus_field = *element_youngs_modulus_field_ptr_;
-    const stk::mesh::Field<double> &element_poissons_ratio_field = *element_poissons_ratio_field_ptr_;
+    stk::mesh::Part &hp1_part = *hp1_part_ptr_;
 
     // Initialize the excluded volume interaction for backbone segments (hertzian)
-    stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_backbone_segments,
-        [&element_youngs_modulus_field, &element_poissons_ratio_field, &youngs_modulus, &poissons_ratio](
-            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &backbone_segment) {
-          // Assign the hertzian contact parameters to the backbone segments
-          stk::mesh::field_data(element_youngs_modulus_field, backbone_segment)[0] = youngs_modulus;
-          stk::mesh::field_data(element_poissons_ratio_field, backbone_segment)[0] = poissons_ratio;
-        });  // for_each_entity_run
+    const stk::mesh::Selector local_backbone_segments =
+        (ee_springs_part | eh_springs_part | hh_springs_part) & bulk_data_ptr_->mesh_meta_data().locally_owned_part();
+    initialize_excluded_volume_part_from_selector(local_backbone_segments, element_youngs_modulus_field_ptr_,
+                                                  element_poissons_ratio_field_ptr_, backbone_youngs_modulus_,
+                                                  backbone_poissons_ratio_);
+
+    // Initialize the backbone springs (EE, EH, HH)
+    initialize_spring_part_from_selector(ee_springs_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, chromatin_spring_constant_,
+                                         chromatin_spring_rest_length_);
+    initialize_spring_part_from_selector(eh_springs_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, chromatin_spring_constant_,
+                                         chromatin_spring_rest_length_);
+    initialize_spring_part_from_selector(hh_springs_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, chromatin_spring_constant_,
+                                         chromatin_spring_rest_length_);
+    // Also initialize the HP1 springs
+    initialize_spring_part_from_selector(hp1_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, crosslinker_spring_constant_,
+                                         crosslinker_rest_length_);
   }
 
   void declare_and_initialize_hp1() {
@@ -1299,8 +1342,8 @@ class HP1 {
 
   // Crosslinker params
   BOND_TYPE crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
-  double crosslinker_spring_constant_ = 100.0;
-  double crosslinker_rest_length_ = 1.0;
+  double crosslinker_spring_constant_ = 10.0;
+  double crosslinker_rest_length_ = 2.5;
   double crosslinker_rcut_ = 1.0;
   double crosslinker_left_binding_rate_ = 1.0;
   double crosslinker_right_binding_rate_ = 1.0;
