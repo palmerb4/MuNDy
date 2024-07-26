@@ -415,6 +415,7 @@ class HP1 {
         .set("valid_target_entity_part_names", mundy::core::make_string_array("BS"));
 
     // Evaluate the scs-scs hertzian contacts
+#pragma TODO Why do the HP1 linkers pick up hertzian contact information ?
     evaluate_linker_potentials_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
@@ -551,6 +552,26 @@ class HP1 {
   }
 
   void setup_io_mundy() {
+    // Create a mundy io broker via it's fixed parameters
+    // Dump everything for now
+    auto fixed_params_iobroker =
+        Teuchos::ParameterList()
+            .set("enabled_io_parts",
+                 mundy::core::make_string_array("E", "H", "BS", "EESPRINGS", "EHSPRINGS", "HHSPRINGS", "LEFT_HP1",
+                                                "DOUBLY_HP1_H", "DOUBLY_HP1_BS"))
+            .set("enabled_io_fields_node_rank",
+                 mundy::core::make_string_array("NODE_VELOCITY", "NODE_FORCE", "NODE_RNG_COUNTER"))
+            .set("enabled_io_fields_element_rank",
+                 mundy::core::make_string_array("ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER",
+                                                "ELEMENT_REALIZED_BINDING_RATES", "ELEMENT_REALIZED_UNBINDING_RATES",
+                                                "ELEMENT_PERFORM_STATE_CHANGE"))
+            .set("coordinate_field_name", "NODE_COORDS")
+            .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
+            .set("exodus_database_output_filename", "Sticky.exo")
+            .set("parallel_io_mode", "hdf5")
+            .set("database_purpose", "results");
+    // Create the IO broker
+    io_broker_ptr_ = mundy::io::IOBroker::create_new_instance(bulk_data_ptr_.get(), fixed_params_iobroker);
   }
 
   void loadbalance() {
@@ -786,6 +807,7 @@ class HP1 {
   // parts.
   void initialize_chromatin_backbone_and_hp1() {
     // Get parts for composed selectors we ar eusing
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
     stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
     stk::mesh::Part &eh_springs_part = *eh_springs_part_ptr_;
     stk::mesh::Part &hh_springs_part = *hh_springs_part_ptr_;
@@ -812,6 +834,63 @@ class HP1 {
     initialize_spring_part_from_selector(hp1_part, element_hookean_spring_constant_field_ptr_,
                                          element_hookean_spring_rest_length_field_ptr_, crosslinker_spring_constant_,
                                          crosslinker_rest_length_);
+
+    // Initialize leftover HP1 variables
+    //
+    // This includes the RNG field, and the cutoff radius (not the rest length, set above)
+    {
+      const stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
+      const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+      double &crosslinker_rcut = crosslinker_rcut_;
+      stk::mesh::for_each_entity_run(
+          *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
+          hp1_part & bulk_data_ptr_->mesh_meta_data().locally_owned_part(),
+          [&element_rng_field, &element_radius_field, &crosslinker_rcut](
+              [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &local_hp1) {
+            // Assign RNG counter and the cutoff radius to the HP1 crosslinkers
+            stk::mesh::field_data(element_rng_field, local_hp1)[0] = 0;
+            stk::mesh::field_data(element_radius_field, local_hp1)[0] = crosslinker_rcut;
+          });  // for_each_entity_run
+    }
+
+    // Initialize the locations of the nodes along the chain
+    //
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    for (size_t j = 0; j < num_chromosomes_; j++) {
+      std::cout << "Initializing chromosome " << j << std::endl;
+
+      // Find a random place within the unit cell with a random orientatino for the chain.
+      openrand::Philox rng(j, 0);
+      // mundy::math::Vector3<double> r_start(rng.uniform<double>(0.0, unit_cell_length_),
+      //                                      rng.uniform<double>(0.0, unit_cell_length_),
+      //                                      rng.uniform<double>(0.0, unit_cell_length_));
+      // // Find a random unit vector direction
+      // const double zrand = rng.rand<double>() - 1.0;
+      // const double wrand = std::sqrt(1.0 - zrand * zrand);
+      // const double trand = 2.0 * M_PI * rng.rand<double>();
+      // mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+      mundy::math::Vector3<double> r_start(j, 0.0, 0.0);
+      mundy::math::Vector3<double> u_hat(0.0, 0.0, 1.0);
+
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+      size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+      for (size_t i = start_node_index; i < end_node_index; ++i) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        mundy::math::Vector3<double> r = r_start + (i - start_node_index) * initial_sphere_separation_ * u_hat;
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+      }
+    }
   }
 
   void declare_and_initialize_hp1() {
@@ -884,9 +963,8 @@ class HP1 {
   }
 
   void zero_out_transient_node_fields() {
-    // mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array<double, 3>{0.0, 0.0,
-    // 0.0}); mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array<double, 3>{0.0, 0.0,
-    // 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
   }
 
   void zero_out_transient_element_fields() {
