@@ -308,14 +308,14 @@ class HP1 {
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_part_reqs);
 
     // Create the custom spring parts for the system.
-    auto custom_spring_part_reqs = std::make_shared<mundy::meta::PartReqs>();
-    custom_spring_part_reqs->set_part_name("CUSTOM_SPRINGS")
+    auto custom_backbone_segments_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
         .set_part_topology(stk::topology::BEAM_2)
         .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HP1S", stk::topology::BEAM_2);
-    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_spring_part_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segments_part_reqs);
 
     // Create the generalized interaction entities that connect HP1 and (H)eterochromatin
     //   This entity "knows" how to compute the binding probability between a crosslinker and a H and how to
@@ -349,25 +349,30 @@ class HP1 {
     custom_sphere_aabb_accumulator_reqs->set_part_name("SPHERES")
         .set_part_topology(stk::topology::PARTICLE)
         .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    auto custom_backbone_segment_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_backbone_segment_aabb_accumulator_reqs->set_part_name("BACKBONE_SEGMENTS")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
     auto custom_hp1_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_hp1_aabb_accumulator_reqs->set_part_name("HP1S")
         .set_part_topology(stk::topology::BEAM_2)
         .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_sphere_aabb_accumulator_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segment_aabb_accumulator_reqs);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_aabb_accumulator_reqs);
 
     // Setup our fixed parameters for any of methods that we intend to use
     // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
     // master parameter list. Note, sublist will return a reference to the sublist with the given name.
     //
-    // Compute constraint (bonded) forces for the the HOOKEAN_SPRINGS and CUSTOM_SPRINGS parts
+    // Compute constraint (bonded) forces for the the HOOKEAN_SPRINGS and BACKBONE_SEGMENTS parts
     //
-    // CJE Note that this adds the CUSTOM_SPRINGS part to the HOOKEAN_SPRINGS as a subpart, which I believe is what we
-    // want.
+    // CJE Note that this adds the BACKBONE_SEGMENTS part to the HOOKEAN_SPRINGS as a subpart, which I believe is what
+    // we want.
     compute_constraint_forcing_fixed_params_ =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"));
     compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
-        .set("valid_entity_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "CUSTOM_SPRINGS"));
+        .set("valid_entity_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "BACKBONE_SEGMENTS"));
 
     // Compute the minimum distance for the SCS-SCS, HP1-H, HP1-BS interactions (SCS-SCS, S-SCS, S-SCS)
     compute_ssd_and_cn_fixed_params_ = Teuchos::ParameterList().set(
@@ -413,6 +418,8 @@ class HP1 {
     evaluate_linker_potentials_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
+    evaluate_linker_potentials_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT")
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
 
     // Reduce the forces on the spherocylinder segments
     linker_potential_force_reduction_fixed_params_ =
@@ -504,7 +511,7 @@ class HP1 {
     doubly_hp1_h_part_ptr_ = fetch_part("DOUBLY_HP1_H");
     doubly_hp1_bs_part_ptr_ = fetch_part("DOUBLY_HP1_BS");
 
-    custom_springs_part_ptr_ = fetch_part("CUSTOM_SPRINGS");
+    backbone_segments_part_ptr_ = fetch_part("BACKBONE_SEGMENTS");
     ee_springs_part_ptr_ = fetch_part("EESPRINGS");
     eh_springs_part_ptr_ = fetch_part("EHSPRINGS");
     hh_springs_part_ptr_ = fetch_part("HHSPRINGS");
@@ -681,7 +688,7 @@ class HP1 {
         stk::mesh::Entity segment = bulk_data_ptr_->get_entity(element_rank_, get_segment_id(segment_local_idx));
         if (!bulk_data_ptr_->is_valid(segment)) {
           stk::mesh::PartVector pvector;
-          pvector.push_back(custom_springs_part_ptr_);
+          pvector.push_back(backbone_segments_part_ptr_);
           if (get_region_by_id(vertex_left_idx) == "E" && get_region_by_id(vertex_right_idx) == "E") {
             pvector.push_back(ee_springs_part_ptr_);
           } else if (get_region_by_id(vertex_left_idx) == "E" && get_region_by_id(vertex_right_idx) == "H") {
@@ -1194,7 +1201,7 @@ class HP1 {
   stk::mesh::Part *doubly_hp1_h_part_ptr_ = nullptr;
   stk::mesh::Part *doubly_hp1_bs_part_ptr_ = nullptr;
 
-  stk::mesh::Part *custom_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *backbone_segments_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_part_ptr_ = nullptr;
   stk::mesh::Part *eh_springs_part_ptr_ = nullptr;
   stk::mesh::Part *hh_springs_part_ptr_ = nullptr;
