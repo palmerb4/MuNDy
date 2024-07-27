@@ -251,7 +251,7 @@ void subdivide_flagged_spherocylinders(stk::mesh::BulkData &bulk_data, const stk
   std::vector<size_t> parent_lid_to_child_lid(num_entities_to_maybe_divide, 0);
   std::partial_sum(should_divide.begin(), should_divide.end(), parent_lid_to_child_lid.begin(),
                    [](const int a, const int b) { return a + b; });
-  const size_t new_element_count = parent_lid_to_child_lid.back();
+  const size_t new_element_count = num_entities_to_maybe_divide > 0 ? parent_lid_to_child_lid.back() : 0;
   const size_t new_node_count = new_element_count;
 
 #pragma omp parallel for
@@ -325,16 +325,18 @@ class BacteriaSim {
  public:
   BacteriaSim() = default;
 
-  void print_rank0(auto think_to_print, int indent_level = 0) {
+  void print_rank0(auto thing_to_print, int indent_level = 0) {
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
       std::string indent(indent_level * 2, ' ');
-      std::cout << indent << think_to_print << std::endl;
+      std::cout << indent << thing_to_print << std::endl;
     }
   }
 
   void debug_print([[maybe_unused]] auto thing_to_print, [[maybe_unused]] int indent_level = 0) {
 #ifdef DEBUG
-    print_rank0(thing_to_print, indent_level);
+    // print_rank0(thing_to_print, indent_level);
+    std::string indent(indent_level * 2, ' ');
+    std::cout << indent << " Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " " << thing_to_print << std::endl;
 #endif
   }
 
@@ -602,33 +604,44 @@ class BacteriaSim {
   void declare_and_initialize_bacteria() {
     debug_print("Declaring and initializing the bacteria.");
 
-    // Declare the bacteria
+    // Declare the bacteria on rank 0
     bulk_data_ptr_->modification_begin();
-    stk::mesh::Entity bacteria_node =
-        bulk_data_ptr_->declare_entity(stk::topology::NODE_RANK, 1, stk::mesh::PartVector{bacteria_part_ptr_});
-    stk::mesh::Entity bacteria =
-        bulk_data_ptr_->declare_entity(stk::topology::ELEMENT_RANK, 1, stk::mesh::PartVector{bacteria_part_ptr_});
-    bulk_data_ptr_->declare_relation(bacteria, bacteria_node, 0);
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      stk::mesh::Entity bacteria_node =
+          bulk_data_ptr_->declare_entity(stk::topology::NODE_RANK, 1, stk::mesh::PartVector{bacteria_part_ptr_});
+      stk::mesh::Entity bacteria =
+          bulk_data_ptr_->declare_entity(stk::topology::ELEMENT_RANK, 1, stk::mesh::PartVector{bacteria_part_ptr_});
+      bulk_data_ptr_->declare_relation(bacteria, bacteria_node, 0);
+    }
     bulk_data_ptr_->modification_end();
 
     // Initialize it
-    stk::mesh::field_data(*node_rng_counter_field_ptr_, bacteria_node)[0] = 0;
-    mundy::mesh::vector3_field_data(*node_coord_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-    mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-    mundy::mesh::vector3_field_data(*node_omega_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-    mundy::mesh::vector3_field_data(*node_force_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-    mundy::mesh::vector3_field_data(*node_torque_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      stk::mesh::Entity bacteria_node = bulk_data_ptr_->get_entity(stk::topology::NODE_RANK, 1);
+      stk::mesh::Entity bacteria = bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK, 1);
 
-    stk::mesh::field_data(*element_radius_field_ptr_, bacteria)[0] = bacteria_radius_;
-    stk::mesh::field_data(*element_length_field_ptr_, bacteria)[0] = bacteria_initial_length_;
-    stk::mesh::field_data(*element_youngs_modulus_field_ptr_, bacteria)[0] = bacteria_youngs_modulus_;
-    stk::mesh::field_data(*element_poissons_ratio_field_ptr_, bacteria)[0] = bacteria_poissons_ratio_;
+      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(bacteria_node), std::invalid_argument,
+                         "Bacteria node is not valid.");
+      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(bacteria), std::invalid_argument, "Bacteria element is not valid.");
 
-    mundy::math::Vector3<double> current_tangent(1.0, 0.0, 0.0);
-    mundy::math::Vector3<double> x_axis(1.0, 0.0, 0.0);
-    mundy::mesh::quaternion_field_data(*element_orientation_field_ptr_, bacteria) =
-        mundy::math::quat_from_parallel_transport(x_axis, current_tangent);
-    mundy::mesh::vector3_field_data(*element_tangent_field_ptr_, bacteria) = current_tangent;
+      stk::mesh::field_data(*node_rng_counter_field_ptr_, bacteria_node)[0] = 0;
+      mundy::mesh::vector3_field_data(*node_coord_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_omega_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_force_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_torque_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+
+      stk::mesh::field_data(*element_radius_field_ptr_, bacteria)[0] = bacteria_radius_;
+      stk::mesh::field_data(*element_length_field_ptr_, bacteria)[0] = bacteria_initial_length_;
+      stk::mesh::field_data(*element_youngs_modulus_field_ptr_, bacteria)[0] = bacteria_youngs_modulus_;
+      stk::mesh::field_data(*element_poissons_ratio_field_ptr_, bacteria)[0] = bacteria_poissons_ratio_;
+
+      mundy::math::Vector3<double> current_tangent(1.0, 0.0, 0.0);
+      mundy::math::Vector3<double> x_axis(1.0, 0.0, 0.0);
+      mundy::mesh::quaternion_field_data(*element_orientation_field_ptr_, bacteria) =
+          mundy::math::quat_from_parallel_transport(x_axis, current_tangent);
+      mundy::mesh::vector3_field_data(*element_tangent_field_ptr_, bacteria) = current_tangent;
+    }
   }
 
   void load_balance() {
@@ -945,7 +958,7 @@ class BacteriaSim {
 
       // Load balance
       if (timestep_index_ % load_balance_frequency_ == 0) {
-        load_balance();
+        // load_balance();
       }
 
       // IO. If desired, write out the data for time t.

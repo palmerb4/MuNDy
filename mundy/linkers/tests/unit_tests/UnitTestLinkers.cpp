@@ -229,11 +229,17 @@ TEST(Linkers, FamilyTreeRelationGeneration) {
       /         |   |         \  |       |        \
      | SPHERE1(LO)  SPHERE2(G) | |    SPHERE2(LO)  |
       \    |          |       /  |       |        /
-        NODE1(LO)    NODE2(S)    |    NODE1(LO,S)
+        NODE1(LO,S)    NODE2(S)    |    NODE2(LO,S)
   LO: Locally owned
   G: Ghosted
   S: Shared
   */
+
+  // Skip this test if the number of processes is not 2.
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) != 2) {
+    GTEST_SKIP();
+    return;
+  }
 
   // Construct metaData and bulk data.
   const size_t spatial_dimension = 3;
@@ -276,6 +282,7 @@ TEST(Linkers, FamilyTreeRelationGeneration) {
     ASSERT_NO_THROW(mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(
         bulk_data_ptr.get(), linker1, sphere1, sphere2));
     bulk_data_ptr->modification_end();
+    std::cout << "Linker1 id: " << bulk_data_ptr->identifier(linker1) << std::endl;
 
     // Check the connectivity.
     EXPECT_EQ(bulk_data_ptr->num_nodes(sphere1), 1u);

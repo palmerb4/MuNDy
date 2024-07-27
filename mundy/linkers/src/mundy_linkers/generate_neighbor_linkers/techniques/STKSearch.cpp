@@ -331,6 +331,8 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
       }
     }
   }
+  fields_to_communicate.erase(std::unique(fields_to_communicate.begin(), fields_to_communicate.end()),
+                              fields_to_communicate.end());
 
   stk::mesh::communicate_field_data(ghosting, fields_to_communicate);
 }
