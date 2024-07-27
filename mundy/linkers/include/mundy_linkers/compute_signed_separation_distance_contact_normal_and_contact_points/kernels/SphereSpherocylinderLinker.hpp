@@ -151,6 +151,7 @@ class SphereSpherocylinderLinker : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_spherocylinder_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::PARTICLE);
 
       if (part_name == mundy::shapes::Spherocylinders::get_name()) {
         // Add the requirements directly to sphere sphere linkers agent.

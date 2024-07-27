@@ -284,7 +284,7 @@ void IOBroker::write_io_broker(double time) {
   stk_io_broker_.end_output_step(io_index_);
 }
 
-void IOBroker::write_io_broker_timestep(int timestep, double time) {
+void IOBroker::write_io_broker_timestep(const size_t timestep, const double time) {
   // Setup StkMeshIoBroker
   stk::io::StkMeshIoBroker stk_io_broker(bulk_data_ptr_->parallel());
   stk_io_broker.set_bulk_data(*bulk_data_ptr_);

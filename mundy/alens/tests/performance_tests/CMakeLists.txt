@@ -18,6 +18,22 @@
 # @HEADER
 
 tribits_add_executable(
+    PerformanceTestBacteria
+    SOURCES
+    Bacteria.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+
+# Copy the test files for the executables...
+tribits_copy_files_to_binary_dir(
+    PerformanceTestBacteriaCopyFiles
+    SOURCE_FILES
+    bacteria_params.yaml
+    EXEDEPS PerformanceTestBacteria
+    )
+
+tribits_add_executable(
     PerformanceTestBrownianMotion
     SOURCES
     BrownianMotion.cpp

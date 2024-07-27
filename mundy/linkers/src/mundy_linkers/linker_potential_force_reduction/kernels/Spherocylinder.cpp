@@ -65,6 +65,7 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   // Get the field pointers.
   const std::string node_coord_field_name = mundy::shapes::Spherocylinders::get_node_coord_field_name();
   const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
+  const std::string node_torque_field_name = valid_fixed_params.get<std::string>("node_torque_field_name");
   const std::string linker_contact_points_field_name =
       valid_fixed_params.get<std::string>("linker_contact_points_field_name");
   const std::string linker_potential_force_field_name =
@@ -72,6 +73,7 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
 
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
+  node_torque_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_torque_field_name);
   linker_contact_points_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_points_field_name);
   linker_potential_force_field_ptr_ =
@@ -84,6 +86,7 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
 
   field_exists(node_coord_field_ptr_, node_coord_field_name);
   field_exists(node_force_field_ptr_, node_force_field_name);
+  field_exists(node_torque_field_ptr_, node_torque_field_name);
   field_exists(linker_contact_points_field_ptr_, linker_contact_points_field_name);
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
 
@@ -144,7 +147,7 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   // At the end of this loop, all locally owned and shared spheres will be up-to-date.
   stk::mesh::Selector locally_owned_or_globally_shared_intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_selector &
-      (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());
+      (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());  
   stk::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
       locally_owned_or_globally_shared_intersection_with_valid_entity_parts,

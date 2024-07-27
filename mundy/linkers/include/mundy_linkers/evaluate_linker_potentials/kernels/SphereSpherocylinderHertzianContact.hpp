@@ -200,6 +200,7 @@ class SphereSpherocylinderHertzianContact : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_spherocylinder_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::PARTICLE);
       part_reqs->add_field_reqs<double>(element_youngs_modulus_field_name, stk::topology::ELEMENT_RANK, 1, 1);
       part_reqs->add_field_reqs<double>(element_poissons_ratio_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 

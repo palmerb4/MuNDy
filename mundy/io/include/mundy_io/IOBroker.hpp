@@ -250,7 +250,7 @@ class IOBroker {
   void write_io_broker(double time);
 
   /// \brief Write a single timestep to disk
-  void write_io_broker_timestep(int timestep, double time);
+  void write_io_broker_timestep(size_t timestep, double time);
 
   //@}
 
