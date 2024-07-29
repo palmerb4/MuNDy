@@ -291,6 +291,14 @@ class HP1 {
   void assert_invariant(const std::string &message = std::string()) {
     Kokkos::Profiling::pushRegion("HP1::assert_invariant");
 
+#ifdef DEBUG
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+    std::cout << "############################################" << std::endl;
+    std::cout << "Mesh at message " << message << std::endl;
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    std::cout << "############################################" << std::endl;
+#endif
+
     Kokkos::Profiling::popRegion();
   }
 
@@ -495,12 +503,6 @@ class HP1 {
     meta_data_ptr_->use_simple_fields();
     meta_data_ptr_->set_coordinate_field_name("NODE_COORDS");
     meta_data_ptr_->commit();
-
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-    std::cout << "############################################" << std::endl;
-    std::cout << "Original mesh\n";
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-    std::cout << "############################################" << std::endl;
   }
 
   template <typename FieldType>
@@ -532,6 +534,8 @@ class HP1 {
     element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
     element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
+    element_aabb_field_ptr_ = fetch_field<double>("ELEMENT_AABB", element_rank_);
+    element_corner_displacement_field_ptr_ = fetch_field<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_);
 
     // Fetch the parts
     spheres_part_ptr_ = fetch_part("SPHERES");
@@ -952,22 +956,10 @@ class HP1 {
     ////////////////////////////////////////
     create_chromatin_backbone_and_hp1();
 
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-    std::cout << "############################################" << std::endl;
-    std::cout << "Created but uninitialized mesh\n";
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-    std::cout << "############################################" << std::endl;
-
     ////////////////////////////////////////
     // Initilize                          //
     ////////////////////////////////////////
     initialize_chromatin_backbone_and_hp1();
-
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-    std::cout << "############################################" << std::endl;
-    std::cout << "Initialized mesh\n";
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-    std::cout << "############################################" << std::endl;
   }
 
   void debug_print_meta_data() {
@@ -1037,8 +1029,8 @@ class HP1 {
   }
 
   void zero_out_accumulator_fields() {
-    // mundy::mesh::utils::fill_field_with_value<double>(*element_corner_displacement_field_ptr_,
-    //                                                   std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*element_corner_displacement_field_ptr_,
+                                                      std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
   }
 
   void detect_neighbors_initial() {
@@ -1075,6 +1067,137 @@ class HP1 {
 
   void detect_neighbors() {
     Kokkos::Profiling::pushRegion("HP1::detect_neighbors");
+
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto h_selector = stk::mesh::Selector(*h_part_ptr_);
+    auto bs_selector = stk::mesh::Selector(*bs_part_ptr_);
+
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+    auto hp1_h_neighbor_genx_selector = stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_);
+    auto hp1_bs_neighbor_genx_selector = stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_);
+
+    // ComputeAABB for everybody at each time step. The accumulator then always uses this updated information to
+    // calculate if we need to update the entire neighbor list.
+    compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
+    update_accumulators();
+
+    // Check if we need to update the neighbor list. Eventually this will be replaced with a mesh attribute to
+    // synchronize across multiple tasks. For now, make sure that the default is to not update neighbor lists.
+    check_update_neighbor_list();
+
+    // Now do a check to see if we need to update the neighbor list.
+    if (((force_neighborlist_update_) && (timestep_index_ % force_neighborlist_update_nsteps_ == 0)) ||
+        update_neighbor_list_) {
+      // Read off the timing information before doing anything else and reset it
+      auto elapsed_steps = timestep_index_ - last_neighborlist_update_step_;
+      auto elapsed_time = neighborlist_update_timer_.seconds();
+      neighborlist_update_steps_times_.push_back(std::make_tuple(timestep_index_, elapsed_steps, elapsed_time));
+      last_neighborlist_update_step_ = timestep_index_;
+      neighborlist_update_timer_.reset();
+
+      // Reset the accumulators
+      zero_out_accumulator_fields();
+
+      // Update the neighbor list
+      destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
+                                             hp1_bs_neighbor_genx_selector);
+      // Generate the GENX neighbor linkers
+      generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
+      generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
+      generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
+
+      // Destroy linkers along backbone chains
+      destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    }
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_accumulators() {
+#pragma TODO This will be at the mercy of periodic boundary condition calculations.
+    Kokkos::Profiling::pushRegion("HP1::update_accumulators");
+
+    // Selectors and aliases
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_aabb_field_old = element_aabb_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+
+    stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
+
+    // Update the accumulators based on the difference to the previous state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
+        [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_aabb = stk::mesh::field_data(element_aabb_field, aabb_entity);
+          double *element_aabb_old = stk::mesh::field_data(element_aabb_field_old, aabb_entity);
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Add the (new_aabb - old_aabb) to the corner displacement
+          element_corner_displacement[0] += element_aabb[0] - element_aabb_old[0];
+          element_corner_displacement[1] += element_aabb[1] - element_aabb_old[1];
+          element_corner_displacement[2] += element_aabb[2] - element_aabb_old[2];
+          element_corner_displacement[3] += element_aabb[3] - element_aabb_old[3];
+          element_corner_displacement[4] += element_aabb[4] - element_aabb_old[4];
+          element_corner_displacement[5] += element_aabb[5] - element_aabb_old[5];
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void check_update_neighbor_list() {
+    Kokkos::Profiling::pushRegion("HP1::check_update_neighbor_list");
+
+    // Local variable for if we should update the neighbor list (do as an integer for now because MPI doesn't like
+    // bools)
+    int local_update_neighbor_list_int = 0;
+
+    // Selectors and aliases
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+    const double &skin_distance2_over4 = skin_distance2_over4_;
+
+    stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
+
+    // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
+        [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Compute dr2 for each corner
+          double dr2_corner0 = element_corner_displacement[0] * element_corner_displacement[0] +
+                               element_corner_displacement[1] * element_corner_displacement[1] +
+                               element_corner_displacement[2] * element_corner_displacement[2];
+          double dr2_corner1 = element_corner_displacement[3] * element_corner_displacement[3] +
+                               element_corner_displacement[4] * element_corner_displacement[4] +
+                               element_corner_displacement[5] * element_corner_displacement[5];
+
+          if (dr2_corner0 >= skin_distance2_over4 || dr2_corner1 >= skin_distance2_over4) {
+            local_update_neighbor_list_int = 1;
+          }
+        });
+
+    // Communicate local_update_neighbor_list to all ranks. Convert to an integer first (MPI doesn't handle booleans
+    // well).
+    int global_update_neighbor_list_int = 0;
+    MPI_Allreduce(&local_update_neighbor_list_int, &global_update_neighbor_list_int, 1, MPI_INT, MPI_LOR,
+                  MPI_COMM_WORLD);
+    // Convert back to the boolean for the global version and or it with the original value (in case somebody else set
+    // the neighbor list update 'signal').
+    update_neighbor_list_ = update_neighbor_list_ || (global_update_neighbor_list_int == 1);
 
     Kokkos::Profiling::popRegion();
   }
@@ -1174,17 +1297,21 @@ class HP1 {
     evaluate_linker_potentials_ptr_->execute(backbone_backbone_neighbor_genx_selector);
     linker_potential_force_reduction_ptr_->execute(backbone_selector);
 
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-    std::cout << "############################################" << std::endl;
-    std::cout << "After computed herzian contact forces\n";
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-    std::cout << "############################################" << std::endl;
-
     Kokkos::Profiling::popRegion();
   }
 
   void compute_harmonic_bond_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_harmonic_bond_forces");
+
+    // Need to select the active springs in the system, so backbone springs, and active HP1 springs. Do this by
+    // selecting down from all HP1 springs.
+    auto backbone_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto left_hp1_selector = stk::mesh::Selector(*left_hp1_part_ptr_);
+    auto actively_bound_springs = backbone_selector | (hp1_selector - left_hp1_selector);
+
+    // Potentials
+    compute_constraint_forcing_ptr_->execute(actively_bound_springs);
 
     Kokkos::Profiling::popRegion();
   }
@@ -1193,6 +1320,35 @@ class HP1 {
     // Compute the velocity due to brownian motion
     Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
 
+    // Selectors and aliases
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Field<unsigned> &node_rng_field = *node_rng_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    double &timestep_size = timestep_size_;
+    double &sphere_drag_coeff = sphere_drag_coeff_;
+    double &kt = kt_brownian_;
+    double inv_drag_coeff = 1.0 / sphere_drag_coeff;
+
+    // Compute the total velocity of the nonorientable spheres
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
+         &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+          const stk::mesh::EntityId sphere_node_gid = bulk_data.identifier(sphere_node);
+          unsigned *node_rng_counter = stk::mesh::field_data(node_rng_field, sphere_node);
+
+          // U_brown = sqrt(2 * kt * gamma / dt) * randn
+          openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
+          const double coeff = std::sqrt(2.0 * kt * sphere_drag_coeff / timestep_size) * inv_drag_coeff;
+          node_velocity[0] += coeff * rng.randn<double>();
+          node_velocity[1] += coeff * rng.randn<double>();
+          node_velocity[2] += coeff * rng.randn<double>();
+          node_rng_counter[0]++;
+        });
+
     Kokkos::Profiling::popRegion();
   }
 
@@ -1200,24 +1356,55 @@ class HP1 {
     // Compute both the velocity due to external forces
     Kokkos::Profiling::pushRegion("HP1::compute_external_velocity");
 
+    // Selectors and aliases
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    double &timestep_size = timestep_size_;
+    double &sphere_drag_coeff = sphere_drag_coeff_;
+    double inv_drag_coeff = 1.0 / sphere_drag_coeff;
+
+    // Compute the total velocity of the nonorientable spheres
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+          double *node_force = stk::mesh::field_data(node_force_field, sphere_node);
+
+          // Uext = Fext * inv_drag_coeff
+          node_velocity[0] += node_force[0] * inv_drag_coeff;
+          node_velocity[1] += node_force[1] * inv_drag_coeff;
+          node_velocity[2] += node_force[2] * inv_drag_coeff;
+        });
+
     Kokkos::Profiling::popRegion();
   }
 
   void update_positions() {
     Kokkos::Profiling::pushRegion("HP1::update_positions");
 
-    Kokkos::Profiling::popRegion();
-  }
+    // Selectors and aliases
+    double &timestep_size = timestep_size_;
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
 
-  void update_accumulators() {
-#pragma TODO This will be at the mercy of periodic boundary condition calculations.
-    Kokkos::Profiling::pushRegion("HP1::update_accumulators");
+    // Update the positions for all spheres based on velocity
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                                  const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_coord = stk::mesh::field_data(node_coord_field, sphere_node);
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
 
-    Kokkos::Profiling::popRegion();
-  }
-
-  void check_update_neighbor_list() {
-    Kokkos::Profiling::pushRegion("HP1::check_update_neighbor_list");
+          // x(t+dt) = x(t) + dt * v(t)
+          node_coord[0] += timestep_size * node_velocity[0];
+          node_coord[1] += timestep_size * node_velocity[1];
+          node_coord[2] += timestep_size * node_velocity[2];
+        });
 
     Kokkos::Profiling::popRegion();
   }
@@ -1234,7 +1421,7 @@ class HP1 {
     fetch_fields_and_parts();
     instantiate_metamethods();
     set_mutable_parameters();
-    // setup_io_mundy();
+    setup_io_mundy();
     declare_and_initialize_hp1();
 
     assert_invariant("After setup");
@@ -1327,16 +1514,17 @@ class HP1 {
 
       // IO. If desired, write out the data for time t (STK or mundy)
       Kokkos::Profiling::pushRegion("HP1::IO");
-      // if (timestep_index_ % io_frequency_ == 0) {
-      //   io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
-      //                                            static_cast<double>(timestep_index_));
-      // }
+      if (timestep_index_ % io_frequency_ == 0) {
+        io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
+                                                 static_cast<double>(timestep_index_));
+      }
       Kokkos::Profiling::popRegion();
 
       // Update positions.
       {
         // Evaluate x(t + dt) = x(t) + dt * v(t).
         update_positions();
+        assert_invariant("After update positions");
       }
     }  // End of time loop
     Kokkos::Profiling::popRegion();
@@ -1399,6 +1587,8 @@ class HP1 {
   stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr_;
   stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
+  stk::mesh::Field<double> *element_aabb_field_ptr_;
+  stk::mesh::Field<double> *element_corner_displacement_field_ptr_;
 
   //@}
 
