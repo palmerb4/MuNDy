@@ -21,7 +21,31 @@
 /* Notes:
 
 Brief note:
-We are trying to simulate the HP1 project with Hossen.
+We are trying to simulate the HP1 project with Hossein.
+
+Here is the generic form of a single chromatin chain. In this example, we have 3 chromatin 'repeats', which means 2
+heterochromatin sections, and 1 euchromatin section in the middle.
+
+E : euchromatin spheres
+H : heterochromatin spheres
+| : HP1 crosslinker
+--- : backbone spring
+
+|   |                           |   |
+H---H---E---E---E---E---E---E---H---H
+
+Chromatin backbone:
+Backbone segments are modeled as spherocylinder segments, and can have a different spring constants that determine the
+separation between adjacent spheres.
+
+Interactions:
+
+1. Backbone segment --- Backbone segment
+   - Interactions are via a hertzian contact potential.
+2. Backbone segment -- itself
+   - Interactions are via a harmonic spring between adjacent spheres, but done along the spherocylinder segment
+(backbone).
+
 
 */
 
@@ -307,14 +331,13 @@ class HP1 {
         .add_subpart_reqs("DOUBLY_HP1_BS", stk::topology::BEAM_2);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_part_reqs);
 
-    // Create the custom spring parts for the system.
+    // Create the backbone segments.
     auto custom_backbone_segments_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
         .set_part_topology(stk::topology::BEAM_2)
         .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
-        .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2)
-        .add_subpart_reqs("HP1S", stk::topology::BEAM_2);
+        .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segments_part_reqs);
 
     // Create the generalized interaction entities that connect HP1 and (H)eterochromatin
@@ -365,19 +388,24 @@ class HP1 {
     // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
     // master parameter list. Note, sublist will return a reference to the sublist with the given name.
     //
-    // Compute constraint (bonded) forces for the the HOOKEAN_SPRINGS and BACKBONE_SEGMENTS parts
-    //
-    // CJE Note that this adds the BACKBONE_SEGMENTS part to the HOOKEAN_SPRINGS as a subpart, which I believe is what
-    // we want.
+    // Compute constraint (bonded) forces for the the BACKBONE_SEGMENTS and HP1S parts
     compute_constraint_forcing_fixed_params_ =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"));
     compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
-        .set("valid_entity_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "BACKBONE_SEGMENTS"));
+        .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS", "HP1S"));
 
     // Compute the minimum distance for the SCS-SCS, HP1-H, HP1-BS interactions (SCS-SCS, S-SCS, S-SCS)
+    // Try to be as explicit as possible with the parts that are associated with each of the interactions.
     compute_ssd_and_cn_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER",
                                                                "SPHERE_SPHEROCYLINDER_SEGMENT_LINKER"));
+    compute_ssd_and_cn_fixed_params_.sublist("SPHERE_SPHEROCYLINDER_SEGMENT_LINKER")
+        .set("valid_entity_part_names", mundy::core::make_string_array("HP1_H_NEIGHBOR_GENXS", "HP1_BS_NEIGHBOR_GENXS"))
+        .set("valid_sphere_part_names", mundy::core::make_string_array("H", "BS"))
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("HP1S"));
+    compute_ssd_and_cn_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER")
+        .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_BACKBONE_NEIGHBOR_GENXS"))
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
 
     // Set up the AABB for the system
     compute_aabb_fixed_params_ = Teuchos::ParameterList().set(
@@ -390,12 +418,12 @@ class HP1 {
         Teuchos::ParameterList()
             .set("enabled_technique_name", "STK_SEARCH")
             .set("specialized_neighbor_linkers_part_names",
-                 mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"));
+                 mundy::core::make_string_array("BACKBONE_BACKBONE_NEIGHBOR_GENXS"));
     generate_scs_scs_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
-        .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"))
-        .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"));
+        .set("valid_source_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
 
-    // Genereate the GENX neighbor linkers between HP1 and H
+    // Generate the GENX neighbor linkers between HP1 and H
     generate_hp1_h_neighbor_linkers_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_technique_name", "STK_SEARCH")
@@ -404,7 +432,7 @@ class HP1 {
         .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("HP1S")))
         .set("valid_target_entity_part_names", mundy::core::make_string_array("H"));
 
-    // Genereate the GENX neighbor linkers between HP1 and BS
+    // Generate the GENX neighbor linkers between HP1 and BS
     generate_hp1_bs_neighbor_linkers_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_technique_name", "STK_SEARCH")
@@ -414,7 +442,6 @@ class HP1 {
         .set("valid_target_entity_part_names", mundy::core::make_string_array("BS"));
 
     // Evaluate the scs-scs hertzian contacts
-#pragma TODO Why do the HP1 linkers pick up hertzian contact information ?
     evaluate_linker_potentials_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
@@ -425,15 +452,19 @@ class HP1 {
     linker_potential_force_reduction_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"))
-            .set("name_of_linker_part_to_reduce_over", "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS");
+            .set("name_of_linker_part_to_reduce_over", "BACKBONE_BACKBONE_NEIGHBOR_GENXS");
 
-    // Destroy the distance neighbors over time
+    // Destroy the distant neighbors over time
     destroy_neighbor_linkers_fixed_params_ =
         Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
     destroy_neighbor_linkers_fixed_params_.sublist("DESTROY_DISTANT_NEIGHBORS")
         .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
         .set("valid_connected_source_and_target_part_names",
              mundy::core::make_string_array(std::string("SPHEROCYLINDER_SEGMENTS"), std::string("HP1S")));
+
+    // Destroy bound linkers to prevent pathological behavior along a chain
+    destroy_bound_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_BOUND_NEIGHBORS");
 
     // Synchronize (merge and rectify differences) the requirements for each method based on the fixed parameters.
     // For now, we will directly use the types that each method corresponds to. The configurator will
@@ -455,6 +486,8 @@ class HP1 {
         linker_potential_force_reduction_fixed_params_));
     mesh_reqs_ptr_->sync(
         mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_bound_neighbor_linkers_fixed_params_));
 
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
@@ -515,6 +548,10 @@ class HP1 {
     ee_springs_part_ptr_ = fetch_part("EESPRINGS");
     eh_springs_part_ptr_ = fetch_part("EHSPRINGS");
     hh_springs_part_ptr_ = fetch_part("HHSPRINGS");
+
+    backbone_backbone_neighbor_genx_part_ptr_ = fetch_part("BACKBONE_BACKBONE_NEIGHBOR_GENXS");
+    hp1_h_neighbor_genx_part_ptr_ = fetch_part("HP1_H_NEIGHBOR_GENXS");
+    hp1_bs_neighbor_genx_part_ptr_ = fetch_part("HP1_BS_NEIGHBOR_GENXS");
   }
 
   void instantiate_metamethods() {
@@ -534,6 +571,8 @@ class HP1 {
         bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params_);
     destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
         bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params_);
+    destroy_bound_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_bound_neighbor_linkers_fixed_params_);
 
     // MetaMethodPairwiseSubsetExecutionInterface
     generate_scs_scs_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
@@ -852,6 +891,21 @@ class HP1 {
           });  // for_each_entity_run
     }
 
+    // Initialize leftover backbone variables
+    //
+    // This includes the hertzian radius
+    {
+      const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+      double radius_cutoff = sphere_radius_;
+      stk::mesh::for_each_entity_run(
+          *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_backbone_segments,
+          [&element_radius_field, &radius_cutoff]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                  const stk::mesh::Entity &local_backbone) {
+            // Set the radius
+            stk::mesh::field_data(element_radius_field, local_backbone)[0] = radius_cutoff;
+          });  // for_each_entity_run
+    }
+
     // Initialize the locations of the nodes along the chain
     //
     // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
@@ -997,19 +1051,24 @@ class HP1 {
     auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
     auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
     auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
-    auto sphere_sphere_linkers_selector = stk::mesh::Selector(*sphere_sphere_linkers_part_ptr_);
-    auto crosslinker_sphere_linkers_selector = stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_);
+    auto h_selector = stk::mesh::Selector(*h_part_ptr_);
+    auto bs_selector = stk::mesh::Selector(*bs_part_ptr_);
+
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+    auto hp1_h_neighbor_genx_selector = stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_);
+    auto hp1_bs_neighbor_genx_selector = stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_);
 
     compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
-    // destroy_neighbor_linkers_ptr_->execute(sphere_sphere_linkers_selector | crosslinker_sphere_linkers_selector);
-    // generate_sphere_sphere_neighbor_linkers_ptr_->execute(spheres_selector, spheres_selector);
-    // generate_crosslinker_sphere_neighbor_linkers_ptr_->execute(crosslinkers_selector, spheres_selector);
+    destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
+                                           hp1_bs_neighbor_genx_selector);
 
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-    std::cout << "############################################" << std::endl;
-    std::cout << "After initial neighbor detection\n";
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-    std::cout << "############################################" << std::endl;
+    // Generate the GENX neighbor linkers
+    generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
+    generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
+    generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
+
+    // Destroy linkers along backbone chains
+    destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
 
     Kokkos::Profiling::popRegion();
   }
@@ -1106,6 +1165,20 @@ class HP1 {
 
   void compute_hertzian_contact_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_hertzian_contact_forces");
+
+    // Potential evaluation (Hertzian contact)
+    auto backbone_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+
+    compute_ssd_and_cn_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    evaluate_linker_potentials_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    linker_potential_force_reduction_ptr_->execute(backbone_selector);
+
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+    std::cout << "############################################" << std::endl;
+    std::cout << "After computed herzian contact forces\n";
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    std::cout << "############################################" << std::endl;
 
     Kokkos::Profiling::popRegion();
   }
@@ -1347,6 +1420,10 @@ class HP1 {
   stk::mesh::Part *eh_springs_part_ptr_ = nullptr;
   stk::mesh::Part *hh_springs_part_ptr_ = nullptr;
 
+  stk::mesh::Part *backbone_backbone_neighbor_genx_part_ptr_ = nullptr;
+  stk::mesh::Part *hp1_h_neighbor_genx_part_ptr_ = nullptr;
+  stk::mesh::Part *hp1_bs_neighbor_genx_part_ptr_ = nullptr;
+
   //@}
 
   //! \name MetaMethod instances
@@ -1359,6 +1436,7 @@ class HP1 {
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> evaluate_linker_potentials_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> linker_potential_force_reduction_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_bound_neighbor_linkers_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_scs_scs_genx_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_h_genx_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_bs_genx_ptr_;
@@ -1377,6 +1455,7 @@ class HP1 {
   Teuchos::ParameterList evaluate_linker_potentials_fixed_params_;
   Teuchos::ParameterList linker_potential_force_reduction_fixed_params_;
   Teuchos::ParameterList destroy_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList destroy_bound_neighbor_linkers_fixed_params_;
 
   //@}
 
