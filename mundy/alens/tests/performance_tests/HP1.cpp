@@ -692,7 +692,7 @@ class HP1 {
       stk::mesh::PartVector empty;
 
       // Logically, it makes the most sense to march down the segments in a single chromosome, adjusting their part
-      // memebership as we go. Do this across the elements of the chromatin backbone.
+      // membership as we go. Do this across the elements of the chromatin backbone.
       // Initialize the backbone such that we have different sphere types.
       //  E : euchromatin spheres
       //  H : heterochromatin spheres
@@ -927,8 +927,19 @@ class HP1 {
       // const double wrand = std::sqrt(1.0 - zrand * zrand);
       // const double trand = 2.0 * M_PI * rng.rand<double>();
       // mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
-      mundy::math::Vector3<double> r_start(j, 0.0, 0.0);
+      mundy::math::Vector3<double> r_start(2.0 * j, 0.0, 0.0);
       mundy::math::Vector3<double> u_hat(0.0, 0.0, 1.0);
+
+      // If num_chromosomes == 2, then try to do the crosshatch for a timestep?
+      // if (num_chromosomes_ == 2) {
+      //   if (j == 0) {
+      //     r_start = mundy::math::Vector3<double>(0.0, 0.0, 0.0);
+      //     u_hat = mundy::math::Vector3<double>(0.0, 0.0, 1.0);
+      //   } else if (j == 1) {
+      //     r_start = mundy::math::Vector3<double>(-5.0, 0.25, 5.0);
+      //     u_hat = mundy::math::Vector3<double>(1.0, 0.0, 0.0);
+      //   }
+      // }
 
       // Figure out which nodes we are doing
       const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
@@ -1525,6 +1536,12 @@ class HP1 {
         // Evaluate x(t + dt) = x(t) + dt * v(t).
         update_positions();
         assert_invariant("After update positions");
+
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+        // std::cout << "############################################" << std::endl;
+        // std::cout << "Mesh after update_positions." << std::endl;
+        // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+        // std::cout << "############################################" << std::endl;
       }
     }  // End of time loop
     Kokkos::Profiling::popRegion();
