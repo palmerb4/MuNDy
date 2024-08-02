@@ -18,12 +18,26 @@
 # @HEADER
 
 tribits_add_executable(
+    PerformanceTestFilament
+    SOURCES
+    Filament.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+# Copy the test files for the executables...
+tribits_copy_files_to_binary_dir(
+    PerformanceTestFilamentCopyFiles
+    SOURCE_FILES
+    filament_params.yaml
+    EXEDEPS PerformanceTestFilament
+    )
+
+tribits_add_executable(
     PerformanceTestBacteria
     SOURCES
     Bacteria.cpp
     CATEGORIES PERFORMANCE
     )
-
 
 # Copy the test files for the executables...
 tribits_copy_files_to_binary_dir(
