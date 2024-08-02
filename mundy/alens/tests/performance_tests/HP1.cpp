@@ -21,7 +21,31 @@
 /* Notes:
 
 Brief note:
-We are trying to simulate the HP1 project with Hossen.
+We are trying to simulate the HP1 project with Hossein.
+
+Here is the generic form of a single chromatin chain. In this example, we have 3 chromatin 'repeats', which means 2
+heterochromatin sections, and 1 euchromatin section in the middle.
+
+E : euchromatin spheres
+H : heterochromatin spheres
+| : HP1 crosslinker
+--- : backbone spring
+
+|   |                           |   |
+H---H---E---E---E---E---E---E---H---H
+
+Chromatin backbone:
+Backbone segments are modeled as spherocylinder segments, and can have a different spring constants that determine the
+separation between adjacent spheres.
+
+Interactions:
+
+1. Backbone segment --- Backbone segment
+   - Interactions are via a hertzian contact potential.
+2. Backbone segment -- itself
+   - Interactions are via a harmonic spring between adjacent spheres, but done along the spherocylinder segment
+(backbone).
+
 
 */
 
@@ -124,8 +148,8 @@ class HP1 {
                    "Number of heterochromatin beads per repeat.");
     cmdp.setOption("sphere_radius", &sphere_radius_, "Backbone sphere radius.");
     cmdp.setOption("initial_sphere_separation", &initial_sphere_separation_, "Initial backbone sphere separation.");
-    cmdp.setOption("sphere_youngs_modulus", &sphere_youngs_modulus_, "Backbone sphere Youngs modulus.");
-    cmdp.setOption("sphere_poissons_ratio", &sphere_poissons_ratio_, "Backbone sphere poissons ratio.");
+    cmdp.setOption("backbone_youngs_modulus", &backbone_youngs_modulus_, "Backbone Youngs modulus.");
+    cmdp.setOption("backbone_poissons_ratio", &backbone_poissons_ratio_, "Backbone poissons ratio.");
     cmdp.setOption("sphere_drag_coeff", &sphere_drag_coeff_, "Backbone sphere drag coefficient.");
 
     //  Chromatin spring:
@@ -222,8 +246,8 @@ class HP1 {
       std::cout << "  num_heterochromatin_per_repeat: " << num_heterochromatin_per_repeat_ << std::endl;
       std::cout << "  sphere_radius: " << sphere_radius_ << std::endl;
       std::cout << "  initial_sphere_separation: " << initial_sphere_separation_ << std::endl;
-      std::cout << "  youngs_modulus: " << sphere_youngs_modulus_ << std::endl;
-      std::cout << "  poissons_ratio: " << sphere_poissons_ratio_ << std::endl;
+      std::cout << "  youngs_modulus: " << backbone_youngs_modulus_ << std::endl;
+      std::cout << "  poissons_ratio: " << backbone_poissons_ratio_ << std::endl;
       std::cout << "  drag_coeff: " << sphere_drag_coeff_ << std::endl;
 
       std::cout << "CHROMATIN SPRINGS:" << std::endl;
@@ -267,6 +291,14 @@ class HP1 {
   void assert_invariant(const std::string &message = std::string()) {
     Kokkos::Profiling::pushRegion("HP1::assert_invariant");
 
+#ifdef DEBUG
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+    std::cout << "############################################" << std::endl;
+    std::cout << "Mesh at message " << message << std::endl;
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+    std::cout << "############################################" << std::endl;
+#endif
+
     Kokkos::Profiling::popRegion();
   }
 
@@ -307,15 +339,14 @@ class HP1 {
         .add_subpart_reqs("DOUBLY_HP1_BS", stk::topology::BEAM_2);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_part_reqs);
 
-    // Create the custom spring parts for the system.
-    auto custom_spring_part_reqs = std::make_shared<mundy::meta::PartReqs>();
-    custom_spring_part_reqs->set_part_name("CUSTOM_SPRINGS")
+    // Create the backbone segments.
+    auto custom_backbone_segments_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
         .set_part_topology(stk::topology::BEAM_2)
         .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
-        .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2)
-        .add_subpart_reqs("HP1S", stk::topology::BEAM_2);
-    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_spring_part_reqs);
+        .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segments_part_reqs);
 
     // Create the generalized interaction entities that connect HP1 and (H)eterochromatin
     //   This entity "knows" how to compute the binding probability between a crosslinker and a H and how to
@@ -349,48 +380,58 @@ class HP1 {
     custom_sphere_aabb_accumulator_reqs->set_part_name("SPHERES")
         .set_part_topology(stk::topology::PARTICLE)
         .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    auto custom_backbone_segment_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_backbone_segment_aabb_accumulator_reqs->set_part_name("BACKBONE_SEGMENTS")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
     auto custom_hp1_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_hp1_aabb_accumulator_reqs->set_part_name("HP1S")
         .set_part_topology(stk::topology::BEAM_2)
         .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_sphere_aabb_accumulator_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segment_aabb_accumulator_reqs);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_aabb_accumulator_reqs);
 
     // Setup our fixed parameters for any of methods that we intend to use
     // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
     // master parameter list. Note, sublist will return a reference to the sublist with the given name.
     //
-    // Compute constraint (bonded) forces for the the HOOKEAN_SPRINGS and CUSTOM_SPRINGS parts
-    //
-    // CJE Note that this adds the CUSTOM_SPRINGS part to the HOOKEAN_SPRINGS as a subpart, which I believe is what we
-    // want.
+    // Compute constraint (bonded) forces for the the BACKBONE_SEGMENTS and HP1S parts
     compute_constraint_forcing_fixed_params_ =
         Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"));
     compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
-        .set("valid_entity_part_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "CUSTOM_SPRINGS"));
+        .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS", "HP1S"));
 
     // Compute the minimum distance for the SCS-SCS, HP1-H, HP1-BS interactions (SCS-SCS, S-SCS, S-SCS)
+    // Try to be as explicit as possible with the parts that are associated with each of the interactions.
     compute_ssd_and_cn_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER",
                                                                "SPHERE_SPHEROCYLINDER_SEGMENT_LINKER"));
+    compute_ssd_and_cn_fixed_params_.sublist("SPHERE_SPHEROCYLINDER_SEGMENT_LINKER")
+        .set("valid_entity_part_names", mundy::core::make_string_array("HP1_H_NEIGHBOR_GENXS", "HP1_BS_NEIGHBOR_GENXS"))
+        .set("valid_sphere_part_names", mundy::core::make_string_array("H", "BS"))
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("HP1S"));
+    compute_ssd_and_cn_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER")
+        .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_BACKBONE_NEIGHBOR_GENXS"))
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
 
     // Set up the AABB for the system
     compute_aabb_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER_SEGMENT"));
     compute_aabb_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT")
-        .set("valid_entity_part_names", mundy::core::make_string_array("HP1S"));
+        .set("valid_entity_part_names", mundy::core::make_string_array("HP1S", "BACKBONE_SEGMENTS"));
 
     // Generate the GENX neighbor linkers between spherocylinder segments
     generate_scs_scs_neighbor_linkers_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_technique_name", "STK_SEARCH")
             .set("specialized_neighbor_linkers_part_names",
-                 mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS"));
+                 mundy::core::make_string_array("BACKBONE_BACKBONE_NEIGHBOR_GENXS"));
     generate_scs_scs_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
-        .set("valid_source_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"))
-        .set("valid_target_entity_part_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENTS"));
+        .set("valid_source_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
 
-    // Genereate the GENX neighbor linkers between HP1 and H
+    // Generate the GENX neighbor linkers between HP1 and H
     generate_hp1_h_neighbor_linkers_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_technique_name", "STK_SEARCH")
@@ -399,7 +440,7 @@ class HP1 {
         .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("HP1S")))
         .set("valid_target_entity_part_names", mundy::core::make_string_array("H"));
 
-    // Genereate the GENX neighbor linkers between HP1 and BS
+    // Generate the GENX neighbor linkers between HP1 and BS
     generate_hp1_bs_neighbor_linkers_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_technique_name", "STK_SEARCH")
@@ -412,20 +453,26 @@ class HP1 {
     evaluate_linker_potentials_fixed_params_ = Teuchos::ParameterList().set(
         "enabled_kernel_names",
         mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
+    evaluate_linker_potentials_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT")
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
 
     // Reduce the forces on the spherocylinder segments
     linker_potential_force_reduction_fixed_params_ =
         Teuchos::ParameterList()
             .set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"))
-            .set("name_of_linker_part_to_reduce_over", "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS");
+            .set("name_of_linker_part_to_reduce_over", "BACKBONE_BACKBONE_NEIGHBOR_GENXS");
 
-    // Destroy the distance neighbors over time
+    // Destroy the distant neighbors over time
     destroy_neighbor_linkers_fixed_params_ =
         Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
     destroy_neighbor_linkers_fixed_params_.sublist("DESTROY_DISTANT_NEIGHBORS")
         .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
         .set("valid_connected_source_and_target_part_names",
              mundy::core::make_string_array(std::string("SPHEROCYLINDER_SEGMENTS"), std::string("HP1S")));
+
+    // Destroy bound linkers to prevent pathological behavior along a chain
+    destroy_bound_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_BOUND_NEIGHBORS");
 
     // Synchronize (merge and rectify differences) the requirements for each method based on the fixed parameters.
     // For now, we will directly use the types that each method corresponds to. The configurator will
@@ -447,6 +494,8 @@ class HP1 {
         linker_potential_force_reduction_fixed_params_));
     mesh_reqs_ptr_->sync(
         mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_bound_neighbor_linkers_fixed_params_));
 
     // The mesh requirements are now set up, so we solidify the mesh structure.
     bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
@@ -454,12 +503,6 @@ class HP1 {
     meta_data_ptr_->use_simple_fields();
     meta_data_ptr_->set_coordinate_field_name("NODE_COORDS");
     meta_data_ptr_->commit();
-
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-    std::cout << "############################################" << std::endl;
-    std::cout << "Original mesh\n";
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-    std::cout << "############################################" << std::endl;
   }
 
   template <typename FieldType>
@@ -484,6 +527,16 @@ class HP1 {
     node_force_field_ptr_ = fetch_field<double>("NODE_FORCE", node_rank_);
     node_rng_field_ptr_ = fetch_field<unsigned>("NODE_RNG_COUNTER", node_rank_);
 
+    element_rng_field_ptr_ = fetch_field<unsigned>("ELEMENT_RNG_COUNTER", element_rank_);
+    element_hookean_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
+    element_hookean_spring_rest_length_field_ptr_ =
+        fetch_field<double>("ELEMENT_HOOKEAN_SPRING_REST_LENGTH", element_rank_);
+    element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
+    element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
+    element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
+    element_aabb_field_ptr_ = fetch_field<double>("ELEMENT_AABB", element_rank_);
+    element_corner_displacement_field_ptr_ = fetch_field<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_);
+
     // Fetch the parts
     spheres_part_ptr_ = fetch_part("SPHERES");
     e_part_ptr_ = fetch_part("E");
@@ -495,10 +548,14 @@ class HP1 {
     doubly_hp1_h_part_ptr_ = fetch_part("DOUBLY_HP1_H");
     doubly_hp1_bs_part_ptr_ = fetch_part("DOUBLY_HP1_BS");
 
-    custom_springs_part_ptr_ = fetch_part("CUSTOM_SPRINGS");
+    backbone_segments_part_ptr_ = fetch_part("BACKBONE_SEGMENTS");
     ee_springs_part_ptr_ = fetch_part("EESPRINGS");
     eh_springs_part_ptr_ = fetch_part("EHSPRINGS");
     hh_springs_part_ptr_ = fetch_part("HHSPRINGS");
+
+    backbone_backbone_neighbor_genx_part_ptr_ = fetch_part("BACKBONE_BACKBONE_NEIGHBOR_GENXS");
+    hp1_h_neighbor_genx_part_ptr_ = fetch_part("HP1_H_NEIGHBOR_GENXS");
+    hp1_bs_neighbor_genx_part_ptr_ = fetch_part("HP1_BS_NEIGHBOR_GENXS");
   }
 
   void instantiate_metamethods() {
@@ -518,6 +575,8 @@ class HP1 {
         bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params_);
     destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
         bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params_);
+    destroy_bound_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_bound_neighbor_linkers_fixed_params_);
 
     // MetaMethodPairwiseSubsetExecutionInterface
     generate_scs_scs_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
@@ -535,6 +594,26 @@ class HP1 {
   }
 
   void setup_io_mundy() {
+    // Create a mundy io broker via it's fixed parameters
+    // Dump everything for now
+    auto fixed_params_iobroker =
+        Teuchos::ParameterList()
+            .set("enabled_io_parts",
+                 mundy::core::make_string_array("E", "H", "BS", "EESPRINGS", "EHSPRINGS", "HHSPRINGS", "LEFT_HP1",
+                                                "DOUBLY_HP1_H", "DOUBLY_HP1_BS"))
+            .set("enabled_io_fields_node_rank",
+                 mundy::core::make_string_array("NODE_VELOCITY", "NODE_FORCE", "NODE_RNG_COUNTER"))
+            .set("enabled_io_fields_element_rank",
+                 mundy::core::make_string_array("ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER",
+                                                "ELEMENT_REALIZED_BINDING_RATES", "ELEMENT_REALIZED_UNBINDING_RATES",
+                                                "ELEMENT_PERFORM_STATE_CHANGE"))
+            .set("coordinate_field_name", "NODE_COORDS")
+            .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
+            .set("exodus_database_output_filename", "Sticky.exo")
+            .set("parallel_io_mode", "hdf5")
+            .set("database_purpose", "results");
+    // Create the IO broker
+    io_broker_ptr_ = mundy::io::IOBroker::create_new_instance(bulk_data_ptr_.get(), fixed_params_iobroker);
   }
 
   void loadbalance() {
@@ -545,45 +624,34 @@ class HP1 {
     bulk_data_ptr_->update_field_data_states();
   }
 
-  void declare_and_initialize_hp1() {
-    //////////////////////////////////////
-    // Initialize the spheres and nodes //
-    //////////////////////////////////////
+  // Create the chromatin backbone and HP1 crosslinkers
+  void create_chromatin_backbone_and_hp1() {
     mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
 
     // Calculate some constants, like the total number of spheres or segments per chromosome
-    // const size_t num_nodes_per_chromosome =
-    //     num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);
-    const size_t num_nodes_per_chromosome =
-        num_chromatin_repeats_ / 2 * (num_heterochromatin_per_repeat_ + num_euchromatin_per_repeat_) +
-        num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+    const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                               num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+    const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+    const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
     const size_t num_spheres_per_chromosome = num_nodes_per_chromosome;
     const size_t num_segments_per_chromosome = num_nodes_per_chromosome - 1;
-    const double chromosome_linear_length =
-        num_segments_per_chromosome * initial_sphere_separation_ + 2.0 * sphere_radius_;
 
-    std::cout << "num_nodes_per_chromosome: " << num_nodes_per_chromosome << std::endl;
-    std::cout << "num_spheres_per_chromosome: " << num_spheres_per_chromosome << std::endl;
+    std::cout << "num_heterochromatin_spheres: " << num_heterochromatin_spheres << std::endl;
+    std::cout << "num_euchromatin_spheres:     " << num_euchromatin_spheres << std::endl;
+    std::cout << "num_nodes_per_chromosome:    " << num_nodes_per_chromosome << std::endl;
+    std::cout << "num_spheres_per_chromosome:  " << num_spheres_per_chromosome << std::endl;
     std::cout << "num_segments_per_chromosome: " << num_segments_per_chromosome << std::endl;
-    std::cout << "chromosome_linear_length: " << chromosome_linear_length << std::endl;
+
+    bulk_data_ptr_->modification_begin();
 
     // Declare N chromatin chains randomly in space
     for (size_t j = 0; j < num_chromosomes_; j++) {
-      std::cout << "Initializing chromosome " << j << std::endl;
-      // Find a random place within the unit cell with a random orientatino for the chain.
-      openrand::Philox rng(j, 0);
-      mundy::math::Vector3<double> r_start(rng.uniform<double>(0.0, unit_cell_length_),
-                                           rng.uniform<double>(0.0, unit_cell_length_),
-                                           rng.uniform<double>(0.0, unit_cell_length_));
-      // Find a random unit vector direction
-      const double zrand = rng.rand<double>() - 1.0;
-      const double wrand = std::sqrt(1.0 - zrand * zrand);
-      const double trand = 2.0 * M_PI * rng.rand<double>();
-      mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+      std::cout << "Creating chromosome " << j << std::endl;
 
       // Figure out the starting indices of the nodes and elements
       size_t start_node_id = num_nodes_per_chromosome * j + 1u;
-      size_t start_element_id = num_nodes_per_chromosome * j + 1u;
+      size_t start_element_id =
+          (num_spheres_per_chromosome + num_segments_per_chromosome + num_heterochromatin_spheres) * j + 1u;
 
       // Helper functions for getting the IDs of various objects
       auto get_node_id = [start_node_id](const size_t &seq_node_index) { return start_node_id + seq_node_index; };
@@ -596,48 +664,44 @@ class HP1 {
         return start_element_id + num_spheres_per_chromosome + seq_segment_index;
       };
 
-      // Build a simple vector for a map from vertex idx to region id
-      std::vector<std::string> region_by_vidx(num_nodes_per_chromosome, "H");
-      {
-        size_t current_repeat_index = 0;
-        std::string current_region_type = "H";
-        for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
-          if (current_region_type == "H") {
-            if (current_repeat_index >= num_heterochromatin_per_repeat_) {
-              current_region_type = "E";
-              current_repeat_index = 0;
-            }
-          } else if (current_region_type == "E") {
-            if (current_repeat_index >= num_euchromatin_per_repeat_) {
-              current_region_type = "H";
-              current_repeat_index = 0;
-            }
-          }
-          region_by_vidx[i] = current_region_type;
-          current_repeat_index++;
-        }
-      }
-      std::cout << "region_by_vidx: " << std::endl;
+      auto get_crosslinker_id = [start_element_id, num_spheres_per_chromosome,
+                                 num_segments_per_chromosome](const size_t &seq_crosslinker_index) {
+        return start_element_id + num_spheres_per_chromosome + num_segments_per_chromosome + seq_crosslinker_index;
+      };
+
+      // Try to use modulo math to determine region
+      const size_t num_heterochromatin_per_repeat = num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_per_repeat = num_euchromatin_per_repeat_;
+      auto get_region_by_id = [num_heterochromatin_per_repeat,
+                               num_euchromatin_per_repeat](const size_t &seq_sphere_id) {
+        auto local_idx = seq_sphere_id % (num_heterochromatin_per_repeat + num_euchromatin_per_repeat);
+        return local_idx < num_heterochromatin_per_repeat ? std::string("H") : std::string("E");
+      };
+
+      // Show what a single chromatin chain would be in terms of membership
+      std::cout << "Regional map:" << std::endl;
       for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
-        std::cout << region_by_vidx[i];
+        std::cout << get_region_by_id(i);
         if (i < num_nodes_per_chromosome - 1) {
           std::cout << " - ";
         }
       }
       std::cout << std::endl;
 
-      bulk_data_ptr_->modification_begin();
-
       // Temporary/scratch variables
       stk::mesh::PartVector empty;
 
       // Logically, it makes the most sense to march down the segments in a single chromosome, adjusting their part
-      // memebership as we go. Do this across the elements of the chromatin backbone.
-      const size_t start_element_segment_index = 0;
-      const size_t end_element_segment_index = num_segments_per_chromosome;
-      for (size_t segment_local_idx = start_element_segment_index; segment_local_idx < end_element_segment_index;
-           segment_local_idx++) {
-        // Keep track of the vertex IDs for part memebership
+      // membership as we go. Do this across the elements of the chromatin backbone.
+      // Initialize the backbone such that we have different sphere types.
+      //  E : euchromatin spheres
+      //  H : heterochromatin spheres
+      // ---: backbone springs (EE, EH, or HH depending on attached spheres)
+      //
+      //  H---H---E---E---E---E---E---E---H---H
+      //
+      for (size_t segment_local_idx = 0; segment_local_idx < num_segments_per_chromosome; segment_local_idx++) {
+        // Keep track of the vertex IDs for part memebership (local index into array)
         const size_t vertex_left_idx = segment_local_idx;
         const size_t vertex_right_idx = segment_local_idx + 1;
         // Process the nodes for this segment
@@ -661,9 +725,9 @@ class HP1 {
         if (!bulk_data_ptr_->is_valid(left_sphere)) {
           // Figure out the part we belong to
           stk::mesh::PartVector pvector;
-          if (region_by_vidx[vertex_left_idx] == "H") {
+          if (get_region_by_id(vertex_left_idx) == "H") {
             pvector.push_back(h_part_ptr_);
-          } else if (region_by_vidx[vertex_left_idx] == "E") {
+          } else if (get_region_by_id(vertex_left_idx) == "E") {
             pvector.push_back(e_part_ptr_);
           }
           // Declare the sphere and connect to it's node
@@ -673,9 +737,9 @@ class HP1 {
         if (!bulk_data_ptr_->is_valid(right_sphere)) {
           // Figure out the part we belong to
           stk::mesh::PartVector pvector;
-          if (region_by_vidx[vertex_right_idx] == "H") {
+          if (get_region_by_id(vertex_right_idx) == "H") {
             pvector.push_back(h_part_ptr_);
-          } else if (region_by_vidx[vertex_right_idx] == "E") {
+          } else if (get_region_by_id(vertex_right_idx) == "E") {
             pvector.push_back(e_part_ptr_);
           }
           // Declare the sphere and connect to it's node
@@ -687,14 +751,14 @@ class HP1 {
         stk::mesh::Entity segment = bulk_data_ptr_->get_entity(element_rank_, get_segment_id(segment_local_idx));
         if (!bulk_data_ptr_->is_valid(segment)) {
           stk::mesh::PartVector pvector;
-          pvector.push_back(custom_springs_part_ptr_);
-          if (region_by_vidx[vertex_left_idx] == "E" && region_by_vidx[vertex_right_idx] == "E") {
+          pvector.push_back(backbone_segments_part_ptr_);
+          if (get_region_by_id(vertex_left_idx) == "E" && get_region_by_id(vertex_right_idx) == "E") {
             pvector.push_back(ee_springs_part_ptr_);
-          } else if (region_by_vidx[vertex_left_idx] == "E" && region_by_vidx[vertex_right_idx] == "H") {
+          } else if (get_region_by_id(vertex_left_idx) == "E" && get_region_by_id(vertex_right_idx) == "H") {
             pvector.push_back(eh_springs_part_ptr_);
-          } else if (region_by_vidx[vertex_left_idx] == "H" && region_by_vidx[vertex_right_idx] == "E") {
+          } else if (get_region_by_id(vertex_left_idx) == "H" && get_region_by_id(vertex_right_idx) == "E") {
             pvector.push_back(eh_springs_part_ptr_);
-          } else if (region_by_vidx[vertex_left_idx] == "H" && region_by_vidx[vertex_right_idx] == "H") {
+          } else if (get_region_by_id(vertex_left_idx) == "H" && get_region_by_id(vertex_right_idx) == "H") {
             pvector.push_back(hh_springs_part_ptr_);
           }
           segment = bulk_data_ptr_->declare_element(get_segment_id(segment_local_idx), pvector);
@@ -703,14 +767,210 @@ class HP1 {
         }
       }
 
-      bulk_data_ptr_->modification_end();
+      // Declare the crosslinkers along the backbone
+      // Every sphere gets a left bound crosslinker
+      //  E : euchromatin spheres
+      //  H : heterochromatin spheres
+      //  | : crosslinkers
+      // ---: backbone springs
+      //
+      //  |   |                           |   |
+      //  H---H---E---E---E---E---E---E---H---H
+
+      // March down the chain of spheres, adding crosslinkers as we go. We just want to add to the heterochromatin
+      // spheres, and so keep track of a running hp1_sphere_index.
+      size_t hp1_sphere_index = 0;
+      for (size_t sphere_local_idx = 0; sphere_local_idx < num_spheres_per_chromosome; sphere_local_idx++) {
+        stk::mesh::Entity sphere_node = bulk_data_ptr_->get_entity(node_rank_, get_node_id(sphere_local_idx));
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(sphere_node), std::invalid_argument,
+                           "Node " << sphere_local_idx << " is not valid.");
+        // Check if we are a heterochromatin sphere
+        if (get_region_by_id(sphere_local_idx) == "H") {
+          // Bind left and right nodes to the same node to start simulation (everybody is left bound)
+          // Create the HP1 crosslinker
+          auto left_bound_hp1_part_vector = stk::mesh::PartVector{left_hp1_part_ptr_};
+          stk::mesh::EntityId hp1_crosslinker_id = get_crosslinker_id(hp1_sphere_index);
+          stk::mesh::Entity hp1_crosslinker =
+              bulk_data_ptr_->declare_element(hp1_crosslinker_id, left_bound_hp1_part_vector);
+          stk::mesh::Permutation invalid_perm = stk::mesh::Permutation::INVALID_PERMUTATION;
+          bulk_data_ptr_->declare_relation(hp1_crosslinker, sphere_node, 0, invalid_perm);
+          bulk_data_ptr_->declare_relation(hp1_crosslinker, sphere_node, 1, invalid_perm);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(hp1_crosslinker).topology() != stk::topology::INVALID_TOPOLOGY,
+                             std::logic_error,
+                             "The crosslinker with id " << hp1_crosslinker_id << " has an invalid topology.");
+
+          hp1_sphere_index++;
+        }
+      }
+    }
+    bulk_data_ptr_->modification_end();
+  }
+
+  // Initialize a part for excluded volume interactions (Hertzian)
+  void initialize_excluded_volume_part_from_selector(const stk::mesh::Selector &local_selector,
+                                                     stk::mesh::Field<double> *youngs_modulus_field_ptr,
+                                                     stk::mesh::Field<double> *poissons_ratio_field_ptr,
+                                                     const double &youngs_modulus, const double &poissons_ratio) {
+    // Alias the fields for the foreach lambda
+    const stk::mesh::Field<double> &youngs_modulus_field = *youngs_modulus_field_ptr;
+    const stk::mesh::Field<double> &poissons_ratio_field = *poissons_ratio_field_ptr;
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_selector,
+        [&youngs_modulus_field, &poissons_ratio_field, &youngs_modulus, &poissons_ratio](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &local_wca) {
+          // Assign the hertzian contact parameters to the backbone segments
+          stk::mesh::field_data(youngs_modulus_field, local_wca)[0] = youngs_modulus;
+          stk::mesh::field_data(poissons_ratio_field, local_wca)[0] = poissons_ratio;
+        });  // for_each_entity_run
+  }
+
+  // Initialize a spring part to a common spring constant and rest length
+  void initialize_spring_part_from_selector(const stk::mesh::Selector &local_selector,
+                                            stk::mesh::Field<double> *spring_constant_field_ptr,
+                                            stk::mesh::Field<double> *spring_rest_length_field_ptr,
+                                            const double &spring_constant, const double &spring_rest_length) {
+    // Initialize the spring constants on the backbone for every EE spring
+    const stk::mesh::Field<double> &spring_constant_field = *spring_constant_field_ptr;
+    const stk::mesh::Field<double> &spring_rest_length_field = *spring_rest_length_field_ptr;
+
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_selector,
+        [&spring_constant_field, &spring_rest_length_field, &spring_constant, &spring_rest_length](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &local_spring) {
+          // Assign the hertzian contact parameters to the backbone segments
+          stk::mesh::field_data(spring_constant_field, local_spring)[0] = spring_constant;
+          stk::mesh::field_data(spring_rest_length_field, local_spring)[0] = spring_rest_length;
+        });  // for_each_entity_run
+  }
+
+  // Initialize the chromatin backbone and HP1 linkers based on part membership
+  //
+  // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
+  // parts.
+  void initialize_chromatin_backbone_and_hp1() {
+    // Get parts for composed selectors we ar eusing
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
+    stk::mesh::Part &eh_springs_part = *eh_springs_part_ptr_;
+    stk::mesh::Part &hh_springs_part = *hh_springs_part_ptr_;
+    stk::mesh::Part &hp1_part = *hp1_part_ptr_;
+
+    // Initialize the excluded volume interaction for backbone segments (hertzian)
+    const stk::mesh::Selector local_backbone_segments =
+        (ee_springs_part | eh_springs_part | hh_springs_part) & bulk_data_ptr_->mesh_meta_data().locally_owned_part();
+    initialize_excluded_volume_part_from_selector(local_backbone_segments, element_youngs_modulus_field_ptr_,
+                                                  element_poissons_ratio_field_ptr_, backbone_youngs_modulus_,
+                                                  backbone_poissons_ratio_);
+
+    // Initialize the backbone springs (EE, EH, HH)
+    initialize_spring_part_from_selector(ee_springs_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, chromatin_spring_constant_,
+                                         chromatin_spring_rest_length_);
+    initialize_spring_part_from_selector(eh_springs_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, chromatin_spring_constant_,
+                                         chromatin_spring_rest_length_);
+    initialize_spring_part_from_selector(hh_springs_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, chromatin_spring_constant_,
+                                         chromatin_spring_rest_length_);
+    // Also initialize the HP1 springs
+    initialize_spring_part_from_selector(hp1_part, element_hookean_spring_constant_field_ptr_,
+                                         element_hookean_spring_rest_length_field_ptr_, crosslinker_spring_constant_,
+                                         crosslinker_rest_length_);
+
+    // Initialize leftover HP1 variables
+    //
+    // This includes the RNG field, and the cutoff radius (not the rest length, set above)
+    {
+      const stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
+      const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+      double &crosslinker_rcut = crosslinker_rcut_;
+      stk::mesh::for_each_entity_run(
+          *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
+          hp1_part & bulk_data_ptr_->mesh_meta_data().locally_owned_part(),
+          [&element_rng_field, &element_radius_field, &crosslinker_rcut](
+              [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &local_hp1) {
+            // Assign RNG counter and the cutoff radius to the HP1 crosslinkers
+            stk::mesh::field_data(element_rng_field, local_hp1)[0] = 0;
+            stk::mesh::field_data(element_radius_field, local_hp1)[0] = crosslinker_rcut;
+          });  // for_each_entity_run
     }
 
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-    std::cout << "############################################" << std::endl;
-    std::cout << "Initialized mesh\n";
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-    std::cout << "############################################" << std::endl;
+    // Initialize leftover backbone variables
+    //
+    // This includes the hertzian radius
+    {
+      const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+      double radius_cutoff = sphere_radius_;
+      stk::mesh::for_each_entity_run(
+          *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_backbone_segments,
+          [&element_radius_field, &radius_cutoff]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                  const stk::mesh::Entity &local_backbone) {
+            // Set the radius
+            stk::mesh::field_data(element_radius_field, local_backbone)[0] = radius_cutoff;
+          });  // for_each_entity_run
+    }
+
+    // Initialize the locations of the nodes along the chain
+    //
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    for (size_t j = 0; j < num_chromosomes_; j++) {
+      std::cout << "Initializing chromosome " << j << std::endl;
+
+      // Find a random place within the unit cell with a random orientatino for the chain.
+      openrand::Philox rng(j, 0);
+      // mundy::math::Vector3<double> r_start(rng.uniform<double>(0.0, unit_cell_length_),
+      //                                      rng.uniform<double>(0.0, unit_cell_length_),
+      //                                      rng.uniform<double>(0.0, unit_cell_length_));
+      // // Find a random unit vector direction
+      // const double zrand = rng.rand<double>() - 1.0;
+      // const double wrand = std::sqrt(1.0 - zrand * zrand);
+      // const double trand = 2.0 * M_PI * rng.rand<double>();
+      // mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+      mundy::math::Vector3<double> r_start(2.0 * j, 0.0, 0.0);
+      mundy::math::Vector3<double> u_hat(0.0, 0.0, 1.0);
+
+      // If num_chromosomes == 2, then try to do the crosshatch for a timestep?
+      // if (num_chromosomes_ == 2) {
+      //   if (j == 0) {
+      //     r_start = mundy::math::Vector3<double>(0.0, 0.0, 0.0);
+      //     u_hat = mundy::math::Vector3<double>(0.0, 0.0, 1.0);
+      //   } else if (j == 1) {
+      //     r_start = mundy::math::Vector3<double>(-5.0, 0.25, 5.0);
+      //     u_hat = mundy::math::Vector3<double>(1.0, 0.0, 0.0);
+      //   }
+      // }
+
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+      size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+      for (size_t i = start_node_index; i < end_node_index; ++i) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        mundy::math::Vector3<double> r = r_start + (i - start_node_index) * initial_sphere_separation_ * u_hat;
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+      }
+    }
+  }
+
+  void declare_and_initialize_hp1() {
+    ////////////////////////////////////////
+    // Create the mesh nodes and elements //
+    ////////////////////////////////////////
+    create_chromatin_backbone_and_hp1();
+
+    ////////////////////////////////////////
+    // Initilize                          //
+    ////////////////////////////////////////
+    initialize_chromatin_backbone_and_hp1();
   }
 
   void debug_print_meta_data() {
@@ -759,9 +1019,8 @@ class HP1 {
   }
 
   void zero_out_transient_node_fields() {
-    // mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array<double, 3>{0.0, 0.0,
-    // 0.0}); mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array<double, 3>{0.0, 0.0,
-    // 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
   }
 
   void zero_out_transient_element_fields() {
@@ -781,18 +1040,175 @@ class HP1 {
   }
 
   void zero_out_accumulator_fields() {
-    // mundy::mesh::utils::fill_field_with_value<double>(*element_corner_displacement_field_ptr_,
-    //                                                   std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*element_corner_displacement_field_ptr_,
+                                                      std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
   }
 
   void detect_neighbors_initial() {
     Kokkos::Profiling::pushRegion("HP1::detect_neighbors_initial");
+
+    last_neighborlist_update_step_ = 0;
+    neighborlist_update_timer_.reset();
+
+    // ComputeAABB for everyone (assume same buffer distance)
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto h_selector = stk::mesh::Selector(*h_part_ptr_);
+    auto bs_selector = stk::mesh::Selector(*bs_part_ptr_);
+
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+    auto hp1_h_neighbor_genx_selector = stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_);
+    auto hp1_bs_neighbor_genx_selector = stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_);
+
+    compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
+    destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
+                                           hp1_bs_neighbor_genx_selector);
+
+    // Generate the GENX neighbor linkers
+    generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
+    generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
+    generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
+
+    // Destroy linkers along backbone chains
+    destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
 
     Kokkos::Profiling::popRegion();
   }
 
   void detect_neighbors() {
     Kokkos::Profiling::pushRegion("HP1::detect_neighbors");
+
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto h_selector = stk::mesh::Selector(*h_part_ptr_);
+    auto bs_selector = stk::mesh::Selector(*bs_part_ptr_);
+
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+    auto hp1_h_neighbor_genx_selector = stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_);
+    auto hp1_bs_neighbor_genx_selector = stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_);
+
+    // ComputeAABB for everybody at each time step. The accumulator then always uses this updated information to
+    // calculate if we need to update the entire neighbor list.
+    compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
+    update_accumulators();
+
+    // Check if we need to update the neighbor list. Eventually this will be replaced with a mesh attribute to
+    // synchronize across multiple tasks. For now, make sure that the default is to not update neighbor lists.
+    check_update_neighbor_list();
+
+    // Now do a check to see if we need to update the neighbor list.
+    if (((force_neighborlist_update_) && (timestep_index_ % force_neighborlist_update_nsteps_ == 0)) ||
+        update_neighbor_list_) {
+      // Read off the timing information before doing anything else and reset it
+      auto elapsed_steps = timestep_index_ - last_neighborlist_update_step_;
+      auto elapsed_time = neighborlist_update_timer_.seconds();
+      neighborlist_update_steps_times_.push_back(std::make_tuple(timestep_index_, elapsed_steps, elapsed_time));
+      last_neighborlist_update_step_ = timestep_index_;
+      neighborlist_update_timer_.reset();
+
+      // Reset the accumulators
+      zero_out_accumulator_fields();
+
+      // Update the neighbor list
+      destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
+                                             hp1_bs_neighbor_genx_selector);
+      // Generate the GENX neighbor linkers
+      generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
+      generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
+      generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
+
+      // Destroy linkers along backbone chains
+      destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    }
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_accumulators() {
+#pragma TODO This will be at the mercy of periodic boundary condition calculations.
+    Kokkos::Profiling::pushRegion("HP1::update_accumulators");
+
+    // Selectors and aliases
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_aabb_field_old = element_aabb_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+
+    stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
+
+    // Update the accumulators based on the difference to the previous state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
+        [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_aabb = stk::mesh::field_data(element_aabb_field, aabb_entity);
+          double *element_aabb_old = stk::mesh::field_data(element_aabb_field_old, aabb_entity);
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Add the (new_aabb - old_aabb) to the corner displacement
+          element_corner_displacement[0] += element_aabb[0] - element_aabb_old[0];
+          element_corner_displacement[1] += element_aabb[1] - element_aabb_old[1];
+          element_corner_displacement[2] += element_aabb[2] - element_aabb_old[2];
+          element_corner_displacement[3] += element_aabb[3] - element_aabb_old[3];
+          element_corner_displacement[4] += element_aabb[4] - element_aabb_old[4];
+          element_corner_displacement[5] += element_aabb[5] - element_aabb_old[5];
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void check_update_neighbor_list() {
+    Kokkos::Profiling::pushRegion("HP1::check_update_neighbor_list");
+
+    // Local variable for if we should update the neighbor list (do as an integer for now because MPI doesn't like
+    // bools)
+    int local_update_neighbor_list_int = 0;
+
+    // Selectors and aliases
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+    const double &skin_distance2_over4 = skin_distance2_over4_;
+
+    stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
+
+    // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
+        [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Compute dr2 for each corner
+          double dr2_corner0 = element_corner_displacement[0] * element_corner_displacement[0] +
+                               element_corner_displacement[1] * element_corner_displacement[1] +
+                               element_corner_displacement[2] * element_corner_displacement[2];
+          double dr2_corner1 = element_corner_displacement[3] * element_corner_displacement[3] +
+                               element_corner_displacement[4] * element_corner_displacement[4] +
+                               element_corner_displacement[5] * element_corner_displacement[5];
+
+          if (dr2_corner0 >= skin_distance2_over4 || dr2_corner1 >= skin_distance2_over4) {
+            local_update_neighbor_list_int = 1;
+          }
+        });
+
+    // Communicate local_update_neighbor_list to all ranks. Convert to an integer first (MPI doesn't handle booleans
+    // well).
+    int global_update_neighbor_list_int = 0;
+    MPI_Allreduce(&local_update_neighbor_list_int, &global_update_neighbor_list_int, 1, MPI_INT, MPI_LOR,
+                  MPI_COMM_WORLD);
+    // Convert back to the boolean for the global version and or it with the original value (in case somebody else set
+    // the neighbor list update 'signal').
+    update_neighbor_list_ = update_neighbor_list_ || (global_update_neighbor_list_int == 1);
 
     Kokkos::Profiling::popRegion();
   }
@@ -884,11 +1300,29 @@ class HP1 {
   void compute_hertzian_contact_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_hertzian_contact_forces");
 
+    // Potential evaluation (Hertzian contact)
+    auto backbone_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+
+    compute_ssd_and_cn_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    evaluate_linker_potentials_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    linker_potential_force_reduction_ptr_->execute(backbone_selector);
+
     Kokkos::Profiling::popRegion();
   }
 
   void compute_harmonic_bond_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_harmonic_bond_forces");
+
+    // Need to select the active springs in the system, so backbone springs, and active HP1 springs. Do this by
+    // selecting down from all HP1 springs.
+    auto backbone_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto left_hp1_selector = stk::mesh::Selector(*left_hp1_part_ptr_);
+    auto actively_bound_springs = backbone_selector | (hp1_selector - left_hp1_selector);
+
+    // Potentials
+    compute_constraint_forcing_ptr_->execute(actively_bound_springs);
 
     Kokkos::Profiling::popRegion();
   }
@@ -897,6 +1331,35 @@ class HP1 {
     // Compute the velocity due to brownian motion
     Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
 
+    // Selectors and aliases
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Field<unsigned> &node_rng_field = *node_rng_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    double &timestep_size = timestep_size_;
+    double &sphere_drag_coeff = sphere_drag_coeff_;
+    double &kt = kt_brownian_;
+    double inv_drag_coeff = 1.0 / sphere_drag_coeff;
+
+    // Compute the total velocity of the nonorientable spheres
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
+         &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+          const stk::mesh::EntityId sphere_node_gid = bulk_data.identifier(sphere_node);
+          unsigned *node_rng_counter = stk::mesh::field_data(node_rng_field, sphere_node);
+
+          // U_brown = sqrt(2 * kt * gamma / dt) * randn
+          openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
+          const double coeff = std::sqrt(2.0 * kt * sphere_drag_coeff / timestep_size) * inv_drag_coeff;
+          node_velocity[0] += coeff * rng.randn<double>();
+          node_velocity[1] += coeff * rng.randn<double>();
+          node_velocity[2] += coeff * rng.randn<double>();
+          node_rng_counter[0]++;
+        });
+
     Kokkos::Profiling::popRegion();
   }
 
@@ -904,24 +1367,55 @@ class HP1 {
     // Compute both the velocity due to external forces
     Kokkos::Profiling::pushRegion("HP1::compute_external_velocity");
 
+    // Selectors and aliases
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    double &timestep_size = timestep_size_;
+    double &sphere_drag_coeff = sphere_drag_coeff_;
+    double inv_drag_coeff = 1.0 / sphere_drag_coeff;
+
+    // Compute the total velocity of the nonorientable spheres
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+          double *node_force = stk::mesh::field_data(node_force_field, sphere_node);
+
+          // Uext = Fext * inv_drag_coeff
+          node_velocity[0] += node_force[0] * inv_drag_coeff;
+          node_velocity[1] += node_force[1] * inv_drag_coeff;
+          node_velocity[2] += node_force[2] * inv_drag_coeff;
+        });
+
     Kokkos::Profiling::popRegion();
   }
 
   void update_positions() {
     Kokkos::Profiling::pushRegion("HP1::update_positions");
 
-    Kokkos::Profiling::popRegion();
-  }
+    // Selectors and aliases
+    double &timestep_size = timestep_size_;
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
 
-  void update_accumulators() {
-#pragma TODO This will be at the mercy of periodic boundary condition calculations.
-    Kokkos::Profiling::pushRegion("HP1::update_accumulators");
+    // Update the positions for all spheres based on velocity
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                                  const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_coord = stk::mesh::field_data(node_coord_field, sphere_node);
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
 
-    Kokkos::Profiling::popRegion();
-  }
-
-  void check_update_neighbor_list() {
-    Kokkos::Profiling::pushRegion("HP1::check_update_neighbor_list");
+          // x(t+dt) = x(t) + dt * v(t)
+          node_coord[0] += timestep_size * node_velocity[0];
+          node_coord[1] += timestep_size * node_velocity[1];
+          node_coord[2] += timestep_size * node_velocity[2];
+        });
 
     Kokkos::Profiling::popRegion();
   }
@@ -1041,6 +1535,13 @@ class HP1 {
       {
         // Evaluate x(t + dt) = x(t) + dt * v(t).
         update_positions();
+        assert_invariant("After update positions");
+
+#pragma TODO CJE Remove the mesh dump so that we can see the metadata
+        // std::cout << "############################################" << std::endl;
+        // std::cout << "Mesh after update_positions." << std::endl;
+        // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
+        // std::cout << "############################################" << std::endl;
       }
     }  // End of time loop
     Kokkos::Profiling::popRegion();
@@ -1097,6 +1598,15 @@ class HP1 {
   stk::mesh::Field<double> *node_velocity_field_ptr_;
   stk::mesh::Field<double> *node_force_field_ptr_;
 
+  stk::mesh::Field<unsigned> *element_rng_field_ptr_;
+  stk::mesh::Field<double> *element_radius_field_ptr_;
+  stk::mesh::Field<double> *element_hookean_spring_constant_field_ptr_;
+  stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr_;
+  stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
+  stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
+  stk::mesh::Field<double> *element_aabb_field_ptr_;
+  stk::mesh::Field<double> *element_corner_displacement_field_ptr_;
+
   //@}
 
   //! \name Parts
@@ -1112,10 +1622,14 @@ class HP1 {
   stk::mesh::Part *doubly_hp1_h_part_ptr_ = nullptr;
   stk::mesh::Part *doubly_hp1_bs_part_ptr_ = nullptr;
 
-  stk::mesh::Part *custom_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *backbone_segments_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_part_ptr_ = nullptr;
   stk::mesh::Part *eh_springs_part_ptr_ = nullptr;
   stk::mesh::Part *hh_springs_part_ptr_ = nullptr;
+
+  stk::mesh::Part *backbone_backbone_neighbor_genx_part_ptr_ = nullptr;
+  stk::mesh::Part *hp1_h_neighbor_genx_part_ptr_ = nullptr;
+  stk::mesh::Part *hp1_bs_neighbor_genx_part_ptr_ = nullptr;
 
   //@}
 
@@ -1129,6 +1643,7 @@ class HP1 {
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> evaluate_linker_potentials_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> linker_potential_force_reduction_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_bound_neighbor_linkers_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_scs_scs_genx_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_h_genx_ptr_;
   std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_bs_genx_ptr_;
@@ -1147,6 +1662,7 @@ class HP1 {
   Teuchos::ParameterList evaluate_linker_potentials_fixed_params_;
   Teuchos::ParameterList linker_potential_force_reduction_fixed_params_;
   Teuchos::ParameterList destroy_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList destroy_bound_neighbor_linkers_fixed_params_;
 
   //@}
 
@@ -1199,8 +1715,8 @@ class HP1 {
   size_t num_heterochromatin_per_repeat_ = 1;
   double sphere_radius_ = 0.5;
   double initial_sphere_separation_ = 1.0;
-  double sphere_youngs_modulus_ = 1000.0;
-  double sphere_poissons_ratio_ = 0.3;
+  double backbone_youngs_modulus_ = 1000.0;
+  double backbone_poissons_ratio_ = 0.3;
   double sphere_drag_coeff_ = 1.0;
 
   // Chromatin spring params
@@ -1210,8 +1726,8 @@ class HP1 {
 
   // Crosslinker params
   BOND_TYPE crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
-  double crosslinker_spring_constant_ = 100.0;
-  double crosslinker_rest_length_ = 1.0;
+  double crosslinker_spring_constant_ = 10.0;
+  double crosslinker_rest_length_ = 2.5;
   double crosslinker_rcut_ = 1.0;
   double crosslinker_left_binding_rate_ = 1.0;
   double crosslinker_right_binding_rate_ = 1.0;
