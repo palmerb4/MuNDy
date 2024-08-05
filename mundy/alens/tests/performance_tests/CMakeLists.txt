@@ -18,6 +18,36 @@
 # @HEADER
 
 tribits_add_executable(
+    PerformanceTestFilament
+    SOURCES
+    Filament.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+# Copy the test files for the executables...
+tribits_copy_files_to_binary_dir(
+    PerformanceTestFilamentCopyFiles
+    SOURCE_FILES
+    filament_params.yaml
+    EXEDEPS PerformanceTestFilament
+    )
+
+tribits_add_executable(
+    PerformanceTestBacteria
+    SOURCES
+    Bacteria.cpp
+    CATEGORIES PERFORMANCE
+    )
+
+# Copy the test files for the executables...
+tribits_copy_files_to_binary_dir(
+    PerformanceTestBacteriaCopyFiles
+    SOURCE_FILES
+    bacteria_params.yaml
+    EXEDEPS PerformanceTestBacteria
+    )
+
+tribits_add_executable(
     PerformanceTestBrownianMotion
     SOURCES
     BrownianMotion.cpp
@@ -67,9 +97,9 @@ tribits_add_executable(
     )
 
 tribits_add_executable(
-    StickySettingsNewNeighborlist
+    HP1
     SOURCES
-    StickySettingsNewNeighborlist.cpp
+    HP1.cpp
     CATEGORIES PERFORMANCE
     )
 

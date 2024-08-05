@@ -284,12 +284,14 @@ void IOBroker::write_io_broker(double time) {
   stk_io_broker_.end_output_step(io_index_);
 }
 
-void IOBroker::write_io_broker_timestep(int timestep, double time) {
+void IOBroker::write_io_broker_timestep(const size_t timestep, const double time) {
   // Setup StkMeshIoBroker
   stk::io::StkMeshIoBroker stk_io_broker(bulk_data_ptr_->parallel());
   stk_io_broker.set_bulk_data(*bulk_data_ptr_);
   stk_io_broker.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
-  stk_io_broker.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+  if (!parallel_io_mode_.empty()) {
+    stk_io_broker.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+  }
 
   // Create the output mesh, based on the timestep and the base name
   std::string full_output_name = exodus_database_output_filename_base_ + ".e-s." + std::to_string(timestep);
@@ -305,6 +307,11 @@ void IOBroker::write_io_broker_timestep(int timestep, double time) {
 
   // Before we write, synchronize the TRANSIENT coordinate field
   synchronize_node_coordinates_to_transient();
+
+  // Make sure that the ghosts are up-to-date
+  std::vector<const stk::mesh::FieldBase *> const_enabled_io_fields(enabled_io_fields_.begin(),
+                                                                    enabled_io_fields_.end());
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, const_enabled_io_fields);
 
   // Save the IO
   stk_io_broker.begin_output_step(singlestep_io_index, time);

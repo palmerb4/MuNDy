@@ -8,10 +8,10 @@ echo "Using TPL dir: $TPL_ROOT_DIR"
 echo "Using STK test-app dir: $MUNDY_SOURCE_DIR"
 
 cmake \
--DCMAKE_BUILD_TYPE=${BUILD_TYPE:-DEBUG} \
+-DCMAKE_BUILD_TYPE=${BUILD_TYPE:-RELEASE} \
 -DCMAKE_CXX_COMPILER=mpicxx \
 -DCMAKE_CXX_FLAGS="-O0 -g -march=native -Wall -Wextra -Wdouble-promotion -Wconversion -DDEBUG" \
--DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/local/lib/mundy_lib} \
+-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR:-$HOME/mundyscratch} \
 -DTPL_ENABLE_MPI=ON \
 -DKokkos_ENABLE_SERIAL=ON \
 -DKokkos_ENABLE_OPENMP=OFF \
@@ -19,7 +19,7 @@ cmake \
 -DMundy_ENABLE_MundyAgents=ON \
 -DMundy_ENABLE_MundyAlens=ON \
 -DMundy_ENABLE_MundyBalance=OFF \
--DMundy_ENABLE_MunyDriver=ON \
+-DMundy_ENABLE_MundyDriver=ON \
 -DMundy_ENABLE_MundyConstraints=ON \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyIo=ON \
@@ -31,10 +31,13 @@ cmake \
 -DMundy_ENABLE_MundyShapes=ON \
 -DMundy_ENABLE_TESTS=ON \
 -DMundy_ENABLE_GTest=ON \
+-DMundy_ENABLE_STKFMM=ON \
+-DMundy_ENABLE_PVFMM=ON \
 -DMundy_TEST_CATEGORIES="BASIC;CONTINUOUS;NIGHTLY;HEAVY;PERFORMANCE" \
 -DTPL_GTest_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_OpenRAND_DIR:PATH=${TPL_ROOT_DIR} \
 -DTPL_Kokkos_DIR:PATH=${TRILINOS_ROOT_DIR} \
+-DTPL_KokkosKernels_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_STK_DIR:PATH=${TRILINOS_ROOT_DIR} \
 -DTPL_Teuchos_DIR:PATH=${TRILINOS_ROOT_DIR} \
 ${ccache_args} \

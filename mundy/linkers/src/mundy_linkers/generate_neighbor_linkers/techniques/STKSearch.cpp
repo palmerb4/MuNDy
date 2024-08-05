@@ -291,6 +291,50 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     }
   }
   bulk_data_ptr_->modification_end();
+
+  // Step 6: Communicate every field defined on the source and target selectors.
+  // for each rank: Selector -> buckets -> bucket to field -> sort and unique all fields
+
+  // TODO(palmerb4: Use the following once we upgrade STK)
+  // std::vector<stk::mesh::Part *> domain_parts;
+  // std::vector<stk::mesh::Part *> range_parts;
+  // domain_input_selector.get_parts(domain_parts);
+  // range_input_selector.get_parts(domain_parts);
+  // std::vector<stk::mesh::FieldBase *> fields_to_communicate;
+  // for (const stk::mesh::FieldBase *field : meta_data_ptr_->get_fields()) {
+  //   for (const stk::mesh::FieldRestriction &restriction : field->restrictions()) {
+  //     for (const stk::mesh::Part *part : domain_parts) {
+  //       if (restriction.selects(*part)) {
+  //         fields_to_communicate.push_back(field);
+  //         break;
+  //       }
+  //     }
+  //     for (const stk::mesh::Part *part : range_parts) {
+  //       if (restriction.selects(*part)) {
+  //         fields_to_communicate.push_back(field);
+  //         break;
+  //       }
+  //     }
+  //   }
+  // }
+
+  std::vector<const stk::mesh::FieldBase *> fields_to_communicate;
+  for (const stk::mesh::FieldBase *field : meta_data_ptr_->get_fields()) {
+    for (const stk::mesh::FieldRestriction &restriction : field->restrictions()) {
+      if (stk::mesh::is_subset(domain_input_selector, restriction.selector())) {
+        fields_to_communicate.push_back(field);
+        break;
+      }
+      if (stk::mesh::is_subset(range_input_selector, restriction.selector())) {
+        fields_to_communicate.push_back(field);
+        break;
+      }
+    }
+  }
+  fields_to_communicate.erase(std::unique(fields_to_communicate.begin(), fields_to_communicate.end()),
+                              fields_to_communicate.end());
+
+  stk::mesh::communicate_field_data(ghosting, fields_to_communicate);
 }
 //}
 
