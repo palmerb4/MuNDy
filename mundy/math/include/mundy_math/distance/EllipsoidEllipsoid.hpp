@@ -75,47 +75,6 @@ KOKKOS_INLINE_FUNCTION Vector3<double> map_spherical_to_unit_vector(double theta
   return Vector3<double>(sin_theta * cos_phi, sin_theta * sin_phi, cos_theta);
 }
 
-// KOKKOS_INLINE_FUNCTION Vector3<double> map_spherical_to_body_frame_superellipsoid(double theta, double phi, double
-// r1,
-//                                                                                   double r2, double r3, double e1,
-//                                                                                   double e2) {
-//   const double cos_theta = std::cos(theta);
-//   const double cos_phi = std::cos(phi);
-//   const double sin_theta = std::sin(theta);
-//   const double sin_phi = std::sin(phi);
-//   double x = impl::sign(cos_theta) * r1 * std::pow(std::abs(cos_theta), e1) * std::pow(std::abs(cos_phi), e2);
-//   double y = impl::sign(sin_theta) * r2 * std::pow(std::abs(sin_theta), e1) * std::pow(std::abs(cos_phi), e2);
-//   double z = impl::sign(sin_phi) * r3 * std::pow(std::abs(sin_phi), e2);
-//   return Vector3<double>(x, y, z);
-// }
-
-// KOKKOS_INLINE_FUNCTION Vector3<double> map_spherical_to_superellipsoid_unit_normal(double theta, double phi, double
-// r1,
-//                                                                                    double r2, double r3, double e1,
-//                                                                                    double e2) {
-//   const double nhat_x = impl::sign(std::cos(theta)) / r1 * std::pow(std::abs(std::cos(theta)), 2.0 - e1) *
-//                         std::pow(std::abs(std::cos(phi)), 2.0 - e2);
-//   const double nhat_y = impl::sign(std::sin(theta)) / r2 * std::pow(std::abs(std::sin(theta)), 2.0 - e1) *
-//                         std::pow(std::abs(std::cos(phi)), 2.0 - e2);
-//   const double nhat_z = impl::sign(std::sin(phi)) / r3 * std::pow(std::abs(std::sin(phi)), 2.0 - e2);
-//   const double nhat_mag = std::sqrt(nhat_x * nhat_x + nhat_y * nhat_y + nhat_z * nhat_z);
-//   const double inv_nhat_mag = 1.0 / nhat_mag;
-//   return Vector3<double>(nhat_x * inv_nhat_mag, nhat_y * inv_nhat_mag, nhat_z * inv_nhat_mag);
-// }
-
-// KOKKOS_INLINE_FUNCTION std::pair<double, double> map_superellipsoid_unit_normal_to_spherical(
-//     const Vector3<double, auto, auto>& nhat, double r1, double r2, double r3, double e1, double e2) {
-//   const double theta = std::atan2(impl::sign(nhat[1]) * std::pow(std::abs(r2 * nhat[1]), 1.0 / (2.0 - e1)),
-//                                   impl::sign(nhat[0]) * std::pow(std::abs(r1 * nhat[0]), 1.0 / (2.0 - e1)));
-//   if (theta < 0) theta += 2.0 * M_PI;
-//   const double phi =
-//       std::atan2(impl::sign(nhat[2]) *
-//                      std::pow(std::abs(r3 * nhat[2] * std::pow(std::abs(std::cos(theta)), 2.0 - e2)), 1.0 / (2.0 -
-//                      e2)),
-//                  std::pow(std::abs(r1 * nhat[0]), 1.0 / (2.0 - e1)));
-//   return std::make_pair(theta, phi);
-// }
-
 KOKKOS_INLINE_FUNCTION Vector3<double> map_body_frame_normal_to_superellipsoid(
     const Vector3<double, auto, auto>& body_frame_nhat, double r1, double r2, double r3, double e1, double e2) {
   double alpha1, alpha2;
@@ -144,71 +103,34 @@ KOKKOS_INLINE_FUNCTION Vector3<double> map_body_frame_normal_to_superellipsoid(
   return Vector3<double>(x, y, z);
 }
 
-// struct shared_normal_objective_functor {
-//   // This struct contains all of the necessary data to compute the objective function for the shared normal
-//   ellipsoid.
-//   // This includes the the center, orientation, radii, and exponents for the two ellipsoids.
+KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_ellipsoid_and_point(
+    const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
+    const double r2, const double r3,
+    const Vector3<double, auto, auto>& point,
+    Vector3<double>* const closest_point = nullptr) {
+  // The generic superellipsoid-point minimum separation distance doesn't appear to be analytic, but the ellipsoid-point 
+  // minimum shared normal signed separation distance is. 
+  
+  // Step 1: Map the point to the ellipsoid body frame
+  const Vector3<double> body_frame_point = inverse(orientation) * (point - center);
 
-//   KOKKOS_INLINE_FUNCTION shared_normal_objective_functor(
-//       const Vector3<double, auto, auto>& center0, const Quaternion<double, auto, auto>& orientation0, const double
-//       r1_0, const double r2_0, const double r3_0, const double e1_0, const double e2_0, const Vector3<double, auto,
-//       auto>& center1, const Quaternion<double, auto, auto>& orientation1, const double r1_1, const double r2_1, const
-//       double r3_1, const double e1_1, const double e2_1) : center0_(center0),
-//         orientation0_(orientation0),
-//         r1_0_(r1_0),
-//         r2_0_(r2_0),
-//         r3_0_(r3_0),
-//         e1_0_(e1_0),
-//         e2_0_(e2_0),
-//         center1_(center1),
-//         orientation1_(orientation1),
-//         r1_1_(r1_1),
-//         r2_1_(r2_1),
-//         r3_1_(r3_1),
-//         e1_1_(e1_1),
-//         e2_1_(e2_1) {
-//   }
+  // Step 2: Map the body frame point to the coordinate system where the ellipsoid is a unit sphere
+  const Vector3<double> body_frame_point_unstretched = Vector3<double>(body_frame_point[0] / r1, body_frame_point[1] / r2, body_frame_point[2] / r3);
+  const double body_frame_point_unstretched_norm = two_norm(body_frame_point_unstretched);
+  const double is_inside = body_frame_point_unstretched_norm < 1.0;
 
-//   KOKKOS_INLINE_FUNCTION double operator()(const Vector<double, 2>& theta_phi) const {
-//     // Step 1: Map theta and phi to the lab frame normal vector
-//     const Vector3<double> lab_frame_nhat0 = map_spherical_to_unit_vector(theta_phi[0], theta_phi[1]);
-//     const Vector3<double> lab_frame_nhat1 = -lab_frame_nhat0;
+  // Step 3: Compute the closest point on the unit sphere
+  const Vector3<double> contact_point_unstretched = body_frame_point_unstretched / body_frame_point_unstretched_norm;
 
-//     // Step 2: Map each normal vector to their corresponding ellipsoid body frame
-//     const Vector3<double> body_frame_nhat0 = inverse(orientation0_) * lab_frame_nhat0;
-//     const Vector3<double> body_frame_nhat1 = inverse(orientation1_) * lab_frame_nhat1;
+  // Step 4: Map the closest point back to the ellipsoid lab frame
+  const Vector3<double> contact_point(r1 * contact_point_unstretched[0], r2 * contact_point_unstretched[1], r3 * contact_point_unstretched[2]);
+  const Vector3<double> lab_frame_contact_point = orientation * contact_point + center;
 
-//     // Step 3: Map each body frame normal to their body frame foot point on the ellipsoid
-//     const Vector3<double> body_frame_foot_point0 =
-//         map_body_frame_normal_to_superellipsoid(body_frame_nhat0, r1_0_, r2_0_, r3_0_, e1_0_, e2_0_);
-//     const Vector3<double> body_frame_foot_point1 =
-//         map_body_frame_normal_to_superellipsoid(body_frame_nhat1, r1_1_, r2_1_, r3_1_, e1_1_, e2_1_);
+  // Step 5: Compute the signed separation distance
+  impl::if_not_nullptr_then_set(closest_point, lab_frame_contact_point);
 
-//     // Step 4: Compute the squared distance between the lab frame foot points
-//     return two_norm_squared(orientation0_ * body_frame_foot_point0 + center0_ - orientation1_ *
-//     body_frame_foot_point1 -
-//                             center1_);
-//   }
-
-//   // Ellipsoid 0
-//   Vector3<double> center0_;
-//   Quaternion<double> orientation0_;
-//   double r1_0_;
-//   double r2_0_;
-//   double r3_0_;
-//   double e1_0_;
-//   double e2_0_;
-
-//   // Ellipsoid 1
-//   Vector3<double> center1_;
-//   Quaternion<double> orientation1_;
-//   double r1_1_;
-//   double r2_1_;
-//   double r3_1_;
-//   double e1_1_;
-//   double e2_1_;
-// };
-
+  return mundy::math::norm(point - lab_frame_contact_point) * (is_inside ? -1.0 : 1.0);
+}
 
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point(
     const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,

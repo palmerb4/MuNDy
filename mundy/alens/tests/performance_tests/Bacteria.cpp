@@ -189,7 +189,7 @@ void subdivide_spherocylinders(stk::mesh::BulkData &bulk_data, const stk::mesh::
           // their length and coordinates. Length of children is parent length / 2 - parent radius Center of
           // children is parent center +/- parent tangent * (parent radius - child length / 2)
           const auto parent_orientation = mundy::mesh::quaternion_field_data(orientation_field, parent);
-          const auto parent_tangent = parent_orientation * mundy::math::Vector3(1.0, 0.0, 0.0);
+          const auto parent_tangent = parent_orientation * mundy::math::Vector3<double>(1.0, 0.0, 0.0);
           auto parent_node_coords = mundy::mesh::vector3_field_data(coordinate_field, parent_node);
           auto child_node_coords = mundy::mesh::vector3_field_data(coordinate_field, child_node);
 

@@ -65,13 +65,14 @@ TEST(SharedNormalDistanceBetweenEllipsoidAndPoint, AnalyticalSphereTestCases) {
 
   auto perform_test_for_given_spheres = [](const Vector3<double>& center, const Quaternion<double>& orientation,
                                       const double r, const Vector3<double>& point) {
-    const double shared_normal_ssd = shared_normal_ssd_between_superellipsoid_and_point(
+    const double shared_normal_ssd_numeric = shared_normal_ssd_between_superellipsoid_and_point(
         center, orientation, r, r, r, 1.0, 1.0, point);
-
+    const double shared_normal_ssd_analytic = shared_normal_ssd_between_ellipsoid_and_point(center, orientation, r, r, r, point);
     const double expected_ssd = mundy::math::norm(point - center) - r;
 
-    // Assert used to avoud 10 million throws
-    ASSERT_NEAR(shared_normal_ssd, expected_ssd, TEST_DOUBLE_EPSILON);
+    // Assert used to avoid 10 million throws
+    ASSERT_NEAR(shared_normal_ssd_numeric, expected_ssd, TEST_DOUBLE_EPSILON);
+    ASSERT_NEAR(shared_normal_ssd_analytic, expected_ssd, TEST_DOUBLE_EPSILON);
   };
 
   openrand::Philox rng(generate_test_seed(), 0);
