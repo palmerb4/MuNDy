@@ -60,7 +60,8 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
   if (!is_approx_close(a, b)) {
     std::cout << "a = " << a << std::endl;
     std::cout << "b = " << b << std::endl;
-    std::cout << "diff = " << a - b << std::endl;
+    using CommonType = std::common_type_t<U, T>;
+    std::cout << "diff = " << static_cast<CommonType>(a) - static_cast<CommonType>(b) << std::endl;
   }
 
   EXPECT_TRUE(is_approx_close(a, b)) << message_if_fail;
@@ -70,8 +71,8 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
 /// \param[in] m1 The first Matrix3
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
+template <typename U, typename T>
+void is_close_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto, auto>& m2,
                     const std::string& message_if_fail = "") {
   if (!is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
@@ -84,8 +85,8 @@ void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Access
 /// \param[in] v1 The first Vector3
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
+template <typename U, typename T>
+void is_close_debug(const Vector3<U, auto, auto>& v1, const Vector3<T, auto, auto>& v2,
                     const std::string& message_if_fail = "") {
   if (!is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
@@ -98,8 +99,8 @@ void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Access
 /// \param[in] m1 The first Matrix3
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
+template <typename U, typename T>
+void is_different_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto, auto>& m2,
                         const std::string& message_if_fail = "") {
   if (is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
@@ -112,8 +113,8 @@ void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Ac
 /// \param[in] v1 The first Vector3
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
+template <typename U, typename T>
+void is_different_debug(const Vector3<U, auto, auto>& v1, const Vector3<T, auto, auto>& v2,
                         const std::string& message_if_fail = "") {
   if (is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
@@ -181,6 +182,19 @@ TYPED_TEST(Matrix3SingleTypeTest, ConstructorFromNineScalars) {
   is_close_debug(m(6), -7);
   is_close_debug(m(7), -8);
   is_close_debug(m(8), -9);
+}
+
+TYPED_TEST(Matrix3SingleTypeTest, ConstructorFromInitializerList) {
+  Matrix3<TypeParam> R_x = {1, 0, 0, 0, 0, -1, 0, 1, 0};
+  is_close_debug(R_x(0), 1);
+  is_close_debug(R_x(1), 0);
+  is_close_debug(R_x(2), 0);
+  is_close_debug(R_x(3), 0);
+  is_close_debug(R_x(4), 0);
+  is_close_debug(R_x(5), -1);
+  is_close_debug(R_x(6), 0);
+  is_close_debug(R_x(7), 1);
+  is_close_debug(R_x(8), 0);
 }
 
 TYPED_TEST(Matrix3SingleTypeTest, Comparison) {
@@ -257,24 +271,115 @@ TYPED_TEST(Matrix3SingleTypeTest, Accessors) {
   is_close_debug(m(2, 2), -9);
 
   // Fetch a row (deep copy)
-  Vector3<TypeParam> row0 = m.get_row(0);
-  is_close_debug(row0.x(), 1);
-  is_close_debug(row0.y(), 2);
-  is_close_debug(row0.z(), 3);
+  Vector3<TypeParam> row0 = m.copy_row(0);
+  is_close_debug(row0[0], 1);
+  is_close_debug(row0[1], 2);
+  is_close_debug(row0[2], 3);
   row0 = {4, 5, 6};
   is_close_debug(m(0, 0), 1);
   is_close_debug(m(0, 1), 2);
   is_close_debug(m(0, 2), 3);
 
   // Fetch a column (deep copy)
-  Vector3<TypeParam> col0 = m.get_column(0);
-  is_close_debug(col0.x(), 1);
-  is_close_debug(col0.y(), 4);
-  is_close_debug(col0.z(), -7);
+  Vector3<TypeParam> col0 = m.copy_column(0);
+  is_close_debug(col0[0], 1);
+  is_close_debug(col0[1], 4);
+  is_close_debug(col0[2], -7);
   col0 = {4, 5, 6};
   is_close_debug(m(0, 0), 1);
   is_close_debug(m(1, 0), 4);
   is_close_debug(m(2, 0), -7);
+}
+
+TYPED_TEST(Matrix3SingleTypeTest, RowViewAccessors) {
+  Matrix3<TypeParam> m(1, 2, 3, 4, 5, 6, -7, -8, -9);
+
+  // View each row, modify the view and check that the matrix is modified
+  auto row0 = m.template view_row<0>();
+  EXPECT_EQ(row0[0], 1);
+  EXPECT_EQ(row0[1], 2);
+  EXPECT_EQ(row0[2], 3);
+  is_close_debug(row0, Vector3<TypeParam>{1, 2, 3});
+
+  row0(0) = 4;
+  row0(1) = 5;
+  row0(2) = 6;
+  is_close_debug(m(0, 0), 4, "Row0 view not a view.");
+  is_close_debug(m(0, 1), 5, "Row0 view not a view.");
+  is_close_debug(m(0, 2), 6, "Row0 view not a view.");
+
+  auto row1 = m. template view_row<1>();
+  is_close_debug(row1, Vector3<TypeParam>{4, 5, 6});
+
+  row1(0) = 7;
+  row1(1) = 8;
+  row1(2) = 9;
+  is_close_debug(m(1, 0), 7, "Row1 view not a view.");
+  is_close_debug(m(1, 1), 8, "Row1 view not a view.");
+  is_close_debug(m(1, 2), 9, "Row1 view not a view.");
+
+  auto row2 = m. template view_row<2>();
+  is_close_debug(row2, Vector3<TypeParam>{-7, -8, -9});
+
+  row2(0) = -1;
+  row2(1) = -2;
+  row2(2) = -3;
+  is_close_debug(m(2, 0), -1, "Row2 view not a view.");
+  is_close_debug(m(2, 1), -2, "Row2 view not a view.");
+  is_close_debug(m(2, 2), -3, "Row2 view not a view.");
+}
+
+TYPED_TEST(Matrix3SingleTypeTest, ColumnViewAccessors) {
+  Matrix3<TypeParam> m(1, 2, 3, 4, 5, 6, -7, -8, -9);
+
+  // View each column, modify the view and check that the matrix is modified
+  auto col0 = m.template view_column<0>();
+  ASSERT_EQ(col0(0), 1);
+  ASSERT_EQ(col0(1), 4);
+  ASSERT_EQ(col0(2), -7);
+
+  col0(0) = 4;
+  col0(1) = 5;
+  col0(2) = 6;
+  ASSERT_EQ(m(0, 0), 4);
+  ASSERT_EQ(m(1, 0), 5);
+  ASSERT_EQ(m(2, 0), 6);
+
+  auto col1 = m.template view_column<1>();
+  ASSERT_EQ(col1(0), 2);
+  ASSERT_EQ(col1(1), 5);
+  ASSERT_EQ(col1(2), -8);
+
+  col1(0) = 7;
+  col1(1) = 8;
+  col1(2) = 9;
+  ASSERT_EQ(m(0, 1), 7);
+  ASSERT_EQ(m(1, 1), 8);
+  ASSERT_EQ(m(2, 1), 9);
+
+  auto col2 = m.template view_column<2>();
+  ASSERT_EQ(col2(0), 3);
+  ASSERT_EQ(col2(1), 6);
+  ASSERT_EQ(col2(2), -9);
+
+  col2(0) = -1;
+  col2(1) = -2;
+  col2(2) = -3;
+  ASSERT_EQ(m(0, 2), -1);
+  ASSERT_EQ(m(1, 2), -2);
+  ASSERT_EQ(m(2, 2), -3);
+}
+
+// Tranposed view
+
+TYPED_TEST(Matrix3SingleTypeTest, TransposedView) {
+  Matrix3<TypeParam> m(1, 2, 3, 4, 5, 6, -7, -8, -9);
+
+  // Transposed view
+  auto m_t_view = m.view_transpose();
+  is_close_debug(m_t_view, Matrix3<TypeParam>{1, 4, -7, 2, 5, -8, 3, 6, -9});
+  m_t_view = Matrix3<TypeParam>{12, 13, 14, 15, 16, 17, 18, 19, 20};
+  is_close_debug(m, Matrix3<TypeParam>{12, 15, 18, 13, 16, 19, 14, 17, 20});
 }
 //@}
 
@@ -293,19 +398,37 @@ TYPED_TEST(Matrix3SingleTypeTest, Setters) {
 
   // Set a column by a vector
   m.set_column(0, Vector3<TypeParam>{-1, -2, -3});
-  is_close_debug(m.get_column(0), Vector3<TypeParam>{-1, -2, -3}, "Set column by vector failed.");
+  is_close_debug(m.copy_column(0), Vector3<TypeParam>{-1, -2, -3}, "Set column by vector failed.");
+
+  m.set_column(1, Vector3<TypeParam>{2, 4, 6});
+  is_close_debug(m.copy_column(1), Vector3<TypeParam>{2, 4, 6}, "Set column by vector failed.");
+
+  m.set_column(2, Vector3<TypeParam>{-3, -6, -9});
+  is_close_debug(m.copy_column(2), Vector3<TypeParam>{-3, -6, -9}, "Set column by vector failed.");
 
   // Set a column by three scalars
-  m.set_column(1, -4, -5, -6);
-  is_close_debug(m.get_column(1), Vector3<TypeParam>{-4, -5, -6}, "Set column by scalars failed.");
+  m.set_column(0, -4, -5, -6);
+  is_close_debug(m.copy_column(0), Vector3<TypeParam>{-4, -5, -6}, "Set column by scalars failed.");
+
+  m.set_column(1, 1, 2, 3);
+  is_close_debug(m.copy_column(1), Vector3<TypeParam>{1, 2, 3}, "Set column by scalars failed.");
+
+  m.set_column(2, -1, -2, -3);
+  is_close_debug(m.copy_column(2), Vector3<TypeParam>{-1, -2, -3}, "Set column by scalars failed.");
 
   // Set a row by a vector
   m.set_row(0, Vector3<TypeParam>{-4, -5, -6});
-  is_close_debug(m.get_row(0), Vector3<TypeParam>{-4, -5, -6}, "Set row by vector failed.");
+  is_close_debug(m.copy_row(0), Vector3<TypeParam>{-4, -5, -6}, "Set row by vector failed.");
+
+  m.set_row(1, Vector3<TypeParam>{1, 2, 3});
+  is_close_debug(m.copy_row(1), Vector3<TypeParam>{1, 2, 3}, "Set row by vector failed.");
+
+  m.set_row(2, Vector3<TypeParam>{-1, -2, -3});
+  is_close_debug(m.copy_row(2), Vector3<TypeParam>{-1, -2, -3}, "Set row by vector failed.");
 
   // Set a row by three scalars
   m.set_row(1, -1, -2, -3);
-  is_close_debug(m.get_row(1), Vector3<TypeParam>{-1, -2, -3}, "Set row by scalars failed.");
+  is_close_debug(m.copy_row(1), Vector3<TypeParam>{-1, -2, -3}, "Set row by scalars failed.");
 
   // Fill entire matrix with a scalar
   m.fill(7);

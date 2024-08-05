@@ -17,11 +17,21 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 SET(NOINSTALLHEADERS 
   include/mundy_math/Accessor.hpp
   include/mundy_math/Array.hpp
+  include/mundy_math/distance/EllipsoidEllipsoid.hpp
   include/mundy_math/distance/SegmentSegment.hpp
+  include/mundy_math/MaskedView.hpp
   include/mundy_math/Matrix3.hpp
+  include/mundy_math/Matrix.hpp
+  include/mundy_math/minimize.hpp
+  include/mundy_math/minimize_kokkos.hpp
+  include/mundy_math/minimize_scalar_vector_make.hpp
   include/mundy_math/Quaternion.hpp
+  include/mundy_math/ShiftedView.hpp
+  include/mundy_math/StridedView.hpp
   include/mundy_math/Tolerance.hpp
+  include/mundy_math/TransposedView.hpp
   include/mundy_math/Vector3.hpp
+  include/mundy_math/Vector.hpp
   )
 
 SET(SOURCES 

@@ -34,8 +34,8 @@ namespace math {
 // To achieve this, Vectors, Matrices, and Quaternions will be templated by an Accessor class. In each case, an Accessor
 // needs to be copyable and provide a const [] operator. If the Accessor is able to be modified, it should also provide
 // a non-const [] operator. The signatures of these operators are as follows:
-//   KOKKOS_INLINE_FUNCTION const T& operator[](unsigned idx) const;
-//   KOKKOS_INLINE_FUNCTION T& operator[](unsigned idx); // Optional
+//   KOKKOS_INLINE_FUNCTION const T& operator[](size_t idx) const;
+//   KOKKOS_INLINE_FUNCTION T& operator[](size_t idx); // Optional
 // For Vector3, idx is 0, 1, or 2.
 // For Matrix3, it is 0, 1, 2, 3, 4, 5, 6, 7, or 8.
 // For Quaternion, it is 0, 1, 2, or 3.
@@ -70,42 +70,81 @@ namespace math {
 // up to Vector3, Matrix3, and Quaternion to enforce their type requirements. As a result, the Data and View classes can
 // all be consistently named as Arrays and Views, respectively and templated by their size.
 
+namespace impl {
+
+// Helper for generating a tuple with T repeated N times
+template <typename T, size_t... Is>
+auto generate_tuple_with_t_repeated_impl(std::index_sequence<Is...>) {
+  return std::tuple<std::conditional_t<true, T, decltype(Is)>...>{};
+}
+
+// Main template to generate a tuple with T repeated N times
+template <typename T, size_t N>
+auto generate_tuple_with_t_repeated_n_times() {
+  return generate_tuple_with_t_repeated_impl<T>(std::make_index_sequence<N>{});
+}
+
+// Helper function to check if Accessor is constructible from unpacked tuple
+template <typename Accessor, typename Tuple, size_t... Is>
+constexpr bool can_construct_from_unpacked_tuple_impl(std::index_sequence<Is...>) {
+  return std::is_constructible_v<Accessor, std::tuple_element_t<Is, Tuple>...>;
+}
+
+template <typename Accessor, typename Tuple>
+constexpr bool can_construct_from_unpacked_tuple() {
+  constexpr auto size = std::tuple_size_v<std::remove_reference_t<Tuple>>;
+  return can_construct_from_unpacked_tuple_impl<Accessor, Tuple>(std::make_index_sequence<size>{});
+}
+
+}  // namespace impl
+
 /// \brief A concept that checks if Accessor has a const [] operator
 template <typename Accessor, typename T>
-concept HasConstAccessOperator = requires(Accessor a, unsigned idx) {
+concept HasConstAccessOperator = requires(Accessor a, size_t idx) {
   { a[idx] } -> std::convertible_to<const T&>;
 };
 
 /// \brief A concept that checks if Accessor has a non-const [] operator
 template <typename Accessor, typename T>
-concept HasNonConstAccessOperator = requires(Accessor a, unsigned idx) {
+concept HasNonConstAccessOperator = requires(Accessor a, size_t idx) {
   { a[idx] } -> std::convertible_to<T&>;
 };
 
-/// \brief A concept that checks if an Accessor is copyable and has a const [] operator
+/// \brief A concept that checks if Accessor has a copy constructor
+template <typename Accessor>
+concept HasCopyConstructor = requires(Accessor a) {
+  Accessor{a};
+};
+
+/// \brief A concept that checks if Accessor has a move constructor
+template <typename Accessor>
+concept HasMoveConstructor = requires(Accessor a) {
+  Accessor{std::move(a)};
+};
+
+/// \brief A concept that checks if an type is a valid accessor, aka it has a const [] operator or a non-const [] operator
 template <typename Accessor, typename T>
-concept ValidAccessor = HasConstAccessOperator<Accessor, T> && std::copyable<Accessor>;
+concept ValidAccessor = (HasConstAccessOperator<Accessor, T> || HasNonConstAccessOperator<Accessor, T>);
 
 /// \brief A concept that checks if an Accessor is default constructable
 template <typename Accessor>
 concept HasDefaultConstructor = requires { Accessor{}; };
 
-/// \brief A concept that checks if an Accessor is constructable from 3 arguments of type T
-template <typename Accessor, typename T>
-concept Has3ArgConstructor = requires(T x, T y, T z) { Accessor{x, y, z}; };
-
-/// \brief A concept that checks if an Accessor is constructable from 4 arguments of type T
-template <typename Accessor, typename T>
-concept Has4ArgConstructor = requires(T w, T x, T y, T z) { Accessor{w, x, y, z}; };
-
-/// \brief A concept that checks if an Accessor is constructable from 9 arguments of type T
-template <typename Accessor, typename T>
-concept Has9ArgConstructor =
-    requires(T a1, T a2, T a3, T a4, T a5, T a6, T a7, T a8, T a9) { Accessor{a1, a2, a3, a4, a5, a6, a7, a8, a9}; };
+/// \brief A concept that checks if an Accessor is constructable from N arguments of type T
+template <typename Accessor, typename T, size_t N>
+concept HasNArgConstructor =
+    impl::can_construct_from_unpacked_tuple<Accessor, decltype(impl::generate_tuple_with_t_repeated_n_times<T, N>())>();
 
 /// \brief A concept that checks if an Accessor is constructable from an initializer list of type T
 template <typename Accessor, typename T>
 concept HasInitializerListConstructor = requires(std::initializer_list<T> list) { Accessor{list}; };
+
+/// @brief  Literal class enums! These are clearer and easier to work with than bools ot explicit enums.
+namespace Ownership {
+struct Owns {};
+struct Views {};
+struct Invalid {};
+}  // namespace Ownership
 
 }  // namespace math
 

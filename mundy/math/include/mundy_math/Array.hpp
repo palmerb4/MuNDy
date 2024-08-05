@@ -39,7 +39,27 @@ namespace mundy {
 namespace math {
 
 /// \brief A simplistic array type with a fixed size and type
-template <typename T, int N>
+template <typename T, size_t N>
+class Array;
+
+namespace impl {
+
+/// \brief Deep copy implementation for Array
+template <size_t... Is, typename T, size_t N>
+KOKKOS_INLINE_FUNCTION void deep_copy_impl(std::index_sequence<Is...>, Array<T, N>& array, const Array<T, N>& other) {
+  ((array[Is] = other[Is]), ...);
+}
+
+/// \brief Fill implementation for Array
+template <size_t... Is, typename T, size_t N>
+KOKKOS_INLINE_FUNCTION void fill_impl(std::index_sequence<Is...>, Array<T, N>& array, const T& value) {
+  ((array[Is] = value), ...);
+}
+
+}  // namespace impl
+
+/// \brief A simplistic array type with a fixed size and type
+template <typename T, size_t N>
 class Array {
  public:
   //! \name Type aliases
@@ -54,11 +74,11 @@ class Array {
 
   /// \brief Default constructor. Elements are uninitialized.
   KOKKOS_INLINE_FUNCTION
-  Array() {
+  Array() : data_{} {
   }
 
-  // Constructor to initialize all elements explicitly. Requires the number of arguments to be N and the type of each to
-  // be T.
+  /// \brief Constructor to initialize all elements explicitly.
+  /// Requires the number of arguments to be N and the type of each to be T.
   template <typename... Args>
     requires(sizeof...(Args) == N) && (std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, T> && ...)
   KOKKOS_INLINE_FUNCTION explicit Array(Args&&... args) : data_{std::forward<Args>(args)...} {
@@ -69,8 +89,17 @@ class Array {
   Array(const std::initializer_list<T>& list)
     requires(!std::is_const_v<T>)
   {
-    MUNDY_THROW_ASSERT(list.size() == N, std::invalid_argument, "Array: Initializer list must have N elements.");
-    std::copy(list.begin(), list.end(), data_);
+    if (list.size() == N) {
+      size_t i = 0;
+      for (auto it = list.begin(); it != list.end(); ++it) {
+        data_[i] = *it;
+        ++i;
+      }
+    } else if (list.size() == 1) {
+      impl::fill_impl(std::make_index_sequence<N>{}, *this, *list.begin());
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Array: Initializer list must have either 1 or N elements.");
+    }
   }
 
   /// \brief Constructor to initialize all elements to a single value
@@ -98,7 +127,7 @@ class Array {
   Array<T, N>& operator=(const Array<T, N>& other)
     requires(!std::is_const_v<T>)
   {
-    std::copy(other.data_, other.data_ + N, data_);
+    impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
     return *this;
   }
 
@@ -108,7 +137,7 @@ class Array {
   Array<T, N>& operator=(Array<T, N>&& other)
     requires(!std::is_const_v<T>)
   {
-    std::copy(other.data_, other.data_ + N, data_);
+    impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
     return *this;
   }
   //@}
@@ -119,14 +148,14 @@ class Array {
   /// \brief Element access operator
   /// \param[in] idx The index of the element.
   KOKKOS_INLINE_FUNCTION
-  T& operator[](unsigned idx) {
+  T& operator[](size_t idx) {
     return data_[idx];
   }
 
   /// \brief Const element access operator
   /// \param[in] idx The index of the element.
   KOKKOS_INLINE_FUNCTION
-  const T& operator[](unsigned idx) const {
+  const T& operator[](size_t idx) const {
     return data_[idx];
   }
 
@@ -138,13 +167,13 @@ class Array {
 
   /// \brief Get a pointer to our data
   KOKKOS_INLINE_FUNCTION
-  T* data() {
+  Kokkos::Array<T, N>& data() {
     return data_;
   }
 
   /// \brief Get a pointer to our data
   KOKKOS_INLINE_FUNCTION
-  const T* data() const {
+  const Kokkos::Array<T, N>& data() const {
     return data_;
   }
   //@}
@@ -154,17 +183,17 @@ class Array {
   //@{
 
   /// \brief Constructor to initialize all elements to a single value using index_sequence
-  template <std::size_t... I>
-  Array(const T& value, std::index_sequence<I...>) : data_{(I, value)...} {
+  template <size_t... I>
+  Array(const T& value, std::index_sequence<I...>) : data_{((void)I, value)...} {
   }
 
   /// \brief Deep copy constructor using index_sequence
-  template <std::size_t... I>
+  template <size_t... I>
   KOKKOS_INLINE_FUNCTION Array(const Array<T, N>& other, std::index_sequence<I...>) : data_{other.data_[I]...} {
   }
 
   /// \brief Deep move constructor using index_sequence
-  template <std::size_t... I>
+  template <size_t... I>
   KOKKOS_INLINE_FUNCTION Array(Array<T, N>&& other, std::index_sequence<I...>) : data_{other.data_[I]...} {
   }
   //@}
@@ -173,7 +202,7 @@ class Array {
   //@{
 
   /// \brief Our data
-  T data_[N];
+  Kokkos::Array<T, N> data_;
   //@}
 };  // Array
 

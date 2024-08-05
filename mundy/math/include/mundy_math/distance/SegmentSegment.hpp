@@ -65,16 +65,24 @@ accuracy.
 
 A note about our Vector3s: mundy::math::Vector3 is templated by T and AccessorType. This allows Vector3 with non-owning
 memory access. Usually, users will interact with Vector3<double>, which defaults to owning a double[3], but for function
-calls that can accept Vector3's with non-owning memory, you should write Vector3<T, auto> instead.
+calls that can accept Vector3's with non-owning memory, you should write Vector3<T, auto, auto> instead.
 */
+
+namespace impl {
+void if_not_nullptr_then_set(auto const ptr, const auto& value) {
+  if (ptr) {
+    *ptr = value;
+  }
+}
+}  // namespace impl
 
 //
 // Determine the distance of the current vertex to the edge defined by the vertices provided. Returns distance squared.
 // Note: line is assumed infinite in extent.
 //
 // Here, p1 and p2 are two non-coincident points on the line.
-double distance_from_point_to_line(const Vector3<double, auto>& x, const Vector3<double, auto>& p1,
-                                   const Vector3<double, auto>& p2) {
+double distance_from_point_to_line(const Vector3<double, auto, auto>& x, const Vector3<double, auto, auto>& p1,
+                                   const Vector3<double, auto, auto>& p2) {
   const auto np1 = x - p1;
   const auto p1p2 = p1 - p2;
   const double p1p2_norm_sq = mundy::math::dot(p1p2, p1p2);
@@ -89,12 +97,6 @@ double distance_from_point_to_line(const Vector3<double, auto>& x, const Vector3
   return np1_norm_sq - proj * proj;
 }
 
-void if_not_nullptr_then_set(auto const ptr, auto value) {
-  if (ptr) {
-    *ptr = value;
-  }
-}
-
 /**
  * Compute the squared distance of a point x to a finite line (p1,p2). The method
  * computes the parametric coordinate t and the point location on the
@@ -106,8 +108,9 @@ void if_not_nullptr_then_set(auto const ptr, auto value) {
  * respectively.
  *
  */
-double distance_sq_from_point_to_line_segment(const Vector3<double, auto>& x, const Vector3<double, auto>& p1,
-                                              const Vector3<double, auto>& p2,
+double distance_sq_from_point_to_line_segment(const Vector3<double, auto, auto>& x,
+                                              const Vector3<double, auto, auto>& p1,
+                                              const Vector3<double, auto, auto>& p2,
                                               Vector3<double>* const closest_point = nullptr,
                                               double* const t = nullptr) {
   // Define some temporary variables
@@ -152,13 +155,15 @@ double distance_sq_from_point_to_line_segment(const Vector3<double, auto>& x, co
   }
 
   const double distance_sq = mundy::math::two_norm_squared(closest_point_tmp - x);
-  if_not_nullptr_then_set(t, t_tmp);
-  if_not_nullptr_then_set(closest_point, closest_point_tmp);
+  impl::if_not_nullptr_then_set(t, t_tmp);
+  impl::if_not_nullptr_then_set(closest_point, closest_point_tmp);
   return distance_sq;
 }
 
-double distance_sq_between_lines(const Vector3<double, auto>& l0, const Vector3<double, auto>& l1,  // line 1
-                                 const Vector3<double, auto>& m0, const Vector3<double, auto>& m1,  // line 2
+double distance_sq_between_lines(const Vector3<double, auto, auto>& l0,
+                                 const Vector3<double, auto, auto>& l1,  // line 1
+                                 const Vector3<double, auto, auto>& m0,
+                                 const Vector3<double, auto, auto>& m1,  // line 2
                                  Vector3<double>* const closest_point1 = nullptr,
                                  Vector3<double>* const closest_point2 = nullptr, double* const t1 = nullptr,
                                  double* const t2 = nullptr)  // parametric coords of the closest points
@@ -183,7 +188,7 @@ double distance_sq_between_lines(const Vector3<double, auto>& l0, const Vector3<
     // CASE 1: The lines are colinear.
     // TODO(palmerb4): The following confuses me. If the lines are colinear and the lines are actually infinite, then
     // all points on the lines are equally close to each other. In this case, I see no reason to prefer one point over
-    // another. Arbitrarily, I would pick t = 0.5 for both lines. However, the following VTK chose t1 = 0.0 and
+    // another. Arbitrarily, I would pick t = 0.5 for both lines. However, in the following, VTK chose t1 = 0.0 and
     // t2 = (b > c ? d / b : e / c). I don't understand why this is the case.
     t1_tmp = 0.0;
     t2_tmp = (b > c ? d / b : e / c);  // use the largest denominator
@@ -198,10 +203,10 @@ double distance_sq_between_lines(const Vector3<double, auto>& l0, const Vector3<
   const double distance_sq = mundy::math::two_norm_squared(closest_point1_tmp - closest_point2_tmp);
 
   // Write out the results
-  if_not_nullptr_then_set(t1, t1_tmp);
-  if_not_nullptr_then_set(t2, t2_tmp);
-  if_not_nullptr_then_set(closest_point1, closest_point1_tmp);
-  if_not_nullptr_then_set(closest_point2, closest_point2_tmp);
+  impl::if_not_nullptr_then_set(t1, t1_tmp);
+  impl::if_not_nullptr_then_set(t2, t2_tmp);
+  impl::if_not_nullptr_then_set(closest_point1, closest_point1_tmp);
+  impl::if_not_nullptr_then_set(closest_point2, closest_point2_tmp);
 
   return distance_sq;
 }
@@ -214,10 +219,10 @@ double distance_sq_between_lines(const Vector3<double, auto>& l0, const Vector3<
  * will be stored in t0 and t1. The return value is the shortest distance
  * squared between the two line-segments.
  */
-double distance_sq_between_line_segments(const Vector3<double, auto>& l0,
-                                         const Vector3<double, auto>& l1,  // line segment 1
-                                         const Vector3<double, auto>& m0,
-                                         const Vector3<double, auto>& m1,  // line segment 2
+double distance_sq_between_line_segments(const Vector3<double, auto, auto>& l0,
+                                         const Vector3<double, auto, auto>& l1,  // line segment 1
+                                         const Vector3<double, auto, auto>& m0,
+                                         const Vector3<double, auto, auto>& m1,  // line segment 2
                                          Vector3<double>* const closest_point1 = nullptr,
                                          Vector3<double>* const closest_point2 = nullptr, double* const t1 = nullptr,
                                          double* const t2 = nullptr) {
@@ -253,28 +258,28 @@ double distance_sq_between_line_segments(const Vector3<double, auto>& l0,
     double min_distance_sq = std::min(std::min(dist_sq1, dist_sq2), std::min(dist_sq3, dist_sq4));
     if (min_distance_sq == dist_sq1) {
       // CASE 1.1: l0 is closest to the line segment m0-m1.
-      if_not_nullptr_then_set(t1, 0.0);
-      if_not_nullptr_then_set(t2, t_tmp1);
-      if_not_nullptr_then_set(closest_point1, l0);
-      if_not_nullptr_then_set(closest_point2, pn_tmp1);
+      impl::if_not_nullptr_then_set(t1, 0.0);
+      impl::if_not_nullptr_then_set(t2, t_tmp1);
+      impl::if_not_nullptr_then_set(closest_point1, l0);
+      impl::if_not_nullptr_then_set(closest_point2, pn_tmp1);
     } else if (min_distance_sq == dist_sq2) {
       // CASE 1.2: l1 is closest to the line segment m0-m1.
-      if_not_nullptr_then_set(t1, 1.0);
-      if_not_nullptr_then_set(t2, t_tmp2);
-      if_not_nullptr_then_set(closest_point1, l1);
-      if_not_nullptr_then_set(closest_point2, pn_tmp2);
+      impl::if_not_nullptr_then_set(t1, 1.0);
+      impl::if_not_nullptr_then_set(t2, t_tmp2);
+      impl::if_not_nullptr_then_set(closest_point1, l1);
+      impl::if_not_nullptr_then_set(closest_point2, pn_tmp2);
     } else if (min_distance_sq == dist_sq3) {
       // CASE 1.3: m0 is closest to the line segment l0-l1.
-      if_not_nullptr_then_set(t1, t_tmp3);
-      if_not_nullptr_then_set(t2, 0.0);
-      if_not_nullptr_then_set(closest_point1, pn_tmp3);
-      if_not_nullptr_then_set(closest_point2, m0);
+      impl::if_not_nullptr_then_set(t1, t_tmp3);
+      impl::if_not_nullptr_then_set(t2, 0.0);
+      impl::if_not_nullptr_then_set(closest_point1, pn_tmp3);
+      impl::if_not_nullptr_then_set(closest_point2, m0);
     } else {
       // CASE 1.4: m1 is closest to the line segment l0-l1.
-      if_not_nullptr_then_set(t1, t_tmp4);
-      if_not_nullptr_then_set(t2, 1.0);
-      if_not_nullptr_then_set(closest_point1, pn_tmp4);
-      if_not_nullptr_then_set(closest_point2, m1);
+      impl::if_not_nullptr_then_set(t1, t_tmp4);
+      impl::if_not_nullptr_then_set(t2, 1.0);
+      impl::if_not_nullptr_then_set(closest_point1, pn_tmp4);
+      impl::if_not_nullptr_then_set(closest_point2, m1);
     }
 
     return min_distance_sq;
@@ -330,10 +335,10 @@ double distance_sq_between_line_segments(const Vector3<double, auto>& l0,
   const double distance_sq = mundy::math::two_norm_squared(closest_point1_tmp - closest_point2_tmp);
 
   // Write out the results
-  if_not_nullptr_then_set(t1, t1_tmp);
-  if_not_nullptr_then_set(t2, t2_tmp);
-  if_not_nullptr_then_set(closest_point1, closest_point1_tmp);
-  if_not_nullptr_then_set(closest_point2, closest_point2_tmp);
+  impl::if_not_nullptr_then_set(t1, t1_tmp);
+  impl::if_not_nullptr_then_set(t2, t2_tmp);
+  impl::if_not_nullptr_then_set(closest_point1, closest_point1_tmp);
+  impl::if_not_nullptr_then_set(closest_point2, closest_point2_tmp);
 
   return distance_sq;
 }

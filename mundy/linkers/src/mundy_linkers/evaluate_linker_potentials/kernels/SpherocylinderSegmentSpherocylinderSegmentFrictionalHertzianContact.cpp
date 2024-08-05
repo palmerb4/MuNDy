@@ -406,7 +406,7 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
           const stk::mesh::Entity *right_sy_seg_nodes = bulk_data.begin_nodes(right_sy_seg_element);
 
           // Determine the velocity of the contact points
-          auto get_contact_point_velocity = [](const mundy::math::Vector3<double, auto> &contact_point,
+          auto get_contact_point_velocity = [](const mundy::math::Vector3<double, auto, auto> &contact_point,
                                                const stk::mesh::Entity *nodes,
                                                const stk::mesh::Field<double> &node_velocity_field,
                                                const stk::mesh::Field<double> &node_coords_field) {

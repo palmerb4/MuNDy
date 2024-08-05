@@ -38,8 +38,8 @@
 /// \brief The following global is used to control the number of samples per test.
 /// For unit tests, this number should be kept low to ensure fast test times, but to still give an immediate warning if
 /// something went very wrong. For integration tests, we recommend setting this number to 10,000 or more.
-#ifndef MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST
-#define MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST 1000000
+#ifndef MUNDY_MATH_TESTS_UNIT_TESTS_SEGMENT_SEGMENT_DISTANCE_NUM_SAMPLES_PER_TEST
+#define MUNDY_MATH_TESTS_UNIT_TESTS_SEGMENT_SEGMENT_DISTANCE_NUM_SAMPLES_PER_TEST 1000000
 #endif
 
 namespace mundy {
@@ -226,7 +226,7 @@ template <RandomNumberGenerator RngType>
 void generate_line_segments_at_known_distance(RngType& rng, double& line_dist, Vector3<double>& a1, Vector3<double>& a2,
                                               Vector3<double>& b1, Vector3<double>& b2, Vector3<double>& a12,
                                               Vector3<double>& b12, double& u, double& v,
-                                              DegeneracyType degeneracy = DegeneracyType::NONE) {
+                                              DegeneracyType degeneracy = DegeneracyType::RANDOM) {
   // Generate two line segments ((a1,a2) and (b1,b2)) set a known distance (line_dist)
   // apart. The parameter and value of the closest points for lines a and b are
   // a12, u and b12, v, respectively.
@@ -352,87 +352,9 @@ void generate_line_at_known_distance(RngType& rng, Vector3<double>& a1, Vector3<
 //! \brief Unit tests
 //@{
 
-// TEST(LineIntersection, PositiveResult) {
-//   openrand::Philox rng(generate_test_seed(), 0);
-//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
-
-//   Vector3<double> a1, a2, b1, b2;
-//   double u_expected, v_expected;
-//   double u_actual, v_actual;
-//   for (unsigned i = 0; i < nTests; i++) {
-//     generate_intersecting_line_segments(rng, a1, a2, b1, b2, u_expected, v_expected);
-
-//     double uv[2];
-//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u_actual, v_actual);
-
-//     ASSERT_EQ(returnValue, vtkLine::Intersect);
-//     ASSERT_NEAR(u_expected, u_actual, TEST_DOUBLE_EPSILON);
-//     ASSERT_NEAR(v_expected, v_actual, TEST_DOUBLE_EPSILON);
-//   }
-// }
-
-// TEST(LineIntersection, NegativeResult) {
-//   openrand::Philox rng(generate_test_seed(), 0);
-//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
-
-//   Vector3<double> a1, a2, b1, b2;
-//   double u, v;
-//   for (unsigned i = 0; i < nTests; i++) {
-//     generate_non_intersecting_line_segments(rng, a1, a2, b1, b2);
-
-//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u, v);
-//     ASSERT_EQ(returnValue, vtkLine::NoIntersect);
-//   }
-// }
-
-// TEST(LineIntersectionAbsTol, PositiveResult) {
-//   openrand::Philox rng(generate_test_seed(), 0);
-//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
-
-//   Vector3<double> a1, a2, b1, b2;
-//   double u_expected, v_expected;
-//   double u_actual, v_actual;
-//   for (unsigned i = 0; i < nTests; i++) {
-//     generate_intersecting_line_segments(rng, a1, a2, b1, b2, u_expected, v_expected);
-
-//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u_actual, u_actual, 1.0e-06, vtkLine::Absolute);
-//     ASSERT_EQ(returnValue, vtkLine::Intersect);
-//     ASSERT_NEAR(u_expected, u_actual, TEST_DOUBLE_EPSILON);
-//     ASSERT_NEAR(v_expected, u_actual, TEST_DOUBLE_EPSILON);
-//   }
-// }
-
-// TEST(LineIntersectionAbsTol, NegativeResult) {
-//   openrand::Philox rng(generate_test_seed(), 0);
-//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
-
-//   Vector3<double> a1, a2, b1, b2;
-//   double u, v;
-//   for (unsigned i = 0; i < nTests; i++) {
-//     generate_non_intersecting_line_segments(rng, a1, a2, b1, b2);
-
-//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u, v, 1.0e-06, vtkLine::Absolute);
-//     ASSERT_EQ(returnValue, vtkLine::NoIntersect);
-//   }
-// }
-
-// TEST(LineIntersection, ColinearResult) {
-//   openrand::Philox rng(generate_test_seed(), 0);
-//   unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
-
-//   Vector3<double> a1, a2, b1, b2;
-//   double u, v;
-//   for (unsigned i = 0; i < nTests; i++) {
-//     generate_colinear_line_segments(rng, a1, a2, b1, b2);
-
-//     int returnValue = vtkLine::Intersection(a1, a2, b1, b2, u, v);
-//     ASSERT_EQ(returnValue, vtkLine::OnLine);
-//   }
-// }
-
 TEST(DistanceBetweenLines, PositiveResult) {
   openrand::Philox rng(generate_test_seed(), 0);
-  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_SEGMENT_SEGMENT_DISTANCE_NUM_SAMPLES_PER_TEST;
 
   Vector3<double> a1, a2, b1, b2, a12_expected, a12_actual, b12_expected, b12_actual;
   double u_expected, v_expected, u_actual, v_actual, dist_expected, dist_sq_actual;
@@ -455,7 +377,7 @@ TEST(DistanceBetweenLines, PositiveResult) {
 
 TEST(DistanceBetweenLineSegments, PositiveResult) {
   openrand::Philox rng(generate_test_seed(), 0);
-  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_SEGMENT_SEGMENT_DISTANCE_NUM_SAMPLES_PER_TEST;
 
   Vector3<double> a1, a2, b1, b2, a12_expected, a12_actual, b12_expected, b12_actual;
   double u_expected, v_expected, u_actual, v_actual, dist_expected, dist_sq_actual;
@@ -508,7 +430,7 @@ TEST(DistanceBetweenLineSegments, APeskyEdgeCase) {
 
 TEST(DistanceToLine, PositiveResult) {
   openrand::Philox rng(generate_test_seed(), 0);
-  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_DISTANCE_NUM_SAMPLES_PER_TEST;
+  unsigned nTests = MUNDY_MATH_TESTS_UNIT_TESTS_SEGMENT_SEGMENT_DISTANCE_NUM_SAMPLES_PER_TEST;
 
   Vector3<double> a1, a2, a12_actual, a12_expected, p;
   double dist_expected, dist_sq_actual;
