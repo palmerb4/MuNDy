@@ -24,9 +24,11 @@
 #include <algorithm>  // for std::copy_if, std::back_inserter
 #include <cassert>    // for assert
 #include <cmath>      // for std::sqrt
-#include <iostream>   // for std::cout, std::endl
-#include <span>       // for std::span
-#include <vector>     // for std::vector
+#include <fstream>
+#include <iostream>  // for std::cout, std::endl
+#include <iterator>
+#include <span>    // for std::span
+#include <vector>  // for std::vector
 
 // Trilinos libs
 #include <Kokkos_Core.hpp>                       // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
@@ -222,7 +224,7 @@ template <size_t num_node_fields, size_t num_element_fields,
           Kokkos::Array<unsigned, num_node_fields> size_of_node_fields_to_copy,
           Kokkos::Array<unsigned, num_element_fields> size_of_element_fields_to_copy, typename... NodeFieldToCopyType,
           typename... ElementFieldToCopyType>
-void subdivide_flagged_spherocylinders(stk::mesh::BulkData &bulk_data, const stk::mesh::Selector &selector,
+bool subdivide_flagged_spherocylinders(stk::mesh::BulkData &bulk_data, const stk::mesh::Selector &selector,
                                        const stk::mesh::Field<double> &coordinate_field,
                                        const stk::mesh::Field<double> &orientation_field,
                                        const stk::mesh::Field<double> &length_field,
@@ -303,9 +305,11 @@ void subdivide_flagged_spherocylinders(stk::mesh::BulkData &bulk_data, const stk
                             size_of_element_fields_to_copy>(bulk_data, selector, coordinate_field, orientation_field,
                                                             length_field, radius_field, parent_to_child_map,
                                                             node_fields_to_copy, element_fields_to_copy);
+
+  return new_element_count > 0;
 }
 
-void subdivide_flagged_spherocylinders(stk::mesh::BulkData &bulk_data, const stk::mesh::Selector &selector,
+bool subdivide_flagged_spherocylinders(stk::mesh::BulkData &bulk_data, const stk::mesh::Selector &selector,
                                        const stk::mesh::Field<double> &coordinate_field,
                                        const stk::mesh::Field<double> &orientation_field,
                                        const stk::mesh::Field<double> &length_field,
@@ -336,7 +340,8 @@ class BacteriaSim {
 #ifdef DEBUG
     // print_rank0(thing_to_print, indent_level);
     std::string indent(indent_level * 2, ' ');
-    std::cout << indent << " Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " " << thing_to_print << std::endl;
+    std::cout << indent << " Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " " << thing_to_print
+              << std::endl;
 #endif
   }
 
@@ -359,10 +364,13 @@ class BacteriaSim {
     bacteria_initial_length_ = param_list_.get<double>("bacteria_initial_length");
     bacteria_division_length_ = param_list_.get<double>("bacteria_division_length");
     bacteria_growth_rate_ = param_list_.get<double>("bacteria_growth_rate");
+    number_of_bacteria_ = param_list_.get<int>("number_of_bacteria");
 
     bacteria_density_ = param_list_.get<double>("bacteria_density");
     bacteria_youngs_modulus_ = param_list_.get<double>("bacteria_youngs_modulus");
     bacteria_poissons_ratio_ = param_list_.get<double>("bacteria_poissons_ratio");
+
+    buffer_distance_ = param_list_.get<double>("buffer_distance");
 
     num_time_steps_ = param_list_.get<int>("num_time_steps");
     timestep_size_ = param_list_.get<double>("timestep_size");
@@ -384,6 +392,8 @@ class BacteriaSim {
                        "bacteria_youngs_modulus_ must be greater than 0.");
     MUNDY_THROW_ASSERT(bacteria_poissons_ratio_ > 0, std::invalid_argument,
                        "bacteria_poissons_ratio_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(number_of_bacteria_ > 0, std::invalid_argument, "number_of_bacteria_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(buffer_distance_ > 0, std::invalid_argument, "buffer_distance_ must be greater than 0.");
     MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
     MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
     MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
@@ -403,6 +413,7 @@ class BacteriaSim {
       std::cout << "  bacteria_youngs_modulus_: " << bacteria_youngs_modulus_ << std::endl;
       std::cout << "  bacteria_poissons_ratio_: " << bacteria_poissons_ratio_ << std::endl;
       std::cout << "  bacteria_density_: " << bacteria_density_ << std::endl;
+      std::cout << "  number_of_bacteria_: " << number_of_bacteria_ << std::endl;
       std::cout << "  num_time_steps_: " << num_time_steps_ << std::endl;
       std::cout << "  timestep_size_: " << timestep_size_ << std::endl;
       std::cout << "  io_frequency_: " << io_frequency_ << std::endl;
@@ -445,8 +456,9 @@ class BacteriaSim {
         .add_field_reqs<double>("ELEMENT_LENGTH", element_rank_, 1, 1)
         .add_field_reqs<double>("ELEMENT_YOUNGS_MODULUS", element_rank_, 1, 1)
         .add_field_reqs<double>("ELEMENT_POISSONS_RATIO", element_rank_, 1, 1)
-        .add_field_reqs<int>("ELEMENT_MARKED_FOR_DIVISION", element_rank_, 1, 1);
-
+        .add_field_reqs<int>("ELEMENT_MARKED_FOR_DIVISION", element_rank_, 1, 1)
+        .add_field_reqs<double>("ELEMENT_AABB_DISPLACEMENT", element_rank_, 6, 1);
+    mesh_reqs_ptr_->add_field_reqs<double>("ELEMENT_AABB", element_rank_, 6, 2);
     mesh_reqs_ptr_->add_and_sync_part_reqs(bacteria_part_reqs);
     mundy::shapes::Spherocylinders::add_and_sync_subpart_reqs(bacteria_part_reqs);
 
@@ -530,7 +542,7 @@ class BacteriaSim {
     // If a class doesn't have mutable parameters, we can skip setting them.
 
     // ComputeAABB mutable parameters
-    auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", 0.0);
+    auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", buffer_distance_);
     compute_aabb_ptr_->set_mutable_params(compute_aabb_mutable_params);
   }
 
@@ -568,6 +580,7 @@ class BacteriaSim {
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
     element_marked_for_division_field_ptr_ = fetch_field<int>("ELEMENT_MARKED_FOR_DIVISION", element_rank_);
     element_aabb_field_ptr_ = fetch_field<double>("ELEMENT_AABB", element_rank_);
+    element_aabb_displacement_field_ptr_ = fetch_field<double>("ELEMENT_AABB_DISPLACEMENT", element_rank_);
 
     linker_potential_force_field_ptr_ = fetch_field<double>("LINKER_POTENTIAL_FORCE", constraint_rank_);
 
@@ -607,40 +620,44 @@ class BacteriaSim {
     // Declare the bacteria on rank 0
     bulk_data_ptr_->modification_begin();
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
-      stk::mesh::Entity bacteria_node =
-          bulk_data_ptr_->declare_entity(stk::topology::NODE_RANK, 1, stk::mesh::PartVector{bacteria_part_ptr_});
-      stk::mesh::Entity bacteria =
-          bulk_data_ptr_->declare_entity(stk::topology::ELEMENT_RANK, 1, stk::mesh::PartVector{bacteria_part_ptr_});
-      bulk_data_ptr_->declare_relation(bacteria, bacteria_node, 0);
+      for (int i = 1; i < number_of_bacteria_ + 1; i++) {
+        stk::mesh::Entity bacteria_node =
+            bulk_data_ptr_->declare_entity(stk::topology::NODE_RANK, i, stk::mesh::PartVector{bacteria_part_ptr_});
+        stk::mesh::Entity bacteria =
+            bulk_data_ptr_->declare_entity(stk::topology::ELEMENT_RANK, i, stk::mesh::PartVector{bacteria_part_ptr_});
+        bulk_data_ptr_->declare_relation(bacteria, bacteria_node, 0);
+      }
     }
     bulk_data_ptr_->modification_end();
 
     // Initialize it
     if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
-      stk::mesh::Entity bacteria_node = bulk_data_ptr_->get_entity(stk::topology::NODE_RANK, 1);
-      stk::mesh::Entity bacteria = bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK, 1);
+      for (int i = 1; i < number_of_bacteria_ + 1; i++) {
+        stk::mesh::Entity bacteria_node = bulk_data_ptr_->get_entity(stk::topology::NODE_RANK, i);
+        stk::mesh::Entity bacteria = bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK, i);
 
-      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(bacteria_node), std::invalid_argument,
-                         "Bacteria node is not valid.");
-      MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(bacteria), std::invalid_argument, "Bacteria element is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(bacteria_node), std::invalid_argument,
+                           "Bacteria node is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(bacteria), std::invalid_argument, "Bacteria element is not valid.");
 
-      stk::mesh::field_data(*node_rng_counter_field_ptr_, bacteria_node)[0] = 0;
-      mundy::mesh::vector3_field_data(*node_coord_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-      mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-      mundy::mesh::vector3_field_data(*node_omega_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-      mundy::mesh::vector3_field_data(*node_force_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
-      mundy::mesh::vector3_field_data(*node_torque_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+        stk::mesh::field_data(*node_rng_counter_field_ptr_, bacteria_node)[0] = 0;
+        mundy::mesh::vector3_field_data(*node_coord_field_ptr_, bacteria_node).set(i * 1000.0, 0.0, 0.0);
+        mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+        mundy::mesh::vector3_field_data(*node_omega_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+        mundy::mesh::vector3_field_data(*node_force_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
+        mundy::mesh::vector3_field_data(*node_torque_field_ptr_, bacteria_node).set(0.0, 0.0, 0.0);
 
-      stk::mesh::field_data(*element_radius_field_ptr_, bacteria)[0] = bacteria_radius_;
-      stk::mesh::field_data(*element_length_field_ptr_, bacteria)[0] = bacteria_initial_length_;
-      stk::mesh::field_data(*element_youngs_modulus_field_ptr_, bacteria)[0] = bacteria_youngs_modulus_;
-      stk::mesh::field_data(*element_poissons_ratio_field_ptr_, bacteria)[0] = bacteria_poissons_ratio_;
+        stk::mesh::field_data(*element_radius_field_ptr_, bacteria)[0] = bacteria_radius_;
+        stk::mesh::field_data(*element_length_field_ptr_, bacteria)[0] = bacteria_initial_length_;
+        stk::mesh::field_data(*element_youngs_modulus_field_ptr_, bacteria)[0] = bacteria_youngs_modulus_;
+        stk::mesh::field_data(*element_poissons_ratio_field_ptr_, bacteria)[0] = bacteria_poissons_ratio_;
 
-      mundy::math::Vector3<double> current_tangent(1.0, 0.0, 0.0);
-      mundy::math::Vector3<double> x_axis(1.0, 0.0, 0.0);
-      mundy::mesh::quaternion_field_data(*element_orientation_field_ptr_, bacteria) =
-          mundy::math::quat_from_parallel_transport(x_axis, current_tangent);
-      mundy::mesh::vector3_field_data(*element_tangent_field_ptr_, bacteria) = current_tangent;
+        mundy::math::Vector3<double> current_tangent(1.0, 0.0, 0.0);
+        mundy::math::Vector3<double> x_axis(1.0, 0.0, 0.0);
+        mundy::mesh::quaternion_field_data(*element_orientation_field_ptr_, bacteria) =
+            mundy::math::quat_from_parallel_transport(x_axis, current_tangent);
+        mundy::mesh::vector3_field_data(*element_tangent_field_ptr_, bacteria) = current_tangent;
+      }
     }
   }
 
@@ -664,15 +681,92 @@ class BacteriaSim {
                                                       std::array<double, 3>{0.0, 0.0, 0.0});
   }
 
-  void compute_hertzian_contact_force_and_torque() {
+  void update_accumulators() {
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_aabb_field_old = element_aabb_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_aabb_displacement_field_ptr_;
+
+    // Update the accumulators based on the difference to the previous state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *bacteria_part_ptr_,
+        [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_aabb = stk::mesh::field_data(element_aabb_field, aabb_entity);
+          double *element_aabb_old = stk::mesh::field_data(element_aabb_field_old, aabb_entity);
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Add the (new_aabb - old_aabb) to the corner displacement
+          element_corner_displacement[0] += element_aabb[0] - element_aabb_old[0];
+          element_corner_displacement[1] += element_aabb[1] - element_aabb_old[1];
+          element_corner_displacement[2] += element_aabb[2] - element_aabb_old[2];
+          element_corner_displacement[3] += element_aabb[3] - element_aabb_old[3];
+          element_corner_displacement[4] += element_aabb[4] - element_aabb_old[4];
+          element_corner_displacement[5] += element_aabb[5] - element_aabb_old[5];
+        });
+  }
+
+  void check_update_neighbor_list() {
+    // Local variable for if we should update the neighbor list (do as an integer for now because MPI doesn't like
+    // bools)
+    int local_update_neighbor_list_int = 0;
+
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_aabb_displacement_field_ptr_;
+    const double buffer_distance_sqr = buffer_distance_ * buffer_distance_;
+
+    // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *bacteria_part_ptr_,
+        [&local_update_neighbor_list_int, &buffer_distance_sqr, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Compute dr2 for each corner
+          double dr2_corner0 = element_corner_displacement[0] * element_corner_displacement[0] +
+                               element_corner_displacement[1] * element_corner_displacement[1] +
+                               element_corner_displacement[2] * element_corner_displacement[2];
+          double dr2_corner1 = element_corner_displacement[3] * element_corner_displacement[3] +
+                               element_corner_displacement[4] * element_corner_displacement[4] +
+                               element_corner_displacement[5] * element_corner_displacement[5];
+
+          if (dr2_corner0 >= buffer_distance_sqr || dr2_corner1 >= buffer_distance_sqr) {
+#pragma omp write
+            local_update_neighbor_list_int = 1;
+          }
+        });
+
+    // Communicate local_update_neighbor_list to all ranks. Convert to an integer first (MPI doesn't handle booleans
+    // well).
+    int global_update_neighbor_list_int = 0;
+    MPI_Allreduce(&local_update_neighbor_list_int, &global_update_neighbor_list_int, 1, MPI_INT, MPI_LOR,
+                  MPI_COMM_WORLD);
+    // Convert back to the boolean for the global version and or it with the original value (in case somebody else set
+    // the neighbor list update 'signal').
+    update_neighbor_list_ = update_neighbor_list_ || (global_update_neighbor_list_int == 1);
+  }
+
+  void zero_out_accumulator_fields() {
+    mundy::mesh::utils::fill_field_with_value<double>(*element_aabb_displacement_field_ptr_,
+                                                      std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+  }
+
+  void compute_hertzian_contact_force_and_torque(std::vector<double> &nel_times, std::vector<double> &force_times) {
     debug_print("Computing the Hertzian contact force and torque.");
 
+    // Compute the AABBs for the rods
+    debug_print("Computing the AABBs for the rods.");
+    compute_aabb_ptr_->execute(*bacteria_part_ptr_);
+    check_update_neighbor_list();
+
+    double nl_start = 0.0, nl_end = 0.0;
+    double force_start = 0.0, force_end = 0.0;
+
     // Check if the rod-rod neighbor list needs updated or not
-    bool rod_rod_neighbor_list_needs_updated = true;
-    if (rod_rod_neighbor_list_needs_updated) {
-      // Compute the AABBs for the rods
-      debug_print("Computing the AABBs for the rods.");
-      compute_aabb_ptr_->execute(*bacteria_part_ptr_);
+    if (update_neighbor_list_) {
+      nl_start = MPI_Wtime();
+
+      zero_out_accumulator_fields();
 
       // Delete rod-rod neighbor linkers that are too far apart
       debug_print("Deleting rod-rod neighbor linkers that are too far apart.");
@@ -685,7 +779,14 @@ class BacteriaSim {
       Kokkos::Timer timer1;
       generate_neighbor_linkers_ptr_->execute(*bacteria_part_ptr_, *bacteria_part_ptr_);
       debug_print("Time to generate neighbor linkers: " + std::to_string(timer1.seconds()));
+
+      update_neighbor_list_ = false;
+
+      nl_end = MPI_Wtime();
+      nel_times.at(timestep_index_) = nl_end - nl_start;
     }
+
+    force_start = MPI_Wtime();
 
     // Hertzian contact force evaluation
     // Compute the signed separation distance and contact normal between neighboring rods
@@ -699,6 +800,10 @@ class BacteriaSim {
     // Sum the linker potential force to get the induced node force on each rod
     debug_print("Summing the linker potential force to get the induced node force on each rod.");
     linker_potential_force_reduction_ptr_->execute(*bacteria_part_ptr_);
+
+    force_end = MPI_Wtime();
+
+    force_times.at(timestep_index_) = force_end - force_start;
   }
 
   void compute_generalized_velocity() {
@@ -760,7 +865,7 @@ class BacteriaSim {
     const stk::mesh::Field<double> &node_omega_field_old = node_omega_field_ptr_->field_of_state(stk::mesh::StateN);
     const double timestep_size = timestep_size_;
 
-   // Update the generalized position using Euler's method
+    // Update the generalized position using Euler's method
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
         [&node_coord_field, &node_coord_field_old, &node_velocity_field_old, &element_orientation_field,
@@ -852,11 +957,14 @@ class BacteriaSim {
         make_ref_tuple(*element_youngs_modulus_field_ptr_, *element_poissons_ratio_field_ptr_,
                        *element_marked_for_division_field_ptr_);
     const int divide_flag_value = 1;
-    subdivide_flagged_spherocylinders<num_node_fields, num_element_fields, size_of_node_fields_to_copy,
-                                      size_of_element_fields_to_copy>(
-        *bulk_data_ptr_, *bacteria_part_ptr_, *node_coord_field_ptr_, *element_orientation_field_ptr_,
-        *element_length_field_ptr_, *element_radius_field_ptr_, *element_marked_for_division_field_ptr_,
-        divide_flag_value, extra_node_fields_to_copy, extra_element_fields_to_copy);
+    const bool division_occurred =
+        subdivide_flagged_spherocylinders<num_node_fields, num_element_fields, size_of_node_fields_to_copy,
+                                          size_of_element_fields_to_copy>(
+            *bulk_data_ptr_, *bacteria_part_ptr_, *node_coord_field_ptr_, *element_orientation_field_ptr_,
+            *element_length_field_ptr_, *element_radius_field_ptr_, *element_marked_for_division_field_ptr_,
+            divide_flag_value, extra_node_fields_to_copy, extra_element_fields_to_copy);
+
+    update_neighbor_list_ = division_occurred;
 
     // Loop over all particles and apply a small random orientational kick to any that divided
     // This is independent of the parent-child relationship.
@@ -903,7 +1011,8 @@ class BacteriaSim {
         });
   }
 
-  void run(int argc, char **argv) {
+  void run(int argc, char **argv, std::vector<double> &growth_times, std::vector<double> &nel_times,
+           std::vector<double> &force_times) {
     debug_print("Running the simulation.");
 
     // Preprocess
@@ -917,9 +1026,15 @@ class BacteriaSim {
     declare_and_initialize_bacteria();
     setup_io();
 
+    growth_times.resize(num_time_steps_);
+    nel_times.resize(num_time_steps_);
+    force_times.resize(num_time_steps_);
+
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    double start = MPI_Wtime();
     Kokkos::Timer timer;
     for (; timestep_index_ < num_time_steps_; timestep_index_++) {
       debug_print(std::string("Time step ") + std::to_string(timestep_index_) + " of " +
@@ -938,16 +1053,25 @@ class BacteriaSim {
         zero_out_transient_node_fields();
       }
 
+      // time division
       // Growth then division
       {
+        // MPI_Barrier(MPI_COMM_WORLD);
+        double growth_start = MPI_Wtime();
+
         divide_bacteria();
         grow_bacteria();
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+        double growth_end = MPI_Wtime();
+        growth_times.at(timestep_index_) = growth_end - growth_start;
       }
 
+      // time neighbor list and force computations
       // Evaluate forces f(x(t + dt)).
       {
         // Hertzian contact force
-        compute_hertzian_contact_force_and_torque();
+        compute_hertzian_contact_force_and_torque(nel_times, force_times);
       }
 
       // Compute velocity v(x(t+dt))
@@ -955,10 +1079,10 @@ class BacteriaSim {
         // Compute the current velocity from the current forces.
         compute_generalized_velocity();
       }
-
       // Load balance
       if (timestep_index_ % load_balance_frequency_ == 0) {
-        // load_balance();
+        std::cout << "load balancing on proc " << stk::parallel_machine_rank(MPI_COMM_WORLD) << "\n";
+        load_balance();
       }
 
       // IO. If desired, write out the data for time t.
@@ -967,10 +1091,17 @@ class BacteriaSim {
 
         // Some fields are only needed for I/O, so we only compute them when we need to write out the data.
         // So far, this is just the element tangent
-        update_element_tangent();
+        // update_element_tangent();
 
-        io_broker_ptr_->write_io_broker_timestep(timestep_index_, static_cast<double>(timestep_index_));
+        // io_broker_ptr_->write_io_broker_timestep(timestep_index_, static_cast<double>(timestep_index_));
       }
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    double end = MPI_Wtime();
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      std::cout << "(nproc = " << stk::parallel_machine_size(MPI_COMM_WORLD);
+      std::cout << ") time: " << end - start << "\n";
     }
 
     // Do a synchronize to force everybody to stop here, then write the time
@@ -1000,6 +1131,8 @@ class BacteriaSim {
   std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_;
   size_t output_file_index_;
   size_t timestep_index_ = 0;
+  size_t number_of_bacteria_;
+  bool update_neighbor_list_;
   //@}
 
   //! \name Class instances
@@ -1036,6 +1169,7 @@ class BacteriaSim {
   stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
   stk::mesh::Field<int> *element_marked_for_division_field_ptr_;
+  stk::mesh::Field<double> *element_aabb_displacement_field_ptr_;
 
   stk::mesh::Field<double> *linker_potential_force_field_ptr_;
   //@}
@@ -1087,6 +1221,8 @@ class BacteriaSim {
   double bacteria_poissons_ratio_ = 0.3;
   double bacteria_density_ = 1.0;
 
+  double buffer_distance_ = bacteria_radius_;
+
   double viscosity_ = 1;
 
   double timestep_size_ = 1e-3;
@@ -1101,11 +1237,29 @@ int main(int argc, char **argv) {
   stk::parallel_machine_init(&argc, &argv);
   Kokkos::initialize(argc, argv);
 
+  // initialize things for timing.
+  // space is reserved inside the run function since that is where number of time steps is defined
+  std::ofstream growth_file("./growth_times-" + std::to_string(omp_get_max_threads()) + ".txt");
+  std::vector<double> growth_times;
+  std::ofstream nel_file("./nel_times-" + std::to_string(omp_get_max_threads()) + ".txt");
+  std::vector<double> nel_times;
+  std::ofstream force_file("./force_times-" + std::to_string(omp_get_max_threads()) + ".txt");
+  std::vector<double> force_times;
+
   // Run the simulation using the given parameters
-  BacteriaSim().run(argc, argv);
+  BacteriaSim().run(argc, argv, growth_times, nel_times, force_times);
+
+  // write out time to files at the end
+  std::ostream_iterator<double> growth_iterator(growth_file, "\n");
+  std::copy(std::begin(growth_times), std::end(growth_times), growth_iterator);
+  std::ostream_iterator<double> nel_iterator(nel_file, "\n");
+  std::copy(std::begin(nel_times), std::end(nel_times), nel_iterator);
+  std::ostream_iterator<double> force_iterator(force_file, "\n");
+  std::copy(std::begin(force_times), std::end(force_times), force_iterator);
 
   // Finalize MPI
   Kokkos::finalize();
   stk::parallel_machine_finalize();
+
   return 0;
 }
