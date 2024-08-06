@@ -169,22 +169,13 @@ void subdivide_spherocylinder_segments(
         const size_t child_map_index = child_to_parent_map.find(child);
         const bool valid_child_index = child_to_parent_map.valid_at(child_map_index);
         if (valid_child_index) {
-          // std::cout << "grabbing from child_child_map:\n";
-          // std::cout << "child is valid: " << std::boolalpha << bulk_data.is_valid(child) << "\n";
-          // std::cout << "child identifier: " << bulk_data.identifier (child) << "\n";
-          // std::cout << "child map index: " << child_map_index << "\n";
-          // std::cout << "valid child index: " << std::boolalpha << valid_child_index << "\n";
-
           // The parent becomes the left spherocylinder segment and the child becomes the right.
           // Fetch the downward connections.
           const stk::mesh::Entity &parent = child_to_parent_map.value_at(child_map_index);
-          // std::cout << "child is valid: " << bulk_data.is_valid(child) << "\n";
           const stk::mesh::Entity &parent_left_node = bulk_data.begin_nodes(parent)[0];
           const stk::mesh::Entity &parent_right_node = bulk_data.begin_nodes(parent)[1];
-          // std::cout << "parent node is valid: " << bulk_data.is_valid(parent_node) << "\n";
           const stk::mesh::Entity &child_left_node = bulk_data.begin_nodes(child)[0];
           const stk::mesh::Entity &child_right_node = bulk_data.begin_nodes(child)[1];
-          // std::cout << "child node is valid: " << bulk_data.is_valid(child_node) << "\n";
 
           // Copy the parent's fields to the children
           copy_entity_fields<num_node_fields, size_of_node_fields_to_copy>(parent_left_node, child_left_node,
@@ -194,12 +185,10 @@ void subdivide_spherocylinder_segments(
           copy_entity_fields<num_element_fields, size_of_element_fields_to_copy>(parent, child, element_fields_to_copy);
 
           // Compute the position of the new node
-          // o-----n-----o -> o--n--o o--n--o
-          // To prevent overlap, the position of the center nodes are offset by the element radius.
-          //
-          // At this point, the children have the same fields as the parent. The only think that needs updated is
-          // their length and coordinates. Length of children is parent length / 2 - parent radius Center of
-          // children is parent center +/- parent tangent * (parent radius - child length / 2)
+          // n----n -> n----N----n
+          // Parents and children share a common node (N).  The child spherocylinder segment is aligned with the parent,
+          // so it's position will be 2 lengths (parent_right_node_coords - parent_left_node_coords) added to the
+          // left parent node with an orientation given by parent_right_node_coords - parent_left_node_coords.
 
           auto parent_left_node_coords = mundy::mesh::vector3_field_data(coordinate_field, parent_left_node);
           auto parent_right_node_coords = mundy::mesh::vector3_field_data(coordinate_field, parent_right_node);
@@ -208,8 +197,6 @@ void subdivide_spherocylinder_segments(
           const double parent_radius = stk::mesh::field_data(radius_field, parent)[0];
           stk::mesh::field_data(radius_field, child)[0] = parent_radius;
 
-          // const auto center_offset = parent_tangent * parent_length;
-          // child_node_coords = parent_node_coords + center_offset;
           child_right_node_coords = parent_left_node_coords + (parent_right_node_coords - parent_left_node_coords) * 2;
         }
       });
@@ -279,6 +266,7 @@ void subdivide_flagged_spherocylinder_segments(stk::mesh::BulkData &bulk_data, c
   Kokkos::UnorderedMap<stk::mesh::Entity, stk::mesh::Entity> child_to_parent_map(new_element_count);
   for (size_t i = 0; i < num_entities_to_maybe_divide; i++) {
     if (should_divide[i]) {
+      // Fetch the parent and child and their downward connections
       const stk::mesh::Entity &parent = entities_to_maybe_divide[i];
       const stk::mesh::Entity &parent_node = bulk_data.begin_nodes(parent)[1];
       const size_t child_lid = parent_lid_to_child_lid[i];
@@ -289,22 +277,6 @@ void subdivide_flagged_spherocylinder_segments(stk::mesh::BulkData &bulk_data, c
       MUNDY_THROW_ASSERT(bulk_data.is_valid(parent_node), std::invalid_argument, "Parent node is not valid.");
       MUNDY_THROW_ASSERT(bulk_data.is_valid(child), std::invalid_argument, "Child entity is not valid.");
       MUNDY_THROW_ASSERT(bulk_data.is_valid(child_node), std::invalid_argument, "Child node is not valid.");
-
-      // std::cout << "parent is valid: " << bulk_data.is_valid(parent) << "\n";
-      // std::cout << "parent id: " << bulk_data.identifier(parent) << "\n";
-      // std::cout << "parent rank: " << bulk_data.entity_rank(parent) << "\n";
-
-      // std::cout << "parent node is valid: " << bulk_data.is_valid(parent_node) << "\n";
-      // std::cout << "parent node id: " << bulk_data.identifier(parent_node) << "\n";
-      // std::cout << "parent node rank: " << bulk_data.entity_rank(parent_node) << "\n";
-
-      // std::cout << "child is valid: " << bulk_data.is_valid(child) << "\n";
-      // std::cout << "child id: " << bulk_data.identifier(child) << "\n";
-      // std::cout << "child rank: " << bulk_data.entity_rank(child) << "\n";
-
-      // std::cout << "child node is valid: " << bulk_data.is_valid(child_node) << "\n";
-      // std::cout << "child node id: " << bulk_data.identifier(child_node) << "\n";
-      // std::cout << "child node rank: " << bulk_data.entity_rank(child_node) << "\n";
 
       // Connect the child to its node
       bulk_data.declare_relation(child, parent_node, 0);
@@ -323,13 +295,6 @@ void subdivide_flagged_spherocylinder_segments(stk::mesh::BulkData &bulk_data, c
       // Store the child to parent map
       bool kv_insert_success = child_to_parent_map.insert(child, parent).success();
       assert(kv_insert_success == true);
-      const size_t child_map_index = child_to_parent_map.find(child);
-      const bool valid_child_index = child_to_parent_map.valid_at(child_map_index);
-      // std::cout << "after insertion:\n";
-      // std::cout << "child is valid: " << std::boolalpha << bulk_data.is_valid(child) << "\n";
-      // std::cout << "child identifier: " << bulk_data.identifier (child) << "\n";
-      // std::cout << "child map index: " << child_map_index << "\n";
-      // std::cout << "valid child index: " << std::boolalpha << valid_child_index << "\n";
     }
   }
 
@@ -700,15 +665,18 @@ class FilamentSim {
       MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(filament), std::invalid_argument, "Filament element is not valid.");
 
       stk::mesh::field_data(*node_rng_counter_field_ptr_, filament_node1)[0] = 0;
-      mundy::mesh::vector3_field_data(*node_coord_field_ptr_, filament_node1).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_coord_field_ptr_, filament_node1).set(1.0, 1.0, 1.0);
+      std::cout << "node1 coords after init: "
+                << mundy::mesh::vector3_field_data(*node_coord_field_ptr_, filament_node1) << "\n";
       mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, filament_node1).set(0.0, 0.0, 0.0);
       mundy::mesh::vector3_field_data(*node_omega_field_ptr_, filament_node1).set(0.0, 0.0, 0.0);
       mundy::mesh::vector3_field_data(*node_force_field_ptr_, filament_node1).set(0.0, 0.0, 0.0);
       mundy::mesh::vector3_field_data(*node_torque_field_ptr_, filament_node1).set(0.0, 0.0, 0.0);
 
       stk::mesh::field_data(*node_rng_counter_field_ptr_, filament_node2)[0] = 0;
-      mundy::mesh::vector3_field_data(*node_coord_field_ptr_, filament_node2).set(filament_initial_length_, 0.0, 0.0);
-      mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, filament_node2).set(0.0, 0.0, 0.0);
+      mundy::mesh::vector3_field_data(*node_coord_field_ptr_, filament_node2)
+          .set(1.0 + filament_initial_length_, 1.0, 1.0);
+      mundy::mesh::vector3_field_data(*node_velocity_field_ptr_, filament_node2).set(filament_growth_rate_, 0.0, 0.0);
       mundy::mesh::vector3_field_data(*node_omega_field_ptr_, filament_node2).set(0.0, 0.0, 0.0);
       mundy::mesh::vector3_field_data(*node_force_field_ptr_, filament_node2).set(0.0, 0.0, 0.0);
       mundy::mesh::vector3_field_data(*node_torque_field_ptr_, filament_node2).set(0.0, 0.0, 0.0);
@@ -746,6 +714,7 @@ class FilamentSim {
                                                       std::array<double, 3>{0.0, 0.0, 0.0});
   }
 
+  // this is also node used right now in the simulation.  there are no force calculations
   void compute_hertzian_contact_force_and_torque() {
     debug_print("Computing the Hertzian contact force and torque.");
 
@@ -785,33 +754,53 @@ class FilamentSim {
 
   void compute_generalized_velocity() {
     debug_print("Computing the generalized velocity using the mobility problem.");
-
-    // For us, we consider dry local drag with mass lumping at the nodes. This diagonalized the mobility problem and
-    // makes each node independent, coupled only through the internal and constraint forces. The mobility problem is
-    //
-    // \dot{x}(t) = f(t) / (6 pi viscosity r)
-    // omega(t) = torque(t) / (8 pi viscosity r^3)
-
-    // Get references to internal members so we aren't passing around *this
+    // the velocity is constant, with magnitude given by filament_growth_rate_.
+    // the direction is along the tangent unless a boundary is hit, and then it is
+    // the inward normal of the spherical boundary at the hit point
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
-    const double viscosity = viscosity_;
+    stk::mesh::Field<size_t> &node_rng_counter_field = *node_rng_counter_field_ptr_;
+    const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    stk::mesh::Field<double> &element_tangent_field = *element_tangent_field_ptr_;
     const double filament_growth_rate = filament_growth_rate_;
+    const double boundary_radius = boundary_radius_;
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
-        [&node_velocity_field, &filament_growth_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                      const stk::mesh::Entity &element) {
+        [&node_coord_field, &node_velocity_field, &node_rng_counter_field, &element_radius_field,
+         &element_tangent_field, &filament_growth_rate,
+         &boundary_radius]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
           // Fetch the connected node. Only the right node moves
           const stk::mesh::Entity node1 = bulk_data.begin_nodes(element)[0];
           const stk::mesh::Entity node2 = bulk_data.begin_nodes(element)[1];
 
-          // Get the output fields
-          auto node1_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node1);
+          // Get node coordinates and velocities
+          auto node2_coords = mundy::mesh::vector3_field_data(node_coord_field, node2);
           auto node2_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node2);
+          // Get element tangent to serve as the direction of velocity
+          auto element_tangent = mundy::mesh::vector3_field_data(element_tangent_field, element);
 
-          // Compute the generalized velocity
-          node1_velocity = 0.0;
-          node2_velocity = filament_growth_rate;
+          size_t *node_rng_counter = stk::mesh::field_data(node_rng_counter_field, node2);
+          const size_t node_gid = bulk_data.identifier(node2);
+          openrand::Philox rng(node_gid, node_rng_counter[0]);
+
+          // Apply a very small random orientational kick to keep filament from growing in a circle
+          const double max_kick = 0.8;
+          element_tangent[0] += max_kick * (rng.rand<double>());
+          element_tangent[1] -= max_kick * (rng.rand<double>());
+          element_tangent[2] += max_kick * (rng.rand<double>());
+          node_rng_counter[0] += 1;
+
+          node2_velocity = filament_growth_rate * element_tangent;
+
+          // Assume the filament is growing inside a sphere, so check if the filament has crossed the boundary.
+          const double distance_from_origin = sqrt(mundy::math::dot(node2_coords, node2_coords));
+          const double element_radius = stk::mesh::field_data(element_radius_field, element)[0];
+          if (distance_from_origin + element_radius > boundary_radius) {
+            // then adjust the positions and velocities of the node
+            auto normal = node2_coords / distance_from_origin;
+            node2_velocity -= 2 * mundy::math::dot(node2_velocity, normal) * normal;
+          }
         });
   }
 
@@ -841,21 +830,22 @@ class FilamentSim {
           const stk::mesh::Entity node2 = bulk_data.begin_nodes(element)[1];
 
           // Get node coordinates and velocities
+          auto node1_coords = mundy::mesh::vector3_field_data(node_coord_field, node1);
+          auto node1_coords_old = mundy::mesh::vector3_field_data(node_coord_field_old, node1);
           auto node2_coords = mundy::mesh::vector3_field_data(node_coord_field, node2);
-          auto node2_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node2);
+          auto node2_coords_old = mundy::mesh::vector3_field_data(node_coord_field_old, node2);
           auto node2_velocity_old = mundy::mesh::vector3_field_data(node_velocity_field_old, node2);
 
           // Update the position
-          node2_coords =
-              mundy::mesh::vector3_field_data(node_coord_field_old, node2) + timestep_size * node2_velocity_old;
+          node1_coords = node1_coords_old;
+          node2_coords = node2_coords_old + timestep_size * node2_velocity_old;
 
           // Assume the filament is growing inside a sphere, so check if the filament has crossed the boundary.
           const double distance_from_origin = sqrt(mundy::math::dot(node2_coords, node2_coords));
           const double element_radius = stk::mesh::field_data(element_radius_field, element)[0];
           if (distance_from_origin + element_radius > boundary_radius) {
-            // then adjust the positions and velocities of the node
+            // then adjust the positions of the node
             auto normal = node2_coords / distance_from_origin;
-            node2_velocity -= 2 * mundy::math::dot(node2_velocity_old, normal) * normal;
             double overlap = distance_from_origin + element_radius - boundary_radius;
             node2_coords -= normal * overlap;
           }
@@ -863,8 +853,7 @@ class FilamentSim {
           auto element_tangent = mundy::mesh::vector3_field_data(element_tangent_field, element);
           auto element_length = mundy::mesh::vector3_field_data(element_length_field, element)[0];
 
-          // Compute the tangent
-          const auto node1_coords = mundy::mesh::vector3_field_data(node_coord_field_old, node1);
+          // Compute the tangent and length
           const auto separation_vector = node2_coords - node1_coords;
           const double separation_distance = sqrt(mundy::math::dot(separation_vector, separation_vector));
           const auto unit_tangent = separation_vector / separation_distance;
@@ -933,6 +922,7 @@ class FilamentSim {
         extra_node_fields_to_copy, extra_element_fields_to_copy);
   }
 
+  // not really needed since tangent is updated in each node coordinate update
   void update_element_tangent() {
     // Get references to internal members so we aren't passing around *this
     const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
@@ -1024,7 +1014,7 @@ class FilamentSim {
       // IO. If desired, write out the data for time t.
       if (timestep_index_ % io_frequency_ == 0) {
         std::cout << "Time step " << timestep_index_ << " of " << num_time_steps_ << std::endl;
-        update_element_tangent();
+        // update_element_tangent();
         io_broker_ptr_->write_io_broker_timestep(timestep_index_, static_cast<double>(timestep_index_));
       }
     }

@@ -12,7 +12,7 @@ FilamentSim:
   filament_normal_damping_coeff: 1.0
   filament_tang_damping_coeff: 1.0
 
-  num_time_steps: 4000000 #1000000000
+  num_time_steps: 20000000 #1000000000
   timestep_size: 1e-5
   io_frequency: 50000
   load_balance_frequency: 500000
