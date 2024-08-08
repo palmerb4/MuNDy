@@ -87,27 +87,41 @@ size_t hilbert_3d(size_t s, size_t i, std::vector<mundy::math::Vector3<double>> 
 
 /// \brief Create a 3D Hilbert curve with a given number of links.
 std::tuple<std::vector<mundy::math::Vector3<double>>, std::vector<mundy::math::Vector3<double>>>
-create_hilbert_positions_and_directors(size_t num_links) {
-  MUNDY_THROW_ASSERT(num_links > 0, std::logic_error, "num_links must be greater than 0");
+create_hilbert_positions_and_directors(size_t num_points,
+                                       mundy::math::Vector3<double> orientation = mundy::math::Vector3<double>(1.0, 0.0,
+                                                                                                               0.0),
+                                       double side_length = 1.0) {
+  MUNDY_THROW_ASSERT(num_points > 0, std::logic_error, "num_points must be greater than 0");
+  MUNDY_THROW_ASSERT(side_length > 0.0, std::logic_error, "side_length must be greater than 0");
 
   size_t num_side_points = 2;
-  while (num_side_points * num_side_points * num_side_points < num_links) {
+  while (num_side_points * num_side_points * num_side_points < num_points) {
     num_side_points *= 2;
   }
   size_t ind = 0;
   // Create a vector of 3D vectors to store the positions, and the default position
   std::vector<mundy::math::Vector3<double>> position_array(num_side_points * num_side_points * num_side_points);
   mundy::math::Vector3<double> current_position(0.0, 0.0, 0.0);
-  mundy::math::Vector3<double> dr1(1.0, 0.0, 0.0);
-  mundy::math::Vector3<double> dr2(0.0, 1.0, 0.0);
-  mundy::math::Vector3<double> dr3(0.0, 0.0, 1.0);
+  // Create a orthogonal right handed coordinate system for the cell vectors
+  mundy::math::Vector3<double> zhat(0.0, 0.0, 1.0);
+  mundy::math::Vector3<double> dr1_hat = orientation;
+  dr1_hat = dr1_hat / two_norm(dr1_hat);
+  mundy::math::Vector3<double> dr2_hat = cross(zhat, dr1_hat);
+  dr2_hat = dr2_hat / two_norm(dr2_hat);
+  mundy::math::Vector3<double> dr3_hat = cross(dr1_hat, dr2_hat);
+  dr3_hat = dr3_hat / two_norm(dr3_hat);
 
+  mundy::math::Vector3<double> dr1 = side_length * dr1_hat;
+  mundy::math::Vector3<double> dr2 = side_length * dr2_hat;
+  mundy::math::Vector3<double> dr3 = side_length * dr3_hat;
+  
   ind = hilbert_3d(num_side_points, ind, position_array, current_position, dr1, dr2, dr3);
 
   // Now create the directors array
   std::vector<mundy::math::Vector3<double>> directors(position_array.size() - 1);
   for (size_t i = 0; i < directors.size(); i++) {
     directors[i] = position_array[(i + 1) % position_array.size()] - position_array[i];
+    directors[i] = directors[i] / two_norm(directors[i]);
   }
 
   return std::make_tuple(position_array, directors);

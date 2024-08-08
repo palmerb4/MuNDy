@@ -83,6 +83,7 @@ Interactions:
 #include <mundy_linkers/GenerateNeighborLinkers.hpp>        // for mundy::linkers::GenerateNeighborLinkers
 #include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
 #include <mundy_linkers/NeighborLinkers.hpp>                // for mundy::linkers::NeighborLinkers
+#include <mundy_math/Hilbert.hpp>                           // for mundy::math::create_hilbert_positions_and_directors
 #include <mundy_math/Vector3.hpp>                           // for mundy::math::Vector3
 #include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
@@ -611,7 +612,7 @@ class HP1 {
                                                 "ELEMENT_PERFORM_STATE_CHANGE"))
             .set("coordinate_field_name", "NODE_COORDS")
             .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
-            .set("exodus_database_output_filename", "Sticky.exo")
+            .set("exodus_database_output_filename", "HP.exo")
             .set("parallel_io_mode", "hdf5")
             .set("database_purpose", "results");
     // Create the IO broker
@@ -961,6 +962,118 @@ class HP1 {
     }
   }
 
+  // Initialize the chromosomes randomly in the unit cell
+  //
+  // If we want to initialize uniformly inside a sphere packing, here are the coordinates for a given number of spheres
+  // within a bigger sphere.
+  // http://hydra.nat.uni-magdeburg.de/packing/ssp/ssp.html
+  void initialize_chromosomes_hilbert_random_unitcell() {
+    std::cout << "Initializating chromosomes as hilbert curves randomly within the unit cell as a sphere" << std::endl;
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    std::vector<mundy::math::Vector3<double>> chromosome_centers_array;
+    std::vector<double> chromosome_radii_array;
+    for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
+      std::cout << "Initializing chromosome " << ichromosome << std::endl;
+
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = num_nodes_per_chromosome * ichromosome + 1u;
+      size_t end_node_index = num_nodes_per_chromosome * (ichromosome + 1) + 1u;
+
+      // Generate a random unit vector (will be used for creating the locatino of the nodes, the random position in the
+      // unit cell will be handled later).
+      openrand::Philox rng(ichromosome, 0);
+      const double zrand = rng.rand<double>() - 1.0;
+      const double wrand = std::sqrt(1.0 - zrand * zrand);
+      const double trand = 2.0 * M_PI * rng.rand<double>();
+      mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+
+      // Once we have the number of chromosome spheres we can get the hilbert curve set up. This will be at some
+      // orientation and then have sides with a length of initial_sphere_separation_.
+      auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
+          num_nodes_per_chromosome, u_hat, initial_sphere_separation_);
+
+      // Create the local positions of the spheres
+      std::vector<mundy::math::Vector3<double>> sphere_position_array;
+      for (size_t isphere = 0; isphere < num_nodes_per_chromosome; isphere++) {
+        sphere_position_array.push_back(hilbert_position_array[isphere]);
+      }
+
+      // Figure out where the center of the chromosome is, and its radius, in its own local space
+      mundy::math::Vector3<double> r_chromosome_center_local(0.0, 0.0, 0.0);
+      double r_max = 0.0;
+      for (size_t i = 0; i < sphere_position_array.size(); i++) {
+        r_chromosome_center_local += sphere_position_array[i];
+      }
+      r_chromosome_center_local /= static_cast<double>(sphere_position_array.size());
+      for (size_t i = 0; i < sphere_position_array.size(); i++) {
+        r_max = std::max(r_max, mundy::math::two_norm(r_chromosome_center_local - sphere_position_array[i]));
+      }
+
+      // Do max_trials number of insertion attempts to get a random position and orientation within the unit cell that
+      // doesn't overlap with exiting chromosomes.
+      const size_t max_trials = 1000;
+      size_t itrial = 0;
+      bool chromosome_inserted = false;
+      while (itrial <= max_trials) {
+        // Generate a random position and orientation within the unit cell as a sphere.
+
+        // Create an adjusted length to keep the chromosome away from the wall, and inside a sphere. There is a
+        // non-sampling way to do this, but meh.
+        double adjusted_unit_cell_length = unit_cell_length_ - r_max;
+        mundy::math::Vector3<double> r_start(unit_cell_length_, unit_cell_length_, unit_cell_length_);
+        while (mundy::math::two_norm(r_start) > 0.5 * adjusted_unit_cell_length) {
+          r_start = mundy::math::Vector3<double>(
+              rng.uniform<double>(-0.5 * adjusted_unit_cell_length, 0.5 * adjusted_unit_cell_length),
+              rng.uniform<double>(-0.5 * adjusted_unit_cell_length, 0.5 * adjusted_unit_cell_length),
+              rng.uniform<double>(-0.5 * adjusted_unit_cell_length, 0.5 * adjusted_unit_cell_length));
+        }
+
+        // Check for overlaps with existing chromosomes
+        bool found_overlap = false;
+        for (size_t jchromosome = 0; jchromosome < chromosome_centers_array.size(); ++jchromosome) {
+          double r_chromosome_distance = mundy::math::two_norm(chromosome_centers_array[jchromosome] - r_start);
+          if (r_chromosome_distance < (r_max + chromosome_radii_array[jchromosome])) {
+            found_overlap = true;
+            break;
+          }
+        }
+        if (found_overlap) {
+          itrial++;
+        } else {
+          chromosome_inserted = true;
+          chromosome_centers_array.push_back(r_start);
+          chromosome_radii_array.push_back(r_max);
+          break;
+        }
+      }
+      MUNDY_THROW_ASSERT(chromosome_inserted, std::runtime_error,
+                         "Failed to insert chromosome after " << max_trials << " trials.");
+
+      // Generate all the positions along the curve due to the placement in the global space
+      std::vector<mundy::math::Vector3<double>> new_position_array;
+      for (size_t i = 0; i < sphere_position_array.size(); i++) {
+        new_position_array.push_back(chromosome_centers_array.back() + r_chromosome_center_local -
+                                     sphere_position_array[i]);
+      }
+
+      // Update the coordinates for this chromosome
+      for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = new_position_array[idx][0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = new_position_array[idx][1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = new_position_array[idx][2];
+      }
+    }
+  }
+
   // Initialize the chromatin backbone and HP1 linkers based on part membership
   //
   // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
@@ -1034,6 +1147,8 @@ class HP1 {
       initialize_chromosomes_random_unit_cell();
     } else if (initialization_type_ == "overlap_test") {
       initialize_chromosomes_overlap_test();
+    } else if (initialization_type_ == "hilbertrandomunitcell") {
+      initialize_chromosomes_hilbert_random_unitcell();
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
     }
