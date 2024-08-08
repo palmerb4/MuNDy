@@ -19,6 +19,7 @@ SET(NOINSTALLHEADERS
   include/mundy_math/Array.hpp
   include/mundy_math/distance/EllipsoidEllipsoid.hpp
   include/mundy_math/distance/SegmentSegment.hpp
+  include/mundy_math/Hilbert.hpp
   include/mundy_math/MaskedView.hpp
   include/mundy_math/Matrix3.hpp
   include/mundy_math/Matrix.hpp

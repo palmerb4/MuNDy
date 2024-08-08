@@ -75,6 +75,20 @@ KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, auto>& a,
               static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[0]);
   return result;
 }
+
+/// \brief Element-wise product
+/// \param[in] a The first vector.
+/// \param[in] b The second vector.
+template <typename U, typename T>
+KOKKOS_INLINE_FUNCTION auto element_multiply(const Vector3<U, auto>& a,
+                                             const Vector3<T, auto>& b) -> Vector3<std::common_type_t<T, U>> {
+  using CommonType = std::common_type_t<T, U>;
+  Vector3<CommonType> result;
+  result[0]= static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[0]);
+  result[1]= static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[1]);
+  result[2]= static_cast<CommonType>(a[2]) * static_cast<CommonType>(b[2]);
+  return result;
+}
 //@}
 
 //! \name Vector3<T, Accessor> views

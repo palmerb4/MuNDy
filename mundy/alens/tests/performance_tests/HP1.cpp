@@ -134,6 +134,7 @@ class HP1 {
     cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
     cmdp.setOption("log_frequency", &log_frequency_, "Number of timesteps between logging.");
     cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
+    cmdp.setOption("initialization_type", &initialization_type_, "Initialization_type.");
 
     // Unit cell/periodicity:
 #pragma TODO This will be replaced with the periphery radius and values eventually
@@ -229,6 +230,7 @@ class HP1 {
       std::cout << "  log_frequency: " << log_frequency_ << std::endl;
       std::cout << "  kT (Brownian): " << kt_brownian_ << std::endl;
       std::cout << "  kT (KMC): " << kt_kmc_ << std::endl;
+      std::cout << "  initialization_type: " << initialization_type_ << std::endl;
 
       std::cout << "UNIT CELL:" << std::endl;
       std::cout << "  box_length: " << unit_cell_length_ << std::endl;
@@ -626,8 +628,6 @@ class HP1 {
 
   // Create the chromatin backbone and HP1 crosslinkers
   void create_chromatin_backbone_and_hp1() {
-    mundy::mesh::BulkData &bulk_data = *bulk_data_ptr_;
-
     // Calculate some constants, like the total number of spheres or segments per chromosome
     const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
                                                num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
@@ -843,13 +843,130 @@ class HP1 {
         });  // for_each_entity_run
   }
 
+#pragma TODO all of the initialization should become part of the chain of springs - like initialization
+  // Initialize the chromsomes on a grid
+  void initialize_chromosomes_grid() {
+    std::cout << "Initializating chromosomes on a grid" << std::endl;
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    for (size_t j = 0; j < num_chromosomes_; j++) {
+      std::cout << "Initializing chromosome " << j << std::endl;
+      double jdouble = static_cast<double>(j);
+      mundy::math::Vector3<double> r_start(2.0 * jdouble, 0.0, 0.0);
+      mundy::math::Vector3<double> u_hat(0.0, 0.0, 1.0);
+
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+      size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+      for (size_t i = start_node_index; i < end_node_index; ++i) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        mundy::math::Vector3<double> r =
+            r_start + static_cast<double>(i - start_node_index) * initial_sphere_separation_ * u_hat;
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+      }
+    }
+  }
+
+  // Initialize the chromosomes randomly in the unit cell
+  void initialize_chromosomes_random_unit_cell() {
+    std::cout << "Initializating chromosomes randomly in unit cell" << std::endl;
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    for (size_t j = 0; j < num_chromosomes_; j++) {
+      std::cout << "Initializing chromosome " << j << std::endl;
+
+      // Find a random place within the unit cell with a random orientation for the chain.
+      openrand::Philox rng(j, 0);
+      mundy::math::Vector3<double> r_start(rng.uniform<double>(0.0, unit_cell_length_),
+                                           rng.uniform<double>(0.0, unit_cell_length_),
+                                           rng.uniform<double>(0.0, unit_cell_length_));
+      // Find a random unit vector direction
+      const double zrand = rng.rand<double>() - 1.0;
+      const double wrand = std::sqrt(1.0 - zrand * zrand);
+      const double trand = 2.0 * M_PI * rng.rand<double>();
+      mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+      size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+      for (size_t i = start_node_index; i < end_node_index; ++i) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        mundy::math::Vector3<double> r =
+            r_start + static_cast<double>(i - start_node_index) * initial_sphere_separation_ * u_hat;
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+      }
+    }
+  }
+
+  // Initialize for the overlap test
+  void initialize_chromosomes_overlap_test() {
+    std::cout << "Initializing chromosomes for the overlap test\n";
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    for (size_t j = 0; j < num_chromosomes_; j++) {
+      std::cout << "Initializing chromosome " << j << std::endl;
+
+      // Start like we are pretending to be on a grid
+      double jdouble = static_cast<double>(j);
+      mundy::math::Vector3<double> r_start(2.0 * jdouble, 0.0, 0.0);
+      mundy::math::Vector3<double> u_hat(0.0, 0.0, 1.0);
+
+      // If num_chromosomes == 2, then try to do the crosshatch for a timestep?
+      if (num_chromosomes_ == 2) {
+        if (j == 0) {
+          r_start = mundy::math::Vector3<double>(0.0, 0.0, 0.0);
+          u_hat = mundy::math::Vector3<double>(0.0, 0.0, 1.0);
+        } else if (j == 1) {
+          r_start = mundy::math::Vector3<double>(-5.0, 0.25, 5.0);
+          u_hat = mundy::math::Vector3<double>(1.0, 0.0, 0.0);
+        }
+      }
+
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+      size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+      for (size_t i = start_node_index; i < end_node_index; ++i) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        mundy::math::Vector3<double> r =
+            r_start + static_cast<double>(i - start_node_index) * initial_sphere_separation_ * u_hat;
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+      }
+    }
+  }
+
   // Initialize the chromatin backbone and HP1 linkers based on part membership
   //
   // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
   // parts.
   void initialize_chromatin_backbone_and_hp1() {
-    // Get parts for composed selectors we ar eusing
-    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    // Get parts for composed selectors we are using
     stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
     stk::mesh::Part &eh_springs_part = *eh_springs_part_ptr_;
     stk::mesh::Part &hh_springs_part = *hh_springs_part_ptr_;
@@ -910,54 +1027,15 @@ class HP1 {
           });  // for_each_entity_run
     }
 
-    // Initialize the locations of the nodes along the chain
-    //
-    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
-    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
-    for (size_t j = 0; j < num_chromosomes_; j++) {
-      std::cout << "Initializing chromosome " << j << std::endl;
-
-      // Find a random place within the unit cell with a random orientatino for the chain.
-      openrand::Philox rng(j, 0);
-      // mundy::math::Vector3<double> r_start(rng.uniform<double>(0.0, unit_cell_length_),
-      //                                      rng.uniform<double>(0.0, unit_cell_length_),
-      //                                      rng.uniform<double>(0.0, unit_cell_length_));
-      // // Find a random unit vector direction
-      // const double zrand = rng.rand<double>() - 1.0;
-      // const double wrand = std::sqrt(1.0 - zrand * zrand);
-      // const double trand = 2.0 * M_PI * rng.rand<double>();
-      // mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
-      mundy::math::Vector3<double> r_start(2.0 * j, 0.0, 0.0);
-      mundy::math::Vector3<double> u_hat(0.0, 0.0, 1.0);
-
-      // If num_chromosomes == 2, then try to do the crosshatch for a timestep?
-      // if (num_chromosomes_ == 2) {
-      //   if (j == 0) {
-      //     r_start = mundy::math::Vector3<double>(0.0, 0.0, 0.0);
-      //     u_hat = mundy::math::Vector3<double>(0.0, 0.0, 1.0);
-      //   } else if (j == 1) {
-      //     r_start = mundy::math::Vector3<double>(-5.0, 0.25, 5.0);
-      //     u_hat = mundy::math::Vector3<double>(1.0, 0.0, 0.0);
-      //   }
-      // }
-
-      // Figure out which nodes we are doing
-      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
-                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
-      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
-      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
-      size_t start_node_index = num_nodes_per_chromosome * j + 1u;
-      size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
-      for (size_t i = start_node_index; i < end_node_index; ++i) {
-        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
-        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
-
-        // Assign the node coordinates
-        mundy::math::Vector3<double> r = r_start + (i - start_node_index) * initial_sphere_separation_ * u_hat;
-        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
-        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
-        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
-      }
+    // Initialize node positions for each chromosome
+    if (initialization_type_ == "grid") {
+      initialize_chromosomes_grid();
+    } else if (initialization_type_ == "random_unit_cell") {
+      initialize_chromosomes_random_unit_cell();
+    } else if (initialization_type_ == "overlap_test") {
+      initialize_chromosomes_overlap_test();
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
     }
   }
 
@@ -1704,6 +1782,7 @@ class HP1 {
   double timestep_size_ = 0.001;
   double kt_brownian_ = 1.0;
   double kt_kmc_ = 1.0;
+  std::string initialization_type_ = "grid";
 
   // Unit cell/periodicity params
   double unit_cell_length_ = 10.0;

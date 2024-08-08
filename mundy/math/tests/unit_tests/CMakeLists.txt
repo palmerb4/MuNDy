@@ -61,5 +61,13 @@ tribits_add_executable_and_test(
       UnitTestMinimize.cpp
         ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
       )
+
+tribits_add_executable_and_test(
+  UnitTestHilbert
+  SOURCES
+  UnitTestHilbert.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1
+  )
   
 add_subdirectory(distance)
