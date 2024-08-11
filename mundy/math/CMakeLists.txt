@@ -24,8 +24,6 @@ SET(NOINSTALLHEADERS
   include/mundy_math/Matrix3.hpp
   include/mundy_math/Matrix.hpp
   include/mundy_math/minimize.hpp
-  include/mundy_math/minimize_kokkos.hpp
-  include/mundy_math/minimize_scalar_vector_make.hpp
   include/mundy_math/Quaternion.hpp
   include/mundy_math/ShiftedView.hpp
   include/mundy_math/StridedView.hpp

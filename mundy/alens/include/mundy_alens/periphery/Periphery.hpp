@@ -69,12 +69,17 @@ namespace periphery {
 /// We add those two points with weight = 0 manually.
 /// total point = (p+1)(2p+2) + north/south pole = 2p^2+4p+4
 void gen_sphere_quadrature(const int &order, const double &radius, std::vector<double> *const points_ptr,
-                           std::vector<double> *const weights_ptr, std::vector<double> *const normals_ptr) {
-  assert(order >= 0);
-  assert(radius > 0);
-  assert(points_ptr != nullptr);
-  assert(weights_ptr != nullptr);
-  assert(normals_ptr != nullptr);
+                           std::vector<double> *const weights_ptr, std::vector<double> *const normals_ptr,
+                           const bool include_poles = false,
+                           const bool invert = false) {
+  MUNDY_THROW_ASSERT(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
+  MUNDY_THROW_ASSERT(radius > 0, std::invalid_argument, "gen_sphere_quadrature: radius must be positive.");
+  MUNDY_THROW_ASSERT(points_ptr != nullptr, std::invalid_argument,
+                     "gen_sphere_quadrature: points_ptr must be non-null.");
+  MUNDY_THROW_ASSERT(weights_ptr != nullptr, std::invalid_argument,
+                     "gen_sphere_quadrature: weights_ptr must be non-null.");
+  MUNDY_THROW_ASSERT(normals_ptr != nullptr, std::invalid_argument,
+                     "gen_sphere_quadrature: normals_ptr must be non-null.");
 
   // Get references to the vectors
   std::vector<double> &points = *points_ptr;
@@ -82,7 +87,7 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
   std::vector<double> &normals = *normals_ptr;
 
   // Resize the vectors
-  const int num_points = (order + 1) * (2 * order + 2) + 2;
+  const int num_points = (order + 1) * (2 * order + 2) + (include_poles ? 2 : 0);
   points.resize(3 * num_points);
   weights.resize(num_points);
   normals.resize(3 * num_points);
@@ -93,11 +98,13 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
   Gauss_Legendre_Nodes_and_Weights(order + 1u, nodes_gl, weights_gl);  // order+1 points, excluding the two poles
 
   // Calculate the grid cordinates with the [0, 0, 1] at the north pole and [0, 0, -1] at the south pole.
-  // North pole:
-  points[0] = 0;
-  points[1] = 0;
-  points[2] = 1;
-  weights[0] = 0;
+  if (include_poles) {
+    // North pole:
+    points[0] = 0;
+    points[1] = 0;
+    points[2] = 1;
+    weights[0] = 0;
+  }
 
   // Between north and south pole:
   // from north pole (1) to south pole (-1), picking the points from nodes_gl in reversed order
@@ -107,7 +114,7 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
       const double costhetaj = nodes_gl[order - j];
       const double phik = 2 * M_PI * k / (2 * order + 2);
       const double sinthetaj = std::sqrt(1 - costhetaj * costhetaj);
-      const int index = (j * (2 * order + 2)) + k + 1;
+      const int index = (j * (2 * order + 2)) + k + (include_poles ? 1 : 0);
       points[3 * index] = sinthetaj * std::cos(phik);
       points[3 * index + 1] = sinthetaj * std::sin(phik);
       points[3 * index + 2] = costhetaj;
@@ -115,17 +122,20 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
     }
   }
 
-  // South pole:
-  points[3 * (num_points - 1)] = 0;
-  points[3 * (num_points - 1) + 1] = 0;
-  points[3 * (num_points - 1) + 2] = -1;
-  weights[num_points - 1] = 0;
+  if (include_poles) {
+    // South pole:
+    points[3 * (num_points - 1)] = 0;
+    points[3 * (num_points - 1) + 1] = 0;
+    points[3 * (num_points - 1) + 2] = -1;
+    weights[num_points - 1] = 0;
+  }
 
   // On the unit sphere, grid norms equal grid coordinates
   for (int i = 0; i < num_points; i++) {
-    normals[3 * i] = points[3 * i];
-    normals[3 * i + 1] = points[3 * i + 1];
-    normals[3 * i + 2] = points[3 * i + 2];
+    const double sign = invert ? -1 : 1;
+    normals[3 * i] = sign * points[3 * i];
+    normals[3 * i + 1] = sign * points[3 * i + 1];
+    normals[3 * i + 2] = sign * points[3 * i + 2];
   }
 
   // Scale the points by the radius
@@ -283,6 +293,107 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
   infile.close();
 }
 
+/// \brief Apply the stokes kernel to map source forces to target velocities: u_target += M f_source
+///
+/// \param space The execution space
+/// \param[in] viscosity The viscosity
+/// \param[in] source_positions The positions of the source points (size num_source_points x 3)
+/// \param[in] target_positions The positions of the target points (size num_target_points x 3)
+/// \param[in] source_forces The source values (size num_source_points x 3)
+/// \param[out] target_values The target values (size num_target_points x 3)
+template <class ExecutionSpace, class MemorySpace, class Layout>
+void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
+                         const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
+                         const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
+                         const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
+                         const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+  const size_t num_source_points = source_positions.extent(0) / 3;
+  const size_t num_target_points = target_positions.extent(0) / 3;
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_kernel: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_stokes_kernel: target_velocities must have size 3 * num_target_points.");
+
+  // Launch the parallel kernel
+  const double scale_factor = 1.0 / (8.0 * M_PI * viscosity);
+  Kokkos::parallel_for(
+      "Stokes", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
+      KOKKOS_LAMBDA(const size_t t, const size_t s) {
+        // Compute the distance vector
+        const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
+        const double dy = target_positions(3 * t + 1) - source_positions(3 * s + 1);
+        const double dz = target_positions(3 * t + 2) - source_positions(3 * s + 2);
+
+        const double fx = source_forces(3 * s + 0);
+        const double fy = source_forces(3 * s + 1);
+        const double fz = source_forces(3 * s + 2);
+
+        const double r2 = dx * dx + dy * dy + dz * dz;
+        const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+        const double rinv3 = rinv * rinv * rinv;
+
+        const double inner_prod = fx * dx + fy * dy + fz * dz;
+        const double scale_factor_rinv3 = scale_factor * rinv3;
+
+        // Velocity
+        Kokkos::atomic_add(&target_velocities(3 * t + 0), scale_factor_rinv3 * (r2 * fx + dx * inner_prod));
+        Kokkos::atomic_add(&target_velocities(3 * t + 1), scale_factor_rinv3 * (r2 * fy + dy * inner_prod));
+        Kokkos::atomic_add(&target_velocities(3 * t + 2), scale_factor_rinv3 * (r2 * fz + dz * inner_prod));
+      });
+}
+
+/// \brief Apply the stokes kernel to map source forces to target velocities: u_target += M f_source
+///
+/// \param space The execution space
+/// \param[in] viscosity The viscosity
+/// \param[in] source_positions The positions of the source points (size num_source_points x 3)
+/// \param[in] target_positions The positions of the target points (size num_target_points x 3)
+/// \param[in] source_forces The source values (size num_source_points x 3)
+/// \param[out] target_values The target values (size num_target_points x 3)
+template <class ExecutionSpace, class MemorySpace, class Layout>
+void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
+                                  const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
+                                  const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
+                                  const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
+                                  const Kokkos::View<double *, Layout, MemorySpace> &source_weights,
+                                  const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+  const size_t num_source_points = source_positions.extent(0) / 3;
+  const size_t num_target_points = target_positions.extent(0) / 3;
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_kernel: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_stokes_kernel: target_velocities must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(source_weights.extent(0) == num_source_points, std::invalid_argument,
+                     "apply_stokes_kernel: source_weights must have size num_source_points.");
+
+  // Launch the parallel kernel
+  const double scale_factor = 1.0 / (8.0 * M_PI * viscosity);
+  Kokkos::parallel_for(
+      "Stokes", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
+      KOKKOS_LAMBDA(const size_t t, const size_t s) {
+        // Compute the distance vector
+        const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
+        const double dy = target_positions(3 * t + 1) - source_positions(3 * s + 1);
+        const double dz = target_positions(3 * t + 2) - source_positions(3 * s + 2);
+
+        const double fx = source_forces(3 * s + 0) * source_weights(s);
+        const double fy = source_forces(3 * s + 1) * source_weights(s);
+        const double fz = source_forces(3 * s + 2) * source_weights(s);
+
+        const double r2 = dx * dx + dy * dy + dz * dz;
+        const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+        const double rinv2 = rinv * rinv;
+
+        const double inner_prod_rinv2 = (fx * dx + fy * dy + fz * dz) * rinv2;
+        const double scale_factor_rinv = scale_factor * rinv;
+
+        // Velocity
+        Kokkos::atomic_add(&target_velocities(3 * t + 0), scale_factor_rinv * (fx + dx * inner_prod_rinv2));
+        Kokkos::atomic_add(&target_velocities(3 * t + 1), scale_factor_rinv * (fy + dy * inner_prod_rinv2));
+        Kokkos::atomic_add(&target_velocities(3 * t + 2), scale_factor_rinv * (fz + dz * inner_prod_rinv2));
+      });
+}
+
 /// \brief Apply the RPY kernel to map source forces to target velocities: u_target += M f_source
 ///
 /// Note, this does not include self-interaction. If that is desired simply add 1/(6 pi mu) * f to u
@@ -291,8 +402,8 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 /// \param[in] viscosity The viscosity
 /// \param[in] source_positions The positions of the source points (size num_source_points x 3)
 /// \param[in] target_positions The positions of the target points (size num_target_points x 3)
-/// \param[in] source_forces The source values (size num_source_points x 4 containing the force and radius)
-/// \param[out] target_values The target values (size num_target_points x 6 containing the velocity and laplacian)
+/// \param[in] source_forces The source values (size num_source_points x 3)
+/// \param[out] target_values The target values (size num_target_points x 3)
 template <class ExecutionSpace, class MemorySpace, class Layout>
 void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
                       const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
@@ -303,6 +414,14 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double
                       const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_rpy_kernel: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_rpy_kernel: target_velocities must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(source_radii.extent(0) == num_source_points, std::invalid_argument,
+                     "apply_rpy_kernel: source_radii must have size num_source_points.");
+  MUNDY_THROW_ASSERT(target_radii.extent(0) == num_target_points, std::invalid_argument,
+                     "apply_rpy_kernel: target_radii must have size num_target_points.");
 
   // Launch the parallel kernel
   const double scale_factor = 1.0 / (8.0 * M_PI * viscosity);
@@ -373,6 +492,19 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
                                          const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
                                          const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
                                          const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+  MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel_ss: source_positions must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel_ss: target_positions must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(source_normals.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel_ss: source_normals must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel_ss: quadrature_weights must have size num_source_points.");
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel_ss: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel_ss: target_velocities must have size 3 * num_target_points.");
+
   // Launch the parallel kernel
   const double scale_factor = 3.0 / (4.0 * M_PI * viscosity);
   Kokkos::parallel_for(
@@ -447,6 +579,19 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
                                       const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
                                       const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
                                       const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+  MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel: source_positions must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel: target_positions must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(source_normals.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel: source_normals must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel: quadrature_weights must have size num_source_points.");
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_stokes_double_layer_kernel: target_velocities must have size 3 * num_target_points.");
+
   // Launch the parallel kernel
   const double scale_factor = 3.0 / (4.0 * M_PI * viscosity);
   Kokkos::parallel_for(
@@ -511,6 +656,19 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
                                      const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
                                      const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
                                      const Kokkos::View<double **, Layout, MemorySpace> &T) {
+  MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "fill_stokes_double_layer_matrix: source_positions must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "fill_stokes_double_layer_matrix: target_positions must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(source_normals.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "fill_stokes_double_layer_matrix: source_normals must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_source_points, std::invalid_argument,
+                     "fill_stokes_double_layer_matrix: quadrature_weights must have size num_source_points.");
+  MUNDY_THROW_ASSERT(T.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "fill_stokes_double_layer_matrix: T must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(T.extent(1) == 3 * num_source_points, std::invalid_argument,
+                     "fill_stokes_double_layer_matrix: T must have size 3 * num_source_points.");
+
   // Compute the scale factor
   const double scale_factor = -3.0 / (4.0 * M_PI * viscosity);
   Kokkos::parallel_for(
@@ -612,17 +770,28 @@ void add_singularity_subtraction([[maybe_unused]] const ExecutionSpace &space,
   Kokkos::parallel_for(
       "SingularitySubtraction", Kokkos::RangePolicy<ExecutionSpace>(0, num_source_points),
       KOKKOS_LAMBDA(const size_t ts) {
-        T(ts * 3 + 0, ts * 3 + 0) -= w1(3 * ts + 0);
-        T(ts * 3 + 1, ts * 3 + 0) -= w1(3 * ts + 1);
-        T(ts * 3 + 2, ts * 3 + 0) -= w1(3 * ts + 2);
+        // T(ts * 3 + 0, ts * 3 + 0) -= w1(3 * ts + 0);
+        // T(ts * 3 + 1, ts * 3 + 0) -= w1(3 * ts + 1);
+        // T(ts * 3 + 2, ts * 3 + 0) -= w1(3 * ts + 2);
 
-        T(ts * 3 + 0, ts * 3 + 1) -= w2(3 * ts + 0);
-        T(ts * 3 + 1, ts * 3 + 1) -= w2(3 * ts + 1);
-        T(ts * 3 + 2, ts * 3 + 1) -= w2(3 * ts + 2);
+        // T(ts * 3 + 0, ts * 3 + 1) -= w2(3 * ts + 0);
+        // T(ts * 3 + 1, ts * 3 + 1) -= w2(3 * ts + 1);
+        // T(ts * 3 + 2, ts * 3 + 1) -= w2(3 * ts + 2);
 
-        T(ts * 3 + 0, ts * 3 + 2) -= w3(3 * ts + 0);
-        T(ts * 3 + 1, ts * 3 + 2) -= w3(3 * ts + 1);
-        T(ts * 3 + 2, ts * 3 + 2) -= w3(3 * ts + 2);
+        // T(ts * 3 + 0, ts * 3 + 2) -= w3(3 * ts + 0);
+        // T(ts * 3 + 1, ts * 3 + 2) -= w3(3 * ts + 1);
+        // T(ts * 3 + 2, ts * 3 + 2) -= w3(3 * ts + 2);
+        T(ts * 3 + 0, ts * 3 + 0) += w1(3 * ts + 0);
+        T(ts * 3 + 1, ts * 3 + 0) += w1(3 * ts + 1);
+        T(ts * 3 + 2, ts * 3 + 0) += w1(3 * ts + 2);
+
+        T(ts * 3 + 0, ts * 3 + 1) += w2(3 * ts + 0);
+        T(ts * 3 + 1, ts * 3 + 1) += w2(3 * ts + 1);
+        T(ts * 3 + 2, ts * 3 + 1) += w2(3 * ts + 2);
+
+        T(ts * 3 + 0, ts * 3 + 2) += w3(3 * ts + 0);
+        T(ts * 3 + 1, ts * 3 + 2) += w3(3 * ts + 1);
+        T(ts * 3 + 2, ts * 3 + 2) += w3(3 * ts + 2);
       });
 }
 
@@ -641,6 +810,10 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
                               const Kokkos::View<double **, Layout, MemorySpace> &T) {
   const size_t num_source_points = T.extent(1) / 3;
   const size_t num_target_points = T.extent(0) / 3;
+  MUNDY_THROW_ASSERT(source_normals.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "add_complementary_matrix: source_normals must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_source_points, std::invalid_argument,
+                     "add_complementary_matrix: quadrature_weights must have size num_source_points.");
 
   // Add the complementary matrix
   Kokkos::parallel_for(
@@ -649,6 +822,7 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
         const double normal_s0 = source_normals(3 * s + 0);
         const double normal_s1 = source_normals(3 * s + 1);
         const double normal_s2 = source_normals(3 * s + 2);
+
         const double normal_t0 = source_normals(3 * t + 0);
         const double normal_t1 = source_normals(3 * t + 1);
         const double normal_t2 = source_normals(3 * t + 2);
@@ -660,9 +834,11 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
         T(t * 3 + 0, s * 3 + 0) += normal_t0 * weighted_normal_s0;
         T(t * 3 + 0, s * 3 + 1) += normal_t0 * weighted_normal_s1;
         T(t * 3 + 0, s * 3 + 2) += normal_t0 * weighted_normal_s2;
+
         T(t * 3 + 1, s * 3 + 0) += normal_t1 * weighted_normal_s0;
         T(t * 3 + 1, s * 3 + 1) += normal_t1 * weighted_normal_s1;
         T(t * 3 + 1, s * 3 + 2) += normal_t1 * weighted_normal_s2;
+
         T(t * 3 + 2, s * 3 + 0) += normal_t2 * weighted_normal_s0;
         T(t * 3 + 2, s * 3 + 1) += normal_t2 * weighted_normal_s1;
         T(t * 3 + 2, s * 3 + 2) += normal_t2 * weighted_normal_s2;
@@ -670,7 +846,7 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
 }
 
 /// \brief Fill the second kind Fredholm integral equation matrix for Stokes flow induced by a boundary due to
-/// satisfaction of no-slip.
+/// satisfaction of some induced surface velocity.
 ///
 /// M * f = (-1/2 I + T + N) * f = u
 ///   where
@@ -679,6 +855,7 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
 ///   quadrature_weight_j
 ///   - N is the null-space correction matrix N_{ij} = normal_i * normal_j * quadrature_weight_j
 ///
+/// For no-slip, u = -u_slip.
 /// \param space The execution space
 /// \param[in] viscosity The viscosity
 /// \param[in] num_source_points The number of source points
@@ -744,8 +921,8 @@ class Periphery {
         is_surface_normals_set_(false),
         is_quadrature_weights_set_(false),
         is_inverse_self_interaction_matrix_set_(false),
-        surface_positions_("surface_positions", num_surface_nodes_, 3),
-        surface_normals_("surface_normals", num_surface_nodes_, 3),
+        surface_positions_("surface_positions", 3 * num_surface_nodes_),
+        surface_normals_("surface_normals", 3 * num_surface_nodes_),
         quadrature_weights_("quadrature_weights", num_surface_nodes_),
         M_inv_("M_inv", 3 * num_surface_nodes_, 3 * num_surface_nodes_) {
     // Initialize host Kokkos mirrors
@@ -765,7 +942,8 @@ class Periphery {
   /// \brief Set the surface positions
   ///
   /// \param surface_positions The surface positions (size num_nodes * 3)
-  Periphery &set_surface_positions(const Kokkos::View<double *, DeviceMemorySpace> &surface_positions) {
+  template <class MemorySpace, class Layout>
+  Periphery &set_surface_positions(const Kokkos::View<double *, Layout, MemorySpace> &surface_positions) {
     MUNDY_THROW_ASSERT(surface_positions.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
                        "set_surface_positions: surface_positions must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_positions_, surface_positions);
@@ -804,7 +982,8 @@ class Periphery {
   /// \brief Set the surface normals
   ///
   /// \param surface_normals The surface normals (size num_nodes * 3)
-  Periphery &set_surface_normals(const Kokkos::View<double *, DeviceMemorySpace> &surface_normals) {
+  template <class MemorySpace, class Layout>
+  Periphery &set_surface_normals(const Kokkos::View<double *, Layout, MemorySpace> &surface_normals) {
     MUNDY_THROW_ASSERT(surface_normals.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
                        "set_surface_normals: surface_normals must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_normals_, surface_normals);
@@ -843,7 +1022,8 @@ class Periphery {
   /// \brief Set the quadrature weights
   ///
   /// \param quadrature_weights The quadrature weights (size num_nodes)
-  Periphery &set_quadrature_weights(const Kokkos::View<double *, DeviceMemorySpace> &quadrature_weights) {
+  template <class MemorySpace, class Layout>
+  Periphery &set_quadrature_weights(const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights) {
     MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_surface_nodes_, std::invalid_argument,
                        "set_quadrature_weights: quadrature_weights must have size num_surface_nodes.");
     Kokkos::deep_copy(quadrature_weights_, quadrature_weights);
@@ -879,7 +1059,9 @@ class Periphery {
   /// \brief Set the precomputed matrix
   ///
   /// \param M_inv The precomputed matrix (size 3 * num_nodes x 3 * num_nodes)
-  Periphery &set_inverse_self_interaction_matrix(const Kokkos::View<double **, DeviceMemorySpace> &M_inv) {
+  template <class MemorySpace>
+  Periphery &set_inverse_self_interaction_matrix(
+      const Kokkos::View<double **, Kokkos::LayoutLeft, MemorySpace> &M_inv) {
     MUNDY_THROW_ASSERT(
         (M_inv.extent(0) == 3 * num_surface_nodes_) && (M_inv.extent(1) == 3 * num_surface_nodes_),
         std::invalid_argument,
@@ -964,7 +1146,8 @@ class Periphery {
     }
 
     // Apply the inverse of the self-interaction matrix to the external flow velocity
-    KokkosBlas::gemv(DeviceExecutionSpace(), "N", 1.0, M_inv_, external_flow_velocity, 0.0, surface_forces);
+    // Notice the negative one in the gemv call, which accounts for the fact that our force should balance the u_slip
+    KokkosBlas::gemv(DeviceExecutionSpace(), "N", -1.0, M_inv_, external_flow_velocity, 1.0, surface_forces);
 
     return *this;
   }
@@ -974,8 +1157,6 @@ class Periphery {
   //@{
 
   /// \brief Get the number of nodes
-  ///
-  /// \return The number of nodes
   size_t get_num_nodes() const {
     return num_surface_nodes_;
   }
@@ -987,37 +1168,29 @@ class Periphery {
     return viscosity_;
   }
 
-  /// \brief Get the node positions
+  /// \brief Get the surface positions
   ///
-  /// \return The node positions
-  const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &get_node_positions() const {
+  /// \return The surface positions
+  const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &get_surface_positions() const {
     return surface_positions_;
   }
 
   /// \brief Get the surface normals
-  ///
-  /// \return The surface normals
   const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &get_surface_normals() const {
     return surface_normals_;
   }
 
   /// \brief Get the surface forces
-  ///
-  /// \return The surface forces
   const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &get_surface_forces() const {
     return surface_forces_;
   }
 
   /// \brief Get the quadrature weights
-  ///
-  /// \return The quadrature weights
   const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &get_quadrature_weights() const {
     return quadrature_weights_;
   }
 
   /// \brief Get the inverse of the self-interaction matrix
-  ///
-  /// \return The inverse of the self-interaction matrix
   const Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace> &get_M_inv() const {
     return M_inv_;
   }

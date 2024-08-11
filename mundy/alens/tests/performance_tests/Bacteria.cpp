@@ -372,7 +372,7 @@ class BacteriaSim {
 
     buffer_distance_ = param_list_.get<double>("buffer_distance");
 
-    num_time_steps_ = param_list_.get<int>("num_time_steps");
+    num_time_steps_ = param_list_.get<long long>("num_time_steps");
     timestep_size_ = param_list_.get<double>("timestep_size");
     io_frequency_ = param_list_.get<int>("io_frequency");
     load_balance_frequency_ = param_list_.get<int>("load_balance_frequency");
@@ -751,7 +751,7 @@ class BacteriaSim {
                                                       std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
   }
 
-  void compute_hertzian_contact_force_and_torque(std::vector<double> &nel_times, std::vector<double> &force_times) {
+  void compute_hertzian_contact_force_and_torque() {
     debug_print("Computing the Hertzian contact force and torque.");
 
     // Compute the AABBs for the rods
@@ -783,7 +783,6 @@ class BacteriaSim {
       update_neighbor_list_ = false;
 
       nl_end = MPI_Wtime();
-      nel_times.at(timestep_index_) = nl_end - nl_start;
     }
 
     force_start = MPI_Wtime();
@@ -802,8 +801,6 @@ class BacteriaSim {
     linker_potential_force_reduction_ptr_->execute(*bacteria_part_ptr_);
 
     force_end = MPI_Wtime();
-
-    force_times.at(timestep_index_) = force_end - force_start;
   }
 
   void compute_generalized_velocity() {
@@ -966,30 +963,30 @@ class BacteriaSim {
 
     update_neighbor_list_ = division_occurred;
 
-    // Loop over all particles and apply a small random orientational kick to any that divided
-    // This is independent of the parent-child relationship.
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
-                                   [&node_rng_counter_field, &node_omega_field, &element_marked_for_division_field](
-                                       const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &bacteria) {
-                                     if (stk::mesh::field_data(element_marked_for_division_field, bacteria)[0] == 1) {
-                                       // Fetch the connected node
-                                       const stk::mesh::Entity node = bulk_data.begin_nodes(bacteria)[0];
+    // // Loop over all particles and apply a small random orientational kick to any that divided
+    // // This is independent of the parent-child relationship.
+    // stk::mesh::for_each_entity_run(*bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
+    //                                [&node_rng_counter_field, &node_omega_field, &element_marked_for_division_field](
+    //                                    const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &bacteria) {
+    //                                  if (stk::mesh::field_data(element_marked_for_division_field, bacteria)[0] == 1) {
+    //                                    // Fetch the connected node
+    //                                    const stk::mesh::Entity node = bulk_data.begin_nodes(bacteria)[0];
 
-                                       // Get the output fields
-                                       auto node_omega = mundy::mesh::vector3_field_data(node_omega_field, node);
-                                       size_t *node_rng_counter = stk::mesh::field_data(node_rng_counter_field, node);
-                                       const size_t node_gid = bulk_data.identifier(node);
-                                       openrand::Philox rng(node_gid, node_rng_counter[0]);
+    //                                    // Get the output fields
+    //                                    auto node_omega = mundy::mesh::vector3_field_data(node_omega_field, node);
+    //                                    size_t *node_rng_counter = stk::mesh::field_data(node_rng_counter_field, node);
+    //                                    const size_t node_gid = bulk_data.identifier(node);
+    //                                    openrand::Philox rng(node_gid, node_rng_counter[0]);
 
-                                       // Apply a very small random orientational kick to keep particles from being
-                                       // perfectly aligned
-                                       const double max_kick = 1.0;
-                                       node_omega[0] += max_kick * (2.0 * rng.rand<double>() - 1.0);
-                                       node_omega[1] += max_kick * (2.0 * rng.rand<double>() - 1.0);
-                                       node_omega[2] += max_kick * (2.0 * rng.rand<double>() - 1.0);
-                                       node_rng_counter[0] += 1;
-                                     }
-                                   });
+    //                                    // Apply a very small random orientational kick to keep particles from being
+    //                                    // perfectly aligned
+    //                                    const double max_kick = 1.0;
+    //                                    node_omega[0] += max_kick * (2.0 * rng.rand<double>() - 1.0);
+    //                                    node_omega[1] += max_kick * (2.0 * rng.rand<double>() - 1.0);
+    //                                    node_omega[2] += max_kick * (2.0 * rng.rand<double>() - 1.0);
+    //                                    node_rng_counter[0] += 1;
+    //                                  }
+    //                                });
   }
 
   void update_element_tangent() {
@@ -1011,8 +1008,7 @@ class BacteriaSim {
         });
   }
 
-  void run(int argc, char **argv, std::vector<double> &growth_times, std::vector<double> &nel_times,
-           std::vector<double> &force_times) {
+  void run(int argc, char **argv) {
     debug_print("Running the simulation.");
 
     // Preprocess
@@ -1025,10 +1021,6 @@ class BacteriaSim {
     fetch_fields_and_parts();
     declare_and_initialize_bacteria();
     setup_io();
-
-    growth_times.resize(num_time_steps_);
-    nel_times.resize(num_time_steps_);
-    force_times.resize(num_time_steps_);
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
@@ -1064,14 +1056,13 @@ class BacteriaSim {
 
         // MPI_Barrier(MPI_COMM_WORLD);
         double growth_end = MPI_Wtime();
-        growth_times.at(timestep_index_) = growth_end - growth_start;
       }
 
       // time neighbor list and force computations
       // Evaluate forces f(x(t + dt)).
       {
         // Hertzian contact force
-        compute_hertzian_contact_force_and_torque(nel_times, force_times);
+        compute_hertzian_contact_force_and_torque();
       }
 
       // Compute velocity v(x(t+dt))
@@ -1091,9 +1082,9 @@ class BacteriaSim {
 
         // Some fields are only needed for I/O, so we only compute them when we need to write out the data.
         // So far, this is just the element tangent
-        // update_element_tangent();
+        update_element_tangent();
 
-        // io_broker_ptr_->write_io_broker_timestep(timestep_index_, static_cast<double>(timestep_index_));
+        io_broker_ptr_->write_io_broker_timestep(timestep_index_, static_cast<double>(timestep_index_));
       }
     }
 
@@ -1228,7 +1219,7 @@ class BacteriaSim {
   double timestep_size_ = 1e-3;
   size_t num_time_steps_ = 1000;
   size_t io_frequency_ = 10;
-  size_t load_balance_frequency_ = 1000;
+  size_t load_balance_frequency_ = 10;
   //@}
 };  // BacteriaSim
 
@@ -1237,25 +1228,8 @@ int main(int argc, char **argv) {
   stk::parallel_machine_init(&argc, &argv);
   Kokkos::initialize(argc, argv);
 
-  // initialize things for timing.
-  // space is reserved inside the run function since that is where number of time steps is defined
-  std::ofstream growth_file("./growth_times-" + std::to_string(omp_get_max_threads()) + ".txt");
-  std::vector<double> growth_times;
-  std::ofstream nel_file("./nel_times-" + std::to_string(omp_get_max_threads()) + ".txt");
-  std::vector<double> nel_times;
-  std::ofstream force_file("./force_times-" + std::to_string(omp_get_max_threads()) + ".txt");
-  std::vector<double> force_times;
-
   // Run the simulation using the given parameters
-  BacteriaSim().run(argc, argv, growth_times, nel_times, force_times);
-
-  // write out time to files at the end
-  std::ostream_iterator<double> growth_iterator(growth_file, "\n");
-  std::copy(std::begin(growth_times), std::end(growth_times), growth_iterator);
-  std::ostream_iterator<double> nel_iterator(nel_file, "\n");
-  std::copy(std::begin(nel_times), std::end(nel_times), nel_iterator);
-  std::ostream_iterator<double> force_iterator(force_file, "\n");
-  std::copy(std::begin(force_times), std::end(force_times), force_iterator);
+  BacteriaSim().run(argc, argv);
 
   // Finalize MPI
   Kokkos::finalize();

@@ -103,14 +103,11 @@ KOKKOS_INLINE_FUNCTION Vector3<double> map_body_frame_normal_to_superellipsoid(
   return Vector3<double>(x, y, z);
 }
 
-KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_ellipsoid_and_point(
+KOKKOS_INLINE_FUNCTION double centerline_projection_ssd_point_to_ellipsoid(
     const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
     const double r2, const double r3,
     const Vector3<double, auto, auto>& point,
-    Vector3<double>* const closest_point = nullptr) {
-  // The generic superellipsoid-point minimum separation distance doesn't appear to be analytic, but the ellipsoid-point 
-  // minimum shared normal signed separation distance is. 
-  
+    Vector3<double>* const closest_point = nullptr) { 
   // Step 1: Map the point to the ellipsoid body frame
   const Vector3<double> body_frame_point = inverse(orientation) * (point - center);
 
@@ -126,7 +123,7 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_ellipsoid_and_point(
   const Vector3<double> contact_point(r1 * contact_point_unstretched[0], r2 * contact_point_unstretched[1], r3 * contact_point_unstretched[2]);
   const Vector3<double> lab_frame_contact_point = orientation * contact_point + center;
 
-  // Step 5: Compute the signed separation distance
+  // Step 5: Compute the centerline projection distance
   impl::if_not_nullptr_then_set(closest_point, lab_frame_contact_point);
 
   return mundy::math::norm(point - lab_frame_contact_point) * (is_inside ? -1.0 : 1.0);
@@ -196,6 +193,13 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point
   return global_signed_separation_distance;
 }
 
+KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_ellipsoid_and_point(
+    const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
+    const double r2, const double r3, 
+    const Vector3<double, auto, auto>& point,
+    Vector3<double>* const closest_point = nullptr) {
+  return shared_normal_ssd_between_superellipsoid_and_point(center, orientation, r1, r2, r3, 1.0, 1.0, point, closest_point);
+}
 
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoids(
     const Vector3<double, auto, auto>& center0, const Quaternion<double, auto, auto>& orientation0, const double r1_0,

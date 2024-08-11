@@ -23,13 +23,13 @@
 #include <openrand/philox.h>  // for openrand::Philox
 
 // C++ core
+#include <fstream>  // for std::ofstream
 #include <numeric>  // for std::accumulate
 #include <vector>   // for std::vector
 
 // Kokkos and Kokkos-Kernels
 #include <KokkosBlas.hpp>
 #include <Kokkos_Core.hpp>
-// #include <KokkosBlas_gemm.hpp>
 
 // Mundy
 #include <mundy_alens/periphery/Periphery.hpp>  // for gen_sphere_quadrature
@@ -289,14 +289,15 @@ void apply_skfie_matrix_wrapper(const double viscosity,
 /// \brief A functor for generate a quadrature rule on the sphere
 class SphereQuadFunctor {
  public:
-  explicit SphereQuadFunctor(const double &sphere_radius) : sphere_radius_(sphere_radius) {
+  SphereQuadFunctor(const double sphere_radius, const bool include_pole = false, const bool invert = false)
+      : sphere_radius_(sphere_radius), include_pole_(include_pole), invert_(invert) {
   }
 
   std::array<Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace>, 3> operator()(const int &order) {
     std::vector<double> weights_vec;
     std::vector<double> points_vec;
     std::vector<double> normals_vec;
-    gen_sphere_quadrature(order, sphere_radius_, &points_vec, &weights_vec, &normals_vec);
+    gen_sphere_quadrature(order, sphere_radius_, &points_vec, &weights_vec, &normals_vec, include_pole_, invert_);
     const size_t num_quadrature_points = weights_vec.size();
 
     // Convert the points, weights, and normals to Kokkos views
@@ -316,6 +317,8 @@ class SphereQuadFunctor {
 
  private:
   double sphere_radius_;
+  bool include_pole_;
+  bool invert_;
 };  // class SphereQuadFunctor
 //@}
 
@@ -469,9 +472,9 @@ TEST(PeripheryTest, KokkosInvertMatrix) {
   for (int i = 0; i < matrix_size; ++i) {
     for (int j = 0; j < matrix_size; ++j) {
       if (i == j) {
-        EXPECT_NEAR(matrix_scratch(i, j), 1.0, 1.0e-10);
+        ASSERT_NEAR(matrix_scratch(i, j), 1.0, 1.0e-10);
       } else {
-        EXPECT_NEAR(matrix_scratch(i, j), 0.0, 1.0e-10);
+        ASSERT_NEAR(matrix_scratch(i, j), 0.0, 1.0e-10);
       }
     }
   }
@@ -637,11 +640,6 @@ TEST(PeripheryTest, RPYKernelThreeSpheres) {
               << ") | relative error: " << std::fabs(velocities(6) - U3_current) / std::fabs(U3_current) << std::endl;
   }
 }
-
-//@}
-
-//! \name Periphery tests
-//@{
 
 TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   // We have the following identity for flow exterior to a surface D:
@@ -831,11 +829,41 @@ TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
                                             sin_theta * x * inv_radius};
                         });
 }
-//@}
 
-//! \name Periphery tests
-//@{
+TEST(PeripheryTest, SKFIEIsInvertible) {
+  // Check that the second kind Fredholm integral equation matrix is invertable
 
+  const double viscosity = 1.0;
+  const double sphere_radius = 12.34;
+  const size_t spectral_order = 12;
+  const bool include_poles = false;
+  const bool invert = true;
+  auto [host_points, host_weights, host_normals] =
+      SphereQuadFunctor(sphere_radius, include_poles, invert)(spectral_order);
+  const size_t num_surface_nodes = host_weights.extent(0);
+
+  // Fill the self-interaction matrix and take its inverse
+  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M("M", 3 * num_surface_nodes, 3 * num_surface_nodes);
+  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M_inv("M_inv", 3 * num_surface_nodes,
+                                                                       3 * num_surface_nodes);
+  fill_skfie_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_surface_nodes, num_surface_nodes, host_points,
+                    host_points, host_normals, host_weights, M);
+  invert_matrix(Kokkos::DefaultHostExecutionSpace(), M, M_inv);
+
+  // Multiply the matrix by its inverse and check that it is the m_m_inv matrix
+  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> m_m_inv("m_m_inv", 3 * num_surface_nodes,
+                                                                         3 * num_surface_nodes);
+  KokkosBlas::gemm(Kokkos::DefaultHostExecutionSpace(), "N", "N", 1.0, M, M_inv, 0.0, m_m_inv);
+  for (size_t i = 0; i < 3 * num_surface_nodes; ++i) {
+    for (size_t j = 0; j < 3 * num_surface_nodes; ++j) {
+      if (i == j) {
+        ASSERT_NEAR(m_m_inv(i, j), 1.0, 1.0e-10);
+      } else {
+        ASSERT_NEAR(m_m_inv(i, j), 0.0, 1.0e-10);
+      }
+    }
+  }
+}
 //@}
 
 }  // namespace

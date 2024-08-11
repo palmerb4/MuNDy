@@ -63,8 +63,8 @@ using Vector3View = Vector<T, 3, Accessor, Ownership::Views>;
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, auto>& a,
-                                  const Vector3<T, auto>& b) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, auto, auto>& a,
+                                  const Vector3<T, auto, auto>& b) -> Vector3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Vector3<CommonType> result;
   result[0] = static_cast<CommonType>(a[1]) * static_cast<CommonType>(b[2]) -
@@ -80,8 +80,8 @@ KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, auto>& a,
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
 template <typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto element_multiply(const Vector3<U, auto>& a,
-                                             const Vector3<T, auto>& b) -> Vector3<std::common_type_t<T, U>> {
+KOKKOS_INLINE_FUNCTION auto element_multiply(const Vector3<U, auto, auto>& a,
+                                             const Vector3<T, auto, auto>& b) -> Vector3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Vector3<CommonType> result;
   result[0]= static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[0]);

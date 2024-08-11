@@ -406,7 +406,18 @@ class Vector<T, N, Accessor, Ownership::Views> {
   /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
   template <typename OtherAccessor>
   KOKKOS_INLINE_FUNCTION Vector<T, N, Accessor, Ownership::Views>& operator=(
-      const Vector<T, N, OtherAccessor, auto>& other)
+      const Vector<T, N, OtherAccessor, Ownership::Views>& other)
+    requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
+  {
+    impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
+    return *this;
+  }
+
+  /// \brief Deep copy assignment operator with different accessor
+  /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
+  template <typename OtherAccessor>
+  KOKKOS_INLINE_FUNCTION Vector<T, N, Accessor, Ownership::Views>& operator=(
+      const Vector<T, N, OtherAccessor, Ownership::Owns>& other)
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
   {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
@@ -416,7 +427,19 @@ class Vector<T, N, Accessor, Ownership::Views> {
   /// \brief Deep copy assignment operator with same accessor
   /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
   /// Yes, this function is necessary. If we only use the version for differing accessor, the compiler can get confused.
-  KOKKOS_INLINE_FUNCTION Vector<T, N, Accessor, Ownership::Views>& operator=(const Vector<T, N, Accessor, auto>& other)
+  KOKKOS_INLINE_FUNCTION Vector<T, N, Accessor, Ownership::Views>& operator=(
+      const Vector<T, N, Accessor, Ownership::Views>& other)
+    requires HasNonConstAccessOperator<Accessor, T>
+  {
+    impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
+    return *this;
+  }
+
+  /// \brief Deep copy assignment operator with same accessor
+  /// \details Copies the data from the other vector to our data. This is only enabled if T is not const.
+  /// Yes, this function is necessary. If we only use the version for differing accessor, the compiler can get confused.
+  KOKKOS_INLINE_FUNCTION Vector<T, N, Accessor, Ownership::Views>& operator=(
+      const Vector<T, N, Accessor, Ownership::Owns>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);

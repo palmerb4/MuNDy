@@ -130,3 +130,11 @@ tribits_add_executable(
     CollidingOverdampedFrictionalSperm.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    SpheresPerif
+    SOURCES
+    SpheresPerif.cpp
+    CATEGORIES PERFORMANCE
+    )
+      

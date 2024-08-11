@@ -85,6 +85,7 @@ Interactions:
 #include <mundy_linkers/NeighborLinkers.hpp>                // for mundy::linkers::NeighborLinkers
 #include <mundy_math/Hilbert.hpp>                           // for mundy::math::create_hilbert_positions_and_directors
 #include <mundy_math/Vector3.hpp>                           // for mundy::math::Vector3
+#include <mundy_math/distance/EllipsoidEllipsoid.hpp>       // for mundy::math::distance::ellipsoid_ellipsoid
 #include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
 #include <mundy_mesh/MetaData.hpp>    // for mundy::mesh::MetaData
@@ -292,17 +293,15 @@ class HP1 {
   }
 
   void assert_invariant(const std::string &message = std::string()) {
-    Kokkos::Profiling::pushRegion("HP1::assert_invariant");
-
 #ifdef DEBUG
+    Kokkos::Profiling::pushRegion("HP1::assert_invariant");
 #pragma TODO CJE Remove the mesh dump so that we can see the metadata
     std::cout << "############################################" << std::endl;
     std::cout << "Mesh at message " << message << std::endl;
     stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
     std::cout << "############################################" << std::endl;
-#endif
-
     Kokkos::Profiling::popRegion();
+#endif
   }
 
   void build_our_mesh_and_method_instances() {
@@ -1488,6 +1487,85 @@ class HP1 {
     }
 
     Kokkos::Profiling::popRegion();
+  }
+
+  void compute_periphery_collision_forces() {
+    const double a = 100;
+    const double b = 100;
+    const double c = 100;
+    const double inv_a2 = 1.0 / (a * a);
+    const double inv_b2 = 1.0 / (b * b);
+    const double inv_c2 = 1.0 / (c * c);
+    const mundy::math::Vector3<double> center(0.0, 0.0, 0.0);
+    const auto orientation = mundy::math::Quaternion<double>::identity();
+    auto level_set = [&inv_a2, &inv_b2, &inv_c2, &center,
+                      &orientation](const mundy::math::Vector3<double> &point) -> double {
+      const auto body_frame_point = inverse(orientation) * (point - center);
+      return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
+              body_frame_point[2] * body_frame_point[2] * inv_c2) - 1;
+    };
+
+    // Fetch loc al references to the fields
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spheres_part_ptr_,
+        [&node_coord_field, &node_force_field, &element_aabb_field,
+         &level_set, &center, &orientation, &a, &b, &c](const stk::mesh::BulkData &bulk_data,
+                                                                         const stk::mesh::Entity &sphere_element) {
+          // For our coarse search, we check if the coners of the sphere's aabb lie inside the ellipsoidal periphery
+          // This can be done via the (body frame) inside outside unftion f(x, y, z) = 1 - (x^2/a^2 + y^2/b^2 + z^2/c^2)
+          // This is possible due to the convexity of the ellipsoid
+          const double *sphere_aabb = stk::mesh::field_data(element_aabb_field, sphere_element);
+          const double x0 = sphere_aabb[0];
+          const double y0 = sphere_aabb[1];
+          const double z0 = sphere_aabb[2];
+          const double x1 = sphere_aabb[3];
+          const double y1 = sphere_aabb[4];
+          const double z1 = sphere_aabb[5];
+
+          // Compute all 8 corners of the AABB
+          const auto bottom_left_front = mundy::math::Vector3<double>(x0, y0, z0);
+          const auto bottom_right_front = mundy::math::Vector3<double>(x1, y0, z0);
+          const auto top_left_front = mundy::math::Vector3<double>(x0, y1, z0);
+          const auto top_right_front = mundy::math::Vector3<double>(x1, y1, z0);
+          const auto bottom_left_back = mundy::math::Vector3<double>(x0, y0, z1);
+          const auto bottom_right_back = mundy::math::Vector3<double>(x1, y0, z1);
+          const auto top_left_back = mundy::math::Vector3<double>(x0, y1, z1);
+          const auto top_right_back = mundy::math::Vector3<double>(x1, y1, z1);
+          const double all_points_inside_periphery =
+              level_set(bottom_left_front) < 0.0 && level_set(bottom_right_front) < 0.0 &&
+              level_set(top_left_front) < 0.0 && level_set(top_right_front) < 0.0 &&
+              level_set(bottom_left_back) < 0.0 && level_set(bottom_right_back) < 0.0 &&
+              level_set(top_left_back) < 0.0 && level_set(top_right_back) < 0.0;
+
+          if (!all_points_inside_periphery) {
+            // We might have a collision, perform the more expensive check
+            const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
+            const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+            auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+
+            mundy::math::Vector3<double> contact_point;
+            const double shared_normal_ssd = mundy::math::distance::shared_normal_ssd_between_ellipsoid_and_point(
+                center, orientation, a, b, c, node_coords, &contact_point);
+
+            // Note, the ellipsoid for the ssd calc has outward normal, whereas the periphery has inward normal
+            // As a result, overlap occurs when the shared_normal_ssd is positive.
+            if (shared_normal_ssd > 0.0) {
+              // We have a collision, compute the force
+              auto inward_normal = contact_point - node_coords;
+              inward_normal /= mundy::math::two_norm(inward_normal);
+#pragma omp atomic
+              node_force[0] += 10000* inward_normal[0] * shared_normal_ssd;
+#pragma omp atomic
+              node_force[1] += 10000* inward_normal[1] * shared_normal_ssd;
+#pragma omp atomic
+              node_force[2] += 10000* inward_normal[2] * shared_normal_ssd;
+            }
+          }
+        });
   }
 
   void compute_hertzian_contact_forces() {

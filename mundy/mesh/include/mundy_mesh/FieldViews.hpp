@@ -45,7 +45,7 @@ namespace mesh {
 
 /// \brief A helper function for getting a view of a field's data as a Vector3
 template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
-inline math::Vector3<typename FieldType::value_type, typename FieldType::value_type*> vector3_field_data(
+inline math::Vector3View<typename FieldType::value_type, typename FieldType::value_type*> vector3_field_data(
     const FieldType& f, stk::mesh::Entity e, stk::mesh::DummyOverload dummyArg = stk::mesh::DummyOverload(),
     const char* fileName = HOST_DEBUG_FILE_NAME, int lineNumber = HOST_DEBUG_LINE_NUMBER) {
   return math::get_vector3_view<typename FieldType::value_type>(
@@ -54,7 +54,7 @@ inline math::Vector3<typename FieldType::value_type, typename FieldType::value_t
 
 /// \brief A helper function for getting a view of a field's data as a Quaternion
 template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
-inline math::Quaternion<typename FieldType::value_type, typename FieldType::value_type*> quaternion_field_data(
+inline math::QuaternionView<typename FieldType::value_type, typename FieldType::value_type*> quaternion_field_data(
     const FieldType& f, stk::mesh::Entity e, stk::mesh::DummyOverload dummyArg = stk::mesh::DummyOverload(),
     const char* fileName = HOST_DEBUG_FILE_NAME, int lineNumber = HOST_DEBUG_LINE_NUMBER) {
   return math::get_quaternion_view<typename FieldType::value_type>(
@@ -63,7 +63,7 @@ inline math::Quaternion<typename FieldType::value_type, typename FieldType::valu
 
 /// \brief A helper function for getting a view of a field's data as a Matrix3
 template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
-inline math::Matrix3<typename FieldType::value_type, typename FieldType::value_type*> matrix3_field_data(
+inline math::Matrix3View<typename FieldType::value_type, typename FieldType::value_type*> matrix3_field_data(
     const FieldType& f, stk::mesh::Entity e, stk::mesh::DummyOverload dummyArg = stk::mesh::DummyOverload(),
     const char* fileName = HOST_DEBUG_FILE_NAME, int lineNumber = HOST_DEBUG_LINE_NUMBER) {
   return math::get_matrix3_view<typename FieldType::value_type>(
