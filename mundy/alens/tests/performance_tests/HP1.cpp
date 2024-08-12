@@ -543,6 +543,8 @@ class HP1 {
     element_aabb_field_ptr_ = fetch_field<double>("ELEMENT_AABB", element_rank_);
     element_corner_displacement_field_ptr_ = fetch_field<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_);
 
+    constraint_potential_force_field_ptr_ = fetch_field<double>("LINKER_POTENTIAL_FORCE", constraint_rank_);
+
     // Fetch the parts
     spheres_part_ptr_ = fetch_part("SPHERES");
     e_part_ptr_ = fetch_part("E");
@@ -686,9 +688,6 @@ class HP1 {
       std::cout << "Regional map:" << std::endl;
       for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
         std::cout << get_region_by_id(i);
-        if (i < num_nodes_per_chromosome - 1) {
-          std::cout << " - ";
-        }
       }
       std::cout << std::endl;
 
@@ -1233,6 +1232,8 @@ class HP1 {
     //                                                     std::array<unsigned, 1>{0u});
     // mundy::mesh::utils::fill_field_with_value<double>(*constraint_state_change_rate_field_ptr_,
     //                                                   std::array<double, 1>{0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*constraint_potential_force_field_ptr_,
+                                                      std::array<double, 3>{0.0, 0.0, 0.0});
   }
 
   void zero_out_accumulator_fields() {
@@ -1957,6 +1958,8 @@ class HP1 {
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
   stk::mesh::Field<double> *element_aabb_field_ptr_;
   stk::mesh::Field<double> *element_corner_displacement_field_ptr_;
+
+  stk::mesh::Field<double> *constraint_potential_force_field_ptr_;
 
   //@}
 

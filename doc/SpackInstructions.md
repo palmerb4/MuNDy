@@ -94,3 +94,27 @@ spack find -p trilinos
 
 Think about adding PERL to what is knows about as its a pain to install.
 Figure out how to set the openblas to flexiblas.
+
+# Fun with circular dependencies
+
+If we want to install Trilinos 15.1.1 with ArborX, we have to deal with the fact that both want Kokkos. Luckily, we can deal with the circular dependency of ArborX wanting Trilinos by installing ArborX first I guess.
+
+## Try installing ArborX first
+
+Install ArborX first:
+```bash
+spack spec arborx %gcc@11.4.0 +openmp ^kokkos@4.2.01
+spack add arborx %gcc@11.4.0 +openmp ^kokkos@4.2.01
+spack install -j 12
+```
+
+DEPRECATED:
+Didn't have the correct version of Trilinos, need 16.0.0 at least for ArborX to be turned on.
+Install Trilinos second:
+```bash
+spack spec trilinos@15.1.1 %gcc@11.4.0 +belos +boost +exodus +hdf5 +openmp +stk +zoltan +zoltan2 ^kokkos@4.2.01
+spack add trilinos@15.1.1 %gcc@11.4.0 +belos +boost +exodus +hdf5 +openmp +stk +zoltan +zoltan2 ^kokkos@4.2.01
+```
+
+## Trilinos install via cmake
+Try to install Trilinos by compiling it with cmake, but install all the dependencies with spack and then import them. Check the Trilinos install for how this works. This is to get around the fact that we don't seem to see ArborX.
