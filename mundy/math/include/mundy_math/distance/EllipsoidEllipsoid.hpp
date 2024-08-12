@@ -109,7 +109,7 @@ KOKKOS_INLINE_FUNCTION double centerline_projection_ssd_point_to_ellipsoid(
     const Vector3<double, auto, auto>& point,
     Vector3<double>* const closest_point = nullptr) { 
   // Step 1: Map the point to the ellipsoid body frame
-  const Vector3<double> body_frame_point = inverse(orientation) * (point - center);
+  const Vector3<double> body_frame_point = conjugate(orientation) * (point - center);
 
   // Step 2: Map the body frame point to the coordinate system where the ellipsoid is a unit sphere
   const Vector3<double> body_frame_point_unstretched = Vector3<double>(body_frame_point[0] / r1, body_frame_point[1] / r2, body_frame_point[2] / r3);
@@ -140,7 +140,7 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point
     const Vector3<double> lab_frame_nhat = map_spherical_to_unit_vector(theta_phi[0], theta_phi[1]);
 
     // Step 2: Map each normal vector to their corresponding superellipsoid body frame
-    const Vector3<double> body_frame_nhat = inverse(orientation) * lab_frame_nhat;
+    const Vector3<double> body_frame_nhat = conjugate(orientation) * lab_frame_nhat;
 
     // Step 3: Map the body frame normal to its body frame foot point on the superellipsoid
     const Vector3<double> body_frame_foot_point =
@@ -214,8 +214,8 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoids(
     const Vector3<double> lab_frame_nhat1 = -lab_frame_nhat0;
 
     // Step 2: Map each normal vector to their corresponding ellipsoid body frame
-    const Vector3<double> body_frame_nhat0 = inverse(orientation0) * lab_frame_nhat0;
-    const Vector3<double> body_frame_nhat1 = inverse(orientation1) * lab_frame_nhat1;
+    const Vector3<double> body_frame_nhat0 = conjugate(orientation0) * lab_frame_nhat0;
+    const Vector3<double> body_frame_nhat1 = conjugate(orientation1) * lab_frame_nhat1;
 
     // Step 3: Map each body frame normal to their body frame foot point on the ellipsoid
     const Vector3<double> body_frame_foot_point0 =

@@ -101,6 +101,7 @@ Interactions:
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
+#include <mundy_alens/periphery/Periphery.hpp>  // for gen_sphere_quadrature
 
 namespace mundy {
 
@@ -112,6 +113,9 @@ class HP1 {
  public:
   enum BINDING_STATE_CHANGE : unsigned { NONE = 0u, LEFT_TO_DOUBLY, RIGHT_TO_DOUBLY, DOUBLY_TO_LEFT, DOUBLY_TO_RIGHT };
   enum BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
+
+  using DeviceExecutionSpace = Kokkos::DefaultExecutionSpace;
+  using DeviceMemorySpace = typename DeviceExecutionSpace::memory_space;
 
   HP1() = default;
 
@@ -1489,10 +1493,123 @@ class HP1 {
     Kokkos::Profiling::popRegion();
   }
 
+  void initialize_periphery() {
+    // Setup the periphery
+    const double viscosity = 1.0;
+    const bool invert = true;
+    const bool include_poles = false;
+    const size_t spectral_order = 32;
+    const double periphery_radius = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
+    std::vector<double> points_vec;
+    std::vector<double> weights_vec;
+    std::vector<double> normals_vec;
+    mundy::alens::periphery::gen_sphere_quadrature(spectral_order, periphery_radius, &points_vec, &weights_vec, &normals_vec, include_poles, invert);
+    const size_t num_surface_nodes = weights_vec.size();
+
+    periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
+    periphery_ptr_->set_surface_positions(points_vec.data())
+        .set_quadrature_weights(weights_vec.data())
+        .set_surface_normals(normals_vec.data());
+    const bool write_to_file = false;
+    periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
+  }
+
+  void compute_rpy_hydro_with_no_slip_periphery() {
+    MUNDY_THROW_ASSERT(periphery_ptr_ != nullptr, std::runtime_error, "Periphery not initialized.");
+    const double viscosity = 1.0;
+
+    // TODO(palmerb4): Uncertain what the most efficient way to achieve this is. We use KokkosBlas to perform the matrix
+    // inversion and matrix-vector multiplication required for periphery initialization and evaluation. This is
+    // efficient, but it requires copying some of our STK field data to Kokkos views.
+
+    // Fetch the bucket of spheres to act on.
+    stk::mesh::EntityVector sphere_elements;
+    stk::mesh::Selector spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    stk::mesh::get_selected_entities(spheres_selector, bulk_data_ptr_->buckets(stk::topology::ELEMENT_RANK), sphere_elements);
+    const size_t num_spheres = sphere_elements.size();
+
+    // Copy the sphere positions, radii, forces, and velocities to Kokkos views
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_positions("sphere_positions", num_spheres * 3);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_radii("sphere_radii", num_spheres);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_forces("sphere_forces", num_spheres * 3);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_velocities("sphere_velocities", num_spheres * 3);
+
+#pragma omp parallel for
+    for (size_t i = 0; i < num_spheres; i++) {
+      stk::mesh::Entity sphere_element = sphere_elements[i];
+      stk::mesh::Entity sphere_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
+      const double *sphere_position = stk::mesh::field_data(*node_coord_field_ptr_, sphere_node);
+      const double *sphere_radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
+      const double *sphere_force = stk::mesh::field_data(*node_force_field_ptr_, sphere_node);
+      const double *sphere_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
+
+      for (size_t j = 0; j < 3; j++) {
+        sphere_positions(i * 3 + j) = sphere_position[j];
+        sphere_forces(i * 3 + j) = sphere_force[j];
+        sphere_velocities(i * 3 + j) = sphere_velocity[j];
+      }
+      sphere_radii(i) = *sphere_radius;
+    }
+
+    // Setup the periphery information
+    const size_t num_surface_nodes = periphery_ptr_->get_num_nodes();
+    auto surface_positions = periphery_ptr_->get_surface_positions();
+    auto surface_weights = periphery_ptr_->get_quadrature_weights();
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_radii("surface_radii", num_surface_nodes);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_velocities("surface_velocities",
+                                                                                     3 * num_surface_nodes);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_forces("surface_forces",
+                                                                                 3 * num_surface_nodes);
+    Kokkos::deep_copy(surface_radii, 0.0);
+
+    // Apply the RPY kernel from spheres to spheres
+    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+                                              sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+
+    // Apply the RPY kernel from spheres to periphery
+    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+                                              sphere_radii, surface_radii, sphere_forces, surface_velocities);
+
+    // Apply no-slip boundary conditions
+    // This is done in two steps: first, we compute the forces on the periphery necessary to enforce no-slip
+    // Then we evaluate the flow these forces induce on the spheres.
+    periphery_ptr_->compute_surface_forces(surface_velocities, surface_forces);
+
+    // // If we evaluate the flow these forces induce on the periphery, do they satisfy no-slip?
+    // Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace> M("Mnew", 3 * num_surface_nodes,
+    //                                                                  3 * num_surface_nodes);
+    // fill_skfie_matrix(DeviceExecutionSpace(), viscosity, num_surface_nodes, num_surface_nodes, surface_positions,
+    //                   surface_positions, surface_normals, surface_weights, M);
+    // KokkosBlas::gemv(DeviceExecutionSpace(), "N", 1.0, M, surface_forces, 1.0, surface_velocities);
+    // EXPECT_NEAR(max_speed(surface_velocities), 0.0, 1.0e-10);
+
+    mundy::alens::periphery::apply_weighted_stokes_kernel(DeviceExecutionSpace(), viscosity, surface_positions,
+                                                          sphere_positions, surface_forces, surface_weights,
+                                                          sphere_velocities);
+
+    // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+    mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces, sphere_radii);
+
+    // Copy the sphere forces and velocities back to STK fields
+#pragma omp parallel for
+    for (size_t i = 0; i < num_spheres; i++) {
+      stk::mesh::Entity sphere_element = sphere_elements[i];
+      stk::mesh::Entity sphere_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
+      double *sphere_force = stk::mesh::field_data(*node_force_field_ptr_, sphere_node);
+      double *sphere_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
+
+      for (size_t j = 0; j < 3; j++) {
+        sphere_force[j] = sphere_forces(i * 3 + j);
+        sphere_velocity[j] = sphere_velocities(i * 3 + j);
+      }
+    }
+  }
+
   void compute_periphery_collision_forces() {
-    const double a = 100;
-    const double b = 100;
-    const double c = 100;
+    const double spring_constant = 10000;
+    const double a = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
+    const double b = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
+    const double c = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
     const double inv_a2 = 1.0 / (a * a);
     const double inv_b2 = 1.0 / (b * b);
     const double inv_c2 = 1.0 / (c * c);
@@ -1500,9 +1617,10 @@ class HP1 {
     const auto orientation = mundy::math::Quaternion<double>::identity();
     auto level_set = [&inv_a2, &inv_b2, &inv_c2, &center,
                       &orientation](const mundy::math::Vector3<double> &point) -> double {
-      const auto body_frame_point = inverse(orientation) * (point - center);
+      const auto body_frame_point = conjugate(orientation) * (point - center);
       return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
-              body_frame_point[2] * body_frame_point[2] * inv_c2) - 1;
+              body_frame_point[2] * body_frame_point[2] * inv_c2) -
+             1;
     };
 
     // Fetch loc al references to the fields
@@ -1512,9 +1630,8 @@ class HP1 {
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spheres_part_ptr_,
-        [&node_coord_field, &node_force_field, &element_aabb_field,
-         &level_set, &center, &orientation, &a, &b, &c](const stk::mesh::BulkData &bulk_data,
-                                                                         const stk::mesh::Entity &sphere_element) {
+        [&node_coord_field, &node_force_field, &element_aabb_field, &level_set, &center, &orientation, &a, &b, &c, &spring_constant](
+            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
           // For our coarse search, we check if the coners of the sphere's aabb lie inside the ellipsoidal periphery
           // This can be done via the (body frame) inside outside unftion f(x, y, z) = 1 - (x^2/a^2 + y^2/b^2 + z^2/c^2)
           // This is possible due to the convexity of the ellipsoid
@@ -1542,6 +1659,8 @@ class HP1 {
               level_set(top_left_back) < 0.0 && level_set(top_right_back) < 0.0;
 
           if (!all_points_inside_periphery) {
+            std::cout << "Sphere element " << bulk_data.identifier(sphere_element) << " is not entirely inside the periphery."
+                      << std::endl;
             // We might have a collision, perform the more expensive check
             const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
             const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
@@ -1558,11 +1677,11 @@ class HP1 {
               auto inward_normal = contact_point - node_coords;
               inward_normal /= mundy::math::two_norm(inward_normal);
 #pragma omp atomic
-              node_force[0] += 10000* inward_normal[0] * shared_normal_ssd;
+              node_force[0] += spring_constant * inward_normal[0] * shared_normal_ssd;
 #pragma omp atomic
-              node_force[1] += 10000* inward_normal[1] * shared_normal_ssd;
+              node_force[1] += spring_constant * inward_normal[1] * shared_normal_ssd;
 #pragma omp atomic
-              node_force[2] += 10000* inward_normal[2] * shared_normal_ssd;
+              node_force[2] += spring_constant * inward_normal[2] * shared_normal_ssd;
             }
           }
         });
@@ -1705,6 +1824,7 @@ class HP1 {
     set_mutable_parameters();
     setup_io_mundy();
     declare_and_initialize_hp1();
+    initialize_periphery();
 
     assert_invariant("After setup");
     Kokkos::Profiling::popRegion();
@@ -1728,60 +1848,29 @@ class HP1 {
     Kokkos::Profiling::pushRegion("MainLoop");
     for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
       // Prepare the current configuration.
-      Kokkos::Profiling::pushRegion("HP1::ZeroTransient");
-      {
-        // Zero the node velocities, and forces/torques for time t.
-        zero_out_transient_node_fields();
-
-        // Zero out the element binding rates
-        zero_out_transient_element_fields();
-
-        // Zero out the constraint binding state changes
-        zero_out_transient_constraint_fields();
-      }
+      Kokkos::Profiling::pushRegion("HP1::PrepareStep");
+      zero_out_transient_node_fields();
+      zero_out_transient_element_fields();
+      zero_out_transient_constraint_fields();
+      rotate_field_states();
       Kokkos::Profiling::popRegion();
 
-      // Rotate the field states
-      {
-        // Rotate the field states
-        rotate_field_states();
-      }
-
-      // Reset the update_neighbor_list 'signal'
-      { update_neighbor_list_ = false; }
-
-      // Detect all possible neighbors in the system
-      {
-        // Detect neighbors of spheres-spheres and crosslinkers-spheres
-        detect_neighbors();
-        assert_invariant("After detect neighbors");
-      }
+      // Detect sphere-sphere and crosslinker-sphere neighbors
+      update_neighbor_list_ = false;
+      detect_neighbors();
 
       // Update the state changes in the system s(t).;
-      {
-        // State change of every crosslinker
-        update_crosslinker_state();
-        assert_invariant("After update crosslinker state");
-      }
+      update_crosslinker_state();
 
       // Evaluate forces f(x(t)).
-      {
-        // Hertzian forces
-        compute_hertzian_contact_forces();
-        assert_invariant("After hertzian contact forces");
+      compute_hertzian_contact_forces();
+      compute_harmonic_bond_forces();
+      compute_periphery_collision_forces();
 
-        // Compute harmonic bond forces
-        compute_harmonic_bond_forces();
-        assert_invariant("After harmonic bond forces");
-      }
-
-      // Compute velocity.
-      {
-        // Evaluate v(t) = M fext(t) + Ubrown(t)
-        compute_brownian_velocity();
-        compute_external_velocity();
-        assert_invariant("After compute velocity");
-      }
+      // Compute velocities.
+      compute_brownian_velocity();
+      compute_rpy_hydro_with_no_slip_periphery();
+      // compute_external_velocity();
 
       // Logging, if desired, write to console
       Kokkos::Profiling::pushRegion("HP1::Logging");
@@ -1802,19 +1891,9 @@ class HP1 {
       }
       Kokkos::Profiling::popRegion();
 
-      // Update positions.
-      {
-        // Evaluate x(t + dt) = x(t) + dt * v(t).
+      // Update positions. x(t + dt) = x(t) + dt * v(t).
         update_positions();
-        assert_invariant("After update positions");
-
-#pragma TODO CJE Remove the mesh dump so that we can see the metadata
-        // std::cout << "############################################" << std::endl;
-        // std::cout << "Mesh after update_positions." << std::endl;
-        // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
-        // std::cout << "############################################" << std::endl;
-      }
-    }  // End of time loop
+    }
     Kokkos::Profiling::popRegion();
 
     // Do a synchronize to force everybody to stop here, then write the time
@@ -1859,6 +1938,7 @@ class HP1 {
   std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
   size_t output_file_index_;
   size_t timestep_index_;
+  std::shared_ptr<mundy::alens::periphery::Periphery> periphery_ptr_;
   //@}
 
   //! \name Fields
@@ -2013,9 +2093,11 @@ class HP1 {
   bool update_neighbor_list_ = false;
   bool force_neighborlist_update_ = false;
   size_t force_neighborlist_update_nsteps_ = 10;
+
   // Neighborlist rebuild information
   size_t last_neighborlist_update_step_ = 0;
   Kokkos::Timer neighborlist_update_timer_;
+
   // [timestep, elapsed_timesteps, elapsed_time]
   std::vector<std::tuple<size_t, size_t, double>> neighborlist_update_steps_times_;
   bool print_neighborlist_statistics_ = false;

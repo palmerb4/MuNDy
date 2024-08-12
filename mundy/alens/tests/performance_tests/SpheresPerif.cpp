@@ -173,23 +173,6 @@ void apply_hertzian_contact_between_spheres(
       });
 }
 
-void apply_local_drag(const double viscosity,
-                      Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_velocities,
-                      Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_forces,
-                      Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_radii) {
-  const size_t num_spheres = sphere_radii.extent(0);
-  const double scale = 1.0 / (6.0 * M_PI * viscosity);
-  Kokkos::parallel_for(
-      "apply_local_drag", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, num_spheres),
-      KOKKOS_LAMBDA(const size_t i) {
-        const double r = sphere_radii(i);
-        const double inv_drag_coeff = scale / r;
-        sphere_velocities(3 * i) += inv_drag_coeff * sphere_forces(3 * i);
-        sphere_velocities(3 * i + 1) += inv_drag_coeff * sphere_forces(3 * i + 1);
-        sphere_velocities(3 * i + 2) += inv_drag_coeff * sphere_forces(3 * i + 2);
-      });
-}
-
 void update_sphere_positions(const double time_step,
                              Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_positions,
                              Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_velocities) {
@@ -400,7 +383,8 @@ int main(int argc, char **argv) {
                                                                       sphere_forces, sphere_radii);
 
       // Use local drag during equilibriation
-      mundy::alens::periphery::apply_local_drag(viscosity, sphere_velocities, sphere_forces, sphere_radii);
+      mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
+                                                sphere_radii);
 
       // x(t + dt) = x(t) + dt * v(t)
       mundy::alens::periphery::update_sphere_positions(time_step, sphere_positions, sphere_velocities);
@@ -457,8 +441,9 @@ int main(int argc, char **argv) {
                                                             sphere_positions, surface_forces, surface_weights,
                                                             sphere_velocities);
 
-      // The RPY kernel is only long-rank, it doesn't add on self-interaction for the spheres
-      mundy::alens::periphery::apply_local_drag(viscosity, sphere_velocities, sphere_forces, sphere_radii);
+      // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+      mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
+                                                sphere_radii);
 
       // x(t + dt) = x(t) + dt * v(t)
       mundy::alens::periphery::update_sphere_positions(time_step, sphere_positions, sphere_velocities);

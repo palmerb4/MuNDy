@@ -636,6 +636,25 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
       });
 }
 
+/// \brief Apply local drag to the sphere velocities v += 1/(6 pi mu r) f
+template <class ExecutionSpace, class MemorySpace, class Layout>
+void apply_local_drag([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
+                      Kokkos::View<double *, Layout, MemorySpace> sphere_velocities,
+                      Kokkos::View<double *, Layout, MemorySpace> sphere_forces,
+                      Kokkos::View<double *, Layout, MemorySpace> sphere_radii) {
+  const size_t num_spheres = sphere_radii.extent(0);
+  const double scale = 1.0 / (6.0 * M_PI * viscosity);
+  Kokkos::parallel_for(
+      "apply_local_drag", Kokkos::RangePolicy<ExecutionSpace>(0, num_spheres),
+      KOKKOS_LAMBDA(const size_t i) {
+        const double r = sphere_radii(i);
+        const double inv_drag_coeff = scale / r;
+        sphere_velocities(3 * i) += inv_drag_coeff * sphere_forces(3 * i);
+        sphere_velocities(3 * i + 1) += inv_drag_coeff * sphere_forces(3 * i + 1);
+        sphere_velocities(3 * i + 2) += inv_drag_coeff * sphere_forces(3 * i + 2);
+      });
+}
+
 /// \brief Fill the stokes double layer matrix times the surface normal
 ///
 ///   T is the stokes double layer kernel T_{ij} = -3 viscosity / (4*pi) * r_i * r_j * r_k * normal_k / r**5 *
@@ -1104,6 +1123,7 @@ class Periphery {
   //! \name Public member functions
   //@{
 
+  // TODO(palmerb4): A better method would be read_from_file and write_to_file, which would be more general
   Periphery &build_inverse_self_interaction_matrix(
       const bool &write_to_file = true,
       const std::string &inverse_self_interaction_matrix_filename = "inverse_self_interaction_matrix.dat") {
@@ -1180,11 +1200,6 @@ class Periphery {
     return surface_normals_;
   }
 
-  /// \brief Get the surface forces
-  const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &get_surface_forces() const {
-    return surface_forces_;
-  }
-
   /// \brief Get the quadrature weights
   const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &get_quadrature_weights() const {
     return quadrature_weights_;
@@ -1213,8 +1228,6 @@ class Periphery {
       surface_positions_host_;  //!< The surface positions (host)
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_normals_host_;  //!< The surface normals (host)
   Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace>
-      surface_forces_host_;  //!< The unknown surface forces (host)
-  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace>
       quadrature_weights_host_;  //!< The quadrature weights (host)
   Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace>
       M_inv_host_;  //!< The inverse of the self-interaction matrix (host)
@@ -1222,8 +1235,6 @@ class Periphery {
   // Device Kokkos views
   Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_positions_;  //!< The node positions (device)
   Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_normals_;    //!< The surface normals (device)
-  Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace>
-      surface_forces_;  //!< The unknown surface forces (device)
   Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace>
       quadrature_weights_;  //!< The quadrature weights (device)
   Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace>
