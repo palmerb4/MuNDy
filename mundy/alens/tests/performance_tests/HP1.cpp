@@ -69,6 +69,7 @@ Interactions:
 
 // Mundy libs
 #include <mundy_alens/actions_crosslinkers.hpp>             // for mundy::alens::crosslinkers...
+#include <mundy_alens/periphery/Periphery.hpp>              // for gen_sphere_quadrature
 #include <mundy_constraints/AngularSprings.hpp>             // for mundy::constraints::AngularSprings
 #include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
 #include <mundy_constraints/DeclareAndInitConstraints.hpp>  // for mundy::constraints::DeclareAndInitConstraints
@@ -101,7 +102,6 @@ Interactions:
 #include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
 #include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
 #include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
-#include <mundy_alens/periphery/Periphery.hpp>  // for gen_sphere_quadrature
 
 namespace mundy {
 
@@ -141,10 +141,11 @@ class HP1 {
     cmdp.setOption("log_frequency", &log_frequency_, "Number of timesteps between logging.");
     cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
     cmdp.setOption("initialization_type", &initialization_type_, "Initialization_type.");
+    cmdp.setOption("viscosity", &viscosity_, "Viscosity.");
 
-    // Unit cell/periodicity:
+    // Periphery or unit cell:
 #pragma TODO This will be replaced with the periphery radius and values eventually
-    cmdp.setOption("unit_cell_length", &unit_cell_length_, "Length of the simulation unit cell on a side (cubic).");
+    cmdp.setOption("periphery_radius", &periphery_radius_, "Periphery radius.");
 
     // Chromatin chains:
     cmdp.setOption("num_chromosomes", &num_chromosomes_, "Number of chromosomes (chromatin chains).");
@@ -153,11 +154,13 @@ class HP1 {
                    "Number of euchromatin beads per repeat.");
     cmdp.setOption("num_heterochromatin_per_repeat", &num_heterochromatin_per_repeat_,
                    "Number of heterochromatin beads per repeat.");
-    cmdp.setOption("sphere_radius", &sphere_radius_, "Backbone sphere radius.");
+    cmdp.setOption("backbone_excluded_volume_radius", &backbone_excluded_volume_radius_,
+                   "Backbone excluded volume radius (segments).");
+    cmdp.setOption("sphere_hydrodynamic_radius", &sphere_hydrodynamic_radius_, "Hydrodynamic sphere radius.");
     cmdp.setOption("initial_sphere_separation", &initial_sphere_separation_, "Initial backbone sphere separation.");
     cmdp.setOption("backbone_youngs_modulus", &backbone_youngs_modulus_, "Backbone Youngs modulus.");
     cmdp.setOption("backbone_poissons_ratio", &backbone_poissons_ratio_, "Backbone poissons ratio.");
-    cmdp.setOption("sphere_drag_coeff", &sphere_drag_coeff_, "Backbone sphere drag coefficient.");
+    // cmdp.setOption("sphere_drag_coeff", &sphere_drag_coeff_, "Backbone sphere drag coefficient.");
 
     //  Chromatin spring:
     cmdp.setOption("chromatin_spring_type", &chromatin_spring_type, "Chromatin spring type.");
@@ -195,12 +198,17 @@ class HP1 {
                        "num_euchromatin_per_repeat_ must be greater than 0.");
     MUNDY_THROW_ASSERT(num_heterochromatin_per_repeat_ > 0, std::invalid_argument,
                        "num_heterochromatin_per_repeat_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sphere_radius_ > 0, std::invalid_argument, "sphere_radius_ must be greater than 0.");
+    MUNDY_THROW_ASSERT(backbone_excluded_volume_radius_ > 0, std::invalid_argument,
+                       "backbone_excluded_volume_radius_ must be greater than 0.");
 
     MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
     MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
     MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
 
+    // Set the unit cell to twice the periphery radius
+    unit_cell_length_ = 2.0 * periphery_radius_;
+    // Set the hydrodynamic drag on the spheres to 6 * pi * eta * r
+    sphere_drag_coeff_ = 6.0 * M_PI * viscosity_ * sphere_hydrodynamic_radius_;
     // Modify any variables into their final form
     skin_distance2_over4_ = skin_distance_ * skin_distance_ / 4.0;
     // Compute the cutoff radius for the crosslinker
@@ -230,15 +238,17 @@ class HP1 {
       std::cout << "INPUT PARAMETERS:" << std::endl;
 
       std::cout << "SIMULATION:" << std::endl;
-      std::cout << "  num_time_steps: " << num_time_steps_ << std::endl;
-      std::cout << "  timestep_size: " << timestep_size_ << std::endl;
-      std::cout << "  io_frequency: " << io_frequency_ << std::endl;
-      std::cout << "  log_frequency: " << log_frequency_ << std::endl;
-      std::cout << "  kT (Brownian): " << kt_brownian_ << std::endl;
-      std::cout << "  kT (KMC): " << kt_kmc_ << std::endl;
-      std::cout << "  initialization_type: " << initialization_type_ << std::endl;
+      std::cout << "  num_time_steps:       " << num_time_steps_ << std::endl;
+      std::cout << "  timestep_size:        " << timestep_size_ << std::endl;
+      std::cout << "  io_frequency:         " << io_frequency_ << std::endl;
+      std::cout << "  log_frequency:        " << log_frequency_ << std::endl;
+      std::cout << "  kT (Brownian):        " << kt_brownian_ << std::endl;
+      std::cout << "  kT (KMC):             " << kt_kmc_ << std::endl;
+      std::cout << "  initialization_type:  " << initialization_type_ << std::endl;
+      std::cout << "  viscosity:            " << viscosity_ << std::endl;
 
       std::cout << "UNIT CELL:" << std::endl;
+      std::cout << "  periphery_radius: " << periphery_radius_ << std::endl;
       std::cout << "  box_length: " << unit_cell_length_ << std::endl;
 
       std::cout << "NEIGHBOR LIST:" << std::endl;
@@ -252,11 +262,12 @@ class HP1 {
       std::cout << "  num_chromatin_repeats: " << num_chromatin_repeats_ << std::endl;
       std::cout << "  num_euchromatin_per_repeat: " << num_euchromatin_per_repeat_ << std::endl;
       std::cout << "  num_heterochromatin_per_repeat: " << num_heterochromatin_per_repeat_ << std::endl;
-      std::cout << "  sphere_radius: " << sphere_radius_ << std::endl;
+      std::cout << "  backbone_excluded_volume_radius: " << backbone_excluded_volume_radius_ << std::endl;
+      std::cout << "  sphere_hydrodynamic_radius: " << sphere_hydrodynamic_radius_ << std::endl;
       std::cout << "  initial_sphere_separation: " << initial_sphere_separation_ << std::endl;
       std::cout << "  youngs_modulus: " << backbone_youngs_modulus_ << std::endl;
       std::cout << "  poissons_ratio: " << backbone_poissons_ratio_ << std::endl;
-      std::cout << "  drag_coeff: " << sphere_drag_coeff_ << std::endl;
+      std::cout << "  sphere_drag_coeff (calc): " << sphere_drag_coeff_ << std::endl;
 
       std::cout << "CHROMATIN SPRINGS:" << std::endl;
       std::string chromatin_spring_type = chromatin_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene";
@@ -1026,13 +1037,12 @@ class HP1 {
 
         // Create an adjusted length to keep the chromosome away from the wall, and inside a sphere. There is a
         // non-sampling way to do this, but meh.
-        double adjusted_unit_cell_length = unit_cell_length_ - r_max;
-        mundy::math::Vector3<double> r_start(unit_cell_length_, unit_cell_length_, unit_cell_length_);
-        while (mundy::math::two_norm(r_start) > 0.5 * adjusted_unit_cell_length) {
-          r_start = mundy::math::Vector3<double>(
-              rng.uniform<double>(-0.5 * adjusted_unit_cell_length, 0.5 * adjusted_unit_cell_length),
-              rng.uniform<double>(-0.5 * adjusted_unit_cell_length, 0.5 * adjusted_unit_cell_length),
-              rng.uniform<double>(-0.5 * adjusted_unit_cell_length, 0.5 * adjusted_unit_cell_length));
+        double adjusted_radius = periphery_radius_ - r_max;
+        mundy::math::Vector3<double> r_start(periphery_radius_, periphery_radius_, periphery_radius_);
+        while (mundy::math::two_norm(r_start) > adjusted_radius) {
+          r_start = mundy::math::Vector3<double>(rng.uniform<double>(-1.0 * adjusted_radius, adjusted_radius),
+                                                 rng.uniform<double>(-1.0 * adjusted_radius, adjusted_radius),
+                                                 rng.uniform<double>(-1.0 * adjusted_radius, adjusted_radius));
         }
 
         // Check for overlaps with existing chromosomes
@@ -1082,6 +1092,7 @@ class HP1 {
   // parts.
   void initialize_chromatin_backbone_and_hp1() {
     // Get parts for composed selectors we are using
+    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
     stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
     stk::mesh::Part &eh_springs_part = *eh_springs_part_ptr_;
     stk::mesh::Part &hh_springs_part = *hh_springs_part_ptr_;
@@ -1132,7 +1143,7 @@ class HP1 {
     // This includes the hertzian radius
     {
       const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
-      double radius_cutoff = sphere_radius_;
+      double radius_cutoff = backbone_excluded_volume_radius_;
       stk::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::ELEMENT_RANK, local_backbone_segments,
           [&element_radius_field, &radius_cutoff]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
@@ -1140,6 +1151,21 @@ class HP1 {
             // Set the radius
             stk::mesh::field_data(element_radius_field, local_backbone)[0] = radius_cutoff;
           });  // for_each_entity_run
+
+      // Initialize leftover hydrodynamic sphere variables
+      //
+      // This includes the hydrodynamic radius of the spheres
+      {
+        const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+        double hydrodynamic_radius = sphere_hydrodynamic_radius_;
+        stk::mesh::for_each_entity_run(
+            *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_part,
+            [&element_radius_field, &hydrodynamic_radius]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                          const stk::mesh::Entity &local_sphere) {
+              // Set the radius
+              stk::mesh::field_data(element_radius_field, local_sphere)[0] = hydrodynamic_radius;
+            });  // for_each_entity_run
+      }
     }
 
     // Initialize node positions for each chromosome
@@ -1166,6 +1192,29 @@ class HP1 {
     // Initilize                          //
     ////////////////////////////////////////
     initialize_chromatin_backbone_and_hp1();
+  }
+
+  void initialize_periphery() {
+    std::cout << "Initializing Periphery" << std::endl;
+    // Setup the periphery
+    const double viscosity = viscosity_;
+    const bool invert = true;
+    const bool include_poles = false;
+    const size_t spectral_order = 32;
+    const double periphery_radius = periphery_radius_;  // use specified periphery radius
+    std::vector<double> points_vec;
+    std::vector<double> weights_vec;
+    std::vector<double> normals_vec;
+    mundy::alens::periphery::gen_sphere_quadrature(spectral_order, periphery_radius, &points_vec, &weights_vec,
+                                                   &normals_vec, include_poles, invert);
+    const size_t num_surface_nodes = weights_vec.size();
+
+    periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
+    periphery_ptr_->set_surface_positions(points_vec.data())
+        .set_quadrature_weights(weights_vec.data())
+        .set_surface_normals(normals_vec.data());
+    const bool write_to_file = false;
+    periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
   }
 
   void debug_print_meta_data() {
@@ -1494,30 +1543,32 @@ class HP1 {
     Kokkos::Profiling::popRegion();
   }
 
-  void initialize_periphery() {
-    // Setup the periphery
-    const double viscosity = 1.0;
-    const bool invert = true;
-    const bool include_poles = false;
-    const size_t spectral_order = 32;
-    const double periphery_radius = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
-    std::vector<double> points_vec;
-    std::vector<double> weights_vec;
-    std::vector<double> normals_vec;
-    mundy::alens::periphery::gen_sphere_quadrature(spectral_order, periphery_radius, &points_vec, &weights_vec, &normals_vec, include_poles, invert);
-    const size_t num_surface_nodes = weights_vec.size();
+  // void initialize_periphery() {
+  //   // Setup the periphery
+  //   const double viscosity = viscosity_;
+  //   const bool invert = true;
+  //   const bool include_poles = false;
+  //   const size_t spectral_order = 32;
+  //   const double periphery_radius = periphery_radius_;  // use specified periphery radius
+  //   std::vector<double> points_vec;
+  //   std::vector<double> weights_vec;
+  //   std::vector<double> normals_vec;
+  //   mundy::alens::periphery::gen_sphere_quadrature(spectral_order, periphery_radius, &points_vec, &weights_vec,
+  //                                                  &normals_vec, include_poles, invert);
+  //   const size_t num_surface_nodes = weights_vec.size();
 
-    periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
-    periphery_ptr_->set_surface_positions(points_vec.data())
-        .set_quadrature_weights(weights_vec.data())
-        .set_surface_normals(normals_vec.data());
-    const bool write_to_file = false;
-    periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
-  }
+  //   periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
+  //   periphery_ptr_->set_surface_positions(points_vec.data())
+  //       .set_quadrature_weights(weights_vec.data())
+  //       .set_surface_normals(normals_vec.data());
+  //   const bool write_to_file = false;
+  //   periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
+  // }
 
   void compute_rpy_hydro_with_no_slip_periphery() {
+    Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro_with_no_slip_periphery");
     MUNDY_THROW_ASSERT(periphery_ptr_ != nullptr, std::runtime_error, "Periphery not initialized.");
-    const double viscosity = 1.0;
+    const double viscosity = viscosity_;
 
     // TODO(palmerb4): Uncertain what the most efficient way to achieve this is. We use KokkosBlas to perform the matrix
     // inversion and matrix-vector multiplication required for periphery initialization and evaluation. This is
@@ -1526,14 +1577,16 @@ class HP1 {
     // Fetch the bucket of spheres to act on.
     stk::mesh::EntityVector sphere_elements;
     stk::mesh::Selector spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
-    stk::mesh::get_selected_entities(spheres_selector, bulk_data_ptr_->buckets(stk::topology::ELEMENT_RANK), sphere_elements);
+    stk::mesh::get_selected_entities(spheres_selector, bulk_data_ptr_->buckets(stk::topology::ELEMENT_RANK),
+                                     sphere_elements);
     const size_t num_spheres = sphere_elements.size();
 
     // Copy the sphere positions, radii, forces, and velocities to Kokkos views
     Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_positions("sphere_positions", num_spheres * 3);
     Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_radii("sphere_radii", num_spheres);
     Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_forces("sphere_forces", num_spheres * 3);
-    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_velocities("sphere_velocities", num_spheres * 3);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_velocities("sphere_velocities",
+                                                                                    num_spheres * 3);
 
 #pragma omp parallel for
     for (size_t i = 0; i < num_spheres; i++) {
@@ -1589,7 +1642,8 @@ class HP1 {
                                                           sphere_velocities);
 
     // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-    mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces, sphere_radii);
+    mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
+                                              sphere_radii);
 
     // Copy the sphere forces and velocities back to STK fields
 #pragma omp parallel for
@@ -1604,13 +1658,15 @@ class HP1 {
         sphere_velocity[j] = sphere_velocities(i * 3 + j);
       }
     }
+    Kokkos::Profiling::popRegion();
   }
 
   void compute_periphery_collision_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_periphery_collision_forces");
     const double spring_constant = 10000;
-    const double a = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
-    const double b = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
-    const double c = unit_cell_length_ * std::sqrt(3) * 0.5;  // inscribed unit cell
+    const double a = periphery_radius_;
+    const double b = periphery_radius_;
+    const double c = periphery_radius_;
     const double inv_a2 = 1.0 / (a * a);
     const double inv_b2 = 1.0 / (b * b);
     const double inv_c2 = 1.0 / (c * c);
@@ -1631,8 +1687,8 @@ class HP1 {
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spheres_part_ptr_,
-        [&node_coord_field, &node_force_field, &element_aabb_field, &level_set, &center, &orientation, &a, &b, &c, &spring_constant](
-            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+        [&node_coord_field, &node_force_field, &element_aabb_field, &level_set, &center, &orientation, &a, &b, &c,
+         &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
           // For our coarse search, we check if the coners of the sphere's aabb lie inside the ellipsoidal periphery
           // This can be done via the (body frame) inside outside unftion f(x, y, z) = 1 - (x^2/a^2 + y^2/b^2 + z^2/c^2)
           // This is possible due to the convexity of the ellipsoid
@@ -1660,8 +1716,8 @@ class HP1 {
               level_set(top_left_back) < 0.0 && level_set(top_right_back) < 0.0;
 
           if (!all_points_inside_periphery) {
-            std::cout << "Sphere element " << bulk_data.identifier(sphere_element) << " is not entirely inside the periphery."
-                      << std::endl;
+            std::cout << "Sphere element " << bulk_data.identifier(sphere_element)
+                      << " is not entirely inside the periphery." << std::endl;
             // We might have a collision, perform the more expensive check
             const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
             const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
@@ -1686,6 +1742,7 @@ class HP1 {
             }
           }
         });
+    Kokkos::Profiling::popRegion();
   }
 
   void compute_hertzian_contact_forces() {
@@ -1893,7 +1950,7 @@ class HP1 {
       Kokkos::Profiling::popRegion();
 
       // Update positions. x(t + dt) = x(t) + dt * v(t).
-        update_positions();
+      update_positions();
     }
     Kokkos::Profiling::popRegion();
 
@@ -2058,9 +2115,11 @@ class HP1 {
   double timestep_size_ = 0.001;
   double kt_brownian_ = 1.0;
   double kt_kmc_ = 1.0;
+  double viscosity_ = 1.0;
   std::string initialization_type_ = "grid";
 
   // Unit cell/periodicity params
+  double periphery_radius_ = 5.0;
   double unit_cell_length_ = 10.0;
 
   // Chromatin params
@@ -2068,7 +2127,8 @@ class HP1 {
   size_t num_chromatin_repeats_ = 2;
   size_t num_euchromatin_per_repeat_ = 1;
   size_t num_heterochromatin_per_repeat_ = 1;
-  double sphere_radius_ = 0.5;
+  double backbone_excluded_volume_radius_ = 0.5;
+  double sphere_hydrodynamic_radius_ = 0.05;
   double initial_sphere_separation_ = 1.0;
   double backbone_youngs_modulus_ = 1000.0;
   double backbone_poissons_ratio_ = 0.3;
