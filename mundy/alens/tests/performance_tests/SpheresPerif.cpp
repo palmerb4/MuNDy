@@ -321,17 +321,28 @@ int main(int argc, char **argv) {
 
   {
     // Simulation of N spheres in a spherical periphery with reflection boundary conditions for collisions.
+    // const double viscosity = 1.0;
+    // const double youngs_modulus = 10000.0;
+    // const double poisson_ratio = 0.3;
+    // const double periphery_radius = 100.0;
+    // const double sphere_radius_min = 1.0;
+    // const double sphere_radius_max = 3.0;
+    // const double num_spheres = 10000;
+    // const double time_step = 0.00001;
+    // const size_t num_time_steps = 1000 / time_step;
+    // const size_t num_equilibriation_steps = 1000;
+    // const size_t io_frequency = 0.001 / time_step;
     const double viscosity = 1.0;
-    const double youngs_modulus = 10000.0;
+    const double youngs_modulus = 1000.0;
     const double poisson_ratio = 0.3;
-    const double periphery_radius = 100.0;
-    const double sphere_radius_min = 1.0;
-    const double sphere_radius_max = 3.0;
-    const double num_spheres = 10000;
-    const double time_step = 0.00001;
-    const size_t num_time_steps = 1000 / time_step;
+    const double periphery_radius = 28.0;
+    const double sphere_radius_min = 0.1;
+    const double sphere_radius_max = 0.11;
+    const double num_spheres = 1305;
+    const double time_step = 0.000005;
+    const size_t num_time_steps = 101;
     const size_t num_equilibriation_steps = 1000;
-    const size_t io_frequency = 0.001 / time_step;
+    const size_t io_frequency = 20;
 
     // Setup the periphery
     const size_t spectral_order = 32;
@@ -396,6 +407,7 @@ int main(int argc, char **argv) {
 
     // Run the simulation
     Kokkos::Timer timer;
+    Kokkos::Timer main_loop_timer;
     for (size_t t = 0; t < num_time_steps; ++t) {
       timer.reset();
 
@@ -452,7 +464,7 @@ int main(int argc, char **argv) {
       if (t % io_frequency == 0) {
         std::cout << "Writing spheres to file: " << t
                   << " | max_speed: " << mundy::alens::periphery::max_speed(sphere_velocities)
-                  << " tps: " << timer.seconds() / io_frequency << std::endl;
+                  << " tps (avg): " << static_cast<double>(t) / main_loop_timer.seconds() << std::endl;
         Kokkos::deep_copy(sphere_positions_host, sphere_positions);
         Kokkos::deep_copy(sphere_velocities_host, sphere_velocities);
         Kokkos::deep_copy(sphere_forces_host, sphere_forces);

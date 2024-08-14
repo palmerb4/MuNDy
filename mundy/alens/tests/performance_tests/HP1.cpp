@@ -1543,28 +1543,6 @@ class HP1 {
     Kokkos::Profiling::popRegion();
   }
 
-  // void initialize_periphery() {
-  //   // Setup the periphery
-  //   const double viscosity = viscosity_;
-  //   const bool invert = true;
-  //   const bool include_poles = false;
-  //   const size_t spectral_order = 32;
-  //   const double periphery_radius = periphery_radius_;  // use specified periphery radius
-  //   std::vector<double> points_vec;
-  //   std::vector<double> weights_vec;
-  //   std::vector<double> normals_vec;
-  //   mundy::alens::periphery::gen_sphere_quadrature(spectral_order, periphery_radius, &points_vec, &weights_vec,
-  //                                                  &normals_vec, include_poles, invert);
-  //   const size_t num_surface_nodes = weights_vec.size();
-
-  //   periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
-  //   periphery_ptr_->set_surface_positions(points_vec.data())
-  //       .set_quadrature_weights(weights_vec.data())
-  //       .set_surface_normals(normals_vec.data());
-  //   const bool write_to_file = false;
-  //   periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
-  // }
-
   void compute_rpy_hydro_with_no_slip_periphery() {
     Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro_with_no_slip_periphery");
     MUNDY_THROW_ASSERT(periphery_ptr_ != nullptr, std::runtime_error, "Periphery not initialized.");
