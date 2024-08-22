@@ -272,6 +272,7 @@ SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::
       valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
   const std::string linker_contact_points_field_name =
       valid_fixed_params.get<std::string>("linker_contact_points_field_name");
+  const std::string linked_entities_field_name = NeighborLinkers::get_linked_entities_field_name();
 
   node_coords_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coords_field_name);
   node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name);
@@ -286,6 +287,8 @@ SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_normal_field_name);
   linker_contact_points_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_points_field_name);
+  linked_entities_field_ptr_ = meta_data_ptr_->get_field<LinkedEntitiesFieldType::value_type>(
+      stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
@@ -301,6 +304,7 @@ SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
   field_exists(linker_contact_normal_field_ptr_, linker_contact_normal_field_name);
   field_exists(linker_contact_points_field_ptr_, linker_contact_points_field_name);
+  field_exists(linked_entities_field_ptr_, linked_entities_field_name);
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
@@ -358,6 +362,7 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
   const stk::mesh::Field<double> &linker_tangential_displacement_field = *linker_tangential_displacement_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_points_field = *linker_contact_points_field_ptr_;
+  const LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
   stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
 
   // Communicate ghosted fields.
@@ -387,7 +392,7 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
       [&node_coords_field, &node_velocity_field_old, &element_radius_field, &linker_potential_force_field,
        &linker_signed_separation_distance_field, &linker_tangential_displacement_field, &linker_contact_normal_field,
        &linker_contact_points_field, &time_step_size, &density, &normal_spring_coeff, &tang_spring_coeff,
-       &normal_damping_coeff, &tang_damping_coeff, &friction_coeff](
+       &normal_damping_coeff, &tang_damping_coeff, &friction_coeff, &linked_entities_field](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sy_seg_sy_seg_linker) {
         // This is an expensive kernel, so we only run it if the particles actually overlap.
         const double linker_signed_separation_distance =
@@ -400,8 +405,11 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
           // Contact, compute the contact forces
 
           // Fetch the attached entities. Use references to avoid copying or pointer dereferencing.
-          const stk::mesh::Entity &left_sy_seg_element = bulk_data.begin_elements(sy_seg_sy_seg_linker)[0];
-          const stk::mesh::Entity &right_sy_seg_element = bulk_data.begin_elements(sy_seg_sy_seg_linker)[1];
+          const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
+            reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+                stk::mesh::field_data(linked_entities_field, sy_seg_sy_seg_linker));
+          const stk::mesh::Entity &left_sy_seg_element = bulk_data.get_entity(key_t_ptr[0]);
+          const stk::mesh::Entity &right_sy_seg_element = bulk_data.get_entity(key_t_ptr[1]);
           const stk::mesh::Entity *left_sy_seg_nodes = bulk_data.begin_nodes(left_sy_seg_element);
           const stk::mesh::Entity *right_sy_seg_nodes = bulk_data.begin_nodes(right_sy_seg_element);
 

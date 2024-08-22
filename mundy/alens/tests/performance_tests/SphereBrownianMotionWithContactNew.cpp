@@ -1161,7 +1161,7 @@ int main(int argc, char **argv) {
   evaluate_linker_potentials_fixed_params.sublist("SPHERE_SPHERE_HERTZIAN_CONTACT")
       .set("valid_entity_part_names", mundy::core::make_string_array("SPHERE_SPHERE_LINKERS"))
       .set("valid_sphere_part_names", mundy::core::make_string_array("SPHERES"))
-      .set("linker_potential_force_magnitude_field_name", "LINKER_POTENTIAL_FORCE")
+      .set("linker_potential_force_field_name", "LINKER_POTENTIAL_FORCE")
       .set("linker_signed_separation_distance_field_name", "LINKER_SIGNED_SEPARATION_DISTANCE")
       .set("element_youngs_modulus_field_name", "ELEMENT_YOUNGS_MODULUS")
       .set("element_poissons_ratio_field_name", "ELEMENT_POISSONS_RATIO");
@@ -1170,8 +1170,7 @@ int main(int argc, char **argv) {
   Teuchos::ParameterList linker_potential_force_reduction_fixed_params;
   linker_potential_force_reduction_fixed_params.set("enabled_kernel_names", mundy::core::make_string_array("SPHERE"))
       .set("name_of_linker_part_to_reduce_over", "SPHERE_SPHERE_LINKERS")
-      .set("linker_potential_force_magnitude_field_name", "LINKER_POTENTIAL_FORCE")
-      .set("linker_contact_normal_field_name", "LINKER_CONTACT_NORMAL");
+      .set("linker_potential_force_field_name", "LINKER_POTENTIAL_FORCE");
   linker_potential_force_reduction_fixed_params.sublist("SPHERE")
       .set("valid_entity_part_names", mundy::core::make_string_array("SPHERES"))
       .set("node_force_field_name", "NODE_FORCE");

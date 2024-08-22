@@ -117,9 +117,6 @@ inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk
   // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
-  // If a node already exists at the ordinal, we'll destroy that relation.
-  unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
-
   // Check a node already exists at the ordinal
   const int num_nodes = bulk_data.num_nodes(crosslinker);
   stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);

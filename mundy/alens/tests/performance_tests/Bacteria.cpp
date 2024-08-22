@@ -258,7 +258,7 @@ bool subdivide_flagged_spherocylinders(stk::mesh::BulkData &bulk_data, const stk
 
 #pragma omp parallel for
   for (size_t i = 0; i < num_entities_to_maybe_divide; i++) {
-    parent_lid_to_child_lid[i] -= 1;
+    parent_lid_to_child_lid[i] -= (parent_lid_to_child_lid[i] > 0) * 1;
   }
 
   // Create the new entities.

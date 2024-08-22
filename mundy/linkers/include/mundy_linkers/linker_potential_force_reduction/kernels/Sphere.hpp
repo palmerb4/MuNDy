@@ -228,6 +228,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
   /// \brief Linker potential force field.
   stk::mesh::Field<double> *linker_potential_force_field_ptr_ = nullptr;
 
+  /// \brief Linked entities field.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
+
   /// \brief Node force field.
   stk::mesh::Field<double> *node_force_field_ptr_ = nullptr;
   //@}

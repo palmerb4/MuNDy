@@ -123,10 +123,10 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
   // Set the sphere's AABB
   {
     double *element_aabb = stk::mesh::field_data(*element_aabb_field_ptr, sphere);
-    element_aabb[0] = process_rank - 1 - overlap;
+    element_aabb[0] = process_rank - 0.5 - 0.5 * overlap;
     element_aabb[1] = -1.0;
     element_aabb[2] = -1.0;
-    element_aabb[3] = process_rank + 1 + overlap;
+    element_aabb[3] = process_rank + 0.5 + 0.5 * overlap;
     element_aabb[4] = 1.0;
     element_aabb[5] = 1.0;
   }

@@ -175,6 +175,12 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
     linker between spheres 0 and 1 and process 1 would generate a linker between spheres 1 and 2.
   */
 
+  const int parallel_rank = stk::parallel_machine_rank(MPI_COMM_WORLD);
+  const int parallel_size = stk::parallel_machine_size(MPI_COMM_WORLD);
+  if (parallel_size == 1) {
+    GTEST_SKIP() << "Test only valid for parallel runs.";
+  }
+
   // Free variables
   const double sphere_radius = 1.0;
   const double overlap = 0.1;
@@ -197,9 +203,13 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   stk::mesh::Field<double> *element_aabb_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_AABB");
+  stk::mesh::Field<LinkedEntitiesFieldType::value_type> *linked_entities_field_ptr =
+      meta_data_ptr->get_field<LinkedEntitiesFieldType::value_type>(stk::topology::CONSTRAINT_RANK,
+                                                                    "LINKED_NEIGHBOR_ENTITIES");
   ASSERT_TRUE(node_coord_field_ptr != nullptr) << "node_coord_field_ptr cannot be null";
   ASSERT_TRUE(element_aabb_field_ptr != nullptr) << "element_aabb_field_ptr cannot be null";
   ASSERT_TRUE(element_radius_field_ptr != nullptr) << "element_radius_field_ptr cannot be null";
+  ASSERT_TRUE(linked_entities_field_ptr != nullptr) << "linked_entities_field_ptr cannot be null";
 
   // Fetch the requested parts.
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
@@ -209,17 +219,16 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
 
   // Add 1 sphere and 1 node to the mesh per process using the process rank + 1 as the sphere and node's ID.
   bulk_data_ptr->modification_begin();
-  const int process_rank = bulk_data_ptr->parallel_rank();
-  stk::mesh::Entity node = bulk_data_ptr->declare_node(process_rank + 1);
+  stk::mesh::Entity node = bulk_data_ptr->declare_node(parallel_rank + 1);
   stk::mesh::Entity sphere =
-      bulk_data_ptr->declare_element(process_rank + 1, stk::mesh::ConstPartVector{spheres_part_ptr});
+      bulk_data_ptr->declare_element(parallel_rank + 1, stk::mesh::ConstPartVector{spheres_part_ptr});
   bulk_data_ptr->declare_relation(sphere, node, 0);
   bulk_data_ptr->modification_end();
 
   // Set the sphere's position and radius
   double *node_coords = stk::mesh::field_data(*node_coord_field_ptr, node);
   double *element_radius = stk::mesh::field_data(*element_radius_field_ptr, sphere);
-  node_coords[0] = process_rank * (2 * sphere_radius - overlap);
+  node_coords[0] = parallel_rank * (2 * sphere_radius - overlap);
   node_coords[1] = 0.0;
   node_coords[2] = 0.0;
   element_radius[0] = sphere_radius;
@@ -235,8 +244,8 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   stk::mesh::comm_mesh_counts(*bulk_data_ptr, entity_counts);
   const size_t total_num_spheres = entity_counts[stk::topology::ELEMENT_RANK];
   const size_t total_num_linkers = entity_counts[stk::topology::CONSTRAINT_RANK];
-  ASSERT_EQ(total_num_spheres, bulk_data_ptr->parallel_size());
-  EXPECT_EQ(total_num_linkers, bulk_data_ptr->parallel_size() - 1);
+  ASSERT_EQ(total_num_spheres, parallel_size);
+  EXPECT_EQ(total_num_linkers, parallel_size - 1);
 
   // Check the number of neighbor linkers on each process.
   // Each process should have 1 neighbor linker except for the last process.
@@ -248,7 +257,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
     stk::mesh::Bucket &neighbor_linker_bucket = *locally_owned_neighbor_linker_buckets[bucket_idx];
     local_num_linkers += neighbor_linker_bucket.size();
   }
-  if (process_rank == 0) {
+  if (parallel_rank == parallel_size - 1) {
     EXPECT_EQ(local_num_linkers, 0);
   } else {
     EXPECT_EQ(local_num_linkers, 1);
@@ -259,17 +268,51 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
     stk::mesh::Bucket &neighbor_linker_bucket = *locally_owned_neighbor_linker_buckets[bucket_idx];
     for (size_t neighbor_linker_idx = 0; neighbor_linker_idx < neighbor_linker_bucket.size(); ++neighbor_linker_idx) {
       stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
-      stk::mesh::Entity const *connected_spheres = bulk_data_ptr->begin_elements(neighbor_linker);
 
-      const int num_connected_spheres = bulk_data_ptr->num_elements(neighbor_linker);
-      ASSERT_EQ(num_connected_spheres, 2) << "Neighbor linkers should connect exactly 2 spheres.";
+      // Get the linked entities from the neighbor linker.
+      stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+          stk::mesh::field_data(*linked_entities_field_ptr, neighbor_linker));
+      stk::mesh::Entity left_sphere = bulk_data_ptr->get_entity(key_t_ptr[0]);
+      stk::mesh::Entity right_sphere = bulk_data_ptr->get_entity(key_t_ptr[1]);
 
-      const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(connected_spheres[0]);
-      const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(connected_spheres[1]);
+      EXPECT_TRUE(bulk_data_ptr->bucket(neighbor_linker).member(*neighbor_linkers_part_ptr))
+          << "Neighbor linkers should be in the neighbor linkers part.";
+      EXPECT_TRUE(bulk_data_ptr->is_valid(left_sphere) && bulk_data_ptr->is_valid(right_sphere))
+          << "Neighbor linkers should connect valid spheres.";
+      EXPECT_EQ(bulk_data_ptr->num_nodes(neighbor_linker), 2) << "Neighbor linkers should connect exactly 2 nodes.";
 
-      ASSERT_EQ(static_cast<int>(sphere_i_gid), process_rank + 1)
-          << "Neighbor linkers should connect neighboring spheres.";
-      ASSERT_EQ(static_cast<int>(sphere_j_gid), process_rank) << "Neighbor linkers should connect neighboring spheres.";
+      const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(left_sphere);
+      const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(right_sphere);
+
+      ASSERT_EQ(static_cast<int>(sphere_i_gid), parallel_rank + 1)
+          << "Owned linker connects to wrong left sphere. Thrown by process " << parallel_rank
+          << " for linker " << neighbor_linker_idx << " with spheres " << sphere_i_gid << " and " << sphere_j_gid;
+      ASSERT_EQ(static_cast<int>(sphere_j_gid), parallel_rank + 2)
+          << "Owned linker connects to wrong right sphere. Thrown by process " << parallel_rank
+          << " for linker " << neighbor_linker_idx << " with spheres " << sphere_i_gid << " and " << sphere_j_gid;
+    }
+  }
+
+  // Make sure that the connected sheres are valid even for ghosted neighbor linkers.
+  const stk::mesh::BucketVector &neighbor_linker_buckets =
+      bulk_data_ptr->get_buckets(stk::topology::CONSTRAINT_RANK, stk::mesh::Selector(*neighbor_linkers_part_ptr));
+  for (size_t bucket_idx = 0; bucket_idx < neighbor_linker_buckets.size(); ++bucket_idx) {
+    stk::mesh::Bucket &neighbor_linker_bucket = *neighbor_linker_buckets[bucket_idx];
+    for (size_t neighbor_linker_idx = 0; neighbor_linker_idx < neighbor_linker_bucket.size(); ++neighbor_linker_idx) {
+      stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
+
+      // Get the linked entities from the neighbor linker.
+      stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+          stk::mesh::field_data(*linked_entities_field_ptr, neighbor_linker));
+      stk::mesh::Entity left_sphere = bulk_data_ptr->get_entity(key_t_ptr[0]);
+      stk::mesh::Entity right_sphere = bulk_data_ptr->get_entity(key_t_ptr[1]);
+
+      ASSERT_TRUE(bulk_data_ptr->is_valid(left_sphere))
+          << "Neighbor linkers connects to invalid left sphere. Thrown by process " << parallel_rank
+          << " for linker " << neighbor_linker_idx << " with spheres " << left_sphere << " and " << right_sphere;
+      ASSERT_TRUE(bulk_data_ptr->is_valid(right_sphere))
+          << "Neighbor linkers connects to invalid right sphere. Thrown by process " << parallel_rank
+          << " for linker " << neighbor_linker_idx << " with spheres " << left_sphere << " and " << right_sphere;
     }
   }
 
@@ -280,7 +323,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   std::vector<size_t> new_entity_counts;
   stk::mesh::comm_mesh_counts(*bulk_data_ptr, new_entity_counts);
   const size_t new_total_num_linkers = new_entity_counts[stk::topology::CONSTRAINT_RANK];
-  EXPECT_EQ(new_total_num_linkers, bulk_data_ptr->parallel_size() - 1) << "Neighbor linkers should not be duplicated.";
+  EXPECT_EQ(new_total_num_linkers, parallel_size - 1) << "Neighbor linkers should not be duplicated.";
 }
 
 TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSpheres) {
@@ -322,9 +365,13 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
   stk::mesh::Field<double> *element_aabb_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_AABB");
+  stk::mesh::Field<LinkedEntitiesFieldType::value_type> *linked_entities_field_ptr =
+      meta_data_ptr->get_field<LinkedEntitiesFieldType::value_type>(stk::topology::CONSTRAINT_RANK,
+                                                                    "LINKED_NEIGHBOR_ENTITIES");
   ASSERT_TRUE(node_coord_field_ptr != nullptr) << "node_coord_field_ptr cannot be null";
   ASSERT_TRUE(element_aabb_field_ptr != nullptr) << "element_aabb_field_ptr cannot be null";
   ASSERT_TRUE(element_radius_field_ptr != nullptr) << "element_radius_field_ptr cannot be null";
+  ASSERT_TRUE(linked_entities_field_ptr != nullptr) << "linked_entities_field_ptr cannot be null";
 
   // Fetch the requested parts.
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
@@ -369,10 +416,14 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
   }
 
   // Compute the AABB for all the spheres. By default this writes to the ELEMENT_AABB field.
+  std::cout << "Rank " << bulk_data_ptr->parallel_rank() << " computing AABBs" << std::endl;
   compute_aabb_ptr->execute(*spheres_part_ptr);
+  std::cout << "Rank " << bulk_data_ptr->parallel_rank() << " computed AABBs" << std::endl;
 
   // Compute the neighbor linkers. Between neighboring spheres.
+  std::cout << "Rank " << bulk_data_ptr->parallel_rank() << " generating neighbor linkers" << std::endl;
   generate_neighbor_linkers_ptr->execute(*spheres_part_ptr, *spheres_part_ptr);
+  std::cout << "Rank " << bulk_data_ptr->parallel_rank() << " generated neighbor linkers" << std::endl;
 
   // Get the total number of spheres and linkers. Must be called parallel synchronously.
   std::vector<size_t> entity_counts;
@@ -460,16 +511,21 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       stk::mesh::Bucket &neighbor_linker_bucket = *neighbor_linker_buckets[bucket_idx];
       for (size_t neighbor_linker_idx = 0; neighbor_linker_idx < neighbor_linker_bucket.size(); ++neighbor_linker_idx) {
         stk::mesh::Entity const &neighbor_linker = neighbor_linker_bucket[neighbor_linker_idx];
-        stk::mesh::Entity const *connected_spheres = bulk_data_ptr->begin_elements(neighbor_linker);
+
+        // Get the linked entities from the neighbor linker.
+        stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+            stk::mesh::field_data(*linked_entities_field_ptr, neighbor_linker));
+        stk::mesh::Entity left_sphere = bulk_data_ptr->get_entity(key_t_ptr[0]);
+        stk::mesh::Entity right_sphere = bulk_data_ptr->get_entity(key_t_ptr[1]);
 
         EXPECT_TRUE(bulk_data_ptr->bucket(neighbor_linker).member(*sphere_spheres_linkers_part_ptr))
             << "Neighbor linkers should have the sphere-sphere specialization.";
+        EXPECT_TRUE(bulk_data_ptr->is_valid(left_sphere) && bulk_data_ptr->is_valid(right_sphere))
+            << "Neighbor linkers should connect valid spheres.";
+        EXPECT_EQ(bulk_data_ptr->num_nodes(neighbor_linker), 2) << "Neighbor linkers should connect exactly 2 nodes.";
 
-        const int num_connected_spheres = bulk_data_ptr->num_elements(neighbor_linker);
-        EXPECT_EQ(num_connected_spheres, 2) << "Neighbor linkers should connect exactly 2 spheres.";
-
-        const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(connected_spheres[0]);
-        const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(connected_spheres[1]);
+        const stk::mesh::EntityId sphere_i_gid = bulk_data_ptr->identifier(left_sphere);
+        const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(right_sphere);
         EXPECT_TRUE(adjacency_matrix[sphere_i_gid - 1][sphere_j_gid - 1])
             << "Neighbor linkers should connect neighboring spheres.";
 

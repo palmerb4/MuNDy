@@ -36,7 +36,7 @@
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_linkers/Linkers.hpp>    // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_linkers/Linkers.hpp>    // for mundy::linkers::connect_linker_to_entitys_nodes
 #include <mundy_linkers/destroy_neighbor_linkers/techniques/DestroyBoundNeighbors.hpp>  // for mundy::linkers::...::DestroyBoundNeighbors
 #include <mundy_mesh/BulkData.hpp>                                                      // for mundy::mesh::BulkData
 #include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>  // for mundy::mesh::utils::destroy_flagged_entities

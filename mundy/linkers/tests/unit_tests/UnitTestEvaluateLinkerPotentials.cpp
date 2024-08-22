@@ -32,13 +32,14 @@
 
 // Trilinos libs
 #include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
+#include <stk_mesh/base/MeshUtils.hpp>     // for stk::mesh::fixup_ghosted_to_shared_nodes
 #include <stk_mesh/base/Types.hpp>         // for stk::mesh::ConstPartVector
 #include <stk_topology/topology.hpp>       // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
 #include <mundy_linkers/EvaluateLinkerPotentials.hpp>  // for mundy::linkers::EvaluateLinkerPotentials
-#include <mundy_linkers/Linkers.hpp>  // for mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing
+#include <mundy_linkers/Linkers.hpp>                   // for mundy::linkers::connect_linker_to_entitys_nodes
 #include <mundy_linkers/neighbor_linkers/SphereSphereLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSphereLinkers
 #include <mundy_linkers/neighbor_linkers/SphereSpherocylinderLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSpherocylinderLinkers
 #include <mundy_linkers/neighbor_linkers/SphereSpherocylinderSegmentLinkers.hpp>  // for mundy::linkers::neighbor_linkers::SphereSpherocylinderSegmentLinkers
@@ -87,6 +88,10 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
     Seg1-Seg2: r1 = 3.5, r2 = 4.0, ssd = -0.5, poissons_ratio = 0.3, youngs_modulus = 1e6
   */
 
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) > 2) {
+    GTEST_SKIP() << "This test is designed for 1 or 2 ranks.";
+  }
+
   // Create an instance of EvaluateLinkerPotentials based on committed mesh that meets the
   // default requirements for EvaluateLinkerPotentials.
   auto hertzian_contact_fixed_params = Teuchos::ParameterList().set(
@@ -107,7 +112,6 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
   // This test is designed for either 1 or 2 ranks.
   const int num_ranks = bulk_data_ptr->parallel_size();
   const int rank = bulk_data_ptr->parallel_rank();
-  MUNDY_THROW_ASSERT(num_ranks == 1 || num_ranks == 2, std::logic_error, "This test is designed for 1 or 2 ranks.");
 
   // Fetch the parts.
   stk::mesh::Part *sphere_part_ptr = meta_data_ptr->get_part(mundy::shapes::Spheres::get_name());
@@ -139,6 +143,32 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
   ASSERT_TRUE(spherocylinder_segment_spherocylinder_segment_linker_part_ptr != nullptr);
   ASSERT_TRUE(spherocylinder_spherocylinder_linker_part_ptr != nullptr);
   ASSERT_TRUE(spherocylinder_spherocylinder_segment_linker_part_ptr != nullptr);
+
+  // Fetch the required fields.
+  stk::mesh::Field<double> *linker_contact_normal_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
+  stk::mesh::Field<double> *element_radius_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
+  stk::mesh::Field<double> *element_youngs_modulus_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_YOUNGS_MODULUS");
+  stk::mesh::Field<double> *element_poissons_ratio_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_POISSONS_RATIO");
+  stk::mesh::Field<double> *linker_signed_separation_distance_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_SIGNED_SEPARATION_DISTANCE");
+  stk::mesh::Field<double> *linker_potential_force_field_ptr =
+      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE");
+  LinkedEntitiesFieldType *linked_entities_field_ptr = meta_data_ptr->get_field<LinkedEntitiesFieldType::value_type>(
+      stk::topology::CONSTRAINT_RANK, "LINKED_NEIGHBOR_ENTITIES");
+  stk::mesh::Field<int> *linked_entity_owners_field_ptr =
+      meta_data_ptr->get_field<int>(stk::topology::CONSTRAINT_RANK, "LINKED_NEIGHBOR_ENTITY_OWNERS");
+
+  ASSERT_TRUE(element_radius_field_ptr != nullptr);
+  ASSERT_TRUE(element_youngs_modulus_field_ptr != nullptr);
+  ASSERT_TRUE(element_poissons_ratio_field_ptr != nullptr);
+  ASSERT_TRUE(linker_signed_separation_distance_field_ptr != nullptr);
+  ASSERT_TRUE(linker_potential_force_field_ptr != nullptr);
+  ASSERT_TRUE(linked_entities_field_ptr != nullptr);
+  ASSERT_TRUE(linked_entity_owners_field_ptr != nullptr);
 
   // Declare two of each type of shape for 3 * 2 total shapes and generate 6 linkers between the unqiue shape pairings.
   // Typically linker generation would be done via a generator class, but we'll do it by hand here to keep the test
@@ -216,37 +246,41 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
     // Declare the linkers
     stk::mesh::Entity sp1_sp2_linker =
         bulk_data_ptr->declare_constraint(1, stk::mesh::ConstPartVector{sphere_sphere_linker_part_ptr});
-    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), sp1_sp2_linker,
-                                                                             sp1_element, sp2_element);
+    mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr, sp1_sp2_linker, sp1_element, sp2_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sp1_sp2_linker)[0] = bulk_data_ptr->entity_key(sp1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sp1_sp2_linker)[1] = bulk_data_ptr->entity_key(sp2_element);
 
     stk::mesh::Entity sp1_sy1_linker =
         bulk_data_ptr->declare_constraint(2, stk::mesh::ConstPartVector{sphere_spherocylinder_linker_part_ptr});
-    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), sp1_sy1_linker,
-                                                                             sp1_element, sy1_element);
+    mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr, sp1_sy1_linker, sp1_element, sy1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sp1_sy1_linker)[0] = bulk_data_ptr->entity_key(sp1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sp1_sy1_linker)[1] = bulk_data_ptr->entity_key(sy1_element);
 
     stk::mesh::Entity sp1_seg1_linker =
         bulk_data_ptr->declare_constraint(3, stk::mesh::ConstPartVector{sphere_spherocylinder_segment_linker_part_ptr});
-    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), sp1_seg1_linker,
-                                                                             sp1_element, seg1_element);
+    mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr, sp1_seg1_linker, sp1_element, seg1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sp1_seg1_linker)[0] = bulk_data_ptr->entity_key(sp1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sp1_seg1_linker)[1] = bulk_data_ptr->entity_key(seg1_element);
 
     stk::mesh::Entity seg1_seg2_linker = bulk_data_ptr->declare_constraint(
         4, stk::mesh::ConstPartVector{spherocylinder_segment_spherocylinder_segment_linker_part_ptr});
-    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), seg1_seg2_linker,
-                                                                             seg1_element, seg2_element);
+    mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr, seg1_seg2_linker, seg1_element, seg2_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, seg1_seg2_linker)[0] = bulk_data_ptr->entity_key(seg1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, seg1_seg2_linker)[1] = bulk_data_ptr->entity_key(seg2_element);
 
     stk::mesh::Entity sy1_sy2_linker =
         bulk_data_ptr->declare_constraint(5, stk::mesh::ConstPartVector{spherocylinder_spherocylinder_linker_part_ptr});
-    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), sy1_sy2_linker,
-                                                                             sy1_element, sy2_element);
+    mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr, sy1_sy2_linker, sy1_element, sy2_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sy1_sy2_linker)[0] = bulk_data_ptr->entity_key(sy1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sy1_sy2_linker)[1] = bulk_data_ptr->entity_key(sy2_element);
 
     stk::mesh::Entity sy1_seg1_linker = bulk_data_ptr->declare_constraint(
         6, stk::mesh::ConstPartVector{spherocylinder_spherocylinder_segment_linker_part_ptr});
-    mundy::linkers::declare_constraint_relations_to_family_tree_with_sharing(bulk_data_ptr.get(), sy1_seg1_linker,
-                                                                             sy1_element, seg1_element);
+    mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr, sy1_seg1_linker, sy1_element, seg1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sy1_seg1_linker)[0] = bulk_data_ptr->entity_key(sy1_element);
+    stk::mesh::field_data(*linked_entities_field_ptr, sy1_seg1_linker)[1] = bulk_data_ptr->entity_key(seg1_element);
 
     // Fill the linker contact normal with an arbitrary unit vector, we'll use [1, 2, 3] / sqrt(14).
-    stk::mesh::Field<double> *linker_contact_normal_field_ptr =
-        meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_CONTACT_NORMAL");
     ASSERT_TRUE(linker_contact_normal_field_ptr != nullptr);
     for (auto &linker :
          {sp1_sp2_linker, sp1_sy1_linker, sp1_seg1_linker, seg1_seg2_linker, sy1_sy2_linker, sy1_seg1_linker}) {
@@ -255,25 +289,20 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
           .set(1.0 / std::sqrt(14.0), 2.0 / std::sqrt(14.0), 3.0 / std::sqrt(14.0));
     }
   }
+
+  // We're using one-sided linker creation, so we need to fixup the ghosted to shared nodes.
+  stk::mesh::fixup_ghosted_to_shared_nodes(*bulk_data_ptr);
   bulk_data_ptr->modification_end();
 
-  // Fetch the required fields.
-  stk::mesh::Field<double> *element_radius_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_RADIUS");
-  stk::mesh::Field<double> *element_youngs_modulus_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_YOUNGS_MODULUS");
-  stk::mesh::Field<double> *element_poissons_ratio_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_POISSONS_RATIO");
-  stk::mesh::Field<double> *linker_signed_separation_distance_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_SIGNED_SEPARATION_DISTANCE");
-  stk::mesh::Field<double> *linker_potential_force_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::CONSTRAINT_RANK, "LINKER_POTENTIAL_FORCE");
-
-  ASSERT_TRUE(element_radius_field_ptr != nullptr);
-  ASSERT_TRUE(element_youngs_modulus_field_ptr != nullptr);
-  ASSERT_TRUE(element_poissons_ratio_field_ptr != nullptr);
-  ASSERT_TRUE(linker_signed_separation_distance_field_ptr != nullptr);
-  ASSERT_TRUE(linker_potential_force_field_ptr != nullptr);
+  // Ghost the linked entities to any process that owns any of the other linked entities.
+  bulk_data_ptr->modification_begin();
+  const stk::mesh::Selector linker_parts_selector = stk::mesh::selectUnion(
+      stk::mesh::ConstPartVector{sphere_sphere_linker_part_ptr, sphere_spherocylinder_linker_part_ptr,
+       sphere_spherocylinder_segment_linker_part_ptr, spherocylinder_segment_spherocylinder_segment_linker_part_ptr,
+       spherocylinder_spherocylinder_linker_part_ptr, spherocylinder_spherocylinder_segment_linker_part_ptr});
+  mundy::linkers::fixup_linker_entity_ghosting(*bulk_data_ptr, *linked_entities_field_ptr,
+                                               *linked_entity_owners_field_ptr, linker_parts_selector);
+  bulk_data_ptr->modification_end();
 
   // Initialize the spheres. Only performed for local entities.
   // sp1 radius: 1.5, sp2 radius: 2.0, sy1 radius: 2.5, sy2 radius: 3.0, seg1 radius: 3.5, seg2 radius: 4.0

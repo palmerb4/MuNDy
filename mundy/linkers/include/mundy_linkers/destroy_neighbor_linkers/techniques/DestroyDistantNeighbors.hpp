@@ -234,6 +234,9 @@ class DestroyDistantNeighbors : public mundy::meta::MetaMethodSubsetExecutionInt
   /// \brief The element aabb field pointer.
   stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
 
+  /// \brief The linked entities field pointer.
+  stk::mesh::Field<LinkedEntitiesFieldType::value_type> *linked_entities_field_ptr_ = nullptr;
+
   /// \brief The linker destroy flag field pointer.
   stk::mesh::Field<int> *linker_destroy_flag_field_ptr_ = nullptr;
   //@}

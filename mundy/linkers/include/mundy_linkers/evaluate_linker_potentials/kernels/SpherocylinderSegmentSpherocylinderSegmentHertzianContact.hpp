@@ -295,6 +295,9 @@ class SpherocylinderSegmentSpherocylinderSegmentHertzianContact : public mundy::
 
   /// \brief Linker contact normal field.
   stk::mesh::Field<double> *linker_contact_normal_field_ptr_ = nullptr;
+
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;  
   //@}
 };  // SpherocylinderSegmentSpherocylinderSegmentHertzianContact
 

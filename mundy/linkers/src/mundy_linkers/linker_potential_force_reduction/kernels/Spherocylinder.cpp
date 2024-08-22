@@ -70,6 +70,7 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
       valid_fixed_params.get<std::string>("linker_contact_points_field_name");
   const std::string linker_potential_force_field_name =
       valid_fixed_params.get<std::string>("linker_potential_force_field_name");
+  const std::string linked_entities_field_name = NeighborLinkers::get_linked_entities_field_name();
 
   node_coord_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coord_field_name);
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
@@ -78,6 +79,8 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_points_field_name);
   linker_potential_force_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_field_name);
+  linked_entities_field_ptr_ = meta_data_ptr_->get_field<LinkedEntitiesFieldType::value_type>(
+      stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
@@ -89,6 +92,7 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   field_exists(node_torque_field_ptr_, node_torque_field_name);
   field_exists(linker_contact_points_field_ptr_, linker_contact_points_field_name);
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
+  field_exists(linked_entities_field_ptr_, linked_entities_field_name);
 
   // Get the part pointers.
   const std::string name_of_linker_part_to_reduce_over =
@@ -142,18 +146,19 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
   const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
   stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
   stk::mesh::Field<double> &node_torque_field = *node_torque_field_ptr_;
+  const LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
   stk::mesh::Part &linkers_part_to_reduce_over = *linkers_part_to_reduce_over_;
 
   // At the end of this loop, all locally owned and shared spheres will be up-to-date.
   stk::mesh::Selector locally_owned_or_globally_shared_intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_selector &
-      (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());  
+      (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());
   stk::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
       locally_owned_or_globally_shared_intersection_with_valid_entity_parts,
       [&linker_contact_points_field, &linker_potential_force_field, &node_coord_field, &node_force_field,
-       &node_torque_field,
-       &linkers_part_to_reduce_over](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder) {
+       &node_torque_field, &linkers_part_to_reduce_over,
+       &linked_entities_field](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &spherocylinder) {
         // Get our node and its force/torque
         const stk::mesh::Entity &node = bulk_data.begin_nodes(spherocylinder)[0];
         auto node_coord = mundy::mesh::vector3_field_data(node_coord_field, node);
@@ -161,9 +166,8 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
         auto node_torque = mundy::mesh::vector3_field_data(node_torque_field, node);
 
         // Loop over the connected constraint rank entities
-        const unsigned num_constraint_rank_conn =
-            bulk_data.num_connectivity(spherocylinder, stk::topology::CONSTRAINT_RANK);
-        const stk::mesh::Entity *connected_linkers = bulk_data.begin(spherocylinder, stk::topology::CONSTRAINT_RANK);
+        const unsigned num_constraint_rank_conn = bulk_data.num_connectivity(node, stk::topology::CONSTRAINT_RANK);
+        const stk::mesh::Entity *connected_linkers = bulk_data.begin(node, stk::topology::CONSTRAINT_RANK);
 
         for (unsigned i = 0; i < num_constraint_rank_conn; i++) {
           const stk::mesh::Entity &connected_linker = connected_linkers[i];
@@ -175,8 +179,11 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
           if (is_reduction_linker) {
             // The linker force is the force on the left element. The force on the right element is equal and opposite.
             // This is important, as it means we should multiply by -1 if we are the right element.
-            const bool are_we_the_left_spherocylinder =
-                (bulk_data.begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == spherocylinder);
+            const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
+                reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+                    stk::mesh::field_data(linked_entities_field, connected_linker));
+
+            const bool are_we_the_left_spherocylinder = key_t_ptr[0] == bulk_data.entity_key(spherocylinder);
             const double sign = are_we_the_left_spherocylinder ? 1.0 : -1.0;
             auto contact_point = mundy::math::get_vector3_view<double>(
                 stk::mesh::field_data(linker_contact_points_field, connected_linker) +

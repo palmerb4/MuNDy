@@ -264,6 +264,9 @@ class SphereSpherocylinderSegmentLinker : public mundy::meta::MetaKernel<> {
 
   /// \brief Linker contact points field.
   stk::mesh::Field<double> *linker_contact_points_field_ptr_ = nullptr;
+
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
   //@}
 };  // SphereSpherocylinderSegmentLinker
 

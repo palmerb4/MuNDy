@@ -103,6 +103,8 @@ class RankedAssembly {
 
   /// \brief Get our mesh requirements.
   static inline std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements() {
+    MUNDY_THROW_ASSERT(part_reqs_ptr_ != nullptr, std::logic_error, "get_mesh_requirements: part_reqs_ptr_ is null.");
+
     // Declare our part as a subpart of our parent parts.
     (ParentAgentTypes::add_and_sync_subpart_reqs(part_reqs_ptr_), ...);
 
