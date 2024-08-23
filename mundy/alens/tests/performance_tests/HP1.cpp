@@ -1568,7 +1568,6 @@ class HP1 {
           const stk::mesh::Entity &crosslinker = bulk_data.get_entity(key_t_ptr[0]);
           const stk::mesh::Entity &sphere = bulk_data.get_entity(key_t_ptr[1]);
 
-          // These better be valid
           MUNDY_THROW_ASSERT(bulk_data.is_valid(crosslinker), std::invalid_argument,
                              "Encountered invalid crosslinker entity in compute_z_partition_left_bound_harmonic.");
           MUNDY_THROW_ASSERT(bulk_data.is_valid(sphere), std::invalid_argument,
@@ -1817,10 +1816,17 @@ class HP1 {
       const bool perform_state_change = state_change_action != BINDING_STATE_CHANGE::NONE;
       if (perform_state_change) {
         // Get our connections (as the genx)
-        const stk::mesh::Entity &crosslinker_hp1 = bulk_data_ptr_->begin_elements(hp1_h_neighbor_genx)[0];
-        const stk::mesh::Entity &target_sphere = bulk_data_ptr_->begin_elements(hp1_h_neighbor_genx)[1];
-        const stk::mesh::Entity &target_sphere_node = bulk_data_ptr_->begin_nodes(target_sphere)[0];
+        const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+            stk::mesh::field_data(*constraint_linked_entities_field_ptr_, hp1_h_neighbor_genx));
+        const stk::mesh::Entity &crosslinker_hp1 = bulk_data_ptr_->get_entity(key_t_ptr[0]);
+        const stk::mesh::Entity &target_sphere = bulk_data_ptr_->get_entity(key_t_ptr[1]);
 
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(crosslinker_hp1), std::invalid_argument,
+                           "Encountered invalid crosslinker entity in state_change_crosslinkers.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(target_sphere), std::invalid_argument,
+                           "Encountered invalid sphere entity in state_change_crosslinkers.");
+
+        const stk::mesh::Entity &target_sphere_node = bulk_data_ptr_->begin_nodes(target_sphere)[0];
         // Call the binding function
         if (state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) {
           // Unbind the right side of the crosslinker from the left node and bind it to the target node

@@ -470,6 +470,7 @@ void ChainOfSprings::execute() {
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
       // Create the sphere.
       stk::mesh::Entity sphere = bulk_data_ptr_->declare_element(get_sphere_id(i));
+      std::cout << "RANK: " << rank << " sphere: " << sphere << std::endl;
       bulk_data_ptr_->change_entity_parts(sphere, sphere_part_ptrs_);
 
       // Populate the sphere radius. For the time being, we use a single user defined value.

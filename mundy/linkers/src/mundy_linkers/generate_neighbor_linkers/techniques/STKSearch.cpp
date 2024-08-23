@@ -202,9 +202,13 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   std::vector<std::pair<bool, stk::mesh::Entity>> linker_already_exists(num_neighbors);
 
   stk::mesh::Part &neighbor_linkers_part = *neighbor_linkers_part_ptr_;
+  LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, {linked_entities_field_ptr_});
+
   auto are_entities_connected_by_a_neighbor_linker =
-      [&neighbor_linkers_part](mundy::mesh::BulkData &bulk_data, const stk::mesh::EntityKey &source_entity_key,
-                               const stk::mesh::EntityKey &target_entity_key) -> std::pair<bool, stk::mesh::Entity> {
+      [&neighbor_linkers_part, &linked_entities_field](
+          mundy::mesh::BulkData &bulk_data, const stk::mesh::EntityKey &source_entity_key,
+          const stk::mesh::EntityKey &target_entity_key) -> std::pair<bool, stk::mesh::Entity> {
     // If either the source or the target entity is invalid, then no linkers can exist between them.
     const stk::mesh::Entity &source_entity = bulk_data.get_entity(source_entity_key);
     const stk::mesh::Entity &target_entity = bulk_data.get_entity(target_entity_key);
@@ -240,15 +244,15 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
 
       if (is_source_constraint_entity_a_valid_linker) {
         // The connected constraint-rank entity is a valid linker, is it connected to the target entity?
-        const auto num_connected_nodes_linker =
-            bulk_data.num_connectivity(source_constraint_entity, stk::topology::NODE_RANK);
-        const stk::mesh::Entity *connected_nodes_linker =
-            bulk_data.begin(source_constraint_entity, stk::topology::NODE_RANK);
-        for (size_t k = 0; k < num_connected_nodes_linker; ++k) {
-          if (connected_nodes_linker[k] == a_target_node) {
-            // Found the linker that connects the source and target entities.
-            return std::make_pair(true, source_constraint_entity);
-          }
+        const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+            stk::mesh::field_data(linked_entities_field, source_constraint_entity));
+        const bool linker_connects_to_source_and_target_entity =
+            ((bulk_data.get_entity(key_t_ptr[0]) == source_entity) &&
+             (bulk_data.get_entity(key_t_ptr[1]) == target_entity)) ||
+            ((bulk_data.get_entity(key_t_ptr[0]) == target_entity) &&
+             (bulk_data.get_entity(key_t_ptr[1]) == source_entity));
+        if (linker_connects_to_source_and_target_entity) {
+          return std::make_pair(true, source_constraint_entity);
         }
       }
     }
