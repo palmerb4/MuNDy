@@ -220,6 +220,9 @@ class DestroyBoundNeighbors : public mundy::meta::MetaMethodSubsetExecutionInter
 
   /// \brief The linker destroy flag field pointer.
   stk::mesh::Field<int> *linker_destroy_flag_field_ptr_ = nullptr;
+
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
   //@}
 };  // DestroyBoundNeighbors
 

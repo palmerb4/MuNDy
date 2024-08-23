@@ -114,7 +114,7 @@ create_hilbert_positions_and_directors(size_t num_points,
   mundy::math::Vector3<double> dr1 = side_length * dr1_hat;
   mundy::math::Vector3<double> dr2 = side_length * dr2_hat;
   mundy::math::Vector3<double> dr3 = side_length * dr3_hat;
-  
+
   ind = hilbert_3d(num_side_points, ind, position_array, current_position, dr1, dr2, dr3);
 
   // Now create the directors array

@@ -180,6 +180,11 @@ void SpherocylinderSpherocylinderHertzianContact::execute(
         const stk::mesh::Entity &left_spherocylinder_element = bulk_data.get_entity(key_t_ptr[0]);
         const stk::mesh::Entity &right_spherocylinder_element = bulk_data.get_entity(key_t_ptr[1]);
 
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(left_spherocylinder_element), std::invalid_argument,
+                        "SpherocylinderSpherocylinderHertzianContact: left_spherocylinder_element entity is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(right_spherocylinder_element), std::invalid_argument,
+                            "SpherocylinderSpherocylinderHertzianContact: right_spherocylinder_element entity is not valid.");
+
         const double left_radius = stk::mesh::field_data(element_radius_field, left_spherocylinder_element)[0];
         const double right_radius = stk::mesh::field_data(element_radius_field, right_spherocylinder_element)[0];
         const double left_youngs_modulus =

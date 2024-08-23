@@ -183,7 +183,7 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
                 reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
                     stk::mesh::field_data(linked_entities_field, connected_linker));
 
-            const bool are_we_the_left_spherocylinder = key_t_ptr[0] == bulk_data.entity_key(spherocylinder);
+            const bool are_we_the_left_spherocylinder = (key_t_ptr[0] == bulk_data.entity_key(spherocylinder));
             const double sign = are_we_the_left_spherocylinder ? 1.0 : -1.0;
             auto contact_point = mundy::math::get_vector3_view<double>(
                 stk::mesh::field_data(linker_contact_points_field, connected_linker) +

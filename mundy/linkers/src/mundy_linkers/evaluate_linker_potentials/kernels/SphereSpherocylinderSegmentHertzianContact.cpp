@@ -184,6 +184,11 @@ void SphereSpherocylinderSegmentHertzianContact::execute(
         const stk::mesh::Entity &sphere_element = bulk_data.get_entity(key_t_ptr[0]);
         const stk::mesh::Entity &spherocylinder_segment_element = bulk_data.get_entity(key_t_ptr[1]);
 
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(sphere_element), std::invalid_argument,
+                           "SphereSpherocylinderSegmentHertzianContact: sphere_element entity is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(spherocylinder_segment_element), std::invalid_argument,
+                            "SphereSpherocylinderSegmentHertzianContact: spherocylinder_segment_element entity is not valid.");
+
         const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
         const double spherocylinder_segment_radius =
             stk::mesh::field_data(element_radius_field, spherocylinder_segment_element)[0];

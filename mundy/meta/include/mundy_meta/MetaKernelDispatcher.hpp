@@ -157,7 +157,6 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
         valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
     auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshReqs>();
     for (const std::string &kernel_name : enabled_kernel_names) {
-      std::cout << "kernel_name: " << kernel_name << std::endl;
       Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
       mesh_requirements_ptr->sync(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
     }

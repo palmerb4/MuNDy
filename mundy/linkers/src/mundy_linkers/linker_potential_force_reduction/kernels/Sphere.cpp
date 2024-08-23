@@ -164,7 +164,7 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
                 reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
                     stk::mesh::field_data(linked_entities_field, connected_linker));
 
-            const bool are_we_the_left_sphere = key_t_ptr[0] == bulk_data.entity_key(sphere);
+            const bool are_we_the_left_sphere = (key_t_ptr[0] == bulk_data.entity_key(sphere));
             const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);

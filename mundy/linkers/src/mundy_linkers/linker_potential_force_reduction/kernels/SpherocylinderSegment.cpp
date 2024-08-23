@@ -189,7 +189,7 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
                     stk::mesh::field_data(linked_entities_field, connected_linker));
 
             const bool are_we_the_left_spherocylinder_segment =
-                key_t_ptr[0] == bulk_data.entity_key(spherocylinder_segment);
+                (key_t_ptr[0] == bulk_data.entity_key(spherocylinder_segment));
             const double sign = are_we_the_left_spherocylinder_segment ? 1.0 : -1.0;
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);

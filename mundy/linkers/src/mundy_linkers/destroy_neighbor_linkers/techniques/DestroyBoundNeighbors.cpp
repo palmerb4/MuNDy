@@ -66,8 +66,12 @@ DestroyBoundNeighbors::DestroyBoundNeighbors(mundy::mesh::BulkData *const bulk_d
   // Get the field pointers.
   const std::string linker_destroy_flag_field_name =
       valid_fixed_params.get<std::string>("linker_destroy_flag_field_name");
+  const std::string linked_entities_field_name = NeighborLinkers::get_linked_entities_field_name();
+
   linker_destroy_flag_field_ptr_ =
       meta_data_ptr_->get_field<int>(stk::topology::CONSTRAINT_RANK, linker_destroy_flag_field_name);
+  linked_entities_field_ptr_ = meta_data_ptr_->get_field<LinkedEntitiesFieldType::value_type>(
+      stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(
@@ -76,6 +80,7 @@ DestroyBoundNeighbors::DestroyBoundNeighbors(mundy::mesh::BulkData *const bulk_d
   };  // field_exists
 
   field_exists(linker_destroy_flag_field_ptr_, linker_destroy_flag_field_name);
+  field_exists(linked_entities_field_ptr_, linked_entities_field_name);
 
   // Get the part pointers.
   const Teuchos::Array<std::string> valid_entity_part_names =
@@ -124,15 +129,22 @@ void DestroyBoundNeighbors::execute(const stk::mesh::Selector &input_selector) {
   // Step 1: Loop over each linker in the input selector and mark them for destruction if the AABBs of
   // their source and target connected elements don't overlap.
   const stk::mesh::Field<int> &linker_destroy_flag_field = *linker_destroy_flag_field_ptr_;
+  const LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
 
   stk::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, input_selector,
-      [&linker_destroy_flag_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                   const stk::mesh::Entity &linker) {
+      [&linker_destroy_flag_field, &linked_entities_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                           const stk::mesh::Entity &linker) {
         // Get the source and target entities of the linker.
-        const stk::mesh::Entity *source_target_elements = bulk_data.begin(linker, stk::topology::ELEMENT_RANK);
-        const stk::mesh::Entity &source_entity = source_target_elements[0];
-        const stk::mesh::Entity &target_entity = source_target_elements[1];
+        const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+            stk::mesh::field_data(linked_entities_field, linker));
+        const stk::mesh::Entity &source_entity = bulk_data.get_entity(key_t_ptr[0]);
+        const stk::mesh::Entity &target_entity = bulk_data.get_entity(key_t_ptr[1]);
+
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(source_entity), std::invalid_argument,
+                           "DestroyBoundNeighbors: Source entity is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(target_entity), std::invalid_argument,
+                            "DestroyBoundNeighbors: Target entity is not valid.");
 
         // Check if the lower-rank entities of either the source are target are the same.
         stk::topology::rank_t lower_ranks[3] = {stk::topology::NODE_RANK, stk::topology::EDGE_RANK,

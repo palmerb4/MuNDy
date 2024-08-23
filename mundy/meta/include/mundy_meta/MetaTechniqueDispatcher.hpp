@@ -109,10 +109,6 @@ class MetaTechniqueDispatcher {
     // that aren't in the technique sublists and forward them to the enabled technique.
     for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
       const std::string &param_name = valid_fixed_params.name(i);
-
-      std::cout << "#####################################################################" << std::endl;
-      std::cout << "get_mesh_requirements param_name: " << param_name << std::endl;
-
       const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
       if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_technique_name") {
         for (int j = 0; j < OurTechniqueFactory::num_registered_classes(); j++) {

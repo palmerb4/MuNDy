@@ -176,6 +176,11 @@ void SphereSphereHertzianContact::execute(const stk::mesh::Selector &sphere_sphe
         const stk::mesh::Entity &left_sphere_element = bulk_data.get_entity(key_t_ptr[0]);
         const stk::mesh::Entity &right_sphere_element = bulk_data.get_entity(key_t_ptr[1]);
 
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_element), std::invalid_argument,
+                           "SphereSphereHertzianContact: left_sphere_element entity is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(right_sphere_element), std::invalid_argument,
+                            "SphereSphereHertzianContact: right_sphere_element entity is not valid.");
+
         const double left_radius = stk::mesh::field_data(element_radius_field, left_sphere_element)[0];
         const double right_radius = stk::mesh::field_data(element_radius_field, right_sphere_element)[0];
         const double left_youngs_modulus = stk::mesh::field_data(element_youngs_modulus_field, left_sphere_element)[0];

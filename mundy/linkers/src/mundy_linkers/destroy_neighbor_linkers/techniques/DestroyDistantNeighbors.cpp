@@ -169,10 +169,6 @@ void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector)
         stk::mesh::Entity source_entity = bulk_data.get_entity(key_t_ptr[0]);
         stk::mesh::Entity target_entity = bulk_data.get_entity(key_t_ptr[1]);
 
-        std::cout << "Rank: " << bulk_data.parallel_rank() << " linker: " << bulk_data.identifier(linker)
-                  << " source_entity: " << bulk_data.identifier(source_entity)
-                  << " target_entity: " << bulk_data.identifier(target_entity) << std::endl;
-
         MUNDY_THROW_ASSERT(bulk_data.is_valid(source_entity), std::invalid_argument,
                            "DestroyDistantNeighbors: source_entity on rank " << bulk_data.parallel_rank()
                                                                              << " is not valid.");
