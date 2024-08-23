@@ -32,6 +32,7 @@
 
 // Mundy libs
 #include <mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.hpp>  // for mundy::...::kernels::AngularSpringsKernel
+#include <mundy_constraints/compute_constraint_forcing/kernels/FENESpringsKernel.hpp>     // for mundy::...::kernels::FENESpringsKernel
 #include <mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp>  // for mundy::...::kernels::HookeanSpringsKernel
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
@@ -111,6 +112,9 @@ MUNDY_REGISTER_METACLASS("HOOKEAN_SPRINGS",
                          mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
 MUNDY_REGISTER_METACLASS("ANGULAR_SPRINGS",
                          mundy::constraints::compute_constraint_forcing::kernels::AngularSpringsKernel,
+                         mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
+MUNDY_REGISTER_METACLASS("FENE_SPRINGS",
+                         mundy::constraints::compute_constraint_forcing::kernels::FENESpringsKernel,
                          mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
 //@}
 
