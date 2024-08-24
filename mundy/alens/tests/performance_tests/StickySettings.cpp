@@ -1342,10 +1342,6 @@ class StickySettings {
               bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker, target_sphere_node, 1);
           MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
 
-          std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Binding crosslinker "
-                    << bulk_data_ptr_->identifier(crosslinker) << " to node "
-                    << bulk_data_ptr_->identifier(target_sphere_node) << std::endl;
-
           // Now change the part from left to doubly bound.
           const bool is_crosslinker_locally_owned =
               bulk_data_ptr_->parallel_owner_rank(crosslinker) == bulk_data_ptr_->parallel_rank();
@@ -1368,10 +1364,6 @@ class StickySettings {
         const stk::mesh::Entity &left_node = bulk_data_ptr_->begin_nodes(crosslinker)[0];
         const bool unbind_worked = bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker, left_node, 1);
         MUNDY_THROW_ASSERT(unbind_worked, std::logic_error, "Failed to unbind crosslinker from node.");
-
-        std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Unbinding crosslinker "
-                  << bulk_data_ptr_->identifier(crosslinker) << " from node "
-                  << bulk_data_ptr_->identifier(bulk_data_ptr_->begin_nodes(crosslinker)[1]) << std::endl;
 
         // Now change the part from doubly to left bound.
         const bool is_crosslinker_locally_owned =
@@ -1626,15 +1618,12 @@ class StickySettings {
     set_mutable_parameters();
     setup_io_mundy();
     declare_and_initialize_sticky();
-
-    assert_invariant("After setup");
     Kokkos::Profiling::popRegion();
 
     // Loadbalance?
     Kokkos::Profiling::pushRegion("StickySettings::Loadbalance");
     if (initial_loadbalance_) {
       loadbalance();
-      assert_invariant("After loadbalance");
     }
     Kokkos::Profiling::popRegion();
 
@@ -1650,59 +1639,27 @@ class StickySettings {
     for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
       // Prepare the current configuration.
       Kokkos::Profiling::pushRegion("StickySettings::ZeroTransient");
-      {
-        // Zero the node velocities, and forces/torques for time t.
-        zero_out_transient_node_fields();
-
-        // Zero out the element binding rates
-        zero_out_transient_element_fields();
-
-        // Zero out the constraint binding state changes
-        zero_out_transient_constraint_fields();
-      }
+      zero_out_transient_node_fields();
+      zero_out_transient_element_fields();
+      zero_out_transient_constraint_fields();
       Kokkos::Profiling::popRegion();
 
-      // Rotate the field states
-      {
-        // Rotate the field states
-        rotate_field_states();
-      }
+      rotate_field_states();
 
-      // Reset the update_neighbor_list 'signal'
-      { update_neighbor_list_ = false; }
+      // Detect neighbors of spheres-spheres and crosslinkers-spheres
+      update_neighbor_list_ = false;
+      detect_neighbors();
 
-      // Detect all possible neighbors in the system
-      {
-        // Detect neighbors of spheres-spheres and crosslinkers-spheres
-        detect_neighbors();
-        assert_invariant("After detect neighbors");
-      }
-
-      // Update the state changes in the system s(t).;
-      {
-        // State change of every crosslinker
-        update_crosslinker_state();
-        assert_invariant("After update crosslinker state");
-      }
+      // Update the state changes in the system s(t)
+      update_crosslinker_state();
 
       // Evaluate forces f(x(t)).
-      {
-        // Hertzian forces
-        compute_hertzian_contact_forces();
-        assert_invariant("After hertzian contact forces");
+      compute_hertzian_contact_forces();
+      compute_harmonic_bond_forces();
 
-        // Compute harmonic bond forces
-        compute_harmonic_bond_forces();
-        assert_invariant("After harmonic bond forces");
-      }
-
-      // Compute velocity.
-      {
-        // Evaluate v(t) = M fext(t) + Ubrown(t)
-        compute_brownian_velocity();
-        compute_external_velocity();
-        assert_invariant("After compute velocity");
-      }
+      // Compute velocity: v(t) = M fext(t) + Ubrown(t)
+      compute_brownian_velocity();
+      compute_external_velocity();
 
       // IO. If desired, write out the data for time t (STK or mundy)
       Kokkos::Profiling::pushRegion("StickySettings::IO");
@@ -1719,11 +1676,8 @@ class StickySettings {
       }
       Kokkos::Profiling::popRegion();
 
-      // Update positions.
-      {
-        // Evaluate x(t + dt) = x(t) + dt * v(t).
-        update_positions();
-      }
+      // Update positions:  x(t + dt) = x(t) + dt * v(t).
+      update_positions();
     }  // End of time loop
     Kokkos::Profiling::popRegion();
 

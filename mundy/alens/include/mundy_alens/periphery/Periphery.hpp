@@ -70,8 +70,7 @@ namespace periphery {
 /// total point = (p+1)(2p+2) + north/south pole = 2p^2+4p+4
 void gen_sphere_quadrature(const int &order, const double &radius, std::vector<double> *const points_ptr,
                            std::vector<double> *const weights_ptr, std::vector<double> *const normals_ptr,
-                           const bool include_poles = false,
-                           const bool invert = false) {
+                           const bool include_poles = false, const bool invert = false) {
   MUNDY_THROW_ASSERT(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
   MUNDY_THROW_ASSERT(radius > 0, std::invalid_argument, "gen_sphere_quadrature: radius must be positive.");
   MUNDY_THROW_ASSERT(points_ptr != nullptr, std::invalid_argument,
@@ -528,23 +527,23 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
 
         // Compute the double layer potential
         const double sxx =
-            source_normals(3 * s + 0) * (source_forces(3 * s + 0) - source_forces(3 * t + 0)) * quadrature_weights(s);
+            source_normals(3 * s + 0) * (source_forces(3 * s + 0) + source_forces(3 * t + 0)) * quadrature_weights(s);
         const double sxy =
-            source_normals(3 * s + 0) * (source_forces(3 * s + 1) - source_forces(3 * t + 1)) * quadrature_weights(s);
+            source_normals(3 * s + 0) * (source_forces(3 * s + 1) + source_forces(3 * t + 1)) * quadrature_weights(s);
         const double sxz =
-            source_normals(3 * s + 0) * (source_forces(3 * s + 2) - source_forces(3 * t + 2)) * quadrature_weights(s);
+            source_normals(3 * s + 0) * (source_forces(3 * s + 2) + source_forces(3 * t + 2)) * quadrature_weights(s);
         const double syx =
-            source_normals(3 * s + 1) * (source_forces(3 * s + 0) - source_forces(3 * t + 0)) * quadrature_weights(s);
+            source_normals(3 * s + 1) * (source_forces(3 * s + 0) + source_forces(3 * t + 0)) * quadrature_weights(s);
         const double syy =
-            source_normals(3 * s + 1) * (source_forces(3 * s + 1) - source_forces(3 * t + 1)) * quadrature_weights(s);
+            source_normals(3 * s + 1) * (source_forces(3 * s + 1) + source_forces(3 * t + 1)) * quadrature_weights(s);
         const double syz =
-            source_normals(3 * s + 1) * (source_forces(3 * s + 2) - source_forces(3 * t + 2)) * quadrature_weights(s);
+            source_normals(3 * s + 1) * (source_forces(3 * s + 2) + source_forces(3 * t + 2)) * quadrature_weights(s);
         const double szx =
-            source_normals(3 * s + 2) * (source_forces(3 * s + 0) - source_forces(3 * t + 0)) * quadrature_weights(s);
+            source_normals(3 * s + 2) * (source_forces(3 * s + 0) + source_forces(3 * t + 0)) * quadrature_weights(s);
         const double szy =
-            source_normals(3 * s + 2) * (source_forces(3 * s + 1) - source_forces(3 * t + 1)) * quadrature_weights(s);
+            source_normals(3 * s + 2) * (source_forces(3 * s + 1) + source_forces(3 * t + 1)) * quadrature_weights(s);
         const double szz =
-            source_normals(3 * s + 2) * (source_forces(3 * s + 2) - source_forces(3 * t + 2)) * quadrature_weights(s);
+            source_normals(3 * s + 2) * (source_forces(3 * s + 2) + source_forces(3 * t + 2)) * quadrature_weights(s);
 
         double coeff = sxx * dx * dx + syy * dy * dy + szz * dz * dz;
         coeff += (sxy + syx) * dx * dy;
@@ -645,8 +644,7 @@ void apply_local_drag([[maybe_unused]] const ExecutionSpace &space, const double
   const size_t num_spheres = sphere_radii.extent(0);
   const double scale = 1.0 / (6.0 * M_PI * viscosity);
   Kokkos::parallel_for(
-      "apply_local_drag", Kokkos::RangePolicy<ExecutionSpace>(0, num_spheres),
-      KOKKOS_LAMBDA(const size_t i) {
+      "apply_local_drag", Kokkos::RangePolicy<ExecutionSpace>(0, num_spheres), KOKKOS_LAMBDA(const size_t i) {
         const double r = sphere_radii(i);
         const double inv_drag_coeff = scale / r;
         sphere_velocities(3 * i) += inv_drag_coeff * sphere_forces(3 * i);
@@ -657,7 +655,7 @@ void apply_local_drag([[maybe_unused]] const ExecutionSpace &space, const double
 
 /// \brief Fill the stokes double layer matrix times the surface normal
 ///
-///   T is the stokes double layer kernel T_{ij} = -3 viscosity / (4*pi) * r_i * r_j * r_k * normal_k / r**5 *
+///   T is the stokes double layer kernel T_{ij} = -3 viscosity / (4*pi) * r_i * r_j * r_k * normal_k / r**5
 ///
 /// \param space The execution space
 /// \param[in] viscosity The viscosity
@@ -705,14 +703,12 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
         const double rinv5 = rinv * rinv2 * rinv2;
 
         // Read in the surface normal at the source
-        const double normal_s0 = source_normals(3 * s + 0);
-        const double normal_s1 = source_normals(3 * s + 1);
-        const double normal_s2 = source_normals(3 * s + 2);
+        const double quadrature_weight = quadrature_weights(s);
+        const double scaled_normal_s0 = source_normals(3 * s + 0) * quadrature_weight;
+        const double scaled_normal_s1 = source_normals(3 * s + 1) * quadrature_weight;
+        const double scaled_normal_s2 = source_normals(3 * s + 2) * quadrature_weight;
 
         // tmp_vec = (r dot normal) r, scaled by -3 / (4 pi r^5 viscosity)
-        const double scaled_normal_s0 = normal_s0 * quadrature_weights(s);
-        const double scaled_normal_s1 = normal_s1 * quadrature_weights(s);
-        const double scaled_normal_s2 = normal_s2 * quadrature_weights(s);
         const double r_dot_scaled_normal = dx * scaled_normal_s0 + dy * scaled_normal_s1 + dz * scaled_normal_s2;
         const double tmp_vec0 = scale_factor * rinv5 * r_dot_scaled_normal * dx;
         const double tmp_vec1 = scale_factor * rinv5 * r_dot_scaled_normal * dy;
@@ -800,6 +796,7 @@ void add_singularity_subtraction([[maybe_unused]] const ExecutionSpace &space,
         // T(ts * 3 + 0, ts * 3 + 2) -= w3(3 * ts + 0);
         // T(ts * 3 + 1, ts * 3 + 2) -= w3(3 * ts + 1);
         // T(ts * 3 + 2, ts * 3 + 2) -= w3(3 * ts + 2);
+
         T(ts * 3 + 0, ts * 3 + 0) += w1(3 * ts + 0);
         T(ts * 3 + 1, ts * 3 + 0) += w1(3 * ts + 1);
         T(ts * 3 + 2, ts * 3 + 0) += w1(3 * ts + 2);
@@ -864,6 +861,53 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
       });
 }
 
+/// \brief Add the complementary kernel v(t) += integral_{S} (normal(t) * normal(s) dot f(s) ds)
+///
+/// \param space The execution space
+/// \param[in] num_source_points The number of source points
+/// \param[in] num_target_points The number of target points
+/// \param[in] source_normals The normals of the source points (size num_source_points * 3)
+/// \param[in] quadrature_weights The quadrature weights (size num_source_points)
+/// \param[in] T The stokes double layer matrix (size num_target_points * 3 x num_source_points * 3)
+template <class ExecutionSpace, class MemorySpace, class Layout>
+void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,
+                              const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
+                              const Kokkos::View<double *, Layout, MemorySpace> &target_normals,
+                              const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
+                              const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
+                              const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+  const size_t num_source_points = source_normals.extent(0) / 3;
+  const size_t num_target_points = target_normals.extent(0) / 3;
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "add_complementary_kernel: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_source_points, std::invalid_argument,
+                     "add_complementary_kernel: quadrature_weights must have size num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "add_complementary_kernel: target_velocities must have size 3 * num_target_points.");
+
+  // Add the complementary kernel
+  Kokkos::parallel_for(
+      "ComplementaryKernel", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
+      KOKKOS_LAMBDA(const size_t t, const size_t s) {
+        const double normal_t0 = target_normals(3 * t + 0);
+        const double normal_t1 = target_normals(3 * t + 1);
+        const double normal_t2 = target_normals(3 * t + 2);
+
+        const double normal_s0 = source_normals(3 * s + 0);
+        const double normal_s1 = source_normals(3 * s + 1);
+        const double normal_s2 = source_normals(3 * s + 2);
+
+        const double scaled_normal_dot_force =
+            (normal_s0 * source_forces(3 * s + 0) + normal_s1 * source_forces(3 * s + 1) +
+             normal_s2 * source_forces(3 * s + 2)) *
+            quadrature_weights(s);
+
+        Kokkos::atomic_add(&target_velocities(3 * t + 0), normal_t0 * scaled_normal_dot_force);
+        Kokkos::atomic_add(&target_velocities(3 * t + 1), normal_t1 * scaled_normal_dot_force);
+        Kokkos::atomic_add(&target_velocities(3 * t + 2), normal_t2 * scaled_normal_dot_force);
+      });
+}
+
 /// \brief Fill the second kind Fredholm integral equation matrix for Stokes flow induced by a boundary due to
 /// satisfaction of some induced surface velocity.
 ///
@@ -900,6 +944,107 @@ void fill_skfie_matrix([[maybe_unused]] const ExecutionSpace &space, const doubl
 
   // Add the complementary matrix
   add_complementary_matrix(space, source_normals, quadrature_weights, M);
+}
+
+/// \brief Apply the second kind Fredholm integral equation matrix for Stokes flow induced by a boundary due to
+/// satisfaction of some induced surface velocity.
+///
+/// M * f = (-1/2 I + T + N) * f = u
+///   where
+///   - I is the identity matrix
+///   - T is the stokes double layer kernel T_{ij} = -3 viscosity / (4*pi) * r_i * r_j * r_k * normal_k / r**5 *
+///   quadrature_weight_j
+///   - N is the null-space correction matrix N_{ij} = normal_i * normal_j * quadrature_weight_j
+///
+/// For no-slip, u = -u_slip.
+/// \param space The execution space
+/// \param[in] viscosity The viscosity
+/// \param[in] num_source_points The number of source points
+/// \param[in] num_target_points The number of target points
+/// \param[in] source_positions The positions of the source points (size num_source_points * 3)
+/// \param[in] target_positions The positions of the target points (size num_target_points * 3)
+/// \param[in] source_normals The normals of the source points (size num_source_points * 3)
+/// \param[in] quadrature_weights The quadrature weights (size num_source_points)
+template <class ExecutionSpace, class MemorySpace, class Layout>
+void apply_skfie([[maybe_unused]] const ExecutionSpace &space, const double viscosity, const size_t num_source_points,
+                 const size_t num_target_points, const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
+                 const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
+                 const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
+                 const Kokkos::View<double *, Layout, MemorySpace> &target_normals,
+                 const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
+                 const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
+                 const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+  MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_skfie: source_positions must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_skfie: target_positions must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(source_normals.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_skfie: source_normals must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_normals.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_skfie: target_normals must have size 3 * num_target_points.");
+  MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_source_points, std::invalid_argument,
+                     "apply_skfie: quadrature_weights must have size num_source_points.");
+  MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
+                     "apply_skfie: source_forces must have size 3 * num_source_points.");
+  MUNDY_THROW_ASSERT(target_velocities.extent(0) == 3 * num_target_points, std::invalid_argument,
+                     "apply_skfie: target_velocities must have size 3 * num_target_points.");
+
+  // Launch the parallel kernel
+  const double scale_factor = 3.0 / (4.0 * M_PI * viscosity);
+  Kokkos::parallel_for(
+      "StokesDoubleLayerKernel", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_target_points, num_source_points}),
+      KOKKOS_LAMBDA(const size_t t, const size_t s) {
+        // Compute the distance vector
+        const double dx = target_positions(3 * t + 0) - source_positions(3 * s + 0);
+        const double dy = target_positions(3 * t + 1) - source_positions(3 * s + 1);
+        const double dz = target_positions(3 * t + 2) - source_positions(3 * s + 2);
+
+        // Read in the necessary values
+        const double normal_s0 = source_normals(3 * s + 0);
+        const double normal_s1 = source_normals(3 * s + 1);
+        const double normal_s2 = source_normals(3 * s + 2);
+        const double normal_t0 = target_normals(3 * t + 0);
+        const double normal_t1 = target_normals(3 * t + 1);
+        const double normal_t2 = target_normals(3 * t + 2);
+        const double quadrature_weight_s = quadrature_weights(s);
+        const double force_s0 = source_forces(3 * s + 0);
+        const double force_s1 = source_forces(3 * s + 1);
+        const double force_s2 = source_forces(3 * s + 2);
+        const double force_t0 = source_forces(3 * t + 0);
+        const double force_t1 = source_forces(3 * t + 1);
+        const double force_t2 = source_forces(3 * t + 2);
+
+        // Compute rinv5. If r is zero, set rinv5 to zero, effectively setting the diagonal of K to zero.
+        const double dr2 = dx * dx + dy * dy + dz * dz;
+        const double rinv = dr2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(dr2);
+        const double rinv2 = rinv * rinv;
+        const double rinv5 = rinv * rinv2 * rinv2;
+
+        // Compute the double layer potential
+        const double sxx = normal_s0 * (force_s0 + force_t0) * quadrature_weight_s;
+        const double sxy = normal_s0 * (force_s1 + force_t1) * quadrature_weight_s;
+        const double sxz = normal_s0 * (force_s2 + force_t2) * quadrature_weight_s;
+        const double syx = normal_s1 * (force_s0 + force_t0) * quadrature_weight_s;
+        const double syy = normal_s1 * (force_s1 + force_t1) * quadrature_weight_s;
+        const double syz = normal_s1 * (force_s2 + force_t2) * quadrature_weight_s;
+        const double szx = normal_s2 * (force_s0 + force_t0) * quadrature_weight_s;
+        const double szy = normal_s2 * (force_s1 + force_t1) * quadrature_weight_s;
+        const double szz = normal_s2 * (force_s2 + force_t2) * quadrature_weight_s;
+
+        double coeff = sxx * dx * dx + syy * dy * dy + szz * dz * dz;
+        coeff += (sxy + syx) * dx * dy;
+        coeff += (sxz + szx) * dx * dz;
+        coeff += (syz + szy) * dy * dz;
+        coeff *= -scale_factor * rinv5;
+
+        // Compute the complementarity term v += normal(t) * normal(s) dot f(s) w(s)
+        const double scaled_normal_dot_force =
+            (normal_s0 * force_s0 + normal_s1 * force_s1 + normal_s2 * force_s2) * quadrature_weight_s;
+
+        Kokkos::atomic_add(&target_velocities(3 * t + 0), dx * coeff + scaled_normal_dot_force);
+        Kokkos::atomic_add(&target_velocities(3 * t + 1), dy * coeff + scaled_normal_dot_force);
+        Kokkos::atomic_add(&target_velocities(3 * t + 2), dz * coeff + scaled_normal_dot_force);
+      });
 }
 
 class Periphery {
