@@ -296,10 +296,10 @@ TEST(EvaluateLinkerPotentials, PerformsHertzianContactCalculationCorrectlyForSph
 
   // Ghost the linked entities to any process that owns any of the other linked entities.
   bulk_data_ptr->modification_begin();
-  const stk::mesh::Selector linker_parts_selector = stk::mesh::selectUnion(
-      stk::mesh::ConstPartVector{sphere_sphere_linker_part_ptr, sphere_spherocylinder_linker_part_ptr,
-       sphere_spherocylinder_segment_linker_part_ptr, spherocylinder_segment_spherocylinder_segment_linker_part_ptr,
-       spherocylinder_spherocylinder_linker_part_ptr, spherocylinder_spherocylinder_segment_linker_part_ptr});
+  const stk::mesh::Selector linker_parts_selector = stk::mesh::selectUnion(stk::mesh::ConstPartVector{
+      sphere_sphere_linker_part_ptr, sphere_spherocylinder_linker_part_ptr,
+      sphere_spherocylinder_segment_linker_part_ptr, spherocylinder_segment_spherocylinder_segment_linker_part_ptr,
+      spherocylinder_spherocylinder_linker_part_ptr, spherocylinder_spherocylinder_segment_linker_part_ptr});
   mundy::linkers::fixup_linker_entity_ghosting(*bulk_data_ptr, *linked_entities_field_ptr,
                                                *linked_entity_owners_field_ptr, linker_parts_selector);
   bulk_data_ptr->modification_end();

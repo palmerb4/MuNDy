@@ -34,8 +34,8 @@
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
 #include <mundy_math/Array.hpp>         // for mundy::math::Array
+#include <mundy_math/Matrix.hpp>        // for mundy::math::Matrix
 #include <mundy_math/Tolerance.hpp>     // for mundy::math::get_zero_tolerance
-#include <mundy_math/Matrix.hpp>       // for mundy::math::Matrix
 
 namespace mundy {
 
@@ -44,10 +44,10 @@ namespace math {
 /// \brief Class for a 3x3 matrix with arithmetic entries
 /// \tparam T The type of the entries.
 /// \tparam Accessor The type of the accessor.
-template <typename T, ValidAccessor<T> Accessor  = Array<T, 9>, typename OwnershipType = Ownership::Owns>
+template <typename T, ValidAccessor<T> Accessor = Array<T, 9>, typename OwnershipType = Ownership::Owns>
 using Matrix3 = Matrix<T, 3, 3, Accessor, OwnershipType>;
 
-template <typename T, ValidAccessor<T> Accessor  = Array<T, 9>>
+template <typename T, ValidAccessor<T> Accessor = Array<T, 9>>
 using Matrix3View = Matrix<T, 3, 3, Accessor, Ownership::Views>;
 
 //! \name Matrix3<T, Accessor> views

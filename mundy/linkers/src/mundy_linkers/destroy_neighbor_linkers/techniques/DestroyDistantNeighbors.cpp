@@ -157,11 +157,10 @@ void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector)
 
   stk::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, input_selector,
-      [&element_aabb_field, &linker_destroy_flag_field, &linked_entities_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                                        const stk::mesh::Entity &linker) {
+      [&element_aabb_field, &linker_destroy_flag_field, &linked_entities_field](
+          [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
         MUNDY_THROW_ASSERT(bulk_data.is_valid(linker), std::invalid_argument,
-                           "DestroyDistantNeighbors: linker on rank " << bulk_data.parallel_rank()
-                                                                             << " is not valid.");
+                           "DestroyDistantNeighbors: linker on rank " << bulk_data.parallel_rank() << " is not valid.");
 
         // Get the source and target entities of the linker.
         stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
@@ -169,12 +168,12 @@ void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector)
         stk::mesh::Entity source_entity = bulk_data.get_entity(key_t_ptr[0]);
         stk::mesh::Entity target_entity = bulk_data.get_entity(key_t_ptr[1]);
 
-        MUNDY_THROW_ASSERT(bulk_data.is_valid(source_entity), std::invalid_argument,
-                           "DestroyDistantNeighbors: source_entity on rank " << bulk_data.parallel_rank()
-                                                                             << " is not valid.");
-        MUNDY_THROW_ASSERT(bulk_data.is_valid(target_entity), std::invalid_argument,
-                            "DestroyDistantNeighbors: target_entity on rank " << bulk_data.parallel_rank()
-                                                                              << " is not valid.");
+        MUNDY_THROW_ASSERT(
+            bulk_data.is_valid(source_entity), std::invalid_argument,
+            "DestroyDistantNeighbors: source_entity on rank " << bulk_data.parallel_rank() << " is not valid.");
+        MUNDY_THROW_ASSERT(
+            bulk_data.is_valid(target_entity), std::invalid_argument,
+            "DestroyDistantNeighbors: target_entity on rank " << bulk_data.parallel_rank() << " is not valid.");
 
         // Get the AABBs of the source and target entities.
         const double *source_aabb = stk::mesh::field_data(element_aabb_field, source_entity);

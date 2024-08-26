@@ -177,11 +177,11 @@ void SpherocylinderSpherocylinderLinker::execute(
             stk::mesh::field_data(linked_entities_field, spherocylinder_spherocylinder_linker));
         const stk::mesh::Entity &spherocylinder1_element = bulk_data.get_entity(key_t_ptr[0]);
         const stk::mesh::Entity &spherocylinder2_element = bulk_data.get_entity(key_t_ptr[1]);
-        
+
         MUNDY_THROW_ASSERT(bulk_data.is_valid(spherocylinder1_element), std::invalid_argument,
                            "SpherocylinderSpherocylinderLinker: spherocylinder1_element entity is not valid.");
         MUNDY_THROW_ASSERT(bulk_data.is_valid(spherocylinder2_element), std::invalid_argument,
-                            "SpherocylinderSpherocylinderLinker: spherocylinder2_element entity is not valid.");
+                           "SpherocylinderSpherocylinderLinker: spherocylinder2_element entity is not valid.");
 
         const stk::mesh::Entity &spherocylinder1_node = bulk_data.begin_nodes(spherocylinder1_element)[0];
         const stk::mesh::Entity &spherocylinder2_node = bulk_data.begin_nodes(spherocylinder2_element)[0];

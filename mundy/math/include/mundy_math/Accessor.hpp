@@ -112,17 +112,14 @@ concept HasNonConstAccessOperator = requires(Accessor a, size_t idx) {
 
 /// \brief A concept that checks if Accessor has a copy constructor
 template <typename Accessor>
-concept HasCopyConstructor = requires(Accessor a) {
-  Accessor{a};
-};
+concept HasCopyConstructor = requires(Accessor a) { Accessor{a}; };
 
 /// \brief A concept that checks if Accessor has a move constructor
 template <typename Accessor>
-concept HasMoveConstructor = requires(Accessor a) {
-  Accessor{std::move(a)};
-};
+concept HasMoveConstructor = requires(Accessor a) { Accessor{std::move(a)}; };
 
-/// \brief A concept that checks if an type is a valid accessor, aka it has a const [] operator or a non-const [] operator
+/// \brief A concept that checks if an type is a valid accessor, aka it has a const [] operator or a non-const []
+/// operator
 template <typename Accessor, typename T>
 concept ValidAccessor = (HasConstAccessOperator<Accessor, T> || HasNonConstAccessOperator<Accessor, T>);
 

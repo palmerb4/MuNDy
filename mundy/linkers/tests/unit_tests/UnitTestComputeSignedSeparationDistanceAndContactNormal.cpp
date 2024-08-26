@@ -33,10 +33,10 @@
 // Trilinos libs
 #include <stk_mesh/base/DumpMeshInfo.hpp>  // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Field.hpp>         // for stk::mesh::Field
+#include <stk_mesh/base/MeshUtils.hpp>     // for stk::mesh::fixup_ghosted_to_shared_nodes
 #include <stk_mesh/base/Types.hpp>         // for stk::mesh::ConstPartVector
 #include <stk_topology/topology.hpp>       // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
-#include <stk_mesh/base/MeshUtils.hpp>     // for stk::mesh::fixup_ghosted_to_shared_nodes
 
 // Mundy libs
 #include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
@@ -170,7 +170,7 @@ TEST(ComputeSignedSeparationDistanceAndContactNormal,
   ASSERT_TRUE(linker_cn_field_ptr != nullptr);
   ASSERT_TRUE(linked_entities_field_ptr != nullptr);
   ASSERT_TRUE(linked_entity_owners_field_ptr != nullptr);
-  
+
   // Declare two of each type of shape for 3 * 2 total shapes and generate 6 linkers between the unqiue shape pairings.
   // Typically linker generation would be done via a generator class, but we'll do it by hand here to keep the test
   // simple.

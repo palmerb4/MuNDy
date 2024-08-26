@@ -50,7 +50,8 @@ namespace distance {
 
 namespace {
 
-const double TEST_DOUBLE_EPSILON = 1.e-4;  // After numerous tests, the best precision we can get for the random sphere test is 1.e-4
+const double TEST_DOUBLE_EPSILON =
+    1.e-4;  // After numerous tests, the best precision we can get for the random sphere test is 1.e-4
 
 // Utility function to generate a unique seed for each test based on its GTEST name.
 size_t generate_test_seed() {
@@ -64,10 +65,11 @@ TEST(SharedNormalDistanceBetweenEllipsoidAndPoint, AnalyticalSphereTestCases) {
   // radii, and orientations and check that the numerical signed separation distance matches the analytical result.
 
   auto perform_test_for_given_spheres = [](const Vector3<double>& center, const Quaternion<double>& orientation,
-                                      const double r, const Vector3<double>& point) {
-    const double shared_normal_ssd_numeric = shared_normal_ssd_between_superellipsoid_and_point(
-        center, orientation, r, r, r, 1.0, 1.0, point);
-    const double shared_normal_ssd_analytic = shared_normal_ssd_between_ellipsoid_and_point(center, orientation, r, r, r, point);
+                                           const double r, const Vector3<double>& point) {
+    const double shared_normal_ssd_numeric =
+        shared_normal_ssd_between_superellipsoid_and_point(center, orientation, r, r, r, 1.0, 1.0, point);
+    const double shared_normal_ssd_analytic =
+        shared_normal_ssd_between_ellipsoid_and_point(center, orientation, r, r, r, point);
     const double expected_ssd = mundy::math::norm(point - center) - r;
 
     // Assert used to avoid 10 million throws
@@ -86,13 +88,13 @@ TEST(SharedNormalDistanceBetweenEllipsoidAndPoint, AnalyticalSphereTestCases) {
 
   for (size_t i = 0; i < MUNDY_MATH_TESTS_UNIT_TESTS_ELLIPSOID_ELLIPSOID_DISTANCE_NUM_SAMPLES_PER_TEST; ++i) {
     const Vector3<double> center = {rng.rand<double>() * range_xyz + min_xyz, rng.rand<double>() * range_xyz + min_xyz,
-                                     rng.rand<double>() * range_xyz + min_xyz};
+                                    rng.rand<double>() * range_xyz + min_xyz};
     const auto orientation =
         euler_to_quat(rng.rand<double>() * 2.0 * pi, rng.rand<double>() * 2.0 * pi, rng.rand<double>() * 2.0 * pi);
     const double r = rng.rand<double>() * range_r + min_r;
 
     const Vector3<double> point = {rng.rand<double>() * range_xyz + min_xyz, rng.rand<double>() * range_xyz + min_xyz,
-                                     rng.rand<double>() * range_xyz + min_xyz};
+                                   rng.rand<double>() * range_xyz + min_xyz};
     perform_test_for_given_spheres(center, orientation, r, point);
   }
 }
@@ -102,8 +104,8 @@ TEST(SharedNormalDistanceBetweenEllipsoids, AnalyticalSphereTestCases) {
   // radii, and orientations and check that the numerical signed separation distance matches the analytical result.
 
   auto perform_test_for_given_spheres = [](const Vector3<double>& center0, const Quaternion<double>& orientation0,
-                                      const double r0, const Vector3<double>& center1,
-                                      const Quaternion<double>& orientation1, const double r1) {
+                                           const double r0, const Vector3<double>& center1,
+                                           const Quaternion<double>& orientation1, const double r1) {
     const double shared_normal_ssd = shared_normal_ssd_between_superellipsoids(
         center0, orientation0, r0, r0, r0, 1.0, 1.0, center1, orientation1, r1, r1, r1, 1.0, 1.0);
 

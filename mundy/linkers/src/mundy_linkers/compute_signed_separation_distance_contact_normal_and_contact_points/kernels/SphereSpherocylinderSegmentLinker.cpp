@@ -171,7 +171,7 @@ void SphereSpherocylinderSegmentLinker::execute(
         MUNDY_THROW_ASSERT(bulk_data.is_valid(sphere_element), std::invalid_argument,
                            "SphereSpherocylinderSegmentLinker: sphere_element entity is not valid.");
         MUNDY_THROW_ASSERT(bulk_data.is_valid(spherocylinder_segment_element), std::invalid_argument,
-                            "SphereSpherocylinderSegmentLinker: spherocylinder_segment_element entity is not valid.");
+                           "SphereSpherocylinderSegmentLinker: spherocylinder_segment_element entity is not valid.");
 
         const stk::mesh::Entity &sphere_node = bulk_data.begin_nodes(sphere_element)[0];
         const stk::mesh::Entity &spherocylinder_segment_left_node =

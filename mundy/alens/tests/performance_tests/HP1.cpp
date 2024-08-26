@@ -68,13 +68,14 @@ Interactions:
 #include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
 
 // Mundy libs
-#include <mundy_alens/actions_crosslinkers.hpp>             // for mundy::alens::crosslinkers...
-#include <mundy_alens/periphery/Periphery.hpp>              // for gen_sphere_quadrature
-#include <mundy_constraints/AngularSprings.hpp>             // for mundy::constraints::AngularSprings
-#include <mundy_constraints/ComputeConstraintForcing.hpp>   // for mundy::constraints::ComputeConstraintForcing
-#include <mundy_constraints/DeclareAndInitConstraints.hpp>  // for mundy::constraints::DeclareAndInitConstraints
-#include <mundy_constraints/HookeanSprings.hpp>             // for mundy::constraints::HookeanSprings
-#include <mundy_core/MakeStringArray.hpp>                   // for mundy::core::make_string_array
+#include <mundy_alens/actions_crosslinkers.hpp>                // for mundy::alens::crosslinkers...
+#include <mundy_alens/periphery/Periphery.hpp>                 // for gen_sphere_quadrature
+#include <mundy_constraints/AngularSprings.hpp>                // for mundy::constraints::AngularSprings
+#include <mundy_constraints/ComputeConstraintForcing.hpp>      // for mundy::constraints::ComputeConstraintForcing
+#include <mundy_constraints/DeclareAndInitConstraints.hpp>     // for mundy::constraints::DeclareAndInitConstraints
+#include <mundy_constraints/HookeanSprings.hpp>                // for mundy::constraints::HookeanSprings
+#include <mundy_core/MakeStringArray.hpp>                      // for mundy::core::make_string_array
+#include <mundy_core/OurAnyNumberParameterEntryValidator.hpp>  // for mundy::core::OurAnyNumberParameterEntryValidator
 #include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_io/IOBroker.hpp>         // for mundy::io::IOBroker
@@ -127,90 +128,89 @@ class HP1 {
   }
 
   void parse_user_inputs(int argc, char **argv) {
-    // Parse the command line options.
+    // Parse the command line options to find the input filename
     Teuchos::CommandLineProcessor cmdp(false, true);
-    std::string chromatin_spring_type;
-    std::string crosslinker_spring_type;
+    cmdp.setOption("params", &input_parameter_filename_, "The name of the input file.");
+    bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
+    if (!was_parse_successful) {
+      throw std::invalid_argument("Failed to parse the command line arguments.");
+    }
+
+    // Read, validate, and parse in the parameters from the parameter list.
+    try {
+      Teuchos::ParameterList param_list = *Teuchos::getParametersFromYamlFile(input_parameter_filename_);
+      set_params(param_list);
+    } catch (const std::exception &e) {
+      std::cerr << "ERROR: Failed to read the input parameter file." << std::endl;
+      std::cerr << "During read, the following error occurred: " << e.what() << std::endl;
+      std::cerr << "NOTE: This can happen for any number of reasons. Check that the file exists and contains the "
+                   "expected parameters."
+                << std::endl;
+      throw e;
+    }
+  }
+
+  void set_params(const Teuchos::ParameterList &param_list) {
+    // Validate the parameters and set the defaults.
+    param_list.print();
+    Teuchos::ParameterList valid_param_list = param_list;
+    valid_param_list.validateParametersAndSetDefaults(HP1::get_valid_params());
 
     // Simulation parameters:
-    cmdp.setOption("num_time_steps", &num_time_steps_, "Number of time steps.");
-    cmdp.setOption("num_time_steps_equilibrate", &num_time_steps_equilibrate_, "Number of equilibration time steps.");
-    cmdp.setOption("timestep_size", &timestep_size_, "Time step size.");
-    cmdp.setOption("kt_brownian", &kt_brownian_, "Temperature kT for Brownian Motion.");
-    cmdp.setOption("kt_kmc", &kt_kmc_, "Temperature kT for KMC.");
-    cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
-    cmdp.setOption("log_frequency", &log_frequency_, "Number of timesteps between logging.");
-    cmdp.setOption("initial_loadbalance", "no_initial_loadbalance", &initial_loadbalance_, "Initial loadbalance.");
-    cmdp.setOption("do_equilibrate", "no_do_equilibrate", &do_equilibrate_, "Do equilibrate.");
-    cmdp.setOption("initialization_type", &initialization_type_, "Initialization_type.");
-    cmdp.setOption("viscosity", &viscosity_, "Viscosity.");
+    num_time_steps_ = valid_param_list.get<size_t>("num_time_steps");
+    num_time_steps_equilibrate_ = valid_param_list.get<size_t>("num_time_steps_equilibrate");
+    timestep_size_ = valid_param_list.get<double>("timestep_size");
+    kt_brownian_ = valid_param_list.get<double>("kt_brownian");
+    kt_kmc_ = valid_param_list.get<double>("kt_kmc");
+    io_frequency_ = valid_param_list.get<size_t>("io_frequency");
+    log_frequency_ = valid_param_list.get<size_t>("log_frequency");
+    initial_loadbalance_ = valid_param_list.get<bool>("initial_loadbalance");
+    do_equilibrate_ = valid_param_list.get<bool>("do_equilibrate");
+    initialization_type_ = valid_param_list.get<std::string>("initialization_type");
+    viscosity_ = valid_param_list.get<double>("viscosity");
 
     // Periphery or unit cell:
-#pragma TODO This will be replaced with the periphery radius and values eventually
-    cmdp.setOption("hydrodynamic_periphery_radius", &hydrodynamic_periphery_radius_, "Hydrodynamic periphery radius.");
-    cmdp.setOption("collision_periphery_radius", &collision_periphery_radius_, "Collision periphery radius.");
-    cmdp.setOption("collision_periphery_radius_start", &collision_periphery_radius_start_,
-                   "Collision periphery radius start (equilibration).");
-    cmdp.setOption("periphery_spring_constant", &periphery_spring_constant_, "Periphery spring constant.");
-    cmdp.setOption("periphery_spectral_order", &periphery_spectral_order_, "Periphery spectral order.");
+    hydrodynamic_periphery_radius_ = valid_param_list.get<double>("hydrodynamic_periphery_radius");
+    collision_periphery_radius_ = valid_param_list.get<double>("collision_periphery_radius");
+    collision_periphery_radius_start_ = valid_param_list.get<double>("collision_periphery_radius_start");
+    periphery_spring_constant_ = valid_param_list.get<double>("periphery_spring_constant");
+    periphery_spectral_order_ = valid_param_list.get<size_t>("periphery_spectral_order");
 
     // Chromatin chains:
-    cmdp.setOption("num_chromosomes", &num_chromosomes_, "Number of chromosomes (chromatin chains).");
-    cmdp.setOption("num_chromatin_repeats", &num_chromatin_repeats_, "Number of chromatin repeats per chain.");
-    cmdp.setOption("num_euchromatin_per_repeat", &num_euchromatin_per_repeat_,
-                   "Number of euchromatin beads per repeat.");
-    cmdp.setOption("num_heterochromatin_per_repeat", &num_heterochromatin_per_repeat_,
-                   "Number of heterochromatin beads per repeat.");
-    cmdp.setOption("backbone_excluded_volume_radius", &backbone_excluded_volume_radius_,
-                   "Backbone excluded volume radius (segments).");
-    cmdp.setOption("sphere_hydrodynamic_radius", &sphere_hydrodynamic_radius_, "Hydrodynamic sphere radius.");
-    cmdp.setOption("initial_sphere_separation", &initial_sphere_separation_, "Initial backbone sphere separation.");
-    cmdp.setOption("backbone_youngs_modulus", &backbone_youngs_modulus_, "Backbone Youngs modulus.");
-    cmdp.setOption("backbone_poissons_ratio", &backbone_poissons_ratio_, "Backbone poissons ratio.");
-    // cmdp.setOption("sphere_drag_coeff", &sphere_drag_coeff_, "Backbone sphere drag coefficient.");
+    num_chromosomes_ = valid_param_list.get<size_t>("num_chromosomes");
+    num_chromatin_repeats_ = valid_param_list.get<size_t>("num_chromatin_repeats");
+    num_euchromatin_per_repeat_ = valid_param_list.get<size_t>("num_euchromatin_per_repeat");
+    num_heterochromatin_per_repeat_ = valid_param_list.get<size_t>("num_heterochromatin_per_repeat");
+    backbone_excluded_volume_radius_ = valid_param_list.get<double>("backbone_excluded_volume_radius");
+    sphere_hydrodynamic_radius_ = valid_param_list.get<double>("sphere_hydrodynamic_radius");
+    initial_sphere_separation_ = valid_param_list.get<double>("initial_sphere_separation");
+    backbone_youngs_modulus_ = valid_param_list.get<double>("backbone_youngs_modulus");
+    backbone_poissons_ratio_ = valid_param_list.get<double>("backbone_poissons_ratio");
 
-    //  Chromatin spring:
-    cmdp.setOption("chromatin_spring_type", &chromatin_spring_type, "Chromatin spring type.");
-    cmdp.setOption("chromatin_spring_constant", &chromatin_spring_constant_, "Chromatin spring constant.");
-    cmdp.setOption("chromatin_spring_rest_length", &chromatin_spring_rest_length_, "Chromatin rest length.");
+    // Chromatin spring:
+    const std::string chromatin_spring_type_string = valid_param_list.get<std::string>("chromatin_spring_type");
+    chromatin_spring_constant_ = valid_param_list.get<double>("chromatin_spring_constant");
+    chromatin_spring_rest_length_ = valid_param_list.get<double>("chromatin_spring_rest_length");
 
-    //  Crosslinker (spring and other):
-    cmdp.setOption("crosslinker_spring_type", &crosslinker_spring_type, "Crosslinker spring type.");
-    cmdp.setOption("crosslinker_spring_constant", &crosslinker_spring_constant_, "Crosslinker spring constant.");
-    cmdp.setOption("crosslinker_rest_length", &crosslinker_rest_length_, "Crosslinker rest length.");
-    cmdp.setOption("crosslinker_left_binding_rate", &crosslinker_left_binding_rate_, "Crosslinker left binding rate.");
-    cmdp.setOption("crosslinker_right_binding_rate", &crosslinker_right_binding_rate_,
-                   "Crosslinker right binding rate.");
-    cmdp.setOption("crosslinker_left_unbinding_rate", &crosslinker_left_unbinding_rate_,
-                   "Crosslinker left unbinding rate.");
-    cmdp.setOption("crosslinker_right_unbinding_rate", &crosslinker_right_unbinding_rate_,
-                   "Crosslinker right unbinding rate.");
+    // Crosslinker (spring and other):
+    const std::string crosslinker_spring_type_string = valid_param_list.get<std::string>("crosslinker_spring_type");
+    crosslinker_spring_constant_ = valid_param_list.get<double>("crosslinker_spring_constant");
+    crosslinker_rest_length_ = valid_param_list.get<double>("crosslinker_rest_length");
+    crosslinker_left_binding_rate_ = valid_param_list.get<double>("crosslinker_left_binding_rate");
+    crosslinker_right_binding_rate_ = valid_param_list.get<double>("crosslinker_right_binding_rate");
+    crosslinker_left_unbinding_rate_ = valid_param_list.get<double>("crosslinker_left_unbinding_rate");
+    crosslinker_right_unbinding_rate_ = valid_param_list.get<double>("crosslinker_right_unbinding_rate");
 
     // Neighbor list
-    cmdp.setOption("skin_distance", &skin_distance_, "Neighbor list skin distance.");
-    cmdp.setOption("force_neighborlist_update", "no_force_update_neighbor_list", &force_neighborlist_update_,
-                   "Force update of the neighbor list.");
-    cmdp.setOption("force_neighborlist_update_nsteps", &force_neighborlist_update_nsteps_,
-                   "Number of timesteps between updating the neighbor list (if forced).");
-    cmdp.setOption("print_neighborlist_statistics", "no_print_neighborlist_statistics", &print_neighborlist_statistics_,
-                   "Print neighbor list statistics.");
+    skin_distance_ = valid_param_list.get<double>("skin_distance");
+    force_neighborlist_update_ = valid_param_list.get<bool>("force_neighborlist_update");
+    force_neighborlist_update_nsteps_ = valid_param_list.get<size_t>("force_neighborlist_update_nsteps");
+    print_neighborlist_statistics_ = valid_param_list.get<bool>("print_neighborlist_statistics");
 
-    bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
-
-    MUNDY_THROW_ASSERT(num_chromosomes_ > 0, std::invalid_argument, "num_chromosomes_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_chromatin_repeats_ > 0, std::invalid_argument,
-                       "num_chromatin_repeats_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_euchromatin_per_repeat_ > 0, std::invalid_argument,
-                       "num_euchromatin_per_repeat_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_heterochromatin_per_repeat_ > 0, std::invalid_argument,
-                       "num_heterochromatin_per_repeat_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(backbone_excluded_volume_radius_ > 0, std::invalid_argument,
-                       "backbone_excluded_volume_radius_ must be greater than 0.");
-
-    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    // Validate the parameters
     MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
+
+    // Convert some parameters to their final form
 
     // If we are equilibrating, set the unit cell to the periphery equilibrate radius, if not, then use the normal
     // radius
@@ -229,22 +229,120 @@ class HP1 {
     // Compute the cutoff radius for the crosslinker
     crosslinker_rcut_ = crosslinker_rest_length_ + 5.0 * std::sqrt(1.0 / kt_kmc_ / crosslinker_spring_constant_);
     // Set the type of springs we are using (hookean or fene)
-    if (crosslinker_spring_type == "harmonic") {
+    if (crosslinker_spring_type_string == "HARMONIC") {
       crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
-    } else if (crosslinker_spring_type == "fene") {
+    } else if (crosslinker_spring_type_string == "FENE") {
       crosslinker_spring_type_ = BOND_TYPE::FENE;
       MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for crosslinkers.");
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid crosslinker spring type.");
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid crosslinker spring type. Received '" << crosslinker_spring_type_string
+                                                                       << "' but expected 'HARMONIC' or 'FENE'.");
     }
-    if (chromatin_spring_type == "harmonic") {
+    if (chromatin_spring_type_string == "HARMONIC") {
       chromatin_spring_type_ = BOND_TYPE::HARMONIC;
-    } else if (chromatin_spring_type == "fene") {
+    } else if (chromatin_spring_type_string == "FENE") {
       chromatin_spring_type_ = BOND_TYPE::FENE;
       MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for chromatin chains.");
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Invalid backbone spring type.");
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid backbone spring type. Received '" << crosslinker_spring_type_string
+                                                                    << "' but expected 'HARMONIC' or 'FENE'.");
     }
+  }
+
+  static Teuchos::ParameterList get_valid_params() {
+    // Create a paramater entity validator for our large integers to allow for both int and long long.
+    auto prefer_size_t = []() {
+      if (std::is_same_v<size_t, unsigned short>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_SHORT;
+      } else if (std::is_same_v<size_t, unsigned int>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_INT;
+      } else if (std::is_same_v<size_t, unsigned long>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_LONG;
+      } else if (std::is_same_v<size_t, unsigned long long>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_LONG_LONG;
+      } else {
+        throw std::runtime_error("Unknown size_t type.");
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_INT;
+      }
+    }();
+    const bool allow_all_types_by_default = false;
+    mundy::core::OurAnyNumberParameterEntryValidator::AcceptedTypes accept_int(allow_all_types_by_default);
+    accept_int.allow_all_integer_types(true);
+    auto make_new_validator = [](const auto &preferred_type, const auto &accepted_types) {
+      return Teuchos::rcp(new mundy::core::OurAnyNumberParameterEntryValidator(preferred_type, accepted_types));
+    };
+
+    static Teuchos::ParameterList valid_parameter_list =
+        Teuchos::ParameterList()
+            // Simulation parameters:
+            .set("num_time_steps", default_num_time_steps_, "Number of time steps.",
+                 make_new_validator(prefer_size_t, accept_int))
+            .set("num_time_steps_equilibrate", default_num_time_steps_equilibrate_,
+                 "Number of equilibration time steps.", make_new_validator(prefer_size_t, accept_int))
+            .set("timestep_size", default_timestep_size_, "Time step size.")
+            .set("kt_brownian", default_kt_brownian_, "Temperature kT for Brownian Motion.")
+            .set("kt_kmc", default_kt_kmc_, "Temperature kT for KMC.")
+            .set("io_frequency", default_io_frequency_, "Number of timesteps between writing output.",
+                 make_new_validator(prefer_size_t, accept_int))
+            .set("log_frequency", default_log_frequency_, "Number of timesteps between logging.",
+                 make_new_validator(prefer_size_t, accept_int))
+            .set("initial_loadbalance", default_initial_loadbalance_, "Initial loadbalance.")
+            .set("do_equilibrate", default_do_equilibrate_, "Do equilibrate.")
+            .set("initialization_type", std::string(default_initialization_type_), "Initialization_type.")
+            .set("viscosity", default_viscosity_, "Viscosity.")
+            // Periphery or unit cell:
+            .set("hydrodynamic_periphery_radius", default_hydrodynamic_periphery_radius_,
+                 "Hydrodynamic periphery radius.")
+            .set("collision_periphery_radius", default_collision_periphery_radius_, "Collision periphery radius.")
+            .set("collision_periphery_radius_start", default_collision_periphery_radius_start_,
+                 "Collision periphery radius start (equilibration).")
+            .set("periphery_spring_constant", default_periphery_spring_constant_, "Periphery spring constant.")
+            .set("periphery_spectral_order", default_periphery_spectral_order_, "Periphery spectral order.",
+                 make_new_validator(prefer_size_t, accept_int))
+            // Chromatin chains:
+            .set("num_chromosomes", default_num_chromosomes_, "Number of chromosomes (chromatin chains).",
+                 make_new_validator(prefer_size_t, accept_int))
+            .set("num_chromatin_repeats", default_num_chromatin_repeats_, "Number of chromatin repeats per chain.",
+                 make_new_validator(prefer_size_t, accept_int))
+            .set("num_euchromatin_per_repeat", default_num_euchromatin_per_repeat_,
+                 "Number of euchromatin beads per repeat.", make_new_validator(prefer_size_t, accept_int))
+            .set("num_heterochromatin_per_repeat", default_num_heterochromatin_per_repeat_,
+                 "Number of heterochromatin beads per repeat.", make_new_validator(prefer_size_t, accept_int))
+            .set("backbone_excluded_volume_radius", default_backbone_excluded_volume_radius_,
+                 "Backbone excluded volume radius (segments).")
+            .set("sphere_hydrodynamic_radius", default_sphere_hydrodynamic_radius_, "Hydrodynamic sphere radius.")
+            .set("initial_sphere_separation", default_initial_sphere_separation_, "Initial backbone sphere separation.")
+            .set("backbone_youngs_modulus", default_backbone_youngs_modulus_, "Backbone Youngs modulus.")
+            .set("backbone_poissons_ratio", default_backbone_poissons_ratio_, "Backbone poissons ratio.")
+            // Chromatin spring:
+            .set("chromatin_spring_type", std::string(default_chromatin_spring_type_string_), "Chromatin spring type.")
+            .set("chromatin_spring_constant", default_chromatin_spring_constant_, "Chromatin spring constant.")
+            .set("chromatin_spring_rest_length", default_chromatin_spring_rest_length_, "Chromatin rest length.")
+            // Crosslinker (spring and other):
+            .set("crosslinker_spring_type", std::string(default_crosslinker_spring_type_string_),
+                 "Crosslinker spring type.")
+            .set("crosslinker_spring_constant", default_crosslinker_spring_constant_, "Crosslinker spring constant.")
+            .set("crosslinker_rest_length", default_crosslinker_rest_length_, "Crosslinker rest length.")
+            .set("crosslinker_left_binding_rate", default_crosslinker_left_binding_rate_,
+                 "Crosslinker left binding rate.")
+            .set("crosslinker_right_binding_rate", default_crosslinker_right_binding_rate_,
+                 "Crosslinker right binding rate.")
+            .set("crosslinker_left_unbinding_rate", default_crosslinker_left_unbinding_rate_,
+                 "Crosslinker left unbinding rate.")
+            .set("crosslinker_right_unbinding_rate", default_crosslinker_right_unbinding_rate_,
+                 "Crosslinker right unbinding rate.")
+            // Neighbor list
+            .set("skin_distance", default_skin_distance_, "Neighbor list skin distance.")
+            .set("force_neighborlist_update", default_force_neighborlist_update_, "Force update of the neighbor list.")
+            .set("force_neighborlist_update_nsteps", default_force_neighborlist_update_nsteps_,
+                 "Number of timesteps between force update of the neighbor list.",
+                 make_new_validator(prefer_size_t, accept_int))
+            .set("print_neighborlist_statistics", default_print_neighborlist_statistics_,
+                 "Print neighbor list statistics.");
+
+    return valid_parameter_list;
   }
 
   void dump_user_inputs() {
@@ -1042,7 +1140,7 @@ class HP1 {
   // If we want to initialize uniformly inside a sphere packing, here are the coordinates for a given number of spheres
   // within a bigger sphere.
   // http://hydra.nat.uni-magdeburg.de/packing/ssp/ssp.html
-  void initialize_chromosomes_hilbert_random_unitcell() {
+  void initialize_chromosomes_hilbert_random_unit_cell() {
     std::cout << "Initializating chromosomes as hilbert curves randomly within the unit cell as a sphere" << std::endl;
     // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
     // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
@@ -1239,14 +1337,14 @@ class HP1 {
     }
 
     // Initialize node positions for each chromosome
-    if (initialization_type_ == "grid") {
+    if (initialization_type_ == "GRID") {
       initialize_chromosomes_grid();
-    } else if (initialization_type_ == "random_unit_cell") {
+    } else if (initialization_type_ == "RANDOM_UNIT_CELL") {
       initialize_chromosomes_random_unit_cell();
-    } else if (initialization_type_ == "overlap_test") {
+    } else if (initialization_type_ == "OVERLAP_TEST") {
       initialize_chromosomes_overlap_test();
-    } else if (initialization_type_ == "hilbertrandomunitcell") {
-      initialize_chromosomes_hilbert_random_unitcell();
+    } else if (initialization_type_ == "HILBERT_RANDOM_UNIT_CELL") {
+      initialize_chromosomes_hilbert_random_unit_cell();
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
     }
@@ -1381,7 +1479,7 @@ class HP1 {
 
     compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
     destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
-                                        hp1_bs_neighbor_genx_selector);
+                                           hp1_bs_neighbor_genx_selector);
 
     // Generate the GENX neighbor linkers
     generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
@@ -1436,7 +1534,7 @@ class HP1 {
       destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
                                              hp1_bs_neighbor_genx_selector);
       ghost_linked_entities();
-      
+
       // Generate the GENX neighbor linkers
       generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
       ghost_linked_entities();
@@ -2433,6 +2531,15 @@ class HP1 {
   std::shared_ptr<mundy::alens::periphery::Periphery> periphery_ptr_;
   //@}
 
+  //! \name Neighborlist rebuild information
+  //@{
+
+  size_t last_neighborlist_update_step_ = 0;
+  Kokkos::Timer neighborlist_update_timer_;
+  std::vector<std::tuple<size_t, size_t, double>>
+      neighborlist_update_steps_times_;  // [timestep, elapsed_timesteps, elapsed_time]
+  //@}
+
   //! \name Fields
   //@{
 
@@ -2547,73 +2654,130 @@ class HP1 {
   //! \name User parameters
   //@{
 
+  // Input parameter filename
+  std::string input_parameter_filename_ = "hp1.yaml";
+
   // Simulation params
-  bool initial_loadbalance_ = false;
-  bool do_equilibrate_ = false;
-  size_t num_time_steps_ = 100;
-  size_t num_time_steps_equilibrate_ = 10000;
-  size_t io_frequency_ = 10;
-  size_t log_frequency_ = 10;
-  double timestep_size_ = 0.001;
-  double kt_brownian_ = 1.0;
-  double kt_kmc_ = 1.0;
-  double viscosity_ = 1.0;
-  std::string initialization_type_ = "grid";
+  bool initial_loadbalance_;
+  bool do_equilibrate_;
+  size_t num_time_steps_;
+  size_t num_time_steps_equilibrate_;
+  size_t io_frequency_;
+  size_t log_frequency_;
+  double timestep_size_;
+  double kt_brownian_;
+  double kt_kmc_;
+  double viscosity_;
+  std::string initialization_type_;
 
   // Unit cell/periodicity params
-  double unit_cell_length_ = 10.0;
+  double unit_cell_length_;
 
   // Chromatin params
-  size_t num_chromosomes_ = 1;
-  size_t num_chromatin_repeats_ = 2;
-  size_t num_euchromatin_per_repeat_ = 1;
-  size_t num_heterochromatin_per_repeat_ = 1;
-  double backbone_excluded_volume_radius_ = 0.5;
-  double sphere_hydrodynamic_radius_ = 0.05;
-  double initial_sphere_separation_ = 1.0;
-  double backbone_youngs_modulus_ = 1000.0;
-  double backbone_poissons_ratio_ = 0.3;
-  double sphere_drag_coeff_ = 1.0;
+  size_t num_chromosomes_;
+  size_t num_chromatin_repeats_;
+  size_t num_euchromatin_per_repeat_;
+  size_t num_heterochromatin_per_repeat_;
+  double backbone_excluded_volume_radius_;
+  double sphere_hydrodynamic_radius_;
+  double initial_sphere_separation_;
+  double backbone_youngs_modulus_;
+  double backbone_poissons_ratio_;
+  double sphere_drag_coeff_;
 
   // Chromatin spring params
-  BOND_TYPE chromatin_spring_type_ = BOND_TYPE::HARMONIC;
-  double chromatin_spring_constant_ = 100.0;
-  double chromatin_spring_rest_length_ = 1.0;
+  BOND_TYPE chromatin_spring_type_;
+  double chromatin_spring_constant_;
+  double chromatin_spring_rest_length_;
 
   // Crosslinker params
-  BOND_TYPE crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
-  double crosslinker_spring_constant_ = 10.0;
-  double crosslinker_rest_length_ = 2.5;
-  double crosslinker_rcut_ = 1.0;
-  double crosslinker_left_binding_rate_ = 1.0;
-  double crosslinker_right_binding_rate_ = 1.0;
-  double crosslinker_left_unbinding_rate_ = 1.0;
-  double crosslinker_right_unbinding_rate_ = 1.0;
+  BOND_TYPE crosslinker_spring_type_;
+  double crosslinker_spring_constant_;
+  double crosslinker_rest_length_;
+  double crosslinker_rcut_;
+  double crosslinker_left_binding_rate_;
+  double crosslinker_right_binding_rate_;
+  double crosslinker_left_unbinding_rate_;
+  double crosslinker_right_unbinding_rate_;
 
   // Periphery params
-  double hydrodynamic_periphery_radius_ = 5.0;
-  double collision_periphery_radius_ = 5.0;
-  double collision_periphery_radius_start_ = 5.0;
-  double collision_periphery_radius_current_ = 0.0;
-  double periphery_spring_constant_ = 1000.0;
-  size_t periphery_spectral_order_ = 32;
+  double hydrodynamic_periphery_radius_;
+  double collision_periphery_radius_;
+  double collision_periphery_radius_start_;
+  double collision_periphery_radius_current_;
+  double periphery_spring_constant_;
+  size_t periphery_spectral_order_;
 
-  // Flags for simulation control
-  // Neighbor list
-  double skin_distance_ = 1.0;
-  double skin_distance2_over4_ = 1.0;
-  bool update_neighbor_list_ = false;
-  bool force_neighborlist_update_ = false;
-  size_t force_neighborlist_update_nsteps_ = 10;
+  // Neighbor list params
+  double skin_distance_;
+  double skin_distance2_over4_;
+  bool update_neighbor_list_;
+  bool force_neighborlist_update_;
+  size_t force_neighborlist_update_nsteps_;
+  bool print_neighborlist_statistics_;
+  //@}
 
-  // Neighborlist rebuild information
-  size_t last_neighborlist_update_step_ = 0;
-  Kokkos::Timer neighborlist_update_timer_;
+  //! \name Default user parameters
+  //@{
 
-  // [timestep, elapsed_timesteps, elapsed_time]
-  std::vector<std::tuple<size_t, size_t, double>> neighborlist_update_steps_times_;
-  bool print_neighborlist_statistics_ = false;
+  // Simulation params
+  static constexpr bool default_initial_loadbalance_ = false;
+  static constexpr bool default_do_equilibrate_ = false;
+  static constexpr size_t default_num_time_steps_ = 100;
+  static constexpr size_t default_num_time_steps_equilibrate_ = 10000;
+  static constexpr size_t default_io_frequency_ = 10;
+  static constexpr size_t default_log_frequency_ = 10;
+  static constexpr double default_timestep_size_ = 0.001;
+  static constexpr double default_kt_brownian_ = 1.0;
+  static constexpr double default_kt_kmc_ = 1.0;
+  static constexpr double default_viscosity_ = 1.0;
+  static constexpr std::string_view default_initialization_type_ = "grid";
 
+  // Unit cell/periodicity params
+  static constexpr double default_unit_cell_length_ = 10.0;
+
+  // Chromatin params
+  static constexpr size_t default_num_chromosomes_ = 1;
+  static constexpr size_t default_num_chromatin_repeats_ = 2;
+  static constexpr size_t default_num_euchromatin_per_repeat_ = 1;
+  static constexpr size_t default_num_heterochromatin_per_repeat_ = 1;
+  static constexpr double default_backbone_excluded_volume_radius_ = 0.5;
+  static constexpr double default_sphere_hydrodynamic_radius_ = 0.05;
+  static constexpr double default_initial_sphere_separation_ = 1.0;
+  static constexpr double default_backbone_youngs_modulus_ = 1000.0;
+  static constexpr double default_backbone_poissons_ratio_ = 0.3;
+  static constexpr double default_sphere_drag_coeff_ = 1.0;
+
+  // Chromatin spring params
+  static constexpr std::string_view default_chromatin_spring_type_string_ = "HARMONIC";
+  static constexpr double default_chromatin_spring_constant_ = 100.0;
+  static constexpr double default_chromatin_spring_rest_length_ = 1.0;
+
+  // Crosslinker params
+  static constexpr std::string_view default_crosslinker_spring_type_string_ = "HARMONIC";
+  static constexpr double default_crosslinker_spring_constant_ = 10.0;
+  static constexpr double default_crosslinker_rest_length_ = 2.5;
+  static constexpr double default_crosslinker_rcut_ = 1.0;
+  static constexpr double default_crosslinker_left_binding_rate_ = 1.0;
+  static constexpr double default_crosslinker_right_binding_rate_ = 1.0;
+  static constexpr double default_crosslinker_left_unbinding_rate_ = 1.0;
+  static constexpr double default_crosslinker_right_unbinding_rate_ = 1.0;
+
+  // Periphery params
+  static constexpr double default_hydrodynamic_periphery_radius_ = 5.0;
+  static constexpr double default_collision_periphery_radius_ = 5.0;
+  static constexpr double default_collision_periphery_radius_start_ = 5.0;
+  static constexpr double default_collision_periphery_radius_current_ = 0.0;
+  static constexpr double default_periphery_spring_constant_ = 1000.0;
+  static constexpr size_t default_periphery_spectral_order_ = 32;
+
+  // Neighbor list params
+  static constexpr double default_skin_distance_ = 1.0;
+  static constexpr double default_skin_distance2_over4_ = 1.0;
+  static constexpr bool default_update_neighbor_list_ = false;
+  static constexpr bool default_force_neighborlist_update_ = false;
+  static constexpr size_t default_force_neighborlist_update_nsteps_ = 10;
+  static constexpr bool default_print_neighborlist_statistics_ = false;
   //@}
 };  // class HP1
 

@@ -444,8 +444,9 @@ int main(int argc, char **argv) {
       // If we evaluate the flow these forces induce on the periphery, do they satisfy no-slip?
       Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace> M("Mnew", 3 * num_surface_nodes,
                                                                        3 * num_surface_nodes);
-      mundy::alens::periphery::fill_skfie_matrix(DeviceExecutionSpace(), viscosity, num_surface_nodes, num_surface_nodes, surface_positions,
-                        surface_positions, surface_normals, surface_weights, M);
+      mundy::alens::periphery::fill_skfie_matrix(DeviceExecutionSpace(), viscosity, num_surface_nodes,
+                                                 num_surface_nodes, surface_positions, surface_positions,
+                                                 surface_normals, surface_weights, M);
       KokkosBlas::gemv(DeviceExecutionSpace(), "N", 1.0, M, surface_forces, 1.0, surface_velocities);
       MUNDY_THROW_ASSERT(std::abs(mundy::alens::periphery::max_speed(surface_velocities)) < 1.0e-10, std::runtime_error,
                          "No-slip boundary conditions not satisfied");

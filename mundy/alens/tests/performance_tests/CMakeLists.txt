@@ -23,8 +23,6 @@ tribits_add_executable(
     Filament.cpp
     CATEGORIES PERFORMANCE
     )
-
-# Copy the test files for the executables...
 tribits_copy_files_to_binary_dir(
     PerformanceTestFilamentCopyFiles
     SOURCE_FILES
@@ -38,8 +36,6 @@ tribits_add_executable(
     Bacteria.cpp
     CATEGORIES PERFORMANCE
     )
-
-# Copy the test files for the executables...
 tribits_copy_files_to_binary_dir(
     PerformanceTestBacteriaCopyFiles
     SOURCE_FILES
@@ -101,6 +97,12 @@ tribits_add_executable(
     SOURCES
     HP1.cpp
     CATEGORIES PERFORMANCE
+    )
+tribits_copy_files_to_binary_dir(
+    HP1CopyFiles
+    SOURCE_FILES
+    hp1.yaml
+    EXEDEPS HP1
     )
 
 tribits_add_executable(

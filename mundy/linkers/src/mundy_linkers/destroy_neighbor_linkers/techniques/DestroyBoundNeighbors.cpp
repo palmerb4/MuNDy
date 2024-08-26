@@ -144,7 +144,7 @@ void DestroyBoundNeighbors::execute(const stk::mesh::Selector &input_selector) {
         MUNDY_THROW_ASSERT(bulk_data.is_valid(source_entity), std::invalid_argument,
                            "DestroyBoundNeighbors: Source entity is not valid.");
         MUNDY_THROW_ASSERT(bulk_data.is_valid(target_entity), std::invalid_argument,
-                            "DestroyBoundNeighbors: Target entity is not valid.");
+                           "DestroyBoundNeighbors: Target entity is not valid.");
 
         // Check if the lower-rank entities of either the source are target are the same.
         stk::topology::rank_t lower_ranks[3] = {stk::topology::NODE_RANK, stk::topology::EDGE_RANK,

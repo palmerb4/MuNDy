@@ -968,15 +968,16 @@ class BacteriaSim {
     // stk::mesh::for_each_entity_run(*bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
     //                                [&node_rng_counter_field, &node_omega_field, &element_marked_for_division_field](
     //                                    const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &bacteria) {
-    //                                  if (stk::mesh::field_data(element_marked_for_division_field, bacteria)[0] == 1) {
+    //                                  if (stk::mesh::field_data(element_marked_for_division_field, bacteria)[0] == 1)
+    //                                  {
     //                                    // Fetch the connected node
     //                                    const stk::mesh::Entity node = bulk_data.begin_nodes(bacteria)[0];
 
     //                                    // Get the output fields
     //                                    auto node_omega = mundy::mesh::vector3_field_data(node_omega_field, node);
-    //                                    size_t *node_rng_counter = stk::mesh::field_data(node_rng_counter_field, node);
-    //                                    const size_t node_gid = bulk_data.identifier(node);
-    //                                    openrand::Philox rng(node_gid, node_rng_counter[0]);
+    //                                    size_t *node_rng_counter = stk::mesh::field_data(node_rng_counter_field,
+    //                                    node); const size_t node_gid = bulk_data.identifier(node); openrand::Philox
+    //                                    rng(node_gid, node_rng_counter[0]);
 
     //                                    // Apply a very small random orientational kick to keep particles from being
     //                                    // perfectly aligned

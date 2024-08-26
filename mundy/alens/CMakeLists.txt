@@ -29,9 +29,6 @@ SET(NOINSTALLHEADERS
 
 SET(SOURCES 
   src/compute_brownian_velocity/kernels/SpheresKernel.cpp
-  # src/compute_mobility/techniques/periphery_utils/cnpy.cpp
-  # src/compute_mobility/techniques/periphery_utils/kernels.cpp
-  # src/compute_mobility/techniques/periphery_utils/Periphery.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

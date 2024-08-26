@@ -320,7 +320,6 @@ TEST(Views, MixedViews) {
   EXPECT_EQ(strided_shifted_data[2], 8.0);
 }
 
-
 }  // namespace
 
 }  // namespace math

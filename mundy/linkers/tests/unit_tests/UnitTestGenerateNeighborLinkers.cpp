@@ -285,11 +285,11 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       const stk::mesh::EntityId sphere_j_gid = bulk_data_ptr->identifier(right_sphere);
 
       ASSERT_EQ(static_cast<int>(sphere_i_gid), parallel_rank + 1)
-          << "Owned linker connects to wrong left sphere. Thrown by process " << parallel_rank
-          << " for linker " << neighbor_linker_idx << " with spheres " << sphere_i_gid << " and " << sphere_j_gid;
+          << "Owned linker connects to wrong left sphere. Thrown by process " << parallel_rank << " for linker "
+          << neighbor_linker_idx << " with spheres " << sphere_i_gid << " and " << sphere_j_gid;
       ASSERT_EQ(static_cast<int>(sphere_j_gid), parallel_rank + 2)
-          << "Owned linker connects to wrong right sphere. Thrown by process " << parallel_rank
-          << " for linker " << neighbor_linker_idx << " with spheres " << sphere_i_gid << " and " << sphere_j_gid;
+          << "Owned linker connects to wrong right sphere. Thrown by process " << parallel_rank << " for linker "
+          << neighbor_linker_idx << " with spheres " << sphere_i_gid << " and " << sphere_j_gid;
     }
   }
 
@@ -308,11 +308,11 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerGenerationCorrectlyForSphere
       stk::mesh::Entity right_sphere = bulk_data_ptr->get_entity(key_t_ptr[1]);
 
       ASSERT_TRUE(bulk_data_ptr->is_valid(left_sphere))
-          << "Neighbor linkers connects to invalid left sphere. Thrown by process " << parallel_rank
-          << " for linker " << neighbor_linker_idx << " with spheres " << left_sphere << " and " << right_sphere;
+          << "Neighbor linkers connects to invalid left sphere. Thrown by process " << parallel_rank << " for linker "
+          << neighbor_linker_idx << " with spheres " << left_sphere << " and " << right_sphere;
       ASSERT_TRUE(bulk_data_ptr->is_valid(right_sphere))
-          << "Neighbor linkers connects to invalid right sphere. Thrown by process " << parallel_rank
-          << " for linker " << neighbor_linker_idx << " with spheres " << left_sphere << " and " << right_sphere;
+          << "Neighbor linkers connects to invalid right sphere. Thrown by process " << parallel_rank << " for linker "
+          << neighbor_linker_idx << " with spheres " << left_sphere << " and " << right_sphere;
     }
   }
 

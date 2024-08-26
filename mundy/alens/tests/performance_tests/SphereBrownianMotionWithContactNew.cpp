@@ -96,8 +96,8 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 
 // A macro for a block of stuff
 #define TIME_BLOCK(thing_to_time, rank, message) \
-  {                                              \
-    { thing_to_time; }                           \
+  {{thing_to_time;                               \
+  }                                              \
   }
 
 class NodeEuler

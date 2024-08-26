@@ -172,20 +172,21 @@ void SpherocylinderSegmentSpherocylinderSegmentHertzianContact::execute(
   stk::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&element_radius_field, &element_youngs_modulus_field, &element_poissons_ratio_field,
-       &linker_potential_force_field, &linker_signed_separation_distance_field,
-       &linker_contact_normal_field, &linked_entities_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                     const stk::mesh::Entity &spherocylinder_segment_spherocylinder_segment_linker) {
+       &linker_potential_force_field, &linker_signed_separation_distance_field, &linker_contact_normal_field,
+       &linked_entities_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                               const stk::mesh::Entity &spherocylinder_segment_spherocylinder_segment_linker) {
         // Use references to avoid copying entities
-        const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
-            reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
-                stk::mesh::field_data(linked_entities_field, spherocylinder_segment_spherocylinder_segment_linker));
+        const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+            stk::mesh::field_data(linked_entities_field, spherocylinder_segment_spherocylinder_segment_linker));
         const stk::mesh::Entity &left_spherocylinder_segment_element = bulk_data.get_entity(key_t_ptr[0]);
         const stk::mesh::Entity &right_spherocylinder_segment_element = bulk_data.get_entity(key_t_ptr[1]);
 
         MUNDY_THROW_ASSERT(bulk_data.is_valid(left_spherocylinder_segment_element), std::invalid_argument,
-                        "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: left_spherocylinder_segment_element entity is not valid.");
+                           "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: "
+                           "left_spherocylinder_segment_element entity is not valid.");
         MUNDY_THROW_ASSERT(bulk_data.is_valid(right_spherocylinder_segment_element), std::invalid_argument,
-                            "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: right_spherocylinder_segment_element entity is not valid.");
+                           "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: "
+                           "right_spherocylinder_segment_element entity is not valid.");
 
         const double left_radius = stk::mesh::field_data(element_radius_field, left_spherocylinder_segment_element)[0];
         const double right_radius =

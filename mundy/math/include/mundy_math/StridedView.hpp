@@ -84,7 +84,6 @@ class StridedAccessor<T, stride, Accessor, Ownership::Views> {
 template <typename T, size_t stride, ValidAccessor<T> Accessor>
 class StridedAccessor<T, stride, Accessor, Ownership::Owns> {
  public:
-
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
   KOKKOS_INLINE_FUNCTION StridedAccessor()

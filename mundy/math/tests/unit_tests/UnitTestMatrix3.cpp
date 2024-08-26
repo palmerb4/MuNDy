@@ -308,7 +308,7 @@ TYPED_TEST(Matrix3SingleTypeTest, RowViewAccessors) {
   is_close_debug(m(0, 1), 5, "Row0 view not a view.");
   is_close_debug(m(0, 2), 6, "Row0 view not a view.");
 
-  auto row1 = m. template view_row<1>();
+  auto row1 = m.template view_row<1>();
   is_close_debug(row1, Vector3<TypeParam>{4, 5, 6});
 
   row1(0) = 7;
@@ -318,7 +318,7 @@ TYPED_TEST(Matrix3SingleTypeTest, RowViewAccessors) {
   is_close_debug(m(1, 1), 8, "Row1 view not a view.");
   is_close_debug(m(1, 2), 9, "Row1 view not a view.");
 
-  auto row2 = m. template view_row<2>();
+  auto row2 = m.template view_row<2>();
   is_close_debug(row2, Vector3<TypeParam>{-7, -8, -9});
 
   row2(0) = -1;

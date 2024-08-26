@@ -167,7 +167,7 @@ void SphereSphereLinker::execute(const stk::mesh::Selector &sphere_sphere_linker
         MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sphere_element), std::invalid_argument,
                            "SphereSphereLinker: left_sphere_element entity is not valid.");
         MUNDY_THROW_ASSERT(bulk_data.is_valid(right_sphere_element), std::invalid_argument,
-                            "SphereSphereLinker: right_sphere_element entity is not valid.");
+                           "SphereSphereLinker: right_sphere_element entity is not valid.");
 
         const stk::mesh::Entity &left_sphere_node = bulk_data.begin_nodes(left_sphere_element)[0];
         const stk::mesh::Entity &right_sphere_node = bulk_data.begin_nodes(right_sphere_element)[0];

@@ -401,7 +401,7 @@ template <size_t max_size, size_t N>
 class lbfgs_search_strategy {
  public:
   lbfgs_search_strategy()
-        : data(),
+      : data(),
         alpha(0.0),
         been_used(false),
         current_size(0),

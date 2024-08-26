@@ -288,11 +288,11 @@ void apply_skfie_matrix_wrapper(const double viscosity,
 
 /// \brief Apply the second kind Fredholm integral operator with singularity subtraction to a function
 void apply_skfie_wrapper(const double viscosity,
-                                   const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
-                                   const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
-                                   const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights,
-                                   const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &input_field,
-                                   const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &output_field) {
+                         const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
+                         const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
+                         const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights,
+                         const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &input_field,
+                         const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &output_field) {
   const size_t num_quadrature_points = weights.extent(0);
   apply_skfie(Kokkos::DefaultHostExecutionSpace(), viscosity, num_quadrature_points, num_quadrature_points, points,
               points, normals, normals, weights, input_field, output_field);
@@ -705,12 +705,12 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   const ConvergenceResults kernel_ss_results = perform_convergence_study(
       viscosity, quad_gen, apply_stokes_double_layer_kernel_ss_wrapper, in_field_gen, new_expected_results_gen);
 
-  const ConvergenceResults matrix_skfie_results = perform_convergence_study(viscosity, quad_gen, apply_skfie_matrix_wrapper,
-                                                                     in_field_gen, new_expected_results_gen);
+  const ConvergenceResults matrix_skfie_results = perform_convergence_study(
+      viscosity, quad_gen, apply_skfie_matrix_wrapper, in_field_gen, new_expected_results_gen);
 
-  const ConvergenceResults kernel_skfie_results = perform_convergence_study(viscosity, quad_gen, apply_skfie_wrapper,
-                                                                     in_field_gen, new_expected_results_gen);
-  
+  const ConvergenceResults kernel_skfie_results =
+      perform_convergence_study(viscosity, quad_gen, apply_skfie_wrapper, in_field_gen, new_expected_results_gen);
+
   // For now, just print the results
   std::cout << "matrix_results.slope = " << matrix_results.slope << std::endl;
   for (size_t i = 0; i < matrix_results.num_quadrature_points.size(); ++i) {
@@ -734,13 +734,15 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
   }
   std::cout << "matrix_skfie_results.slope = " << matrix_skfie_results.slope << std::endl;
   for (size_t i = 0; i < matrix_skfie_results.num_quadrature_points.size(); ++i) {
-    std::cout << "matrix_skfie_results.num_quadrature_points[" << i << "] = " << matrix_skfie_results.num_quadrature_points[i]
-              << ", matrix_skfie_results.error[" << i << "] = " << matrix_skfie_results.error[i] << std::endl;
+    std::cout << "matrix_skfie_results.num_quadrature_points[" << i
+              << "] = " << matrix_skfie_results.num_quadrature_points[i] << ", matrix_skfie_results.error[" << i
+              << "] = " << matrix_skfie_results.error[i] << std::endl;
   }
   std::cout << "kernel_skfie_results.slope = " << kernel_skfie_results.slope << std::endl;
   for (size_t i = 0; i < kernel_skfie_results.num_quadrature_points.size(); ++i) {
-    std::cout << "kernel_skfie_results.num_quadrature_points[" << i << "] = " << kernel_skfie_results.num_quadrature_points[i]
-              << ", kernel_skfie_results.error[" << i << "] = " << kernel_skfie_results.error[i] << std::endl;
+    std::cout << "kernel_skfie_results.num_quadrature_points[" << i
+              << "] = " << kernel_skfie_results.num_quadrature_points[i] << ", kernel_skfie_results.error[" << i
+              << "] = " << kernel_skfie_results.error[i] << std::endl;
   }
 }
 
@@ -819,13 +821,15 @@ TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
         }
         std::cout << "matrix_skfie_results.slope = " << matrix_skfie_results.slope << std::endl;
         for (size_t i = 0; i < matrix_skfie_results.num_quadrature_points.size(); ++i) {
-          std::cout << "matrix_skfie_results.num_quadrature_points[" << i << "] = " << matrix_skfie_results.num_quadrature_points[i]
-                    << ", matrix_skfie_results.error[" << i << "] = " << matrix_skfie_results.error[i] << std::endl;
+          std::cout << "matrix_skfie_results.num_quadrature_points[" << i
+                    << "] = " << matrix_skfie_results.num_quadrature_points[i] << ", matrix_skfie_results.error[" << i
+                    << "] = " << matrix_skfie_results.error[i] << std::endl;
         }
         std::cout << "kernel_skfie_results.slope = " << kernel_skfie_results.slope << std::endl;
         for (size_t i = 0; i < kernel_skfie_results.num_quadrature_points.size(); ++i) {
-          std::cout << "kernel_skfie_results.num_quadrature_points[" << i << "] = " << kernel_skfie_results.num_quadrature_points[i]
-                    << ", kernel_skfie_results.error[" << i << "] = " << kernel_skfie_results.error[i] << std::endl;
+          std::cout << "kernel_skfie_results.num_quadrature_points[" << i
+                    << "] = " << kernel_skfie_results.num_quadrature_points[i] << ", kernel_skfie_results.error[" << i
+                    << "] = " << kernel_skfie_results.error[i] << std::endl;
         }
       };  // run_test_for_function
 
@@ -865,19 +869,20 @@ TEST(PeripheryTest, SKFIEIsInvertible) {
 
     // Fill the self-interaction matrix and take its inverse
     Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M("M", 3 * num_surface_nodes, 3 * num_surface_nodes);
-    Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M_original("M", 3 * num_surface_nodes, 3 * num_surface_nodes);
+    Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M_original("M", 3 * num_surface_nodes,
+                                                                              3 * num_surface_nodes);
     Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M_inv("M_inv", 3 * num_surface_nodes,
-                                                                        3 * num_surface_nodes);
+                                                                         3 * num_surface_nodes);
     fill_skfie_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_surface_nodes, num_surface_nodes, host_points,
                       host_points, host_normals, host_weights, M);
-    
+
     // The inverse function will replace M with its pivot matrix, so we need to stash the original matrix
     Kokkos::deep_copy(M_original, M);
     invert_matrix(Kokkos::DefaultHostExecutionSpace(), M, M_inv);
 
     // Multiply the matrix by its inverse and check that it is the m_m_inv matrix
     Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> m_m_inv("m_m_inv", 3 * num_surface_nodes,
-                                                                          3 * num_surface_nodes);
+                                                                           3 * num_surface_nodes);
     KokkosBlas::gemm(Kokkos::DefaultHostExecutionSpace(), "N", "N", 1.0, M_original, M_inv, 0.0, m_m_inv);
     for (size_t i = 0; i < 3 * num_surface_nodes; ++i) {
       for (size_t j = 0; j < 3 * num_surface_nodes; ++j) {

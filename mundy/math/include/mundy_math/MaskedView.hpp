@@ -98,7 +98,6 @@ class MaskedAccessor<T, N, mask, Accessor, Ownership::Views> {
 template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
 class MaskedAccessor<T, N, mask, Accessor, Ownership::Owns> {
  public:
-
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
   KOKKOS_INLINE_FUNCTION MaskedAccessor()

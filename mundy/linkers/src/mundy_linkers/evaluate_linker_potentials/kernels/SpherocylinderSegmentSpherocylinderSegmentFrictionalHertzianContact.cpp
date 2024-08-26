@@ -405,16 +405,17 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
           // Contact, compute the contact forces
 
           // Fetch the attached entities. Use references to avoid copying or pointer dereferencing.
-          const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
-            reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
-                stk::mesh::field_data(linked_entities_field, sy_seg_sy_seg_linker));
+          const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+              stk::mesh::field_data(linked_entities_field, sy_seg_sy_seg_linker));
           const stk::mesh::Entity &left_sy_seg_element = bulk_data.get_entity(key_t_ptr[0]);
           const stk::mesh::Entity &right_sy_seg_element = bulk_data.get_entity(key_t_ptr[1]);
 
           MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sy_seg_element), std::invalid_argument,
-                          "SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact: left_sy_seg_element entity is not valid.");
+                             "SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact: left_sy_seg_element "
+                             "entity is not valid.");
           MUNDY_THROW_ASSERT(bulk_data.is_valid(right_sy_seg_element), std::invalid_argument,
-                              "SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact: right_sy_seg_element entity is not valid.");
+                             "SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact: "
+                             "right_sy_seg_element entity is not valid.");
 
           const stk::mesh::Entity *left_sy_seg_nodes = bulk_data.begin_nodes(left_sy_seg_element);
           const stk::mesh::Entity *right_sy_seg_nodes = bulk_data.begin_nodes(right_sy_seg_element);

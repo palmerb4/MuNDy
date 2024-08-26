@@ -84,7 +84,6 @@ class ShiftedAccessor<T, shift, Accessor, Ownership::Views> {
 template <typename T, size_t shift, ValidAccessor<T> Accessor>
 class ShiftedAccessor<T, shift, Accessor, Ownership::Owns> {
  public:
-
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
   KOKKOS_INLINE_FUNCTION ShiftedAccessor()

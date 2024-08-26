@@ -105,14 +105,14 @@ KOKKOS_INLINE_FUNCTION Vector3<double> map_body_frame_normal_to_superellipsoid(
 
 KOKKOS_INLINE_FUNCTION double centerline_projection_ssd_point_to_ellipsoid(
     const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
-    const double r2, const double r3,
-    const Vector3<double, auto, auto>& point,
-    Vector3<double>* const closest_point = nullptr) { 
+    const double r2, const double r3, const Vector3<double, auto, auto>& point,
+    Vector3<double>* const closest_point = nullptr) {
   // Step 1: Map the point to the ellipsoid body frame
   const Vector3<double> body_frame_point = conjugate(orientation) * (point - center);
 
   // Step 2: Map the body frame point to the coordinate system where the ellipsoid is a unit sphere
-  const Vector3<double> body_frame_point_unstretched = Vector3<double>(body_frame_point[0] / r1, body_frame_point[1] / r2, body_frame_point[2] / r3);
+  const Vector3<double> body_frame_point_unstretched =
+      Vector3<double>(body_frame_point[0] / r1, body_frame_point[1] / r2, body_frame_point[2] / r3);
   const double body_frame_point_unstretched_norm = two_norm(body_frame_point_unstretched);
   const double is_inside = body_frame_point_unstretched_norm < 1.0;
 
@@ -120,7 +120,8 @@ KOKKOS_INLINE_FUNCTION double centerline_projection_ssd_point_to_ellipsoid(
   const Vector3<double> contact_point_unstretched = body_frame_point_unstretched / body_frame_point_unstretched_norm;
 
   // Step 4: Map the closest point back to the ellipsoid lab frame
-  const Vector3<double> contact_point(r1 * contact_point_unstretched[0], r2 * contact_point_unstretched[1], r3 * contact_point_unstretched[2]);
+  const Vector3<double> contact_point(r1 * contact_point_unstretched[0], r2 * contact_point_unstretched[1],
+                                      r3 * contact_point_unstretched[2]);
   const Vector3<double> lab_frame_contact_point = orientation * contact_point + center;
 
   // Step 5: Compute the centerline projection distance
@@ -131,8 +132,7 @@ KOKKOS_INLINE_FUNCTION double centerline_projection_ssd_point_to_ellipsoid(
 
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point(
     const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
-    const double r2, const double r3, const double e1, const double e2,
-    const Vector3<double, auto, auto>& point,
+    const double r2, const double r3, const double e1, const double e2, const Vector3<double, auto, auto>& point,
     Vector3<double>* const closest_point = nullptr) {
   // Setup our cost function
   auto theta_phi_to_shared_normal_contact_points_and_ssd = KOKKOS_LAMBDA(const Vector<double, 2>& theta_phi) {
@@ -148,8 +148,7 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point
 
     // Step 4: Compute the lab frame foot point
     const Vector3<double> lab_frame_foot_point = orientation * body_frame_foot_point + center;
-    const double signed_separation_distance =
-        mundy::math::dot(point - lab_frame_foot_point, lab_frame_nhat);
+    const double signed_separation_distance = mundy::math::dot(point - lab_frame_foot_point, lab_frame_nhat);
 
     return std::make_tuple(lab_frame_foot_point, signed_separation_distance);
   };
@@ -195,10 +194,10 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point
 
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_ellipsoid_and_point(
     const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
-    const double r2, const double r3, 
-    const Vector3<double, auto, auto>& point,
+    const double r2, const double r3, const Vector3<double, auto, auto>& point,
     Vector3<double>* const closest_point = nullptr) {
-  return shared_normal_ssd_between_superellipsoid_and_point(center, orientation, r1, r2, r3, 1.0, 1.0, point, closest_point);
+  return shared_normal_ssd_between_superellipsoid_and_point(center, orientation, r1, r2, r3, 1.0, 1.0, point,
+                                                            closest_point);
 }
 
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoids(

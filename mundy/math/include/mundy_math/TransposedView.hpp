@@ -93,7 +93,6 @@ class TransposedAccessor<T, N, M, Accessor, Ownership::Views> {
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
 class TransposedAccessor<T, N, M, Accessor, Ownership::Owns> {
  public:
-
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
   KOKKOS_INLINE_FUNCTION TransposedAccessor()

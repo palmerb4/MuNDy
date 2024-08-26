@@ -222,7 +222,7 @@ class SpherocylinderSegment : public mundy::meta::MetaKernel<> {
 
   /// \brief Linked entities field.
   LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
-  
+
   /// \brief Node coord field.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;
 
