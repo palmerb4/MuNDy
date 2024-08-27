@@ -1022,6 +1022,7 @@ class StickySettings {
     // Now do a check to see if we need to update the neighbor list.
     if (((force_neighborlist_update_) && (timestep_index_ % force_neighborlist_update_nsteps_ == 0)) ||
         update_neighbor_list_) {
+      Kokkos::Profiling::pushRegion("StickySettings::detect_neighbors::update_neighbor_list");
       // Read off the timing information before doing anything else and reset it
       auto elapsed_steps = timestep_index_ - last_neighborlist_update_step_;
       auto elapsed_time = neighborlist_update_timer_.seconds();
@@ -1039,6 +1040,7 @@ class StickySettings {
       ghost_linked_entities();
       generate_crosslinker_sphere_neighbor_linkers_ptr_->execute(crosslinkers_selector, spheres_selector);
       ghost_linked_entities();
+      Kokkos::Profiling::popRegion();
     }
     Kokkos::Profiling::popRegion();
   }
