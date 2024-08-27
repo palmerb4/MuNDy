@@ -114,6 +114,7 @@ class HP1 {
  public:
   enum BINDING_STATE_CHANGE : unsigned { NONE = 0u, LEFT_TO_DOUBLY, RIGHT_TO_DOUBLY, DOUBLY_TO_LEFT, DOUBLY_TO_RIGHT };
   enum BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
+  enum BIND_SITES_TYPE : unsigned { RANDOM = 0u, FILE };
 
   using DeviceExecutionSpace = Kokkos::DefaultExecutionSpace;
   using DeviceMemorySpace = typename DeviceExecutionSpace::memory_space;
@@ -131,8 +132,15 @@ class HP1 {
     // Parse the command line options to find the input filename
     Teuchos::CommandLineProcessor cmdp(false, true);
     cmdp.setOption("params", &input_parameter_filename_, "The name of the input file.");
-    bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    if (!was_parse_successful) {
+
+    Teuchos::CommandLineProcessor::EParseCommandLineReturn parse_result = cmdp.parse(argc, argv);
+    if (parse_result == Teuchos::CommandLineProcessor::PARSE_HELP_PRINTED) {
+      print_help_message();
+
+      // Safely exit the program
+      // If we print the help message, we don't need to do anything else.
+      exit(0);
+    } else if (parse_result != Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL) {
       throw std::invalid_argument("Failed to parse the command line arguments.");
     }
 
@@ -148,6 +156,32 @@ class HP1 {
                 << std::endl;
       throw e;
     }
+  }
+
+  void print_help_message() {
+    std::cout << "#############################################################################################"
+              << std::endl;
+    std::cout << "To run this code, please pass in --params=<input.yaml> as a command line argument." << std::endl;
+    std::cout << std::endl;
+    std::cout << "Note, all parameters and sublists in input.yaml must be contained in a single top-level list."
+              << std::endl;
+    std::cout << "Such as:" << std::endl;
+    std::cout << std::endl;
+    std::cout << "HP1:" << std::endl;
+    std::cout << "  num_time_steps: 1000" << std::endl;
+    std::cout << "  num_time_steps_equilibrate: 100" << std::endl;
+    std::cout << "  timestep_size: 1e-6" << std::endl;
+    std::cout << "#############################################################################################"
+              << std::endl;
+    std::cout << "The valid parameters that can be set in the input file are:" << std::endl;
+    Teuchos::ParameterList valid_params = HP1::get_valid_params();
+
+    auto print_options =
+        Teuchos::ParameterList::PrintOptions().showTypes(false).showDoc(true).showDefault(true).showFlags(false).indent(
+            1);
+    valid_params.print(std::cout, print_options);
+    std::cout << "#############################################################################################"
+              << std::endl;
   }
 
   void set_params(const Teuchos::ParameterList &param_list) {
@@ -175,6 +209,18 @@ class HP1 {
     collision_periphery_radius_start_ = valid_param_list.get<double>("collision_periphery_radius_start");
     periphery_spring_constant_ = valid_param_list.get<double>("periphery_spring_constant");
     periphery_spectral_order_ = valid_param_list.get<size_t>("periphery_spectral_order");
+    std::string periphery_bind_sites_type_string = valid_param_list.get<std::string>("periphery_bind_sites_type");
+    if (periphery_bind_sites_type_string == "RANDOM") {
+      periphery_bind_sites_type_ = BIND_SITES_TYPE::RANDOM;
+      periphery_num_bind_sites_ = valid_param_list.get<size_t>("periphery_num_bind_sites");
+    } else if (periphery_bind_sites_type_string == "FILE") {
+      periphery_bind_sites_type_ = BIND_SITES_TYPE::FILE;
+      periphery_bind_sites_filename_ = valid_param_list.get<std::string>("periphery_bind_sites_filename");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid periphery binding sites type. Received '" << periphery_bind_sites_type_string
+                                                                            << "' but expected 'RANDOM' or 'FILE'.");
+    }
 
     // Chromatin chains:
     num_chromosomes_ = valid_param_list.get<size_t>("num_chromosomes");
@@ -189,11 +235,33 @@ class HP1 {
 
     // Chromatin spring:
     const std::string chromatin_spring_type_string = valid_param_list.get<std::string>("chromatin_spring_type");
+    if (chromatin_spring_type_string == "HARMONIC") {
+      chromatin_spring_type_ = BOND_TYPE::HARMONIC;
+    } else if (chromatin_spring_type_string == "FENE") {
+      chromatin_spring_type_ = BOND_TYPE::FENE;
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for chromatin chains.");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid backbone spring type. Received '" << chromatin_spring_type_string
+                                                                    << "' but expected 'HARMONIC' or 'FENE'.");
+    }
+
     chromatin_spring_constant_ = valid_param_list.get<double>("chromatin_spring_constant");
     chromatin_spring_rest_length_ = valid_param_list.get<double>("chromatin_spring_rest_length");
 
     // Crosslinker (spring and other):
     const std::string crosslinker_spring_type_string = valid_param_list.get<std::string>("crosslinker_spring_type");
+    if (crosslinker_spring_type_string == "HARMONIC") {
+      crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
+    } else if (crosslinker_spring_type_string == "FENE") {
+      crosslinker_spring_type_ = BOND_TYPE::FENE;
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for crosslinkers.");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid crosslinker spring type. Received '" << crosslinker_spring_type_string
+                                                                       << "' but expected 'HARMONIC' or 'FENE'.");
+    }
+
     crosslinker_spring_constant_ = valid_param_list.get<double>("crosslinker_spring_constant");
     crosslinker_rest_length_ = valid_param_list.get<double>("crosslinker_rest_length");
     crosslinker_left_binding_rate_ = valid_param_list.get<double>("crosslinker_left_binding_rate");
@@ -222,33 +290,11 @@ class HP1 {
       collision_periphery_radius_current_ = collision_periphery_radius_;
     }
 
-    // Set the hydrodynamic drag on the spheres to 6 * pi * eta * r
     sphere_drag_coeff_ = 6.0 * M_PI * viscosity_ * sphere_hydrodynamic_radius_;
-    // Modify any variables into their final form
+
     skin_distance2_over4_ = skin_distance_ * skin_distance_ / 4.0;
-    // Compute the cutoff radius for the crosslinker
+
     crosslinker_rcut_ = crosslinker_rest_length_ + 5.0 * std::sqrt(1.0 / kt_kmc_ / crosslinker_spring_constant_);
-    // Set the type of springs we are using (hookean or fene)
-    if (crosslinker_spring_type_string == "HARMONIC") {
-      crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
-    } else if (crosslinker_spring_type_string == "FENE") {
-      crosslinker_spring_type_ = BOND_TYPE::FENE;
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for crosslinkers.");
-    } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid crosslinker spring type. Received '" << crosslinker_spring_type_string
-                                                                       << "' but expected 'HARMONIC' or 'FENE'.");
-    }
-    if (chromatin_spring_type_string == "HARMONIC") {
-      chromatin_spring_type_ = BOND_TYPE::HARMONIC;
-    } else if (chromatin_spring_type_string == "FENE") {
-      chromatin_spring_type_ = BOND_TYPE::FENE;
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for chromatin chains.");
-    } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid backbone spring type. Received '" << crosslinker_spring_type_string
-                                                                    << "' but expected 'HARMONIC' or 'FENE'.");
-    }
   }
 
   static Teuchos::ParameterList get_valid_params() {
@@ -301,6 +347,13 @@ class HP1 {
             .set("periphery_spring_constant", default_periphery_spring_constant_, "Periphery spring constant.")
             .set("periphery_spectral_order", default_periphery_spectral_order_, "Periphery spectral order.",
                  make_new_validator(prefer_size_t, accept_int))
+            .set("periphery_bind_sites_type", std::string(default_periphery_bind_sites_type_string_),
+                 "Periphery bind sites type.")
+            .set("periphery_num_bind_sites", default_periphery_num_bind_sites_,
+                 "Periphery number of binding sites (only used if periphery_binding_sites_type is RANDOM).",
+                 make_new_validator(prefer_size_t, accept_int))
+            .set("periphery_bind_sites_filename", std::string(default_periphery_bind_sites_filename_),
+                 "Periphery binding sites filename (only used if periphery_binding_sites_type is FILE).")
             // Chromatin chains:
             .set("num_chromosomes", default_num_chromosomes_, "Number of chromosomes (chromatin chains).",
                  make_new_validator(prefer_size_t, accept_int))
@@ -388,8 +441,8 @@ class HP1 {
       std::cout << "" << std::endl;
 
       std::cout << "CHROMATIN SPRINGS:" << std::endl;
-      std::string chromatin_spring_type = chromatin_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene";
-      std::cout << "  chromatin_spring_type: " << chromatin_spring_type << std::endl;
+      std::cout << "  chromatin_spring_type: " << (chromatin_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene")
+                << std::endl;
       std::cout << "  chromatin_spring_constant: " << chromatin_spring_constant_ << std::endl;
       std::cout << "  chromatin_spring_rest_length: " << chromatin_spring_rest_length_ << std::endl;
       std::cout << "" << std::endl;
@@ -412,7 +465,13 @@ class HP1 {
       std::cout << "  collision_periphery_radius_start: " << collision_periphery_radius_start_ << std::endl;
       std::cout << "  periphery_spring_constant: " << periphery_spring_constant_ << std::endl;
       std::cout << "  periphery_spectral_order: " << periphery_spectral_order_ << std::endl;
-
+      if (periphery_bind_sites_type_ == BIND_SITES_TYPE::RANDOM) {
+        std::cout << "  periphery_bind_sites_type: RANDOM" << std::endl;
+        std::cout << "  periphery_num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
+      } else if (periphery_bind_sites_type_ == BIND_SITES_TYPE::FILE) {
+        std::cout << "  periphery_bind_sites_type: FILE" << std::endl;
+        std::cout << "  periphery_bind_sites_file: " << periphery_bind_sites_filename_ << std::endl;
+      }
       std::cout << "##################################################" << std::endl;
     }
   }
@@ -2654,7 +2713,7 @@ class HP1 {
   //! \name User parameters
   //@{
 
-  // Input parameter filename
+  // Setup params
   std::string input_parameter_filename_ = "hp1.yaml";
 
   // Simulation params
@@ -2707,6 +2766,9 @@ class HP1 {
   double collision_periphery_radius_current_;
   double periphery_spring_constant_;
   size_t periphery_spectral_order_;
+  BIND_SITES_TYPE periphery_bind_sites_type_;
+  size_t periphery_num_bind_sites_;
+  std::string periphery_bind_sites_filename_;
 
   // Neighbor list params
   double skin_distance_;
@@ -2770,6 +2832,10 @@ class HP1 {
   static constexpr double default_collision_periphery_radius_current_ = 0.0;
   static constexpr double default_periphery_spring_constant_ = 1000.0;
   static constexpr size_t default_periphery_spectral_order_ = 32;
+  static constexpr std::string_view default_periphery_bind_sites_type_string_ = "RANDOM";
+  static constexpr size_t default_periphery_num_bind_sites_ = 1000;  // Only used by RANDOM bind site type
+  static constexpr std::string_view default_periphery_bind_sites_filename_ =
+      "periphery_bind_sites.txt";  // Only used by FILE bind site type
 
   // Neighbor list params
   static constexpr double default_skin_distance_ = 1.0;

@@ -22,6 +22,8 @@ HP1:
   collision_periphery_radius_start: 27.5
   periphery_spring_constant: 1000.0
   periphery_spectral_order: 16
+  periphery_bind_sites_type: "RANDOM"
+  periphery_num_bind_sites: 1000
   
   # Chromatin chains:
   num_chromosomes: 1
