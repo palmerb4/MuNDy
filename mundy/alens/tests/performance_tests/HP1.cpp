@@ -2161,6 +2161,7 @@ class HP1 {
   }
 
   void compute_ellipsoidal_periphery_collision_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces");
     const double spring_constant = periphery_spring_constant_;
     const double a = periphery_axis_radius1_;
     const double b = periphery_axis_radius2_;
