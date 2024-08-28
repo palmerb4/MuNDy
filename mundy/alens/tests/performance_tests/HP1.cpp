@@ -120,7 +120,7 @@ class HP1 {
     DOUBLY_TO_RIGHT
   };
   enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
-  enum class BIND_SITES_TYPE : unsigned { RANDOM = 0u, FROM_FILE };
+  enum class PERIPHERY_BIND_SITES_TYPE : unsigned { RANDOM = 0u, FROM_FILE };
   enum class PERIPHERY_SHAPE : unsigned { SPHERE = 0u, ELLIPSOID };
   enum class PERIPHERY_QUADRATURE : unsigned { GAUSS_LEGENDRE = 0u, FROM_FILE };
 
@@ -163,12 +163,12 @@ class HP1 {
     return os;
   }
 
-  friend std::ostream &operator<<(std::ostream &os, const BIND_SITES_TYPE &bind_sites_type) {
+  friend std::ostream &operator<<(std::ostream &os, const PERIPHERY_BIND_SITES_TYPE &bind_sites_type) {
     switch (bind_sites_type) {
-      case BIND_SITES_TYPE::RANDOM:
+      case PERIPHERY_BIND_SITES_TYPE::RANDOM:
         os << "RANDOM";
         break;
-      case BIND_SITES_TYPE::FROM_FILE:
+      case PERIPHERY_BIND_SITES_TYPE::FROM_FILE:
         os << "FROM_FILE";
         break;
       default:
@@ -337,11 +337,11 @@ class HP1 {
 
     std::string periphery_bind_sites_type_string = periphery_params.get<std::string>("bind_sites_type");
     if (periphery_bind_sites_type_string == "RANDOM") {
-      periphery_bind_sites_type_ = BIND_SITES_TYPE::RANDOM;
+      periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::RANDOM;
       periphery_num_bind_sites_ = periphery_params.get<size_t>("num_bind_sites");
     } else if (periphery_bind_sites_type_string == "FROM_FILE") {
-      periphery_bind_sites_type_ = BIND_SITES_TYPE::FROM_FILE;
-      periphery_bind_sites_filename_ = periphery_params.get<std::string>("bind_sites_filename");
+      periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::FROM_FILE;
+      periphery_bind_site_locations_filename_ = periphery_params.get<std::string>("bind_site_locations_filename");
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument,
                          "Invalid periphery binding sites type. Received '"
@@ -485,7 +485,7 @@ class HP1 {
              "Periphery number of binding sites (only used if periphery_binding_sites_type is RANDOM and periphery "
              "has spherical or ellipsoidal shape).",
              make_new_validator(prefer_size_t, accept_int))
-        .set("bind_sites_filename", std::string(default_periphery_bind_sites_filename_),
+        .set("bind_site_locations_filename", std::string(default_periphery_bind_site_locations_filename_),
              "Periphery binding sites filename (only used if periphery_binding_sites_type is FROM_FILE).")
         .set("scale_factor_for_equilibriation", default_periphery_scale_factor_for_equilibriation_,
              "Scale factor for equilibriation. The periphery starts at the scaled size and is shrunk down to the true "
@@ -619,12 +619,12 @@ class HP1 {
         std::cout << "  periphery_quadrature_normals_filename: " << periphery_quadrature_normals_filename_ << std::endl;
       }
 
-      if (periphery_bind_sites_type_ == BIND_SITES_TYPE::RANDOM) {
+      if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
         std::cout << "  periphery_bind_sites_type: RANDOM" << std::endl;
         std::cout << "  periphery_num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
-      } else if (periphery_bind_sites_type_ == BIND_SITES_TYPE::FROM_FILE) {
+      } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
         std::cout << "  periphery_bind_sites_type: FROM_FILE" << std::endl;
-        std::cout << "  periphery_bind_sites_file: " << periphery_bind_sites_filename_ << std::endl;
+        std::cout << "  periphery_bind_sites_file: " << periphery_bind_site_locations_filename_ << std::endl;
       }
       std::cout << "##################################################" << std::endl;
     }
@@ -1459,7 +1459,7 @@ class HP1 {
     initialize_chromatin_backbone_and_hp1();
   }
 
-  void initialize_periphery() {
+  void initialize_hydrodynamic_periphery() {
     if ((periphery_quadrature_ == PERIPHERY_QUADRATURE::GAUSS_LEGENDRE) &&
         ((periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ||
          ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) && (periphery_axis_radius1_ == periphery_axis_radius2_) &&
@@ -1498,6 +1498,123 @@ class HP1 {
     // Run the precomputation for the inverse self-interaction matrix
     const bool write_to_file = false;
     periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
+  }
+
+  void declare_and_initialize_periphery_bind_sites() {
+    // Declare first
+    bulk_data_ptr_->modification_begin();
+    std::vector<std::size_t> requests(meta_data_ptr_->entity_rank_count(), 0);
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      requests[stk::topology::NODE_RANK] = periphery_num_bind_sites_;
+      requests[stk::topology::ELEMENT_RANK] = periphery_num_bind_sites_;
+    }
+    std::vector<stk::mesh::Entity> requested_entities;
+    bulk_data_ptr_->generate_new_entities(requests, requested_entities);
+    bulk_data_ptr_->change_entity_parts(requested_entities, stk::mesh::PartVector{bs_part_ptr_},
+                                        stk::mesh::PartVector{});
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      for (size_t i = 0; i < periphery_num_bind_sites_; i++) {
+        const stk::mesh::Entity &node_i = requested_entities[i];
+        const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+        bulk_data_ptr_->declare_relation(sphere_i, node_i, 0);
+      }
+    }
+    bulk_data_ptr_->modification_end();
+
+    // Initialize second
+    if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
+      // Sample the bind sites randomly on the surface of the periphery
+      openrand::Philox rng(1234, 0);
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        if (bulk_data_ptr_->parallel_rank() == 0) {
+          for (size_t i = 0; i < periphery_num_bind_sites_; i++) {
+            const stk::mesh::Entity &node_i = requested_entities[i];
+            const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+            double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+
+            const double u1 = rng.rand<double>();
+            const double u2 = rng.rand<double>();
+            const double theta = 2.0 * M_PI * u1;
+            const double phi = std::acos(2.0 * u2 - 1.0);
+            node_coords[0] = periphery_radius_ * std::sin(phi) * std::cos(theta);
+            node_coords[1] = periphery_radius_ * std::sin(phi) * std::sin(theta);
+            node_coords[2] = periphery_radius_ * std::cos(phi);
+          }
+        }
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        if (bulk_data_ptr_->parallel_rank() == 0) {
+          const double a = periphery_axis_radius1_;
+          const double b = periphery_axis_radius2_;
+          const double c = periphery_axis_radius3_;
+          const double inv_mu_max = 1.0 / std::max({b * c, a * c, a * b});
+          auto keep = [&a, &b, &c, &inv_mu_max, &rng](double x, double y, double z) {
+            const double mu_xyz =
+                std::sqrt((b * c * x) * (b * c * x) + (a * c * y) * (a * c * y) + (a * b * z) * (a * b * z));
+            return inv_mu_max * mu_xyz > rng.rand<double>();
+          };
+
+          for (size_t i = 0; i < periphery_num_bind_sites_; i++) {
+            const stk::mesh::Entity &node_i = requested_entities[i];
+            const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+            double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+
+            while (true) {
+              // Generate a random point on the unit sphere
+              const double u1 = rng.rand<double>();
+              const double u2 = rng.rand<double>();
+              const double theta = 2.0 * M_PI * u1;
+              const double phi = std::acos(2.0 * u2 - 1.0);
+              node_coords[0] = std::sin(phi) * std::cos(theta);
+              node_coords[1] = std::sin(phi) * std::sin(theta);
+              node_coords[2] = std::cos(phi);
+
+              // Keep this point with probability proportional to the surface area element
+              if (keep(node_coords[0], node_coords[1], node_coords[2])) {
+                // Pushforward the point to the ellipsoid
+                node_coords[0] *= a;
+                node_coords[1] *= b;
+                node_coords[2] *= c;
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        MUNDY_THROW_ASSERT(
+            false, std::invalid_argument,
+            "Unknown periphery shape. Recieved: " << periphery_shape_ << " but expected SPHERE or ELLIPSOID.");
+      }
+    } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
+      if (bulk_data_ptr_->parallel_rank() == 0) {
+        std::ifstream infile(periphery_bind_site_locations_filename_, std::ios::binary);
+        if (!infile) {
+          std::cerr << "Failed to open file: " << periphery_bind_site_locations_filename_ << std::endl;
+          return;
+        }
+
+        // Parse the input
+        size_t num_elements;
+        infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
+        MUNDY_THROW_ASSERT(
+            num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
+            "Num bind sites mismatch: expected " << periphery_num_bind_sites_ << ", got " << num_elements / 3);
+        for (size_t i = 0; i < periphery_num_bind_sites_; ++i) {
+          const stk::mesh::Entity &node_i = requested_entities[i];
+          const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+          double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+          for (size_t j = 0; j < 3; ++j) {
+            infile.read(reinterpret_cast<char *>(&node_coords[3 * i + j]), sizeof(double));
+          }
+        }
+
+        // Close the file
+        infile.close();
+      }
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Unknown periphery bind sites type. Recieved: " << periphery_bind_sites_type_
+                                                                         << " but expected RANDOM or FROM_FILE.");
+    }
   }
 
   void zero_out_transient_node_fields() {
@@ -2451,7 +2568,8 @@ class HP1 {
     set_mutable_parameters();
     setup_io_mundy();
     declare_and_initialize_hp1();
-    initialize_periphery();
+    initialize_hydrodynamic_periphery();
+    declare_and_initialize_periphery_bind_sites();
     detect_neighbors_initial();
     Kokkos::Profiling::popRegion();
 
@@ -2507,7 +2625,7 @@ class HP1 {
         compute_periphery_collision_forces();
 
         // Compute velocities.
-        compute_brownian_velocity();
+        // compute_brownian_velocity();
         compute_external_velocity();
 
         // Logging, if desired, write to console
@@ -2846,9 +2964,9 @@ class HP1 {
   std::string periphery_quadrature_weights_filename_;
   std::string periphery_quadrature_normals_filename_;
   size_t periphery_spectral_order_;  // For spheres with Gauss-Legendre quadrature
-  BIND_SITES_TYPE periphery_bind_sites_type_;
+  PERIPHERY_BIND_SITES_TYPE periphery_bind_sites_type_;
   size_t periphery_num_bind_sites_;
-  std::string periphery_bind_sites_filename_;
+  std::string periphery_bind_site_locations_filename_;
 
   // Neighbor list params
   double skin_distance_;
@@ -2919,7 +3037,7 @@ class HP1 {
       "hp1_periphery_quadrature_normals.dat";
   static constexpr std::string_view default_periphery_bind_sites_type_string_ = "RANDOM";
   static constexpr size_t default_periphery_num_bind_sites_ = 1000;
-  static constexpr std::string_view default_periphery_bind_sites_filename_ = "periphery_bind_sites.dat";
+  static constexpr std::string_view default_periphery_bind_site_locations_filename_ = "periphery_bind_sites.dat";
   static constexpr double default_periphery_scale_factor_for_equilibriation_ = 2.0;
 
   // Neighbor list params
