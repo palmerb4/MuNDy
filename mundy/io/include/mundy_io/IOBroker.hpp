@@ -115,9 +115,6 @@ class IOBroker {
     Teuchos::Array<std::string> enabled_io_parts =
         valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_io_parts");
     for (const std::string &io_part_name : enabled_io_parts) {
-      std::ostringstream ostream;
-      ostream << "Enabling Part IO " << io_part_name;
-      stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
       // Grab the Part and then assign it to IO
       stk::mesh::Part *io_part_ptr = meta_data_ptr_->get_part(io_part_name);
       stk::io::put_io_part_attribute(*io_part_ptr);

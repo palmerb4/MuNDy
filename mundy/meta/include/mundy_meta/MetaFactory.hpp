@@ -248,7 +248,6 @@ class MetaFactory {
                   "See the documentation of MetaFactory for more information about the expected interface.");
 
     // Register the class.
-    std::cout << "MetaFactory: Registering class " << key << std::endl;
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().push_back(key);

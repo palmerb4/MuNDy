@@ -73,10 +73,6 @@ void IOBroker::set_transient_fields(const Teuchos::ParameterList &valid_fixed_pa
     if (!enabled_io_fields.empty()) {
       for (const std::string &io_field_name : enabled_io_fields) {
         if (io_field_name != "") {
-          std::ostringstream ostream;
-          ostream << "Enabling Field IO (" << rank_name_str << ") " << io_field_name;
-          stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
-
           // Get the field and tag as TRANSIENT
           stk::mesh::FieldBase *io_field_ptr =
               meta_data_ptr_->get_field(mundy::mesh::string_to_rank(rank_name_str), io_field_name);

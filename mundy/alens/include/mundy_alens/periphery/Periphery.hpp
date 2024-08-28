@@ -72,7 +72,8 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
                            std::vector<double> *const weights_ptr, std::vector<double> *const normals_ptr,
                            const bool include_poles = false, const bool invert = false) {
   MUNDY_THROW_ASSERT(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
-  MUNDY_THROW_ASSERT(radius > 0, std::invalid_argument, "gen_sphere_quadrature: radius must be positive.");
+  MUNDY_THROW_ASSERT(radius > 0, std::invalid_argument, "gen_sphere_quadrature: radius must be positive. The current value is "
+                                                           << radius);
   MUNDY_THROW_ASSERT(points_ptr != nullptr, std::invalid_argument,
                      "gen_sphere_quadrature: points_ptr must be non-null.");
   MUNDY_THROW_ASSERT(weights_ptr != nullptr, std::invalid_argument,

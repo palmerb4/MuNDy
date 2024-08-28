@@ -104,7 +104,6 @@ class Sphere : public mundy::meta::MetaKernel<> {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
 
-    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
     // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();

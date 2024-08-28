@@ -111,7 +111,6 @@ DestroyDistantNeighbors::DestroyDistantNeighbors(mundy::mesh::BulkData *const bu
                              const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
-      std::cout << "part_name: " << part_name << std::endl;
       stk::mesh::Part *part = meta_data.get_part(part_name);
       MUNDY_THROW_ASSERT(
           part != nullptr, std::invalid_argument,

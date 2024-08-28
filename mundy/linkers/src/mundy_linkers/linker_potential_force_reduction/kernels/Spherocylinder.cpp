@@ -60,8 +60,6 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   valid_fixed_params.validateParametersAndSetDefaults(Spherocylinder::get_valid_fixed_params());
 
-  valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
-
   // Get the field pointers.
   const std::string node_coord_field_name = mundy::shapes::Spherocylinders::get_node_coord_field_name();
   const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
