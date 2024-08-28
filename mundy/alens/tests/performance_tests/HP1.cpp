@@ -1436,7 +1436,8 @@ class HP1 {
                                               std::array<double, 1>{crosslinker_rcut_});
 
     // Initialize the hydrodynamic spheres
-    mundy::mesh::utils::fill_field_with_value(*spheres_part_ptr_, *element_radius_field_ptr_,
+    const stk::mesh::Selector chromatin_spheres = *e_part_ptr_ | *h_part_ptr_;
+    mundy::mesh::utils::fill_field_with_value(chromatin_spheres, *element_radius_field_ptr_,
                                               std::array<double, 1>{sphere_hydrodynamic_radius_});
 
     // Initialize node positions for each chromosome
@@ -1482,7 +1483,8 @@ class HP1 {
           .set_quadrature_weights(weights_vec.data())
           .set_surface_normals(normals_vec.data());
     } else if (periphery_quadrature_ == PERIPHERY_QUADRATURE::FROM_FILE) {
-      periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(periphery_num_quadrature_points_, viscosity_);
+      periphery_ptr_ =
+          std::make_shared<mundy::alens::periphery::Periphery>(periphery_num_quadrature_points_, viscosity_);
       periphery_ptr_->set_surface_positions(periphery_quadrature_points_filename_)
           .set_quadrature_weights(periphery_quadrature_weights_filename_)
           .set_surface_normals(periphery_quadrature_normals_filename_);
@@ -2081,8 +2083,8 @@ class HP1 {
 
     // Fetch the bucket of spheres to act on.
     stk::mesh::EntityVector sphere_elements;
-    stk::mesh::Selector spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
-    stk::mesh::get_selected_entities(spheres_selector, bulk_data_ptr_->buckets(stk::topology::ELEMENT_RANK),
+    stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::get_selected_entities(chromatin_spheres_selector, bulk_data_ptr_->buckets(stk::topology::ELEMENT_RANK),
                                      sphere_elements);
     const size_t num_spheres = sphere_elements.size();
 
@@ -2192,8 +2194,9 @@ class HP1 {
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
 
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spheres_part_ptr_,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &level_set, &center,
          &orientation, &a, &b, &c,
          &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
@@ -2262,8 +2265,9 @@ class HP1 {
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
 
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spheres_part_ptr_,
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &periphery_radius,
          &periphery_radius2,
          &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
@@ -2331,7 +2335,7 @@ class HP1 {
     Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
 
     // Selectors and aliases
-    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
     stk::mesh::Field<unsigned> &node_rng_field = *node_rng_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
@@ -2342,7 +2346,7 @@ class HP1 {
 
     // Compute the total velocity of the nonorientable spheres
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
         [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
          &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
@@ -2367,7 +2371,7 @@ class HP1 {
     Kokkos::Profiling::pushRegion("HP1::compute_external_velocity");
 
     // Selectors and aliases
-    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
     double &timestep_size = timestep_size_;
@@ -2376,7 +2380,7 @@ class HP1 {
 
     // Compute the total velocity of the nonorientable spheres
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
         [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
@@ -2398,13 +2402,13 @@ class HP1 {
     // Selectors and aliases
     size_t &timestep_index = timestep_index_;
     double &timestep_size = timestep_size_;
-    stk::mesh::Part &spheres_part = *spheres_part_ptr_;
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
 
     // Update the positions for all spheres based on velocity
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_velocity_field, &timestep_size, &timestep_index](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
@@ -2416,11 +2420,12 @@ class HP1 {
               timestep_size * node_velocity[0], timestep_size * node_velocity[1], timestep_size * node_velocity[2]);
           const double dr_mag = mundy::math::norm(dr);
           if (dr_mag > 1.0e-1) {
-            std::cout << "Step: " << timestep_index << ", large movement detected\n";
+            std::cout << "Step: " << timestep_index
+                      << ", large movement detected, sphere: " << bulk_data.identifier(sphere_node) << std::endl;
             std::cout << "  dr: " << dr << ", dr_mag: " << dr_mag << std::endl;
             std::cout << "  node_velocity: " << node_velocity[0] << ", " << node_velocity[1] << ", " << node_velocity[2]
                       << std::endl;
-            // MUNDY_THROW_ASSERT(false, std::runtime_error, "Large movement due to timestep detected.");
+            MUNDY_THROW_ASSERT(false, std::runtime_error, "Large movement due to timestep detected.");
           }
 
           // x(t+dt) = x(t) + dt * v(t)
@@ -2535,27 +2540,27 @@ class HP1 {
 
     // Reset simulation control variables
     timestep_index_ = 0;
-    // Make sure that all of the spheres are within the collision radius of the periphery
-    {
-      stk::mesh::Part &spheres_part = *spheres_part_ptr_;
-      stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
-      double &periphery_radius = periphery_radius_;
+    // Make sure that all of the chromatin spheres are within the collision radius of the periphery
+    // {
+    //   const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    //   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    //   double &periphery_radius = periphery_radius_;
 
-      stk::mesh::for_each_entity_run(
-          *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
-          [&node_coord_field, &periphery_radius](const stk::mesh::BulkData &bulk_data,
-                                                 const stk::mesh::Entity &sphere_node) {
-            // Get the coordinates of the sphere
-            const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
-            if (mundy::math::norm(node_coords) > periphery_radius) {
-              std::cout << "Sphere node " << bulk_data.identifier(sphere_node)
-                        << " is outside the hydrodynamic periphery." << std::endl;
-              std::cout << "  node_coords: " << node_coords << std::endl;
-              std::cout << "  norm(node_coords): " << mundy::math::norm(node_coords) << std::endl;
-              MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
-            }
-          });
-    }
+    //   stk::mesh::for_each_entity_run(
+    //       *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+    //       [&node_coord_field, &periphery_radius](const stk::mesh::BulkData &bulk_data,
+    //                                              const stk::mesh::Entity &sphere_node) {
+    //         // Get the coordinates of the sphere
+    //         const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+    //         if (mundy::math::norm(node_coords) > periphery_radius) {
+    //           std::cout << "Sphere node " << bulk_data.identifier(sphere_node)
+    //                     << " is outside the hydrodynamic periphery." << std::endl;
+    //           std::cout << "  node_coords: " << node_coords << std::endl;
+    //           std::cout << "  norm(node_coords): " << mundy::math::norm(node_coords) << std::endl;
+    //           MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
+    //         }
+    //       });
+    // }
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
@@ -2617,7 +2622,8 @@ class HP1 {
     // Do a synchronize to force everybody to stop here, then write the time
     stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
     if (bulk_data_ptr_->parallel_rank() == 0) {
-      double avg_time_per_timestep = static_cast<double>(overall_timer.seconds()) / static_cast<double>(num_time_steps_);
+      double avg_time_per_timestep =
+          static_cast<double>(overall_timer.seconds()) / static_cast<double>(num_time_steps_);
       double tps = 1.0 / avg_time_per_timestep;
       std::cout << "******************Final statistics (Rank 0)**************\n";
       if (print_neighborlist_statistics_) {
