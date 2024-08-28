@@ -325,6 +325,7 @@ class HP1 {
       periphery_spectral_order_ = periphery_params.get<size_t>("spectral_order");
     } else if (periphery_quadrature_string == "FROM_FILE") {
       periphery_quadrature_ = PERIPHERY_QUADRATURE::FROM_FILE;
+      periphery_num_quadrature_points_ = periphery_params.get<size_t>("num_quadrature_points");
       periphery_quadrature_points_filename_ = periphery_params.get<std::string>("quadrature_points_filename");
       periphery_quadrature_weights_filename_ = periphery_params.get<std::string>("quadrature_weights_filename");
       periphery_quadrature_normals_filename_ = periphery_params.get<std::string>("quadrature_normals_filename");
@@ -469,6 +470,10 @@ class HP1 {
         .set("spectral_order", default_periphery_spectral_order_,
              "Periphery spectral order (only used if periphery is spherical is Gauss-Legendre quadrature).",
              make_new_validator(prefer_size_t, accept_int))
+        .set("num_quadrature_points", default_periphery_num_quadrature_points_,
+             "Periphery number of quadrature points (only used if quadrature type is FROM_FILE). Number of points in "
+             "the files must match this quantity.",
+             make_new_validator(prefer_size_t, accept_int))
         .set("quadrature_points_filename", std::string(default_periphery_quadrature_points_filename_),
              "Periphery quadrature points filename (only used if quadrature type is FROM_FILE).")
         .set("quadrature_weights_filename", std::string(default_periphery_quadrature_weights_filename_),
@@ -608,6 +613,7 @@ class HP1 {
         std::cout << "  periphery_spectral_order: " << periphery_spectral_order_ << std::endl;
       } else if (periphery_quadrature_ == PERIPHERY_QUADRATURE::FROM_FILE) {
         std::cout << "  periphery_quadrature: FROM_FILE" << std::endl;
+        std::cout << "  num_periphery_quadrature_points: " << periphery_num_quadrature_points_ << std::endl;
         std::cout << "  periphery_quadrature_points_filename: " << periphery_quadrature_points_filename_ << std::endl;
         std::cout << "  periphery_quadrature_weights_filename: " << periphery_quadrature_weights_filename_ << std::endl;
         std::cout << "  periphery_quadrature_normals_filename: " << periphery_quadrature_normals_filename_ << std::endl;
@@ -1448,46 +1454,46 @@ class HP1 {
   }
 
   void declare_and_initialize_hp1() {
-    ////////////////////////////////////////
-    // Create the mesh nodes and elements //
-    ////////////////////////////////////////
     create_chromatin_backbone_and_hp1();
-
-    ////////////////////////////////////////
-    // Initilize                          //
-    ////////////////////////////////////////
     initialize_chromatin_backbone_and_hp1();
   }
 
   void initialize_periphery() {
-    const double viscosity = viscosity_;
-
-    std::vector<double> points_vec;
-    std::vector<double> weights_vec;
-    std::vector<double> normals_vec;
-
     if ((periphery_quadrature_ == PERIPHERY_QUADRATURE::GAUSS_LEGENDRE) &&
-            (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ||
-        ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) && (periphery_axis_radius1_ == periphery_axis_radius2_) &&
-         (periphery_axis_radius2_ == periphery_axis_radius3_) &&
-         (periphery_axis_radius3_ == periphery_axis_radius1_))) {
+        ((periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ||
+         ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) && (periphery_axis_radius1_ == periphery_axis_radius2_) &&
+          (periphery_axis_radius2_ == periphery_axis_radius3_) &&
+          (periphery_axis_radius3_ == periphery_axis_radius1_)))) {
+      // Generate the quadrature points and weights for the sphere
+      std::vector<double> points_vec;
+      std::vector<double> weights_vec;
+      std::vector<double> normals_vec;
       const bool invert = true;
       const bool include_poles = false;
       const size_t spectral_order = periphery_spectral_order_;
       const double radius = (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ? periphery_radius_ : periphery_axis_radius1_;
       mundy::alens::periphery::gen_sphere_quadrature(spectral_order, radius, &points_vec, &weights_vec, &normals_vec,
                                                      include_poles, invert);
+
+      // Create the periphery object
+      const size_t num_surface_nodes = weights_vec.size();
+      periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity_);
+      periphery_ptr_->set_surface_positions(points_vec.data())
+          .set_quadrature_weights(weights_vec.data())
+          .set_surface_normals(normals_vec.data());
+    } else if (periphery_quadrature_ == PERIPHERY_QUADRATURE::FROM_FILE) {
+      periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(periphery_num_quadrature_points_, viscosity_);
+      periphery_ptr_->set_surface_positions(periphery_quadrature_points_filename_)
+          .set_quadrature_weights(periphery_quadrature_weights_filename_)
+          .set_surface_normals(periphery_quadrature_normals_filename_);
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "We currently only support Gauss-Legendre quadrature for "
-                         "spheres and ellipsoids with equal radii. More types to come!");
+                         "We currently only support GAUSS_LEGENDRE quadrature for "
+                         "spheres and ellipsoids with equal radii or direct specification of the quadrature from a "
+                         "file using FROM_FILE.");
     }
 
-    const size_t num_surface_nodes = weights_vec.size();
-    periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity);
-    periphery_ptr_->set_surface_positions(points_vec.data())
-        .set_quadrature_weights(weights_vec.data())
-        .set_surface_normals(normals_vec.data());
+    // Run the precomputation for the inverse self-interaction matrix
     const bool write_to_file = false;
     periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
   }
@@ -2406,17 +2412,16 @@ class HP1 {
           double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
 
           // // Check to see if we've moved 1/10 of the diameter of one of the hydrodynamic beads in this timestep
-          // const auto dr = mundy::math::Vector3<double>(
-          //     timestep_size * node_velocity[0], timestep_size * node_velocity[1], timestep_size * node_velocity[2]);
-          // const double dr_mag = mundy::math::norm(dr);
-          // if (dr_mag > 1.0e-1) {
-          //   std::cout << "Step: " << timestep_index << ", large movement detected\n";
-          //   std::cout << "  dr: " << dr << ", dr_mag: " << dr_mag << std::endl;
-          //   std::cout << "  node_velocity: " << node_velocity[0] << ", " << node_velocity[1] << ", " <<
-          //   node_velocity[2]
-          //             << std::endl;
-          //   MUNDY_THROW_ASSERT(false, std::runtime_error, "Large movement due to timestep detected.");
-          // }
+          const auto dr = mundy::math::Vector3<double>(
+              timestep_size * node_velocity[0], timestep_size * node_velocity[1], timestep_size * node_velocity[2]);
+          const double dr_mag = mundy::math::norm(dr);
+          if (dr_mag > 1.0e-1) {
+            std::cout << "Step: " << timestep_index << ", large movement detected\n";
+            std::cout << "  dr: " << dr << ", dr_mag: " << dr_mag << std::endl;
+            std::cout << "  node_velocity: " << node_velocity[0] << ", " << node_velocity[1] << ", " << node_velocity[2]
+                      << std::endl;
+            // MUNDY_THROW_ASSERT(false, std::runtime_error, "Large movement due to timestep detected.");
+          }
 
           // x(t+dt) = x(t) + dt * v(t)
           node_coord[0] += timestep_size * node_velocity[0];
@@ -2555,6 +2560,7 @@ class HP1 {
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
+    Kokkos::Timer overall_timer;
     Kokkos::Timer timer;
     Kokkos::Profiling::pushRegion("MainLoop");
     for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
@@ -2587,7 +2593,7 @@ class HP1 {
       Kokkos::Profiling::pushRegion("HP1::Logging");
       if (timestep_index_ % log_frequency_ == 0) {
         if (bulk_data_ptr_->parallel_rank() == 0) {
-          double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
+          double tps = static_cast<double>(log_frequency_) / static_cast<double>(timer.seconds());
           std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps
                     << std::endl;
           timer.reset();
@@ -2611,8 +2617,8 @@ class HP1 {
     // Do a synchronize to force everybody to stop here, then write the time
     stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
     if (bulk_data_ptr_->parallel_rank() == 0) {
-      double avg_time_per_timestep = static_cast<double>(timer.seconds()) / static_cast<double>(num_time_steps_);
-      double tps = static_cast<double>(timestep_index_) / static_cast<double>(timer.seconds());
+      double avg_time_per_timestep = static_cast<double>(overall_timer.seconds()) / static_cast<double>(num_time_steps_);
+      double tps = 1.0 / avg_time_per_timestep;
       std::cout << "******************Final statistics (Rank 0)**************\n";
       if (print_neighborlist_statistics_) {
         std::cout << "****************\n";
@@ -2829,6 +2835,7 @@ class HP1 {
   double periphery_axis_radius3_;  // For ellipsoids
   double periphery_scale_factor_for_equilibriation_;
 
+  size_t periphery_num_quadrature_points_;
   std::string periphery_quadrature_points_filename_;
   std::string periphery_quadrature_weights_filename_;
   std::string periphery_quadrature_normals_filename_;
@@ -2897,15 +2904,16 @@ class HP1 {
   static constexpr double default_periphery_axis_radius3_ = 5.0;
   static constexpr std::string_view default_periphery_quadrature_string_ = "GAUSS_LEGENDRE";
   static constexpr size_t default_periphery_spectral_order_ = 32;
+  static constexpr size_t default_periphery_num_quadrature_points_ = 1000;
   static constexpr std::string_view default_periphery_quadrature_points_filename_ =
-      "hp1_periphery_quadrature_points.txt";
+      "hp1_periphery_quadrature_points.dat";
   static constexpr std::string_view default_periphery_quadrature_weights_filename_ =
-      "hp1_periphery_quadrature_weights.txt";
+      "hp1_periphery_quadrature_weights.dat";
   static constexpr std::string_view default_periphery_quadrature_normals_filename_ =
-      "hp1_periphery_quadrature_normals.txt";
+      "hp1_periphery_quadrature_normals.dat";
   static constexpr std::string_view default_periphery_bind_sites_type_string_ = "RANDOM";
   static constexpr size_t default_periphery_num_bind_sites_ = 1000;
-  static constexpr std::string_view default_periphery_bind_sites_filename_ = "periphery_bind_sites.txt";
+  static constexpr std::string_view default_periphery_bind_sites_filename_ = "periphery_bind_sites.dat";
   static constexpr double default_periphery_scale_factor_for_equilibriation_ = 2.0;
 
   // Neighbor list params

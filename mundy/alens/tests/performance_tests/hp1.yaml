@@ -51,7 +51,7 @@ HP1:
     right_unbinding_rate: 0.0
 
   neighbor_list:
-    # skin_distance: 0.0
+    skin_distance: 1.0
     # force_neighborlist_update: false
     # force_neighborlist_update_nsteps: 0
-    print_neighborlist_statistics: true
+    print_neighborlist_statistics: false
