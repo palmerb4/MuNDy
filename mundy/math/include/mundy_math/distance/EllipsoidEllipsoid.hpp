@@ -133,14 +133,14 @@ KOKKOS_INLINE_FUNCTION double centerline_projection_ssd_point_to_ellipsoid(
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point(
     const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
     const double r2, const double r3, const double e1, const double e2, const Vector3<double, auto, auto>& point,
-    Vector3<double>* const closest_point = nullptr) {
+    Vector3<double>* const closest_point = nullptr, Vector3<double>* const superellipsoid_nhat = nullptr) {
   // Setup our cost function
   auto theta_phi_to_shared_normal_contact_points_and_ssd = KOKKOS_LAMBDA(const Vector<double, 2>& theta_phi) {
     // Step 1: Map theta and phi to the lab frame normal vector
-    const Vector3<double> lab_frame_nhat = map_spherical_to_unit_vector(theta_phi[0], theta_phi[1]);
+    const Vector3<double> lab_frame_superellipsoid_nhat = map_spherical_to_unit_vector(theta_phi[0], theta_phi[1]);
 
     // Step 2: Map each normal vector to their corresponding superellipsoid body frame
-    const Vector3<double> body_frame_nhat = conjugate(orientation) * lab_frame_nhat;
+    const Vector3<double> body_frame_nhat = conjugate(orientation) * lab_frame_superellipsoid_nhat;
 
     // Step 3: Map the body frame normal to its body frame foot point on the superellipsoid
     const Vector3<double> body_frame_foot_point =
@@ -148,14 +148,15 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point
 
     // Step 4: Compute the lab frame foot point
     const Vector3<double> lab_frame_foot_point = orientation * body_frame_foot_point + center;
-    const double signed_separation_distance = mundy::math::dot(point - lab_frame_foot_point, lab_frame_nhat);
+    const double signed_separation_distance =
+        mundy::math::dot(point - lab_frame_foot_point, lab_frame_superellipsoid_nhat);
 
-    return std::make_tuple(lab_frame_foot_point, signed_separation_distance);
+    return std::make_tuple(lab_frame_superellipsoid_nhat, lab_frame_foot_point, signed_separation_distance);
   };
 
   auto shared_normal_objective_function = KOKKOS_LAMBDA(const Vector<double, 2>& theta_phi) {
     // Step 1: Map theta and phi to the lab frame foot points and signed separation distance
-    [[maybe_unused]] const auto [foot_point, signed_separation_distance] =
+    [[maybe_unused]] const auto [nhat, foot_point, signed_separation_distance] =
         theta_phi_to_shared_normal_contact_points_and_ssd(theta_phi);
     return two_norm_squared(point - foot_point);
   };
@@ -186,18 +187,19 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoid_and_point
   }
 
   // Write out the results
-  const auto [foot_point, global_signed_separation_distance] =
+  const auto [lab_frame_superellipsoid_nhat, foot_point, global_signed_separation_distance] =
       theta_phi_to_shared_normal_contact_points_and_ssd(global_theta_phi_guess_and_solution);
   impl::if_not_nullptr_then_set(closest_point, foot_point);
+  impl::if_not_nullptr_then_set(superellipsoid_nhat, lab_frame_superellipsoid_nhat);
   return global_signed_separation_distance;
 }
 
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_ellipsoid_and_point(
     const Vector3<double, auto, auto>& center, const Quaternion<double, auto, auto>& orientation, const double r1,
     const double r2, const double r3, const Vector3<double, auto, auto>& point,
-    Vector3<double>* const closest_point = nullptr) {
+    Vector3<double>* const closest_point = nullptr, Vector3<double>* const ellipsoid_normal = nullptr) {
   return shared_normal_ssd_between_superellipsoid_and_point(center, orientation, r1, r2, r3, 1.0, 1.0, point,
-                                                            closest_point);
+                                                            closest_point, ellipsoid_normal);
 }
 
 KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoids(
@@ -205,7 +207,8 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoids(
     const double r2_0, const double r3_0, const double e1_0, const double e2_0,
     const Vector3<double, auto, auto>& center1, const Quaternion<double, auto, auto>& orientation1, const double r1_1,
     const double r2_1, const double r3_1, const double e1_1, const double e2_1,
-    Vector3<double>* const closest_point0 = nullptr, Vector3<double>* const closest_point1 = nullptr) {
+    Vector3<double>* const closest_point0 = nullptr, Vector3<double>* const closest_point1 = nullptr,
+    Vector3<double>* const shared_normal0 = nullptr, Vector3<double>* const shared_normal1 = nullptr) {
   // Setup our cost function
   auto theta_phi_to_shared_normal_contact_points_and_ssd = KOKKOS_LAMBDA(const Vector<double, 2>& theta_phi) {
     // Step 1: Map theta and phi to the lab frame normal vector
@@ -228,12 +231,13 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoids(
     const double signed_separation_distance =
         mundy::math::dot(lab_frame_foot_point1 - lab_frame_foot_point0, lab_frame_nhat0);
 
-    return std::make_tuple(lab_frame_foot_point0, lab_frame_foot_point1, signed_separation_distance);
+    return std::make_tuple(lab_frame_nhat0, lab_frame_nhat1, lab_frame_foot_point0, lab_frame_foot_point1,
+                           signed_separation_distance);
   };
 
   auto shared_normal_objective_function = KOKKOS_LAMBDA(const Vector<double, 2>& theta_phi) {
     // Step 1: Map theta and phi to the lab frame foot points and signed separation distance
-    [[maybe_unused]] const auto [foot_point0, foot_point1, signed_separation_distance] =
+    [[maybe_unused]] const auto [nhat1, nhat2, foot_point0, foot_point1, signed_separation_distance] =
         theta_phi_to_shared_normal_contact_points_and_ssd(theta_phi);
     return two_norm_squared(foot_point1 - foot_point0);
   };
@@ -264,10 +268,13 @@ KOKKOS_INLINE_FUNCTION double shared_normal_ssd_between_superellipsoids(
   }
 
   // Write out the results
-  const auto [foot_point0, foot_point1, global_signed_separation_distance] =
+  const auto [lab_frame_shared_normal0, lab_frame_shared_normal1, foot_point0, foot_point1,
+              global_signed_separation_distance] =
       theta_phi_to_shared_normal_contact_points_and_ssd(global_theta_phi_guess_and_solution);
   impl::if_not_nullptr_then_set(closest_point0, foot_point0);
   impl::if_not_nullptr_then_set(closest_point1, foot_point1);
+  impl::if_not_nullptr_then_set(shared_normal0, lab_frame_shared_normal0);
+  impl::if_not_nullptr_then_set(shared_normal1, lab_frame_shared_normal1);
   return global_signed_separation_distance;
 }
 

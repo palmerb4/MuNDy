@@ -318,8 +318,8 @@ class HP1 {
       MUNDY_THROW_ASSERT(
           (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) || ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) &&
                                                             (periphery_axis_radius1_ == periphery_axis_radius2_) &&
-                                                             (periphery_axis_radius2_ == periphery_axis_radius3_) &&
-                                                             (periphery_axis_radius3_ == periphery_axis_radius1_)),
+                                                            (periphery_axis_radius2_ == periphery_axis_radius3_) &&
+                                                            (periphery_axis_radius3_ == periphery_axis_radius1_)),
           std::invalid_argument, "Gauss-Legendre quadrature is only valid for spherical peripheries.");
       periphery_quadrature_ = PERIPHERY_QUADRATURE::GAUSS_LEGENDRE;
       periphery_spectral_order_ = periphery_params.get<size_t>("spectral_order");
@@ -1467,19 +1467,20 @@ class HP1 {
     std::vector<double> normals_vec;
 
     if ((periphery_quadrature_ == PERIPHERY_QUADRATURE::GAUSS_LEGENDRE) &&
-     (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) || ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) &&
-                                                            (periphery_axis_radius1_ == periphery_axis_radius2_) &&
-                                                             (periphery_axis_radius2_ == periphery_axis_radius3_) &&
-                                                             (periphery_axis_radius3_ == periphery_axis_radius1_))) {
+            (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ||
+        ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) && (periphery_axis_radius1_ == periphery_axis_radius2_) &&
+         (periphery_axis_radius2_ == periphery_axis_radius3_) &&
+         (periphery_axis_radius3_ == periphery_axis_radius1_))) {
       const bool invert = true;
       const bool include_poles = false;
       const size_t spectral_order = periphery_spectral_order_;
       const double radius = (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ? periphery_radius_ : periphery_axis_radius1_;
-      mundy::alens::periphery::gen_sphere_quadrature(spectral_order, radius, &points_vec, &weights_vec,
-                                                     &normals_vec, include_poles, invert);
+      mundy::alens::periphery::gen_sphere_quadrature(spectral_order, radius, &points_vec, &weights_vec, &normals_vec,
+                                                     include_poles, invert);
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "We currently only support Gauss-Legendre quadrature for "
-                                                       "spheres and ellipsoids with equal radii. More types to come!");
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "We currently only support Gauss-Legendre quadrature for "
+                         "spheres and ellipsoids with equal radii. More types to come!");
     }
 
     const size_t num_surface_nodes = weights_vec.size();
@@ -2171,7 +2172,8 @@ class HP1 {
     const auto orientation = mundy::math::Quaternion<double>::identity();
     auto level_set = [&inv_a2, &inv_b2, &inv_c2, &center,
                       &orientation](const mundy::math::Vector3<double> &point) -> double {
-      const auto body_frame_point = conjugate(orientation) * (point - center);
+      // const auto body_frame_point = conjugate(orientation) * (point - center);
+      const auto body_frame_point = point - center;
       return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
               body_frame_point[2] * body_frame_point[2] * inv_c2) -
              1;
@@ -2179,12 +2181,14 @@ class HP1 {
 
     // Fetch loc al references to the fields
     stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spheres_part_ptr_,
-        [&node_coord_field, &node_force_field, &element_aabb_field, &level_set, &center, &orientation, &a, &b, &c,
+        [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &level_set, &center,
+         &orientation, &a, &b, &c,
          &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
           // For our coarse search, we check if the coners of the sphere's aabb lie inside the ellipsoidal periphery
           // This can be done via the (body frame) inside outside unftion f(x, y, z) = 1 - (x^2/a^2 + y^2/b^2 + z^2/c^2)
@@ -2216,24 +2220,24 @@ class HP1 {
             // We might have a collision, perform the more expensive check
             const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
             const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
-            auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+            const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
 
+            // Note, the ellipsoid for the ssd calc has outward normal, whereas the periphery has inward normal.
+            // Hence, the sign flip.
             mundy::math::Vector3<double> contact_point;
-            const double shared_normal_ssd = mundy::math::distance::shared_normal_ssd_between_ellipsoid_and_point(
-                center, orientation, a, b, c, node_coords, &contact_point);
+            mundy::math::Vector3<double> ellipsoid_nhat;
+            const double shared_normal_ssd =
+                -mundy::math::distance::shared_normal_ssd_between_ellipsoid_and_point(
+                    center, orientation, a, b, c, node_coords, &contact_point, &ellipsoid_nhat) -
+                sphere_radius;
 
-            // Note, the ellipsoid for the ssd calc has outward normal, whereas the periphery has inward normal
-            // As a result, overlap occurs when the shared_normal_ssd is positive.
-            if (shared_normal_ssd > 0.0) {
+            if (shared_normal_ssd < 0.0) {
               // We have a collision, compute the force
-              auto inward_normal = contact_point - node_coords;
-              inward_normal /= mundy::math::two_norm(inward_normal);
-#pragma omp atomic
-              node_force[0] += spring_constant * inward_normal[0] * shared_normal_ssd;
-#pragma omp atomic
-              node_force[1] += spring_constant * inward_normal[1] * shared_normal_ssd;
-#pragma omp atomic
-              node_force[2] += spring_constant * inward_normal[2] * shared_normal_ssd;
+              auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+              auto periphery_nhat = -ellipsoid_nhat;
+              node_force[0] -= spring_constant * periphery_nhat[0] * shared_normal_ssd;
+              node_force[1] -= spring_constant * periphery_nhat[1] * shared_normal_ssd;
+              node_force[2] -= spring_constant * periphery_nhat[2] * shared_normal_ssd;
             }
           }
         });
@@ -2259,23 +2263,16 @@ class HP1 {
           const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
           const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
 
-          const double node_coords_norm2 = mundy::math::dot(node_coords, node_coords);
-          const bool sphere_center_outside_periphery = node_coords_norm2 > periphery_radius2;
-          if (sphere_center_outside_periphery) {
-            const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
-            const double node_coords_norm = std::sqrt(node_coords_norm2);
-            const double shared_normal_ssd = periphery_radius - node_coords_norm - sphere_radius;
-            const bool sphere_collides_with_periphery = shared_normal_ssd < 0.0;
-            if (sphere_collides_with_periphery) {
-              auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
-              auto inward_normal = node_coords / node_coords_norm;
-#pragma omp atomic
-              node_force[0] += spring_constant * inward_normal[0] * shared_normal_ssd;
-#pragma omp atomic
-              node_force[1] += spring_constant * inward_normal[1] * shared_normal_ssd;
-#pragma omp atomic
-              node_force[2] += spring_constant * inward_normal[2] * shared_normal_ssd;
-            }
+          const double node_coords_norm = mundy::math::two_norm(node_coords);
+          const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+          const double shared_normal_ssd = periphery_radius - node_coords_norm - sphere_radius;
+          const bool sphere_collides_with_periphery = shared_normal_ssd < 0.0;
+          if (sphere_collides_with_periphery) {
+            auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+            auto inward_normal = -node_coords / node_coords_norm;
+            node_force[0] -= spring_constant * inward_normal[0] * shared_normal_ssd;
+            node_force[1] -= spring_constant * inward_normal[1] * shared_normal_ssd;
+            node_force[2] -= spring_constant * inward_normal[2] * shared_normal_ssd;
           }
         });
   }
@@ -2457,9 +2454,15 @@ class HP1 {
     // Equilibrate the system. This runs brownian dynamics on the chains with the periphery, but no hydrodynamics or
     // crosslinker activity.
     if (do_equilibrate_) {
-      periphery_radius_ *= periphery_scale_factor_for_equilibriation_;
-      const double dr_periphery =
-          (periphery_scale_factor_for_equilibriation_ - 1.0) / static_cast<double>(num_time_steps_equilibrate_);
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        periphery_radius_ *= periphery_scale_factor_for_equilibriation_;
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        periphery_axis_radius1_ *= periphery_scale_factor_for_equilibriation_;
+        periphery_axis_radius2_ *= periphery_scale_factor_for_equilibriation_;
+        periphery_axis_radius3_ *= periphery_scale_factor_for_equilibriation_;
+      }
+      const double shrink_factor =
+          std::pow(1.0 / periphery_scale_factor_for_equilibriation_, 1.0 / num_time_steps_equilibrate_);
       print_rank0(std::string("Equilibrating the simulation for ") + std::to_string(num_time_steps_equilibrate_) +
                   " time steps.");
 
@@ -2475,7 +2478,13 @@ class HP1 {
         Kokkos::Profiling::popRegion();
 
         // Update the periphery to shrink it
-        periphery_radius_ -= dr_periphery;
+        if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+          periphery_radius_ *= shrink_factor;
+        } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+          periphery_axis_radius1_ *= shrink_factor;
+          periphery_axis_radius2_ *= shrink_factor;
+          periphery_axis_radius3_ *= shrink_factor;
+        }
 
         // Detect sphere-sphere and crosslinker-sphere neighbors
         update_neighbor_list_ = false;
@@ -2496,7 +2505,14 @@ class HP1 {
           if (bulk_data_ptr_->parallel_rank() == 0) {
             double tps = static_cast<double>(log_frequency_) / static_cast<double>(equilibrate_timer.seconds());
             std::cout << "Equilibration Step: " << std::setw(15) << timestep_index_
-                      << ", tps: " << std::setprecision(15) << tps << std::endl;
+                      << ", tps: " << std::setprecision(15) << tps;
+            if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+              std::cout << ", periphery_radius: " << periphery_radius_ << std::endl;
+            } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+              std::cout << ", periphery_axis_radius1: " << periphery_axis_radius1_
+                        << ", periphery_axis_radius2: " << periphery_axis_radius2_
+                        << ", periphery_axis_radius3: " << periphery_axis_radius3_ << std::endl;
+            }
             equilibrate_timer.reset();
           }
         }
