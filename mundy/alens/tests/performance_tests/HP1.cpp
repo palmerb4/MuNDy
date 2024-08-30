@@ -3290,7 +3290,7 @@ class HP1 {
   static constexpr size_t default_periphery_num_bind_sites_ = 1000;
   static constexpr std::string_view default_periphery_bind_site_locations_filename_ = "periphery_bind_sites.dat";
   static constexpr double default_periphery_scale_factor_for_equilibriation_ = 2.0;
-  static constexpr double default_periphery_standoff_distance_ = 0.5;
+  static constexpr double default_periphery_standoff_distance_ = 0.0;
 
   // Neighbor list params
   static constexpr double default_skin_distance_ = 1.0;
