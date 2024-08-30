@@ -123,6 +123,8 @@ class HP1 {
   enum class PERIPHERY_BIND_SITES_TYPE : unsigned { RANDOM = 0u, FROM_FILE };
   enum class PERIPHERY_SHAPE : unsigned { SPHERE = 0u, ELLIPSOID };
   enum class PERIPHERY_QUADRATURE : unsigned { GAUSS_LEGENDRE = 0u, FROM_FILE };
+  enum class SETUP_RUN : unsigned { COMPRESS = 0u, RUN, RESTART };
+  enum class RUN_TYPE : unsigned { DRY = 0u, HYDRO };
 
   friend std::ostream &operator<<(std::ostream &os, const BINDING_STATE_CHANGE &state) {
     switch (state) {
@@ -208,6 +210,39 @@ class HP1 {
     return os;
   }
 
+  friend std::ostream &operator<<(std::ostream &os, const SETUP_RUN &setup_run) {
+    switch (setup_run) {
+      case SETUP_RUN::COMPRESS:
+        os << "COMPRESS";
+        break;
+      case SETUP_RUN::RUN:
+        os << "RUN";
+        break;
+      case SETUP_RUN::RESTART:
+        os << "RESTART";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const RUN_TYPE &run_type) {
+    switch (run_type) {
+      case RUN_TYPE::DRY:
+        os << "DRY";
+        break;
+      case RUN_TYPE::HYDRO:
+        os << "HYDRO";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
   using DeviceExecutionSpace = Kokkos::DefaultExecutionSpace;
   using DeviceMemorySpace = typename DeviceExecutionSpace::memory_space;
 
@@ -261,7 +296,6 @@ class HP1 {
     std::cout << std::endl;
     std::cout << "HP1:" << std::endl;
     std::cout << "  num_time_steps: 1000" << std::endl;
-    std::cout << "  num_time_steps_equilibrate: 100" << std::endl;
     std::cout << "  timestep_size: 1e-6" << std::endl;
     std::cout << "#############################################################################################"
               << std::endl;
@@ -284,19 +318,38 @@ class HP1 {
     // Simulation parameters:
     Teuchos::ParameterList &simulation_params = valid_param_list.sublist("simulation");
     num_time_steps_ = simulation_params.get<size_t>("num_time_steps");
-    num_time_steps_equilibrate_compress_ = simulation_params.get<size_t>("num_time_steps_equilibrate_compress");
-    num_time_steps_equilibrate_ = simulation_params.get<size_t>("num_time_steps_equilibrate");
     timestep_size_ = simulation_params.get<double>("timestep_size");
     kt_brownian_ = simulation_params.get<double>("kt_brownian");
     kt_kmc_ = simulation_params.get<double>("kt_kmc");
     io_frequency_ = simulation_params.get<size_t>("io_frequency");
     log_frequency_ = simulation_params.get<size_t>("log_frequency");
     initial_loadbalance_ = simulation_params.get<bool>("initial_loadbalance");
-    do_equilibrate_ = simulation_params.get<bool>("do_equilibrate");
-    do_equilibrate_compress_ = simulation_params.get<bool>("do_equilibrate_compress");
     initialization_type_ = simulation_params.get<std::string>("initialization_type");
     viscosity_ = simulation_params.get<double>("viscosity");
     check_inside_periphery_ = simulation_params.get<bool>("check_inside_periphery");
+    std::string setup_run_string = simulation_params.get<std::string>("setup_run");
+    std::string run_type_string = simulation_params.get<std::string>("run_type");
+    output_filename_ = simulation_params.get<std::string>("output_filename");
+    if (setup_run_string == "COMPRESS") {
+      setup_run_ = SETUP_RUN::COMPRESS;
+    } else if (setup_run_string == "RUN") {
+      setup_run_ = SETUP_RUN::RUN;
+    } else if (setup_run_string == "RESTART") {
+      setup_run_ = SETUP_RUN::RESTART;
+      restart_filename_ = simulation_params.get<std::string>("restart_filename");
+    } else {
+      MUNDY_THROW_ASSERT(
+          false, std::invalid_argument,
+          "Invalid setup run. Received '" << setup_run_string << "' but expected 'COMPRESS', 'RUN', or 'RESTART'.");
+    }
+    if (run_type_string == "DRY") {
+      run_type_ = RUN_TYPE::DRY;
+    } else if (run_type_string == "HYDRO") {
+      run_type_ = RUN_TYPE::HYDRO;
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid run type. Received '" << run_type_string << "' but expected 'DRY' or 'HYDRO'.");
+    }
 
     // Periphery parameters:
     Teuchos::ParameterList &periphery_params = valid_param_list.sublist("periphery");
@@ -353,7 +406,7 @@ class HP1 {
                              << periphery_bind_sites_type_string << "' but expected 'RANDOM' or 'FROM_FILE'.");
     }
 
-    if (do_equilibrate_) {
+    if (setup_run_ == SETUP_RUN::COMPRESS) {
       periphery_scale_factor_for_equilibriation_ = periphery_params.get<double>("scale_factor_for_equilibriation");
     }
 
@@ -447,10 +500,6 @@ class HP1 {
     valid_parameter_list.sublist("simulation")
         .set("num_time_steps", default_num_time_steps_, "Number of time steps.",
              make_new_validator(prefer_size_t, accept_int))
-        .set("num_time_steps_equilibrate_compress", default_num_time_steps_equilibrate_compress_,
-             "Number of equilibration compression time steps.", make_new_validator(prefer_size_t, accept_int))
-        .set("num_time_steps_equilibrate", default_num_time_steps_equilibrate_, "Number of equilibration time steps.",
-             make_new_validator(prefer_size_t, accept_int))
         .set("timestep_size", default_timestep_size_, "Time step size.")
         .set("kt_brownian", default_kt_brownian_, "Temperature kT for Brownian Motion.")
         .set("kt_kmc", default_kt_kmc_, "Temperature kT for KMC.")
@@ -459,10 +508,12 @@ class HP1 {
         .set("log_frequency", default_log_frequency_, "Number of timesteps between logging.",
              make_new_validator(prefer_size_t, accept_int))
         .set("initial_loadbalance", default_initial_loadbalance_, "Initial loadbalance.")
-        .set("do_equilibrate", default_do_equilibrate_, "Do equilibrate.")
-        .set("do_equilibrate_compress", default_do_equilibrate_compress_, "Do equilibrate compress.")
         .set("check_inside_periphery", default_check_inside_periphery_, "Check inside periphery.")
         .set("initialization_type", std::string(default_initialization_type_), "Initialization_type.")
+        .set("setup_run", std::string(default_setup_run_string_), "Setup run (COMPRESS or RUN).")
+        .set("run_type", std::string(default_run_type_string_), "Run type (DRY or HYDRO).")
+        .set("restart_filename", std::string(default_restart_filename_), "Restart filename.")
+        .set("output_filename", std::string(default_output_filename_), "Output filename.")
         .set("viscosity", default_viscosity_, "Viscosity.");
 
     valid_parameter_list.sublist("periphery")
@@ -549,6 +600,11 @@ class HP1 {
       std::cout << "" << std::endl;
 
       std::cout << "SIMULATION:" << std::endl;
+      std::cout << "  setup_run:                " << setup_run_ << std::endl;
+      if (setup_run_ == SETUP_RUN::RESTART) {
+        std::cout << "  restart_filename:         " << restart_filename_ << std::endl;
+      }
+      std::cout << "  run_type:                 " << run_type_ << std::endl;
       std::cout << "  num_time_steps:           " << num_time_steps_ << std::endl;
       std::cout << "  timestep_size:            " << timestep_size_ << std::endl;
       std::cout << "  io_frequency:             " << io_frequency_ << std::endl;
@@ -556,9 +612,8 @@ class HP1 {
       std::cout << "  kT (Brownian):            " << kt_brownian_ << std::endl;
       std::cout << "  kT (KMC):                 " << kt_kmc_ << std::endl;
       std::cout << "  initialization_type:      " << initialization_type_ << std::endl;
-      std::cout << "  do_equilibrate:           " << do_equilibrate_ << std::endl;
-      std::cout << "  do_equilibrate_compress:  " << do_equilibrate_compress_ << std::endl;
       std::cout << "  viscosity:                " << viscosity_ << std::endl;
+      std::cout << "  output_filename:          " << output_filename_ << std::endl;
       if (check_inside_periphery_) {
         std::cout << "  check_inside_periphery:    " << check_inside_periphery_ << std::endl;
       }
@@ -620,7 +675,7 @@ class HP1 {
                                << periphery_shape_);
       }
 
-      if (do_equilibrate_) {
+      if (setup_run_ == SETUP_RUN::COMPRESS) {
         std::cout << "  periphery_scale_factor_for_equilibriation: " << periphery_scale_factor_for_equilibriation_
                   << std::endl;
       }
@@ -984,11 +1039,17 @@ class HP1 {
                                                 "ELEMENT_PERFORM_STATE_CHANGE"))
             .set("coordinate_field_name", "NODE_COORDS")
             .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
-            .set("exodus_database_output_filename", "HP.exo")
+            .set("exodus_database_output_filename", output_filename_)
             .set("parallel_io_mode", "hdf5")
-            .set("database_purpose", "results");
+            .set("database_purpose", "restart");
+    // Check for a restart
+    if (setup_run_ == SETUP_RUN::RESTART) {
+      fixed_params_iobroker.set("exodus_database_input_filename", restart_filename_);
+      fixed_params_iobroker.set("enable_restart", "true");
+    }
     // Create the IO broker
     io_broker_ptr_ = mundy::io::IOBroker::create_new_instance(bulk_data_ptr_.get(), fixed_params_iobroker);
+    io_broker_ptr_->print_io_broker();
   }
 
   void ghost_linked_entities() {
@@ -1516,23 +1577,27 @@ class HP1 {
                                               std::array<double, 1>{sphere_hydrodynamic_radius_});
 
     // Initialize node positions for each chromosome
-    if (initialization_type_ == "GRID") {
-      initialize_chromosomes_grid();
-    } else if (initialization_type_ == "RANDOM_UNIT_CELL") {
-      initialize_chromosomes_random_unit_cell();
-    } else if (initialization_type_ == "OVERLAP_TEST") {
-      initialize_chromosomes_overlap_test();
-    } else if (initialization_type_ == "HILBERT_RANDOM_UNIT_CELL") {
-      initialize_chromosomes_hilbert_random_unit_cell();
-    } else if (initialization_type_ == "HILBERT_CENTERED_UNIT_CELL") {
-      initialize_chromosomes_hilbert_centered_unit_cell();
-    } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
+    if (setup_run_ != SETUP_RUN::RESTART) {
+      if (initialization_type_ == "GRID") {
+        initialize_chromosomes_grid();
+      } else if (initialization_type_ == "RANDOM_UNIT_CELL") {
+        initialize_chromosomes_random_unit_cell();
+      } else if (initialization_type_ == "OVERLAP_TEST") {
+        initialize_chromosomes_overlap_test();
+      } else if (initialization_type_ == "HILBERT_RANDOM_UNIT_CELL") {
+        initialize_chromosomes_hilbert_random_unit_cell();
+      } else if (initialization_type_ == "HILBERT_CENTERED_UNIT_CELL") {
+        initialize_chromosomes_hilbert_centered_unit_cell();
+      } else {
+        MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
+      }
     }
   }
 
   void declare_and_initialize_hp1() {
-    create_chromatin_backbone_and_hp1();
+    if (setup_run_ != SETUP_RUN::RESTART) {
+      create_chromatin_backbone_and_hp1();
+    }
     initialize_chromatin_backbone_and_hp1();
   }
 
@@ -2726,137 +2791,6 @@ class HP1 {
     }
     Kokkos::Profiling::popRegion();
 
-    // Equilibrate the system. This runs brownian dynamics on the chains with the periphery, but no hydrodynamics or
-    // crosslinker activity.
-    //
-    // First do the compression step where we reduce the size of the system to the desired size.
-    if (do_equilibrate_compress_) {
-      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
-        periphery_radius_ *= periphery_scale_factor_for_equilibriation_;
-      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
-        periphery_axis_radius1_ *= periphery_scale_factor_for_equilibriation_;
-        periphery_axis_radius2_ *= periphery_scale_factor_for_equilibriation_;
-        periphery_axis_radius3_ *= periphery_scale_factor_for_equilibriation_;
-      }
-
-      const double shrink_factor =
-          std::pow(1.0 / periphery_scale_factor_for_equilibriation_, 1.0 / num_time_steps_equilibrate_compress_);
-      print_rank0(std::string("Equilibrating (Compress) the simulation for ") +
-                  std::to_string(num_time_steps_equilibrate_compress_) + " time steps.");
-
-      Kokkos::Timer equilibrate_timer;
-      Kokkos::Profiling::pushRegion("HP1::Equilibrate(Compress)");
-      for (timestep_index_ = 0; timestep_index_ < num_time_steps_equilibrate_compress_; timestep_index_++) {
-        // Prepare the current configuration.
-        Kokkos::Profiling::pushRegion("HP1::PrepareStep");
-        zero_out_transient_node_fields();
-        zero_out_transient_element_fields();
-        zero_out_transient_constraint_fields();
-        rotate_field_states();
-        Kokkos::Profiling::popRegion();
-
-        // Update the periphery to shrink it
-        if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
-          periphery_radius_ *= shrink_factor;
-        } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
-          periphery_axis_radius1_ *= shrink_factor;
-          periphery_axis_radius2_ *= shrink_factor;
-          periphery_axis_radius3_ *= shrink_factor;
-        }
-
-        // Detect sphere-sphere and crosslinker-sphere neighbors
-        update_neighbor_list_ = false;
-        detect_neighbors();
-
-        // Evaluate forces f(x(t)).
-        compute_hertzian_contact_forces();
-        compute_harmonic_bond_forces();
-        compute_periphery_collision_forces();
-
-        // Compute velocities.
-        // compute_brownian_velocity();
-        compute_external_velocity();
-
-        // Logging, if desired, write to console
-        Kokkos::Profiling::pushRegion("HP1::Logging");
-        if (timestep_index_ % log_frequency_ == 0) {
-          if (bulk_data_ptr_->parallel_rank() == 0) {
-            double tps = static_cast<double>(log_frequency_) / static_cast<double>(equilibrate_timer.seconds());
-            std::cout << "Equilibration(Compress) Step: " << std::setw(15) << timestep_index_
-                      << ", tps: " << std::setprecision(15) << tps;
-            if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
-              std::cout << ", periphery_radius: " << periphery_radius_ << std::endl;
-            } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
-              std::cout << ", periphery_axis_radius1: " << periphery_axis_radius1_
-                        << ", periphery_axis_radius2: " << periphery_axis_radius2_
-                        << ", periphery_axis_radius3: " << periphery_axis_radius3_ << std::endl;
-            }
-            equilibrate_timer.reset();
-          }
-        }
-        Kokkos::Profiling::popRegion();
-
-        // Update positions. x(t + dt) = x(t) + dt * v(t).
-        update_positions();
-      }
-      Kokkos::Profiling::popRegion();
-
-      // Do a synchronize to force everybody to stop here
-      stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
-    }
-
-    // Reset simulation control variables
-    timestep_index_ = 0;
-    // Second, equilibrate the system without changing the periphery.
-    if (do_equilibrate_) {
-      print_rank0(std::string("Equilibrating the simulation for ") + std::to_string(num_time_steps_equilibrate_) +
-                  " time steps.");
-
-      Kokkos::Timer equilibrate_timer;
-      Kokkos::Profiling::pushRegion("HP1::Equilibrate");
-      for (timestep_index_ = 0; timestep_index_ < num_time_steps_equilibrate_; timestep_index_++) {
-        // Prepare the current configuration.
-        Kokkos::Profiling::pushRegion("HP1::PrepareStep");
-        zero_out_transient_node_fields();
-        zero_out_transient_element_fields();
-        zero_out_transient_constraint_fields();
-        rotate_field_states();
-        Kokkos::Profiling::popRegion();
-
-        // Detect sphere-sphere and crosslinker-sphere neighbors
-        update_neighbor_list_ = false;
-        detect_neighbors();
-
-        // Evaluate forces f(x(t)).
-        compute_hertzian_contact_forces();
-        compute_harmonic_bond_forces();
-        compute_periphery_collision_forces();
-
-        // Compute velocities.
-        compute_brownian_velocity();
-        compute_external_velocity();
-
-        // Logging, if desired, write to console
-        Kokkos::Profiling::pushRegion("HP1::Logging");
-        if (timestep_index_ % log_frequency_ == 0) {
-          if (bulk_data_ptr_->parallel_rank() == 0) {
-            double tps = static_cast<double>(log_frequency_) / static_cast<double>(equilibrate_timer.seconds());
-            std::cout << "Equilibration Step: " << std::setw(15) << timestep_index_
-                      << ", tps: " << std::setprecision(15) << tps << std::endl;
-            equilibrate_timer.reset();
-          }
-        }
-        Kokkos::Profiling::popRegion();
-
-        // Update positions. x(t + dt) = x(t) + dt * v(t).
-        update_positions();
-      }
-      Kokkos::Profiling::popRegion();
-
-      // Do a synchronize to force everybody to stop here
-      stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
-    }
-
     // Reset simulation control variables
     timestep_index_ = 0;
     // Make sure that all of the chromatin spheres are within the collision radius of the periphery
@@ -2922,6 +2856,18 @@ class HP1 {
       }
     }
 
+    // Check to see if we need to do anything for compressing the system.
+    if (setup_run_ == SETUP_RUN::COMPRESS) {
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        periphery_radius_ *= periphery_scale_factor_for_equilibriation_;
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        periphery_axis_radius1_ *= periphery_scale_factor_for_equilibriation_;
+        periphery_axis_radius2_ *= periphery_scale_factor_for_equilibriation_;
+        periphery_axis_radius3_ *= periphery_scale_factor_for_equilibriation_;
+      }
+    }
+    const double shrink_factor = std::pow(1.0 / periphery_scale_factor_for_equilibriation_, 1.0 / num_time_steps_);
+
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
 
@@ -2937,6 +2883,17 @@ class HP1 {
       rotate_field_states();
       Kokkos::Profiling::popRegion();
 
+      // If we are doing a compression run, shrink the periphery
+      if (setup_run_ == SETUP_RUN::COMPRESS) {
+        if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+          periphery_radius_ *= shrink_factor;
+        } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+          periphery_axis_radius1_ *= shrink_factor;
+          periphery_axis_radius2_ *= shrink_factor;
+          periphery_axis_radius3_ *= shrink_factor;
+        }
+      }
+
       // Detect sphere-sphere and crosslinker-sphere neighbors
       update_neighbor_list_ = false;
       detect_neighbors();
@@ -2951,16 +2908,28 @@ class HP1 {
 
       // Compute velocities.
       compute_brownian_velocity();
-      compute_rpy_hydro_with_no_slip_periphery();
-      // compute_external_velocity();
+      if (run_type_ == RUN_TYPE::DRY) {
+        compute_external_velocity();
+      } else if (run_type_ == RUN_TYPE::HYDRO) {
+        compute_rpy_hydro_with_no_slip_periphery();
+      }
 
       // Logging, if desired, write to console
       Kokkos::Profiling::pushRegion("HP1::Logging");
       if (timestep_index_ % log_frequency_ == 0) {
         if (bulk_data_ptr_->parallel_rank() == 0) {
           double tps = static_cast<double>(log_frequency_) / static_cast<double>(timer.seconds());
-          std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps
-                    << std::endl;
+          std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps;
+          if (setup_run_ == SETUP_RUN::COMPRESS) {
+            if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+              std::cout << ", periphery_radius: " << periphery_radius_;
+            } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+              std::cout << ", periphery_axis_radius1: " << periphery_axis_radius1_
+                        << ", periphery_axis_radius2: " << periphery_axis_radius2_
+                        << ", periphery_axis_radius3: " << periphery_axis_radius3_;
+            }
+          }
+          std::cout << std::endl;
           timer.reset();
         }
       }
@@ -3020,7 +2989,6 @@ class HP1 {
   std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
   std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
   std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
-  size_t output_file_index_;
   size_t timestep_index_;
   std::shared_ptr<mundy::alens::periphery::Periphery> periphery_ptr_;
   //@}
@@ -3152,13 +3120,11 @@ class HP1 {
   std::string input_parameter_filename_ = "hp1.yaml";
 
   // Simulation params
+  SETUP_RUN setup_run_;
+  RUN_TYPE run_type_;
   bool initial_loadbalance_;
-  bool do_equilibrate_compress_;
-  bool do_equilibrate_;
   bool check_inside_periphery_;
   size_t num_time_steps_;
-  size_t num_time_steps_equilibrate_compress_;
-  size_t num_time_steps_equilibrate_;
   size_t io_frequency_;
   size_t log_frequency_;
   double timestep_size_;
@@ -3166,6 +3132,8 @@ class HP1 {
   double kt_kmc_;
   double viscosity_;
   std::string initialization_type_;
+  std::string restart_filename_;
+  std::string output_filename_;
 
   // Chromatin params
   size_t num_chromosomes_;
@@ -3227,13 +3195,11 @@ class HP1 {
   //@{
 
   // Simulation params
+  static constexpr std::string_view default_setup_run_string_ = "RUN";
+  static constexpr std::string_view default_run_type_string_ = "HYDRO";
   static constexpr bool default_initial_loadbalance_ = false;
-  static constexpr bool default_do_equilibrate_compress_ = false;
-  static constexpr bool default_do_equilibrate_ = false;
   static constexpr bool default_check_inside_periphery_ = false;
   static constexpr size_t default_num_time_steps_ = 100;
-  static constexpr size_t default_num_time_steps_equilibrate_compress_ = 10000;
-  static constexpr size_t default_num_time_steps_equilibrate_ = 10000;
   static constexpr size_t default_io_frequency_ = 10;
   static constexpr size_t default_log_frequency_ = 10;
   static constexpr double default_timestep_size_ = 0.001;
@@ -3241,6 +3207,8 @@ class HP1 {
   static constexpr double default_kt_kmc_ = 1.0;
   static constexpr double default_viscosity_ = 1.0;
   static constexpr std::string_view default_initialization_type_ = "grid";
+  static constexpr std::string_view default_restart_filename_ = "restart.exo";
+  static constexpr std::string_view default_output_filename_ = "output.exo";
 
   // Chromatin params
   static constexpr size_t default_num_chromosomes_ = 1;
