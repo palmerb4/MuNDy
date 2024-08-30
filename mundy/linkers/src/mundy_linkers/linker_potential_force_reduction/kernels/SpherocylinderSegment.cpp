@@ -207,8 +207,8 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
             const auto term2 = mundy::math::dot(left_to_cp, tangent) *
                                (potential_force - mundy::math::dot(tangent, potential_force) * tangent) * inv_length;
             const auto sum = term1 - term2;
-            force0 += sum;
-            force1 += potential_force - sum;
+            force0 += potential_force - sum;
+            force1 += sum;
           }
         }
       });

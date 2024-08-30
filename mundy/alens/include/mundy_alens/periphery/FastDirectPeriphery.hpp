@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_ALENS_INCLUDE_MUNDY_ALENS_PERIPHERY_PERIPHERY_HPP_
-#define MUNDY_ALENS_INCLUDE_MUNDY_ALENS_PERIPHERY_PERIPHERY_HPP_
+#ifndef MUNDY_ALENS_INCLUDE_MUNDY_ALENS_PERIPHERY_FASTDIRECTPERIPHERY_HPP_
+#define MUNDY_ALENS_INCLUDE_MUNDY_ALENS_PERIPHERY_FASTDIRECTPERIPHERY_HPP_
 
 /* This class evaluates the fluid flow on some points within the domain induced by the no-slip confition on the
 periphery. We do so via storing the precomputed inverse of the self-interaction matrix. Ths class is in charge
@@ -55,6 +55,8 @@ a single GPU.
 #include <mundy_alens/periphery/Gauss_Legendre_Nodes_and_Weights.hpp>  // for Gauss_Legendre_Nodes_and_Weights
 #include <mundy_core/throw_assert.hpp>                                 // for MUNDY_THROW_ASSERT
 #define DOUBLE_ZERO 1.0e-12
+
+#define MUNDY_USE_TEAMS 1
 
 namespace mundy {
 
@@ -291,6 +293,57 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 
   // Close the file
   infile.close();
+}
+
+
+template <class ExecutionSpace, class MemorySpace, class Layout, typename Func>
+void penalize_velocity_kernel_over_target_points([[maybe_unused]] const ExecutionSpace &space, int num_target_points,
+                                                 int num_source_points, int panel_size,
+                                                 Kokkos::View<double *, Layout, MemorySpace> target_velocities,
+                                                 const Func &compute_velocity_contribution) {
+  int num_panels = (num_target_points + panel_size - 1) / panel_size;
+
+  // Define the team policy with the number of panels
+  Kokkos::parallel_for(
+      "Penalize_Target_Points", Kokkos::TeamPolicy<>(num_panels, Kokkos::AUTO),
+      KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &team_member) {
+        const int panel_start = team_member.league_rank() * panel_size;
+        const int panel_end =
+            (panel_start + panel_size) > num_target_points ? num_target_points : (panel_start + panel_size);
+
+        // Local accumulation arrays for each target point in the panel
+        double local_vx[panel_size] = {0.0};
+        double local_vy[panel_size] = {0.0};
+        double local_vz[panel_size] = {0.0};
+
+        // Loop over each target point in the panel
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, panel_start, panel_end), [&](const int t) {
+          Kokkos::Array<double, 3> v_sum({0.0, 0.0, 0.0});
+
+          // Loop over all source points
+          Kokkos::parallel_reduce(
+              Kokkos::ThreadVectorRange(team_member, num_source_points),
+              [&](const int s, Kokkos::Array<double, 3> &v_accum) {
+                // Call the custom operation to compute the contribution
+                compute_velocity_contribution(t, s, v_accum[0], v_accum[1], v_accum[2]);
+              },
+              v_sum);
+
+          // Store the results in the local arrays
+          local_vx[t - panel_start] = v_sum[0];
+          local_vy[t - panel_start] = v_sum[1];
+          local_vz[t - panel_start] = v_sum[2];
+        });
+
+        // After processing, update the global output using a single thread per team
+        Kokkos::single(Kokkos::PerTeam(team_member), [&]() {
+          for (int t = panel_start; t < panel_end; ++t) {
+            Kokkos::atomic_add(&target_velocities(3 * t + 0), local_vx[t - panel_start]);
+            Kokkos::atomic_add(&target_velocities(3 * t + 1), local_vy[t - panel_start]);
+            Kokkos::atomic_add(&target_velocities(3 * t + 2), local_vz[t - panel_start]);
+          }
+        });
+      });
 }
 
 template <class ExecutionSpace, class MemorySpace, class Layout, typename Func>
@@ -1101,7 +1154,7 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space, const double visc
                                               skfie_contribution);
 }
 
-class Periphery {
+class FastDirectPeriphery {
  public:
   //! \name Types
   //@{
@@ -1114,25 +1167,25 @@ class Periphery {
   //@{
 
   /// \brief No default constructor
-  Periphery() = delete;
+  FastDirectPeriphery() = delete;
 
   /// \brief No copy constructor
-  Periphery(const Periphery &) = delete;
+  FastDirectPeriphery(const FastDirectPeriphery &) = delete;
 
   /// \brief No copy assignment
-  Periphery &operator=(const Periphery &) = delete;
+  FastDirectPeriphery &operator=(const FastDirectPeriphery &) = delete;
 
   /// \brief Default move constructor
-  Periphery(Periphery &&) = default;
+  FastDirectPeriphery(FastDirectPeriphery &&) = default;
 
   /// \brief Default move assignment
-  Periphery &operator=(Periphery &&) = default;
+  FastDirectPeriphery &operator=(FastDirectPeriphery &&) = default;
 
   /// \brief Destructor
-  ~Periphery() = default;
+  ~FastDirectPeriphery() = default;
 
   /// \brief Constructor
-  Periphery(const size_t num_surface_nodes, const double viscosity)
+  FastDirectPeriphery(const size_t num_surface_nodes, const double viscosity)
       : num_surface_nodes_(num_surface_nodes),
         viscosity_(viscosity),
         is_surface_positions_set_(false),
@@ -1161,7 +1214,7 @@ class Periphery {
   ///
   /// \param surface_positions The surface positions (size num_nodes * 3)
   template <class MemorySpace, class Layout>
-  Periphery &set_surface_positions(const Kokkos::View<double *, Layout, MemorySpace> &surface_positions) {
+  FastDirectPeriphery &set_surface_positions(const Kokkos::View<double *, Layout, MemorySpace> &surface_positions) {
     MUNDY_THROW_ASSERT(surface_positions.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
                        "set_surface_positions: surface_positions must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_positions_, surface_positions);
@@ -1173,7 +1226,7 @@ class Periphery {
   /// \brief Set the surface positions
   ///
   /// \param surface_positions The surface positions (size num_nodes * 3)
-  Periphery &set_surface_positions(const double *surface_positions) {
+  FastDirectPeriphery &set_surface_positions(const double *surface_positions) {
     for (size_t i = 0; i < num_surface_nodes_; ++i) {
       for (size_t j = 0; j < 3; ++j) {
         const size_t idx = 3 * i + j;
@@ -1189,7 +1242,7 @@ class Periphery {
   /// \brief Set the surface positions
   ///
   /// \param surface_positions_filename The filename to read the surface positions from
-  Periphery &set_surface_positions(const std::string &surface_positions_filename) {
+  FastDirectPeriphery &set_surface_positions(const std::string &surface_positions_filename) {
     read_vector_from_file(surface_positions_filename, 3 * num_surface_nodes_, surface_positions_host_);
     Kokkos::deep_copy(surface_positions_, surface_positions_host_);
     is_surface_positions_set_ = true;
@@ -1201,7 +1254,7 @@ class Periphery {
   ///
   /// \param surface_normals The surface normals (size num_nodes * 3)
   template <class MemorySpace, class Layout>
-  Periphery &set_surface_normals(const Kokkos::View<double *, Layout, MemorySpace> &surface_normals) {
+  FastDirectPeriphery &set_surface_normals(const Kokkos::View<double *, Layout, MemorySpace> &surface_normals) {
     MUNDY_THROW_ASSERT(surface_normals.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
                        "set_surface_normals: surface_normals must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_normals_, surface_normals);
@@ -1213,7 +1266,7 @@ class Periphery {
   /// \brief Set the surface normals
   ///
   /// \param surface_normals The surface normals (size num_nodes * 3)
-  Periphery &set_surface_normals(const double *surface_normals) {
+  FastDirectPeriphery &set_surface_normals(const double *surface_normals) {
     for (size_t i = 0; i < num_surface_nodes_; ++i) {
       for (size_t j = 0; j < 3; ++j) {
         const size_t idx = 3 * i + j;
@@ -1229,7 +1282,7 @@ class Periphery {
   /// \brief Set the surface normals
   ///
   /// \param surface_normals_filename The filename to read the surface normals from
-  Periphery &set_surface_normals(const std::string &surface_normals_filename) {
+  FastDirectPeriphery &set_surface_normals(const std::string &surface_normals_filename) {
     read_vector_from_file(surface_normals_filename, 3 * num_surface_nodes_, surface_normals_host_);
     Kokkos::deep_copy(surface_normals_, surface_normals_host_);
     is_surface_normals_set_ = true;
@@ -1241,7 +1294,7 @@ class Periphery {
   ///
   /// \param quadrature_weights The quadrature weights (size num_nodes)
   template <class MemorySpace, class Layout>
-  Periphery &set_quadrature_weights(const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights) {
+  FastDirectPeriphery &set_quadrature_weights(const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights) {
     MUNDY_THROW_ASSERT(quadrature_weights.extent(0) == num_surface_nodes_, std::invalid_argument,
                        "set_quadrature_weights: quadrature_weights must have size num_surface_nodes.");
     Kokkos::deep_copy(quadrature_weights_, quadrature_weights);
@@ -1253,7 +1306,7 @@ class Periphery {
   /// \brief Set the quadrature weights
   ///
   /// \param quadrature_weights The quadrature weights (size num_nodes)
-  Periphery &set_quadrature_weights(const double *quadrature_weights) {
+  FastDirectPeriphery &set_quadrature_weights(const double *quadrature_weights) {
     for (size_t i = 0; i < num_surface_nodes_; ++i) {
       quadrature_weights_host_(i) = quadrature_weights[i];
     }
@@ -1266,7 +1319,7 @@ class Periphery {
   /// \brief Set the quadrature weights
   ///
   /// \param quadrature_weights_filename The filename to read the quadrature weights from
-  Periphery &set_quadrature_weights(const std::string &quadrature_weights_filename) {
+  FastDirectPeriphery &set_quadrature_weights(const std::string &quadrature_weights_filename) {
     read_vector_from_file(quadrature_weights_filename, num_surface_nodes_, quadrature_weights_host_);
     Kokkos::deep_copy(quadrature_weights_, quadrature_weights_host_);
     is_quadrature_weights_set_ = true;
@@ -1278,7 +1331,7 @@ class Periphery {
   ///
   /// \param M_inv The precomputed matrix (size 3 * num_nodes x 3 * num_nodes)
   template <class MemorySpace>
-  Periphery &set_inverse_self_interaction_matrix(
+  FastDirectPeriphery &set_inverse_self_interaction_matrix(
       const Kokkos::View<double **, Kokkos::LayoutLeft, MemorySpace> &M_inv) {
     MUNDY_THROW_ASSERT(
         (M_inv.extent(0) == 3 * num_surface_nodes_) && (M_inv.extent(1) == 3 * num_surface_nodes_),
@@ -1293,7 +1346,7 @@ class Periphery {
   /// \brief Set the precomputed matrix
   ///
   /// \param M_inv The precomputed matrix (size 3 * num_nodes x 3 * num_nodes)
-  Periphery &set_inverse_self_interaction_matrix(const double *M_inv_flat) {
+  FastDirectPeriphery &set_inverse_self_interaction_matrix(const double *M_inv_flat) {
     for (size_t i = 0; i < 3 * num_surface_nodes_; ++i) {
       for (size_t j = 0; j < 3 * num_surface_nodes_; ++j) {
         const size_t idx = i * num_surface_nodes_ + j;
@@ -1309,7 +1362,8 @@ class Periphery {
   /// \brief Set the precomputed matrix
   ///
   /// \param inverse_self_interaction_matrix_filename The filename to read the precomputed matrix from
-  Periphery &set_inverse_self_interaction_matrix(const std::string &inverse_self_interaction_matrix_filename) {
+  FastDirectPeriphery &set_inverse_self_interaction_matrix(
+      const std::string &inverse_self_interaction_matrix_filename) {
     read_matrix_from_file(inverse_self_interaction_matrix_filename, 3 * num_surface_nodes_, 3 * num_surface_nodes_,
                           M_inv_host_);
     Kokkos::deep_copy(M_inv_, M_inv_host_);
@@ -1323,7 +1377,7 @@ class Periphery {
   //@{
 
   // TODO(palmerb4): A better method would be read_from_file and write_to_file, which would be more general
-  Periphery &build_inverse_self_interaction_matrix(
+  FastDirectPeriphery &build_inverse_self_interaction_matrix(
       const bool &write_to_file = true,
       const std::string &inverse_self_interaction_matrix_filename = "inverse_self_interaction_matrix.dat") {
     MUNDY_THROW_ASSERT(is_surface_positions_set_ && is_surface_normals_set_ && is_quadrature_weights_set_,
@@ -1354,7 +1408,7 @@ class Periphery {
   ///
   /// \param[in] external_flow_velocity The external flow velocity (size num_nodes x 3)
   /// \param[out] surface_forces The surface forces induced by enforcing no-slip on the surface (size num_nodes x 3)
-  Periphery &compute_surface_forces(
+  FastDirectPeriphery &compute_surface_forces(
       const Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &external_flow_velocity,
       Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> &surface_forces) {
     // Check if the periphery is in a valid state
@@ -1439,7 +1493,7 @@ class Periphery {
   Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace>
       M_inv_;  //!< The inverse of the self-interaction matrix (device)
   //@}
-};  // class Periphery
+};  // class FastDirectPeriphery
 
 }  // namespace periphery
 
@@ -1447,4 +1501,4 @@ class Periphery {
 
 }  // namespace mundy
 
-#endif  // MUNDY_ALENS_INCLUDE_MUNDY_ALENS_PERIPHERY_PERIPHERY_HPP_
+#endif  // MUNDY_ALENS_INCLUDE_MUNDY_ALENS_PERIPHERY_FASTDIRECTPERIPHERY_HPP_
