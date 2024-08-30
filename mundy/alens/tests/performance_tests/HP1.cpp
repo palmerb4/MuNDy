@@ -284,6 +284,7 @@ class HP1 {
     // Simulation parameters:
     Teuchos::ParameterList &simulation_params = valid_param_list.sublist("simulation");
     num_time_steps_ = simulation_params.get<size_t>("num_time_steps");
+    num_time_steps_equilibrate_compress_ = simulation_params.get<size_t>("num_time_steps_equilibrate_compress");
     num_time_steps_equilibrate_ = simulation_params.get<size_t>("num_time_steps_equilibrate");
     timestep_size_ = simulation_params.get<double>("timestep_size");
     kt_brownian_ = simulation_params.get<double>("kt_brownian");
@@ -292,13 +293,17 @@ class HP1 {
     log_frequency_ = simulation_params.get<size_t>("log_frequency");
     initial_loadbalance_ = simulation_params.get<bool>("initial_loadbalance");
     do_equilibrate_ = simulation_params.get<bool>("do_equilibrate");
+    do_equilibrate_compress_ = simulation_params.get<bool>("do_equilibrate_compress");
     initialization_type_ = simulation_params.get<std::string>("initialization_type");
     viscosity_ = simulation_params.get<double>("viscosity");
+    check_inside_periphery_ = simulation_params.get<bool>("check_inside_periphery");
 
     // Periphery parameters:
     Teuchos::ParameterList &periphery_params = valid_param_list.sublist("periphery");
     periphery_spring_constant_ = periphery_params.get<double>("spring_constant");
     std::string periphery_shape_string = periphery_params.get<std::string>("shape");
+    periphery_standoff_distance_ = periphery_params.get<double>("standoff_distance");
+    periphery_collision_use_fast_ = periphery_params.get<bool>("periphery_collision_use_fast");
     if (periphery_shape_string == "SPHERE") {
       periphery_shape_ = PERIPHERY_SHAPE::SPHERE;
       periphery_radius_ = periphery_params.get<double>("radius");
@@ -442,6 +447,8 @@ class HP1 {
     valid_parameter_list.sublist("simulation")
         .set("num_time_steps", default_num_time_steps_, "Number of time steps.",
              make_new_validator(prefer_size_t, accept_int))
+        .set("num_time_steps_equilibrate_compress", default_num_time_steps_equilibrate_compress_,
+             "Number of equilibration compression time steps.", make_new_validator(prefer_size_t, accept_int))
         .set("num_time_steps_equilibrate", default_num_time_steps_equilibrate_, "Number of equilibration time steps.",
              make_new_validator(prefer_size_t, accept_int))
         .set("timestep_size", default_timestep_size_, "Time step size.")
@@ -453,6 +460,8 @@ class HP1 {
              make_new_validator(prefer_size_t, accept_int))
         .set("initial_loadbalance", default_initial_loadbalance_, "Initial loadbalance.")
         .set("do_equilibrate", default_do_equilibrate_, "Do equilibrate.")
+        .set("do_equilibrate_compress", default_do_equilibrate_compress_, "Do equilibrate compress.")
+        .set("check_inside_periphery", default_check_inside_periphery_, "Check inside periphery.")
         .set("initialization_type", std::string(default_initialization_type_), "Initialization_type.")
         .set("viscosity", default_viscosity_, "Viscosity.");
 
@@ -466,6 +475,8 @@ class HP1 {
              "Periphery axis length 2 (only used if periphery_shape is ELLIPSOID).")
         .set("axis_radius3", default_periphery_axis_radius3_,
              "Periphery axis length 3 (only used if periphery_shape is ELLIPSOID).")
+        .set("standoff_distance", default_periphery_standoff_distance_, "Periphery standoff distance (inwards).")
+        .set("periphery_collision_use_fast", default_periphery_collision_use_fast_, "Use fast periphery collision.")
         .set("quadrature", std::string(default_periphery_quadrature_string_), "Periphery quadrature.")
         .set("spectral_order", default_periphery_spectral_order_,
              "Periphery spectral order (only used if periphery is spherical is Gauss-Legendre quadrature).",
@@ -538,15 +549,19 @@ class HP1 {
       std::cout << "" << std::endl;
 
       std::cout << "SIMULATION:" << std::endl;
-      std::cout << "  num_time_steps:       " << num_time_steps_ << std::endl;
-      std::cout << "  timestep_size:        " << timestep_size_ << std::endl;
-      std::cout << "  io_frequency:         " << io_frequency_ << std::endl;
-      std::cout << "  log_frequency:        " << log_frequency_ << std::endl;
-      std::cout << "  kT (Brownian):        " << kt_brownian_ << std::endl;
-      std::cout << "  kT (KMC):             " << kt_kmc_ << std::endl;
-      std::cout << "  initialization_type:  " << initialization_type_ << std::endl;
-      std::cout << "  do_equilibrate:       " << do_equilibrate_ << std::endl;
-      std::cout << "  viscosity:            " << viscosity_ << std::endl;
+      std::cout << "  num_time_steps:           " << num_time_steps_ << std::endl;
+      std::cout << "  timestep_size:            " << timestep_size_ << std::endl;
+      std::cout << "  io_frequency:             " << io_frequency_ << std::endl;
+      std::cout << "  log_frequency:            " << log_frequency_ << std::endl;
+      std::cout << "  kT (Brownian):            " << kt_brownian_ << std::endl;
+      std::cout << "  kT (KMC):                 " << kt_kmc_ << std::endl;
+      std::cout << "  initialization_type:      " << initialization_type_ << std::endl;
+      std::cout << "  do_equilibrate:           " << do_equilibrate_ << std::endl;
+      std::cout << "  do_equilibrate_compress:  " << do_equilibrate_compress_ << std::endl;
+      std::cout << "  viscosity:                " << viscosity_ << std::endl;
+      if (check_inside_periphery_) {
+        std::cout << "  check_inside_periphery:    " << check_inside_periphery_ << std::endl;
+      }
       std::cout << "" << std::endl;
 
       std::cout << "NEIGHBOR LIST:" << std::endl;
@@ -588,6 +603,8 @@ class HP1 {
 
       std::cout << "PERIPHERY:" << std::endl;
       std::cout << "  periphery_spring_constant: " << periphery_spring_constant_ << std::endl;
+      std::cout << "  periphery_standoff_distance: " << periphery_standoff_distance_ << std::endl;
+      std::cout << "  periphery_collision_use_fast: " << periphery_collision_use_fast_ << std::endl;
       if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
         std::cout << "  periphery_shape: SPHERE" << std::endl;
         std::cout << "  periphery_radius: " << periphery_radius_ << std::endl;
@@ -1306,7 +1323,9 @@ class HP1 {
     // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
     // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
     if (bulk_data_ptr_->parallel_rank() == 0) {
-      const double radius = (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ? periphery_radius_ : periphery_axis_radius1_;
+      const double radius =
+          ((periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ? periphery_radius_ : periphery_axis_radius1_) -
+          periphery_standoff_distance_;
       std::vector<mundy::math::Vector3<double>> chromosome_centers_array;
       std::vector<double> chromosome_radii_array;
       for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
@@ -1357,8 +1376,8 @@ class HP1 {
           // Generate a random position and orientation within the unit cell as a sphere.
 
           // Create an adjusted length to keep the chromosome away from the wall, and inside a sphere. There is a
-          // non-sampling way to do this, but meh.
-          mundy::math::Vector3<double> r_start(radius, radius, radius);
+          // non-sampling way to do this, but meh. Start with a radius that is way outside the periphery.
+          mundy::math::Vector3<double> r_start(2.0 * radius, 2.0 * radius, 2.0 * radius);
           const double periphery_radius_squared = radius * radius;
           while (mundy::math::dot(r_start, r_start) > periphery_radius_squared) {
             r_start = mundy::math::Vector3<double>(rng.uniform<double>(-1.0 * radius, radius),
@@ -1408,6 +1427,62 @@ class HP1 {
     }
   }
 
+  // Initialize a single chromosome centered in the unit cell
+  void initialize_chromosomes_hilbert_centered_unit_cell() {
+    // Throw if we have more than 1 chromosome
+    MUNDY_THROW_ASSERT(num_chromosomes_ == 1, std::runtime_error,
+                       "This function is only for initializing a single chromosome.");
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      std::cout << "Placing chromosome at the origin\n";
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = 1u;
+      size_t end_node_index = num_nodes_per_chromosome + 1u;
+
+      // Set the orientation of the chromosome to something we know
+      mundy::math::Vector3<double> u_hat(1.0, 0.0, 0.0);
+
+      // Once we have the number of chromosome spheres we can get the hilbert curve set up. This will be at some
+      // orientation and then have sides with a length of initial_sphere_separation_.
+      auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
+          num_nodes_per_chromosome, u_hat, initial_sphere_separation_);
+      // Create the local positions of the spheres
+      std::vector<mundy::math::Vector3<double>> sphere_position_array;
+      for (size_t isphere = 0; isphere < num_nodes_per_chromosome; isphere++) {
+        sphere_position_array.push_back(hilbert_position_array[isphere]);
+      }
+      // Figure out where the center of the chromosome is, and its radius, in its own local space
+      mundy::math::Vector3<double> r_chromosome_center_local(0.0, 0.0, 0.0);
+      for (size_t i = 0; i < sphere_position_array.size(); i++) {
+        r_chromosome_center_local += sphere_position_array[i];
+      }
+      r_chromosome_center_local /= static_cast<double>(sphere_position_array.size());
+
+      // Insert the chromosome into the center of the unit cell
+      mundy::math::Vector3<double> r_start(0.0, 0.0, 0.0);
+
+      // Generate all the positions along the curve due to the placement in the global space
+      std::vector<mundy::math::Vector3<double>> new_position_array;
+      for (size_t i = 0; i < sphere_position_array.size(); i++) {
+        new_position_array.push_back(r_start + r_chromosome_center_local - sphere_position_array[i]);
+      }
+
+      // Update the coordinates for this chromosome
+      for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = new_position_array[idx][0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = new_position_array[idx][1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = new_position_array[idx][2];
+      }
+    }
+  }
+
   // Initialize the chromatin backbone and HP1 linkers based on part membership
   //
   // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
@@ -1449,6 +1524,8 @@ class HP1 {
       initialize_chromosomes_overlap_test();
     } else if (initialization_type_ == "HILBERT_RANDOM_UNIT_CELL") {
       initialize_chromosomes_hilbert_random_unit_cell();
+    } else if (initialization_type_ == "HILBERT_CENTERED_UNIT_CELL") {
+      initialize_chromosomes_hilbert_centered_unit_cell();
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
     }
@@ -2288,9 +2365,9 @@ class HP1 {
   void compute_ellipsoidal_periphery_collision_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces");
     const double spring_constant = periphery_spring_constant_;
-    const double a = periphery_axis_radius1_;
-    const double b = periphery_axis_radius2_;
-    const double c = periphery_axis_radius3_;
+    const double a = periphery_axis_radius1_ - periphery_standoff_distance_;
+    const double b = periphery_axis_radius2_ - periphery_standoff_distance_;
+    const double c = periphery_axis_radius3_ - periphery_standoff_distance_;
     const double inv_a2 = 1.0 / (a * a);
     const double inv_b2 = 1.0 / (b * b);
     const double inv_c2 = 1.0 / (c * c);
@@ -2371,9 +2448,73 @@ class HP1 {
     Kokkos::Profiling::popRegion();
   }
 
+  void compute_ellipsoidal_periphery_collision_forces_fast() {
+    Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces_fast");
+    const double spring_constant = periphery_spring_constant_;
+    // Adjust for our standoff distance
+    const double a = periphery_axis_radius1_ - periphery_standoff_distance_;
+    const double b = periphery_axis_radius2_ - periphery_standoff_distance_;
+    const double c = periphery_axis_radius3_ - periphery_standoff_distance_;
+    // We cannot precompute the inverse squared values as we need the radius of each particle to do this in the way
+    // that I came up with.
+    const mundy::math::Vector3<double> center(0.0, 0.0, 0.0);
+    const auto orientation = mundy::math::Quaternion<double>::identity();
+    auto level_set = [&a, &b, &c, &center, &orientation](const double &radius,
+                                                         const mundy::math::Vector3<double> &point) -> double {
+      // const auto body_frame_point = conjugate(orientation) * (point - center);
+      const auto body_frame_point = point - center;
+      const double inv_a2 = 1.0 / ((a - radius) * (a - radius));
+      const double inv_b2 = 1.0 / ((b - radius) * (b - radius));
+      const double inv_c2 = 1.0 / ((c - radius) * (c - radius));
+      return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
+              body_frame_point[2] * body_frame_point[2] * inv_c2) -
+             1;
+    };
+    // Fast compute of the outward 'normal' at the point
+    auto outward_normal = [&a, &b, &c, &center, &orientation](
+                              const double &radius,
+                              const mundy::math::Vector3<double> &point) -> mundy::math::Vector3<double> {
+      const auto body_frame_point = point - center;
+      const double inv_a2 = 1.0 / ((a - radius) * (a - radius));
+      const double inv_b2 = 1.0 / ((b - radius) * (b - radius));
+      const double inv_c2 = 1.0 / ((c - radius) * (c - radius));
+      return mundy::math::Vector3<double>(2.0 * body_frame_point[0] * inv_a2, 2.0 * body_frame_point[1] * inv_b2,
+                                          2.0 * body_frame_point[2] * inv_c2);
+    };
+
+    // Fetch local references to the fields
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
+        [&node_coord_field, &node_force_field, &element_radius_field, &level_set, &outward_normal, &center,
+         &orientation, &a, &b, &c,
+         &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+          // Do a fast loop over all of the spheres we are checking, e.g., brute-force the calc.
+          const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
+          const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+          const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+
+          // Simply check if we are outside the sphere via the level-set function
+          if (level_set(sphere_radius, node_coords) > 0.0) {
+            auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+
+            // Compute the outward normal
+            auto out_normal = outward_normal(sphere_radius, node_coords);
+            node_force[0] -= spring_constant * out_normal[0];
+            node_force[1] -= spring_constant * out_normal[1];
+            node_force[2] -= spring_constant * out_normal[2];
+          }
+        });
+    Kokkos::Profiling::popRegion();
+  }
+
   void compute_spherical_periphery_collision_forces() {
     const double spring_constant = periphery_spring_constant_;
-    const double periphery_radius = periphery_radius_;
+    const double periphery_radius = periphery_radius_ - periphery_standoff_distance_;
     const double periphery_radius2 = periphery_radius * periphery_radius;
 
     // Fetch local references to the fields
@@ -2409,8 +2550,10 @@ class HP1 {
     Kokkos::Profiling::pushRegion("HP1::compute_periphery_collision_forces");
     if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
       compute_spherical_periphery_collision_forces();
-    } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+    } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID && !periphery_collision_use_fast_) {
       compute_ellipsoidal_periphery_collision_forces();
+    } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID && periphery_collision_use_fast_) {
+      compute_ellipsoidal_periphery_collision_forces_fast();
     } else {
       MUNDY_THROW_ASSERT(false, std::logic_error, "Invalid periphery type.");
     }
@@ -2537,11 +2680,14 @@ class HP1 {
               timestep_size * node_velocity[0], timestep_size * node_velocity[1], timestep_size * node_velocity[2]);
           const double dr_mag = mundy::math::norm(dr);
           if (dr_mag > 1.0e-1) {
-            std::cout << "Step: " << timestep_index
-                      << ", large movement detected, sphere: " << bulk_data.identifier(sphere_node) << std::endl;
-            std::cout << "  dr: " << dr << ", dr_mag: " << dr_mag << std::endl;
-            std::cout << "  node_velocity: " << node_velocity[0] << ", " << node_velocity[1] << ", " << node_velocity[2]
-                      << std::endl;
+#pragma omp critical
+            {
+              std::cout << "Step: " << timestep_index
+                        << ", large movement detected, sphere: " << bulk_data.identifier(sphere_node) << std::endl;
+              std::cout << "  dr: " << dr << ", dr_mag: " << dr_mag << std::endl;
+              std::cout << "  node_velocity: " << node_velocity[0] << ", " << node_velocity[1] << ", "
+                        << node_velocity[2] << std::endl;
+            }
             MUNDY_THROW_ASSERT(false, std::runtime_error, "Large movement due to timestep detected.");
           }
 
@@ -2582,7 +2728,9 @@ class HP1 {
 
     // Equilibrate the system. This runs brownian dynamics on the chains with the periphery, but no hydrodynamics or
     // crosslinker activity.
-    if (do_equilibrate_) {
+    //
+    // First do the compression step where we reduce the size of the system to the desired size.
+    if (do_equilibrate_compress_) {
       if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
         periphery_radius_ *= periphery_scale_factor_for_equilibriation_;
       } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
@@ -2590,14 +2738,15 @@ class HP1 {
         periphery_axis_radius2_ *= periphery_scale_factor_for_equilibriation_;
         periphery_axis_radius3_ *= periphery_scale_factor_for_equilibriation_;
       }
+
       const double shrink_factor =
-          std::pow(1.0 / periphery_scale_factor_for_equilibriation_, 1.0 / num_time_steps_equilibrate_);
-      print_rank0(std::string("Equilibrating the simulation for ") + std::to_string(num_time_steps_equilibrate_) +
-                  " time steps.");
+          std::pow(1.0 / periphery_scale_factor_for_equilibriation_, 1.0 / num_time_steps_equilibrate_compress_);
+      print_rank0(std::string("Equilibrating (Compress) the simulation for ") +
+                  std::to_string(num_time_steps_equilibrate_compress_) + " time steps.");
 
       Kokkos::Timer equilibrate_timer;
-      Kokkos::Profiling::pushRegion("HP1::Equilibrate");
-      for (timestep_index_ = 0; timestep_index_ < num_time_steps_equilibrate_; timestep_index_++) {
+      Kokkos::Profiling::pushRegion("HP1::Equilibrate(Compress)");
+      for (timestep_index_ = 0; timestep_index_ < num_time_steps_equilibrate_compress_; timestep_index_++) {
         // Prepare the current configuration.
         Kokkos::Profiling::pushRegion("HP1::PrepareStep");
         zero_out_transient_node_fields();
@@ -2633,7 +2782,7 @@ class HP1 {
         if (timestep_index_ % log_frequency_ == 0) {
           if (bulk_data_ptr_->parallel_rank() == 0) {
             double tps = static_cast<double>(log_frequency_) / static_cast<double>(equilibrate_timer.seconds());
-            std::cout << "Equilibration Step: " << std::setw(15) << timestep_index_
+            std::cout << "Equilibration(Compress) Step: " << std::setw(15) << timestep_index_
                       << ", tps: " << std::setprecision(15) << tps;
             if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
               std::cout << ", periphery_radius: " << periphery_radius_ << std::endl;
@@ -2658,27 +2807,120 @@ class HP1 {
 
     // Reset simulation control variables
     timestep_index_ = 0;
-    // Make sure that all of the chromatin spheres are within the collision radius of the periphery
-    // {
-    //   const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
-    //   stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
-    //   double &periphery_radius = periphery_radius_;
+    // Second, equilibrate the system without changing the periphery.
+    if (do_equilibrate_) {
+      print_rank0(std::string("Equilibrating the simulation for ") + std::to_string(num_time_steps_equilibrate_) +
+                  " time steps.");
 
-    //   stk::mesh::for_each_entity_run(
-    //       *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
-    //       [&node_coord_field, &periphery_radius](const stk::mesh::BulkData &bulk_data,
-    //                                              const stk::mesh::Entity &sphere_node) {
-    //         // Get the coordinates of the sphere
-    //         const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
-    //         if (mundy::math::norm(node_coords) > periphery_radius) {
-    //           std::cout << "Sphere node " << bulk_data.identifier(sphere_node)
-    //                     << " is outside the hydrodynamic periphery." << std::endl;
-    //           std::cout << "  node_coords: " << node_coords << std::endl;
-    //           std::cout << "  norm(node_coords): " << mundy::math::norm(node_coords) << std::endl;
-    //           MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
-    //         }
-    //       });
-    // }
+      Kokkos::Timer equilibrate_timer;
+      Kokkos::Profiling::pushRegion("HP1::Equilibrate");
+      for (timestep_index_ = 0; timestep_index_ < num_time_steps_equilibrate_; timestep_index_++) {
+        // Prepare the current configuration.
+        Kokkos::Profiling::pushRegion("HP1::PrepareStep");
+        zero_out_transient_node_fields();
+        zero_out_transient_element_fields();
+        zero_out_transient_constraint_fields();
+        rotate_field_states();
+        Kokkos::Profiling::popRegion();
+
+        // Detect sphere-sphere and crosslinker-sphere neighbors
+        update_neighbor_list_ = false;
+        detect_neighbors();
+
+        // Evaluate forces f(x(t)).
+        compute_hertzian_contact_forces();
+        compute_harmonic_bond_forces();
+        compute_periphery_collision_forces();
+
+        // Compute velocities.
+        compute_brownian_velocity();
+        compute_external_velocity();
+
+        // Logging, if desired, write to console
+        Kokkos::Profiling::pushRegion("HP1::Logging");
+        if (timestep_index_ % log_frequency_ == 0) {
+          if (bulk_data_ptr_->parallel_rank() == 0) {
+            double tps = static_cast<double>(log_frequency_) / static_cast<double>(equilibrate_timer.seconds());
+            std::cout << "Equilibration Step: " << std::setw(15) << timestep_index_
+                      << ", tps: " << std::setprecision(15) << tps << std::endl;
+            equilibrate_timer.reset();
+          }
+        }
+        Kokkos::Profiling::popRegion();
+
+        // Update positions. x(t + dt) = x(t) + dt * v(t).
+        update_positions();
+      }
+      Kokkos::Profiling::popRegion();
+
+      // Do a synchronize to force everybody to stop here
+      stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
+    }
+
+    // Reset simulation control variables
+    timestep_index_ = 0;
+    // Make sure that all of the chromatin spheres are within the collision radius of the periphery
+    if (check_inside_periphery_) {
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+        stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+        double &periphery_radius = periphery_radius_;
+
+        stk::mesh::for_each_entity_run(
+            *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+            [&node_coord_field, &periphery_radius](const stk::mesh::BulkData &bulk_data,
+                                                   const stk::mesh::Entity &sphere_node) {
+              // Get the coordinates of the sphere
+              const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+              if (mundy::math::norm(node_coords) > periphery_radius) {
+#pragma omp critical
+                {
+                  std::cout << "Sphere node " << bulk_data.identifier(sphere_node)
+                            << " is outside the hydrodynamic periphery." << std::endl;
+                  std::cout << "  node_coords: " << node_coords << std::endl;
+                  std::cout << "  norm(node_coords): " << mundy::math::norm(node_coords) << std::endl;
+                }
+                MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
+              }
+            });
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+        stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+        double &periphery_axis_radius1 = periphery_axis_radius1_;
+        double &periphery_axis_radius2 = periphery_axis_radius2_;
+        double &periphery_axis_radius3 = periphery_axis_radius3_;
+
+        stk::mesh::for_each_entity_run(
+            *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+            [&node_coord_field, &periphery_axis_radius1, &periphery_axis_radius2, &periphery_axis_radius3](
+                const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+              // Get the coordinates of the sphere
+              const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+              const double x = node_coords[0];
+              const double y = node_coords[1];
+              const double z = node_coords[2];
+              const double x2 = x * x;
+              const double y2 = y * y;
+              const double z2 = z * z;
+              const double a2 = periphery_axis_radius1 * periphery_axis_radius1;
+              const double b2 = periphery_axis_radius2 * periphery_axis_radius2;
+              const double c2 = periphery_axis_radius3 * periphery_axis_radius3;
+              const double value = x2 / a2 + y2 / b2 + z2 / c2;
+              if (value > 1.0) {
+#pragma omp critical
+                {
+                  std::cout << "Sphere node " << bulk_data.identifier(sphere_node)
+                            << " is outside the hydrodynamic periphery." << std::endl;
+                  std::cout << "  node_coords: " << node_coords << std::endl;
+                  std::cout << "  value: " << value << std::endl;
+                }
+                MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
+              }
+            });
+      } else {
+        MUNDY_THROW_ASSERT(false, std::logic_error, "Invalid periphery type.");
+      }
+    }
 
     // Time loop
     print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
@@ -2911,8 +3153,11 @@ class HP1 {
 
   // Simulation params
   bool initial_loadbalance_;
+  bool do_equilibrate_compress_;
   bool do_equilibrate_;
+  bool check_inside_periphery_;
   size_t num_time_steps_;
+  size_t num_time_steps_equilibrate_compress_;
   size_t num_time_steps_equilibrate_;
   size_t io_frequency_;
   size_t log_frequency_;
@@ -2950,6 +3195,7 @@ class HP1 {
   double crosslinker_right_unbinding_rate_;
 
   // Periphery params
+  bool periphery_collision_use_fast_;
   double periphery_spring_constant_;
   PERIPHERY_SHAPE periphery_shape_;
   PERIPHERY_QUADRATURE periphery_quadrature_;
@@ -2958,6 +3204,7 @@ class HP1 {
   double periphery_axis_radius2_;  // For ellipsoids
   double periphery_axis_radius3_;  // For ellipsoids
   double periphery_scale_factor_for_equilibriation_;
+  double periphery_standoff_distance_;  // Distance to include for collision versus hydrodynamics
 
   size_t periphery_num_quadrature_points_;
   std::string periphery_quadrature_points_filename_;
@@ -2981,8 +3228,11 @@ class HP1 {
 
   // Simulation params
   static constexpr bool default_initial_loadbalance_ = false;
+  static constexpr bool default_do_equilibrate_compress_ = false;
   static constexpr bool default_do_equilibrate_ = false;
+  static constexpr bool default_check_inside_periphery_ = false;
   static constexpr size_t default_num_time_steps_ = 100;
+  static constexpr size_t default_num_time_steps_equilibrate_compress_ = 10000;
   static constexpr size_t default_num_time_steps_equilibrate_ = 10000;
   static constexpr size_t default_io_frequency_ = 10;
   static constexpr size_t default_log_frequency_ = 10;
@@ -3020,6 +3270,7 @@ class HP1 {
   static constexpr double default_crosslinker_right_unbinding_rate_ = 1.0;
 
   // Periphery params
+  static constexpr bool default_periphery_collision_use_fast_ = false;
   static constexpr double default_periphery_spring_constant_ = 1000.0;
   static constexpr std::string_view default_periphery_shape_string_ = "SPHERE";
   static constexpr double default_periphery_radius_ = 5.0;
@@ -3039,6 +3290,7 @@ class HP1 {
   static constexpr size_t default_periphery_num_bind_sites_ = 1000;
   static constexpr std::string_view default_periphery_bind_site_locations_filename_ = "periphery_bind_sites.dat";
   static constexpr double default_periphery_scale_factor_for_equilibriation_ = 2.0;
+  static constexpr double default_periphery_standoff_distance_ = 0.5;
 
   // Neighbor list params
   static constexpr double default_skin_distance_ = 1.0;
