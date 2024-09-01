@@ -47,7 +47,7 @@
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
-#include <mundy_meta/PartReqs.hpp>                    // for mundy::meta::PartReqs
+#include <mundy_meta/PartReqs.hpp>                            // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -121,13 +121,13 @@ class NonSmoothLCP : public mundy::meta::MetaMethodSubsetExecutionInterface<void
     const std::string compute_constraint_residual_name = compute_constraint_residual_params.get<std::string>("name");
     const std::string compute_constraint_violation_name = compute_constraint_violation_params.get<std::string>("name");
     mesh_reqs->sync(OurConstraintForcingMethodFactory::get_mesh_requirements(compute_constraint_forcing_name,
-                                                                              compute_constraint_forcing_params));
+                                                                             compute_constraint_forcing_params));
     mesh_reqs->sync(OurConstraintProjectionMethodFactory::get_mesh_requirements(compute_constraint_projection_name,
-                                                                                 compute_constraint_projection_params));
+                                                                                compute_constraint_projection_params));
     mesh_reqs->sync(OurConstraintResidualMethodFactory::get_mesh_requirements(compute_constraint_residual_name,
-                                                                               compute_constraint_residual_params));
+                                                                              compute_constraint_residual_params));
     mesh_reqs->sync(OurConstraintViolationMethodFactory::get_mesh_requirements(compute_constraint_violation_name,
-                                                                                compute_constraint_violation_params));
+                                                                               compute_constraint_violation_params));
     return mesh_reqs;
   }
 

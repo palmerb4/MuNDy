@@ -40,13 +40,13 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>                         // for mundy::core::StringLiteral
-#include <mundy_core/throw_assert.hpp>                          // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>                              // for mundy::mesh::BulkData
-#include <mundy_meta/HasMeshReqsAndIsRegisterable.hpp>  // for mundy::meta::HasMeshReqsAndIsRegisterable
-#include <mundy_meta/MeshReqs.hpp>                      // for mundy::meta::MeshReqs
-#include <mundy_meta/MetaKernel.hpp>                            // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>    // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_core/StringLiteral.hpp>                       // for mundy::core::StringLiteral
+#include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_meta/HasMeshReqsAndIsRegisterable.hpp>        // for mundy::meta::HasMeshReqsAndIsRegisterable
+#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 
 namespace mundy {
 
@@ -179,7 +179,7 @@ class MetaFactory {
   /// \param fixed_params [in] Optional list of fixed parameters for setting up this class. A default fixed
   /// parameter list is accessible via \c get_valid_fixed_params.
   static std::shared_ptr<MeshReqs> get_mesh_requirements(const RegistrationType& key,
-                                                                 const Teuchos::ParameterList& fixed_params) {
+                                                         const Teuchos::ParameterList& fixed_params) {
     return get_requirement_generator_map()[key](fixed_params);
   }
 
@@ -248,7 +248,6 @@ class MetaFactory {
                   "See the documentation of MetaFactory for more information about the expected interface.");
 
     // Register the class.
-    std::cout << "MetaFactory: Registering class " << key << std::endl;
     MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
                        "MetaFactory: The provided key " << key << " already exists.");
     get_internal_keys().push_back(key);

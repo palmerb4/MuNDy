@@ -84,10 +84,8 @@ struct MetaRegistry {
 ///
 /// \param ClassToCheck A class derived from \c MetaMethodSubsetExecutionInterface that we wish to check if it has been
 /// registered. \param FactoryToCheckWith The \c MetaMethodFactory to check if the class has been registered with.
-#define MUNDY_IS_REGISTERED(ClassToCheck, ... /* FactoryToCheckWith */)         \
-  ([]() -> bool {                                                               \
-    return mundy::meta::MetaRegistry<ClassToCheck, __VA_ARGS__>::is_registered; \
-  }())
+#define MUNDY_IS_REGISTERED(ClassToCheck, ... /* FactoryToCheckWith */) \
+  ([]() -> bool { return mundy::meta::MetaRegistry<ClassToCheck, __VA_ARGS__>::is_registered; }())
 
 /// \brief A helper macro for registering a \c MetaMethodSubsetExecutionInterface with the \c MetaMethodFactory.
 ///

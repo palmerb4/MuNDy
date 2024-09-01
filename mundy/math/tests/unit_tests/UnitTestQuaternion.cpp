@@ -71,8 +71,8 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
 /// \param[in] m1 The first Matrix3
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
+template <typename U, typename T>
+void is_close_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto, auto>& m2,
                     const std::string& message_if_fail = "") {
   if (!is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
@@ -85,8 +85,8 @@ void is_close_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Access
 /// \param[in] v1 The first Vector3
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
+template <typename U, typename T>
+void is_close_debug(const Vector3<U, auto, auto>& v1, const Vector3<T, auto, auto>& v2,
                     const std::string& message_if_fail = "") {
   if (!is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
@@ -99,8 +99,8 @@ void is_close_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Access
 /// \param[in] q1 The first Quaternion
 /// \param[in] q2 The second Quaternion
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Quaternion<U, OtherAccessor>& q1, const Quaternion<T, Accessor>& q2,
+template <typename U, typename T>
+void is_close_debug(const Quaternion<U, auto, auto>& q1, const Quaternion<T, auto, auto>& q2,
                     const std::string& message_if_fail = "") {
   if (!is_approx_close(q1, q2)) {
     std::cout << "q1 = " << q1 << std::endl;
@@ -113,8 +113,8 @@ void is_close_debug(const Quaternion<U, OtherAccessor>& q1, const Quaternion<T, 
 /// \param[in] m1 The first Matrix3
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Accessor>& m2,
+template <typename U, typename T>
+void is_different_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto, auto>& m2,
                         const std::string& message_if_fail = "") {
   if (is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
@@ -127,8 +127,8 @@ void is_different_debug(const Matrix3<U, OtherAccessor>& m1, const Matrix3<T, Ac
 /// \param[in] v1 The first Vector3
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Accessor>& v2,
+template <typename U, typename T>
+void is_different_debug(const Vector3<U, auto, auto>& v1, const Vector3<T, auto, auto>& v2,
                         const std::string& message_if_fail = "") {
   if (is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
@@ -141,8 +141,8 @@ void is_different_debug(const Vector3<U, OtherAccessor>& v1, const Vector3<T, Ac
 /// \param[in] q1 The first Quaternion
 /// \param[in] q2 The second Quaternion
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Quaternion<U, OtherAccessor>& q1, const Quaternion<T, Accessor>& q2,
+template <typename U, typename T>
+void is_different_debug(const Quaternion<U, auto, auto>& q1, const Quaternion<T, auto, auto>& q2,
                         const std::string& message_if_fail = "") {
   if (is_approx_close(q1, q2)) {
     std::cout << "q1 = " << q1 << std::endl;
@@ -397,28 +397,39 @@ TYPED_TEST(QuaternionPairwiseTypeTest, MultiplicationAndDivisionWithMatrix3) {
   Quaternion<T1> q1_z(1.0 / std::sqrt(2.0), 0.0, 0.0, 1.0 / std::sqrt(2.0));
   Matrix3<T1> R_z = {0, -1, 0, 1, 0, 0, 0, 0, 1};
   is_close_debug(R_z, quaternion_to_rotation_matrix(q1_z), "Rotation matrix-quaternion mismatch.");
+  is_close_debug(R_z * m, Matrix3<T1>{-4, -5, -6, 1, 2, 3, -7, -8, -9},
+                 "Matrix-matrix multiplication sanity check failed.");
   is_close_debug(q1_z * m, R_z * m, "Left 90 degrees rotation around Z-axis failed.");
 
   // 90 degrees rotation around Y-axis: R_y m
   Quaternion<T1> q1_y(1.0 / std::sqrt(2.0), 0.0, 1.0 / std::sqrt(2.0), 0.0);
   Matrix3<T1> R_y = {0, 0, 1, 0, 1, 0, -1, 0, 0};
   is_close_debug(R_y, quaternion_to_rotation_matrix(q1_y), "Rotation matrix-quaternion mismatch.");
+  is_close_debug(R_y * m, Matrix3<T1>{-7, -8, -9, 4, 5, 6, -1, -2, -3},
+                 "Matrix-matrix multiplication sanity check failed.");
   is_close_debug(q1_y * m, R_y * m, "Left 90 degrees rotation around Y-axis failed.");
 
   // 90 degrees rotation around X-axis: R_x m
   Quaternion<T1> q1_x(1.0 / std::sqrt(2.0), 1.0 / std::sqrt(2.0), 0.0, 0.0);
   Matrix3<T1> R_x = {1, 0, 0, 0, 0, -1, 0, 1, 0};
   is_close_debug(R_x, quaternion_to_rotation_matrix(q1_x), "Rotation matrix-quaternion mismatch.");
+  is_close_debug(R_x * m, Matrix3<T1>{1, 2, 3, 7, 8, 9, 4, 5, 6}, "Matrix-matrix multiplication sanity check failed.");
   is_close_debug(q1_x * m, R_x * m, "Left 90 degrees rotation around X-axis failed.");
 
   // Right multiplication of a matrix by a quaternion
   // 90 degrees rotation around Z-axis: m R_z
+  is_close_debug(m * R_z, Matrix3<T1>{2, -1, 3, 5, -4, 6, -8, 7, -9},
+                 "Matrix-matrix multiplication sanity check failed.");
   is_close_debug(m * q1_z, m * R_z, "Right 90 degrees rotation around Z-axis failed.");
 
   // 90 degrees rotation around Y-axis: m R_y
+  is_close_debug(m * R_y, Matrix3<T1>{-3, 2, 1, -6, 5, 4, 9, -8, -7},
+                 "Matrix-matrix multiplication sanity check failed.");
   is_close_debug(m * q1_y, m * R_y, "Right 90 degrees rotation around Y-axis failed.");
 
   // 90 degrees rotation around X-axis: m R_x
+  is_close_debug(m * R_x, Matrix3<T1>{1, 3, -2, 4, 6, -5, -7, -9, 8},
+                 "Matrix-matrix multiplication sanity check failed.");
   is_close_debug(m * q1_x, m * R_x, "Right 90 degrees rotation around X-axis failed.");
 }
 
@@ -597,6 +608,11 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperations) {
       q4, Quaternion<T4>{1.0 / std::sqrt(30.0), 2.0 / std::sqrt(30.0), 3.0 / std::sqrt(30.0), 4.0 / std::sqrt(30.0)},
       "Normalize assignment failed.");
 
+  // inverse
+  auto q5 = inverse(q1);
+  using T5 = decltype(q5)::value_type;
+  is_close_debug(q5, Quaternion<T5>{1.0 / 30.0, -2.0 / 30.0, -3.0 / 30.0, -4.0 / 30.0}, "Inverse failed.");
+
   // normalize in place
   q1.normalize();
   q2.normalize();
@@ -605,9 +621,9 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperations) {
       "Normalize failed.");
 
   // slerp (only applicable to unit quaternions)
-  auto q5 = slerp(q1, q2, 0.5);
-  using T5 = decltype(q5)::value_type;
-  is_close_debug(q5, Quaternion<T5>{0.1946219299433149, 0.4407059160784743, 0.5581347617390449, 0.6755636074046377},
+  auto q6 = slerp(q1, q2, 0.5);
+  using T6 = decltype(q5)::value_type;
+  is_close_debug(q6, Quaternion<T6>{0.1946219299433149, 0.4407059160784743, 0.5581347617390449, 0.6755636074046377},
                  "Slerp failed.");
 }
 

@@ -32,7 +32,7 @@
 
 // Mundy libs
 #include <mundy_alens/compute_mobility/LocalDragNonOrientableSpheres.hpp>  // for mundy::alens::compute_mobility::LocalDragNonOrientableSpheres
-#include <mundy_alens/compute_mobility/RPYSpheres.hpp>                     // for mundy::alens::compute_mobility::RPYSpheres
+#include <mundy_alens/compute_mobility/RPYSpheres.hpp>  // for mundy::alens::compute_mobility::RPYSpheres
 #include <mundy_core/StringLiteral.hpp>         // for mundy::core::StringLiteral and mundy::core::make_string_literal
 #include <mundy_mesh/BulkData.hpp>              // for mundy::mesh::BulkData
 #include <mundy_meta/MetaKernelDispatcher.hpp>  // for mundy::meta::MetaKernelDispatcher
@@ -44,10 +44,9 @@ namespace alens {
 
 /// \class ComputeMobility
 /// \brief Method for computing the mobility problem.
-class ComputeMobility
-    : public mundy::meta::MetaMethodSubsetExecutionDispatcher<ComputeMobility, void,
-                                                              mundy::meta::make_registration_string("COMPUTE_MOBILITY"),
-                                                              mundy::meta::make_registration_string("LOCAL_DRAG_NONORIENTABLE_SPHERES")> {
+class ComputeMobility : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
+                            ComputeMobility, void, mundy::meta::make_registration_string("COMPUTE_MOBILITY"),
+                            mundy::meta::make_registration_string("LOCAL_DRAG_NONORIENTABLE_SPHERES")> {
  public:
   //! \name Constructors and destructor
   //@{
@@ -58,10 +57,9 @@ class ComputeMobility
   /// \brief Constructor
   ComputeMobility(mundy::mesh::BulkData *const bulk_data_ptr,
                   const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
-      : mundy::meta::MetaMethodSubsetExecutionDispatcher<ComputeMobility, void,
-                                                         mundy::meta::make_registration_string("COMPUTE_MOBILITY"),
-                                                         mundy::meta::make_registration_string("LOCAL_DRAG_NONORIENTABLE_SPHERES")>(
-            bulk_data_ptr, fixed_params) {
+      : mundy::meta::MetaMethodSubsetExecutionDispatcher<
+            ComputeMobility, void, mundy::meta::make_registration_string("COMPUTE_MOBILITY"),
+            mundy::meta::make_registration_string("LOCAL_DRAG_NONORIENTABLE_SPHERES")>(bulk_data_ptr, fixed_params) {
   }
   //@}
 
@@ -114,9 +112,12 @@ class ComputeMobility
 //@{
 
 /// \brief Register our default techniques
-MUNDY_REGISTER_METACLASS("LOCAL_DRAG_NONORIENTABLE_SPHERES", mundy::alens::compute_mobility::LocalDragNonOrientableSpheres, mundy::alens::ComputeMobility::OurTechniqueFactory)
+MUNDY_REGISTER_METACLASS("LOCAL_DRAG_NONORIENTABLE_SPHERES",
+                         mundy::alens::compute_mobility::LocalDragNonOrientableSpheres,
+                         mundy::alens::ComputeMobility::OurTechniqueFactory)
 
-MUNDY_REGISTER_METACLASS("RPY_SPHERES", mundy::alens::compute_mobility::RPYSpheres, mundy::alens::ComputeMobility::OurTechniqueFactory)
+MUNDY_REGISTER_METACLASS("RPY_SPHERES", mundy::alens::compute_mobility::RPYSpheres,
+                         mundy::alens::ComputeMobility::OurTechniqueFactory)
 //@}
 
 #endif  // MUNDY_ALENS_COMPUTEMOBILITY_HPP_

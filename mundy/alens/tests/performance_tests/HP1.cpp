@@ -1,0 +1,3295 @@
+// @HEADER
+// **********************************************************************************************************************
+//
+//                                          Mundy: Multi-body Nonlocal Dynamics
+//                                           Copyright 2024 Flatiron Institute
+//                                                 Author: Bryce Palmer
+//
+// Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
+// as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+//
+// Mundy is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License along with Mundy. If not, see
+// <https://www.gnu.org/licenses/>.
+//
+// **********************************************************************************************************************
+// @HEADER
+
+#pragma TODO "Add a brief description of the file here."
+/* Notes:
+
+Brief note:
+We are trying to simulate the HP1 project with Hossein.
+
+Here is the generic form of a single chromatin chain. In this example, we have 3 chromatin 'repeats', which means 2
+heterochromatin sections, and 1 euchromatin section in the middle.
+
+E : euchromatin spheres
+H : heterochromatin spheres
+| : HP1 crosslinker
+--- : backbone spring
+
+|   |                           |   |
+H---H---E---E---E---E---E---E---H---H
+
+Chromatin backbone:
+Backbone segments are modeled as spherocylinder segments, and can have a different spring constants that determine the
+separation between adjacent spheres.
+
+Interactions:
+
+1. Backbone segment --- Backbone segment
+   - Interactions are via a hertzian contact potential.
+2. Backbone segment -- itself
+   - Interactions are via a harmonic spring between adjacent spheres, but done along the spherocylinder segment
+(backbone).
+
+
+*/
+
+// External libs
+#include <openrand/philox.h>
+
+// Trilinos libs
+#include <Kokkos_Core.hpp>                   // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
+#include <Teuchos_CommandLineProcessor.hpp>  // for Teuchos::CommandLineProcessor
+#include <Teuchos_ParameterList.hpp>         // for Teuchos::ParameterList
+#include <stk_balance/balance.hpp>           // for stk::balance::balanceStkMesh, stk::balance::BalanceSettings
+#include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
+#include <stk_mesh/base/Comm.hpp>            // for stk::mesh::comm_mesh_counts
+#include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
+#include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
+#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
+#include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
+#include <stk_topology/topology.hpp>         // for stk::topology
+#include <stk_util/parallel/Parallel.hpp>    // for stk::parallel_machine_init, stk::parallel_machine_finalize
+
+// Mundy libs
+#include <mundy_alens/actions_crosslinkers.hpp>                // for mundy::alens::crosslinkers...
+#include <mundy_alens/periphery/Periphery.hpp>                 // for gen_sphere_quadrature
+#include <mundy_constraints/AngularSprings.hpp>                // for mundy::constraints::AngularSprings
+#include <mundy_constraints/ComputeConstraintForcing.hpp>      // for mundy::constraints::ComputeConstraintForcing
+#include <mundy_constraints/DeclareAndInitConstraints.hpp>     // for mundy::constraints::DeclareAndInitConstraints
+#include <mundy_constraints/HookeanSprings.hpp>                // for mundy::constraints::HookeanSprings
+#include <mundy_core/MakeStringArray.hpp>                      // for mundy::core::make_string_array
+#include <mundy_core/OurAnyNumberParameterEntryValidator.hpp>  // for mundy::core::OurAnyNumberParameterEntryValidator
+#include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_io/IOBroker.hpp>         // for mundy::io::IOBroker
+#include <mundy_linkers/ComputeSignedSeparationDistanceAndContactNormal.hpp>  // for mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal
+#include <mundy_linkers/DestroyNeighborLinkers.hpp>         // for mundy::linkers::DestroyNeighborLinkers
+#include <mundy_linkers/EvaluateLinkerPotentials.hpp>       // for mundy::linkers::EvaluateLinkerPotentials
+#include <mundy_linkers/GenerateNeighborLinkers.hpp>        // for mundy::linkers::GenerateNeighborLinkers
+#include <mundy_linkers/LinkerPotentialForceReduction.hpp>  // for mundy::linkers::LinkerPotentialForceReduction
+#include <mundy_linkers/NeighborLinkers.hpp>                // for mundy::linkers::NeighborLinkers
+#include <mundy_math/Hilbert.hpp>                           // for mundy::math::create_hilbert_positions_and_directors
+#include <mundy_math/Vector3.hpp>                           // for mundy::math::Vector3
+#include <mundy_math/distance/EllipsoidEllipsoid.hpp>       // for mundy::math::distance::ellipsoid_ellipsoid
+#include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
+#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/MetaData.hpp>    // for mundy::mesh::MetaData
+#include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>        // for mundy::mesh::utils::destroy_flagged_entities
+#include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
+#include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaKernelDispatcher.hpp>                // for mundy::meta::MetaKernelDispatcher
+#include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
+#include <mundy_meta/MetaRegistry.hpp>                        // for mundy::meta::MetaMethodRegistry
+#include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
+#include <mundy_meta/PartReqs.hpp>  // for mundy::meta::PartReqs
+#include <mundy_meta/utils/MeshGeneration.hpp>  // for mundy::meta::utils::generate_class_instance_and_mesh_from_meta_class_requirements
+#include <mundy_shapes/ComputeAABB.hpp>  // for mundy::shapes::ComputeAABB
+#include <mundy_shapes/Spheres.hpp>      // for mundy::shapes::Spheres
+
+namespace mundy {
+
+namespace alens {
+
+namespace crosslinkers {
+
+class HP1 {
+ public:
+  enum class BINDING_STATE_CHANGE : unsigned {
+    NONE = 0u,
+    LEFT_TO_DOUBLY,
+    RIGHT_TO_DOUBLY,
+    DOUBLY_TO_LEFT,
+    DOUBLY_TO_RIGHT
+  };
+  enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
+  enum class PERIPHERY_BIND_SITES_TYPE : unsigned { RANDOM = 0u, FROM_FILE };
+  enum class PERIPHERY_SHAPE : unsigned { SPHERE = 0u, ELLIPSOID };
+  enum class PERIPHERY_QUADRATURE : unsigned { GAUSS_LEGENDRE = 0u, FROM_FILE };
+  enum class SETUP_RUN : unsigned { COMPRESS = 0u, RUN, RESTART };
+  enum class RUN_TYPE : unsigned { DRY = 0u, HYDRO };
+
+  friend std::ostream &operator<<(std::ostream &os, const BINDING_STATE_CHANGE &state) {
+    switch (state) {
+      case BINDING_STATE_CHANGE::NONE:
+        os << "NONE";
+        break;
+      case BINDING_STATE_CHANGE::LEFT_TO_DOUBLY:
+        os << "LEFT_TO_DOUBLY";
+        break;
+      case BINDING_STATE_CHANGE::RIGHT_TO_DOUBLY:
+        os << "RIGHT_TO_DOUBLY";
+        break;
+      case BINDING_STATE_CHANGE::DOUBLY_TO_LEFT:
+        os << "DOUBLY_TO_LEFT";
+        break;
+      case BINDING_STATE_CHANGE::DOUBLY_TO_RIGHT:
+        os << "DOUBLY_TO_RIGHT";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const BOND_TYPE &bond_type) {
+    switch (bond_type) {
+      case BOND_TYPE::HARMONIC:
+        os << "HARMONIC";
+        break;
+      case BOND_TYPE::FENE:
+        os << "FENE";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const PERIPHERY_BIND_SITES_TYPE &bind_sites_type) {
+    switch (bind_sites_type) {
+      case PERIPHERY_BIND_SITES_TYPE::RANDOM:
+        os << "RANDOM";
+        break;
+      case PERIPHERY_BIND_SITES_TYPE::FROM_FILE:
+        os << "FROM_FILE";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const PERIPHERY_SHAPE &periphery_shape) {
+    switch (periphery_shape) {
+      case PERIPHERY_SHAPE::SPHERE:
+        os << "SPHERE";
+        break;
+      case PERIPHERY_SHAPE::ELLIPSOID:
+        os << "ELLIPSOID";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const PERIPHERY_QUADRATURE &periphery_quadrature) {
+    switch (periphery_quadrature) {
+      case PERIPHERY_QUADRATURE::GAUSS_LEGENDRE:
+        os << "GAUSS_LEGENDRE";
+        break;
+      case PERIPHERY_QUADRATURE::FROM_FILE:
+        os << "FROM_FILE";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const SETUP_RUN &setup_run) {
+    switch (setup_run) {
+      case SETUP_RUN::COMPRESS:
+        os << "COMPRESS";
+        break;
+      case SETUP_RUN::RUN:
+        os << "RUN";
+        break;
+      case SETUP_RUN::RESTART:
+        os << "RESTART";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const RUN_TYPE &run_type) {
+    switch (run_type) {
+      case RUN_TYPE::DRY:
+        os << "DRY";
+        break;
+      case RUN_TYPE::HYDRO:
+        os << "HYDRO";
+        break;
+      default:
+        os << "UNKNOWN";
+        break;
+    }
+    return os;
+  }
+
+  using DeviceExecutionSpace = Kokkos::DefaultExecutionSpace;
+  using DeviceMemorySpace = typename DeviceExecutionSpace::memory_space;
+
+  HP1() = default;
+
+  void print_rank0(auto thing_to_print, int indent_level = 0) {
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      std::string indent(indent_level * 2, ' ');
+      std::cout << indent << thing_to_print << std::endl;
+    }
+  }
+
+  void parse_user_inputs(int argc, char **argv) {
+    // Parse the command line options to find the input filename
+    Teuchos::CommandLineProcessor cmdp(false, true);
+    cmdp.setOption("params", &input_parameter_filename_, "The name of the input file.");
+
+    Teuchos::CommandLineProcessor::EParseCommandLineReturn parse_result = cmdp.parse(argc, argv);
+    if (parse_result == Teuchos::CommandLineProcessor::PARSE_HELP_PRINTED) {
+      print_help_message();
+
+      // Safely exit the program
+      // If we print the help message, we don't need to do anything else.
+      exit(0);
+    } else if (parse_result != Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL) {
+      throw std::invalid_argument("Failed to parse the command line arguments.");
+    }
+
+    // Read, validate, and parse in the parameters from the parameter list.
+    try {
+      Teuchos::ParameterList param_list = *Teuchos::getParametersFromYamlFile(input_parameter_filename_);
+      set_params(param_list);
+    } catch (const std::exception &e) {
+      std::cerr << "ERROR: Failed to read the input parameter file." << std::endl;
+      std::cerr << "During read, the following error occurred: " << e.what() << std::endl;
+      std::cerr << "NOTE: This can happen for any number of reasons. Check that the file exists and contains the "
+                   "expected parameters."
+                << std::endl;
+      throw e;
+    }
+  }
+
+  void print_help_message() {
+    std::cout << "#############################################################################################"
+              << std::endl;
+    std::cout << "To run this code, please pass in --params=<input.yaml> as a command line argument." << std::endl;
+    std::cout << std::endl;
+    std::cout << "Note, all parameters and sublists in input.yaml must be contained in a single top-level list."
+              << std::endl;
+    std::cout << "Such as:" << std::endl;
+    std::cout << std::endl;
+    std::cout << "HP1:" << std::endl;
+    std::cout << "  num_time_steps: 1000" << std::endl;
+    std::cout << "  timestep_size: 1e-6" << std::endl;
+    std::cout << "#############################################################################################"
+              << std::endl;
+    std::cout << "The valid parameters that can be set in the input file are:" << std::endl;
+    Teuchos::ParameterList valid_params = HP1::get_valid_params();
+
+    auto print_options =
+        Teuchos::ParameterList::PrintOptions().showTypes(false).showDoc(true).showDefault(true).showFlags(false).indent(
+            1);
+    valid_params.print(std::cout, print_options);
+    std::cout << "#############################################################################################"
+              << std::endl;
+  }
+
+  void set_params(const Teuchos::ParameterList &param_list) {
+    // Validate the parameters and set the defaults.
+    Teuchos::ParameterList valid_param_list = param_list;
+    valid_param_list.validateParametersAndSetDefaults(HP1::get_valid_params());
+
+    // Simulation parameters:
+    Teuchos::ParameterList &simulation_params = valid_param_list.sublist("simulation");
+    num_time_steps_ = simulation_params.get<size_t>("num_time_steps");
+    timestep_size_ = simulation_params.get<double>("timestep_size");
+    kt_brownian_ = simulation_params.get<double>("kt_brownian");
+    kt_kmc_ = simulation_params.get<double>("kt_kmc");
+    io_frequency_ = simulation_params.get<size_t>("io_frequency");
+    log_frequency_ = simulation_params.get<size_t>("log_frequency");
+    initial_loadbalance_ = simulation_params.get<bool>("initial_loadbalance");
+    initialization_type_ = simulation_params.get<std::string>("initialization_type");
+    viscosity_ = simulation_params.get<double>("viscosity");
+    check_inside_periphery_ = simulation_params.get<bool>("check_inside_periphery");
+    std::string setup_run_string = simulation_params.get<std::string>("setup_run");
+    std::string run_type_string = simulation_params.get<std::string>("run_type");
+    output_filename_ = simulation_params.get<std::string>("output_filename");
+    if (setup_run_string == "COMPRESS") {
+      setup_run_ = SETUP_RUN::COMPRESS;
+    } else if (setup_run_string == "RUN") {
+      setup_run_ = SETUP_RUN::RUN;
+    } else if (setup_run_string == "RESTART") {
+      setup_run_ = SETUP_RUN::RESTART;
+      restart_filename_ = simulation_params.get<std::string>("restart_filename");
+    } else {
+      MUNDY_THROW_ASSERT(
+          false, std::invalid_argument,
+          "Invalid setup run. Received '" << setup_run_string << "' but expected 'COMPRESS', 'RUN', or 'RESTART'.");
+    }
+    if (run_type_string == "DRY") {
+      run_type_ = RUN_TYPE::DRY;
+    } else if (run_type_string == "HYDRO") {
+      run_type_ = RUN_TYPE::HYDRO;
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid run type. Received '" << run_type_string << "' but expected 'DRY' or 'HYDRO'.");
+    }
+
+    // Periphery parameters:
+    Teuchos::ParameterList &periphery_params = valid_param_list.sublist("periphery");
+    periphery_spring_constant_ = periphery_params.get<double>("spring_constant");
+    std::string periphery_shape_string = periphery_params.get<std::string>("shape");
+    periphery_standoff_distance_ = periphery_params.get<double>("standoff_distance");
+    periphery_collision_use_fast_ = periphery_params.get<bool>("periphery_collision_use_fast");
+    if (periphery_shape_string == "SPHERE") {
+      periphery_shape_ = PERIPHERY_SHAPE::SPHERE;
+      periphery_radius_ = periphery_params.get<double>("radius");
+    } else if (periphery_shape_string == "ELLIPSOID") {
+      periphery_shape_ = PERIPHERY_SHAPE::ELLIPSOID;
+      periphery_axis_radius1_ = periphery_params.get<double>("axis_radius1");
+      periphery_axis_radius2_ = periphery_params.get<double>("axis_radius2");
+      periphery_axis_radius3_ = periphery_params.get<double>("axis_radius3");
+    } else {
+      MUNDY_THROW_ASSERT(
+          false, std::invalid_argument,
+          "Invalid periphery shape. Received '" << periphery_shape_string << "' but expected 'SPHERE' or 'ELLIPSOID'.");
+    }
+
+    std::string periphery_quadrature_string = periphery_params.get<std::string>("quadrature");
+    if (periphery_quadrature_string == "GAUSS_LEGENDRE") {
+      MUNDY_THROW_ASSERT(
+          (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) || ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) &&
+                                                            (periphery_axis_radius1_ == periphery_axis_radius2_) &&
+                                                            (periphery_axis_radius2_ == periphery_axis_radius3_) &&
+                                                            (periphery_axis_radius3_ == periphery_axis_radius1_)),
+          std::invalid_argument, "Gauss-Legendre quadrature is only valid for spherical peripheries.");
+      periphery_quadrature_ = PERIPHERY_QUADRATURE::GAUSS_LEGENDRE;
+      periphery_spectral_order_ = periphery_params.get<size_t>("spectral_order");
+    } else if (periphery_quadrature_string == "FROM_FILE") {
+      periphery_quadrature_ = PERIPHERY_QUADRATURE::FROM_FILE;
+      periphery_num_quadrature_points_ = periphery_params.get<size_t>("num_quadrature_points");
+      periphery_quadrature_points_filename_ = periphery_params.get<std::string>("quadrature_points_filename");
+      periphery_quadrature_weights_filename_ = periphery_params.get<std::string>("quadrature_weights_filename");
+      periphery_quadrature_normals_filename_ = periphery_params.get<std::string>("quadrature_normals_filename");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid periphery quadrature. Received '"
+                             << periphery_quadrature_string << "' but expected 'GAUSS_LEGENDRE' or 'FROM_FILE'.");
+    }
+
+    std::string periphery_bind_sites_type_string = periphery_params.get<std::string>("bind_sites_type");
+    if (periphery_bind_sites_type_string == "RANDOM") {
+      periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::RANDOM;
+      periphery_num_bind_sites_ = periphery_params.get<size_t>("num_bind_sites");
+    } else if (periphery_bind_sites_type_string == "FROM_FILE") {
+      periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::FROM_FILE;
+      periphery_bind_site_locations_filename_ = periphery_params.get<std::string>("bind_site_locations_filename");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid periphery binding sites type. Received '"
+                             << periphery_bind_sites_type_string << "' but expected 'RANDOM' or 'FROM_FILE'.");
+    }
+
+    if (setup_run_ == SETUP_RUN::COMPRESS) {
+      periphery_scale_factor_for_equilibriation_ = periphery_params.get<double>("scale_factor_for_equilibriation");
+    }
+
+    // Chromatin:
+    Teuchos::ParameterList &chromatin_params = valid_param_list.sublist("chromatin");
+    num_chromosomes_ = chromatin_params.get<size_t>("num_chromosomes");
+    num_chromatin_repeats_ = chromatin_params.get<size_t>("num_chromatin_repeats");
+    num_euchromatin_per_repeat_ = chromatin_params.get<size_t>("num_euchromatin_per_repeat");
+    num_heterochromatin_per_repeat_ = chromatin_params.get<size_t>("num_heterochromatin_per_repeat");
+    backbone_excluded_volume_radius_ = chromatin_params.get<double>("backbone_excluded_volume_radius");
+    sphere_hydrodynamic_radius_ = chromatin_params.get<double>("sphere_hydrodynamic_radius");
+    initial_sphere_separation_ = chromatin_params.get<double>("initial_sphere_separation");
+    backbone_youngs_modulus_ = chromatin_params.get<double>("backbone_youngs_modulus");
+    backbone_poissons_ratio_ = chromatin_params.get<double>("backbone_poissons_ratio");
+
+    const std::string chromatin_spring_type_string = chromatin_params.get<std::string>("spring_type");
+    if (chromatin_spring_type_string == "HARMONIC") {
+      chromatin_spring_type_ = BOND_TYPE::HARMONIC;
+    } else if (chromatin_spring_type_string == "FENE") {
+      chromatin_spring_type_ = BOND_TYPE::FENE;
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for chromatin chains.");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid backbone spring type. Received '" << chromatin_spring_type_string
+                                                                    << "' but expected 'HARMONIC' or 'FENE'.");
+    }
+
+    chromatin_spring_constant_ = chromatin_params.get<double>("spring_constant");
+    chromatin_spring_rest_length_ = chromatin_params.get<double>("spring_rest_length");
+
+    // Crosslinker (spring and other):
+    Teuchos::ParameterList &crosslinker_params = valid_param_list.sublist("crosslinker");
+    const std::string crosslinker_spring_type_string = crosslinker_params.get<std::string>("spring_type");
+    if (crosslinker_spring_type_string == "HARMONIC") {
+      crosslinker_spring_type_ = BOND_TYPE::HARMONIC;
+    } else if (crosslinker_spring_type_string == "FENE") {
+      crosslinker_spring_type_ = BOND_TYPE::FENE;
+      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for crosslinkers.");
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Invalid crosslinker spring type. Received '" << crosslinker_spring_type_string
+                                                                       << "' but expected 'HARMONIC' or 'FENE'.");
+    }
+
+    crosslinker_spring_constant_ = crosslinker_params.get<double>("spring_constant");
+    crosslinker_rest_length_ = crosslinker_params.get<double>("rest_length");
+    crosslinker_left_binding_rate_ = crosslinker_params.get<double>("left_binding_rate");
+    crosslinker_right_binding_rate_ = crosslinker_params.get<double>("right_binding_rate");
+    crosslinker_left_unbinding_rate_ = crosslinker_params.get<double>("left_unbinding_rate");
+    crosslinker_right_unbinding_rate_ = crosslinker_params.get<double>("right_unbinding_rate");
+
+    // Neighbor list
+    Teuchos::ParameterList &neighbor_list_params = valid_param_list.sublist("neighbor_list");
+    skin_distance_ = neighbor_list_params.get<double>("skin_distance");
+    force_neighborlist_update_ = neighbor_list_params.get<bool>("force_neighborlist_update");
+    force_neighborlist_update_nsteps_ = neighbor_list_params.get<size_t>("force_neighborlist_update_nsteps");
+    print_neighborlist_statistics_ = neighbor_list_params.get<bool>("print_neighborlist_statistics");
+
+    // Validate the parameters
+    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+
+    // Convert some parameters to their final form
+    crosslinker_rcut_ = crosslinker_rest_length_ + 5.0 * std::sqrt(1.0 / (kt_kmc_ * crosslinker_spring_constant_));
+  }
+
+  static Teuchos::ParameterList get_valid_params() {
+    // Create a paramater entity validator for our large integers to allow for both int and long long.
+    auto prefer_size_t = []() {
+      if (std::is_same_v<size_t, unsigned short>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_SHORT;
+      } else if (std::is_same_v<size_t, unsigned int>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_INT;
+      } else if (std::is_same_v<size_t, unsigned long>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_LONG;
+      } else if (std::is_same_v<size_t, unsigned long long>) {
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_LONG_LONG;
+      } else {
+        throw std::runtime_error("Unknown size_t type.");
+        return mundy::core::OurAnyNumberParameterEntryValidator::PREFER_UNSIGNED_INT;
+      }
+    }();
+    const bool allow_all_types_by_default = false;
+    mundy::core::OurAnyNumberParameterEntryValidator::AcceptedTypes accept_int(allow_all_types_by_default);
+    accept_int.allow_all_integer_types(true);
+    auto make_new_validator = [](const auto &preferred_type, const auto &accepted_types) {
+      return Teuchos::rcp(new mundy::core::OurAnyNumberParameterEntryValidator(preferred_type, accepted_types));
+    };
+
+    static Teuchos::ParameterList valid_parameter_list;
+
+    valid_parameter_list.sublist("simulation")
+        .set("num_time_steps", default_num_time_steps_, "Number of time steps.",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("timestep_size", default_timestep_size_, "Time step size.")
+        .set("kt_brownian", default_kt_brownian_, "Temperature kT for Brownian Motion.")
+        .set("kt_kmc", default_kt_kmc_, "Temperature kT for KMC.")
+        .set("io_frequency", default_io_frequency_, "Number of timesteps between writing output.",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("log_frequency", default_log_frequency_, "Number of timesteps between logging.",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("initial_loadbalance", default_initial_loadbalance_, "Initial loadbalance.")
+        .set("check_inside_periphery", default_check_inside_periphery_, "Check inside periphery.")
+        .set("initialization_type", std::string(default_initialization_type_), "Initialization_type.")
+        .set("setup_run", std::string(default_setup_run_string_), "Setup run (COMPRESS or RUN).")
+        .set("run_type", std::string(default_run_type_string_), "Run type (DRY or HYDRO).")
+        .set("restart_filename", std::string(default_restart_filename_), "Restart filename.")
+        .set("output_filename", std::string(default_output_filename_), "Output filename.")
+        .set("viscosity", default_viscosity_, "Viscosity.");
+
+    valid_parameter_list.sublist("periphery")
+        .set("spring_constant", default_periphery_spring_constant_, "Periphery spring constant.")
+        .set("shape", std::string(default_periphery_shape_string_), "Periphery shape.")
+        .set("radius", default_periphery_radius_, "Periphery radius (only used if periphery_shape is SPHERE).")
+        .set("axis_radius1", default_periphery_axis_radius1_,
+             "Periphery axis length 1 (only used if periphery_shape is ELLIPSOID).")
+        .set("axis_radius2", default_periphery_axis_radius2_,
+             "Periphery axis length 2 (only used if periphery_shape is ELLIPSOID).")
+        .set("axis_radius3", default_periphery_axis_radius3_,
+             "Periphery axis length 3 (only used if periphery_shape is ELLIPSOID).")
+        .set("standoff_distance", default_periphery_standoff_distance_, "Periphery standoff distance (inwards).")
+        .set("periphery_collision_use_fast", default_periphery_collision_use_fast_, "Use fast periphery collision.")
+        .set("quadrature", std::string(default_periphery_quadrature_string_), "Periphery quadrature.")
+        .set("spectral_order", default_periphery_spectral_order_,
+             "Periphery spectral order (only used if periphery is spherical is Gauss-Legendre quadrature).",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("num_quadrature_points", default_periphery_num_quadrature_points_,
+             "Periphery number of quadrature points (only used if quadrature type is FROM_FILE). Number of points in "
+             "the files must match this quantity.",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("quadrature_points_filename", std::string(default_periphery_quadrature_points_filename_),
+             "Periphery quadrature points filename (only used if quadrature type is FROM_FILE).")
+        .set("quadrature_weights_filename", std::string(default_periphery_quadrature_weights_filename_),
+             "Periphery quadrature weights filename (only used if quadrature type is FROM_FILE).")
+        .set("quadrature_normals_filename", std::string(default_periphery_quadrature_normals_filename_),
+             "Periphery quadrature normals filename (only used if quadrature type is FROM_FILE).")
+        .set("bind_sites_type", std::string(default_periphery_bind_sites_type_string_), "Periphery bind sites type.")
+        .set("num_bind_sites", default_periphery_num_bind_sites_,
+             "Periphery number of binding sites (only used if periphery_binding_sites_type is RANDOM and periphery "
+             "has spherical or ellipsoidal shape).",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("bind_site_locations_filename", std::string(default_periphery_bind_site_locations_filename_),
+             "Periphery binding sites filename (only used if periphery_binding_sites_type is FROM_FILE).")
+        .set("scale_factor_for_equilibriation", default_periphery_scale_factor_for_equilibriation_,
+             "Scale factor for equilibriation. The periphery starts at the scaled size and is shrunk down to the true "
+             "size.");
+
+    valid_parameter_list.sublist("chromatin")
+        .set("spring_type", std::string(default_chromatin_spring_type_string_), "Chromatin spring type.")
+        .set("spring_constant", default_chromatin_spring_constant_, "Chromatin spring constant.")
+        .set("spring_rest_length", default_chromatin_spring_rest_length_, "Chromatin rest length.")
+        .set("num_chromosomes", default_num_chromosomes_, "Number of chromosomes (chromatin chains).",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("num_chromatin_repeats", default_num_chromatin_repeats_, "Number of chromatin repeats per chain.",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("num_euchromatin_per_repeat", default_num_euchromatin_per_repeat_,
+             "Number of euchromatin beads per repeat.", make_new_validator(prefer_size_t, accept_int))
+        .set("num_heterochromatin_per_repeat", default_num_heterochromatin_per_repeat_,
+             "Number of heterochromatin beads per repeat.", make_new_validator(prefer_size_t, accept_int))
+        .set("backbone_excluded_volume_radius", default_backbone_excluded_volume_radius_,
+             "Backbone excluded volume radius (segments).")
+        .set("sphere_hydrodynamic_radius", default_sphere_hydrodynamic_radius_, "Hydrodynamic sphere radius.")
+        .set("initial_sphere_separation", default_initial_sphere_separation_, "Initial backbone sphere separation.")
+        .set("backbone_youngs_modulus", default_backbone_youngs_modulus_, "Backbone Youngs modulus.")
+        .set("backbone_poissons_ratio", default_backbone_poissons_ratio_, "Backbone poissons ratio.");
+
+    valid_parameter_list.sublist("crosslinker")
+        .set("spring_type", std::string(default_crosslinker_spring_type_string_), "Crosslinker spring type.")
+        .set("spring_constant", default_crosslinker_spring_constant_, "Crosslinker spring constant.")
+        .set("rest_length", default_crosslinker_rest_length_, "Crosslinker rest length.")
+        .set("left_binding_rate", default_crosslinker_left_binding_rate_, "Crosslinker left binding rate.")
+        .set("right_binding_rate", default_crosslinker_right_binding_rate_, "Crosslinker right binding rate.")
+        .set("left_unbinding_rate", default_crosslinker_left_unbinding_rate_, "Crosslinker left unbinding rate.")
+        .set("right_unbinding_rate", default_crosslinker_right_unbinding_rate_, "Crosslinker right unbinding rate.");
+
+    valid_parameter_list.sublist("neighbor_list")
+        .set("skin_distance", default_skin_distance_, "Neighbor list skin distance.")
+        .set("force_neighborlist_update", default_force_neighborlist_update_, "Force update of the neighbor list.")
+        .set("force_neighborlist_update_nsteps", default_force_neighborlist_update_nsteps_,
+             "Number of timesteps between force update of the neighbor list.",
+             make_new_validator(prefer_size_t, accept_int))
+        .set("print_neighborlist_statistics", default_print_neighborlist_statistics_,
+             "Print neighbor list statistics.");
+
+    return valid_parameter_list;
+  }
+
+  void dump_user_inputs() {
+    if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+      std::cout << "##################################################" << std::endl;
+      std::cout << "INPUT PARAMETERS:" << std::endl;
+      std::cout << "" << std::endl;
+
+      std::cout << "SIMULATION:" << std::endl;
+      std::cout << "  setup_run:                " << setup_run_ << std::endl;
+      if (setup_run_ == SETUP_RUN::RESTART) {
+        std::cout << "  restart_filename:         " << restart_filename_ << std::endl;
+      }
+      std::cout << "  run_type:                 " << run_type_ << std::endl;
+      std::cout << "  num_time_steps:           " << num_time_steps_ << std::endl;
+      std::cout << "  timestep_size:            " << timestep_size_ << std::endl;
+      std::cout << "  io_frequency:             " << io_frequency_ << std::endl;
+      std::cout << "  log_frequency:            " << log_frequency_ << std::endl;
+      std::cout << "  kT (Brownian):            " << kt_brownian_ << std::endl;
+      std::cout << "  kT (KMC):                 " << kt_kmc_ << std::endl;
+      std::cout << "  initialization_type:      " << initialization_type_ << std::endl;
+      std::cout << "  viscosity:                " << viscosity_ << std::endl;
+      std::cout << "  output_filename:          " << output_filename_ << std::endl;
+      if (check_inside_periphery_) {
+        std::cout << "  check_inside_periphery:    " << check_inside_periphery_ << std::endl;
+      }
+      std::cout << "" << std::endl;
+
+      std::cout << "NEIGHBOR LIST:" << std::endl;
+      std::cout << "  force_update_neighborlist: " << force_neighborlist_update_ << std::endl;
+      std::cout << "  force_update_neighborlist_nsteps: " << force_neighborlist_update_nsteps_ << std::endl;
+      std::cout << "  skin_distance: " << skin_distance_ << std::endl;
+      std::cout << "" << std::endl;
+
+      std::cout << "CHROMATIN CHAINS:" << std::endl;
+      std::cout << "  num_chromosomes: " << num_chromosomes_ << std::endl;
+      std::cout << "  num_chromatin_repeats: " << num_chromatin_repeats_ << std::endl;
+      std::cout << "  num_euchromatin_per_repeat: " << num_euchromatin_per_repeat_ << std::endl;
+      std::cout << "  num_heterochromatin_per_repeat: " << num_heterochromatin_per_repeat_ << std::endl;
+      std::cout << "  backbone_excluded_volume_radius: " << backbone_excluded_volume_radius_ << std::endl;
+      std::cout << "  sphere_hydrodynamic_radius: " << sphere_hydrodynamic_radius_ << std::endl;
+      std::cout << "  initial_sphere_separation: " << initial_sphere_separation_ << std::endl;
+      std::cout << "  youngs_modulus: " << backbone_youngs_modulus_ << std::endl;
+      std::cout << "  poissons_ratio: " << backbone_poissons_ratio_ << std::endl;
+      std::cout << "" << std::endl;
+
+      std::cout << "CHROMATIN SPRINGS:" << std::endl;
+      std::cout << "  chromatin_spring_type: " << (chromatin_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene")
+                << std::endl;
+      std::cout << "  chromatin_spring_constant: " << chromatin_spring_constant_ << std::endl;
+      std::cout << "  chromatin_spring_rest_length: " << chromatin_spring_rest_length_ << std::endl;
+      std::cout << "" << std::endl;
+
+      std::cout << "CROSSLINKERS:" << std::endl;
+      std::cout << "  crosslinker_spring_type: "
+                << (crosslinker_spring_type_ == BOND_TYPE::HARMONIC ? "harmonic" : "fene") << std::endl;
+      std::cout << "  crosslinker_spring_constant: " << crosslinker_spring_constant_ << std::endl;
+      std::cout << "  crosslinker_rest_length: " << crosslinker_rest_length_ << std::endl;
+      std::cout << "  crosslinker_rcut: " << crosslinker_rcut_ << std::endl;
+      std::cout << "  crosslinker_left_binding_rate: " << crosslinker_left_binding_rate_ << std::endl;
+      std::cout << "  crosslinker_right_binding_rate: " << crosslinker_right_binding_rate_ << std::endl;
+      std::cout << "  crosslinker_left_unbinding_rate: " << crosslinker_left_unbinding_rate_ << std::endl;
+      std::cout << "  crosslinker_right_unbinding_rate: " << crosslinker_right_unbinding_rate_ << std::endl;
+      std::cout << "" << std::endl;
+
+      std::cout << "PERIPHERY:" << std::endl;
+      std::cout << "  periphery_spring_constant: " << periphery_spring_constant_ << std::endl;
+      std::cout << "  periphery_standoff_distance: " << periphery_standoff_distance_ << std::endl;
+      std::cout << "  periphery_collision_use_fast: " << periphery_collision_use_fast_ << std::endl;
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        std::cout << "  periphery_shape: SPHERE" << std::endl;
+        std::cout << "  periphery_radius: " << periphery_radius_ << std::endl;
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        std::cout << "  periphery_shape: ELLIPSOID" << std::endl;
+        std::cout << "  periphery_axis_radius1: " << periphery_axis_radius1_ << std::endl;
+        std::cout << "  periphery_axis_radius2: " << periphery_axis_radius2_ << std::endl;
+        std::cout << "  periphery_axis_radius3: " << periphery_axis_radius3_ << std::endl;
+      } else {
+        MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                           "Invalid periphery shape. Expected SPHERE or ELLIPSOID but "
+                           "received "
+                               << periphery_shape_);
+      }
+
+      if (setup_run_ == SETUP_RUN::COMPRESS) {
+        std::cout << "  periphery_scale_factor_for_equilibriation: " << periphery_scale_factor_for_equilibriation_
+                  << std::endl;
+      }
+
+      if (periphery_quadrature_ == PERIPHERY_QUADRATURE::GAUSS_LEGENDRE) {
+        std::cout << "  periphery_quadrature: GAUSS_LEGENDRE" << std::endl;
+        std::cout << "  periphery_spectral_order: " << periphery_spectral_order_ << std::endl;
+      } else if (periphery_quadrature_ == PERIPHERY_QUADRATURE::FROM_FILE) {
+        std::cout << "  periphery_quadrature: FROM_FILE" << std::endl;
+        std::cout << "  num_periphery_quadrature_points: " << periphery_num_quadrature_points_ << std::endl;
+        std::cout << "  periphery_quadrature_points_filename: " << periphery_quadrature_points_filename_ << std::endl;
+        std::cout << "  periphery_quadrature_weights_filename: " << periphery_quadrature_weights_filename_ << std::endl;
+        std::cout << "  periphery_quadrature_normals_filename: " << periphery_quadrature_normals_filename_ << std::endl;
+      }
+
+      if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
+        std::cout << "  periphery_bind_sites_type: RANDOM" << std::endl;
+        std::cout << "  periphery_num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
+      } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
+        std::cout << "  periphery_bind_sites_type: FROM_FILE" << std::endl;
+        std::cout << "  periphery_bind_sites_file: " << periphery_bind_site_locations_filename_ << std::endl;
+      }
+      std::cout << "##################################################" << std::endl;
+    }
+  }
+
+  template <typename FieldDataType, size_t field_size>
+  void print_field(const stk::mesh::Field<FieldDataType> &field) {
+    stk::mesh::BulkData &bulk_data = field.get_mesh();
+    stk::mesh::Selector selector = stk::mesh::Selector(field);
+
+    stk::mesh::EntityVector entities;
+    stk::mesh::get_selected_entities(selector, bulk_data_ptr_->buckets(field.entity_rank()), entities);
+
+    for (const stk::mesh::Entity &entity : entities) {
+      const FieldDataType *field_data = stk::mesh::field_data(field, entity);
+      std::cout << "Entity " << bulk_data.identifier(entity) << " field data: ";
+      for (size_t i = 0; i < field_size; ++i) {
+        std::cout << field_data[i] << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  void build_our_mesh_and_method_instances() {
+    // Setup the mesh requirements.
+    // First, we need to fetch the mesh requirements for each method, then we can create the class instances.
+    // In the future, all of this will be done via the Configurator.
+    mesh_reqs_ptr_ = std::make_shared<mundy::meta::MeshReqs>(MPI_COMM_WORLD);
+    mesh_reqs_ptr_->set_spatial_dimension(3);
+    mesh_reqs_ptr_->set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+
+    // Add custom requirements to the sphere part for this example. These are requirements that exceed those of the
+    // enabled methods and allow us to extend the functionality offered natively by Mundy.
+
+    // Spheres need to be modified to contain the subparts for E, H, and BindSite.
+    auto custom_sphere_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_sphere_part_reqs->add_field_reqs<double>("NODE_VELOCITY", node_rank_, 3, 1)
+        .add_field_reqs<double>("NODE_FORCE", node_rank_, 3, 1)
+        .add_field_reqs<unsigned>("NODE_RNG_COUNTER", node_rank_, 1, 1)
+        .add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", node_rank_, 3, 1)
+        .add_subpart_reqs("E", stk::topology::PARTICLE)
+        .add_subpart_reqs("H", stk::topology::PARTICLE)
+        .add_subpart_reqs("BS", stk::topology::PARTICLE);
+    mundy::shapes::Spheres::add_and_sync_part_reqs(custom_sphere_part_reqs);
+    mesh_reqs_ptr_->sync(mundy::shapes::Spheres::get_mesh_requirements());
+
+    // HP1 needs to be added to the mesh. This includes the subparts for the states of HP1. It will be added to the
+    // SpherocylinderSegment part the same was as StickySettings.
+    auto custom_hp1_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_part_reqs->set_part_name("HP1S")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ELEMENT_REALIZED_UNBINDING_RATES", element_rank_, 2, 1)
+        .add_field_reqs<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_, 2, 1)
+        .add_field_reqs<unsigned>("ELEMENT_RNG_COUNTER", element_rank_, 1, 1)
+        .add_field_reqs<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_, 1, 1)
+        .add_subpart_reqs("LEFT_HP1", stk::topology::BEAM_2)
+        .add_subpart_reqs("DOUBLY_HP1_H", stk::topology::BEAM_2)
+        .add_subpart_reqs("DOUBLY_HP1_BS", stk::topology::BEAM_2);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_part_reqs);
+
+    // Create the backbone segments.
+    auto custom_backbone_segments_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
+        .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
+        .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segments_part_reqs);
+
+    // Create the generalized interaction entities that connect HP1 and (H)eterochromatin
+    //   This entity "knows" how to compute the binding probability between a crosslinker and a H and how to
+    //   perform binding between a crosslinker and a H. It is a constraint rank entitiy because it must connect
+    //   element rank entities.
+    auto custom_hp1_h_genx_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_h_genx_part_reqs->set_part_name("HP1_H_NEIGHBOR_GENXS")
+        .set_part_rank(constraint_rank_)
+        .add_field_reqs<double>("CONSTRAINT_STATE_CHANGE_PROBABILITY", constraint_rank_, 1, 1)
+        .add_field_reqs<unsigned>("CONSTRAINT_PERFORM_STATE_CHANGE", constraint_rank_, 1, 1);
+    mundy::linkers::NeighborLinkers::add_and_sync_subpart_reqs(custom_hp1_h_genx_part_reqs);
+    mesh_reqs_ptr_->sync(mundy::linkers::NeighborLinkers::get_mesh_requirements());
+    // Create the same type of entity to the binding sites on the periphery
+    auto custom_hp1_bs_genx_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_bs_genx_part_reqs->set_part_name("HP1_BS_NEIGHBOR_GENXS")
+        .set_part_rank(constraint_rank_)
+        .add_field_reqs<double>("CONSTRAINT_STATE_CHANGE_PROBABILITY", constraint_rank_, 1, 1)
+        .add_field_reqs<unsigned>("CONSTRAINT_PERFORM_STATE_CHANGE", constraint_rank_, 1, 1);
+    mundy::linkers::NeighborLinkers::add_and_sync_subpart_reqs(custom_hp1_bs_genx_part_reqs);
+    mesh_reqs_ptr_->sync(mundy::linkers::NeighborLinkers::get_mesh_requirements());
+
+    // Add the custom neighbor list implementation to the axis-aligned bounding box. In theory, we only care if the
+    // corners of the AABB move more than skin distance/2. Set the AABB field to have an additional state that it keeps
+    // track of at the end so that we can do dr calculations trivially. This create the two element aabb fields, but
+    // also adds a second entire set of fields to the mesh.
+    //
+    // We also need an accumulator for summing up the total distance traveled by the AABB corners.
+#pragma TODO right now this puts the ELEMENT_AABB on the entire mesh(elements)
+    mesh_reqs_ptr_->add_field_reqs<double>("ELEMENT_AABB", element_rank_, 6, 2);
+    auto custom_sphere_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_sphere_aabb_accumulator_reqs->set_part_name("SPHERES")
+        .set_part_topology(stk::topology::PARTICLE)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    auto custom_backbone_segment_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_backbone_segment_aabb_accumulator_reqs->set_part_name("BACKBONE_SEGMENTS")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    auto custom_hp1_aabb_accumulator_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_hp1_aabb_accumulator_reqs->set_part_name("HP1S")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_, 6, 1);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_sphere_aabb_accumulator_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segment_aabb_accumulator_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_hp1_aabb_accumulator_reqs);
+
+    // Setup our fixed parameters for any of methods that we intend to use
+    // When we eventually switch to the configurator, these individual fixed params will become sublists within a single
+    // master parameter list. Note, sublist will return a reference to the sublist with the given name.
+    //
+    // Compute constraint (bonded) forces for the the BACKBONE_SEGMENTS and HP1S parts
+    compute_constraint_forcing_fixed_params_ =
+        Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"));
+    compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
+        .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS", "HP1S"));
+
+    // Compute the minimum distance for the SCS-SCS, HP1-H, HP1-BS interactions (SCS-SCS, S-SCS, S-SCS)
+    // Try to be as explicit as possible with the parts that are associated with each of the interactions.
+    compute_ssd_and_cn_fixed_params_ = Teuchos::ParameterList().set(
+        "enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER",
+                                                               "SPHERE_SPHEROCYLINDER_SEGMENT_LINKER"));
+    compute_ssd_and_cn_fixed_params_.sublist("SPHERE_SPHEROCYLINDER_SEGMENT_LINKER")
+        .set("valid_entity_part_names", mundy::core::make_string_array("HP1_H_NEIGHBOR_GENXS", "HP1_BS_NEIGHBOR_GENXS"))
+        .set("valid_sphere_part_names", mundy::core::make_string_array("H", "BS"))
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("HP1S"));
+    compute_ssd_and_cn_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER")
+        .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_BACKBONE_NEIGHBOR_GENXS"))
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
+
+    // Set up the AABB for the system
+    compute_aabb_fixed_params_ = Teuchos::ParameterList().set(
+        "enabled_kernel_names", mundy::core::make_string_array("SPHERE", "SPHEROCYLINDER_SEGMENT"));
+    compute_aabb_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT")
+        .set("valid_entity_part_names", mundy::core::make_string_array("HP1S", "BACKBONE_SEGMENTS"));
+
+    // Generate the GENX neighbor linkers between spherocylinder segments
+    generate_scs_scs_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_technique_name", "STK_SEARCH")
+            .set("specialized_neighbor_linkers_part_names",
+                 mundy::core::make_string_array("BACKBONE_BACKBONE_NEIGHBOR_GENXS"));
+    generate_scs_scs_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
+        .set("valid_source_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
+
+    // Generate the GENX neighbor linkers between HP1 and H
+    generate_hp1_h_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_technique_name", "STK_SEARCH")
+            .set("specialized_neighbor_linkers_part_names", mundy::core::make_string_array("HP1_H_NEIGHBOR_GENXS"));
+    generate_hp1_h_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
+        .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("HP1S")))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("H"));
+
+    // Generate the GENX neighbor linkers between HP1 and BS
+    generate_hp1_bs_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_technique_name", "STK_SEARCH")
+            .set("specialized_neighbor_linkers_part_names", mundy::core::make_string_array("HP1_BS_NEIGHBOR_GENXS"));
+    generate_hp1_bs_neighbor_linkers_fixed_params_.sublist("STK_SEARCH")
+        .set("valid_source_entity_part_names", mundy::core::make_string_array(std::string("HP1S")))
+        .set("valid_target_entity_part_names", mundy::core::make_string_array("BS"));
+
+    // Evaluate the scs-scs hertzian contacts
+    evaluate_linker_potentials_fixed_params_ = Teuchos::ParameterList().set(
+        "enabled_kernel_names",
+        mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT"));
+    evaluate_linker_potentials_fixed_params_.sublist("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT")
+        .set("valid_spherocylinder_segment_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
+
+    // Reduce the forces on the spherocylinder segments
+    linker_potential_force_reduction_fixed_params_ =
+        Teuchos::ParameterList()
+            .set("enabled_kernel_names", mundy::core::make_string_array("SPHEROCYLINDER_SEGMENT"))
+            .set("name_of_linker_part_to_reduce_over", "BACKBONE_BACKBONE_NEIGHBOR_GENXS");
+
+    // Destroy the distant neighbors over time
+    destroy_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_DISTANT_NEIGHBORS");
+    destroy_neighbor_linkers_fixed_params_.sublist("DESTROY_DISTANT_NEIGHBORS")
+        .set("valid_entity_part_names", mundy::core::make_string_array("NEIGHBOR_LINKERS"))
+        .set("valid_connected_source_and_target_part_names",
+             mundy::core::make_string_array(std::string("SPHEROCYLINDER_SEGMENTS"), std::string("HP1S")));
+
+    // Destroy bound linkers to prevent pathological behavior along a chain
+    destroy_bound_neighbor_linkers_fixed_params_ =
+        Teuchos::ParameterList().set("enabled_technique_name", "DESTROY_BOUND_NEIGHBORS");
+
+    // Synchronize (merge and rectify differences) the requirements for each method based on the fixed parameters.
+    // For now, we will directly use the types that each method corresponds to. The configurator will
+    // fetch the static members of these methods using the configurable method factory.
+    mesh_reqs_ptr_->sync(
+        mundy::constraints::ComputeConstraintForcing::get_mesh_requirements(compute_constraint_forcing_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::get_mesh_requirements(
+        compute_ssd_and_cn_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::shapes::ComputeAABB::get_mesh_requirements(compute_aabb_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(
+        generate_scs_scs_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_hp1_h_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::GenerateNeighborLinkers::get_mesh_requirements(generate_hp1_bs_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::EvaluateLinkerPotentials::get_mesh_requirements(evaluate_linker_potentials_fixed_params_));
+    mesh_reqs_ptr_->sync(mundy::linkers::LinkerPotentialForceReduction::get_mesh_requirements(
+        linker_potential_force_reduction_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_neighbor_linkers_fixed_params_));
+    mesh_reqs_ptr_->sync(
+        mundy::linkers::DestroyNeighborLinkers::get_mesh_requirements(destroy_bound_neighbor_linkers_fixed_params_));
+
+    // The mesh requirements are now set up, so we solidify the mesh structure.
+    bulk_data_ptr_ = mesh_reqs_ptr_->declare_mesh();
+    meta_data_ptr_ = bulk_data_ptr_->mesh_meta_data_ptr();
+    meta_data_ptr_->use_simple_fields();
+    meta_data_ptr_->set_coordinate_field_name("NODE_COORDS");
+    meta_data_ptr_->commit();
+  }
+
+  template <typename FieldType>
+  stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
+    auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
+    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
+                       "Field " << field_name << " not found in the mesh meta data.");
+    return field_ptr;
+  }
+
+  stk::mesh::Part *fetch_part(const std::string &part_name) {
+    auto part_ptr = meta_data_ptr_->get_part(part_name);
+    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
+                       "Part " << part_name << " not found in the mesh meta data.");
+    return part_ptr;
+  }
+
+  void fetch_fields_and_parts() {
+    // Fetch the fields
+    node_coord_field_ptr_ = fetch_field<double>("NODE_COORDS", node_rank_);
+    node_velocity_field_ptr_ = fetch_field<double>("NODE_VELOCITY", node_rank_);
+    node_force_field_ptr_ = fetch_field<double>("NODE_FORCE", node_rank_);
+    node_rng_field_ptr_ = fetch_field<unsigned>("NODE_RNG_COUNTER", node_rank_);
+
+    element_rng_field_ptr_ = fetch_field<unsigned>("ELEMENT_RNG_COUNTER", element_rank_);
+    element_hookean_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
+    element_hookean_spring_rest_length_field_ptr_ =
+        fetch_field<double>("ELEMENT_HOOKEAN_SPRING_REST_LENGTH", element_rank_);
+    element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
+    element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
+    element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
+    element_aabb_field_ptr_ = fetch_field<double>("ELEMENT_AABB", element_rank_);
+    element_corner_displacement_field_ptr_ = fetch_field<double>("ACCUMULATED_AABB_CORNER_DISPLACEMENT", element_rank_);
+    element_binding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_);
+    element_unbinding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_UNBINDING_RATES", element_rank_);
+    element_perform_state_change_field_ptr_ = fetch_field<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_);
+
+    constraint_potential_force_field_ptr_ = fetch_field<double>("LINKER_POTENTIAL_FORCE", constraint_rank_);
+    constraint_state_change_rate_field_ptr_ =
+        fetch_field<double>("CONSTRAINT_STATE_CHANGE_PROBABILITY", constraint_rank_);
+    constraint_perform_state_change_field_ptr_ =
+        fetch_field<unsigned>("CONSTRAINT_PERFORM_STATE_CHANGE", constraint_rank_);
+    constraint_linked_entities_field_ptr_ =
+        fetch_field<mundy::linkers::LinkedEntitiesFieldType::value_type>("LINKED_NEIGHBOR_ENTITIES", constraint_rank_);
+    constraint_linked_entity_owners_field_ptr_ = fetch_field<int>("LINKED_NEIGHBOR_ENTITY_OWNERS", constraint_rank_);
+
+    // Fetch the parts
+    spheres_part_ptr_ = fetch_part("SPHERES");
+    e_part_ptr_ = fetch_part("E");
+    h_part_ptr_ = fetch_part("H");
+    bs_part_ptr_ = fetch_part("BS");
+
+    hp1_part_ptr_ = fetch_part("HP1S");
+    left_hp1_part_ptr_ = fetch_part("LEFT_HP1");
+    doubly_hp1_h_part_ptr_ = fetch_part("DOUBLY_HP1_H");
+    doubly_hp1_bs_part_ptr_ = fetch_part("DOUBLY_HP1_BS");
+
+    backbone_segments_part_ptr_ = fetch_part("BACKBONE_SEGMENTS");
+    ee_springs_part_ptr_ = fetch_part("EESPRINGS");
+    eh_springs_part_ptr_ = fetch_part("EHSPRINGS");
+    hh_springs_part_ptr_ = fetch_part("HHSPRINGS");
+
+    backbone_backbone_neighbor_genx_part_ptr_ = fetch_part("BACKBONE_BACKBONE_NEIGHBOR_GENXS");
+    hp1_h_neighbor_genx_part_ptr_ = fetch_part("HP1_H_NEIGHBOR_GENXS");
+    hp1_bs_neighbor_genx_part_ptr_ = fetch_part("HP1_BS_NEIGHBOR_GENXS");
+  }
+
+  void instantiate_metamethods() {
+    // Create the non-custom MetaMethods
+    // MetaMethodExecutionInterface
+
+    // MetaMethodSubsetExecutionInterface
+    compute_constraint_forcing_ptr_ = mundy::constraints::ComputeConstraintForcing::create_new_instance(
+        bulk_data_ptr_.get(), compute_constraint_forcing_fixed_params_);
+    compute_ssd_and_cn_ptr_ = mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::create_new_instance(
+        bulk_data_ptr_.get(), compute_ssd_and_cn_fixed_params_);
+    compute_aabb_ptr_ =
+        mundy::shapes::ComputeAABB::create_new_instance(bulk_data_ptr_.get(), compute_aabb_fixed_params_);
+    evaluate_linker_potentials_ptr_ = mundy::linkers::EvaluateLinkerPotentials::create_new_instance(
+        bulk_data_ptr_.get(), evaluate_linker_potentials_fixed_params_);
+    linker_potential_force_reduction_ptr_ = mundy::linkers::LinkerPotentialForceReduction::create_new_instance(
+        bulk_data_ptr_.get(), linker_potential_force_reduction_fixed_params_);
+    destroy_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_neighbor_linkers_fixed_params_);
+    destroy_bound_neighbor_linkers_ptr_ = mundy::linkers::DestroyNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), destroy_bound_neighbor_linkers_fixed_params_);
+
+    // MetaMethodPairwiseSubsetExecutionInterface
+    generate_scs_scs_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), generate_scs_scs_neighbor_linkers_fixed_params_);
+    generate_hp1_h_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), generate_hp1_h_neighbor_linkers_fixed_params_);
+    generate_hp1_bs_genx_ptr_ = mundy::linkers::GenerateNeighborLinkers::create_new_instance(
+        bulk_data_ptr_.get(), generate_hp1_bs_neighbor_linkers_fixed_params_);
+  }
+
+  void set_mutable_parameters() {
+    // ComputeAABB mutable parameters
+    auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", skin_distance_);
+    compute_aabb_ptr_->set_mutable_params(compute_aabb_mutable_params);
+  }
+
+  void setup_io_mundy() {
+    // Create a mundy io broker via it's fixed parameters
+    // Dump everything for now
+    auto fixed_params_iobroker =
+        Teuchos::ParameterList()
+            .set("enabled_io_parts",
+                 mundy::core::make_string_array("E", "H", "BS", "EESPRINGS", "EHSPRINGS", "HHSPRINGS", "LEFT_HP1",
+                                                "DOUBLY_HP1_H", "DOUBLY_HP1_BS"))
+            .set("enabled_io_fields_node_rank",
+                 mundy::core::make_string_array("NODE_VELOCITY", "NODE_FORCE", "NODE_RNG_COUNTER"))
+            .set("enabled_io_fields_element_rank",
+                 mundy::core::make_string_array("ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER",
+                                                "ELEMENT_REALIZED_BINDING_RATES", "ELEMENT_REALIZED_UNBINDING_RATES",
+                                                "ELEMENT_PERFORM_STATE_CHANGE"))
+            .set("coordinate_field_name", "NODE_COORDS")
+            .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
+            .set("exodus_database_output_filename", output_filename_)
+            .set("parallel_io_mode", "hdf5")
+            .set("database_purpose", "restart");
+    // Check for a restart
+    if (setup_run_ == SETUP_RUN::RESTART) {
+      fixed_params_iobroker.set("exodus_database_input_filename", restart_filename_);
+      fixed_params_iobroker.set("enable_restart", "true");
+    }
+    // Create the IO broker
+    io_broker_ptr_ = mundy::io::IOBroker::create_new_instance(bulk_data_ptr_.get(), fixed_params_iobroker);
+    io_broker_ptr_->print_io_broker();
+  }
+
+  void ghost_linked_entities() {
+    bulk_data_ptr_->modification_begin();
+    const stk::mesh::Selector linker_parts_selector = stk::mesh::selectUnion(stk::mesh::ConstPartVector{
+        backbone_backbone_neighbor_genx_part_ptr_, hp1_h_neighbor_genx_part_ptr_, hp1_bs_neighbor_genx_part_ptr_});
+    mundy::linkers::fixup_linker_entity_ghosting(*bulk_data_ptr_, *constraint_linked_entities_field_ptr_,
+                                                 *constraint_linked_entity_owners_field_ptr_, linker_parts_selector);
+    bulk_data_ptr_->modification_end();
+  }
+
+  void loadbalance() {
+    stk::balance::balanceStkMesh(balance_settings_, *bulk_data_ptr_);
+    ghost_linked_entities();
+  }
+
+  void rotate_field_states() {
+    bulk_data_ptr_->update_field_data_states();
+  }
+
+  // Create the chromatin backbone and HP1 crosslinkers
+  void create_chromatin_backbone_and_hp1() {
+    // Calculate some constants, like the total number of spheres or segments per chromosome
+    const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                               num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+    const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+    const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+    const size_t num_spheres_per_chromosome = num_nodes_per_chromosome;
+    const size_t num_segments_per_chromosome = num_nodes_per_chromosome - 1;
+
+    std::cout << "Per chromosome:\n";
+    std::cout << "num_heterochromatin_spheres: " << num_heterochromatin_spheres << std::endl;
+    std::cout << "num_euchromatin_spheres:     " << num_euchromatin_spheres << std::endl;
+    std::cout << "num_nodes_per_chromosome:    " << num_nodes_per_chromosome << std::endl;
+    std::cout << "num_spheres_per_chromosome:  " << num_spheres_per_chromosome << std::endl;
+    std::cout << "num_segments_per_chromosome: " << num_segments_per_chromosome << std::endl;
+
+    bulk_data_ptr_->modification_begin();
+
+    // Rank 0: Declare N chromatin chains randomly in space
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      for (size_t j = 0; j < num_chromosomes_; j++) {
+        std::cout << "Creating chromosome " << j << std::endl;
+
+        // Figure out the starting indices of the nodes and elements
+        size_t start_node_id = num_nodes_per_chromosome * j + 1u;
+        size_t start_element_id =
+            (num_spheres_per_chromosome + num_segments_per_chromosome + num_heterochromatin_spheres) * j + 1u;
+
+        // Helper functions for getting the IDs of various objects
+        auto get_node_id = [start_node_id](const size_t &seq_node_index) { return start_node_id + seq_node_index; };
+
+        auto get_sphere_id = [start_element_id](const size_t &seq_sphere_index) {
+          return start_element_id + seq_sphere_index;
+        };
+
+        auto get_segment_id = [start_element_id, num_spheres_per_chromosome](const size_t &seq_segment_index) {
+          return start_element_id + num_spheres_per_chromosome + seq_segment_index;
+        };
+
+        auto get_crosslinker_id = [start_element_id, num_spheres_per_chromosome,
+                                   num_segments_per_chromosome](const size_t &seq_crosslinker_index) {
+          return start_element_id + num_spheres_per_chromosome + num_segments_per_chromosome + seq_crosslinker_index;
+        };
+
+        // Try to use modulo math to determine region
+        const size_t num_heterochromatin_per_repeat = num_heterochromatin_per_repeat_;
+        const size_t num_euchromatin_per_repeat = num_euchromatin_per_repeat_;
+        auto get_region_by_id = [num_heterochromatin_per_repeat,
+                                 num_euchromatin_per_repeat](const size_t &seq_sphere_id) {
+          auto local_idx = seq_sphere_id % (num_heterochromatin_per_repeat + num_euchromatin_per_repeat);
+          return local_idx < num_heterochromatin_per_repeat ? std::string("H") : std::string("E");
+        };
+
+        // Show what a single chromatin chain would be in terms of membership
+        std::cout << "Regional map:" << std::endl;
+        for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
+          std::cout << get_region_by_id(i);
+        }
+        std::cout << std::endl;
+
+        // Temporary/scratch variables
+        stk::mesh::PartVector empty;
+
+        // Logically, it makes the most sense to march down the segments in a single chromosome, adjusting their part
+        // membership as we go. Do this across the elements of the chromatin backbone.
+        // Initialize the backbone such that we have different sphere types.
+        //  E : euchromatin spheres
+        //  H : heterochromatin spheres
+        // ---: backbone springs (EE, EH, or HH depending on attached spheres)
+        //
+        //  H---H---E---E---E---E---E---E---H---H
+        //
+        for (size_t segment_local_idx = 0; segment_local_idx < num_segments_per_chromosome; segment_local_idx++) {
+          // Keep track of the vertex IDs for part memebership (local index into array)
+          const size_t vertex_left_idx = segment_local_idx;
+          const size_t vertex_right_idx = segment_local_idx + 1;
+          // Process the nodes for this segment
+          stk::mesh::EntityId left_node_id = get_node_id(segment_local_idx);
+          stk::mesh::EntityId right_node_id = get_node_id(segment_local_idx + 1);
+
+          stk::mesh::Entity left_node = bulk_data_ptr_->get_entity(node_rank_, left_node_id);
+          stk::mesh::Entity right_node = bulk_data_ptr_->get_entity(node_rank_, right_node_id);
+          if (!bulk_data_ptr_->is_valid(left_node)) {
+            left_node = bulk_data_ptr_->declare_node(left_node_id, empty);
+          }
+          if (!bulk_data_ptr_->is_valid(right_node)) {
+            right_node = bulk_data_ptr_->declare_node(right_node_id, empty);
+          }
+
+          // Each node is attached to a sphere that is (H)eterochromatin, (E)uchromatin, or (BS)BindingSite
+          stk::mesh::EntityId left_sphere_id = get_sphere_id(segment_local_idx);
+          stk::mesh::EntityId right_sphere_id = get_sphere_id(segment_local_idx + 1);
+          stk::mesh::Entity left_sphere = bulk_data_ptr_->get_entity(element_rank_, left_sphere_id);
+          stk::mesh::Entity right_sphere = bulk_data_ptr_->get_entity(element_rank_, right_sphere_id);
+          if (!bulk_data_ptr_->is_valid(left_sphere)) {
+            // Figure out the part we belong to
+            stk::mesh::PartVector pvector;
+            if (get_region_by_id(vertex_left_idx) == "H") {
+              pvector.push_back(h_part_ptr_);
+            } else if (get_region_by_id(vertex_left_idx) == "E") {
+              pvector.push_back(e_part_ptr_);
+            }
+            // Declare the sphere and connect to it's node
+            left_sphere = bulk_data_ptr_->declare_element(left_sphere_id, pvector);
+            bulk_data_ptr_->declare_relation(left_sphere, left_node, 0);
+          }
+          if (!bulk_data_ptr_->is_valid(right_sphere)) {
+            // Figure out the part we belong to
+            stk::mesh::PartVector pvector;
+            if (get_region_by_id(vertex_right_idx) == "H") {
+              pvector.push_back(h_part_ptr_);
+            } else if (get_region_by_id(vertex_right_idx) == "E") {
+              pvector.push_back(e_part_ptr_);
+            }
+            // Declare the sphere and connect to it's node
+            right_sphere = bulk_data_ptr_->declare_element(right_sphere_id, pvector);
+            bulk_data_ptr_->declare_relation(right_sphere, right_node, 0);
+          }
+
+          // Figure out how to do the spherocylinder segments along the edges now
+          stk::mesh::Entity segment = bulk_data_ptr_->get_entity(element_rank_, get_segment_id(segment_local_idx));
+          if (!bulk_data_ptr_->is_valid(segment)) {
+            stk::mesh::PartVector pvector;
+            pvector.push_back(backbone_segments_part_ptr_);
+            if (get_region_by_id(vertex_left_idx) == "E" && get_region_by_id(vertex_right_idx) == "E") {
+              pvector.push_back(ee_springs_part_ptr_);
+            } else if (get_region_by_id(vertex_left_idx) == "E" && get_region_by_id(vertex_right_idx) == "H") {
+              pvector.push_back(eh_springs_part_ptr_);
+            } else if (get_region_by_id(vertex_left_idx) == "H" && get_region_by_id(vertex_right_idx) == "E") {
+              pvector.push_back(eh_springs_part_ptr_);
+            } else if (get_region_by_id(vertex_left_idx) == "H" && get_region_by_id(vertex_right_idx) == "H") {
+              pvector.push_back(hh_springs_part_ptr_);
+            }
+            segment = bulk_data_ptr_->declare_element(get_segment_id(segment_local_idx), pvector);
+            bulk_data_ptr_->declare_relation(segment, left_node, 0);
+            bulk_data_ptr_->declare_relation(segment, right_node, 1);
+          }
+        }
+
+        // Declare the crosslinkers along the backbone
+        // Every sphere gets a left bound crosslinker
+        //  E : euchromatin spheres
+        //  H : heterochromatin spheres
+        //  | : crosslinkers
+        // ---: backbone springs
+        //
+        //  |   |                           |   |
+        //  H---H---E---E---E---E---E---E---H---H
+
+        // March down the chain of spheres, adding crosslinkers as we go. We just want to add to the heterochromatin
+        // spheres, and so keep track of a running hp1_sphere_index.
+        size_t hp1_sphere_index = 0;
+        for (size_t sphere_local_idx = 0; sphere_local_idx < num_spheres_per_chromosome; sphere_local_idx++) {
+          stk::mesh::Entity sphere_node = bulk_data_ptr_->get_entity(node_rank_, get_node_id(sphere_local_idx));
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(sphere_node), std::invalid_argument,
+                             "Node " << sphere_local_idx << " is not valid.");
+          // Check if we are a heterochromatin sphere
+          if (get_region_by_id(sphere_local_idx) == "H") {
+            // Bind left and right nodes to the same node to start simulation (everybody is left bound)
+            // Create the HP1 crosslinker
+            auto left_bound_hp1_part_vector = stk::mesh::PartVector{left_hp1_part_ptr_};
+            stk::mesh::EntityId hp1_crosslinker_id = get_crosslinker_id(hp1_sphere_index);
+            stk::mesh::Entity hp1_crosslinker =
+                bulk_data_ptr_->declare_element(hp1_crosslinker_id, left_bound_hp1_part_vector);
+            stk::mesh::Permutation invalid_perm = stk::mesh::Permutation::INVALID_PERMUTATION;
+            bulk_data_ptr_->declare_relation(hp1_crosslinker, sphere_node, 0, invalid_perm);
+            bulk_data_ptr_->declare_relation(hp1_crosslinker, sphere_node, 1, invalid_perm);
+            MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(hp1_crosslinker).topology() != stk::topology::INVALID_TOPOLOGY,
+                               std::logic_error,
+                               "The crosslinker with id " << hp1_crosslinker_id << " has an invalid topology.");
+
+            hp1_sphere_index++;
+          }
+        }
+      }
+    }
+    bulk_data_ptr_->modification_end();
+  }
+
+#pragma TODO all of the initialization should become part of the chain of springs - like initialization
+  // Initialize the chromsomes on a grid
+  void initialize_chromosomes_grid() {
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      for (size_t j = 0; j < num_chromosomes_; j++) {
+        openrand::Philox rng(j, 0);
+        double jdouble = static_cast<double>(j);
+        mundy::math::Vector3<double> r_start(2.0 * jdouble, 0.0, 0.0);
+        // Add a tiny random change in X to make sure we don't wind up in perfectly parallel pathological states
+        mundy::math::Vector3<double> u_hat(rng.uniform<double>(0.0, 0.001), 0.0, 1.0);
+        u_hat = u_hat / mundy::math::two_norm(u_hat);
+
+        // Figure out which nodes we are doing
+        const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                   num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+        const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+        const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+        size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+        size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+        for (size_t i = start_node_index; i < end_node_index; ++i) {
+          stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+          // Assign the node coordinates
+          mundy::math::Vector3<double> r =
+              r_start + static_cast<double>(i - start_node_index) * initial_sphere_separation_ * u_hat;
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+        }
+      }
+    }
+  }
+
+  // Initialize the chromosomes randomly in the unit cell
+  void initialize_chromosomes_random_unit_cell() {
+    const bool is_sphere = periphery_shape_ == PERIPHERY_SHAPE::SPHERE;
+    const double periphery_bounding_box_half_length1 = is_sphere ? periphery_radius_ : periphery_axis_radius1_;
+    const double periphery_bounding_box_half_length2 = is_sphere ? periphery_radius_ : periphery_axis_radius2_;
+    const double periphery_bounding_box_half_length3 = is_sphere ? periphery_radius_ : periphery_axis_radius3_;
+
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      for (size_t j = 0; j < num_chromosomes_; j++) {
+        // Find a random place within the unit cell with a random orientation for the chain.
+        openrand::Philox rng(j, 0);
+        mundy::math::Vector3<double> r_start(
+            rng.uniform<double>(-periphery_bounding_box_half_length1, periphery_bounding_box_half_length1),
+            rng.uniform<double>(-periphery_bounding_box_half_length2, periphery_bounding_box_half_length2),
+            rng.uniform<double>(-periphery_bounding_box_half_length3, periphery_bounding_box_half_length3));
+        // Find a random unit vector direction
+        const double zrand = rng.rand<double>() - 1.0;
+        const double wrand = std::sqrt(1.0 - zrand * zrand);
+        const double trand = 2.0 * M_PI * rng.rand<double>();
+        mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+
+        // Figure out which nodes we are doing
+        const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                   num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+        const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+        const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+        size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+        size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+        for (size_t i = start_node_index; i < end_node_index; ++i) {
+          stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+          // Assign the node coordinates
+          mundy::math::Vector3<double> r =
+              r_start + static_cast<double>(i - start_node_index) * initial_sphere_separation_ * u_hat;
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+        }
+      }
+    }
+  }
+
+  // Initialize for the overlap test
+  void initialize_chromosomes_overlap_test() {
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      for (size_t j = 0; j < num_chromosomes_; j++) {
+        // Start like we are pretending to be on a grid
+        double jdouble = static_cast<double>(j);
+        mundy::math::Vector3<double> r_start(2.0 * jdouble, 0.0, 0.0);
+        mundy::math::Vector3<double> u_hat(0.0, 0.0, 1.0);
+
+        // If num_chromosomes == 2, then try to do the crosshatch for a timestep?
+        if (num_chromosomes_ == 2) {
+          if (j == 0) {
+            r_start = mundy::math::Vector3<double>(0.0, 0.0, 0.0);
+            u_hat = mundy::math::Vector3<double>(0.0, 0.0, 1.0);
+          } else if (j == 1) {
+            r_start = mundy::math::Vector3<double>(-5.0, 0.25, 5.0);
+            u_hat = mundy::math::Vector3<double>(1.0, 0.0, 0.0);
+          }
+        }
+
+        // Figure out which nodes we are doing
+        const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                   num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+        const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+        const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+        size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+        size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+        for (size_t i = start_node_index; i < end_node_index; ++i) {
+          stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+          // Assign the node coordinates
+          mundy::math::Vector3<double> r =
+              r_start + static_cast<double>(i - start_node_index) * initial_sphere_separation_ * u_hat;
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+        }
+      }
+    }
+  }
+
+  // Initialize the chromosomes randomly in the unit cell
+  //
+  // If we want to initialize uniformly inside a sphere packing, here are the coordinates for a given number of spheres
+  // within a bigger sphere.
+  // http://hydra.nat.uni-magdeburg.de/packing/ssp/ssp.html
+  void initialize_chromosomes_hilbert_random_unit_cell() {
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      const double radius =
+          ((periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ? periphery_radius_ : periphery_axis_radius1_) -
+          periphery_standoff_distance_;
+      std::vector<mundy::math::Vector3<double>> chromosome_centers_array;
+      std::vector<double> chromosome_radii_array;
+      for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
+        // Figure out which nodes we are doing
+        const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                   num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+        const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+        const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+        size_t start_node_index = num_nodes_per_chromosome * ichromosome + 1u;
+        size_t end_node_index = num_nodes_per_chromosome * (ichromosome + 1) + 1u;
+
+        // Generate a random unit vector (will be used for creating the locatino of the nodes, the random position in
+        // the unit cell will be handled later).
+        openrand::Philox rng(ichromosome, 0);
+        const double zrand = rng.rand<double>() - 1.0;
+        const double wrand = std::sqrt(1.0 - zrand * zrand);
+        const double trand = 2.0 * M_PI * rng.rand<double>();
+        mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+
+        // Once we have the number of chromosome spheres we can get the hilbert curve set up. This will be at some
+        // orientation and then have sides with a length of initial_sphere_separation_.
+        auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
+            num_nodes_per_chromosome, u_hat, initial_sphere_separation_);
+
+        // Create the local positions of the spheres
+        std::vector<mundy::math::Vector3<double>> sphere_position_array;
+        for (size_t isphere = 0; isphere < num_nodes_per_chromosome; isphere++) {
+          sphere_position_array.push_back(hilbert_position_array[isphere]);
+        }
+
+        // Figure out where the center of the chromosome is, and its radius, in its own local space
+        mundy::math::Vector3<double> r_chromosome_center_local(0.0, 0.0, 0.0);
+        double r_max = 0.0;
+        for (size_t i = 0; i < sphere_position_array.size(); i++) {
+          r_chromosome_center_local += sphere_position_array[i];
+        }
+        r_chromosome_center_local /= static_cast<double>(sphere_position_array.size());
+        for (size_t i = 0; i < sphere_position_array.size(); i++) {
+          r_max = std::max(r_max, mundy::math::two_norm(r_chromosome_center_local - sphere_position_array[i]));
+        }
+
+        // Do max_trials number of insertion attempts to get a random position and orientation within the unit cell that
+        // doesn't overlap with exiting chromosomes.
+        const size_t max_trials = 1000;
+        size_t itrial = 0;
+        bool chromosome_inserted = false;
+        while (itrial <= max_trials) {
+          // Generate a random position and orientation within the unit cell as a sphere.
+
+          // Create an adjusted length to keep the chromosome away from the wall, and inside a sphere. There is a
+          // non-sampling way to do this, but meh. Start with a radius that is way outside the periphery.
+          mundy::math::Vector3<double> r_start(2.0 * radius, 2.0 * radius, 2.0 * radius);
+          const double periphery_radius_squared = radius * radius;
+          while (mundy::math::dot(r_start, r_start) > periphery_radius_squared) {
+            r_start = mundy::math::Vector3<double>(rng.uniform<double>(-1.0 * radius, radius),
+                                                   rng.uniform<double>(-1.0 * radius, radius),
+                                                   rng.uniform<double>(-1.0 * radius, radius));
+          }
+
+          // Check for overlaps with existing chromosomes
+          bool found_overlap = false;
+          for (size_t jchromosome = 0; jchromosome < chromosome_centers_array.size(); ++jchromosome) {
+            double r_chromosome_distance = mundy::math::two_norm(chromosome_centers_array[jchromosome] - r_start);
+            if (r_chromosome_distance < (r_max + chromosome_radii_array[jchromosome])) {
+              found_overlap = true;
+              break;
+            }
+          }
+          if (found_overlap) {
+            itrial++;
+          } else {
+            chromosome_inserted = true;
+            chromosome_centers_array.push_back(r_start);
+            chromosome_radii_array.push_back(r_max);
+            break;
+          }
+        }
+        MUNDY_THROW_ASSERT(chromosome_inserted, std::runtime_error,
+                           "Failed to insert chromosome after " << max_trials << " trials.");
+
+        // Generate all the positions along the curve due to the placement in the global space
+        std::vector<mundy::math::Vector3<double>> new_position_array;
+        for (size_t i = 0; i < sphere_position_array.size(); i++) {
+          new_position_array.push_back(chromosome_centers_array.back() + r_chromosome_center_local -
+                                       sphere_position_array[i]);
+        }
+
+        // Update the coordinates for this chromosome
+        for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
+          stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+          // Assign the node coordinates
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = new_position_array[idx][0];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = new_position_array[idx][1];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = new_position_array[idx][2];
+        }
+      }
+    }
+  }
+
+  // Initialize a single chromosome centered in the unit cell
+  void initialize_chromosomes_hilbert_centered_unit_cell() {
+    // Throw if we have more than 1 chromosome
+    MUNDY_THROW_ASSERT(num_chromosomes_ == 1, std::runtime_error,
+                       "This function is only for initializing a single chromosome.");
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      std::cout << "Placing chromosome at the origin\n";
+      // Figure out which nodes we are doing
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = 1u;
+      size_t end_node_index = num_nodes_per_chromosome + 1u;
+
+      // Set the orientation of the chromosome to something we know
+      mundy::math::Vector3<double> u_hat(1.0, 0.0, 0.0);
+
+      // Once we have the number of chromosome spheres we can get the hilbert curve set up. This will be at some
+      // orientation and then have sides with a length of initial_sphere_separation_.
+      auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
+          num_nodes_per_chromosome, u_hat, initial_sphere_separation_);
+      // Create the local positions of the spheres
+      std::vector<mundy::math::Vector3<double>> sphere_position_array;
+      for (size_t isphere = 0; isphere < num_nodes_per_chromosome; isphere++) {
+        sphere_position_array.push_back(hilbert_position_array[isphere]);
+      }
+      // Figure out where the center of the chromosome is, and its radius, in its own local space
+      mundy::math::Vector3<double> r_chromosome_center_local(0.0, 0.0, 0.0);
+      for (size_t i = 0; i < sphere_position_array.size(); i++) {
+        r_chromosome_center_local += sphere_position_array[i];
+      }
+      r_chromosome_center_local /= static_cast<double>(sphere_position_array.size());
+
+      // Insert the chromosome into the center of the unit cell
+      mundy::math::Vector3<double> r_start(0.0, 0.0, 0.0);
+
+      // Generate all the positions along the curve due to the placement in the global space
+      std::vector<mundy::math::Vector3<double>> new_position_array;
+      for (size_t i = 0; i < sphere_position_array.size(); i++) {
+        new_position_array.push_back(r_start + r_chromosome_center_local - sphere_position_array[i]);
+      }
+
+      // Update the coordinates for this chromosome
+      for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = new_position_array[idx][0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = new_position_array[idx][1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = new_position_array[idx][2];
+      }
+    }
+  }
+
+  // Initialize the chromatin backbone and HP1 linkers based on part membership
+  //
+  // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
+  // parts.
+  void initialize_chromatin_backbone_and_hp1() {
+    // Initialize the backbone springs (EE, EH, HH)
+    const stk::mesh::Selector backbone_segments = *ee_springs_part_ptr_ | *eh_springs_part_ptr_ | *hh_springs_part_ptr_;
+    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_youngs_modulus_field_ptr_,
+                                              std::array<double, 1>{backbone_youngs_modulus_});
+    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_poissons_ratio_field_ptr_,
+                                              std::array<double, 1>{backbone_poissons_ratio_});
+    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_radius_field_ptr_,
+                                              std::array<double, 1>{backbone_excluded_volume_radius_});
+    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_constant_field_ptr_,
+                                              std::array<double, 1>{chromatin_spring_constant_});
+    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_rest_length_field_ptr_,
+                                              std::array<double, 1>{chromatin_spring_rest_length_});
+
+    // Initialize HP1 springs
+    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_hookean_spring_constant_field_ptr_,
+                                              std::array<double, 1>{crosslinker_spring_constant_});
+    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_hookean_spring_rest_length_field_ptr_,
+                                              std::array<double, 1>{crosslinker_rest_length_});
+    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_rng_field_ptr_, std::array<unsigned, 1>{0});
+    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_radius_field_ptr_,
+                                              std::array<double, 1>{crosslinker_rcut_});
+
+    // Initialize the hydrodynamic spheres
+    const stk::mesh::Selector chromatin_spheres = *e_part_ptr_ | *h_part_ptr_;
+    mundy::mesh::utils::fill_field_with_value(chromatin_spheres, *element_radius_field_ptr_,
+                                              std::array<double, 1>{sphere_hydrodynamic_radius_});
+
+    // Initialize node positions for each chromosome
+    if (setup_run_ != SETUP_RUN::RESTART) {
+      if (initialization_type_ == "GRID") {
+        initialize_chromosomes_grid();
+      } else if (initialization_type_ == "RANDOM_UNIT_CELL") {
+        initialize_chromosomes_random_unit_cell();
+      } else if (initialization_type_ == "OVERLAP_TEST") {
+        initialize_chromosomes_overlap_test();
+      } else if (initialization_type_ == "HILBERT_RANDOM_UNIT_CELL") {
+        initialize_chromosomes_hilbert_random_unit_cell();
+      } else if (initialization_type_ == "HILBERT_CENTERED_UNIT_CELL") {
+        initialize_chromosomes_hilbert_centered_unit_cell();
+      } else {
+        MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
+      }
+    }
+  }
+
+  void declare_and_initialize_hp1() {
+    if (setup_run_ != SETUP_RUN::RESTART) {
+      create_chromatin_backbone_and_hp1();
+    }
+    initialize_chromatin_backbone_and_hp1();
+  }
+
+  void initialize_hydrodynamic_periphery() {
+    if ((periphery_quadrature_ == PERIPHERY_QUADRATURE::GAUSS_LEGENDRE) &&
+        ((periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ||
+         ((periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) && (periphery_axis_radius1_ == periphery_axis_radius2_) &&
+          (periphery_axis_radius2_ == periphery_axis_radius3_) &&
+          (periphery_axis_radius3_ == periphery_axis_radius1_)))) {
+      // Generate the quadrature points and weights for the sphere
+      std::vector<double> points_vec;
+      std::vector<double> weights_vec;
+      std::vector<double> normals_vec;
+      const bool invert = true;
+      const bool include_poles = false;
+      const size_t spectral_order = periphery_spectral_order_;
+      const double radius = (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) ? periphery_radius_ : periphery_axis_radius1_;
+      mundy::alens::periphery::gen_sphere_quadrature(spectral_order, radius, &points_vec, &weights_vec, &normals_vec,
+                                                     include_poles, invert);
+
+      // Create the periphery object
+      const size_t num_surface_nodes = weights_vec.size();
+      periphery_ptr_ = std::make_shared<mundy::alens::periphery::Periphery>(num_surface_nodes, viscosity_);
+      periphery_ptr_->set_surface_positions(points_vec.data())
+          .set_quadrature_weights(weights_vec.data())
+          .set_surface_normals(normals_vec.data());
+    } else if (periphery_quadrature_ == PERIPHERY_QUADRATURE::FROM_FILE) {
+      periphery_ptr_ =
+          std::make_shared<mundy::alens::periphery::Periphery>(periphery_num_quadrature_points_, viscosity_);
+      periphery_ptr_->set_surface_positions(periphery_quadrature_points_filename_)
+          .set_quadrature_weights(periphery_quadrature_weights_filename_)
+          .set_surface_normals(periphery_quadrature_normals_filename_);
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "We currently only support GAUSS_LEGENDRE quadrature for "
+                         "spheres and ellipsoids with equal radii or direct specification of the quadrature from a "
+                         "file using FROM_FILE.");
+    }
+
+    // Run the precomputation for the inverse self-interaction matrix
+    const bool write_to_file = false;
+    periphery_ptr_->build_inverse_self_interaction_matrix(write_to_file);
+  }
+
+  void declare_and_initialize_periphery_bind_sites() {
+    // Declare first
+    bulk_data_ptr_->modification_begin();
+    std::vector<std::size_t> requests(meta_data_ptr_->entity_rank_count(), 0);
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      requests[stk::topology::NODE_RANK] = periphery_num_bind_sites_;
+      requests[stk::topology::ELEMENT_RANK] = periphery_num_bind_sites_;
+    }
+    std::vector<stk::mesh::Entity> requested_entities;
+    bulk_data_ptr_->generate_new_entities(requests, requested_entities);
+    bulk_data_ptr_->change_entity_parts(requested_entities, stk::mesh::PartVector{bs_part_ptr_},
+                                        stk::mesh::PartVector{});
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      for (size_t i = 0; i < periphery_num_bind_sites_; i++) {
+        const stk::mesh::Entity &node_i = requested_entities[i];
+        const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+        bulk_data_ptr_->declare_relation(sphere_i, node_i, 0);
+      }
+    }
+    bulk_data_ptr_->modification_end();
+
+    // Initialize second
+    if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
+      // Sample the bind sites randomly on the surface of the periphery
+      openrand::Philox rng(1234, 0);
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        if (bulk_data_ptr_->parallel_rank() == 0) {
+          for (size_t i = 0; i < periphery_num_bind_sites_; i++) {
+            const stk::mesh::Entity &node_i = requested_entities[i];
+            const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+            double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+
+            const double u1 = rng.rand<double>();
+            const double u2 = rng.rand<double>();
+            const double theta = 2.0 * M_PI * u1;
+            const double phi = std::acos(2.0 * u2 - 1.0);
+            node_coords[0] = periphery_radius_ * std::sin(phi) * std::cos(theta);
+            node_coords[1] = periphery_radius_ * std::sin(phi) * std::sin(theta);
+            node_coords[2] = periphery_radius_ * std::cos(phi);
+          }
+        }
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        if (bulk_data_ptr_->parallel_rank() == 0) {
+          const double a = periphery_axis_radius1_;
+          const double b = periphery_axis_radius2_;
+          const double c = periphery_axis_radius3_;
+          const double inv_mu_max = 1.0 / std::max({b * c, a * c, a * b});
+          auto keep = [&a, &b, &c, &inv_mu_max, &rng](double x, double y, double z) {
+            const double mu_xyz =
+                std::sqrt((b * c * x) * (b * c * x) + (a * c * y) * (a * c * y) + (a * b * z) * (a * b * z));
+            return inv_mu_max * mu_xyz > rng.rand<double>();
+          };
+
+          for (size_t i = 0; i < periphery_num_bind_sites_; i++) {
+            const stk::mesh::Entity &node_i = requested_entities[i];
+            const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+            double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+
+            while (true) {
+              // Generate a random point on the unit sphere
+              const double u1 = rng.rand<double>();
+              const double u2 = rng.rand<double>();
+              const double theta = 2.0 * M_PI * u1;
+              const double phi = std::acos(2.0 * u2 - 1.0);
+              node_coords[0] = std::sin(phi) * std::cos(theta);
+              node_coords[1] = std::sin(phi) * std::sin(theta);
+              node_coords[2] = std::cos(phi);
+
+              // Keep this point with probability proportional to the surface area element
+              if (keep(node_coords[0], node_coords[1], node_coords[2])) {
+                // Pushforward the point to the ellipsoid
+                node_coords[0] *= a;
+                node_coords[1] *= b;
+                node_coords[2] *= c;
+                break;
+              }
+            }
+          }
+        }
+      } else {
+        MUNDY_THROW_ASSERT(
+            false, std::invalid_argument,
+            "Unknown periphery shape. Recieved: " << periphery_shape_ << " but expected SPHERE or ELLIPSOID.");
+      }
+    } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
+      if (bulk_data_ptr_->parallel_rank() == 0) {
+        std::ifstream infile(periphery_bind_site_locations_filename_, std::ios::binary);
+        if (!infile) {
+          std::cerr << "Failed to open file: " << periphery_bind_site_locations_filename_ << std::endl;
+          return;
+        }
+
+        // Parse the input
+        size_t num_elements;
+        infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
+        MUNDY_THROW_ASSERT(
+            num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
+            "Num bind sites mismatch: expected " << periphery_num_bind_sites_ << ", got " << num_elements / 3);
+        for (size_t i = 0; i < periphery_num_bind_sites_; ++i) {
+          const stk::mesh::Entity &node_i = requested_entities[i];
+          const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
+          double *node_coords = stk::mesh::field_data(*node_coord_field_ptr_, node_i);
+          for (size_t j = 0; j < 3; ++j) {
+            infile.read(reinterpret_cast<char *>(&node_coords[3 * i + j]), sizeof(double));
+          }
+        }
+
+        // Close the file
+        infile.close();
+      }
+    } else {
+      MUNDY_THROW_ASSERT(false, std::invalid_argument,
+                         "Unknown periphery bind sites type. Recieved: " << periphery_bind_sites_type_
+                                                                         << " but expected RANDOM or FROM_FILE.");
+    }
+  }
+
+  void zero_out_transient_node_fields() {
+    mundy::mesh::utils::fill_field_with_value<double>(*node_velocity_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*node_force_field_ptr_, std::array<double, 3>{0.0, 0.0, 0.0});
+  }
+
+  void zero_out_transient_element_fields() {
+    mundy::mesh::utils::fill_field_with_value<double>(*element_binding_rates_field_ptr_,
+                                                      std::array<double, 2>{0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*element_unbinding_rates_field_ptr_,
+                                                      std::array<double, 2>{0.0, 0.0});
+    mundy::mesh::utils::fill_field_with_value<unsigned>(*element_perform_state_change_field_ptr_,
+                                                        std::array<unsigned, 1>{0u});
+  }
+
+  void zero_out_transient_constraint_fields() {
+    mundy::mesh::utils::fill_field_with_value<unsigned>(*constraint_perform_state_change_field_ptr_,
+                                                        std::array<unsigned, 1>{0u});
+    mundy::mesh::utils::fill_field_with_value<double>(*constraint_state_change_rate_field_ptr_,
+                                                      std::array<double, 1>{0.0});
+    mundy::mesh::utils::fill_field_with_value<double>(*constraint_potential_force_field_ptr_,
+                                                      std::array<double, 3>{0.0, 0.0, 0.0});
+  }
+
+  void zero_out_accumulator_fields() {
+    mundy::mesh::utils::fill_field_with_value<double>(*element_corner_displacement_field_ptr_,
+                                                      std::array<double, 6>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+  }
+
+  void detect_neighbors_initial() {
+    Kokkos::Profiling::pushRegion("HP1::detect_neighbors_initial");
+
+    last_neighborlist_update_step_ = 0;
+    neighborlist_update_timer_.reset();
+
+    // ComputeAABB for everyone (assume same buffer distance)
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto h_selector = stk::mesh::Selector(*h_part_ptr_);
+    auto bs_selector = stk::mesh::Selector(*bs_part_ptr_);
+
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+    auto hp1_h_neighbor_genx_selector = stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_);
+    auto hp1_bs_neighbor_genx_selector = stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_);
+
+    compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
+    destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
+                                           hp1_bs_neighbor_genx_selector);
+
+    // Generate the GENX neighbor linkers
+    generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
+    ghost_linked_entities();
+    generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
+    ghost_linked_entities();
+    generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
+    ghost_linked_entities();
+
+    // Destroy linkers along backbone chains
+    destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    ghost_linked_entities();
+    Kokkos::Profiling::popRegion();
+  }
+
+  void detect_neighbors() {
+    Kokkos::Profiling::pushRegion("HP1::detect_neighbors");
+
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto h_selector = stk::mesh::Selector(*h_part_ptr_);
+    auto bs_selector = stk::mesh::Selector(*bs_part_ptr_);
+
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+    auto hp1_h_neighbor_genx_selector = stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_);
+    auto hp1_bs_neighbor_genx_selector = stk::mesh::Selector(*hp1_bs_neighbor_genx_part_ptr_);
+
+    // ComputeAABB for everybody at each time step. The accumulator then always uses this updated information to
+    // calculate if we need to update the entire neighbor list.
+    compute_aabb_ptr_->execute(spheres_selector | backbone_segments_selector | hp1_selector);
+    update_accumulators();
+
+    // Check if we need to update the neighbor list. Eventually this will be replaced with a mesh attribute to
+    // synchronize across multiple tasks. For now, make sure that the default is to not update neighbor lists.
+    check_update_neighbor_list();
+
+    // Now do a check to see if we need to update the neighbor list.
+    if (((force_neighborlist_update_) && (timestep_index_ % force_neighborlist_update_nsteps_ == 0)) ||
+        update_neighbor_list_) {
+      // Read off the timing information before doing anything else and reset it
+      auto elapsed_steps = timestep_index_ - last_neighborlist_update_step_;
+      auto elapsed_time = neighborlist_update_timer_.seconds();
+      neighborlist_update_steps_times_.push_back(std::make_tuple(timestep_index_, elapsed_steps, elapsed_time));
+      last_neighborlist_update_step_ = timestep_index_;
+      neighborlist_update_timer_.reset();
+
+      // Reset the accumulators
+      zero_out_accumulator_fields();
+
+      // Update the neighbor list
+      destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
+                                             hp1_bs_neighbor_genx_selector);
+      ghost_linked_entities();
+
+      // Generate the GENX neighbor linkers
+      generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
+      ghost_linked_entities();
+      generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
+      ghost_linked_entities();
+      generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
+      ghost_linked_entities();
+
+      // Destroy linkers along backbone chains
+      destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+      ghost_linked_entities();
+    }
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_accumulators() {
+#pragma TODO This will be at the mercy of periodic boundary condition calculations.
+    Kokkos::Profiling::pushRegion("HP1::update_accumulators");
+
+    // Selectors and aliases
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_aabb_field_old = element_aabb_field.field_of_state(stk::mesh::StateN);
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+
+    stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
+
+    // Update the accumulators based on the difference to the previous state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
+        [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_aabb = stk::mesh::field_data(element_aabb_field, aabb_entity);
+          double *element_aabb_old = stk::mesh::field_data(element_aabb_field_old, aabb_entity);
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Add the (new_aabb - old_aabb) to the corner displacement
+          element_corner_displacement[0] += element_aabb[0] - element_aabb_old[0];
+          element_corner_displacement[1] += element_aabb[1] - element_aabb_old[1];
+          element_corner_displacement[2] += element_aabb[2] - element_aabb_old[2];
+          element_corner_displacement[3] += element_aabb[3] - element_aabb_old[3];
+          element_corner_displacement[4] += element_aabb[4] - element_aabb_old[4];
+          element_corner_displacement[5] += element_aabb[5] - element_aabb_old[5];
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void check_update_neighbor_list() {
+    Kokkos::Profiling::pushRegion("HP1::check_update_neighbor_list");
+
+    // Local variable for if we should update the neighbor list (do as an integer for now because MPI doesn't like
+    // bools)
+    int local_update_neighbor_list_int = 0;
+
+    // Selectors and aliases
+    auto spheres_selector = stk::mesh::Selector(*spheres_part_ptr_);
+    auto backbone_segments_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+
+    stk::mesh::Field<double> &element_corner_displacement_field = *element_corner_displacement_field_ptr_;
+    const double skin_distance2_over4 = 0.25 * skin_distance_ * skin_distance_;
+
+    stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
+
+    // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
+        [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
+          // Get the dr for each element (should be able to just do an addition of the difference) into the accumulator.
+          double *element_corner_displacement = stk::mesh::field_data(element_corner_displacement_field, aabb_entity);
+
+          // Compute dr2 for each corner
+          double dr2_corner0 = element_corner_displacement[0] * element_corner_displacement[0] +
+                               element_corner_displacement[1] * element_corner_displacement[1] +
+                               element_corner_displacement[2] * element_corner_displacement[2];
+          double dr2_corner1 = element_corner_displacement[3] * element_corner_displacement[3] +
+                               element_corner_displacement[4] * element_corner_displacement[4] +
+                               element_corner_displacement[5] * element_corner_displacement[5];
+
+          if (dr2_corner0 >= skin_distance2_over4 || dr2_corner1 >= skin_distance2_over4) {
+            local_update_neighbor_list_int = 1;
+          }
+        });
+
+    // Communicate local_update_neighbor_list to all ranks. Convert to an integer first (MPI doesn't handle booleans
+    // well).
+    int global_update_neighbor_list_int = 0;
+    MPI_Allreduce(&local_update_neighbor_list_int, &global_update_neighbor_list_int, 1, MPI_INT, MPI_LOR,
+                  MPI_COMM_WORLD);
+    // Convert back to the boolean for the global version and or it with the original value (in case somebody else set
+    // the neighbor list update 'signal').
+    update_neighbor_list_ = update_neighbor_list_ || (global_update_neighbor_list_int == 1);
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Compute the Z-partition function score for left-bound crosslinkers
+  void compute_z_partition_left_bound_harmonic() {
+    Kokkos::Profiling::pushRegion("HP1::compute_z_partition_left_bound_harmonic");
+
+    // Selectors and aliases
+    const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    const stk::mesh::Field<double> &constraint_state_change_probability = *constraint_state_change_rate_field_ptr_;
+    const stk::mesh::Field<double> &crosslinker_spring_constant = *element_hookean_spring_constant_field_ptr_;
+    const stk::mesh::Field<double> &crosslinker_spring_rest_length = *element_hookean_spring_rest_length_field_ptr_;
+    const mundy::linkers::LinkedEntitiesFieldType &constraint_linked_entities_field =
+        *constraint_linked_entities_field_ptr_;
+    stk::mesh::Part &left_hp1_part = *left_hp1_part_ptr_;
+    stk::mesh::Part &hp1_h_neighbor_genx_part = *hp1_h_neighbor_genx_part_ptr_;
+    const double inv_kt = 1.0 / kt_kmc_;
+    const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
+
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, hp1_h_neighbor_genx_part,
+        [&node_coord_field, &constraint_linked_entities_field, &constraint_state_change_probability,
+         &crosslinker_spring_constant, &crosslinker_spring_rest_length, &left_hp1_part, &inv_kt,
+         &crosslinker_right_binding_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                          const stk::mesh::Entity &neighbor_genx) {
+          // Get the sphere and crosslinker attached to the linker.
+          const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+              stk::mesh::field_data(constraint_linked_entities_field, neighbor_genx));
+          const stk::mesh::Entity &crosslinker = bulk_data.get_entity(key_t_ptr[0]);
+          const stk::mesh::Entity &sphere = bulk_data.get_entity(key_t_ptr[1]);
+
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(crosslinker), std::invalid_argument,
+                             "Encountered invalid crosslinker entity in compute_z_partition_left_bound_harmonic.");
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(sphere), std::invalid_argument,
+                             "Encountered invalid sphere entity in compute_z_partition_left_bound_harmonic.");
+
+          // We need to figure out if this is a self-interaction or not. Since we are a left-bound crosslinker.
+          const stk::mesh::Entity &sphere_node = bulk_data.begin_nodes(sphere)[0];
+          bool is_self_interaction = false;
+          if (bulk_data.bucket(crosslinker).member(left_hp1_part)) {
+            is_self_interaction = bulk_data.begin_nodes(crosslinker)[0] == sphere_node;
+          }
+
+          // Only act on the left-bound crosslinkers
+          if (bulk_data.bucket(crosslinker).member(left_hp1_part) && !is_self_interaction) {
+            const auto dr = mundy::mesh::vector3_field_data(node_coord_field, sphere_node) -
+                            mundy::mesh::vector3_field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0]);
+            const double dr_mag = mundy::math::norm(dr);
+
+            // Compute the Z-partition score
+            // Z = A * exp(-0.5 * 1/kt * k * (dr - r0)^2)
+            // A = crosslinker_binding_rates
+            // k = crosslinker_spring_constant
+            // r0 = crosslinker_spring_rest_length
+            const double A = crosslinker_right_binding_rate;
+            const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
+            const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
+            double Z = A * std::exp(-0.5 * inv_kt * k * (dr_mag - r0) * (dr_mag - r0));
+            stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
+          }
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Compute the Z-partition function score for doubly_bound crosslinkers
+  void compute_z_partition_doubly_bound_harmonic() {
+    Kokkos::Profiling::pushRegion("HP1::compute_z_partition_doubly_bound_harmonic");
+
+    // Selectors and aliases
+    const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    const stk::mesh::Field<double> &crosslinker_unbinding_rates = *element_unbinding_rates_field_ptr_;
+    stk::mesh::Part &doubly_hp1_h_part = *doubly_hp1_h_part_ptr_;
+    const double &crosslinker_right_unbinding_rate = crosslinker_right_unbinding_rate_;
+
+    // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only.
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_hp1_h_part,
+        [&node_coord_field, &crosslinker_unbinding_rates, &doubly_hp1_h_part, &crosslinker_right_unbinding_rate](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
+          // This is a left-bound crosslinker, so just calculate the right unbinding rate and store on the crosslinker
+          // itself in the correct position.
+          stk::mesh::field_data(crosslinker_unbinding_rates, crosslinker)[1] = crosslinker_right_unbinding_rate;
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Compute the Z-partition function for everybody
+  void compute_z_partition() {
+    Kokkos::Profiling::pushRegion("HP1::compute_z_partition");
+
+    // Compute the left-bound to doubly-bound score
+    compute_z_partition_left_bound_harmonic();
+
+    // Compute the doubly-bound to left-bound score
+    compute_z_partition_doubly_bound_harmonic();
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void kmc_crosslinker_left_to_doubly() {
+    Kokkos::Profiling::pushRegion("HP1::kmc_crosslinker_left_to_doubly");
+
+    // Selectors and aliases
+    stk::mesh::Part &hp1_h_neighbor_genx_part = *hp1_h_neighbor_genx_part_ptr_;
+    stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
+    stk::mesh::Field<unsigned> &element_perform_state_change_field = *element_perform_state_change_field_ptr_;
+    stk::mesh::Field<unsigned> &constraint_perform_state_change_field = *constraint_perform_state_change_field_ptr_;
+    stk::mesh::Field<double> &constraint_state_change_rate_field = *constraint_state_change_rate_field_ptr_;
+    const mundy::linkers::LinkedEntitiesFieldType &constraint_linked_entities_field =
+        *constraint_linked_entities_field_ptr_;
+    const double &timestep_size = timestep_size_;
+    stk::mesh::Part &left_hp1_part = *left_hp1_part_ptr_;
+
+    // Loop over left-bound crosslinkers and decide if they bind or not
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_hp1_part,
+        [&hp1_h_neighbor_genx_part, &element_rng_field, &constraint_perform_state_change_field,
+         &element_perform_state_change_field, &constraint_state_change_rate_field, &constraint_linked_entities_field,
+         &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
+          // Get all of my associated crosslinker_sphere_linkers
+          const stk::mesh::Entity &any_arbitrary_crosslinker_node = bulk_data.begin_nodes(crosslinker)[0];
+          const stk::mesh::Entity *neighbor_genx_linkers =
+              bulk_data.begin(any_arbitrary_crosslinker_node, stk::topology::CONSTRAINT_RANK);
+          const unsigned num_neighbor_genx_linkers =
+              bulk_data.num_connectivity(any_arbitrary_crosslinker_node, stk::topology::CONSTRAINT_RANK);
+
+          // Loop over the attached crosslinker_sphere_linkers and bind if the rqng falls in their range.
+          double z_tot = 0.0;
+          for (unsigned j = 0; j < num_neighbor_genx_linkers; j++) {
+            const auto &constraint_rank_entity = neighbor_genx_linkers[j];
+            const bool is_hp1_h_neighbor_genx =
+                bulk_data.bucket(constraint_rank_entity).member(hp1_h_neighbor_genx_part);
+            if (is_hp1_h_neighbor_genx) {
+              const double z_i =
+                  timestep_size * stk::mesh::field_data(constraint_state_change_rate_field, constraint_rank_entity)[0];
+              z_tot += z_i;
+            }
+          }
+
+          // Fetch the RNG state, get a random number out of it, and increment
+          unsigned *element_rng_counter = stk::mesh::field_data(element_rng_field, crosslinker);
+          const stk::mesh::EntityId crosslinker_gid = bulk_data.identifier(crosslinker);
+          openrand::Philox rng(crosslinker_gid, element_rng_counter[0]);
+          const double randu01 = rng.rand<double>();
+          element_rng_counter[0]++;
+
+          // Notice that the sum of all probabilities is 1.
+          // The probability of nothing happening is
+          //   std::exp(-z_tot)
+          // The probability of an individual event happening is
+          //   z_i / z_tot * (1 - std::exp(-z_tot))
+          //
+          // This is (by construction) true since
+          //  std::exp(-z_tot) + sum_i(z_i / z_tot * (1 - std::exp(-z_tot)))
+          //    = std::exp(-z_tot) + (1 - std::exp(-z_tot)) = 1
+          //
+          // This means that binding only happens if randu01 < (1 - std::exp(-z_tot))
+          const double probability_of_no_state_change = 1.0 - std::exp(-z_tot);
+          const double scale_factor = probability_of_no_state_change * timestep_size / z_tot;
+          if (randu01 < (1.0 - std::exp(-z_tot))) {
+            // Binding occurs.
+            // Loop back over the neighbor linkers to see if one of them binds in the running sum
+
+            double cumsum = 0.0;
+            for (unsigned j = 0; j < num_neighbor_genx_linkers; j++) {
+              auto &constraint_rank_entity = neighbor_genx_linkers[j];
+              bool is_hp1_h_neighbor_genx = bulk_data.bucket(constraint_rank_entity).member(hp1_h_neighbor_genx_part);
+              if (is_hp1_h_neighbor_genx) {
+                const double binding_probability =
+                    scale_factor * stk::mesh::field_data(constraint_state_change_rate_field, constraint_rank_entity)[0];
+                cumsum += binding_probability;
+                if (randu01 < cumsum) {
+                  // We have a binding event, set this, then bail on the for loop
+                  // Store the state change on both the genx and the crosslinker
+                  stk::mesh::field_data(constraint_perform_state_change_field, constraint_rank_entity)[0] =
+                      static_cast<unsigned>(BINDING_STATE_CHANGE::LEFT_TO_DOUBLY);
+                  stk::mesh::field_data(element_perform_state_change_field, crosslinker)[0] =
+                      static_cast<unsigned>(BINDING_STATE_CHANGE::LEFT_TO_DOUBLY);
+                  break;
+                }
+              }
+            }
+          }
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Perform the binding of a crosslinker to a sphere (doubly to left)
+  void kmc_crosslinker_doubly_to_left() {
+    Kokkos::Profiling::pushRegion("HP1::kmc_crosslinker_doubly_to_left");
+
+    // Selectors and aliases
+    stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
+    stk::mesh::Field<unsigned> &element_perform_state_change_field = *element_perform_state_change_field_ptr_;
+    const stk::mesh::Field<double> &crosslinker_unbinding_rates = *element_unbinding_rates_field_ptr_;
+    const double &timestep_size = timestep_size_;
+    stk::mesh::Part &doubly_hp1_h_part = *doubly_hp1_h_part_ptr_;
+
+    // This is just a loop over the doubly bound crosslinkers, since we know that the right head in is [1].
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_hp1_h_part,
+        [&element_rng_field, &element_perform_state_change_field, &crosslinker_unbinding_rates, &timestep_size](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
+          // We only have a single node, our right node, that is bound that we can unbind.
+          // TODO(cje): Right now this is coded to have a loop wrapping it, maybe not needed?
+          const double unbinding_probability =
+              timestep_size * stk::mesh::field_data(crosslinker_unbinding_rates, crosslinker)[1];
+          double Z_tot = unbinding_probability;
+          const double unbind_scale_factor = (1.0 - exp(-Z_tot)) * timestep_size;
+
+          // Fetch the RNG state, get a random number out of it, and increment
+          unsigned *element_rng_counter = stk::mesh::field_data(element_rng_field, crosslinker);
+          const stk::mesh::EntityId crosslinker_gid = bulk_data.identifier(crosslinker);
+          openrand::Philox rng(crosslinker_gid, element_rng_counter[0]);
+          double randZ = rng.rand<double>() * Z_tot;
+          double cumsum = 0.0;
+          element_rng_counter[0]++;
+
+          // Now check the cummulative sum and if less than perform the unbinding
+          cumsum += unbind_scale_factor * stk::mesh::field_data(crosslinker_unbinding_rates, crosslinker)[1];
+          if (randZ < cumsum) {
+            // Set the state change on the element
+            stk::mesh::field_data(element_perform_state_change_field, crosslinker)[0] =
+                static_cast<unsigned>(BINDING_STATE_CHANGE::DOUBLY_TO_LEFT);
+          }
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void kmc_crosslinker_sphere_linker_sampling() {
+    Kokkos::Profiling::pushRegion("HP1::kmc_crosslinker_sphere_linker_sampling");
+
+    // Perform the left to doubly bound crosslinker binding calc
+    kmc_crosslinker_left_to_doubly();
+
+    // Perform the doubly to left bound crosslinker binding calc
+    kmc_crosslinker_doubly_to_left();
+
+    // At this point, constraint_state_change_rate_field is only up-to-date for locally-owned entities. We need
+    // to communicate this information to all other processors.
+    stk::mesh::communicate_field_data(
+        *bulk_data_ptr_, {element_perform_state_change_field_ptr_, constraint_perform_state_change_field_ptr_});
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  /// \brief Perform the state change of the crosslinkers
+  void state_change_crosslinkers() {
+    Kokkos::Profiling::pushRegion("HP1::state_change_crosslinkers");
+
+    // Loop over both the CROSSLINKER_SPHERE_LINKERS and the CROSSLINKERS to perform the state changes.
+    stk::mesh::Part &left_hp1_part = *left_hp1_part_ptr_;
+    stk::mesh::Part &doubly_hp1_h_part = *doubly_hp1_h_part_ptr_;
+
+    // Get the vector of entities to modify
+    stk::mesh::EntityVector hp1_h_neighbor_genxs;
+    stk::mesh::EntityVector doubly_bound_hp1s;
+    stk::mesh::get_selected_entities(stk::mesh::Selector(*hp1_h_neighbor_genx_part_ptr_),
+                                     bulk_data_ptr_->buckets(constraint_rank_), hp1_h_neighbor_genxs);
+    stk::mesh::get_selected_entities(stk::mesh::Selector(*doubly_hp1_h_part_ptr_),
+                                     bulk_data_ptr_->buckets(element_rank_), doubly_bound_hp1s);
+
+    // TODO(cje): It might be worth checking to see if we have any state changes in any threads before we crack open the
+    // modification section, as even doing that is slightly expensive.
+
+    bulk_data_ptr_->modification_begin();
+
+    // Perform L->D
+    for (const stk::mesh::Entity &hp1_h_neighbor_genx : hp1_h_neighbor_genxs) {
+      // Decode the binding type enum for this entity
+      auto state_change_action = static_cast<BINDING_STATE_CHANGE>(
+          stk::mesh::field_data(*constraint_perform_state_change_field_ptr_, hp1_h_neighbor_genx)[0]);
+      const bool perform_state_change = state_change_action != BINDING_STATE_CHANGE::NONE;
+      if (perform_state_change) {
+        // Get our connections (as the genx)
+        const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+            stk::mesh::field_data(*constraint_linked_entities_field_ptr_, hp1_h_neighbor_genx));
+        const stk::mesh::Entity &crosslinker_hp1 = bulk_data_ptr_->get_entity(key_t_ptr[0]);
+        const stk::mesh::Entity &target_sphere = bulk_data_ptr_->get_entity(key_t_ptr[1]);
+
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(crosslinker_hp1), std::invalid_argument,
+                           "Encountered invalid crosslinker entity in state_change_crosslinkers.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(target_sphere), std::invalid_argument,
+                           "Encountered invalid sphere entity in state_change_crosslinkers.");
+
+        const stk::mesh::Entity &target_sphere_node = bulk_data_ptr_->begin_nodes(target_sphere)[0];
+        // Call the binding function
+        if (state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) {
+          // Unbind the right side of the crosslinker from the left node and bind it to the target node
+          const bool bind_worked =
+              bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker_hp1, target_sphere_node, 1);
+          MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
+
+          std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Binding crosslinker "
+                    << bulk_data_ptr_->identifier(crosslinker_hp1) << " to node "
+                    << bulk_data_ptr_->identifier(target_sphere_node) << std::endl;
+
+          // Now change the part from left to doubly bound.
+          const bool is_crosslinker_locally_owned =
+              bulk_data_ptr_->parallel_owner_rank(crosslinker_hp1) == bulk_data_ptr_->parallel_rank();
+          if (is_crosslinker_locally_owned) {
+            auto add_parts = stk::mesh::PartVector{doubly_hp1_h_part_ptr_};
+            auto remove_parts = stk::mesh::PartVector{left_hp1_part_ptr_};
+            bulk_data_ptr_->change_entity_parts(crosslinker_hp1, add_parts, remove_parts);
+          }
+        }
+      }
+    }
+
+    // Perform D->L
+    for (const stk::mesh::Entity &crosslinker_hp1 : doubly_bound_hp1s) {
+      // Decode the binding type enum for this entity
+      auto state_change_action = static_cast<BINDING_STATE_CHANGE>(
+          stk::mesh::field_data(*element_perform_state_change_field_ptr_, crosslinker_hp1)[0]);
+      if (state_change_action == BINDING_STATE_CHANGE::DOUBLY_TO_LEFT) {
+        // Unbind the right side of the crosslinker from the current node and bind it to the left crosslinker node
+        const stk::mesh::Entity &left_node = bulk_data_ptr_->begin_nodes(crosslinker_hp1)[0];
+        const bool unbind_worked =
+            bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker_hp1, left_node, 1);
+        MUNDY_THROW_ASSERT(unbind_worked, std::logic_error, "Failed to unbind crosslinker from node.");
+
+        std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Unbinding crosslinker "
+                  << bulk_data_ptr_->identifier(crosslinker_hp1) << " from node "
+                  << bulk_data_ptr_->identifier(bulk_data_ptr_->begin_nodes(crosslinker_hp1)[1]) << std::endl;
+
+        // Now change the part from doubly to left bound.
+        const bool is_crosslinker_locally_owned =
+            bulk_data_ptr_->parallel_owner_rank(crosslinker_hp1) == bulk_data_ptr_->parallel_rank();
+        if (is_crosslinker_locally_owned) {
+          auto add_parts = stk::mesh::PartVector{left_hp1_part_ptr_};
+          auto remove_parts = stk::mesh::PartVector{doubly_hp1_h_part_ptr_};
+          bulk_data_ptr_->change_entity_parts(crosslinker_hp1, add_parts, remove_parts);
+        }
+      }
+    }
+
+    bulk_data_ptr_->modification_end();
+
+    // The above may have invalidated the ghosting for our genx ghosting, so we need to reghost the linked entities to
+    // any process that owns any of the other linked entities.
+    ghost_linked_entities();
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_crosslinker_state() {
+    Kokkos::Profiling::pushRegion("HP1::update_crosslinker_state");
+
+    // We want to loop over all LEFT_BOUND_CROSSLINKERS, RIGHT_BOUND_CROSSLINKERS, and DOUBLY_BOUND_CROSSLINKERS to
+    // generate state changes. This is done to build up a list of actions that we will take later during a mesh
+    // modification step.
+    {
+      compute_z_partition();
+      kmc_crosslinker_sphere_linker_sampling();
+    }
+
+    // Loop over the different crosslinkers, look at their actions, and enforce the state change.
+    {
+      // Call the global state change function
+      state_change_crosslinkers();
+    }
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_rpy_hydro_with_no_slip_periphery() {
+    Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro_with_no_slip_periphery");
+    MUNDY_THROW_ASSERT(periphery_ptr_ != nullptr, std::runtime_error, "Periphery not initialized.");
+    const double viscosity = viscosity_;
+
+    // TODO(palmerb4): Uncertain what the most efficient way to achieve this is. We use KokkosBlas to perform the matrix
+    // inversion and matrix-vector multiplication required for periphery initialization and evaluation. This is
+    // efficient, but it requires copying some of our STK field data to Kokkos views.
+
+    // Fetch the bucket of spheres to act on.
+    stk::mesh::EntityVector sphere_elements;
+    stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::get_selected_entities(chromatin_spheres_selector, bulk_data_ptr_->buckets(stk::topology::ELEMENT_RANK),
+                                     sphere_elements);
+    const size_t num_spheres = sphere_elements.size();
+
+    // Copy the sphere positions, radii, forces, and velocities to Kokkos views
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_positions("sphere_positions", num_spheres * 3);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_radii("sphere_radii", num_spheres);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_forces("sphere_forces", num_spheres * 3);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> sphere_velocities("sphere_velocities",
+                                                                                    num_spheres * 3);
+
+#pragma omp parallel for
+    for (size_t i = 0; i < num_spheres; i++) {
+      stk::mesh::Entity sphere_element = sphere_elements[i];
+      stk::mesh::Entity sphere_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
+      const double *sphere_position = stk::mesh::field_data(*node_coord_field_ptr_, sphere_node);
+      const double *sphere_radius = stk::mesh::field_data(*element_radius_field_ptr_, sphere_element);
+      const double *sphere_force = stk::mesh::field_data(*node_force_field_ptr_, sphere_node);
+      const double *sphere_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
+
+      for (size_t j = 0; j < 3; j++) {
+        sphere_positions(i * 3 + j) = sphere_position[j];
+        sphere_forces(i * 3 + j) = sphere_force[j];
+        sphere_velocities(i * 3 + j) = sphere_velocity[j];
+      }
+      sphere_radii(i) = *sphere_radius;
+    }
+
+    // Setup the periphery information
+    const size_t num_surface_nodes = periphery_ptr_->get_num_nodes();
+    auto surface_positions = periphery_ptr_->get_surface_positions();
+    auto surface_weights = periphery_ptr_->get_quadrature_weights();
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_radii("surface_radii", num_surface_nodes);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_velocities("surface_velocities",
+                                                                                     3 * num_surface_nodes);
+    Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_forces("surface_forces",
+                                                                                 3 * num_surface_nodes);
+    Kokkos::deep_copy(surface_radii, 0.0);
+
+    // Apply the RPY kernel from spheres to spheres
+    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+                                              sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+
+    // Apply the RPY kernel from spheres to periphery
+    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+                                              sphere_radii, surface_radii, sphere_forces, surface_velocities);
+
+    // Apply no-slip boundary conditions
+    // This is done in two steps: first, we compute the forces on the periphery necessary to enforce no-slip
+    // Then we evaluate the flow these forces induce on the spheres.
+    periphery_ptr_->compute_surface_forces(surface_velocities, surface_forces);
+
+    // // If we evaluate the flow these forces induce on the periphery, do they satisfy no-slip?
+    // Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace> M("Mnew", 3 * num_surface_nodes,
+    //                                                                  3 * num_surface_nodes);
+    // fill_skfie_matrix(DeviceExecutionSpace(), viscosity, num_surface_nodes, num_surface_nodes, surface_positions,
+    //                   surface_positions, surface_normals, surface_weights, M);
+    // KokkosBlas::gemv(DeviceExecutionSpace(), "N", 1.0, M, surface_forces, 1.0, surface_velocities);
+    // EXPECT_NEAR(max_speed(surface_velocities), 0.0, 1.0e-10);
+
+    mundy::alens::periphery::apply_weighted_stokes_kernel(DeviceExecutionSpace(), viscosity, surface_positions,
+                                                          sphere_positions, surface_forces, surface_weights,
+                                                          sphere_velocities);
+
+    // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+    mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
+                                              sphere_radii);
+
+    // Copy the sphere forces and velocities back to STK fields
+#pragma omp parallel for
+    for (size_t i = 0; i < num_spheres; i++) {
+      stk::mesh::Entity sphere_element = sphere_elements[i];
+      stk::mesh::Entity sphere_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
+      double *sphere_force = stk::mesh::field_data(*node_force_field_ptr_, sphere_node);
+      double *sphere_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
+
+      for (size_t j = 0; j < 3; j++) {
+        sphere_force[j] = sphere_forces(i * 3 + j);
+        sphere_velocity[j] = sphere_velocities(i * 3 + j);
+      }
+    }
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_ellipsoidal_periphery_collision_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces");
+    const double spring_constant = periphery_spring_constant_;
+    const double a = periphery_axis_radius1_ - periphery_standoff_distance_;
+    const double b = periphery_axis_radius2_ - periphery_standoff_distance_;
+    const double c = periphery_axis_radius3_ - periphery_standoff_distance_;
+    const double inv_a2 = 1.0 / (a * a);
+    const double inv_b2 = 1.0 / (b * b);
+    const double inv_c2 = 1.0 / (c * c);
+    const mundy::math::Vector3<double> center(0.0, 0.0, 0.0);
+    const auto orientation = mundy::math::Quaternion<double>::identity();
+    auto level_set = [&inv_a2, &inv_b2, &inv_c2, &center,
+                      &orientation](const mundy::math::Vector3<double> &point) -> double {
+      // const auto body_frame_point = conjugate(orientation) * (point - center);
+      const auto body_frame_point = point - center;
+      return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
+              body_frame_point[2] * body_frame_point[2] * inv_c2) -
+             1;
+    };
+
+    // Fetch loc al references to the fields
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
+        [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &level_set, &center,
+         &orientation, &a, &b, &c,
+         &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+          // For our coarse search, we check if the coners of the sphere's aabb lie inside the ellipsoidal periphery
+          // This can be done via the (body frame) inside outside unftion f(x, y, z) = 1 - (x^2/a^2 + y^2/b^2 + z^2/c^2)
+          // This is possible due to the convexity of the ellipsoid
+          const double *sphere_aabb = stk::mesh::field_data(element_aabb_field, sphere_element);
+          const double x0 = sphere_aabb[0];
+          const double y0 = sphere_aabb[1];
+          const double z0 = sphere_aabb[2];
+          const double x1 = sphere_aabb[3];
+          const double y1 = sphere_aabb[4];
+          const double z1 = sphere_aabb[5];
+
+          // Compute all 8 corners of the AABB
+          const auto bottom_left_front = mundy::math::Vector3<double>(x0, y0, z0);
+          const auto bottom_right_front = mundy::math::Vector3<double>(x1, y0, z0);
+          const auto top_left_front = mundy::math::Vector3<double>(x0, y1, z0);
+          const auto top_right_front = mundy::math::Vector3<double>(x1, y1, z0);
+          const auto bottom_left_back = mundy::math::Vector3<double>(x0, y0, z1);
+          const auto bottom_right_back = mundy::math::Vector3<double>(x1, y0, z1);
+          const auto top_left_back = mundy::math::Vector3<double>(x0, y1, z1);
+          const auto top_right_back = mundy::math::Vector3<double>(x1, y1, z1);
+          const double all_points_inside_periphery =
+              level_set(bottom_left_front) < 0.0 && level_set(bottom_right_front) < 0.0 &&
+              level_set(top_left_front) < 0.0 && level_set(top_right_front) < 0.0 &&
+              level_set(bottom_left_back) < 0.0 && level_set(bottom_right_back) < 0.0 &&
+              level_set(top_left_back) < 0.0 && level_set(top_right_back) < 0.0;
+
+          if (!all_points_inside_periphery) {
+            // We might have a collision, perform the more expensive check
+            const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
+            const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+            const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+
+            // Note, the ellipsoid for the ssd calc has outward normal, whereas the periphery has inward normal.
+            // Hence, the sign flip.
+            mundy::math::Vector3<double> contact_point;
+            mundy::math::Vector3<double> ellipsoid_nhat;
+            const double shared_normal_ssd =
+                -mundy::math::distance::shared_normal_ssd_between_ellipsoid_and_point(
+                    center, orientation, a, b, c, node_coords, &contact_point, &ellipsoid_nhat) -
+                sphere_radius;
+
+            if (shared_normal_ssd < 0.0) {
+              // We have a collision, compute the force
+              auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+              auto periphery_nhat = -ellipsoid_nhat;
+              node_force[0] -= spring_constant * periphery_nhat[0] * shared_normal_ssd;
+              node_force[1] -= spring_constant * periphery_nhat[1] * shared_normal_ssd;
+              node_force[2] -= spring_constant * periphery_nhat[2] * shared_normal_ssd;
+            }
+          }
+        });
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_ellipsoidal_periphery_collision_forces_fast() {
+    Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces_fast");
+    const double spring_constant = periphery_spring_constant_;
+    // Adjust for our standoff distance
+    const double a = periphery_axis_radius1_ - periphery_standoff_distance_;
+    const double b = periphery_axis_radius2_ - periphery_standoff_distance_;
+    const double c = periphery_axis_radius3_ - periphery_standoff_distance_;
+    // We cannot precompute the inverse squared values as we need the radius of each particle to do this in the way
+    // that I came up with.
+    const mundy::math::Vector3<double> center(0.0, 0.0, 0.0);
+    const auto orientation = mundy::math::Quaternion<double>::identity();
+    auto level_set = [&a, &b, &c, &center, &orientation](const double &radius,
+                                                         const mundy::math::Vector3<double> &point) -> double {
+      // const auto body_frame_point = conjugate(orientation) * (point - center);
+      const auto body_frame_point = point - center;
+      const double inv_a2 = 1.0 / ((a - radius) * (a - radius));
+      const double inv_b2 = 1.0 / ((b - radius) * (b - radius));
+      const double inv_c2 = 1.0 / ((c - radius) * (c - radius));
+      return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
+              body_frame_point[2] * body_frame_point[2] * inv_c2) -
+             1;
+    };
+    // Fast compute of the outward 'normal' at the point
+    auto outward_normal = [&a, &b, &c, &center, &orientation](
+                              const double &radius,
+                              const mundy::math::Vector3<double> &point) -> mundy::math::Vector3<double> {
+      const auto body_frame_point = point - center;
+      const double inv_a2 = 1.0 / ((a - radius) * (a - radius));
+      const double inv_b2 = 1.0 / ((b - radius) * (b - radius));
+      const double inv_c2 = 1.0 / ((c - radius) * (c - radius));
+      return mundy::math::Vector3<double>(2.0 * body_frame_point[0] * inv_a2, 2.0 * body_frame_point[1] * inv_b2,
+                                          2.0 * body_frame_point[2] * inv_c2);
+    };
+
+    // Fetch local references to the fields
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
+        [&node_coord_field, &node_force_field, &element_radius_field, &level_set, &outward_normal, &center,
+         &orientation, &a, &b, &c,
+         &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+          // Do a fast loop over all of the spheres we are checking, e.g., brute-force the calc.
+          const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
+          const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+          const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+
+          // Simply check if we are outside the sphere via the level-set function
+          if (level_set(sphere_radius, node_coords) > 0.0) {
+            auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+
+            // Compute the outward normal
+            auto out_normal = outward_normal(sphere_radius, node_coords);
+            node_force[0] -= spring_constant * out_normal[0];
+            node_force[1] -= spring_constant * out_normal[1];
+            node_force[2] -= spring_constant * out_normal[2];
+          }
+        });
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_spherical_periphery_collision_forces() {
+    const double spring_constant = periphery_spring_constant_;
+    const double periphery_radius = periphery_radius_ - periphery_standoff_distance_;
+    const double periphery_radius2 = periphery_radius * periphery_radius;
+
+    // Fetch local references to the fields
+    stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
+    stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
+        [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &periphery_radius,
+         &periphery_radius2,
+         &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+          const stk::mesh::Entity sphere_node = bulk_data.begin_nodes(sphere_element)[0];
+          const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+
+          const double node_coords_norm = mundy::math::two_norm(node_coords);
+          const double sphere_radius = stk::mesh::field_data(element_radius_field, sphere_element)[0];
+          const double shared_normal_ssd = periphery_radius - node_coords_norm - sphere_radius;
+          const bool sphere_collides_with_periphery = shared_normal_ssd < 0.0;
+          if (sphere_collides_with_periphery) {
+            auto node_force = mundy::mesh::vector3_field_data(node_force_field, sphere_node);
+            auto inward_normal = -node_coords / node_coords_norm;
+            node_force[0] -= spring_constant * inward_normal[0] * shared_normal_ssd;
+            node_force[1] -= spring_constant * inward_normal[1] * shared_normal_ssd;
+            node_force[2] -= spring_constant * inward_normal[2] * shared_normal_ssd;
+          }
+        });
+  }
+
+  void compute_periphery_collision_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_periphery_collision_forces");
+    if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+      compute_spherical_periphery_collision_forces();
+    } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID && !periphery_collision_use_fast_) {
+      compute_ellipsoidal_periphery_collision_forces();
+    } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID && periphery_collision_use_fast_) {
+      compute_ellipsoidal_periphery_collision_forces_fast();
+    } else {
+      MUNDY_THROW_ASSERT(false, std::logic_error, "Invalid periphery type.");
+    }
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_hertzian_contact_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_hertzian_contact_forces");
+
+    // Potential evaluation (Hertzian contact)
+    auto backbone_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto backbone_backbone_neighbor_genx_selector = stk::mesh::Selector(*backbone_backbone_neighbor_genx_part_ptr_);
+
+    compute_ssd_and_cn_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    evaluate_linker_potentials_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+    linker_potential_force_reduction_ptr_->execute(backbone_selector);
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_harmonic_bond_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_harmonic_bond_forces");
+
+    // Need to select the active springs in the system, so backbone springs, and active HP1 springs. Do this by
+    // selecting down from all HP1 springs.
+    auto backbone_selector = stk::mesh::Selector(*backbone_segments_part_ptr_);
+    auto hp1_selector = stk::mesh::Selector(*hp1_part_ptr_);
+    auto left_hp1_selector = stk::mesh::Selector(*left_hp1_part_ptr_);
+    auto actively_bound_springs = backbone_selector | (hp1_selector - left_hp1_selector);
+
+    // Potentials
+    compute_constraint_forcing_ptr_->execute(actively_bound_springs);
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_brownian_velocity() {
+    // Compute the velocity due to brownian motion
+    Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
+
+    // Selectors and aliases
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::Field<unsigned> &node_rng_field = *node_rng_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    double &timestep_size = timestep_size_;
+    double &kt = kt_brownian_;
+    double sphere_drag_coeff = 6.0 * M_PI * viscosity_ * sphere_hydrodynamic_radius_;
+    double inv_drag_coeff = 1.0 / sphere_drag_coeff;
+
+    // Compute the total velocity of the nonorientable spheres
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+        [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
+         &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+          const stk::mesh::EntityId sphere_node_gid = bulk_data.identifier(sphere_node);
+          unsigned *node_rng_counter = stk::mesh::field_data(node_rng_field, sphere_node);
+
+          // U_brown = sqrt(2 * kt * gamma / dt) * randn / gamma
+          openrand::Philox rng(sphere_node_gid, node_rng_counter[0]);
+          const double coeff = std::sqrt(2.0 * kt * sphere_drag_coeff / timestep_size) * inv_drag_coeff;
+          node_velocity[0] += coeff * rng.randn<double>();
+          node_velocity[1] += coeff * rng.randn<double>();
+          node_velocity[2] += coeff * rng.randn<double>();
+          node_rng_counter[0]++;
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void compute_external_velocity() {
+    // Compute both the velocity due to external forces
+    Kokkos::Profiling::pushRegion("HP1::compute_external_velocity");
+
+    // Selectors and aliases
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    double &timestep_size = timestep_size_;
+    double sphere_drag_coeff = 6.0 * M_PI * viscosity_ * sphere_hydrodynamic_radius_;
+    double inv_drag_coeff = 1.0 / sphere_drag_coeff;
+
+    // Compute the total velocity of the nonorientable spheres
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+        [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+          double *node_force = stk::mesh::field_data(node_force_field, sphere_node);
+
+          // Uext = Fext * inv_drag_coeff
+          node_velocity[0] += node_force[0] * inv_drag_coeff;
+          node_velocity[1] += node_force[1] * inv_drag_coeff;
+          node_velocity[2] += node_force[2] * inv_drag_coeff;
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_positions() {
+    Kokkos::Profiling::pushRegion("HP1::update_positions");
+
+    // Selectors and aliases
+    size_t &timestep_index = timestep_index_;
+    double &timestep_size = timestep_size_;
+    const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+
+    // Update the positions for all spheres based on velocity
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+        [&node_coord_field, &node_velocity_field, &timestep_size, &timestep_index](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+          // Get the specific values for each sphere
+          double *node_coord = stk::mesh::field_data(node_coord_field, sphere_node);
+          double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+
+          // // Check to see if we've moved 1/10 of the diameter of one of the hydrodynamic beads in this timestep
+          const auto dr = mundy::math::Vector3<double>(
+              timestep_size * node_velocity[0], timestep_size * node_velocity[1], timestep_size * node_velocity[2]);
+          const double dr_mag = mundy::math::norm(dr);
+          if (dr_mag > 1.0e-1) {
+#pragma omp critical
+            {
+              std::cout << "Step: " << timestep_index
+                        << ", large movement detected, sphere: " << bulk_data.identifier(sphere_node) << std::endl;
+              std::cout << "  dr: " << dr << ", dr_mag: " << dr_mag << std::endl;
+              std::cout << "  node_velocity: " << node_velocity[0] << ", " << node_velocity[1] << ", "
+                        << node_velocity[2] << std::endl;
+            }
+            MUNDY_THROW_ASSERT(false, std::runtime_error, "Large movement due to timestep detected.");
+          }
+
+          // x(t+dt) = x(t) + dt * v(t)
+          node_coord[0] += timestep_size * node_velocity[0];
+          node_coord[1] += timestep_size * node_velocity[1];
+          node_coord[2] += timestep_size * node_velocity[2];
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void run(int argc, char **argv) {
+    // Preprocess
+    parse_user_inputs(argc, argv);
+    dump_user_inputs();
+
+    // Setup
+    Kokkos::Profiling::pushRegion("HP1::Setup");
+    build_our_mesh_and_method_instances();
+
+    fetch_fields_and_parts();
+    instantiate_metamethods();
+    set_mutable_parameters();
+    setup_io_mundy();
+    declare_and_initialize_hp1();
+    initialize_hydrodynamic_periphery();
+    declare_and_initialize_periphery_bind_sites();
+    detect_neighbors_initial();
+    Kokkos::Profiling::popRegion();
+
+    // Loadbalance?
+    Kokkos::Profiling::pushRegion("HP1::Loadbalance");
+    if (initial_loadbalance_) {
+      loadbalance();
+    }
+    Kokkos::Profiling::popRegion();
+
+    // Reset simulation control variables
+    timestep_index_ = 0;
+    // Make sure that all of the chromatin spheres are within the collision radius of the periphery
+    if (check_inside_periphery_) {
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+        stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+        double &periphery_radius = periphery_radius_;
+
+        stk::mesh::for_each_entity_run(
+            *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+            [&node_coord_field, &periphery_radius](const stk::mesh::BulkData &bulk_data,
+                                                   const stk::mesh::Entity &sphere_node) {
+              // Get the coordinates of the sphere
+              const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+              if (mundy::math::norm(node_coords) > periphery_radius) {
+#pragma omp critical
+                {
+                  std::cout << "Sphere node " << bulk_data.identifier(sphere_node)
+                            << " is outside the hydrodynamic periphery." << std::endl;
+                  std::cout << "  node_coords: " << node_coords << std::endl;
+                  std::cout << "  norm(node_coords): " << mundy::math::norm(node_coords) << std::endl;
+                }
+                MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
+              }
+            });
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+        stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+        double &periphery_axis_radius1 = periphery_axis_radius1_;
+        double &periphery_axis_radius2 = periphery_axis_radius2_;
+        double &periphery_axis_radius3 = periphery_axis_radius3_;
+
+        stk::mesh::for_each_entity_run(
+            *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+            [&node_coord_field, &periphery_axis_radius1, &periphery_axis_radius2, &periphery_axis_radius3](
+                const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+              // Get the coordinates of the sphere
+              const auto node_coords = mundy::mesh::vector3_field_data(node_coord_field, sphere_node);
+              const double x = node_coords[0];
+              const double y = node_coords[1];
+              const double z = node_coords[2];
+              const double x2 = x * x;
+              const double y2 = y * y;
+              const double z2 = z * z;
+              const double a2 = periphery_axis_radius1 * periphery_axis_radius1;
+              const double b2 = periphery_axis_radius2 * periphery_axis_radius2;
+              const double c2 = periphery_axis_radius3 * periphery_axis_radius3;
+              const double value = x2 / a2 + y2 / b2 + z2 / c2;
+              if (value > 1.0) {
+#pragma omp critical
+                {
+                  std::cout << "Sphere node " << bulk_data.identifier(sphere_node)
+                            << " is outside the hydrodynamic periphery." << std::endl;
+                  std::cout << "  node_coords: " << node_coords << std::endl;
+                  std::cout << "  value: " << value << std::endl;
+                }
+                MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
+              }
+            });
+      } else {
+        MUNDY_THROW_ASSERT(false, std::logic_error, "Invalid periphery type.");
+      }
+    }
+
+    // Check to see if we need to do anything for compressing the system.
+    if (setup_run_ == SETUP_RUN::COMPRESS) {
+      if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+        periphery_radius_ *= periphery_scale_factor_for_equilibriation_;
+      } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+        periphery_axis_radius1_ *= periphery_scale_factor_for_equilibriation_;
+        periphery_axis_radius2_ *= periphery_scale_factor_for_equilibriation_;
+        periphery_axis_radius3_ *= periphery_scale_factor_for_equilibriation_;
+      }
+    }
+    const double shrink_factor = std::pow(1.0 / periphery_scale_factor_for_equilibriation_, 1.0 / num_time_steps_);
+
+    // Time loop
+    print_rank0(std::string("Running the simulation for ") + std::to_string(num_time_steps_) + " time steps.");
+
+    Kokkos::Timer overall_timer;
+    Kokkos::Timer timer;
+    Kokkos::Profiling::pushRegion("MainLoop");
+    for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
+      // Prepare the current configuration.
+      Kokkos::Profiling::pushRegion("HP1::PrepareStep");
+      zero_out_transient_node_fields();
+      zero_out_transient_element_fields();
+      zero_out_transient_constraint_fields();
+      rotate_field_states();
+      Kokkos::Profiling::popRegion();
+
+      // If we are doing a compression run, shrink the periphery
+      if (setup_run_ == SETUP_RUN::COMPRESS) {
+        if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+          periphery_radius_ *= shrink_factor;
+        } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+          periphery_axis_radius1_ *= shrink_factor;
+          periphery_axis_radius2_ *= shrink_factor;
+          periphery_axis_radius3_ *= shrink_factor;
+        }
+      }
+
+      // Detect sphere-sphere and crosslinker-sphere neighbors
+      update_neighbor_list_ = false;
+      detect_neighbors();
+
+      // Update the state changes in the system s(t).;
+      update_crosslinker_state();
+
+      // Evaluate forces f(x(t)).
+      compute_hertzian_contact_forces();
+      compute_harmonic_bond_forces();
+      compute_periphery_collision_forces();
+
+      // Compute velocities.
+      compute_brownian_velocity();
+      if (run_type_ == RUN_TYPE::DRY) {
+        compute_external_velocity();
+      } else if (run_type_ == RUN_TYPE::HYDRO) {
+        compute_rpy_hydro_with_no_slip_periphery();
+      }
+
+      // Logging, if desired, write to console
+      Kokkos::Profiling::pushRegion("HP1::Logging");
+      if (timestep_index_ % log_frequency_ == 0) {
+        if (bulk_data_ptr_->parallel_rank() == 0) {
+          double tps = static_cast<double>(log_frequency_) / static_cast<double>(timer.seconds());
+          std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps;
+          if (setup_run_ == SETUP_RUN::COMPRESS) {
+            if (periphery_shape_ == PERIPHERY_SHAPE::SPHERE) {
+              std::cout << ", periphery_radius: " << periphery_radius_;
+            } else if (periphery_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+              std::cout << ", periphery_axis_radius1: " << periphery_axis_radius1_
+                        << ", periphery_axis_radius2: " << periphery_axis_radius2_
+                        << ", periphery_axis_radius3: " << periphery_axis_radius3_;
+            }
+          }
+          std::cout << std::endl;
+          timer.reset();
+        }
+      }
+      Kokkos::Profiling::popRegion();
+
+      // IO. If desired, write out the data for time t (STK or mundy)
+      Kokkos::Profiling::pushRegion("HP1::IO");
+      if (timestep_index_ % io_frequency_ == 0) {
+        io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
+                                                 static_cast<double>(timestep_index_));
+      }
+      Kokkos::Profiling::popRegion();
+
+      // Update positions. x(t + dt) = x(t) + dt * v(t).
+      update_positions();
+    }
+    Kokkos::Profiling::popRegion();
+
+    // Do a synchronize to force everybody to stop here, then write the time
+    stk::parallel_machine_barrier(bulk_data_ptr_->parallel());
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      double avg_time_per_timestep =
+          static_cast<double>(overall_timer.seconds()) / static_cast<double>(num_time_steps_);
+      double tps = 1.0 / avg_time_per_timestep;
+      std::cout << "******************Final statistics (Rank 0)**************\n";
+      if (print_neighborlist_statistics_) {
+        std::cout << "****************\n";
+        std::cout << "Neighbor list statistics\n";
+        for (auto &neighborlist_entry : neighborlist_update_steps_times_) {
+          auto [timestep, elasped_step, elapsed_time] = neighborlist_entry;
+          auto tps_nl = static_cast<double>(elasped_step) / elapsed_time;
+          std::cout << "  Rebuild timestep: " << timestep << ", elapsed_steps: " << elasped_step
+                    << ", elapsed_time: " << elapsed_time << ", tps: " << tps_nl << std::endl;
+        }
+      }
+      std::cout << "****************\n";
+      std::cout << "Simulation statistics\n";
+      std::cout << "Time per timestep: " << std::setprecision(15) << avg_time_per_timestep << std::endl;
+      std::cout << "Timesteps per second: " << std::setprecision(15) << tps << std::endl;
+    }
+  }
+
+ private:
+  //! \name Useful aliases
+  //@{
+
+  static constexpr auto node_rank_ = stk::topology::NODE_RANK;
+  static constexpr auto edge_rank_ = stk::topology::EDGE_RANK;
+  static constexpr auto element_rank_ = stk::topology::ELEMENT_RANK;
+  static constexpr auto constraint_rank_ = stk::topology::CONSTRAINT_RANK;
+  //@}
+
+  //! \name Internal state
+  //@{
+
+  std::shared_ptr<mundy::mesh::BulkData> bulk_data_ptr_;
+  std::shared_ptr<mundy::mesh::MetaData> meta_data_ptr_;
+  std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
+  std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
+  size_t timestep_index_;
+  std::shared_ptr<mundy::alens::periphery::Periphery> periphery_ptr_;
+  //@}
+
+  //! \name Neighborlist rebuild information
+  //@{
+
+  size_t last_neighborlist_update_step_ = 0;
+  Kokkos::Timer neighborlist_update_timer_;
+  std::vector<std::tuple<size_t, size_t, double>>
+      neighborlist_update_steps_times_;  // [timestep, elapsed_timesteps, elapsed_time]
+  //@}
+
+  //! \name Fields
+  //@{
+
+  stk::mesh::Field<unsigned> *node_rng_field_ptr_;
+  stk::mesh::Field<double> *node_coord_field_ptr_;
+  stk::mesh::Field<double> *node_velocity_field_ptr_;
+  stk::mesh::Field<double> *node_force_field_ptr_;
+
+  stk::mesh::Field<unsigned> *element_rng_field_ptr_;
+  stk::mesh::Field<double> *element_radius_field_ptr_;
+  stk::mesh::Field<double> *element_hookean_spring_constant_field_ptr_;
+  stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr_;
+  stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
+  stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
+  stk::mesh::Field<double> *element_aabb_field_ptr_;
+  stk::mesh::Field<double> *element_corner_displacement_field_ptr_;
+  stk::mesh::Field<double> *element_binding_rates_field_ptr_;
+  stk::mesh::Field<double> *element_unbinding_rates_field_ptr_;
+  stk::mesh::Field<unsigned> *element_perform_state_change_field_ptr_;
+
+  stk::mesh::Field<double> *constraint_potential_force_field_ptr_;
+  stk::mesh::Field<double> *constraint_state_change_rate_field_ptr_;
+  stk::mesh::Field<unsigned> *constraint_perform_state_change_field_ptr_;
+  stk::mesh::Field<int> *constraint_linked_entity_owners_field_ptr_;
+  mundy::linkers::LinkedEntitiesFieldType *constraint_linked_entities_field_ptr_;
+  //@}
+
+  //! \name Parts
+  //@{
+
+  stk::mesh::Part *spheres_part_ptr_ = nullptr;
+  stk::mesh::Part *e_part_ptr_ = nullptr;
+  stk::mesh::Part *h_part_ptr_ = nullptr;
+  stk::mesh::Part *bs_part_ptr_ = nullptr;
+
+  stk::mesh::Part *hp1_part_ptr_ = nullptr;
+  stk::mesh::Part *left_hp1_part_ptr_ = nullptr;
+  stk::mesh::Part *doubly_hp1_h_part_ptr_ = nullptr;
+  stk::mesh::Part *doubly_hp1_bs_part_ptr_ = nullptr;
+
+  stk::mesh::Part *backbone_segments_part_ptr_ = nullptr;
+  stk::mesh::Part *ee_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *eh_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *hh_springs_part_ptr_ = nullptr;
+
+  stk::mesh::Part *backbone_backbone_neighbor_genx_part_ptr_ = nullptr;
+  stk::mesh::Part *hp1_h_neighbor_genx_part_ptr_ = nullptr;
+  stk::mesh::Part *hp1_bs_neighbor_genx_part_ptr_ = nullptr;
+
+  //@}
+
+  //! \name MetaMethod instances
+  //@{
+
+  std::shared_ptr<mundy::meta::MetaMethodExecutionInterface<void>> declare_and_init_constraints_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_aabb_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_constraint_forcing_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> compute_ssd_and_cn_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> evaluate_linker_potentials_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> linker_potential_force_reduction_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodSubsetExecutionInterface<void>> destroy_bound_neighbor_linkers_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_scs_scs_genx_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_h_genx_ptr_;
+  std::shared_ptr<mundy::meta::MetaMethodPairwiseSubsetExecutionInterface<void>> generate_hp1_bs_genx_ptr_;
+
+  //@}
+
+  //! \name Fixed params for MetaMethods
+  //@{
+
+  Teuchos::ParameterList compute_constraint_forcing_fixed_params_;
+  Teuchos::ParameterList compute_ssd_and_cn_fixed_params_;
+  Teuchos::ParameterList compute_aabb_fixed_params_;
+  Teuchos::ParameterList generate_scs_scs_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList generate_hp1_h_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList generate_hp1_bs_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList evaluate_linker_potentials_fixed_params_;
+  Teuchos::ParameterList linker_potential_force_reduction_fixed_params_;
+  Teuchos::ParameterList destroy_neighbor_linkers_fixed_params_;
+  Teuchos::ParameterList destroy_bound_neighbor_linkers_fixed_params_;
+
+  //@}
+
+  //! \name Partitioning settings
+  //@{
+
+  class RcbSettings : public stk::balance::BalanceSettings {
+   public:
+    RcbSettings() {
+    }
+    virtual ~RcbSettings() {
+    }
+
+    virtual bool isIncrementalRebalance() const {
+      return false;
+    }
+    virtual std::string getDecompMethod() const {
+      return std::string("rcb");
+    }
+    virtual std::string getCoordinateFieldName() const {
+      return std::string("NODE_COORDS");
+    }
+    virtual bool shouldPrintMetrics() const {
+      return false;
+    }
+  };  // RcbSettings
+
+  RcbSettings balance_settings_;
+  //@}
+
+  //! \name User parameters
+  //@{
+
+  // Setup params
+  std::string input_parameter_filename_ = "hp1.yaml";
+
+  // Simulation params
+  SETUP_RUN setup_run_;
+  RUN_TYPE run_type_;
+  bool initial_loadbalance_;
+  bool check_inside_periphery_;
+  size_t num_time_steps_;
+  size_t io_frequency_;
+  size_t log_frequency_;
+  double timestep_size_;
+  double kt_brownian_;
+  double kt_kmc_;
+  double viscosity_;
+  std::string initialization_type_;
+  std::string restart_filename_;
+  std::string output_filename_;
+
+  // Chromatin params
+  size_t num_chromosomes_;
+  size_t num_chromatin_repeats_;
+  size_t num_euchromatin_per_repeat_;
+  size_t num_heterochromatin_per_repeat_;
+  double backbone_excluded_volume_radius_;
+  double sphere_hydrodynamic_radius_;
+  double initial_sphere_separation_;
+  double backbone_youngs_modulus_;
+  double backbone_poissons_ratio_;
+  double sphere_drag_coeff_;
+
+  // Chromatin spring params
+  BOND_TYPE chromatin_spring_type_;
+  double chromatin_spring_constant_;
+  double chromatin_spring_rest_length_;
+
+  // Crosslinker params
+  BOND_TYPE crosslinker_spring_type_;
+  double crosslinker_spring_constant_;
+  double crosslinker_rest_length_;
+  double crosslinker_rcut_;
+  double crosslinker_left_binding_rate_;
+  double crosslinker_right_binding_rate_;
+  double crosslinker_left_unbinding_rate_;
+  double crosslinker_right_unbinding_rate_;
+
+  // Periphery params
+  bool periphery_collision_use_fast_;
+  double periphery_spring_constant_;
+  PERIPHERY_SHAPE periphery_shape_;
+  PERIPHERY_QUADRATURE periphery_quadrature_;
+  double periphery_radius_;        // For spheres
+  double periphery_axis_radius1_;  // For ellipsoids
+  double periphery_axis_radius2_;  // For ellipsoids
+  double periphery_axis_radius3_;  // For ellipsoids
+  double periphery_scale_factor_for_equilibriation_;
+  double periphery_standoff_distance_;  // Distance to include for collision versus hydrodynamics
+
+  size_t periphery_num_quadrature_points_;
+  std::string periphery_quadrature_points_filename_;
+  std::string periphery_quadrature_weights_filename_;
+  std::string periphery_quadrature_normals_filename_;
+  size_t periphery_spectral_order_;  // For spheres with Gauss-Legendre quadrature
+  PERIPHERY_BIND_SITES_TYPE periphery_bind_sites_type_;
+  size_t periphery_num_bind_sites_;
+  std::string periphery_bind_site_locations_filename_;
+
+  // Neighbor list params
+  double skin_distance_;
+  bool update_neighbor_list_;
+  bool force_neighborlist_update_;
+  size_t force_neighborlist_update_nsteps_;
+  bool print_neighborlist_statistics_;
+  //@}
+
+  //! \name Default user parameters
+  //@{
+
+  // Simulation params
+  static constexpr std::string_view default_setup_run_string_ = "RUN";
+  static constexpr std::string_view default_run_type_string_ = "HYDRO";
+  static constexpr bool default_initial_loadbalance_ = false;
+  static constexpr bool default_check_inside_periphery_ = false;
+  static constexpr size_t default_num_time_steps_ = 100;
+  static constexpr size_t default_io_frequency_ = 10;
+  static constexpr size_t default_log_frequency_ = 10;
+  static constexpr double default_timestep_size_ = 0.001;
+  static constexpr double default_kt_brownian_ = 1.0;
+  static constexpr double default_kt_kmc_ = 1.0;
+  static constexpr double default_viscosity_ = 1.0;
+  static constexpr std::string_view default_initialization_type_ = "grid";
+  static constexpr std::string_view default_restart_filename_ = "restart.exo";
+  static constexpr std::string_view default_output_filename_ = "output.exo";
+
+  // Chromatin params
+  static constexpr size_t default_num_chromosomes_ = 1;
+  static constexpr size_t default_num_chromatin_repeats_ = 2;
+  static constexpr size_t default_num_euchromatin_per_repeat_ = 1;
+  static constexpr size_t default_num_heterochromatin_per_repeat_ = 1;
+  static constexpr double default_backbone_excluded_volume_radius_ = 0.5;
+  static constexpr double default_sphere_hydrodynamic_radius_ = 0.05;
+  static constexpr double default_initial_sphere_separation_ = 1.0;
+  static constexpr double default_backbone_youngs_modulus_ = 1000.0;
+  static constexpr double default_backbone_poissons_ratio_ = 0.3;
+  static constexpr double default_sphere_drag_coeff_ = 1.0;
+
+  // Chromatin spring params
+  static constexpr std::string_view default_chromatin_spring_type_string_ = "HARMONIC";
+  static constexpr double default_chromatin_spring_constant_ = 100.0;
+  static constexpr double default_chromatin_spring_rest_length_ = 1.0;
+
+  // Crosslinker params
+  static constexpr std::string_view default_crosslinker_spring_type_string_ = "HARMONIC";
+  static constexpr double default_crosslinker_spring_constant_ = 10.0;
+  static constexpr double default_crosslinker_rest_length_ = 2.5;
+  static constexpr double default_crosslinker_rcut_ = 1.0;
+  static constexpr double default_crosslinker_left_binding_rate_ = 1.0;
+  static constexpr double default_crosslinker_right_binding_rate_ = 1.0;
+  static constexpr double default_crosslinker_left_unbinding_rate_ = 1.0;
+  static constexpr double default_crosslinker_right_unbinding_rate_ = 1.0;
+
+  // Periphery params
+  static constexpr bool default_periphery_collision_use_fast_ = false;
+  static constexpr double default_periphery_spring_constant_ = 1000.0;
+  static constexpr std::string_view default_periphery_shape_string_ = "SPHERE";
+  static constexpr double default_periphery_radius_ = 5.0;
+  static constexpr double default_periphery_axis_radius1_ = 5.0;
+  static constexpr double default_periphery_axis_radius2_ = 5.0;
+  static constexpr double default_periphery_axis_radius3_ = 5.0;
+  static constexpr std::string_view default_periphery_quadrature_string_ = "GAUSS_LEGENDRE";
+  static constexpr size_t default_periphery_spectral_order_ = 32;
+  static constexpr size_t default_periphery_num_quadrature_points_ = 1000;
+  static constexpr std::string_view default_periphery_quadrature_points_filename_ =
+      "hp1_periphery_quadrature_points.dat";
+  static constexpr std::string_view default_periphery_quadrature_weights_filename_ =
+      "hp1_periphery_quadrature_weights.dat";
+  static constexpr std::string_view default_periphery_quadrature_normals_filename_ =
+      "hp1_periphery_quadrature_normals.dat";
+  static constexpr std::string_view default_periphery_bind_sites_type_string_ = "RANDOM";
+  static constexpr size_t default_periphery_num_bind_sites_ = 1000;
+  static constexpr std::string_view default_periphery_bind_site_locations_filename_ = "periphery_bind_sites.dat";
+  static constexpr double default_periphery_scale_factor_for_equilibriation_ = 2.0;
+  static constexpr double default_periphery_standoff_distance_ = 0.0;
+
+  // Neighbor list params
+  static constexpr double default_skin_distance_ = 1.0;
+  static constexpr bool default_update_neighbor_list_ = false;
+  static constexpr bool default_force_neighborlist_update_ = false;
+  static constexpr size_t default_force_neighborlist_update_nsteps_ = 10;
+  static constexpr bool default_print_neighborlist_statistics_ = false;
+  //@}
+};  // class HP1
+
+}  // namespace crosslinkers
+
+}  // namespace alens
+
+}  // namespace mundy
+
+///////////////////////////
+// Main program          //
+///////////////////////////
+int main(int argc, char **argv) {
+  // Initialize MPI
+  stk::parallel_machine_init(&argc, &argv);
+  Kokkos::initialize(argc, argv);
+
+  // Run the simulation using the given parameters
+  mundy::alens::crosslinkers::HP1().run(argc, argv);
+
+  // Before exiting, sleep for some amount of time to force Kokkos to print better at the end.
+  std::this_thread::sleep_for(std::chrono::milliseconds(stk::parallel_machine_rank(MPI_COMM_WORLD)));
+
+  Kokkos::finalize();
+  stk::parallel_machine_finalize();
+  return 0;
+}

@@ -41,7 +41,7 @@
 #include <mundy_core/throw_assert.hpp>                                // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                                    // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>                                    // for mundy::mesh::MetaData
-#include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>                                    // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>                                 // for mundy::meta::MetaMethodFactory
 #include <mundy_meta/MetaKernel.hpp>                                  // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>                // for mundy::meta::MetaMethodExecutionInterface
@@ -109,10 +109,6 @@ class MetaTechniqueDispatcher {
     // that aren't in the technique sublists and forward them to the enabled technique.
     for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
       const std::string &param_name = valid_fixed_params.name(i);
-
-      std::cout << "#####################################################################" << std::endl;
-      std::cout << "get_mesh_requirements param_name: " << param_name << std::endl;
-
       const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
       if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_technique_name") {
         for (int j = 0; j < OurTechniqueFactory::num_registered_classes(); j++) {
@@ -143,9 +139,7 @@ class MetaTechniqueDispatcher {
 
     return add_valid_enabled_techniques_and_technique_params_to_parameter_list(
         "fixed", parameter_list, valid_required_technique_fixed_params, valid_forwarded_technique_fixed_params,
-        [](const std::string &technique_name) {
-          return OurTechniqueFactory::get_valid_fixed_params(technique_name);
-        });
+        [](const std::string &technique_name) { return OurTechniqueFactory::get_valid_fixed_params(technique_name); });
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.

@@ -33,7 +33,7 @@ tribits_add_executable_and_test(
   SOURCES
   UnitTestGenerateNeighborLinkers.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  NUM_MPI_PROCS 2
+  NUM_MPI_PROCS 1-4
   )
 
 tribits_add_executable_and_test(
@@ -41,7 +41,7 @@ tribits_add_executable_and_test(
   SOURCES
   UnitTestDestroyNeighborLinkers.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  NUM_MPI_PROCS 2
+  NUM_MPI_PROCS 1-4
   )
 
 tribits_add_executable_and_test(

@@ -277,10 +277,10 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
     double Pi = 3.14159265358979323846;
 
     // Get the total number of local spheres
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::EntityVector local_spheres;
-    stk::mesh::get_selected_entities(locally_owned_intersection_with_valid_entity_parts,
+    stk::mesh::get_selected_entities(intersection_with_valid_entity_parts,
                                      bulk_data.buckets(stk::topology::ELEMENT_RANK), local_spheres);
     const int num_local_spheres = local_spheres.size();
 
@@ -344,11 +344,11 @@ class RPYSpheresPerf : public mundy::meta::MetaKernel<> {
               : ((node_coord[2] < domain_origin_[2]) || (node_coord[2] >= domain_origin_[2] + domain_length_));
       const bool coordinate_out_of_domain_in_non_periodic_direction =
           coordinate_out_of_domain_in_x || coordinate_out_of_domain_in_y || coordinate_out_of_domain_in_z;
-      MUNDY_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
-                         "RPYSpheresPerf: Node coordinate is out of domain. The current coordinate is "
-                             << node_coord[0] << " " << node_coord[1] << " " << node_coord[2] << " and the origin is "
-                             << domain_origin_[0] << " " << domain_origin_[1] << " " << domain_origin_[2]
-                             << " with length " << domain_length_);
+      MUNDY_DEBUG_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
+                               "RPYSpheresPerf: Node coordinate is out of domain. The current coordinate is "
+                                   << node_coord[0] << " " << node_coord[1] << " " << node_coord[2]
+                                   << " and the origin is " << domain_origin_[0] << " " << domain_origin_[1] << " "
+                                   << domain_origin_[2] << " with length " << domain_length_);
 
       src_single_layer_coord[3 * i] = node_coord[0];
       src_single_layer_coord[3 * i + 1] = node_coord[1];

@@ -129,7 +129,6 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(SphereSphereHertzianContact::get_valid_fixed_params());
 
-    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
     // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
@@ -288,6 +287,9 @@ class SphereSphereHertzianContact : public mundy::meta::MetaKernel<> {
 
   /// \brief Linker contact normal field.
   stk::mesh::Field<double> *linker_contact_normal_field_ptr_ = nullptr;
+
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
   //@}
 };  // SphereSphereHertzianContact
 

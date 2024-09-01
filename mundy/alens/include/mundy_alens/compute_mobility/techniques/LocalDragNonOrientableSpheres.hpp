@@ -42,8 +42,8 @@
 #include <mundy_meta/MetaFactory.hpp>      // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>       // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaRegistry.hpp>     // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
-#include <mundy_shapes/Spheres.hpp>  // for mundy::shapes::Spheres
+#include <mundy_meta/PartReqs.hpp>         // for mundy::meta::PartReqs
+#include <mundy_shapes/Spheres.hpp>        // for mundy::shapes::Spheres
 
 namespace mundy {
 
@@ -66,7 +66,7 @@ class LocalDragNonorientableSpheres : public mundy::meta::MetaKernel<> {
 
   /// \brief Constructor
   explicit LocalDragNonorientableSpheres(mundy::mesh::BulkData *const bulk_data_ptr,
-                                        const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
+                                         const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
@@ -198,22 +198,22 @@ class LocalDragNonorientableSpheres : public mundy::meta::MetaKernel<> {
     stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
     double viscosity = viscosity_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_intersection_with_valid_entity_parts,
-        [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
-            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
-          const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
+    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
+                                   [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
+                                       const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+                                     const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
 
-          const double *element_radius = stk::mesh::field_data(element_radius_field, sphere_element);
-          const double *node_force = stk::mesh::field_data(node_force_field, node);
-          double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
-          const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity * element_radius[0]);
-          node_velocity[0] += inv_drag_coeff * node_force[0];
-          node_velocity[1] += inv_drag_coeff * node_force[1];
-          node_velocity[2] += inv_drag_coeff * node_force[2];
-        });
+                                     const double *element_radius =
+                                         stk::mesh::field_data(element_radius_field, sphere_element);
+                                     const double *node_force = stk::mesh::field_data(node_force_field, node);
+                                     double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
+                                     const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity * element_radius[0]);
+                                     node_velocity[0] += inv_drag_coeff * node_force[0];
+                                     node_velocity[1] += inv_drag_coeff * node_force[1];
+                                     node_velocity[2] += inv_drag_coeff * node_force[2];
+                                   });
   }
   //@}
 

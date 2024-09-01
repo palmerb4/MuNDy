@@ -69,6 +69,7 @@ SET(SOURCES
   src/mundy_linkers/linker_potential_force_reduction/kernels/Sphere.cpp
   src/mundy_linkers/linker_potential_force_reduction/kernels/Spherocylinder.cpp
   src/mundy_linkers/linker_potential_force_reduction/kernels/SpherocylinderSegment.cpp
+  src/mundy_linkers/Linkers.cpp
 )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

@@ -144,7 +144,6 @@ GridOfSpheres::GridOfSpheres(mundy::mesh::BulkData *const bulk_data_ptr, const T
                              const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
-      std::cout << "part_name: " << part_name << std::endl;
       stk::mesh::Part *part = meta_data.get_part(part_name);
       MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
                          "GridOfSpheres: Expected a part with name '" << part_name << "' but part does not exist.");
@@ -245,9 +244,8 @@ void GridOfSpheres::build_zmorton_map() {
   std::vector<size_t> sequential_map(num_spheres_x_ * num_spheres_y_ * num_spheres_z_);
   std::iota(sequential_map.begin(), sequential_map.end(), 0);
 
-  std::sort(sequential_map.begin(), sequential_map.end(), [this](size_t a, size_t b) {
-    return zmorton_map_[a] < zmorton_map_[b];
-  });
+  std::sort(sequential_map.begin(), sequential_map.end(),
+            [this](size_t a, size_t b) { return zmorton_map_[a] < zmorton_map_[b]; });
 
   // Replace the ZMorton codes in the ZMorton map with their sequential versions.
   for (size_t i = 0; i < num_spheres_x_ * num_spheres_y_ * num_spheres_z_; ++i) {

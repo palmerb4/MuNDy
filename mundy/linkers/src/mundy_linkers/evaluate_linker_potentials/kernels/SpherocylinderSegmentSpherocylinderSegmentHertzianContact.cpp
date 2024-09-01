@@ -34,9 +34,9 @@
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
 #include <mundy_linkers/evaluate_linker_potentials/kernels/SpherocylinderSegmentSpherocylinderSegmentHertzianContact.hpp>  // for mundy::linkers::...::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact
-#include <mundy_mesh/BulkData.hpp>                  // for mundy::mesh::BulkData
-#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
+#include <mundy_mesh/BulkData.hpp>    // for mundy::mesh::BulkData
 #include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_shapes/SpherocylinderSegments.hpp>  // for mundy::shapes::SpherocylinderSegments
 
 namespace mundy {
 
@@ -73,6 +73,7 @@ SpherocylinderSegmentSpherocylinderSegmentHertzianContact::SpherocylinderSegment
       valid_fixed_params.get<std::string>("linker_signed_separation_distance_field_name");
   const std::string linker_contact_normal_field_name =
       valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
+  const std::string linked_entities_field_name = NeighborLinkers::get_linked_entities_field_name();
 
   element_radius_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_radius_field_name);
   element_youngs_modulus_field_ptr_ =
@@ -85,6 +86,8 @@ SpherocylinderSegmentSpherocylinderSegmentHertzianContact::SpherocylinderSegment
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_signed_separation_distance_field_name);
   linker_contact_normal_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_normal_field_name);
+  linked_entities_field_ptr_ = meta_data_ptr_->get_field<LinkedEntitiesFieldType::value_type>(
+      stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
@@ -98,6 +101,7 @@ SpherocylinderSegmentSpherocylinderSegmentHertzianContact::SpherocylinderSegment
   field_exists(linker_signed_separation_distance_field_ptr_, linker_signed_separation_distance_field_name);
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
   field_exists(linker_contact_normal_field_ptr_, linker_contact_normal_field_name);
+  field_exists(linked_entities_field_ptr_, linked_entities_field_name);
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
@@ -146,35 +150,43 @@ void SpherocylinderSegmentSpherocylinderSegmentHertzianContact::set_mutable_para
 
 void SpherocylinderSegmentSpherocylinderSegmentHertzianContact::execute(
     const stk::mesh::Selector &spherocylinder_segment_spherocylinder_segment_linker_selector) {
-  // Communicate the fields of downward connected entities.
+  // Communicate ghosted fields.
   stk::mesh::communicate_field_data(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-      {element_radius_field_ptr_, element_youngs_modulus_field_ptr_, element_poissons_ratio_field_ptr_});
+      *bulk_data_ptr_, {element_radius_field_ptr_, element_youngs_modulus_field_ptr_, element_poissons_ratio_field_ptr_,
+                        linker_signed_separation_distance_field_ptr_, linker_contact_normal_field_ptr_,
+                        linker_potential_force_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
   const stk::mesh::Field<double> &element_youngs_modulus_field = *element_youngs_modulus_field_ptr_;
   const stk::mesh::Field<double> &element_poissons_ratio_field = *element_poissons_ratio_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &linker_signed_separation_distance_field =
       *linker_signed_separation_distance_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
+  const LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
+  stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() &
-      spherocylinder_segment_spherocylinder_segment_linker_selector;
+  // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
+  stk::mesh::Selector intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & spherocylinder_segment_spherocylinder_segment_linker_selector;
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&element_radius_field, &element_youngs_modulus_field, &element_poissons_ratio_field,
-       &linker_potential_force_field, &linker_signed_separation_distance_field,
-       &linker_contact_normal_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                                     const stk::mesh::Entity &spherocylinder_segment_spherocylinder_segment_linker) {
+       &linker_potential_force_field, &linker_signed_separation_distance_field, &linker_contact_normal_field,
+       &linked_entities_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                               const stk::mesh::Entity &spherocylinder_segment_spherocylinder_segment_linker) {
         // Use references to avoid copying entities
-        const stk::mesh::Entity &left_spherocylinder_segment_element =
-            bulk_data.begin_elements(spherocylinder_segment_spherocylinder_segment_linker)[0];
-        const stk::mesh::Entity &right_spherocylinder_segment_element =
-            bulk_data.begin_elements(spherocylinder_segment_spherocylinder_segment_linker)[1];
+        const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+            stk::mesh::field_data(linked_entities_field, spherocylinder_segment_spherocylinder_segment_linker));
+        const stk::mesh::Entity &left_spherocylinder_segment_element = bulk_data.get_entity(key_t_ptr[0]);
+        const stk::mesh::Entity &right_spherocylinder_segment_element = bulk_data.get_entity(key_t_ptr[1]);
+
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(left_spherocylinder_segment_element), std::invalid_argument,
+                           "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: "
+                           "left_spherocylinder_segment_element entity is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data.is_valid(right_spherocylinder_segment_element), std::invalid_argument,
+                           "SpherocylinderSegmentSpherocylinderSegmentHertzianContact: "
+                           "right_spherocylinder_segment_element entity is not valid.");
 
         const double left_radius = stk::mesh::field_data(element_radius_field, left_spherocylinder_segment_element)[0];
         const double right_radius =

@@ -18,6 +18,32 @@
 # @HEADER
 
 tribits_add_executable(
+    PerformanceTestFilament
+    SOURCES
+    Filament.cpp
+    CATEGORIES PERFORMANCE
+    )
+tribits_copy_files_to_binary_dir(
+    PerformanceTestFilamentCopyFiles
+    SOURCE_FILES
+    filament_params.yaml
+    EXEDEPS PerformanceTestFilament
+    )
+
+tribits_add_executable(
+    PerformanceTestBacteria
+    SOURCES
+    Bacteria.cpp
+    CATEGORIES PERFORMANCE
+    )
+tribits_copy_files_to_binary_dir(
+    PerformanceTestBacteriaCopyFiles
+    SOURCE_FILES
+    bacteria_params.yaml
+    EXEDEPS PerformanceTestBacteria
+    )
+
+tribits_add_executable(
     PerformanceTestBrownianMotion
     SOURCES
     BrownianMotion.cpp
@@ -67,6 +93,19 @@ tribits_add_executable(
     )
 
 tribits_add_executable(
+    HP1
+    SOURCES
+    HP1.cpp
+    CATEGORIES PERFORMANCE
+    )
+tribits_copy_files_to_binary_dir(
+    HP1CopyFiles
+    SOURCE_FILES
+    hp1.yaml
+    EXEDEPS HP1
+    )
+
+tribits_add_executable(
     NonInteractingSperm
     SOURCES
     NonInteractingSperm.cpp
@@ -93,3 +132,11 @@ tribits_add_executable(
     CollidingOverdampedFrictionalSperm.cpp
     CATEGORIES PERFORMANCE
     )
+
+tribits_add_executable(
+    SpheresPerif
+    SOURCES
+    SpheresPerif.cpp
+    CATEGORIES PERFORMANCE
+    )
+      

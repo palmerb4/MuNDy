@@ -37,13 +37,13 @@
 #include <stk_topology/topology.hpp>   // for stk::topology
 
 // Mundy libs
-#include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
-#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
-#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
-#include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
+#include <mundy_core/StringLiteral.hpp>  // for mundy::core::StringLiteral and mundy::core::make_string_literal
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
+#include <mundy_mesh/BulkData.hpp>       // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
+#include <mundy_meta/MeshReqs.hpp>       // for mundy::meta::MeshReqs
+#include <mundy_meta/MetaFactory.hpp>    // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>     // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodSubsetExecutionInterface.hpp>  // for mundy::meta::MetaMethodSubsetExecutionInterface
 #include <mundy_meta/MetaRegistry.hpp>                        // for MUNDY_REGISTER_METACLASS
 #include <mundy_meta/ParameterValidationHelpers.hpp>  // for mundy::meta::check_parameter_and_set_default and mundy::meta::check_required_parameter
@@ -131,8 +131,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
   ///
   /// \note This method does not cache its return value, so every time you call this method, a new \c MeshReqs
   /// will be created. You can save the result yourself if you wish to reuse it.
-  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(
-      const Teuchos::ParameterList &fixed_params) {
+  static std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements(const Teuchos::ParameterList &fixed_params) {
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(
@@ -158,7 +157,6 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
         valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_kernel_names");
     auto mesh_requirements_ptr = std::make_shared<mundy::meta::MeshReqs>();
     for (const std::string &kernel_name : enabled_kernel_names) {
-      std::cout << "kernel_name: " << kernel_name << std::endl;
       Teuchos::ParameterList &kernel_params = valid_fixed_params.sublist(kernel_name);
       mesh_requirements_ptr->sync(OurKernelFactory::get_mesh_requirements(kernel_name, kernel_params));
     }
@@ -185,9 +183,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
 
     return add_valid_enabled_kernels_and_kernel_params_to_parameter_list(
         "fixed", parameter_list, valid_required_kernel_fixed_params, valid_forwarded_kernel_fixed_params,
-        [](const std::string &kernel_name) {
-          return OurKernelFactory::get_valid_fixed_params(kernel_name);
-        });
+        [](const std::string &kernel_name) { return OurKernelFactory::get_valid_fixed_params(kernel_name); });
   }
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
@@ -202,9 +198,7 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
 
     return add_valid_enabled_kernels_and_kernel_params_to_parameter_list(
         "mutable", parameter_list, valid_required_kernel_mutable_params, valid_forwarded_kernel_mutable_params,
-        [](const std::string &kernel_name) {
-          return OurKernelFactory::get_valid_mutable_params(kernel_name);
-        });
+        [](const std::string &kernel_name) { return OurKernelFactory::get_valid_mutable_params(kernel_name); });
   }
 
   /// \brief Get the unique registration identifier associated with our kernel factory.

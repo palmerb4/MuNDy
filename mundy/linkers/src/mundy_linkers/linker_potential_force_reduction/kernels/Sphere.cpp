@@ -59,16 +59,17 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
   Teuchos::ParameterList valid_fixed_params = fixed_params;
   valid_fixed_params.validateParametersAndSetDefaults(Sphere::get_valid_fixed_params());
 
-  valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
-
   // Get the field pointers.
   const std::string linker_potential_force_field_name =
       valid_fixed_params.get<std::string>("linker_potential_force_field_name");
   const std::string node_force_field_name = valid_fixed_params.get<std::string>("node_force_field_name");
+  const std::string linked_entities_field_name = NeighborLinkers::get_linked_entities_field_name();
 
   node_force_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_force_field_name);
   linker_potential_force_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_potential_force_field_name);
+  linked_entities_field_ptr_ = meta_data_ptr_->get_field<LinkedEntitiesFieldType::value_type>(
+      stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
@@ -77,6 +78,7 @@ Sphere::Sphere(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::Parame
 
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
   field_exists(node_force_field_ptr_, node_force_field_name);
+  field_exists(linked_entities_field_ptr_, linked_entities_field_name);
 
   // Get the part pointers.
   const std::string name_of_linker_part_to_reduce_over =
@@ -120,29 +122,31 @@ void Sphere::set_mutable_params(const Teuchos::ParameterList &mutable_params) {
 //{
 
 void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
-  // Communicate the linker fields.
-  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_),
-                                    {linker_potential_force_field_ptr_});
+  // Communicate ghosted fields.
+  stk::mesh::communicate_field_data(*bulk_data_ptr_, {linker_potential_force_field_ptr_});
 
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
-  const stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+  stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
   stk::mesh::Part &linkers_part_to_reduce_over = *linkers_part_to_reduce_over_;
+  const LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
-      stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
+  // At the end of this loop, all locally owned and shared spheres will be up-to-date.
+  stk::mesh::Selector locally_owned_or_globally_shared_intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector &
+      (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::ELEMENT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
-      [&linker_potential_force_field, &node_force_field, &linkers_part_to_reduce_over](
+      *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
+      locally_owned_or_globally_shared_intersection_with_valid_entity_parts,
+      [&linker_potential_force_field, &node_force_field, &linkers_part_to_reduce_over, &linked_entities_field](
           const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere) {
         // Get our node and its force
         const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere)[0];
         auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
 
         // Loop over the connected constraint rank entities
-        const unsigned num_constraint_rank_conn = bulk_data.num_connectivity(sphere, stk::topology::CONSTRAINT_RANK);
-        const stk::mesh::Entity *connected_linkers = bulk_data.begin(sphere, stk::topology::CONSTRAINT_RANK);
+        const unsigned num_constraint_rank_conn = bulk_data.num_connectivity(node, stk::topology::CONSTRAINT_RANK);
+        const stk::mesh::Entity *connected_linkers = bulk_data.begin(node, stk::topology::CONSTRAINT_RANK);
 
         for (unsigned i = 0; i < num_constraint_rank_conn; i++) {
           const stk::mesh::Entity &connected_linker = connected_linkers[i];
@@ -154,8 +158,11 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
           if (is_reduction_linker) {
             // The linker force is the force on the left element. The force on the right element is equal and opposite.
             // This is important, as it means we should multiply by -1 if we are the right element.
-            const bool are_we_the_left_sphere =
-                (bulk_data.begin(connected_linker, stk::topology::ELEMENT_RANK)[0] == sphere);
+            const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
+                reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+                    stk::mesh::field_data(linked_entities_field, connected_linker));
+
+            const bool are_we_the_left_sphere = (key_t_ptr[0] == bulk_data.entity_key(sphere));
             const double sign = are_we_the_left_sphere ? 1.0 : -1.0;
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);

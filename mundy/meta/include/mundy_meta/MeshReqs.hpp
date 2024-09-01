@@ -250,13 +250,13 @@ class MeshReqs {
   bool get_upward_connectivity_flag() const;
 
   /// \brief Return the mesh field map for each rank.
-  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>> &get_mesh_ranked_field_map();
+  std::vector<std::map<std::string, std::shared_ptr<FieldReqsBase>>>& get_mesh_ranked_field_map();
 
   /// \brief Return the mesh part map.
-  std::map<std::string, std::shared_ptr<PartReqs>> &get_mesh_part_map();
+  std::map<std::string, std::shared_ptr<PartReqs>>& get_mesh_part_map();
 
   /// \brief Return the required mesh attribute names.
-  std::vector<std::string> &get_mesh_attribute_names();
+  std::vector<std::string>& get_mesh_attribute_names();
   //@}
 
   //! \name Actions
@@ -286,6 +286,9 @@ class MeshReqs {
   /// \brief Dump the contents of \c MeshReqs to the given stream (defaults to std::cout).
   void print(std::ostream& os = std::cout, int indent_level = 0) const;
 
+  /// \brief Dump the parts of \c MeshReqs to the given stream (defaults to std::cout).
+  void print_parts(std::ostream& os = std::cout, int indent_level = 0) const;
+
   /// \brief Return a string representation of the current set of requirements.
   std::string get_reqs_as_a_string() const;
   //@}
@@ -308,7 +311,7 @@ class MeshReqs {
   //@{
 
   /// \brief Set the master field requirements for this class.
-  MeshReqs &set_master_mesh_reqs(std::shared_ptr<MeshReqs> master_mesh_req_ptr);
+  MeshReqs& set_master_mesh_reqs(std::shared_ptr<MeshReqs> master_mesh_req_ptr);
 
   /// \brief Get the master mesh requirements for this class.
   std::shared_ptr<MeshReqs> get_master_mesh_reqs();

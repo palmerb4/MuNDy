@@ -123,6 +123,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::PARTICLE);
       part_reqs->add_field_reqs<double>(node_force_field_name, stk::topology::NODE_RANK, 3, 1);
       part_reqs->add_field_reqs<double>(node_torque_field_name, stk::topology::NODE_RANK, 3, 1);
 
@@ -154,7 +155,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<> {
                  "first three entries are the left contact point and the next three the right.")
             .set("node_force_field_name", std::string(default_node_force_field_name_),
                  "The field name of the node force within the spherocylinder that we'll sum our potential into.")
-            .set("node_torque_field_name", std::string("NODE_TORQUE"),
+            .set("node_torque_field_name", std::string(default_node_torque_field_name_),
                  "The field name of the node torque within the spherocylinder that we'll sum our potential into.");
 
     return default_parameter_list;
@@ -222,6 +223,9 @@ class Spherocylinder : public mundy::meta::MetaKernel<> {
 
   /// \brief Linker contact points field.
   stk::mesh::Field<double> *linker_contact_points_field_ptr_ = nullptr;
+
+  /// \brief Linked entities field.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
 
   /// \brief Node coord field.
   stk::mesh::Field<double> *node_coord_field_ptr_ = nullptr;

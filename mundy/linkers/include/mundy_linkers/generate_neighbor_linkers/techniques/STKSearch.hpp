@@ -278,6 +278,12 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
   /// \brief The specialized neighbor linkers parts.
   std::vector<stk::mesh::Part *> specialized_neighbor_linkers_part_ptrs_;
 
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
+
+  /// \brief The linked entity owners field pointer.
+  stk::mesh::Field<int> *linked_entity_owners_field_ptr_ = nullptr;
+
   /// \brief The element aabb field pointer.
   stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
   //@}

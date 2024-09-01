@@ -272,6 +272,7 @@ SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::
       valid_fixed_params.get<std::string>("linker_contact_normal_field_name");
   const std::string linker_contact_points_field_name =
       valid_fixed_params.get<std::string>("linker_contact_points_field_name");
+  const std::string linked_entities_field_name = NeighborLinkers::get_linked_entities_field_name();
 
   node_coords_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_coords_field_name);
   node_velocity_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::NODE_RANK, node_velocity_field_name);
@@ -286,6 +287,8 @@ SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_normal_field_name);
   linker_contact_points_field_ptr_ =
       meta_data_ptr_->get_field<double>(stk::topology::CONSTRAINT_RANK, linker_contact_points_field_name);
+  linked_entities_field_ptr_ = meta_data_ptr_->get_field<LinkedEntitiesFieldType::value_type>(
+      stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
     MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
@@ -301,6 +304,7 @@ SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::
   field_exists(linker_potential_force_field_ptr_, linker_potential_force_field_name);
   field_exists(linker_contact_normal_field_ptr_, linker_contact_normal_field_name);
   field_exists(linker_contact_points_field_ptr_, linker_contact_points_field_name);
+  field_exists(linked_entities_field_ptr_, linked_entities_field_name);
 
   // Get the part pointers.
   Teuchos::Array<std::string> valid_entity_part_names =
@@ -349,19 +353,24 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::set_mu
 
 void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execute(
     const stk::mesh::Selector &sy_seg_sy_seg_linker_selector) {
-  // Communicate the fields of downward connected entities.
-  stk::mesh::communicate_field_data(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), {element_radius_field_ptr_});
-
   // Get references to internal members so we aren't passing around *this
   const stk::mesh::Field<double> &node_coords_field = *node_coords_field_ptr_;
   const stk::mesh::Field<double> &node_velocity_field_old = node_velocity_field_ptr_->field_of_state(stk::mesh::StateN);
   const stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
-  const stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
   const stk::mesh::Field<double> &linker_signed_separation_distance_field =
       *linker_signed_separation_distance_field_ptr_;
   const stk::mesh::Field<double> &linker_tangential_displacement_field = *linker_tangential_displacement_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_normal_field = *linker_contact_normal_field_ptr_;
   const stk::mesh::Field<double> &linker_contact_points_field = *linker_contact_points_field_ptr_;
+  const LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
+  stk::mesh::Field<double> &linker_potential_force_field = *linker_potential_force_field_ptr_;
+
+  // Communicate ghosted fields.
+  stk::mesh::communicate_field_data(
+      *bulk_data_ptr_,
+      {node_coords_field_ptr_, &node_velocity_field_old, element_radius_field_ptr_,
+       linker_signed_separation_distance_field_ptr_, linker_tangential_displacement_field_ptr_,
+       linker_contact_normal_field_ptr_, linker_contact_points_field_ptr_, linker_potential_force_field_ptr_});
 
   // TODO(palmerb4): For now, we hardcode some of the parameters. We'll need to take them in as mutable params.
   const double density = 1.90986;
@@ -375,16 +384,15 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
   const double tang_damping_coeff = 0.0;  // A good choice is 0.5 * normal_damping_coeff
   const double time_step_size = 0.0001;
 
-  stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts = stk::mesh::selectUnion(valid_entity_parts_) &
-                                                                           meta_data_ptr_->locally_owned_part() &
-                                                                           sy_seg_sy_seg_linker_selector;
+  // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
+  stk::mesh::Selector intersection_with_valid_entity_parts =
+      stk::mesh::selectUnion(valid_entity_parts_) & sy_seg_sy_seg_linker_selector;
   stk::mesh::for_each_entity_run(
-      *static_cast<stk::mesh::BulkData *>(bulk_data_ptr_), stk::topology::CONSTRAINT_RANK,
-      locally_owned_intersection_with_valid_entity_parts,
+      *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&node_coords_field, &node_velocity_field_old, &element_radius_field, &linker_potential_force_field,
        &linker_signed_separation_distance_field, &linker_tangential_displacement_field, &linker_contact_normal_field,
        &linker_contact_points_field, &time_step_size, &density, &normal_spring_coeff, &tang_spring_coeff,
-       &normal_damping_coeff, &tang_damping_coeff, &friction_coeff](
+       &normal_damping_coeff, &tang_damping_coeff, &friction_coeff, &linked_entities_field](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sy_seg_sy_seg_linker) {
         // This is an expensive kernel, so we only run it if the particles actually overlap.
         const double linker_signed_separation_distance =
@@ -397,13 +405,23 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
           // Contact, compute the contact forces
 
           // Fetch the attached entities. Use references to avoid copying or pointer dereferencing.
-          const stk::mesh::Entity &left_sy_seg_element = bulk_data.begin_elements(sy_seg_sy_seg_linker)[0];
-          const stk::mesh::Entity &right_sy_seg_element = bulk_data.begin_elements(sy_seg_sy_seg_linker)[1];
+          const stk::mesh::EntityKey::entity_key_t *key_t_ptr = reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+              stk::mesh::field_data(linked_entities_field, sy_seg_sy_seg_linker));
+          const stk::mesh::Entity &left_sy_seg_element = bulk_data.get_entity(key_t_ptr[0]);
+          const stk::mesh::Entity &right_sy_seg_element = bulk_data.get_entity(key_t_ptr[1]);
+
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(left_sy_seg_element), std::invalid_argument,
+                             "SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact: left_sy_seg_element "
+                             "entity is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data.is_valid(right_sy_seg_element), std::invalid_argument,
+                             "SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact: "
+                             "right_sy_seg_element entity is not valid.");
+
           const stk::mesh::Entity *left_sy_seg_nodes = bulk_data.begin_nodes(left_sy_seg_element);
           const stk::mesh::Entity *right_sy_seg_nodes = bulk_data.begin_nodes(right_sy_seg_element);
 
           // Determine the velocity of the contact points
-          auto get_contact_point_velocity = [](const mundy::math::Vector3<double, auto> &contact_point,
+          auto get_contact_point_velocity = [](const mundy::math::Vector3<double, auto, auto> &contact_point,
                                                const stk::mesh::Entity *nodes,
                                                const stk::mesh::Field<double> &node_velocity_field,
                                                const stk::mesh::Field<double> &node_coords_field) {
@@ -423,8 +441,8 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
             const auto tangent = left_to_right * inv_length;
 
             const auto term1 = mundy::math::dot(left_to_cp, rel_vel) * tangent * inv_length;
-            const auto term2 = mundy::math::dot(left_to_cp, tangent) * 
-              (rel_vel - mundy::math::dot(tangent, rel_vel) * tangent) * inv_length;
+            const auto term2 = mundy::math::dot(left_to_cp, tangent) *
+                               (rel_vel - mundy::math::dot(tangent, rel_vel) * tangent) * inv_length;
             return vel0 + term1 + term2;
           };  // get_contact_point_velocity
 

@@ -32,10 +32,10 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy includes
-#include <mundy_linkers/Linkers.hpp>         // for mundy::linkers::Linkers
-#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
-#include <mundy_meta/MeshReqs.hpp>   // for mundy::meta::MeshReqs
-#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
+#include <mundy_linkers/Linkers.hpp>  // for mundy::linkers::Linkers
+#include <mundy_meta/FieldReqs.hpp>   // for mundy::meta::FieldReqs
+#include <mundy_meta/MeshReqs.hpp>    // for mundy::meta::MeshReqs
+#include <mundy_meta/PartReqs.hpp>    // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -50,6 +50,38 @@ namespace linkers {
 /// agent.
 class NeighborLinkers : public mundy::agents::RankedAssembly<mundy::core::make_string_literal("NEIGHBOR_LINKERS"),
                                                              stk::topology::CONSTRAINT_RANK, mundy::linkers::Linkers> {
+ public:
+  static inline std::string get_linked_entities_field_name() {
+    return std::string("LINKED_NEIGHBOR_ENTITIES");
+  }
+
+  static inline std::string get_linked_entity_owners_field_name() {
+    return std::string("LINKED_NEIGHBOR_ENTITY_OWNERS");
+  }
+
+  /// \brief Get our mesh requirements.
+  static inline std::shared_ptr<mundy::meta::MeshReqs> get_mesh_requirements() {
+    add_and_sync_part_reqs(additional_part_reqs_ptr_);
+    return mundy::agents::RankedAssembly<mundy::core::make_string_literal("NEIGHBOR_LINKERS"),
+                                         stk::topology::CONSTRAINT_RANK,
+                                         mundy::linkers::Linkers>::get_mesh_requirements();
+  }
+  //@}
+
+ private:
+  //! \name Member variable definitions
+  //@{
+
+  /// \brief Our part requirements.
+  static inline std::shared_ptr<mundy::meta::PartReqs> additional_part_reqs_ptr_ = []() {
+    auto part_reqs_ptr = std::make_shared<mundy::meta::PartReqs>("NEIGHBOR_LINKERS", stk::topology::CONSTRAINT_RANK);
+    part_reqs_ptr
+        ->add_field_reqs<LinkedEntitiesFieldType::value_type>("LINKED_NEIGHBOR_ENTITIES",
+                                                              stk::topology::CONSTRAINT_RANK, 2, 1)
+        .add_field_reqs<int>("LINKED_NEIGHBOR_ENTITY_OWNERS", stk::topology::CONSTRAINT_RANK, 2, 1);
+    return part_reqs_ptr;
+  }();
+  //@}
 };  // NeighborLinkers
 
 }  // namespace linkers

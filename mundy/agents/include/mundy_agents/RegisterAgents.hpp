@@ -118,9 +118,7 @@ struct RegisterAgents {
 /// definition errors.
 ///
 /// \param ClassToCheck A class derived from \c Agent that we wish to check if it has been registered.
-#define MUNDY_IS_AGENT_REGISTERED(ClassToCheck)                       \
-  ([]() -> bool {                                                     \
-    return mundy::agent::RegisterAgents<ClassToCheck>::is_registered; \
-  }())
+#define MUNDY_IS_AGENT_REGISTERED(ClassToCheck) \
+  ([]() -> bool { return mundy::agent::RegisterAgents<ClassToCheck>::is_registered; }())
 
 #endif  // MUNDY_AGENTS_REGISTERAGENTS_HPP_

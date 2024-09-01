@@ -1,0 +1,58 @@
+HP1:
+  simulation:
+    setup_run: "RESTART"
+    run_type: "HYDRO"
+    num_time_steps: 1000
+    timestep_size: 5.0e-6
+    kt_brownian: 1.0
+    kt_kmc: 1.0
+    io_frequency: 20
+    log_frequency: 20
+    initial_loadbalance: true
+    initialization_type: "HILBERT_CENTERED_UNIT_CELL"
+    viscosity: 1.0
+    check_inside_periphery: false
+    restart_filename: "HP.e-s.980"
+    output_filename: "HPafter.exo"
+
+  periphery:
+    spring_constant: 1000.0
+    shape: "ELLIPSOID"
+    axis_radius1: 28.0
+    axis_radius2: 28.0
+    axis_radius3: 28.0
+    quadrature: "GAUSS_LEGENDRE"
+    spectral_order: 16
+    bind_sites_type: "RANDOM"
+    num_bind_sites: 0
+    standoff_distance: 1.4
+    periphery_collision_use_fast: false
+  
+  chromatin:
+    spring_type: "HARMONIC"
+    spring_constant: 3.0
+    spring_rest_length: 1.0
+    num_chromosomes: 1
+    num_chromatin_repeats: 7
+    num_euchromatin_per_repeat: 315
+    num_heterochromatin_per_repeat: 90
+    backbone_excluded_volume_radius: 0.5
+    sphere_hydrodynamic_radius: 0.1
+    initial_sphere_separation: 1.0
+    backbone_youngs_modulus: 1000.0
+    backbone_poissons_ratio: 0.3
+
+  crosslinker:
+    spring_type: "HARMONIC"
+    spring_constant: 30.0
+    rest_length: 1.0
+    left_binding_rate: 0.0
+    right_binding_rate: 0.02
+    left_unbinding_rate: 0.0
+    right_unbinding_rate: 0.0
+
+  neighbor_list:
+    skin_distance: 1.0
+    # force_neighborlist_update: false
+    # force_neighborlist_update_nsteps: 0
+    print_neighborlist_statistics: true

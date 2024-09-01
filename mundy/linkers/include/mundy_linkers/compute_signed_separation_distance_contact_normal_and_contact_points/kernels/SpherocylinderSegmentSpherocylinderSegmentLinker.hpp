@@ -91,7 +91,6 @@ class SpherocylinderSegmentSpherocylinderSegmentLinker : public mundy::meta::Met
     valid_fixed_params.validateParametersAndSetDefaults(
         SpherocylinderSegmentSpherocylinderSegmentLinker::get_valid_fixed_params());
 
-    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
     // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
@@ -241,6 +240,9 @@ class SpherocylinderSegmentSpherocylinderSegmentLinker : public mundy::meta::Met
 
   /// \brief Linker contact points field.
   stk::mesh::Field<double> *linker_contact_points_field_ptr_ = nullptr;
+
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
   //@}
 };  // SpherocylinderSegmentSpherocylinderSegmentLinker
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#./install_openrand.sh /path/to/install/directory
+#./install_stkfmm.sh /path/to/install/directory
 
 # Check if an install directory was provided
 if [ "$#" -ne 1 ]; then

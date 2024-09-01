@@ -90,7 +90,6 @@ class SpherocylinderSpherocylinderLinker : public mundy::meta::MetaKernel<> {
     Teuchos::ParameterList valid_fixed_params = fixed_params;
     valid_fixed_params.validateParametersAndSetDefaults(SpherocylinderSpherocylinderLinker::get_valid_fixed_params());
 
-    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
     // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
@@ -131,6 +130,7 @@ class SpherocylinderSpherocylinderLinker : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_spherocylinder_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::PARTICLE);
 
       if (part_name == mundy::shapes::Spherocylinders::get_name()) {
         // Add the requirements directly to spherocylinder spherocylinder linkers agent.
@@ -243,6 +243,9 @@ class SpherocylinderSpherocylinderLinker : public mundy::meta::MetaKernel<> {
 
   /// \brief Linker contact points field.
   stk::mesh::Field<double> *linker_contact_points_field_ptr_ = nullptr;
+
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
   //@}
 };  // SpherocylinderSpherocylinderLinker
 

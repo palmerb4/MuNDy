@@ -16,11 +16,15 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
+  include/mundy_alens/actions_crosslinkers.hpp
   include/mundy_alens/ComputeBrownianVelocity.hpp
   include/mundy_alens/compute_brownian_velocity/kernels/SpheresKernel.hpp
   include/mundy_alens/ComputeMobility.hpp
   include/mundy_alens/compute_mobility/techniques/LocalDragNonOrientableSpheres.hpp
   include/mundy_alens/compute_mobility/techniques/RPYSpheres.hpp
+  include/mundy_alens/compute_mobility/techniques/RPYSpheresPerf.hpp
+  include/mundy_alens/periphery/Gauss_Legendre_Nodes_and_Weights.hpp
+  include/mundy_alens/periphery/Periphery.hpp
   )
 
 SET(SOURCES 

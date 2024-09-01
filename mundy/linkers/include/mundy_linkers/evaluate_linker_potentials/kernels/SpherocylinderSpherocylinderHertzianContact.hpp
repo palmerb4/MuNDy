@@ -132,7 +132,6 @@ class SpherocylinderSpherocylinderHertzianContact : public mundy::meta::MetaKern
     valid_fixed_params.validateParametersAndSetDefaults(
         SpherocylinderSpherocylinderHertzianContact::get_valid_fixed_params());
 
-    valid_fixed_params.print(std::cout, Teuchos::ParameterList::PrintOptions().showDoc(true).indent(2).showTypes(true));
 
     // Add the requirements for the linker.
     auto mesh_reqs_ptr = std::make_shared<mundy::meta::MeshReqs>();
@@ -177,6 +176,7 @@ class SpherocylinderSpherocylinderHertzianContact : public mundy::meta::MetaKern
       const std::string part_name = valid_spherocylinder_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::PARTICLE);
       part_reqs->add_field_reqs<double>(element_youngs_modulus_field_name, stk::topology::ELEMENT_RANK, 1, 1);
       part_reqs->add_field_reqs<double>(element_poissons_ratio_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
@@ -292,6 +292,9 @@ class SpherocylinderSpherocylinderHertzianContact : public mundy::meta::MetaKern
 
   /// \brief Linker contact normal field.
   stk::mesh::Field<double> *linker_contact_normal_field_ptr_ = nullptr;
+
+  /// \brief The linked entities field pointer.
+  LinkedEntitiesFieldType *linked_entities_field_ptr_ = nullptr;
   //@}
 };  // SpherocylinderSpherocylinderHertzianContact
 

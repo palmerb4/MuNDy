@@ -35,13 +35,13 @@
 #include <stk_topology/topology.hpp>  // for stk::topology
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>           // for mundy::mesh::BulkData
-#include <mundy_mesh/MetaData.hpp>           // for mundy::mesh::MetaData
-#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
-#include <mundy_meta/MetaFactory.hpp>        // for mundy::meta::MetaKernelFactory
-#include <mundy_meta/MetaKernel.hpp>         // for mundy::meta::MetaKernel
-#include <mundy_meta/MetaRegistry.hpp>       // for mundy::meta::MetaKernelRegistry
-#include <mundy_meta/PartReqs.hpp>   // for mundy::meta::PartReqs
+#include <mundy_mesh/BulkData.hpp>      // for mundy::mesh::BulkData
+#include <mundy_mesh/MetaData.hpp>      // for mundy::mesh::MetaData
+#include <mundy_meta/FieldReqs.hpp>     // for mundy::meta::FieldReqs
+#include <mundy_meta/MetaFactory.hpp>   // for mundy::meta::MetaKernelFactory
+#include <mundy_meta/MetaKernel.hpp>    // for mundy::meta::MetaKernel
+#include <mundy_meta/MetaRegistry.hpp>  // for mundy::meta::MetaKernelRegistry
+#include <mundy_meta/PartReqs.hpp>      // for mundy::meta::PartReqs
 
 namespace mundy {
 
@@ -148,9 +148,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
     if (fixed_params_ptr->isParameter("part_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "Sphere: Type error. Given a parameter with name 'part_name' but "
-                             << "with a type other than std::string");
+      MUNDY_THROW_ASSERT(
+          valid_type, std::invalid_argument,
+          "Sphere: Type error. Given a parameter with name 'part_name' but " << "with a type other than std::string");
     } else {
       fixed_params_ptr->set("part_name", std::string(default_part_name_),
                             "Name of the part associated with this kernel.");

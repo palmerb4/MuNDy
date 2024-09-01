@@ -49,7 +49,7 @@
 #include <mundy_mesh/BulkData.hpp>          // for mundy::mesh::BulkData
 #include <mundy_mesh/MetaData.hpp>          // for mundy::mesh::MetaData
 #include <mundy_mesh/StringToTopology.hpp>  // for mundy::mesh::string_to_rank
-#include <mundy_meta/MeshReqs.hpp>  // for mundy::meta::MeshReqs
+#include <mundy_meta/MeshReqs.hpp>          // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaFactory.hpp>       // for mundy::meta::MetaKernelFactory
 #include <mundy_meta/MetaKernel.hpp>        // for mundy::meta::MetaKernel
 #include <mundy_meta/MetaMethodExecutionInterface.hpp>  // for mundy::meta::MetaMethodExecutionInterface
@@ -72,7 +72,7 @@ class IOBroker {
   IOBroker(mundy::mesh::BulkData *const bulk_data_ptr, [[maybe_unused]] const Teuchos::ParameterList &fixed_params)
       : bulk_data_ptr_(bulk_data_ptr),
         meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()),
-        STKioBroker_(bulk_data_ptr->parallel()) {
+        stk_io_broker_(bulk_data_ptr->parallel()) {
     // The bulk data pointer must not be null.
     MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "IOBroker: bulk_data_ptr cannot be a nullptr.");
@@ -115,18 +115,17 @@ class IOBroker {
     Teuchos::Array<std::string> enabled_io_parts =
         valid_fixed_params.get<Teuchos::Array<std::string>>("enabled_io_parts");
     for (const std::string &io_part_name : enabled_io_parts) {
-      std::ostringstream ostream;
-      ostream << "Enabling Part IO " << io_part_name;
-      stk::log_with_time_and_memory(bulk_data_ptr_->parallel(), ostream.str());
       // Grab the Part and then assign it to IO
       stk::mesh::Part *io_part_ptr = meta_data_ptr_->get_part(io_part_name);
       stk::io::put_io_part_attribute(*io_part_ptr);
     }
 
     // Set the stk::io::StkMeshIoBroker bulk data to our bulk data
-    STKioBroker_.set_bulk_data(*bulk_data_ptr_);
-    // Set up the parallel IO mode
-    STKioBroker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    stk_io_broker_.set_bulk_data(*bulk_data_ptr_);
+    if (!parallel_io_mode_.empty()) {
+      stk_io_broker_.property_add(Ioss::Property("PARALLEL_IO_MODE", parallel_io_mode_));
+    }
+    stk_io_broker_.property_add(Ioss::Property("MAXIMUM_NAME_LENGTH", 180));
 
     // Set the TRANSIENT fields and keep track of them.
     set_transient_fields(valid_fixed_params);
@@ -238,14 +237,17 @@ class IOBroker {
   /// \brief Read the RESTART file
   void restart_mesh();
 
-  /// \brief Synchronize node coordinates from TRANSIENT node coordinates
+  /// \brief Update node coordinates from the TRANSIENT node coordinates
   void synchronize_node_coordinates_from_transient();
+
+  /// \brief Copy node coordinates to TRANSIENT node coordinates
+  void synchronize_node_coordinates_to_transient();
 
   /// \brief Write to disk
   void write_io_broker(double time);
 
   /// \brief Write a single timestep to disk
-  void write_io_broker_timestep(int timestep, double time);
+  void write_io_broker_timestep(size_t timestep, double time);
 
   //@}
 
@@ -272,7 +274,7 @@ class IOBroker {
   mundy::mesh::MetaData *meta_data_ptr_ = nullptr;
 
   /// \brief The stk::io::StkMeshIoBroker for output operations
-  stk::io::StkMeshIoBroker STKioBroker_;
+  stk::io::StkMeshIoBroker stk_io_broker_;
 
   /// \brief EXODUS output database filename
   std::string exodus_database_output_filename_ = "";

@@ -96,6 +96,7 @@ class Spherocylinder : public mundy::meta::MetaKernel<> {
       const std::string part_name = valid_entity_part_names[i];
       auto part_reqs = std::make_shared<mundy::meta::PartReqs>();
       part_reqs->set_part_name(part_name);
+      part_reqs->set_part_topology(stk::topology::PARTICLE);
       part_reqs->add_field_reqs<double>(element_bounding_radius_field_name, stk::topology::ELEMENT_RANK, 1, 1);
 
       if (part_name == mundy::shapes::Spherocylinders::get_name()) {

@@ -285,10 +285,10 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
     double timestep_size = timestep_size_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
           double *node_coords = stk::mesh::field_data(node_coord_field, sphere_node);
@@ -557,10 +557,10 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     double timestep_size = timestep_size_;
     double diffusion_coeff = diffusion_coeff_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_intersection_with_valid_entity_parts,
+        *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_brownian_velocity_field, &node_rng_counter_field, &timestep_size, &diffusion_coeff](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           double *node_brownian_velocity = stk::mesh::field_data(node_brownian_velocity_field, sphere_node);
@@ -891,22 +891,22 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
     stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
     double viscosity = viscosity_;
 
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, locally_owned_intersection_with_valid_entity_parts,
-        [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
-            const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
-          const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
+    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
+                                   [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
+                                       const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
+                                     const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];
 
-          const double *element_radius = stk::mesh::field_data(element_radius_field, sphere_element);
-          const double *node_force = stk::mesh::field_data(node_force_field, node);
-          double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
-          const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity * element_radius[0]);
-          node_velocity[0] += inv_drag_coeff * node_force[0];
-          node_velocity[1] += inv_drag_coeff * node_force[1];
-          node_velocity[2] += inv_drag_coeff * node_force[2];
-        });
+                                     const double *element_radius =
+                                         stk::mesh::field_data(element_radius_field, sphere_element);
+                                     const double *node_force = stk::mesh::field_data(node_force_field, node);
+                                     double *node_velocity = stk::mesh::field_data(node_velocity_field, node);
+                                     const double inv_drag_coeff = 1.0 / (6.0 * M_PI * viscosity * element_radius[0]);
+                                     node_velocity[0] += inv_drag_coeff * node_force[0];
+                                     node_velocity[1] += inv_drag_coeff * node_force[1];
+                                     node_velocity[2] += inv_drag_coeff * node_force[2];
+                                   });
   }
   //@}
 
@@ -1128,10 +1128,10 @@ class RPYSphere : public mundy::meta::MetaKernel<> {
     double Pi = 3.14159265358979323846;
 
     // Get the total number of local spheres
-    stk::mesh::Selector locally_owned_intersection_with_valid_entity_parts =
+    stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
     stk::mesh::EntityVector local_spheres;
-    stk::mesh::get_selected_entities(locally_owned_intersection_with_valid_entity_parts,
+    stk::mesh::get_selected_entities(intersection_with_valid_entity_parts,
                                      bulk_data.buckets(stk::topology::ELEMENT_RANK), local_spheres);
     const int num_local_spheres = local_spheres.size();
 

@@ -36,9 +36,9 @@
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_mesh/BulkData.hpp>               // for mundy::mesh::BulkData
-#include <mundy_mesh/MeshBuilder.hpp>            // for mundy::mesh::MeshBuilder
-#include <mundy_mesh/MetaData.hpp>               // for mundy::mesh::MetaData
+#include <mundy_mesh/BulkData.hpp>       // for mundy::mesh::BulkData
+#include <mundy_mesh/MeshBuilder.hpp>    // for mundy::mesh::MeshBuilder
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
 #include <mundy_meta/FieldReqs.hpp>      // for mundy::meta::FieldReqs
 #include <mundy_meta/FieldReqsBase.hpp>  // for mundy::meta::FieldReqsBase
 #include <mundy_meta/PartReqs.hpp>       // for mundy::meta::PartReqs
@@ -144,7 +144,7 @@ TEST(PartReqsSetters, AddFieldReqs) {
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
   auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
-                                                                              field_min_number_of_states);
+                                                                      field_min_number_of_states);
 
   // Create a PartReqs object and add the field requirements.
   PartReqs part_reqs;
@@ -338,16 +338,11 @@ TEST(PartReqsMerge, AreFieldsMergable) {
   // Setup the dummy fields.
   using ExampleFieldType = double;
 
-  auto field_reqs1_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
-  auto field_reqs2_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
-  auto field_reqs3_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
-  auto field_reqs4_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
-  auto field_reqs5_ptr =
-      std::make_shared<FieldReqs<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
+  auto field_reqs1_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field1", stk::topology::NODE_RANK, 3, 1);
+  auto field_reqs2_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field2", stk::topology::NODE_RANK, 3, 2);
+  auto field_reqs3_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field3", stk::topology::ELEMENT_RANK, 3, 3);
+  auto field_reqs4_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field4", stk::topology::NODE_RANK, 3, 4);
+  auto field_reqs5_ptr = std::make_shared<FieldReqs<ExampleFieldType>>("field5", stk::topology::NODE_RANK, 3, 5);
 
   // Setup the part requirements according to the diagram above.
   auto part_reqs1_ptr = std::make_shared<PartReqs>("part_name");
@@ -395,7 +390,8 @@ TEST(PartReqsMerge, ArePartAttributesMergable) {
   part_reqs2_ptr->add_part_attribute(attribute3_name);
   part_reqs2_ptr->add_part_attribute(attribute4_name);
 
-  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged
+  // correctly.
   part_reqs1_ptr->sync(part_reqs2_ptr);
 
   // Check that the part attributes were merged correctly.
@@ -465,7 +461,8 @@ TEST(PartReqsMerge, AreSubpartsAndTheirFieldsMergable) {
   part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs3_ptr);
   part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs4_ptr);
 
-  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged
+  // correctly.
   part_reqs1_ptr->sync(part_reqs2_ptr);
   // TODO(palmerb4): Use the attribute getters to check that the attributes were merged correctly.
 }
@@ -530,7 +527,8 @@ TEST(PartReqsMerge, AreSubpartsAndTheirAttributesMergable) {
   part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs3_ptr);
   part_reqs2_ptr->add_and_sync_subpart_reqs(subpart_reqs4_ptr);
 
-  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged correctly.
+  // Synchronize (merge and rectify differences) the mesh requirements and check that the attributes were merged
+  // correctly.
   part_reqs1_ptr->sync(part_reqs2_ptr);
 
   // Check that the parts were merged correctly.
@@ -682,7 +680,7 @@ TEST(PartReqsDeclare, DeclarePartWithNameAndFields) {
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
   auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
-                                                                              field_min_number_of_states);
+                                                                      field_min_number_of_states);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 
   // Declare a part on the mesh using the PartReqs object.
@@ -771,7 +769,7 @@ TEST(PartReqsDeclare, DeclarePartWithNameAndFieldsAndSubpartsAndAttributes) {
   const int field_dimension = 3;
   const int field_min_number_of_states = 2;
   auto field_reqs_ptr = std::make_shared<FieldReqs<ExampleFieldType>>(field_name, field_rank, field_dimension,
-                                                                              field_min_number_of_states);
+                                                                      field_min_number_of_states);
   field_reqs_ptr->add_field_attribute(field_attribute_name);
   ASSERT_TRUE(field_reqs_ptr->is_fully_specified());
 

@@ -757,35 +757,35 @@ void FieldReqs<FieldType>::print(std::ostream &os, int indent_level) const {
   os << indent << "FieldReqs: " << std::endl;
 
   if (this->constrains_field_name()) {
-    os << indent << "  Field name: " << this->get_field_name() << std::endl;
+    os << indent << "  name: " << this->get_field_name() << std::endl;
   } else {
-    os << indent << "  Field name is not set." << std::endl;
+    os << indent << "  name is not set." << std::endl;
   }
 
   if (this->constrains_field_rank()) {
-    os << indent << "  Field rank: " << this->get_field_rank() << std::endl;
+    os << indent << "  rank: " << this->get_field_rank() << std::endl;
   } else {
-    os << indent << "  Field rank is not set." << std::endl;
+    os << indent << "  rank is not set." << std::endl;
   }
 
   if (this->constrains_field_dimension()) {
-    os << indent << "  Field dimension: " << this->get_field_dimension() << std::endl;
+    os << indent << "  dimension: " << this->get_field_dimension() << std::endl;
   } else {
-    os << indent << "  Field dimension is not set." << std::endl;
+    os << indent << "  dimension is not set." << std::endl;
   }
 
   if (this->constrains_field_min_number_of_states()) {
-    os << indent << "  Field min number of states: " << this->get_field_min_num_states() << std::endl;
+    os << indent << "  min number of states: " << this->get_field_min_num_states() << std::endl;
   } else {
-    os << indent << "  Field min number of states is not set." << std::endl;
+    os << indent << "  min number of states is not set." << std::endl;
   }
 
-  os << indent << "  Field type info: " << this->get_field_type_info().name() << std::endl;
+  os << indent << "  type info: " << this->get_field_type_info().name() << std::endl;
 
-  os << indent << "  Field attributes: " << std::endl;
+  os << indent << "  attributes: " << std::endl;
   int attribute_count = 0;
   for (const std::string &attribute_name : const_cast<FieldReqs<FieldType> *>(this)->get_field_attribute_names()) {
-    os << indent << "  Field attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
+    os << indent << "  Attribute " << attribute_count << " has name (" << attribute_name << ")" << std::endl;
     attribute_count++;
   }
 

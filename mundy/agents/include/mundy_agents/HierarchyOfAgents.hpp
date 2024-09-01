@@ -210,13 +210,13 @@ class HierarchyOfAgents {
   /// \param subpart_reqs_ptr [in] A pointer to the sub-part requirements to add.
   /// Throws an error if this name is not registered to an existing class, i.e., is_valid(name) returns false
   static void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
-                               const std::string& name);
+                                        const std::string& name);
 
   /// \brief Add new sub-part requirements to ALL members of the specified agent part.
   /// \param agent_type [in] A agent_type that correspond to a registered class.
   /// Throws an error if this id is not registered to an existing class, i.e., is_valid(agent_type) returns false
   static void add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
-                               const agent_t agent_type);
+                                        const agent_t agent_type);
 
   /// \brief Get the mesh requirements for the specified agent.
   /// \param name [in] A string name that correspond to a registered class.

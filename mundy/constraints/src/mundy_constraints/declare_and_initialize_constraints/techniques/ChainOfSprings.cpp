@@ -91,7 +91,6 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
                              const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
-      std::cout << "part_name: " << part_name << std::endl;
       stk::mesh::Part *part = meta_data.get_part(part_name);
       MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
                          "ChainOfSprings: Expected a part with name '" << part_name << "' but part does not exist.");
@@ -242,6 +241,45 @@ stk::mesh::Entity ChainOfSprings::get_spherocylinder_segment(
   return bulk_data_ptr_->get_entity(stk::topology::ELEMENT_RANK,
                                     get_spherocylinder_segment_id(sequential_spherocylinder_segment_index));
 }
+
+stk::mesh::Entity ChainOfSprings::get_valid_node(const size_t &sequential_node_index) const {
+  stk::mesh::Entity node = get_node(sequential_node_index);
+  MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
+                     "The node with id " << get_node_id(sequential_node_index) << " is not valid.");
+  return node;
+}
+
+stk::mesh::Entity ChainOfSprings::get_valid_hookean_spring(const size_t &sequential_hookean_spring_index) const {
+  stk::mesh::Entity spring = get_hookean_spring(sequential_hookean_spring_index);
+  MUNDY_THROW_ASSERT(
+      bulk_data_ptr_->is_valid(spring), std::logic_error,
+      "The spring with id " << get_hookean_spring_id(sequential_hookean_spring_index) << " is not valid.");
+  return spring;
+}
+
+stk::mesh::Entity ChainOfSprings::get_valid_angular_spring(const size_t &sequential_angular_spring_index) const {
+  stk::mesh::Entity spring = get_angular_spring(sequential_angular_spring_index);
+  MUNDY_THROW_ASSERT(
+      bulk_data_ptr_->is_valid(spring), std::logic_error,
+      "The spring with id " << get_angular_spring_id(sequential_angular_spring_index) << " is not valid.");
+  return spring;
+}
+
+stk::mesh::Entity ChainOfSprings::get_valid_sphere(const size_t &sequential_sphere_index) const {
+  stk::mesh::Entity sphere = get_sphere(sequential_sphere_index);
+  MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(sphere), std::logic_error,
+                     "The sphere with id " << get_sphere_id(sequential_sphere_index) << " is not valid.");
+  return sphere;
+}
+
+stk::mesh::Entity ChainOfSprings::get_valid_spherocylinder_segment(
+    const size_t &sequential_spherocylinder_segment_index) const {
+  stk::mesh::Entity segment = get_spherocylinder_segment(sequential_spherocylinder_segment_index);
+  MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(segment), std::logic_error,
+                     "The segment with id " << get_spherocylinder_segment_id(sequential_spherocylinder_segment_index)
+                                            << " is not valid.");
+  return segment;
+}
 //}
 
 // \name Actions
@@ -277,7 +315,7 @@ void ChainOfSprings::execute() {
 
   bulk_data_ptr_->modification_begin();
   openrand::Philox rng(1, 0);
-  for (size_t i = start_node_index; i < end_node_index; ++i) {
+  for (size_t i = start_node_index; i < end_node_index + 1; ++i) {
     // Create the node.
     stk::mesh::EntityId our_node_id = get_node_id(i);
     stk::mesh::Entity node = bulk_data_ptr_->declare_node(our_node_id);
@@ -298,13 +336,12 @@ void ChainOfSprings::execute() {
   // last nodes with the corresponding neighboring ranks and receive their corresponding nodes.
   if (bulk_data_ptr_->parallel_size() > 1) {
     if (rank == 0) {
-      // Share the last node with rank 1.
-      stk::mesh::Entity node = get_node(end_node_index - 1);
+      // Share the last node with rank 1. Should already be declared.
+      stk::mesh::Entity node = get_valid_node(end_node_index - 1);
       bulk_data_ptr_->add_node_sharing(node, rank + 1);
 
-      // Receive the first node from rank 1
-      stk::mesh::EntityId received_node_id = get_node_id(end_node_index);
-      stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
+      // Receive the first node from rank 1. Should already be declared.
+      stk::mesh::Entity received_node = get_valid_node(end_node_index);
       bulk_data_ptr_->add_node_sharing(received_node, rank + 1);
 
       // Populate the data for the received nodes
@@ -315,11 +352,11 @@ void ChainOfSprings::execute() {
       node_coords[1] = coord_y;
       node_coords[2] = coord_z;
     } else if (rank == bulk_data_ptr_->parallel_size() - 1) {
-      // Share the first node with rank N - 1.
-      stk::mesh::Entity node = get_node(start_node_index);
+      // Share the first node with rank N - 1. Should already be declared.
+      stk::mesh::Entity node = get_valid_node(start_node_index);
       bulk_data_ptr_->add_node_sharing(node, rank - 1);
 
-      // Receive the last node from rank N - 1.
+      // Receive the last node from rank N - 1. Shouldn't be declared yet.
       stk::mesh::EntityId received_node_id = get_node_id(start_node_index - 1);
       stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
       bulk_data_ptr_->add_node_sharing(received_node, rank - 1);
@@ -333,16 +370,16 @@ void ChainOfSprings::execute() {
       node_coords[2] = coord_z;
     } else {
       // Share the first and last nodes with the corresponding neighboring ranks.
-      stk::mesh::Entity first_node = get_node(start_node_index);
-      stk::mesh::Entity last_node = get_node(end_node_index - 1);
+      stk::mesh::Entity first_node = get_valid_node(start_node_index);
+      stk::mesh::Entity last_node = get_valid_node(end_node_index - 1);
       bulk_data_ptr_->add_node_sharing(first_node, rank - 1);
       bulk_data_ptr_->add_node_sharing(last_node, rank + 1);
 
       // Receive the corresponding nodes from the neighboring ranks.
       stk::mesh::EntityId received_first_node_id = get_node_id(start_node_index - 1);
-      stk::mesh::EntityId received_last_node_id = get_node_id(end_node_index);
       stk::mesh::Entity received_first_node = bulk_data_ptr_->declare_node(received_first_node_id);
-      stk::mesh::Entity received_last_node = bulk_data_ptr_->declare_node(received_last_node_id);
+
+      stk::mesh::Entity received_last_node = get_valid_node(end_node_index);
       bulk_data_ptr_->add_node_sharing(received_first_node, rank - 1);
       bulk_data_ptr_->add_node_sharing(received_last_node, rank + 1);
 
@@ -379,8 +416,8 @@ void ChainOfSprings::execute() {
       // Create the node and connect it to the spring.
       // To map our sequential index to the node sequential index, we connect to node i and i + 1.
       // node i --- spring i --- node i + 1
-      stk::mesh::Entity node0 = get_node(i);
-      stk::mesh::Entity node1 = get_node(i + 1);
+      stk::mesh::Entity node0 = get_valid_node(i);
+      stk::mesh::Entity node1 = get_valid_node(i + 1);
 
       bulk_data_ptr_->declare_relation(spring, node0, 0);
       bulk_data_ptr_->declare_relation(spring, node1, 1);
@@ -411,9 +448,9 @@ void ChainOfSprings::execute() {
       //    \  /
       //     n3
       */
-      stk::mesh::Entity left_node = get_node(i);
-      stk::mesh::Entity center_node = get_node(i + 1);
-      stk::mesh::Entity right_node = get_node(i + 2);
+      stk::mesh::Entity left_node = get_valid_node(i);
+      stk::mesh::Entity center_node = get_valid_node(i + 1);
+      stk::mesh::Entity right_node = get_valid_node(i + 2);
 
       bulk_data_ptr_->declare_relation(spring, left_node, 0);
       bulk_data_ptr_->declare_relation(spring, right_node, 1);
@@ -432,13 +469,14 @@ void ChainOfSprings::execute() {
     for (size_t i = start_element_chain_ordinal; i < end_start_element_chain_ordinal; ++i) {
       // Create the sphere.
       stk::mesh::Entity sphere = bulk_data_ptr_->declare_element(get_sphere_id(i));
+      std::cout << "RANK: " << rank << " sphere: " << sphere << std::endl;
       bulk_data_ptr_->change_entity_parts(sphere, sphere_part_ptrs_);
 
       // Populate the sphere radius. For the time being, we use a single user defined value.
       stk::mesh::field_data(*element_sphere_radius_field_ptr_, sphere)[0] = sphere_radius_;
 
       // Create the node and connect it to the sphere.
-      stk::mesh::Entity node = get_node(i);
+      stk::mesh::Entity node = get_valid_node(i);
       bulk_data_ptr_->declare_relation(sphere, node, 0);
     }
   }
@@ -460,8 +498,8 @@ void ChainOfSprings::execute() {
           spherocylinder_segment_radius_;
 
       // Create the nodes and connect them to the segment.
-      stk::mesh::Entity node0 = get_node(i);
-      stk::mesh::Entity node1 = get_node(i + 1);
+      stk::mesh::Entity node0 = get_valid_node(i);
+      stk::mesh::Entity node1 = get_valid_node(i + 1);
 
       bulk_data_ptr_->declare_relation(segment, node0, 0);
       bulk_data_ptr_->declare_relation(segment, node1, 1);

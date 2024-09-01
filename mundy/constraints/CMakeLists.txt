@@ -19,16 +19,19 @@ SET(NOINSTALLHEADERS
   include/mundy_constraints/AngularSprings.hpp
   include/mundy_constraints/ComputeConstraintForcing.hpp
   include/mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.hpp
+  include/mundy_constraints/compute_constraint_forcing/kernels/FENESpringsKernel.hpp
   include/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.hpp
   include/mundy_constraints/Constraints.hpp
   include/mundy_constraints/DeclareAndInitConstraints.hpp
   include/mundy_constraints/declare_and_initialize_constraints/techniques/ArchlengthCoordinateMapping.hpp
   include/mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.hpp
+  include/mundy_constraints/FENESprings.hpp
   include/mundy_constraints/HookeanSprings.hpp
   )
 
 SET(SOURCES 
   src/mundy_constraints/compute_constraint_forcing/kernels/AngularSpringsKernel.cpp
+  src/mundy_constraints/compute_constraint_forcing/kernels/FENESpringsKernel.cpp
   src/mundy_constraints/compute_constraint_forcing/kernels/HookeanSpringsKernel.cpp
   src/mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.cpp
   )

@@ -581,17 +581,13 @@ class SpermSimulation {
       size_t start_spherocylinder_segment_spring_id =
           (num_nodes_per_sperm_ - 1) * j + (num_nodes_per_sperm_ - 2) * num_sperm_ + 1u;
 
-      auto get_node_id = [start_node_id](const size_t &seq_node_index) {
-        return start_node_id + seq_node_index;
-      };
+      auto get_node_id = [start_node_id](const size_t &seq_node_index) { return start_node_id + seq_node_index; };
 
       auto get_node = [get_node_id, &bulk_data](const size_t &seq_node_index) {
         return bulk_data.get_entity(stk::topology::NODE_RANK, get_node_id(seq_node_index));
       };
 
-      auto get_edge_id = [start_edge_id](const size_t &seq_node_index) {
-        return start_edge_id + seq_node_index;
-      };
+      auto get_edge_id = [start_edge_id](const size_t &seq_node_index) { return start_edge_id + seq_node_index; };
 
       auto get_edge = [get_edge_id, &bulk_data](const size_t &seq_node_index) {
         return bulk_data.get_entity(stk::topology::EDGE_RANK, get_edge_id(seq_node_index));
@@ -1087,7 +1083,7 @@ class SpermSimulation {
   void compute_edge_information() {
     debug_print("Computing the edge information.");
 
-    // Communicate the fields of downward connected entities.
+    // Communicate ghosted fields.
     stk::mesh::communicate_field_data(*bulk_data_ptr_, {node_coord_field_ptr_});
 
     // Get references to internal members so we aren't passing around *this
@@ -1179,7 +1175,7 @@ class SpermSimulation {
   void compute_node_curvature_and_rotation_gradient() {
     debug_print("Computing the node curvature and rotation gradient.");
 
-    // Communicate the fields of downward connected entities.
+    // Communicate ghosted fields.
     // TODO(palmerb4): Technically, we could avoid this communication if we compute the edge information for locally
     // owned and ghosted edges. Computation is cheaper than communication.
     stk::mesh::communicate_field_data(*bulk_data_ptr_, {edge_orientation_field_ptr_});
@@ -1244,7 +1240,7 @@ class SpermSimulation {
   void compute_internal_force_and_twist_torque() {
     debug_print("Computing the internal force and twist torque.");
 
-    // Communicate the fields of downward connected entities.
+    // Communicate ghosted fields.
     // TODO(palmerb4): Technically, we could avoid this entire communication if we compute the edge information for
     // locally owned and ghosted edges. Computation is cheaper than communication.
     stk::mesh::communicate_field_data(
@@ -1806,15 +1802,12 @@ class SpermSimulation {
       stk_io_broker_.end_output_step(output_file_index_);
       stk_io_broker_.flush_output();
 
-
-
       size_t count = 0;
       double kinetic_energy = std::numeric_limits<double>::max();
       while (kinetic_energy > 1e-6) {
         count += 1;
-        std::cout << "E: " << sperm_youngs_modulus_
-                  << " | Count: " << count
-                  << " | Kinetic energy: " << kinetic_energy << std::endl;
+        std::cout << "E: " << sperm_youngs_modulus_ << " | Count: " << count << " | Kinetic energy: " << kinetic_energy
+                  << std::endl;
         // Prepare the current configuration.
         {
           // Apply constraints before we move the nodes.

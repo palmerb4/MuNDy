@@ -38,8 +38,8 @@
 #include <stk_mesh/base/Part.hpp>     // for stk::mesh::Part
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>       // for MUNDY_THROW_ASSERT
-#include <mundy_meta/FieldReqs.hpp>  // for mundy::meta::FieldReqs
+#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_meta/FieldReqs.hpp>     // for mundy::meta::FieldReqs
 
 namespace mundy {
 
@@ -82,8 +82,7 @@ class FieldReqsFactory {
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// \c FieldReqsBase.
-  using NewFieldReqsGenerator =
-      std::function<std::shared_ptr<FieldReqsBase>(const Teuchos::ParameterList&)>;
+  using NewFieldReqsGenerator = std::function<std::shared_ptr<FieldReqsBase>(const Teuchos::ParameterList&)>;
 
   /// \brief A function type that produces a Teuchos::ParameterList instance.
   using NewDefaultParamsGenerator = std::function<Teuchos::ParameterList()>;
@@ -112,9 +111,8 @@ class FieldReqsFactory {
   template <typename FieldTypeToRegister,
             std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> = true>
   void register_new_field_type(const std::string& field_type_string) {
-    MUNDY_THROW_ASSERT(
-        is_valid_field_type_string(field_type_string), std::invalid_argument,
-        "FieldReqsFactory: The provided field type string " << field_type_string << " already exists.");
+    MUNDY_THROW_ASSERT(is_valid_field_type_string(field_type_string), std::invalid_argument,
+                       "FieldReqsFactory: The provided field type string " << field_type_string << " already exists.");
     get_instance_generator_map().insert(
         std::make_pair(field_type_string, FieldReqs<FieldTypeToRegister>::create_new_instance));
   }
@@ -130,7 +128,7 @@ class FieldReqsFactory {
   /// \param parameter_list [in] Optional list of parameters for setting up this class. A default parameter list is
   /// accessible via \c get_valid_params.
   static std::shared_ptr<FieldReqsBase> create_new_instance(const std::string& field_type_string,
-                                                                    const Teuchos::ParameterList& parameter_list) {
+                                                            const Teuchos::ParameterList& parameter_list) {
     return get_instance_generator_map()[field_type_string](parameter_list);
   }
   //@}

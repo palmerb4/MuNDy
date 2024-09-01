@@ -68,8 +68,8 @@ void HierarchyOfAgents::assert_is_valid(const std::string& name) {
 void HierarchyOfAgents::assert_is_valid(const agent_t agent_type) {
   MUNDY_THROW_ASSERT(is_valid(agent_type), std::invalid_argument,
                      "HierarchyOfAgents: The provided class's id '"
-                         << agent_type << "' is not valid."
-                         << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
+                         << agent_type << "' is not valid." << "There are currently "
+                         << get_number_of_registered_types() << " registered classes.\n"
                          << "The hierarchy is:\n"
                          << get_hierarchy_as_a_string() << "\n");
 }
@@ -118,27 +118,27 @@ stk::topology::rank_t HierarchyOfAgents::get_rank(const agent_t agent_type) {
 }
 
 void HierarchyOfAgents::add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr,
-                                      const std::string& name) {
+                                               const std::string& name) {
   assert_is_valid(name);
   const agent_t agent_type = get_agent_type(name);
   add_and_sync_part_reqs(part_reqs_ptr, agent_type);
 }
 
 void HierarchyOfAgents::add_and_sync_part_reqs(std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr,
-                                      const agent_t agent_type) {
+                                               const agent_t agent_type) {
   assert_is_valid(agent_type);
   get_add_part_reqs_generator_map()[agent_type](part_reqs_ptr);
 }
 
 void HierarchyOfAgents::add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
-                                         const std::string& name) {
+                                                  const std::string& name) {
   assert_is_valid(name);
   const agent_t agent_type = get_agent_type(name);
   add_and_sync_subpart_reqs(subpart_reqs_ptr, agent_type);
 }
 
 void HierarchyOfAgents::add_and_sync_subpart_reqs(std::shared_ptr<mundy::meta::PartReqs> subpart_reqs_ptr,
-                                         const agent_t agent_type) {
+                                                  const agent_t agent_type) {
   assert_is_valid(agent_type);
   get_add_subpart_reqs_generator_map()[agent_type](subpart_reqs_ptr);
 }
@@ -277,8 +277,7 @@ void HierarchyOfAgents::StringTreeManager::print_tree(std::shared_ptr<StringTree
   for (int i = 0; i < depth; ++i) {
     os << "  ";
   }
-  os << "Name: " << node->get_name() << " | "
-     << "ID: " << node->get_id() << std::endl;
+  os << "Name: " << node->get_name() << " | " << "ID: " << node->get_id() << std::endl;
 
   for (const auto& child : node->get_children()) {
     print_tree(child, os, depth + 1);
