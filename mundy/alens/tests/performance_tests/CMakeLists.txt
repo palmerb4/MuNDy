@@ -102,6 +102,9 @@ tribits_copy_files_to_binary_dir(
     HP1CopyFiles
     SOURCE_FILES
     hp1.yaml
+    hp1_periphery_quadrature_normals.dat
+    hp1_periphery_quadrature_points.dat
+    hp1_periphery_quadrature_weights.dat
     EXEDEPS HP1
     )
 

@@ -293,9 +293,9 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
   infile.close();
 }
 
-template <class ExecutionSpace, class MemorySpace, class Layout, typename Func>
+template <int panel_size, class ExecutionSpace, class MemorySpace, class Layout, typename Func>
 void panelize_velocity_kernel_over_target_points([[maybe_unused]] const ExecutionSpace &space, int num_target_points,
-                                                 int num_source_points, int panel_size,
+                                                 int num_source_points,
                                                  Kokkos::View<double *, Layout, MemorySpace> target_velocities,
                                                  const Func &compute_velocity_contribution) {
   int num_panels = (num_target_points + panel_size - 1) / panel_size;
@@ -391,8 +391,8 @@ void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, const dou
     vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
   };
 
-  panelize_velocity_kernel_over_target_points(space, num_target_points, num_source_points, 128, target_velocities,
-                                              stokes_computation);
+  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+                                                 stokes_computation);
 }
 
 /// \brief Apply the stokes kernel to map source forces to target velocities: u_target += M f_source
@@ -445,8 +445,8 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     vz_accum += scale_factor_rinv * (fz + dz * inner_prod_rinv2);
   };
 
-  panelize_velocity_kernel_over_target_points(space, num_target_points, num_source_points, 128, target_velocities,
-                                              weighted_stokes_computation);
+  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+                                                 weighted_stokes_computation);
 }
 
 /// \brief Apply the RPY kernel to map source forces to target velocities: u_target += M f_source
@@ -523,8 +523,8 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double
     vz_accum += v2 + lap_coeff * lap2;
   };
 
-  panelize_velocity_kernel_over_target_points(space, num_target_points, num_source_points, 128, target_velocities,
-                                              rpy_computation);
+  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+                                                 rpy_computation);
 }
 
 /// \brief Apply the stokes double layer kernel with singularity subtraction) to map source forces to target velocities:
@@ -613,8 +613,8 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
     vz_accum += dz * coeff;
   };
 
-  panelize_velocity_kernel_over_target_points(space, num_target_points, num_source_points, 128, target_velocities,
-                                              stokes_double_layer_computation);
+  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+                                                 stokes_double_layer_computation);
 }
 
 /// \brief Apply the stokes double layer kernel to map source forces to target velocities: u_target += M f_source
@@ -693,8 +693,8 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
     vz_accum += dz * coeff;
   };
 
-  panelize_velocity_kernel_over_target_points(space, num_target_points, num_source_points, 128, target_velocities,
-                                              stokes_double_layer_contribution);
+  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+                                                 stokes_double_layer_contribution);
 }
 
 /// \brief Apply local drag to the sphere velocities v += 1/(6 pi mu r) f
@@ -956,8 +956,8 @@ void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,
     vz_accum += normal_t2 * scaled_normal_dot_force;
   };
 
-  panelize_velocity_kernel_over_target_points(space, num_target_points, num_source_points, 128, target_velocities,
-                                              complementary_contribution);
+  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+                                                 complementary_contribution);
 }
 
 /// \brief Fill the second kind Fredholm integral equation matrix for Stokes flow induced by a boundary due to
@@ -1097,8 +1097,8 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space, const double visc
     vz_accum += dz * coeff + scaled_normal_dot_force;
   };
 
-  panelize_velocity_kernel_over_target_points(space, num_target_points, num_source_points, 128, target_velocities,
-                                              skfie_contribution);
+  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+                                                 skfie_contribution);
 }
 
 class Periphery {
