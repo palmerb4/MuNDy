@@ -521,7 +521,10 @@ class HP1 {
   }
 
   void set_periphery_binding_params(const Teuchos::ParameterList &param_list) {
+    periphery_binding_rate_ = param_list.get<double>("binding_rate");
+    periphery_unbinding_rate_ = param_list.get<double>("unbinding_rate");
     periphery_spring_constant_ = param_list.get<double>("spring_constant");
+    periphery_spring_rest_length_ = param_list.get<double>("rest_length");
     std::string periphery_bind_sites_type_string = param_list.get<std::string>("bind_sites_type");
     if (periphery_bind_sites_type_string == "RANDOM") {
       periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::RANDOM;
@@ -690,7 +693,10 @@ class HP1 {
              "Scale factor before shrinking.");
 
     valid_parameter_list.sublist("periphery_binding")
+        .set("binding_rate", default_periphery_binding_rate_, "Periphery binding rate.")
+        .set("unbinding_rate", default_periphery_unbinding_rate_, "Periphery unbinding rate.")
         .set("spring_constant", default_periphery_spring_constant_, "Periphery spring constant.")
+        .set("rest_length", default_periphery_spring_rest_length_, "Periphery spring rest length.")
         .set("bind_sites_type", std::string(default_periphery_bind_sites_type_string_), "Periphery bind sites type.")
         .set("num_bind_sites", default_periphery_num_bind_sites_,
              "Periphery number of binding sites (only used if periphery_binding_sites_type is RANDOM and periphery "
@@ -850,7 +856,10 @@ class HP1 {
       if (enable_periphery_binding_) {
         std::cout << std::endl;
         std::cout << "PERIPHERY BINDING:" << std::endl;
+        std::cout << "  binding_rate: " << periphery_binding_rate_ << std::endl;
+        std::cout << "  unbinding_rate: " << periphery_unbinding_rate_ << std::endl;
         std::cout << "  spring_constant: " << periphery_spring_constant_ << std::endl;
+        std::cout << "  rest_length: " << periphery_spring_rest_length_ << std::endl;
         if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
           std::cout << "  bind_sites_type: RANDOM" << std::endl;
           std::cout << "  num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
@@ -1161,7 +1170,14 @@ class HP1 {
 
     // IO is the only method that must come after the mesh is declared but before the mesh is committed.
     setup_mundy_io();
-    meta_data_ptr_->commit();
+    if (!restart_performed_) {
+      // Commit the mesh
+      meta_data_ptr_->commit();
+    } else {
+      // The mesh better be committed already
+      MUNDY_THROW_ASSERT(meta_data_ptr_->is_commit(), std::runtime_error,
+                         "The restart should have already committed the mesh. Something went wrong.");
+    }
   }
 
   template <typename FieldType>
@@ -2146,7 +2162,7 @@ class HP1 {
     Kokkos::Profiling::popRegion();
   }
 
-  /// \brief Compute the Z-partition function score for left-bound crosslinkers
+  /// \brief Compute the Z-partition function score for left-bound crosslinkers binding to a sphere
   void compute_z_partition_left_bound_harmonic() {
     Kokkos::Profiling::pushRegion("HP1::compute_z_partition_left_bound_harmonic");
 
@@ -2159,8 +2175,8 @@ class HP1 {
         *constraint_linked_entities_field_ptr_;
     stk::mesh::Part &left_hp1_part = *left_hp1_part_ptr_;
     stk::mesh::Part &hp1_h_neighbor_genx_part = *hp1_h_neighbor_genx_part_ptr_;
+    const double crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
     const double inv_kt = 1.0 / crosslinker_kt_;
-    const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
 
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, hp1_h_neighbor_genx_part,
@@ -2205,6 +2221,49 @@ class HP1 {
           }
         });
 
+    if (enable_periphery_binding_) {
+      const double periphery_binding_rate = periphery_binding_rate_;
+      const double periphery_spring_constant = periphery_spring_constant_;
+      const double periphery_spring_rest_length = periphery_spring_rest_length_;
+      stk::mesh::Part &hp1_bs_neighbor_genx_part = *hp1_bs_neighbor_genx_part_ptr_;
+
+      stk::mesh::for_each_entity_run(
+          *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, hp1_bs_neighbor_genx_part,
+          [&node_coord_field, &constraint_linked_entities_field, &constraint_state_change_probability,
+           &periphery_spring_constant, &periphery_spring_rest_length, &left_hp1_part, &inv_kt, &periphery_binding_rate](
+              [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &neighbor_genx) {
+            // Get the sphere and crosslinker attached to the linker.
+            const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
+                reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
+                    stk::mesh::field_data(constraint_linked_entities_field, neighbor_genx));
+            const stk::mesh::Entity &crosslinker = bulk_data.get_entity(key_t_ptr[0]);
+            const stk::mesh::Entity &sphere = bulk_data.get_entity(key_t_ptr[1]);
+            const stk::mesh::Entity &sphere_node = bulk_data.begin_nodes(sphere)[0];
+
+            MUNDY_THROW_ASSERT(bulk_data.is_valid(crosslinker), std::invalid_argument,
+                               "Encountered invalid crosslinker entity in compute_z_partition_left_bound_harmonic.");
+            MUNDY_THROW_ASSERT(bulk_data.is_valid(sphere), std::invalid_argument,
+                               "Encountered invalid sphere entity in compute_z_partition_left_bound_harmonic.");
+
+            // Only act on the left-bound crosslinkers
+            if (bulk_data.bucket(crosslinker).member(left_hp1_part)) {
+              const auto dr = mundy::mesh::vector3_field_data(node_coord_field, sphere_node) -
+                              mundy::mesh::vector3_field_data(node_coord_field, bulk_data.begin_nodes(crosslinker)[0]);
+              const double dr_mag = mundy::math::norm(dr);
+
+              // Compute the Z-partition score
+              // Z = A * exp(-0.5 * 1/kt * k * (dr - r0)^2)
+              // A = crosslinker_binding_rates
+              // k = crosslinker_spring_constant
+              // r0 = crosslinker_spring_rest_length
+              const double A = periphery_binding_rate;
+              const double k = periphery_spring_constant;
+              const double r0 = periphery_spring_rest_length;
+              double Z = A * std::exp(-0.5 * inv_kt * k * (dr_mag - r0) * (dr_mag - r0));
+              stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
+            }
+          });
+    }
     Kokkos::Profiling::popRegion();
   }
 
@@ -2236,6 +2295,7 @@ class HP1 {
     Kokkos::Profiling::pushRegion("HP1::compute_z_partition");
 
     // Compute the left-bound to doubly-bound score
+    // Works for both binding to an h-sphere and binding to a bs-sphere
     compute_z_partition_left_bound_harmonic();
 
     // Compute the doubly-bound to left-bound score
@@ -2249,21 +2309,25 @@ class HP1 {
 
     // Selectors and aliases
     stk::mesh::Part &hp1_h_neighbor_genx_part = *hp1_h_neighbor_genx_part_ptr_;
+    stk::mesh::Part &hp1_bs_neighbor_genx_part = *hp1_bs_neighbor_genx_part_ptr_;
     stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
     stk::mesh::Field<unsigned> &element_perform_state_change_field = *element_perform_state_change_field_ptr_;
     stk::mesh::Field<unsigned> &constraint_perform_state_change_field = *constraint_perform_state_change_field_ptr_;
     stk::mesh::Field<double> &constraint_state_change_rate_field = *constraint_state_change_rate_field_ptr_;
     const mundy::linkers::LinkedEntitiesFieldType &constraint_linked_entities_field =
         *constraint_linked_entities_field_ptr_;
-    const double &timestep_size = timestep_size_;
+    const double timestep_size = timestep_size_;
+    const double enable_periphery_binding = enable_periphery_binding_;
     stk::mesh::Part &left_hp1_part = *left_hp1_part_ptr_;
 
     // Loop over left-bound crosslinkers and decide if they bind or not
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_hp1_part,
-        [&hp1_h_neighbor_genx_part, &element_rng_field, &constraint_perform_state_change_field,
-         &element_perform_state_change_field, &constraint_state_change_rate_field, &constraint_linked_entities_field,
-         &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
+        [&hp1_h_neighbor_genx_part, &hp1_bs_neighbor_genx_part, &element_rng_field,
+         &constraint_perform_state_change_field, &element_perform_state_change_field,
+         &constraint_state_change_rate_field, &constraint_linked_entities_field, &timestep_size,
+         &enable_periphery_binding]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                    const stk::mesh::Entity &crosslinker) {
           // Get all of my associated crosslinker_sphere_linkers
           const stk::mesh::Entity &any_arbitrary_crosslinker_node = bulk_data.begin_nodes(crosslinker)[0];
           const stk::mesh::Entity *neighbor_genx_linkers =
@@ -2277,7 +2341,9 @@ class HP1 {
             const auto &constraint_rank_entity = neighbor_genx_linkers[j];
             const bool is_hp1_h_neighbor_genx =
                 bulk_data.bucket(constraint_rank_entity).member(hp1_h_neighbor_genx_part);
-            if (is_hp1_h_neighbor_genx) {
+            const bool is_hp1_bs_neighbor_genx =
+                bulk_data.bucket(constraint_rank_entity).member(hp1_bs_neighbor_genx_part);
+            if (is_hp1_h_neighbor_genx || (enable_periphery_binding && is_hp1_bs_neighbor_genx)) {
               const double z_i =
                   timestep_size * stk::mesh::field_data(constraint_state_change_rate_field, constraint_rank_entity)[0];
               z_tot += z_i;
@@ -3424,7 +3490,10 @@ class HP1 {
   double periphery_collision_scale_factor_before_shrinking_;
 
   // Periphery binding params
+  double periphery_binding_rate_;
+  double periphery_unbinding_rate_;
   double periphery_spring_constant_;
+  double periphery_spring_rest_length_;
   PERIPHERY_BIND_SITES_TYPE periphery_bind_sites_type_;
   size_t periphery_num_bind_sites_;
   std::string periphery_bind_site_locations_filename_;
@@ -3528,7 +3597,10 @@ class HP1 {
   static constexpr double default_periphery_collision_scale_factor_before_shrinking_ = 1.0;
 
   // Periphery binding params
+  static constexpr double default_periphery_binding_rate_ = 1.0;
+  static constexpr double default_periphery_unbinding_rate_ = 1.0;
   static constexpr double default_periphery_spring_constant_ = 1000.0;
+  static constexpr double default_periphery_spring_rest_length_ = 1.0;
   static constexpr std::string_view default_periphery_bind_sites_type_string_ = "RANDOM";
   static constexpr size_t default_periphery_num_bind_sites_ = 1000;
   static constexpr std::string_view default_periphery_bind_site_locations_filename_ = "periphery_bind_sites.dat";

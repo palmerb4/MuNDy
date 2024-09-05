@@ -78,6 +78,8 @@ HP1:
       scale_factor_before_shrinking: 2.0
 
   periphery_binding:
+    binding_rate: 0.02
+    unbinding_rate: 0.0
     spring_constant: 1000.0
     bind_sites_type: "RANDOM"
     num_bind_sites: 1000
