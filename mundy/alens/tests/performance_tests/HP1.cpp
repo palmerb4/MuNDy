@@ -72,6 +72,7 @@ Interactions:
 #include <stk_mesh/base/Comm.hpp>            // for stk::mesh::comm_mesh_counts
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
+#include <stk_mesh/base/FieldParallel.hpp>   // for stk::parallel_sum
 #include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
@@ -374,6 +375,7 @@ class HP1 {
     MUNDY_THROW_ASSERT(enable_periphery_hydrodynamics_ ? enable_backbone_n_body_hydrodynamics_ : true,
                        std::invalid_argument,
                        "Logically periphery hydrodynamics requires backbone hydrodynamics to be enabled.");
+    enable_active_euchromatin_forces_ = simulation_params.get<bool>("enable_active_euchromatin_forces");
 
     if (enable_chromatin_brownian_motion_) {
       set_brownian_motion_params(valid_param_list.sublist("brownian_motion"));
@@ -395,6 +397,9 @@ class HP1 {
     }
     if (enable_periphery_binding_) {
       set_periphery_binding_params(valid_param_list.sublist("periphery_binding"));
+    }
+    if (enable_active_euchromatin_forces_) {
+      set_active_euchromatin_forces_params(valid_param_list.sublist("active_euchromatin_forces"));
     }
   }
 
@@ -546,6 +551,12 @@ class HP1 {
     print_neighborlist_statistics_ = param_list.get<bool>("print_neighborlist_statistics");
   }
 
+  void set_active_euchromatin_forces_params(const Teuchos::ParameterList &param_list) {
+    active_euchromatin_force_sigma_ = param_list.get<double>("force_sigma");
+    active_euchromatin_force_kon_ = param_list.get<double>("kon");
+    active_euchromatin_force_koff_ = param_list.get<double>("koff");
+  }
+
   static Teuchos::ParameterList get_valid_params() {
     // Create a paramater entity validator for our large integers to allow for both int and long long.
     auto prefer_size_t = []() {
@@ -619,7 +630,9 @@ class HP1 {
         .set("enable_periphery_collision", default_enable_periphery_collision_, "Enable periphery collision.")
         .set("enable_periphery_hydrodynamics", default_enable_periphery_hydrodynamics_,
              "Enable periphery hydrodynamics.")
-        .set("enable_periphery_binding", default_enable_periphery_binding_, "Enable periphery binding.");
+        .set("enable_periphery_binding", default_enable_periphery_binding_, "Enable periphery binding.")
+        .set("enable_active_euchromatin_forces", default_enable_active_euchromatin_forces_,
+             "Enable active euchromatin forces.");
 
     valid_parameter_list.sublist("brownian_motion")
         .set("kt", default_brownian_kt_, "Temperature kT for Brownian Motion.");
@@ -705,6 +718,11 @@ class HP1 {
         .set("bind_site_locations_filename", std::string(default_periphery_bind_site_locations_filename_),
              "Periphery binding sites filename (only used if periphery_binding_sites_type is FROM_FILE).");
 
+    valid_parameter_list.sublist("active_euchromatin_forces")
+        .set("force_sigma", default_active_euchromatin_force_sigma_, "Active euchromatin force sigma.")
+        .set("kon", default_active_euchromatin_force_kon_, "Active euchromatin force kon.")
+        .set("koff", default_active_euchromatin_force_koff_, "Active euchromatin force koff.");
+
     valid_parameter_list.sublist("neighbor_list")
         .set("skin_distance", default_skin_distance_, "Neighbor list skin distance.")
         .set("force_neighborlist_update", default_force_neighborlist_update_, "Force update of the neighbor list.")
@@ -766,6 +784,7 @@ class HP1 {
       std::cout << "  enable_periphery_hydrodynamics:   " << enable_periphery_hydrodynamics_ << std::endl;
       std::cout << "  enable_periphery_collision:       " << enable_periphery_collision_ << std::endl;
       std::cout << "  enable_periphery_binding:         " << enable_periphery_binding_ << std::endl;
+      std::cout << "  enable_active_euchromatin_forces: " << enable_active_euchromatin_forces_ << std::endl;
 
       if (enable_chromatin_brownian_motion_) {
         std::cout << std::endl;
@@ -867,6 +886,14 @@ class HP1 {
           std::cout << "  bind_sites_type: FROM_FILE" << std::endl;
           std::cout << "  bind_site_locations_filename: " << periphery_bind_site_locations_filename_ << std::endl;
         }
+      }
+
+      if (enable_active_euchromatin_forces_) {
+        std::cout << std::endl;
+        std::cout << "ACTIVE EUCHROMATIN FORCES:" << std::endl;
+        std::cout << "  force_sigma: " << active_euchromatin_force_sigma_ << std::endl;
+        std::cout << "  kon: " << active_euchromatin_force_kon_ << std::endl;
+        std::cout << "  koff: " << active_euchromatin_force_koff_ << std::endl;
       }
 
       std::cout << std::endl;
@@ -1012,6 +1039,16 @@ class HP1 {
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segments_part_reqs);
+    // Create the force-dipole information on just the EESPRINGS (euchromatin springs), in active and inactive states
+    auto custom_euchromatin_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_euchromatin_part_reqs->set_part_name("EESPRINGS")
+        .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<unsigned>("ELEMENT_RNG_COUNTER", element_rank_, 1, 1)
+        .add_field_reqs<unsigned>("EUCHROMATIN_STATE", element_rank_, 1, 1)
+        .add_field_reqs<unsigned>("EUCHROMATIN_PERFORM_STATE_CHANGE", element_rank_, 1, 1)
+        .add_field_reqs<double>("EUCHROMATIN_STATE_CHANGE_NEXT_TIME", element_rank_, 1, 1)
+        .add_field_reqs<double>("EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", element_rank_, 1, 1);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_euchromatin_part_reqs);
 
     // Create the generalized interaction entities that connect HP1 and (H)eterochromatin
     //   This entity "knows" how to compute the binding probability between a crosslinker and a H and how to
@@ -1214,6 +1251,14 @@ class HP1 {
     element_binding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_);
     element_unbinding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_UNBINDING_RATES", element_rank_);
     element_perform_state_change_field_ptr_ = fetch_field<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_);
+
+    euchromatin_state_field_ptr_ = fetch_field<unsigned>("EUCHROMATIN_STATE", element_rank_);
+    euchromatin_perform_state_change_field_ptr_ =
+        fetch_field<unsigned>("EUCHROMATIN_PERFORM_STATE_CHANGE", element_rank_);
+    euchromatin_state_change_next_time_field_ptr_ =
+        fetch_field<double>("EUCHROMATIN_STATE_CHANGE_NEXT_TIME", element_rank_);
+    euchromatin_state_change_elapsed_time_field_ptr_ =
+        fetch_field<double>("EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", element_rank_);
 
     constraint_potential_force_field_ptr_ = fetch_field<double>("LINKER_POTENTIAL_FORCE", constraint_rank_);
     constraint_state_change_rate_field_ptr_ =
@@ -1742,6 +1787,22 @@ class HP1 {
     mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_rest_length_field_ptr_,
                                               std::array<double, 1>{backbone_spring_rest_length_});
 
+    // Initialize the EE springs (euchromatin activity)
+    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *element_rng_field_ptr_,
+                                              std::array<unsigned, 1>{0});
+    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_field_ptr_,
+                                              std::array<unsigned, 1>{0});
+    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_perform_state_change_field_ptr_,
+                                              std::array<unsigned, 1>{0});
+    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_change_next_time_field_ptr_,
+                                              std::array<double, 1>{0});
+    mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *euchromatin_state_change_elapsed_time_field_ptr_,
+                                              std::array<double, 1>{0});
+
+    if (enable_active_euchromatin_forces_) {
+      initialize_euchromatin();
+    }
+
     // Initialize HP1 springs
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_hookean_spring_constant_field_ptr_,
                                               std::array<double, 1>{crosslinker_spring_constant_});
@@ -1770,6 +1831,40 @@ class HP1 {
         MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
       }
     }
+  }
+
+  void initialize_euchromatin() {
+    // Set the initial time lag for the active euchromatin forces
+
+    // Selectors and aliases
+    stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
+    stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
+    stk::mesh::Field<unsigned> &euchromatin_state = *euchromatin_state_field_ptr_;
+    stk::mesh::Field<double> &euchromatin_state_change_next_time = *euchromatin_state_change_next_time_field_ptr_;
+    const double kon_inv = 1.0 / active_euchromatin_force_kon_;
+
+    // Loop over the ee_springs and set the first time we would see a transition
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
+        [&element_rng_field, &euchromatin_state, &euchromatin_state_change_next_time, &kon_inv](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &euchromatin_spring) {
+          // Get the fields we need
+          unsigned *local_euchromatin_state = stk::mesh::field_data(euchromatin_state, euchromatin_spring);
+          unsigned *element_rng_counter = stk::mesh::field_data(element_rng_field, euchromatin_spring);
+          double *next_time = stk::mesh::field_data(euchromatin_state_change_next_time, euchromatin_spring);
+
+          // Set them all to inactive to start
+          local_euchromatin_state[0] = 0u;
+
+          const stk::mesh::EntityId euchromatin_spring_gid = bulk_data.identifier(euchromatin_spring);
+          openrand::Philox rng(euchromatin_spring_gid, element_rng_counter[0]);
+          const double randu01 = rng.rand<double>();
+          element_rng_counter[0]++;
+
+          next_time[0] = -1.0 * kon_inv * std::log(randu01);
+        });
+
+    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
   }
 
   void declare_and_initialize_hp1() {
@@ -1950,6 +2045,8 @@ class HP1 {
     mundy::mesh::utils::fill_field_with_value<double>(*element_unbinding_rates_field_ptr_,
                                                       std::array<double, 2>{0.0, 0.0});
     mundy::mesh::utils::fill_field_with_value<unsigned>(*element_perform_state_change_field_ptr_,
+                                                        std::array<unsigned, 1>{0u});
+    mundy::mesh::utils::fill_field_with_value<unsigned>(*euchromatin_perform_state_change_field_ptr_,
                                                         std::array<unsigned, 1>{0u});
   }
 
@@ -2578,6 +2675,98 @@ class HP1 {
     Kokkos::Profiling::popRegion();
   }
 
+  void active_euchromatin_sampling() {
+    Kokkos::Profiling::pushRegion("HP1::active_euchromatin_sampling");
+
+    // Selectors and aliases
+    stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
+    stk::mesh::Field<unsigned> &element_rng_field = *element_rng_field_ptr_;
+    stk::mesh::Field<unsigned> &euchromatin_state = *euchromatin_state_field_ptr_;
+    stk::mesh::Field<unsigned> &euchromatin_perform_state_change = *euchromatin_perform_state_change_field_ptr_;
+    stk::mesh::Field<double> &euchromatin_state_change_next_time = *euchromatin_state_change_next_time_field_ptr_;
+    stk::mesh::Field<double> &euchromatin_state_change_elapsed_time = *euchromatin_state_change_elapsed_time_field_ptr_;
+
+    const double &timestep_size = timestep_size_;
+    double kon_inv = 1.0 / active_euchromatin_force_kon_;
+    double koff_inv = 1.0 / active_euchromatin_force_koff_;
+
+    // Loop over the euchromatin spring elements and decide if they switch to the active state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
+        [&element_rng_field, &euchromatin_state, &euchromatin_perform_state_change, &euchromatin_state_change_next_time,
+         &euchromatin_state_change_elapsed_time, &kon_inv, &koff_inv](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &euchromatin_spring) {
+          // We are not going to increment the elapsed time ourselves, but rely on someone outside of this loop to do
+          // that at the end of a timestpe, in order to keep it consistent with the total elapsed time in the system.
+          unsigned *current_state = stk::mesh::field_data(euchromatin_state, euchromatin_spring);
+          unsigned *element_rng_counter = stk::mesh::field_data(element_rng_field, euchromatin_spring);
+          double *next_time = stk::mesh::field_data(euchromatin_state_change_next_time, euchromatin_spring);
+          double *elapsed_time = stk::mesh::field_data(euchromatin_state_change_elapsed_time, euchromatin_spring);
+
+          if (elapsed_time[0] >= next_time[0]) {
+            // Need a random number no matter what
+            const stk::mesh::EntityId euchromatin_spring_gid = bulk_data.identifier(euchromatin_spring);
+            openrand::Philox rng(euchromatin_spring_gid, element_rng_counter[0]);
+            const double randu01 = rng.rand<double>();
+            element_rng_counter[0]++;
+
+            // Determine switch based on current state
+            if (current_state[0] == 0u) {
+              // Currently inactive, set to active and reset the timers
+              current_state[0] = 1u;
+              next_time[0] = -std::log(randu01) * koff_inv;
+              elapsed_time[0] = 0.0;
+            } else {
+              // Currently active, set to active and reset the timers
+              current_state[0] = 0u;
+              next_time[0] = -std::log(randu01) * kon_inv;
+              elapsed_time[0] = 0.0;
+            }
+
+#pragma omp critical
+            {
+              const unsigned previous_state = current_state[0] == 0u ? 1u : 0u;
+              std::cout << "Rank" << stk::parallel_machine_rank(MPI_COMM_WORLD)
+                        << " Detected euchromatin switching event object " << bulk_data.identifier(euchromatin_spring)
+                        << ", previous state: " << previous_state << ", current_state: " << current_state[0]
+                        << std::endl;
+              std::cout << "  next_time: " << next_time[0] << ", elapsed_time: " << elapsed_time[0] << std::endl;
+            }
+          }
+        });
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_euchromatin_state_time() {
+    Kokkos::Profiling::pushRegion("HP1::active_euchromatin_sampling");
+
+    // Selectors and aliases
+    stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
+    stk::mesh::Field<double> &euchromatin_state_change_elapsed_time = *euchromatin_state_change_elapsed_time_field_ptr_;
+    const double &timestep_size = timestep_size_;
+
+    // Loop over the euchromatin spring elements and decide if they switch to the active state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
+        [&euchromatin_state_change_elapsed_time, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                                 const stk::mesh::Entity &euchromatin_spring) {
+          // Updated the elapsed time
+          stk::mesh::field_data(euchromatin_state_change_elapsed_time, euchromatin_spring)[0] += timestep_size;
+        });
+
+    Kokkos::Profiling::popRegion();
+  }
+
+  void update_active_euchromatin_state() {
+    Kokkos::Profiling::pushRegion("HP1::update_active_euchromatin_state");
+
+    // Determine if we need to update the euchromatin active state in the same way as the crosslinkers,
+    active_euchromatin_sampling();
+    // active_euchromatin_state_change();
+
+    Kokkos::Profiling::popRegion();
+  }
+
   void check_maximum_overlap_with_hydro_periphery() {
     if (periphery_hydro_shape_ == PERIPHERY_SHAPE::SPHERE) {
       const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
@@ -2949,6 +3138,74 @@ class HP1 {
     Kokkos::Profiling::popRegion();
   }
 
+  void compute_euchromatin_active_forces() {
+    Kokkos::Profiling::pushRegion("HP1::compute_euchromatin_active_forces");
+
+    // We are going to do the forces as such.
+    // nhat is the unit director along the segment.
+    // sigma is the force density we are applying
+    // F = f nhat
+    // sigma = f * n --> f = sigma / n
+    // F = sigma / n * nhat
+
+    // Selectors and aliases
+    stk::mesh::Part &ee_springs_part = *ee_springs_part_ptr_;
+    stk::mesh::Field<unsigned> &euchromatin_state = *euchromatin_state_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+
+    const double &active_force_sigma = active_euchromatin_force_sigma_;
+
+    // Loop over the euchromatin spring elements and decide if they switch to the active state
+    stk::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
+        [&euchromatin_state, &node_coord_field, &node_force_field, &active_force_sigma](
+            [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &euchromatin_spring) {
+          // We are not going to increment the elapsed time ourselves, but rely on someone outside of this loop to do
+          // that at the end of a timestpe, in order to keep it consistent with the total elapsed time in the system.
+          unsigned *current_state = stk::mesh::field_data(euchromatin_state, euchromatin_spring);
+
+          if (current_state[0] == 1u) {
+            // Fetch the connected nodes
+            const stk::mesh::Entity *nodes = bulk_data.begin_nodes(euchromatin_spring);
+            const stk::mesh::Entity &node1 = nodes[0];
+            const stk::mesh::Entity &node2 = nodes[1];
+            const double *node1_coord = stk::mesh::field_data(node_coord_field, node1);
+            const double *node2_coord = stk::mesh::field_data(node_coord_field, node2);
+
+            // Calculate the force on each node from the above equation, which winds up
+            // F = sigma / n / n * nvec ----> sigma / n^2 * nvec
+            const double nvec[3] = {node2_coord[0] - node1_coord[0], node2_coord[1] - node1_coord[1],
+                                    node2_coord[2] - node1_coord[2]};
+            const double nsqr = nvec[0] * nvec[0] + nvec[1] * nvec[1] + nvec[2] * nvec[2];
+            const double right_node_force[3] = {active_force_sigma / nsqr * nvec[0],
+                                                active_force_sigma / nsqr * nvec[1],
+                                                active_force_sigma / nsqr * nvec[2]};
+
+            // Add the force dipole to the nodes.
+            double *node1_force = stk::mesh::field_data(node_force_field, node1);
+            double *node2_force = stk::mesh::field_data(node_force_field, node2);
+
+#pragma omp atomic
+            node1_force[0] -= right_node_force[0];
+#pragma omp atomic
+            node1_force[1] -= right_node_force[1];
+#pragma omp atomic
+            node1_force[2] -= right_node_force[2];
+#pragma omp atomic
+            node2_force[0] += right_node_force[0];
+#pragma omp atomic
+            node2_force[1] += right_node_force[1];
+#pragma omp atomic
+            node2_force[2] += right_node_force[2];
+          }
+        });
+    // Sum the forces on shared nodes.
+    stk::mesh::parallel_sum(*bulk_data_ptr_, {node_force_field_ptr_});
+
+    Kokkos::Profiling::popRegion();
+  }
+
   void compute_hertzian_contact_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_hertzian_contact_forces");
 
@@ -3123,6 +3380,9 @@ class HP1 {
     if (enable_periphery_binding_ && !restart_performed_) {
       declare_and_initialize_periphery_bind_sites();
     }
+    if (enable_active_euchromatin_forces_) {
+      initialize_euchromatin();
+    }
     detect_neighbors_initial();
     Kokkos::Profiling::popRegion();
 
@@ -3135,6 +3395,7 @@ class HP1 {
 
     // Reset simulation control variables
     timestep_index_ = 0;
+    timestep_current_time_ = 0.0;
 
     // Check to see if we need to do anything for compressing the system.
     if (enable_periphery_collision_ && shrink_periphery_over_time_) {
@@ -3153,7 +3414,8 @@ class HP1 {
     Kokkos::Timer overall_timer;
     Kokkos::Timer timer;
     Kokkos::Profiling::pushRegion("MainLoop");
-    for (timestep_index_ = 0; timestep_index_ < num_time_steps_; timestep_index_++) {
+    for (timestep_index_ = 0, timestep_current_time_ = 0.0; timestep_index_ < num_time_steps_;
+         timestep_index_++, timestep_current_time_ += timestep_size_) {
       // Prepare the current configuration.
       Kokkos::Profiling::pushRegion("HP1::PrepareStep");
       zero_out_transient_node_fields();
@@ -3180,7 +3442,10 @@ class HP1 {
       update_neighbor_list_ = false;
       detect_neighbors();
 
+      // Determine KMC events
       if (enable_crosslinkers_) update_crosslinker_state();
+
+      if (enable_active_euchromatin_forces_) update_active_euchromatin_state();
 
       // Evaluate forces f(x(t)).
       if (enable_backbone_collision_) compute_hertzian_contact_forces();
@@ -3190,6 +3455,8 @@ class HP1 {
       if (enable_crosslinkers_) compute_crosslinker_harmonic_bond_forces();
 
       if (enable_periphery_collision_) compute_periphery_collision_forces();
+
+      if (enable_active_euchromatin_forces_) compute_euchromatin_active_forces();
 
       // Compute velocities.
       if (enable_chromatin_brownian_motion_) compute_brownian_velocity();
@@ -3225,13 +3492,15 @@ class HP1 {
       // IO. If desired, write out the data for time t (STK or mundy)
       Kokkos::Profiling::pushRegion("HP1::IO");
       if (timestep_index_ % io_frequency_ == 0) {
-        io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_),
-                                                 static_cast<double>(timestep_index_));
+        io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_), timestep_current_time_);
       }
       Kokkos::Profiling::popRegion();
 
       // Update positions. x(t + dt) = x(t) + dt * v(t).
       update_positions();
+
+      // Update the time for the euchromatin active forces
+      if (enable_active_euchromatin_forces_) update_euchromatin_state_time();
     }
     Kokkos::Profiling::popRegion();
 
@@ -3277,6 +3546,7 @@ class HP1 {
   std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
   std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
   size_t timestep_index_;
+  double timestep_current_time_;
   std::shared_ptr<mundy::alens::periphery::Periphery> periphery_ptr_;
   bool restart_performed_ = false;
   //@}
@@ -3311,6 +3581,11 @@ class HP1 {
   stk::mesh::Field<double> *element_unbinding_rates_field_ptr_;
   stk::mesh::Field<unsigned> *element_perform_state_change_field_ptr_;
 
+  stk::mesh::Field<unsigned> *euchromatin_state_field_ptr_;
+  stk::mesh::Field<unsigned> *euchromatin_perform_state_change_field_ptr_;
+  stk::mesh::Field<double> *euchromatin_state_change_next_time_field_ptr_;
+  stk::mesh::Field<double> *euchromatin_state_change_elapsed_time_field_ptr_;
+
   stk::mesh::Field<double> *constraint_potential_force_field_ptr_;
   stk::mesh::Field<double> *constraint_state_change_rate_field_ptr_;
   stk::mesh::Field<unsigned> *constraint_perform_state_change_field_ptr_;
@@ -3333,6 +3608,8 @@ class HP1 {
 
   stk::mesh::Part *backbone_segments_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_part_ptr_ = nullptr;
+  stk::mesh::Part *ee_springs_active_part_ptr_ = nullptr;
+  stk::mesh::Part *ee_springs_inactive_part_ptr_ = nullptr;
   stk::mesh::Part *eh_springs_part_ptr_ = nullptr;
   stk::mesh::Part *hh_springs_part_ptr_ = nullptr;
 
@@ -3437,6 +3714,7 @@ class HP1 {
   bool enable_periphery_collision_;
   bool enable_periphery_hydrodynamics_;
   bool enable_periphery_binding_;
+  bool enable_active_euchromatin_forces_;
 
   // Brownian params
   double brownian_kt_;
@@ -3498,6 +3776,11 @@ class HP1 {
   size_t periphery_num_bind_sites_;
   std::string periphery_bind_site_locations_filename_;
 
+  // Active euchromatin forces params
+  double active_euchromatin_force_sigma_;
+  double active_euchromatin_force_kon_;
+  double active_euchromatin_force_koff_;
+
   // Neighbor list params
   double skin_distance_;
   bool force_neighborlist_update_;
@@ -3539,6 +3822,7 @@ class HP1 {
   static constexpr bool default_enable_periphery_collision_ = true;
   static constexpr bool default_enable_periphery_hydrodynamics_ = true;
   static constexpr bool default_enable_periphery_binding_ = true;
+  static constexpr bool default_enable_active_euchromatin_forces_ = true;
 
   // Brownian params
   static constexpr double default_brownian_kt_ = 1.0;
@@ -3604,6 +3888,11 @@ class HP1 {
   static constexpr std::string_view default_periphery_bind_sites_type_string_ = "RANDOM";
   static constexpr size_t default_periphery_num_bind_sites_ = 1000;
   static constexpr std::string_view default_periphery_bind_site_locations_filename_ = "periphery_bind_sites.dat";
+
+  // Active euchromatin forces params
+  static constexpr double default_active_euchromatin_force_sigma_ = 1.0;
+  static constexpr double default_active_euchromatin_force_kon_ = 1.0;
+  static constexpr double default_active_euchromatin_force_koff_ = 1.0;
 
   // Neighbor list params
   static constexpr double default_skin_distance_ = 1.0;
