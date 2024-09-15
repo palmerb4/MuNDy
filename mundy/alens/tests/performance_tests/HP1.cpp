@@ -411,17 +411,17 @@ class HP1 {
     const std::string backbone_spring_type_string = param_list.get<std::string>("spring_type");
     if (backbone_spring_type_string == "HARMONIC") {
       backbone_spring_type_ = BOND_TYPE::HARMONIC;
+      backbone_spring_constant_ = param_list.get<double>("spring_constant");
+      backbone_spring_rest_length_ = param_list.get<double>("spring_rest_length");
     } else if (backbone_spring_type_string == "FENE") {
       backbone_spring_type_ = BOND_TYPE::FENE;
-      MUNDY_THROW_ASSERT(false, std::invalid_argument, "FENE bonds not currently implemented for chromatin chains.");
+      backbone_spring_constant_ = param_list.get<double>("spring_constant");
+      backbone_spring_rmax_ = param_list.get<double>("spring_rmax");
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument,
                          "Invalid backbone spring type. Received '" << backbone_spring_type_string
                                                                     << "' but expected 'HARMONIC' or 'FENE'.");
     }
-
-    backbone_spring_constant_ = param_list.get<double>("spring_constant");
-    backbone_spring_rest_length_ = param_list.get<double>("spring_rest_length");
   }
 
   void set_backbone_collision_params(const Teuchos::ParameterList &param_list) {
@@ -640,7 +640,8 @@ class HP1 {
     valid_parameter_list.sublist("backbone_springs")
         .set("spring_type", std::string(default_backbone_spring_type_string_), "Chromatin spring type.")
         .set("spring_constant", default_backbone_spring_constant_, "Chromatin spring constant.")
-        .set("spring_rest_length", default_backbone_spring_rest_length_, "Chromatin rest length.");
+        .set("spring_rest_length", default_backbone_spring_rest_length_, "Chromatin rest length (HARMONIC).")
+        .set("spring_rmax", default_backbone_spring_rmax_, "Chromatin rmax (FENE).");
 
     valid_parameter_list.sublist("backbone_collision")
         .set("backbone_excluded_volume_radius", default_backbone_excluded_volume_radius_,
@@ -797,7 +798,11 @@ class HP1 {
         std::cout << "BACKBONE SPRINGS:" << std::endl;
         std::cout << "  spring_type:      " << backbone_spring_type_ << std::endl;
         std::cout << "  spring_constant:  " << backbone_spring_constant_ << std::endl;
-        std::cout << "  spring_rest_length: " << backbone_spring_rest_length_ << std::endl;
+        if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
+          std::cout << "  spring_rest_length: " << backbone_spring_rest_length_ << std::endl;
+        } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
+          std::cout << "  spring_rmax:        " << backbone_spring_rmax_ << std::endl;
+        }
       }
 
       if (enable_backbone_collision_) {
@@ -1099,10 +1104,19 @@ class HP1 {
     // master parameter list. Note, sublist will return a reference to the sublist with the given name.
     //
     // Compute constraint (bonded) forces for the the BACKBONE_SEGMENTS and HP1S parts
-    compute_constraint_forcing_fixed_params_ =
-        Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"));
-    compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
-        .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS", "HP1S"));
+    if (backbone_spring_type_ == BOND_TYPE::HARMONIC && crosslinker_spring_type_ == BOND_TYPE::HARMONIC) {
+      compute_constraint_forcing_fixed_params_ =
+          Teuchos::ParameterList().set("enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS"));
+      compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
+          .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS", "HP1S"));
+    } else if (backbone_spring_type_ == BOND_TYPE::FENE && crosslinker_spring_type_ == BOND_TYPE::HARMONIC) {
+      compute_constraint_forcing_fixed_params_ = Teuchos::ParameterList().set(
+          "enabled_kernel_names", mundy::core::make_string_array("HOOKEAN_SPRINGS", "FENE_SPRINGS"));
+      compute_constraint_forcing_fixed_params_.sublist("HOOKEAN_SPRINGS")
+          .set("valid_entity_part_names", mundy::core::make_string_array("HP1S"));
+      compute_constraint_forcing_fixed_params_.sublist("FENE_SPRINGS")
+          .set("valid_entity_part_names", mundy::core::make_string_array("BACKBONE_SEGMENTS"));
+    }
 
     // Compute the minimum distance for the SCS-SCS, HP1-H, HP1-BS interactions (SCS-SCS, S-SCS, S-SCS)
     // Try to be as explicit as possible with the parts that are associated with each of the interactions.
@@ -1243,6 +1257,8 @@ class HP1 {
     element_hookean_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
     element_hookean_spring_rest_length_field_ptr_ =
         fetch_field<double>("ELEMENT_HOOKEAN_SPRING_REST_LENGTH", element_rank_);
+    element_fene_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_CONSTANT", element_rank_);
+    element_fene_spring_rmax_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_RMAX", element_rank_);
     element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
     element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
@@ -1433,6 +1449,7 @@ class HP1 {
         //
         //  H---H---E---E---E---E---E---E---H---H
         //
+        std::cout << "  Building backbone segments" << std::endl;
         for (size_t segment_local_idx = 0; segment_local_idx < num_segments_per_chromosome; segment_local_idx++) {
           // Keep track of the vertex IDs for part memebership (local index into array)
           const size_t vertex_left_idx = segment_local_idx;
@@ -1503,6 +1520,7 @@ class HP1 {
             }
           }
         }
+        std::cout << "  ...finished building backbone segments" << std::endl;
 
         // Declare the crosslinkers along the backbone
         // Every sphere gets a left bound crosslinker
@@ -1517,6 +1535,7 @@ class HP1 {
         // March down the chain of spheres, adding crosslinkers as we go. We just want to add to the heterochromatin
         // spheres, and so keep track of a running hp1_sphere_index.
         if (enable_crosslinkers_) {
+          std::cout << "  Building hp1 segments" << std::endl;
           size_t hp1_sphere_index = 0;
           for (size_t sphere_local_idx = 0; sphere_local_idx < num_spheres_per_chromosome; sphere_local_idx++) {
             stk::mesh::Entity sphere_node = bulk_data_ptr_->get_entity(node_rank_, get_node_id(sphere_local_idx));
@@ -1540,10 +1559,12 @@ class HP1 {
               hp1_sphere_index++;
             }
           }
+          std::cout << "  ...finished building hp1 segments" << std::endl;
         }
       }
     }
     bulk_data_ptr_->modification_end();
+    std::cout << "...finished declaring system\n";
   }
 
 #pragma TODO all of the initialization should become part of the chain of springs - like initialization
@@ -1782,10 +1803,17 @@ class HP1 {
                                               std::array<double, 1>{backbone_poissons_ratio_});
     mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_radius_field_ptr_,
                                               std::array<double, 1>{backbone_excluded_volume_radius_});
-    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_constant_field_ptr_,
-                                              std::array<double, 1>{backbone_spring_constant_});
-    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_rest_length_field_ptr_,
-                                              std::array<double, 1>{backbone_spring_rest_length_});
+    if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
+      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_constant_field_ptr_,
+                                                std::array<double, 1>{backbone_spring_constant_});
+      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_rest_length_field_ptr_,
+                                                std::array<double, 1>{backbone_spring_rest_length_});
+    } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
+      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_fene_spring_constant_field_ptr_,
+                                                std::array<double, 1>{backbone_spring_constant_});
+      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_fene_spring_rmax_field_ptr_,
+                                                std::array<double, 1>{backbone_spring_rmax_});
+    }
 
     // Initialize the EE springs (euchromatin activity)
     mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *element_rng_field_ptr_,
@@ -1820,12 +1848,16 @@ class HP1 {
     // Initialize node positions for each chromosome
     if (!restart_performed_) {
       if (initialization_type_ == INITIALIZATION_TYPE::GRID) {
+        std::cout << "Initializing chromosomes on a grid\n";
         initialize_chromosome_positions_grid();
       } else if (initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL) {
+        std::cout << "Initializing chromosomes in a random unit cell\n";
         initialize_chromosome_positions_random_unit_cell();
       } else if (initialization_type_ == INITIALIZATION_TYPE::OVERLAP_TEST) {
+        std::cout << "Initializing chromosomes as an overlap test\n";
         initialize_chromosome_positions_overlap_test();
       } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
+        std::cout << "Initializing chromosomes in a hilbert random unit cell\n";
         initialize_chromosome_positions_hilbert_random_unit_cell();
       } else {
         MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
@@ -1863,8 +1895,6 @@ class HP1 {
 
           next_time[0] = -1.0 * kon_inv * std::log(randu01);
         });
-
-    stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
   }
 
   void declare_and_initialize_hp1() {
@@ -1872,6 +1902,7 @@ class HP1 {
       create_chromatin_backbone_and_hp1();
     }
     initialize_chromatin_backbone_and_hp1();
+    std::cout << "Done initializing!\n";
   }
 
   void initialize_hydrodynamic_periphery() {
@@ -3182,6 +3213,22 @@ class HP1 {
                                                 active_force_sigma / nsqr * nvec[1],
                                                 active_force_sigma / nsqr * nvec[2]};
 
+// #pragma omp critical
+//             {
+//               std::cout << "Rank " << bulk_data.parallel_rank() << " Euchromatin spring "
+//                         << bulk_data.identifier(euchromatin_spring) << " is active." << std::endl;
+//               std::cout << "  node1: " << bulk_data.identifier(node1) << " node2: " << bulk_data.identifier(node2)
+//                         << std::endl;
+//               std::cout << "  node1 coordinates: " << node1_coord[0] << " " << node1_coord[1] << " " << node1_coord[2]
+//                         << std::endl;
+//               std::cout << "  node2 coordinates: " << node2_coord[0] << " " << node2_coord[1] << " " << node2_coord[2]
+//                         << std::endl;
+//               std::cout << "  nvec: " << nvec[0] << " " << nvec[1] << " " << nvec[2] << std::endl;
+//               std::cout << "  nsqr: " << nsqr << std::endl;
+//               std::cout << "  right_node_force: " << right_node_force[0] << " " << right_node_force[1] << " "
+//                         << right_node_force[2] << std::endl;
+//             }
+
             // Add the force dipole to the nodes.
             double *node1_force = stk::mesh::field_data(node_force_field, node1);
             double *node2_force = stk::mesh::field_data(node_force_field, node2);
@@ -3573,6 +3620,8 @@ class HP1 {
   stk::mesh::Field<double> *element_radius_field_ptr_;
   stk::mesh::Field<double> *element_hookean_spring_constant_field_ptr_;
   stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr_;
+  stk::mesh::Field<double> *element_fene_spring_constant_field_ptr_;
+  stk::mesh::Field<double> *element_fene_spring_rmax_field_ptr_;
   stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
   stk::mesh::Field<double> *element_aabb_field_ptr_;
@@ -3723,6 +3772,7 @@ class HP1 {
   BOND_TYPE backbone_spring_type_;
   double backbone_spring_constant_;
   double backbone_spring_rest_length_;
+  double backbone_spring_rmax_;
 
   // Backbone collisions params
   double backbone_excluded_volume_radius_;
@@ -3831,6 +3881,7 @@ class HP1 {
   static constexpr std::string_view default_backbone_spring_type_string_ = "HARMONIC";
   static constexpr double default_backbone_spring_constant_ = 100.0;
   static constexpr double default_backbone_spring_rest_length_ = 1.0;
+  static constexpr double default_backbone_spring_rmax_ = 2.5;
 
   // Backbone collisions params
   static constexpr double default_backbone_excluded_volume_radius_ = 0.5;
