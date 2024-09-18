@@ -946,9 +946,10 @@ class HP1 {
             .set("enabled_io_fields_node_rank",
                  mundy::core::make_string_array("NODE_VELOCITY", "NODE_FORCE", "NODE_RNG_COUNTER"))
             .set("enabled_io_fields_element_rank",
-                 mundy::core::make_string_array("ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER",
-                                                "ELEMENT_REALIZED_BINDING_RATES", "ELEMENT_REALIZED_UNBINDING_RATES",
-                                                "ELEMENT_PERFORM_STATE_CHANGE"))
+                 mundy::core::make_string_array(
+                     "ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER", "ELEMENT_REALIZED_BINDING_RATES",
+                     "ELEMENT_REALIZED_UNBINDING_RATES", "ELEMENT_PERFORM_STATE_CHANGE", "EUCHROMATIN_STATE",
+                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME"))
             .set("coordinate_field_name", "NODE_COORDS")
             .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
             .set("exodus_database_output_filename", output_filename_)
@@ -985,15 +986,16 @@ class HP1 {
         }
 
         const double file_found = largest_number != -1;
-        return std::make_pair(file_found, largest_file);
+        return std::make_tuple(file_found, largest_file, largest_number);
       };
 
-      auto [file_found, restart_filename] = find_file_with_largest_timestep_number(output_filename_);
+      auto [file_found, restart_filename, largest_number] = find_file_with_largest_timestep_number(output_filename_);
       if (file_found) {
-        std::cout << "Restarting from file: " << restart_filename << std::endl;
+        std::cout << "Restarting from file: " << restart_filename << " at step " << largest_number << std::endl;
         fixed_params_iobroker.set("exodus_database_input_filename", restart_filename);
         fixed_params_iobroker.set("enable_restart", "true");
         restart_performed_ = true;
+        restart_timestep_index_ = largest_number;
       }
     }
 
@@ -3460,6 +3462,10 @@ class HP1 {
     // Reset simulation control variables
     timestep_index_ = 0;
     timestep_current_time_ = 0.0;
+    if (enable_continuation_if_available_ && restart_performed_) {
+      timestep_index_ = restart_timestep_index_;
+      timestep_current_time_ = restart_timestep_index_ * timestep_size_;
+    }
 
     // Check to see if we need to do anything for compressing the system.
     if (enable_periphery_collision_ && shrink_periphery_over_time_) {
@@ -3478,8 +3484,8 @@ class HP1 {
     Kokkos::Timer overall_timer;
     Kokkos::Timer timer;
     Kokkos::Profiling::pushRegion("MainLoop");
-    for (timestep_index_ = 0, timestep_current_time_ = 0.0; timestep_index_ < num_time_steps_;
-         timestep_index_++, timestep_current_time_ += timestep_size_) {
+    // We have pre-loaded the starting index and time...
+    for (; timestep_index_ < num_time_steps_; timestep_index_++, timestep_current_time_ += timestep_size_) {
       // Prepare the current configuration.
       Kokkos::Profiling::pushRegion("HP1::PrepareStep");
       zero_out_transient_node_fields();
@@ -3610,6 +3616,7 @@ class HP1 {
   std::shared_ptr<mundy::meta::MeshReqs> mesh_reqs_ptr_;
   std::shared_ptr<mundy::io::IOBroker> io_broker_ptr_ = nullptr;
   size_t timestep_index_;
+  size_t restart_timestep_index_;
   double timestep_current_time_;
   std::shared_ptr<mundy::alens::periphery::Periphery> periphery_ptr_;
   bool restart_performed_ = false;
