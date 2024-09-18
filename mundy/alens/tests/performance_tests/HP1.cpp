@@ -362,6 +362,13 @@ class HP1 {
                                                                       "'OVERLAP_TEST', 'HILBERT_RANDOM_UNIT_CELL', or "
                                                                       "'FROM_FILE'.");
     }
+    if (initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL ||
+        initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
+      Teuchos::Array<double> unit_cell_size = simulation_params.get<Teuchos::Array<double>>("unit_cell_size");
+      unit_cell_size_[0] = unit_cell_size[0];
+      unit_cell_size_[1] = unit_cell_size[1];
+      unit_cell_size_[2] = unit_cell_size[2];
+    }
     loadbalance_post_initialization_ = simulation_params.get<bool>("loadbalance_post_initialization");
 
     enable_chromatin_brownian_motion_ = simulation_params.get<bool>("enable_chromatin_brownian_motion");
@@ -1254,11 +1261,17 @@ class HP1 {
     node_rng_field_ptr_ = fetch_field<unsigned>("NODE_RNG_COUNTER", node_rank_);
 
     element_rng_field_ptr_ = fetch_field<unsigned>("ELEMENT_RNG_COUNTER", element_rank_);
-    element_hookean_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
-    element_hookean_spring_rest_length_field_ptr_ =
-        fetch_field<double>("ELEMENT_HOOKEAN_SPRING_REST_LENGTH", element_rank_);
-    element_fene_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_CONSTANT", element_rank_);
-    element_fene_spring_rmax_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_RMAX", element_rank_);
+    // Because we have an if statement above for spring types, we need to make sure we are only grabbing the fields if
+    // they exist.
+    if (backbone_spring_type_ == BOND_TYPE::HARMONIC || crosslinker_spring_type_ == BOND_TYPE::HARMONIC) {
+      element_hookean_spring_constant_field_ptr_ =
+          fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
+      element_hookean_spring_rest_length_field_ptr_ =
+          fetch_field<double>("ELEMENT_HOOKEAN_SPRING_REST_LENGTH", element_rank_);
+    } else if (backbone_spring_type_ == BOND_TYPE::FENE || crosslinker_spring_type_ == BOND_TYPE::FENE) {
+      element_fene_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_CONSTANT", element_rank_);
+      element_fene_spring_rmax_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_RMAX", element_rank_);
+    }
     element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
     element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
@@ -3213,21 +3226,25 @@ class HP1 {
                                                 active_force_sigma / nsqr * nvec[1],
                                                 active_force_sigma / nsqr * nvec[2]};
 
-// #pragma omp critical
-//             {
-//               std::cout << "Rank " << bulk_data.parallel_rank() << " Euchromatin spring "
-//                         << bulk_data.identifier(euchromatin_spring) << " is active." << std::endl;
-//               std::cout << "  node1: " << bulk_data.identifier(node1) << " node2: " << bulk_data.identifier(node2)
-//                         << std::endl;
-//               std::cout << "  node1 coordinates: " << node1_coord[0] << " " << node1_coord[1] << " " << node1_coord[2]
-//                         << std::endl;
-//               std::cout << "  node2 coordinates: " << node2_coord[0] << " " << node2_coord[1] << " " << node2_coord[2]
-//                         << std::endl;
-//               std::cout << "  nvec: " << nvec[0] << " " << nvec[1] << " " << nvec[2] << std::endl;
-//               std::cout << "  nsqr: " << nsqr << std::endl;
-//               std::cout << "  right_node_force: " << right_node_force[0] << " " << right_node_force[1] << " "
-//                         << right_node_force[2] << std::endl;
-//             }
+            // #pragma omp critical
+            //             {
+            //               std::cout << "Rank " << bulk_data.parallel_rank() << " Euchromatin spring "
+            //                         << bulk_data.identifier(euchromatin_spring) << " is active." << std::endl;
+            //               std::cout << "  node1: " << bulk_data.identifier(node1) << " node2: " <<
+            //               bulk_data.identifier(node2)
+            //                         << std::endl;
+            //               std::cout << "  node1 coordinates: " << node1_coord[0] << " " << node1_coord[1] << " " <<
+            //               node1_coord[2]
+            //                         << std::endl;
+            //               std::cout << "  node2 coordinates: " << node2_coord[0] << " " << node2_coord[1] << " " <<
+            //               node2_coord[2]
+            //                         << std::endl;
+            //               std::cout << "  nvec: " << nvec[0] << " " << nvec[1] << " " << nvec[2] << std::endl;
+            //               std::cout << "  nsqr: " << nsqr << std::endl;
+            //               std::cout << "  right_node_force: " << right_node_force[0] << " " << right_node_force[1] <<
+            //               " "
+            //                         << right_node_force[2] << std::endl;
+            //             }
 
             // Add the force dipole to the nodes.
             double *node1_force = stk::mesh::field_data(node_force_field, node1);
