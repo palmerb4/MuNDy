@@ -949,7 +949,7 @@ class HP1 {
                  mundy::core::make_string_array(
                      "ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER", "ELEMENT_REALIZED_BINDING_RATES",
                      "ELEMENT_REALIZED_UNBINDING_RATES", "ELEMENT_PERFORM_STATE_CHANGE", "EUCHROMATIN_STATE",
-                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME"))
+                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", "ELEMENT_CHAINID"))
             .set("coordinate_field_name", "NODE_COORDS")
             .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
             .set("exodus_database_output_filename", output_filename_)
@@ -1031,6 +1031,14 @@ class HP1 {
     mundy::shapes::Spheres::add_and_sync_part_reqs(custom_sphere_part_reqs);
     mesh_reqs_ptr_->sync(mundy::shapes::Spheres::get_mesh_requirements());
 
+    // Add a chain ID to the E and H entities.
+    auto custom_e_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    auto custom_h_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_e_part_reqs->set_part_name("E").add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1);
+    custom_h_part_reqs->set_part_name("H").add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_e_part_reqs);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_h_part_reqs);
+
     // HP1 needs to be added to the mesh. This includes the subparts for the states of HP1. It will be added to the
     // SpherocylinderSegment part the same was as StickySettings.
     auto custom_hp1_part_reqs = std::make_shared<mundy::meta::PartReqs>();
@@ -1040,6 +1048,7 @@ class HP1 {
         .add_field_reqs<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_, 2, 1)
         .add_field_reqs<unsigned>("ELEMENT_RNG_COUNTER", element_rank_, 1, 1)
         .add_field_reqs<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_, 1, 1)
+        .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
         .add_subpart_reqs("LEFT_HP1", stk::topology::BEAM_2)
         .add_subpart_reqs("DOUBLY_HP1_H", stk::topology::BEAM_2)
         .add_subpart_reqs("DOUBLY_HP1_BS", stk::topology::BEAM_2);
@@ -1049,6 +1058,7 @@ class HP1 {
     auto custom_backbone_segments_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
         .set_part_topology(stk::topology::BEAM_2)
+        .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
         .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
@@ -1282,6 +1292,7 @@ class HP1 {
     element_binding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_);
     element_unbinding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_UNBINDING_RATES", element_rank_);
     element_perform_state_change_field_ptr_ = fetch_field<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_);
+    element_chainid_field_ptr_ = fetch_field<unsigned>("ELEMENT_CHAINID", element_rank_);
 
     euchromatin_state_field_ptr_ = fetch_field<unsigned>("EUCHROMATIN_STATE", element_rank_);
     euchromatin_perform_state_change_field_ptr_ =
@@ -1498,6 +1509,8 @@ class HP1 {
             // Declare the sphere and connect to it's node
             left_sphere = bulk_data_ptr_->declare_element(left_sphere_id, pvector);
             bulk_data_ptr_->declare_relation(left_sphere, left_node, 0);
+            // Assign the chainID
+            stk::mesh::field_data(*element_chainid_field_ptr_, left_sphere)[0] = j;
           }
           if (!bulk_data_ptr_->is_valid(right_sphere)) {
             // Figure out the part we belong to
@@ -1510,6 +1523,8 @@ class HP1 {
             // Declare the sphere and connect to it's node
             right_sphere = bulk_data_ptr_->declare_element(right_sphere_id, pvector);
             bulk_data_ptr_->declare_relation(right_sphere, right_node, 0);
+            // Assign the chainID
+            stk::mesh::field_data(*element_chainid_field_ptr_, right_sphere)[0] = j;
           }
 
           // Figure out how to do the spherocylinder segments along the edges now
@@ -1532,6 +1547,8 @@ class HP1 {
               segment = bulk_data_ptr_->declare_element(get_segment_id(segment_local_idx), pvector);
               bulk_data_ptr_->declare_relation(segment, left_node, 0);
               bulk_data_ptr_->declare_relation(segment, right_node, 1);
+              // Assign the chainID
+              stk::mesh::field_data(*element_chainid_field_ptr_, segment)[0] = j;
             }
           }
         }
@@ -1570,6 +1587,8 @@ class HP1 {
               MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(hp1_crosslinker).topology() != stk::topology::INVALID_TOPOLOGY,
                                  std::logic_error,
                                  "The crosslinker with id " << hp1_crosslinker_id << " has an invalid topology.");
+              // Assign the chainID
+              stk::mesh::field_data(*element_chainid_field_ptr_, hp1_crosslinker)[0] = j;
 
               hp1_sphere_index++;
             }
@@ -1878,6 +1897,9 @@ class HP1 {
         MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
       }
     }
+
+    // Dump the mesh info
+    // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
   }
 
   void initialize_euchromatin() {
@@ -3653,6 +3675,7 @@ class HP1 {
   stk::mesh::Field<double> *element_binding_rates_field_ptr_;
   stk::mesh::Field<double> *element_unbinding_rates_field_ptr_;
   stk::mesh::Field<unsigned> *element_perform_state_change_field_ptr_;
+  stk::mesh::Field<unsigned> *element_chainid_field_ptr_;
 
   stk::mesh::Field<unsigned> *euchromatin_state_field_ptr_;
   stk::mesh::Field<unsigned> *euchromatin_perform_state_change_field_ptr_;
