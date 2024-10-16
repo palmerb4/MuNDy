@@ -1048,7 +1048,7 @@ class HP1 {
         .add_field_reqs<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_, 2, 1)
         .add_field_reqs<unsigned>("ELEMENT_RNG_COUNTER", element_rank_, 1, 1)
         .add_field_reqs<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_, 1, 1)
-        .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
+        // .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
         .add_subpart_reqs("LEFT_HP1", stk::topology::BEAM_2)
         .add_subpart_reqs("DOUBLY_HP1_H", stk::topology::BEAM_2)
         .add_subpart_reqs("DOUBLY_HP1_BS", stk::topology::BEAM_2);
@@ -1058,7 +1058,7 @@ class HP1 {
     auto custom_backbone_segments_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
         .set_part_topology(stk::topology::BEAM_2)
-        .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
+        // .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
         .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
@@ -1548,7 +1548,7 @@ class HP1 {
               bulk_data_ptr_->declare_relation(segment, left_node, 0);
               bulk_data_ptr_->declare_relation(segment, right_node, 1);
               // Assign the chainID
-              stk::mesh::field_data(*element_chainid_field_ptr_, segment)[0] = j;
+              // stk::mesh::field_data(*element_chainid_field_ptr_, segment)[0] = j;
             }
           }
         }
@@ -1588,7 +1588,7 @@ class HP1 {
                                  std::logic_error,
                                  "The crosslinker with id " << hp1_crosslinker_id << " has an invalid topology.");
               // Assign the chainID
-              stk::mesh::field_data(*element_chainid_field_ptr_, hp1_crosslinker)[0] = j;
+              // stk::mesh::field_data(*element_chainid_field_ptr_, hp1_crosslinker)[0] = j;
 
               hp1_sphere_index++;
             }
