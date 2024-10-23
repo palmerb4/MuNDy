@@ -408,6 +408,8 @@ class HP1 {
     if (enable_active_euchromatin_forces_) {
       set_active_euchromatin_forces_params(valid_param_list.sublist("active_euchromatin_forces"));
     }
+
+    set_neighbor_list_params(valid_param_list.sublist("neighbor_list"));
   }
 
   void set_brownian_motion_params(const Teuchos::ParameterList &param_list) {
