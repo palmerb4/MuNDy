@@ -3,7 +3,7 @@
 //
 //                                          Mundy: Multi-body Nonlocal Dynamics
 //                                           Copyright 2024 Flatiron Institute
-//                                                 Author: Bryce Palmer
+//                                        Author: Bryce Palmer ft. Chris Edelmaier
 //
 // Mundy is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License
 // as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
@@ -23,12 +23,12 @@
 /// \file MetaTechniqueDispatcher.hpp
 /// \brief Declaration of the MetaTechniqueDispatcher class
 
-// C++ core libs
+// C++ core
 #include <memory>  // for std::shared_ptr, std::unique_ptr
 #include <string>  // for std::string
 #include <vector>  // for std::vector
 
-// Trilinos libs
+// Trilinos
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
@@ -36,7 +36,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>        // for stk::topology
 
-// Mundy libs
+// Mundy
 #include <mundy_core/StringLiteral.hpp>                               // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                                // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                                    // for mundy::mesh::BulkData
@@ -99,8 +99,7 @@ class MetaTechniqueDispatcher {
 
     // The enabled technique name must be in our registry.
     std::string enabled_technique_name = valid_fixed_params.get<std::string>("enabled_technique_name");
-    MUNDY_THROW_ASSERT(OurTechniqueFactory::is_valid_key(enabled_technique_name), std::logic_error,
-                       "MetaTechniqueDispatcher: The enabled technique name '"
+    MUNDY_THROW_ASSERT(OurTechniqueFactory::is_valid_key(enabled_technique_name),  std::runtime_error, "MetaTechniqueDispatcher: The enabled technique name '"
                            << enabled_technique_name << "' is not a valid technique name. Valid names are: "
                            << OurTechniqueFactory::get_keys_as_string());
 
@@ -204,8 +203,7 @@ class MetaTechniqueDispatcher {
            i != forwarded_parameter_list.end(); i++) {
         const std::string &forwarded_parameter_name = forwarded_parameter_list.name(i);
 
-        MUNDY_THROW_ASSERT(technique_params.isParameter(forwarded_parameter_name), std::logic_error,
-                           "MetaTechniqueDispatcher: The technique "
+        MUNDY_THROW_ASSERT(technique_params.isParameter(forwarded_parameter_name),  std::runtime_error,"MetaTechniqueDispatcher: The technique "
                                << valid_technique_name << " does not have the required (forwarded) parameter '"
                                << forwarded_parameter_name << "' in its " << parameter_list_name << "params.");
         technique_params.remove(forwarded_parameter_name);
@@ -216,8 +214,7 @@ class MetaTechniqueDispatcher {
            i != required_parameter_list.end(); i++) {
         const std::string &required_parameter_name = required_parameter_list.name(i);
 
-        MUNDY_THROW_ASSERT(technique_params.isParameter(required_parameter_name), std::logic_error,
-                           "MetaTechniqueDispatcher: The technique "
+        MUNDY_THROW_ASSERT(technique_params.isParameter(required_parameter_name),  std::runtime_error,"MetaTechniqueDispatcher: The technique "
                                << valid_technique_name << " does not have the required (required) parameter '"
                                << required_parameter_name << "' in its " << parameter_list_name << "params.");
       }

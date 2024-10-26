@@ -1367,6 +1367,21 @@ class HP1 {
     // ComputeAABB mutable parameters
     auto compute_aabb_mutable_params = Teuchos::ParameterList().set("buffer_distance", skin_distance_);
     compute_aabb_ptr_->set_mutable_params(compute_aabb_mutable_params);
+
+    // Generate the GENX neighbor linkers between spherocylinder segments mutable params
+    auto generate_scs_scs_genx_mutable_params = Teuchos::ParameterList();
+    generate_scs_scs_genx_mutable_params.sublist("STK_SEARCH").set("enforce_symmetry", true);
+    generate_scs_scs_genx_ptr_->set_mutable_params(generate_scs_scs_genx_mutable_params);
+
+    // Generate the GENX neighbor linkers between HP1 and H mutable params
+    auto generate_hp1_h_genx_mutable_params = Teuchos::ParameterList();
+    generate_hp1_h_genx_mutable_params.sublist("STK_SEARCH").set("enforce_symmetry", false);
+    generate_hp1_h_genx_ptr_->set_mutable_params(generate_hp1_h_genx_mutable_params);
+
+    // Generate the GENX neighbor linkers between HP1 and BS mutable params
+    auto generate_hp1_bs_genx_mutable_params = Teuchos::ParameterList();
+    generate_hp1_bs_genx_mutable_params.sublist("STK_SEARCH").set("enforce_symmetry", false);
+    generate_hp1_bs_genx_ptr_->set_mutable_params(generate_hp1_bs_genx_mutable_params);
   }
 
   void ghost_linked_entities() {

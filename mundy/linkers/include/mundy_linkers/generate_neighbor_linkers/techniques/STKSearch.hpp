@@ -205,7 +205,8 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
   /// \brief Get the valid mutable parameters for this class and their defaults.
   static Teuchos::ParameterList get_valid_mutable_params() {
-    static Teuchos::ParameterList default_parameter_list;
+    static Teuchos::ParameterList default_parameter_list
+      = Teuchos::ParameterList().set("enforce_symmetry", true, "Enforce symmetry of the neighbor linkers.");
     return default_parameter_list;
   }
 
@@ -286,6 +287,9 @@ class STKSearch : public mundy::meta::MetaMethodPairwiseSubsetExecutionInterface
 
   /// \brief The element aabb field pointer.
   stk::mesh::Field<double> *element_aabb_field_ptr_ = nullptr;
+
+  /// \brief The enforce symmetry flag.
+  bool enforce_symmetry_ = true;
   //@}
 };  // STKSearch
 
