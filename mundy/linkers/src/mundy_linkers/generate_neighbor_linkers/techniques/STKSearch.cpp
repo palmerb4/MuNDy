@@ -167,7 +167,40 @@ inline void get_existing_pairs(std::set<std::pair<SearchIdentProc, SearchIdentPr
                                const stk::mesh::Field<LinkedEntitiesFieldType::value_type> &linked_entities_field,
                                const stk::mesh::Field<int> &linked_entity_owners_field,
                                const bool enforce_symmetry = true) {
-  const size_t num_linkers = existing_linkers.size();
+  size_t num_linkers = existing_linkers.size();
+
+// Only use local variables if OpenMP is enabled
+#ifdef _OPENMP
+#pragma omp parallel
+  {
+    std::set<std::pair<SearchIdentProc, SearchIdentProc>> thread_local_existing_pairs;
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < num_linkers; ++i) {
+      const stk::mesh::Entity &linker = existing_linkers[i];
+
+      const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
+          reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(stk::mesh::field_data(linked_entities_field, linker));
+      const stk::mesh::EntityKey source_entity_key(key_t_ptr[0]);
+      const stk::mesh::EntityKey target_entity_key(key_t_ptr[1]);
+
+      const int *owner_ptr = stk::mesh::field_data(linked_entity_owners_field, linker);
+      const int source_proc = owner_ptr[0];
+      const int target_proc = owner_ptr[1];
+
+      const SearchIdentProc source_entity_proc(source_entity_key, source_proc);
+      const SearchIdentProc target_entity_proc(target_entity_key, target_proc);
+
+      auto sorted_pair = enforce_symmetry ? make_sorted_pair(source_entity_proc, target_entity_proc)
+                                          : std::make_pair(source_entity_proc, target_entity_proc);
+
+      thread_local_existing_pairs.insert(sorted_pair);
+    }
+
+// Merge thread-local results into the global set
+#pragma omp critical
+    existing_pairs.insert(thread_local_existing_pairs.begin(), thread_local_existing_pairs.end());
+  }
+#else
   for (size_t i = 0; i < num_linkers; ++i) {
     const stk::mesh::Entity &linker = existing_linkers[i];
 
@@ -183,39 +216,58 @@ inline void get_existing_pairs(std::set<std::pair<SearchIdentProc, SearchIdentPr
     const SearchIdentProc source_entity_proc(source_entity_key, source_proc);
     const SearchIdentProc target_entity_proc(target_entity_key, target_proc);
 
-    if (enforce_symmetry) {
-      existing_pairs.insert(make_sorted_pair(source_entity_proc, target_entity_proc));
-    } else {
-      existing_pairs.insert(std::make_pair(source_entity_proc, target_entity_proc));
-    }
+    auto sorted_pair = enforce_symmetry ? make_sorted_pair(source_entity_proc, target_entity_proc)
+                                        : std::make_pair(source_entity_proc, target_entity_proc);
+
+    existing_pairs.insert(sorted_pair);
   }
+#endif  // _OPENMP
 }
 
-inline void filter_and_add_pairs(std::set<std::pair<SearchIdentProc, SearchIdentProc>> &existing_pairs,
+inline void filter_and_add_pairs(const std::set<std::pair<SearchIdentProc, SearchIdentProc>> &existing_pairs,
                                  std::set<std::pair<SearchIdentProc, SearchIdentProc>> &new_pairs,
                                  const std::vector<std::pair<SearchIdentProc, SearchIdentProc>> &search_id_pairs,
                                  const bool enforce_symmetry = true) {
-  for (const auto &search_pair : search_id_pairs) {
-    // Skip self interactions
-    if (search_pair.first.id() == search_pair.second.id()) {
-      continue;
+  size_t num_search_pairs = search_id_pairs.size();
+
+// Only use local variables if OpenMP is enabled
+#ifdef _OPENMP
+
+#pragma omp parallel
+  {
+    std::set<std::pair<SearchIdentProc, SearchIdentProc>> thread_local_new_pairs;
+
+#pragma omp for schedule(static)
+    for (size_t i = 0; i < num_search_pairs; ++i) {
+      const auto &search_pair = search_id_pairs[i];
+      if (search_pair.first.id() == search_pair.second.id()) continue;  // Skip self-interactions
+
+      auto sorted_pair = enforce_symmetry ? make_sorted_pair(search_pair.first, search_pair.second) : search_pair;
+
+      // Check existence in existing_pairs or thread_local_new_pairs and add to new_pairs if not found
+      if ((existing_pairs.find(sorted_pair) == existing_pairs.end()) &&
+          (thread_local_new_pairs.find(sorted_pair) == thread_local_new_pairs.end())) {
+        thread_local_new_pairs.insert(sorted_pair);
+      }
     }
 
-    if (enforce_symmetry) {
-      // Create a sorted pair for consistent storage
-      auto sorted_search_pair = make_sorted_pair(search_pair.first, search_pair.second);
-      // Check if the sorted pair already exists in the set, if not, add it to the new pairs set
-      if (existing_pairs.find(sorted_search_pair) == existing_pairs.end()) {
-        existing_pairs.insert(sorted_search_pair);
-        new_pairs.insert(sorted_search_pair);
-      }
-    } else {
-      if (existing_pairs.find(search_pair) == existing_pairs.end()) {
-        existing_pairs.insert(search_pair);
-        new_pairs.insert(search_pair);
-      }
+// Merge thread-local results into the global set
+#pragma omp critical
+    new_pairs.insert(thread_local_new_pairs.begin(), thread_local_new_pairs.end());
+  }
+#else
+  for (size_t i = 0; i < num_search_pairs; ++i) {
+    const auto &search_pair = search_id_pairs[i];
+    if (search_pair.first.id() == search_pair.second.id()) continue;  // Skip self-interactions
+
+    auto sorted_pair = enforce_symmetry ? make_sorted_pair(search_pair.first, search_pair.second) : search_pair;
+
+    // Check existence in existing_pairs or thread_local_new_pairs and add to new_pairs if not found
+    if (existing_pairs.find(sorted_pair) == existing_pairs.end()) {
+      new_pairs.insert(sorted_pair);
     }
   }
+#endif  // _OPENMP
 }
 
 inline void fill_box_id_vector(mundy::mesh::BulkData &bulk_data, mundy::mesh::MetaData &meta_data,
@@ -307,7 +359,8 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                                    existing_linkers);
 
   std::set<std::pair<SearchIdentProc, SearchIdentProc>> existing_pairs;
-  get_existing_pairs(existing_pairs, existing_linkers, linked_entities_field, linked_entity_owners_field, enforce_symmetry_);
+  get_existing_pairs(existing_pairs, existing_linkers, linked_entities_field, linked_entity_owners_field,
+                     enforce_symmetry_);
 
   std::set<std::pair<SearchIdentProc, SearchIdentProc>> new_pairs;
   filter_and_add_pairs(existing_pairs, new_pairs, search_id_pairs, enforce_symmetry_);
@@ -357,7 +410,6 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   // each pair to know its index in the requested_entities vector. This is just the cumulative sum of the
   // we_need_to_create_linker boolean vector minus 1.
   Kokkos::Timer create_linker_timer;
-
   size_t num_linkers_to_create = 0;
   for (const auto &new_pair : new_pairs) {
     const bool we_need_to_create_linker = (new_pair.first.proc() == parallel_rank);
