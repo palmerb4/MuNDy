@@ -1277,11 +1277,15 @@ class HP1 {
     element_rng_field_ptr_ = fetch_field<unsigned>("ELEMENT_RNG_COUNTER", element_rank_);
     // Because we have an if statement above for spring types, we need to make sure we are only grabbing the fields if
     // they exist.
-    element_hookean_spring_constant_field_ptr_ =
-        fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
-    element_hookean_spring_rest_length_field_ptr_ =
-    element_fene_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_CONSTANT", element_rank_);
-    element_fene_spring_rmax_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_RMAX", element_rank_);
+    if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
+      element_hookean_spring_constant_field_ptr_ =
+          fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
+      element_hookean_spring_rest_length_field_ptr_ =
+          fetch_field<double>("ELEMENT_HOOKEAN_SPRING_REST_LENGTH", element_rank_);
+    } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
+      element_fene_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_CONSTANT", element_rank_);
+      element_fene_spring_rmax_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_RMAX", element_rank_);
+    }
     element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
     element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
@@ -1850,14 +1854,17 @@ class HP1 {
                        "Element youngs modulus field is null.");
     MUNDY_THROW_ASSERT(element_poissons_ratio_field_ptr_ != nullptr, std::invalid_argument,
                        "Element poisson's ratio field is null.");
-    MUNDY_THROW_ASSERT(element_hookean_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element hookean spring constant field is null.");
-    MUNDY_THROW_ASSERT(element_hookean_spring_rest_length_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element hookean spring rest length field is null.");
-    MUNDY_THROW_ASSERT(element_fene_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element fene spring constant field is null.");
-    MUNDY_THROW_ASSERT(element_fene_spring_rmax_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element fene spring rmax field is null.");
+    if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
+      MUNDY_THROW_ASSERT(element_hookean_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
+                         "Element hookean spring constant field is null.");
+      MUNDY_THROW_ASSERT(element_hookean_spring_rest_length_field_ptr_ != nullptr, std::invalid_argument,
+                         "Element hookean spring rest length field is null.");
+    } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
+      MUNDY_THROW_ASSERT(element_fene_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
+                         "Element fene spring constant field is null.");
+      MUNDY_THROW_ASSERT(element_fene_spring_rmax_field_ptr_ != nullptr, std::invalid_argument,
+                         "Element fene spring rmax field is null.");
+    }
     MUNDY_THROW_ASSERT(element_rng_field_ptr_ != nullptr, std::invalid_argument, "Element rng field is null.");
     MUNDY_THROW_ASSERT(euchromatin_state_field_ptr_ != nullptr, std::invalid_argument,
                        "Euchromatin state field is null.");

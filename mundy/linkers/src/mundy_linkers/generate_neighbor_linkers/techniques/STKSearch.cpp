@@ -302,9 +302,6 @@ inline void fill_box_id_vector(mundy::mesh::BulkData &bulk_data, mundy::mesh::Me
 
 void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                         const stk::mesh::Selector &range_input_selector) {
-  std::cout << "##############################################################" << std::endl;
-  std::cout << "STKSearch: Executing..." << std::endl;
-  std::cout << std::scientific << std::setprecision(3);
   // Step 1: Copy the AABBs, owning procs, and entity keys into a separate contiguous vector for the sources and
   // targets.<< value << std::endl
   const int parallel_size = bulk_data_ptr_->parallel_size();
@@ -313,31 +310,21 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   BoxIdVector source_boxes;
   BoxIdVector target_boxes;
 
-  Kokkos::Timer fill_box_timer;
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, domain_input_selector, source_boxes);
   fill_box_id_vector(*bulk_data_ptr_, *meta_data_ptr_, *element_aabb_field_ptr_, range_input_selector, target_boxes);
-  double fill_box_time = fill_box_timer.seconds();
-  std::cout << "Fill box time: " << fill_box_time << std::endl;
 
   // Step 2: Perform the search.
-  Kokkos::Timer search_timer;
   SearchIdPairVector search_id_pairs;
   stk::search::coarse_search(source_boxes, target_boxes, stk::search::KDTREE, bulk_data_ptr_->parallel(),
                              search_id_pairs);
   const size_t num_neighbors = search_id_pairs.size();
-  double search_time = search_timer.seconds();
-  std::cout << "Search time: " << search_time << std::endl;
 
   // Step 3: Determine which process should create the linker between the source and target entities, if any.
   // No linker will be created if one already exists.
-  Kokkos::Timer determine_linker_timer;
   stk::mesh::Part &neighbor_linkers_part = *neighbor_linkers_part_ptr_;
   LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
   stk::mesh::Field<int> &linked_entity_owners_field = *linked_entity_owners_field_ptr_;
-  Kokkos::Timer determine_linker_timer_part1;
   stk::mesh::communicate_field_data(*bulk_data_ptr_, {linked_entities_field_ptr_, linked_entity_owners_field_ptr_});
-  double determine_linker_timer_part1_time = determine_linker_timer_part1.seconds();
-  std::cout << "Determine linker part 1 time: " << determine_linker_timer_part1_time << std::endl;
 
   /**
    * We have a collection of pairs and a collection of linkers which connect pairs. We need to optimize the process of
@@ -353,7 +340,6 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
    */
 
   // Identify if the inverse of a (source, target) pair exists in the search_id_pairs vector.
-  Kokkos::Timer determine_linker_timer_part2;
   stk::mesh::EntityVector existing_linkers;
   stk::mesh::get_selected_entities(neighbor_linkers_part, bulk_data_ptr_->buckets(stk::topology::CONSTRAINT_RANK),
                                    existing_linkers);
@@ -365,14 +351,7 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   std::set<std::pair<SearchIdentProc, SearchIdentProc>> new_pairs;
   filter_and_add_pairs(existing_pairs, new_pairs, search_id_pairs, enforce_symmetry_);
 
-  double determine_linker_timer_part2_time = determine_linker_timer_part2.seconds();
-  std::cout << "Determine linker part 2 time: " << determine_linker_timer_part2_time << std::endl;
-
-  double determine_linker_time = determine_linker_timer.seconds();
-  std::cout << "Determine linker time: " << determine_linker_time << std::endl;
-
   // Step 5: Ghost the search results
-  Kokkos::Timer ghost_timer;
   bulk_data_ptr_->modification_begin();
   std::vector<stk::mesh::EntityProc> send_ghosts;
   for (const auto &new_pair : new_pairs) {
@@ -401,15 +380,11 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   bulk_data_ptr_->change_ghosting(ghosting, send_ghosts);
   bulk_data_ptr_->modification_end();
 
-  double ghost_time = ghost_timer.seconds();
-  std::cout << "Ghost time: " << ghost_time << std::endl;
-
   // Step 6: Generate all the new linkers we will own.
   // The total number of linkers to create is the sum of the we_need_to_create_linker vector.
   // Because the total number of linkers does not match the number of search_id_pairs, we use an offset vector to allow
   // each pair to know its index in the requested_entities vector. This is just the cumulative sum of the
   // we_need_to_create_linker boolean vector minus 1.
-  Kokkos::Timer create_linker_timer;
   size_t num_linkers_to_create = 0;
   for (const auto &new_pair : new_pairs) {
     const bool we_need_to_create_linker = (new_pair.first.proc() == parallel_rank);
@@ -450,30 +425,21 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
     }
   }
 
-  double create_linker_time = create_linker_timer.seconds();
-  std::cout << "Create linker time: " << create_linker_time << std::endl;
-
   // We're using one-sided linker creation, so we need to fixup the ghosted to shared nodes.
-  Kokkos::Timer fixup_ghost_timer;
   stk::mesh::fixup_ghosted_to_shared_nodes(*bulk_data_ptr_);
-  double fixup_ghost_time = fixup_ghost_timer.seconds();
-  std::cout << "Fixup ghost time: " << fixup_ghost_time << std::endl;
 
   bulk_data_ptr_->modification_end();
 
   // Ghost the linked entities to any process that owns any of the other linked entities.
-  Kokkos::Timer ghost_linked_entities_timer;
   bulk_data_ptr_->modification_begin();
   const stk::mesh::Selector specialized_parts_selector =
       stk::mesh::selectUnion(specialized_neighbor_linkers_part_ptrs_);
   mundy::linkers::fixup_linker_entity_ghosting(*bulk_data_ptr_, *linked_entities_field_ptr_,
                                                *linked_entity_owners_field_ptr_, specialized_parts_selector);
   bulk_data_ptr_->modification_end();
-  double ghost_linked_entities_time = ghost_linked_entities_timer.seconds();
 
   // Step 7: Communicate every field defined on the source and target selectors.
   // for each rank: Selector -> buckets -> bucket to field -> sort and unique all fields
-  Kokkos::Timer communicate_fields_timer;
   // TODO(palmerb4: Use the following once we upgrade STK)
   // std::vector<stk::mesh::Part *> domain_parts;
   // std::vector<stk::mesh::Part *> range_parts;
@@ -514,9 +480,6 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
                               fields_to_communicate.end());
 
   stk::mesh::communicate_field_data(ghosting, fields_to_communicate);
-  double communicate_fields_time = communicate_fields_timer.seconds();
-  std::cout << "Communicate fields time: " << communicate_fields_time << std::endl;
-  std::cout << "##############################################################" << std::endl;
 }
 //}
 
