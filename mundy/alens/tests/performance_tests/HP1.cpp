@@ -508,6 +508,7 @@ class HP1 {
 
   void set_periphery_collision_params(const Teuchos::ParameterList &param_list) {
     std::string periphery_collision_shape_string = param_list.get<std::string>("shape");
+    periphery_collision_spring_constant_ = param_list.get<double>("collision_spring_constant");
     if (periphery_collision_shape_string == "SPHERE") {
       periphery_collision_shape_ = PERIPHERY_SHAPE::SPHERE;
       periphery_collision_radius_ = param_list.get<double>("radius");
@@ -700,6 +701,8 @@ class HP1 {
         .set("shape", std::string(default_periphery_collision_shape_string_), "Periphery collision shape.")
         .set("radius", default_periphery_collision_radius_,
              "Periphery radius (only used if periphery_shape is SPHERE).")
+        .set("collision_spring_constant", default_periphery_collision_spring_constant_,
+             "Periphery collision spring constant.")
         .set("axis_radius1", default_periphery_collision_axis_radius1_,
              "Periphery axis length 1 (only used if periphery_shape is ELLIPSOID).")
         .set("axis_radius2", default_periphery_collision_axis_radius2_,
@@ -876,6 +879,7 @@ class HP1 {
           std::cout << "  axis_radius2: " << periphery_collision_axis_radius2_ << std::endl;
           std::cout << "  axis_radius3: " << periphery_collision_axis_radius3_ << std::endl;
         }
+        std::cout << "  collision_spring_constant: " << periphery_collision_spring_constant_ << std::endl;
         std::cout << "  periphery_collision_use_fast_approx: " << periphery_collision_use_fast_approx_ << std::endl;
         std::cout << "  shrink_periphery_over_time: " << shrink_periphery_over_time_ << std::endl;
         if (shrink_periphery_over_time_) {
@@ -3054,7 +3058,7 @@ class HP1 {
 
   void compute_ellipsoidal_periphery_collision_forces() {
     Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces");
-    const double spring_constant = periphery_spring_constant_;
+    const double spring_constant = periphery_collision_spring_constant_;
     const double a = periphery_collision_axis_radius1_;
     const double b = periphery_collision_axis_radius2_;
     const double c = periphery_collision_axis_radius3_;
@@ -3140,7 +3144,7 @@ class HP1 {
 
   void compute_ellipsoidal_periphery_collision_forces_fast_approximate() {
     Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces_fast_approximate");
-    const double spring_constant = periphery_spring_constant_;
+    const double spring_constant = periphery_collision_spring_constant_;
     // Adjust for our standoff distance
     const double a = periphery_collision_axis_radius1_;
     const double b = periphery_collision_axis_radius2_;
@@ -3201,7 +3205,7 @@ class HP1 {
   }
 
   void compute_spherical_periphery_collision_forces() {
-    const double spring_constant = periphery_spring_constant_;
+    const double spring_constant = periphery_collision_spring_constant_;
     const double periphery_collision_radius = periphery_collision_radius_;
 
     // Fetch local references to the fields
@@ -3904,6 +3908,7 @@ class HP1 {
   double periphery_collision_axis_radius2_;  // For ellipsoids
   double periphery_collision_axis_radius3_;  // For ellipsoids
   double periphery_collision_scale_factor_for_equilibriation_;
+  double periphery_collision_spring_constant_;
   bool periphery_collision_use_fast_approx_;
   bool shrink_periphery_over_time_;
   size_t periphery_collision_shrinkage_num_steps_;
@@ -4018,6 +4023,7 @@ class HP1 {
   static constexpr double default_periphery_collision_axis_radius2_ = 5.0;
   static constexpr double default_periphery_collision_axis_radius3_ = 5.0;
   static constexpr double default_periphery_collision_scale_factor_for_equilibriation_ = 2.0;
+  static constexpr double default_periphery_collision_spring_constant_ = 1000.0;
   static constexpr bool default_periphery_collision_use_fast_approx_ = false;
   static constexpr bool default_shrink_periphery_over_time_ = false;
   static constexpr size_t default_periphery_collision_shrinkage_num_steps_ = 1000;
