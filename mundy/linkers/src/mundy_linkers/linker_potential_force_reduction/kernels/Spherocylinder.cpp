@@ -182,15 +182,27 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
                     stk::mesh::field_data(linked_entities_field, connected_linker));
 
             const bool are_we_the_left_spherocylinder = (key_t_ptr[0] == bulk_data.entity_key(spherocylinder));
-            const double sign = are_we_the_left_spherocylinder ? 1.0 : -1.0;
+            const bool are_we_the_right_spherocylinder = (key_t_ptr[1] == bulk_data.entity_key(spherocylinder));
+            const double sign = are_we_the_left_spherocylinder ? 1.0 : (are_we_the_right_spherocylinder ? -1.0 : 0.0);
             auto contact_point = mundy::math::get_vector3_view<double>(
                 stk::mesh::field_data(linker_contact_points_field, connected_linker) +
                 3 * !are_we_the_left_spherocylinder);
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
-            node_force += potential_force;
-            node_torque += mundy::math::cross(contact_point - node_coord, potential_force);
+            const auto local_torque = mundy::math::cross(contact_point - node_coord, potential_force);
+#pragma omp atomic
+            node_force[0] += potential_force[0];
+#pragma omp atomic
+            node_force[1] += potential_force[1];
+#pragma omp atomic
+            node_force[2] += potential_force[2];
+#pragma omp atomic
+            node_torque[0] += local_torque[0];
+#pragma omp atomic
+            node_torque[1] += local_torque[1];
+#pragma omp atomic
+            node_torque[2] += local_torque[2];
           }
         }
       });

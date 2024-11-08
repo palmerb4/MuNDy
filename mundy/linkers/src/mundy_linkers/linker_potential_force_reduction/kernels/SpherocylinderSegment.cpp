@@ -188,7 +188,10 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
 
             const bool are_we_the_left_spherocylinder_segment =
                 (key_t_ptr[0] == bulk_data.entity_key(spherocylinder_segment));
-            const double sign = are_we_the_left_spherocylinder_segment ? 1.0 : -1.0;
+            const bool are_we_the_right_spherocylinder_segment =
+                (key_t_ptr[1] == bulk_data.entity_key(spherocylinder_segment));
+            const double sign =
+                are_we_the_left_spherocylinder_segment ? 1.0 : (are_we_the_right_spherocylinder_segment ? -1.0 : 0.0);
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 
@@ -205,10 +208,20 @@ void SpherocylinderSegment::execute(const stk::mesh::Selector &spherocylinder_se
 
             const auto term1 = mundy::math::dot(tangent, potential_force) * left_to_cp * inv_length;
             const auto term2 = mundy::math::dot(left_to_cp, tangent) *
-                               (potential_force - mundy::math::dot(tangent, potential_force) * tangent) * inv_length;
-            const auto sum = term1 - term2;
-            force0 += potential_force - sum;
-            force1 += sum;
+                               (potential_force + mundy::math::dot(tangent, potential_force) * tangent) * inv_length;
+            const auto sum = term2 - term1;
+#pragma omp atomic
+            force0[0] += potential_force[0] - sum[0];
+#pragma omp atomic
+            force0[1] += potential_force[1] - sum[1];
+#pragma omp atomic
+            force0[2] += potential_force[2] - sum[2];
+#pragma omp atomic
+            force1[0] += sum[0];
+#pragma omp atomic
+            force1[1] += sum[1];
+#pragma omp atomic
+            force1[2] += sum[2];
           }
         }
       });

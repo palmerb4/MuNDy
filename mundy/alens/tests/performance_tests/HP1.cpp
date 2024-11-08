@@ -136,7 +136,8 @@ class HP1 {
     RANDOM_UNIT_CELL,
     OVERLAP_TEST,
     HILBERT_RANDOM_UNIT_CELL,
-    FROM_FILE
+    FROM_FILE,
+    USHAPE_TEST
   };
 
   enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
@@ -184,6 +185,9 @@ class HP1 {
         break;
       case INITIALIZATION_TYPE::FROM_FILE:
         os << "FROM_FILE";
+        break;
+      case INITIALIZATION_TYPE::USHAPE_TEST:
+        os << "USHAPE_TEST";
         break;
       default:
         os << "UNKNOWN";
@@ -355,6 +359,8 @@ class HP1 {
       initialization_type_ = INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL;
     } else if (initiliazation_type_string == "FROM_FILE") {
       initialization_type_ = INITIALIZATION_TYPE::FROM_FILE;
+    } else if (initiliazation_type_string == "USHAPE_TEST") {
+      initialization_type_ = INITIALIZATION_TYPE::USHAPE_TEST;
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument,
                          "Invalid initialization type. Received '" << initiliazation_type_string
@@ -370,6 +376,10 @@ class HP1 {
       unit_cell_size_[2] = unit_cell_size[2];
     }
     loadbalance_post_initialization_ = simulation_params.get<bool>("loadbalance_post_initialization");
+    check_maximum_speed_pre_position_update_ = simulation_params.get<bool>("check_maximum_speed_pre_position_update");
+    if (check_maximum_speed_pre_position_update_) {
+      max_allowable_speed_ = simulation_params.get<double>("max_allowable_speed");
+    }
 
     enable_chromatin_brownian_motion_ = simulation_params.get<bool>("enable_chromatin_brownian_motion");
     enable_backbone_springs_ = simulation_params.get<bool>("enable_backbone_springs");
@@ -1739,6 +1749,54 @@ class HP1 {
     }
   }
 
+  // Initialize for the U-shaped test
+  void initialize_chromosome_positions_ushape_test() {
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      MUNDY_THROW_ASSERT(num_chromosomes_ == 1, std::invalid_argument, "This test is only for 1 chromosome.");
+      MUNDY_THROW_ASSERT(num_chromatin_repeats_ == 3, std::invalid_argument, "This test is only for 3 repeats.");
+      MUNDY_THROW_ASSERT(num_heterochromatin_per_repeat_ == 1, std::invalid_argument,
+                         "This test is only for 1 H sphere per repeat.");
+      MUNDY_THROW_ASSERT(num_euchromatin_per_repeat_ == 2, std::invalid_argument,
+                         "This test is only for 2 E spheres per repeat.");
+
+      // Start at Y = initial_chromosome_separation, X = 0.0, Z = 0.0, then move down in a u-shape and back up again in
+      // Y
+      const size_t j = 0u;
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+      size_t start_node_index = num_nodes_per_chromosome * j + 1u;
+      size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
+
+      for (size_t i = start_node_index; i < end_node_index; ++i) {
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+
+        // Assign the node coordinates
+        mundy::math::Vector3<double> r(0.0, 0.0, 0.0);
+        if (i == start_node_index) {
+          r[0] = -0.5 * initial_chromosome_separation_;
+          r[1] = initial_chromosome_separation_;
+        } else if (i == start_node_index + 1) {
+          r[0] = -0.5 * initial_chromosome_separation_;
+          r[1] = 0.0;
+        } else if (i == start_node_index + 2) {
+          r[0] = 0.5 * initial_chromosome_separation_;
+          r[1] = 0.0;
+        } else if (i == start_node_index + 3) {
+          r[0] = 0.5 * initial_chromosome_separation_;
+          r[1] = initial_chromosome_separation_;
+        }
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = r[0];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = r[1];
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = r[2];
+      }
+    }
+  }
+
   // Initialize the chromosomes randomly in the unit cell
   //
   // If we want to initialize uniformly inside a sphere packing, here are the coordinates for a given number of spheres
@@ -1939,6 +1997,9 @@ class HP1 {
       } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
         std::cout << "Initializing chromosomes in a hilbert random unit cell\n";
         initialize_chromosome_positions_hilbert_random_unit_cell();
+      } else if (initialization_type_ == INITIALIZATION_TYPE::USHAPE_TEST) {
+        std::cout << "Initializing chromosomes as a U-shaped test\n";
+        initialize_chromosome_positions_ushape_test();
       } else {
         MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
       }
@@ -3076,7 +3137,7 @@ class HP1 {
              1;
     };
 
-    // Fetch loc al references to the fields
+    // Fetch local references to the fields
     stk::mesh::Field<double> &element_aabb_field = *element_aabb_field_ptr_;
     stk::mesh::Field<double> &element_radius_field = *element_radius_field_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
@@ -3566,8 +3627,7 @@ class HP1 {
       Kokkos::Profiling::popRegion();
 
       // If we are doing a compression run, shrink the periphery
-      if (enable_periphery_collision_ && shrink_periphery_over_time_ &&
-          (timestep_index_ < periphery_collision_shrinkage_num_steps_)) {
+      if (enable_periphery_collision_ && shrink_periphery_over_time_) {
         const double shrink_factor = std::pow(1.0 / periphery_collision_scale_factor_before_shrinking_,
                                               1.0 / periphery_collision_shrinkage_num_steps_);
         if (periphery_collision_shape_ == PERIPHERY_SHAPE::SPHERE) {
@@ -3614,8 +3674,7 @@ class HP1 {
         if (bulk_data_ptr_->parallel_rank() == 0) {
           double tps = static_cast<double>(log_frequency_) / static_cast<double>(timer.seconds());
           std::cout << "Step: " << std::setw(15) << timestep_index_ << ", tps: " << std::setprecision(15) << tps;
-          if (enable_periphery_collision_ && shrink_periphery_over_time_ &&
-              timestep_index_ < periphery_collision_shrinkage_num_steps_) {
+          if (enable_periphery_collision_ && shrink_periphery_over_time_) {
             if (periphery_collision_shape_ == PERIPHERY_SHAPE::SPHERE) {
               std::cout << ", periphery_collision_radius: " << periphery_collision_radius_;
             } else if (periphery_collision_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
