@@ -136,7 +136,8 @@ class HP1 {
     RANDOM_UNIT_CELL,
     OVERLAP_TEST,
     HILBERT_RANDOM_UNIT_CELL,
-    FROM_FILE,
+    FROM_EXO,
+    FROM_DAT,
     USHAPE_TEST
   };
 
@@ -183,8 +184,11 @@ class HP1 {
       case INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL:
         os << "HILBERT_RANDOM_UNIT_CELL";
         break;
-      case INITIALIZATION_TYPE::FROM_FILE:
-        os << "FROM_FILE";
+      case INITIALIZATION_TYPE::FROM_EXO:
+        os << "FROM_EXO";
+        break;
+      case INITIALIZATION_TYPE::FROM_DAT:
+        os << "FROM_DAT";
         break;
       case INITIALIZATION_TYPE::USHAPE_TEST:
         os << "USHAPE_TEST";
@@ -357,8 +361,12 @@ class HP1 {
       initialization_type_ = INITIALIZATION_TYPE::OVERLAP_TEST;
     } else if (initiliazation_type_string == "HILBERT_RANDOM_UNIT_CELL") {
       initialization_type_ = INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL;
-    } else if (initiliazation_type_string == "FROM_FILE") {
-      initialization_type_ = INITIALIZATION_TYPE::FROM_FILE;
+    } else if (initiliazation_type_string == "FROM_EXO") {
+      initialization_type_ = INITIALIZATION_TYPE::FROM_EXO;
+      initialize_from_exo_filename_ = simulation_params.get<std::string>("initialize_from_exo_filename");
+    } else if (initiliazation_type_string == "FROM_DAT") {
+      initialization_type_ = INITIALIZATION_TYPE::FROM_DAT;
+      initialize_from_dat_filename_ = simulation_params.get<std::string>("initialize_from_dat_filename");
     } else if (initiliazation_type_string == "USHAPE_TEST") {
       initialization_type_ = INITIALIZATION_TYPE::USHAPE_TEST;
     } else {
@@ -620,6 +628,8 @@ class HP1 {
              "self-interaction.")
         .set("initial_chromosome_separation", default_initial_chromosome_separation_, "Initial chromosome separation.")
         .set("initialization_type", std::string(default_initialization_type_string_), "Initialization_type.")
+        .set("initialize_from_exo_filename", std::string(default_initialize_from_exo_filename_), "Exo file to initialize from if initialization_type is FROM_EXO.")
+        .set("initialize_from_dat_filename", std::string(default_initialize_from_dat_filename_), "Dat file to initialize from if initialization_type is FROM_DAT.")
         .set<Teuchos::Array<double>>(
             "unit_cell_size",
             Teuchos::tuple<double>(default_unit_cell_size_[0], default_unit_cell_size_[1], default_unit_cell_size_[2]),
@@ -775,9 +785,13 @@ class HP1 {
       std::cout << "  backbone_sphere_hydrodynamic_radius: " << backbone_sphere_hydrodynamic_radius_ << std::endl;
       std::cout << "  initial_chromosome_separation:   " << initial_chromosome_separation_ << std::endl;
       std::cout << "  initialization_type:             " << initialization_type_ << std::endl;
-      if (initialization_type_ == INITIALIZATION_TYPE::FROM_FILE) {
-        std::cout << "  initialize_from_file_filename: " << initialize_from_file_filename_ << std::endl;
+      if (initialization_type_ == INITIALIZATION_TYPE::FROM_EXO) {
+        std::cout << "  initialize_from_file_filename: " << initialize_from_exo_filename_ << std::endl;
       }
+      if (initialization_type_ == INITIALIZATION_TYPE::FROM_DAT) {
+        std::cout << "  initialize_from_file_filename: " << initialize_from_dat_filename_ << std::endl;
+      }
+        
       if ((initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL) ||
           (initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL)) {
         std::cout << "  unit_cell_size: {" << unit_cell_size_[0] << ", " << unit_cell_size_[1] << ", "
@@ -1017,8 +1031,8 @@ class HP1 {
 
     // Continuing a previous simulation takes priority over initializing from a file.
     // Initialization should have already been performed in the previous simulation.
-    if (initialization_type_ == INITIALIZATION_TYPE::FROM_FILE && !restart_performed_) {
-      fixed_params_iobroker.set("exodus_database_input_filename", initialize_from_file_filename_);
+    if (initialization_type_ == INITIALIZATION_TYPE::FROM_EXO && !restart_performed_) {
+      fixed_params_iobroker.set("exodus_database_input_filename", initialize_from_exo_filename_);
       fixed_params_iobroker.set("enable_restart", "false");
     }
 
@@ -1632,7 +1646,69 @@ class HP1 {
     std::cout << "...finished declaring system\n";
   }
 
-#pragma TODO all of the initialization should become part of the chain of springs - like initialization
+  void initialize_chromosome_positions_from_file() {
+    // The filename is in initialize_from_dat_filename_
+    //
+    // The file should be formatted as follows:
+    // chromosome_id x y z
+    // 0 x1 y1 z1
+    // 0 x2 y2 z2
+    // ...
+    // 1 x1 y1 z1
+    // 1 x2 y2 z2
+    //
+    // chromosome_id should start at 1
+    // 
+    // And so on for each chromosome. The total number of nodes per chromosome should match the expected number of nodes,
+    // as should the total number of chromosomes, lest we throw an exception.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                  num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+
+      // Open the file
+      std::ifstream infile(initialize_from_dat_filename_);
+      MUNDY_THROW_ASSERT(infile.is_open(), std::invalid_argument, "Could not open file " << initialize_from_dat_filename_);
+
+      // Read each line. While the chromosome_id is the same, keep adding nodes to the chromosome.
+      size_t current_chromosome_id = 1;
+      size_t current_node_id = 1;
+      size_t num_nodes_per_this_chromosome = 0;
+      std::string line;
+      while (std::getline(infile, line)) {
+        std::istringstream iss(line);
+        int chromosome_id;
+        double x, y, z;
+        if (!(iss >> chromosome_id >> x >> y >> z)) {
+          MUNDY_THROW_ASSERT(false, std::invalid_argument, "Could not parse line " << line);
+        }
+        if (chromosome_id != current_chromosome_id) {
+          // We are starting a new chromosome
+          MUNDY_THROW_ASSERT(num_nodes_per_this_chromosome == num_nodes_per_chromosome, std::invalid_argument,
+                             "Chromosome " << current_chromosome_id << " has " << num_nodes_per_this_chromosome
+                                           << " nodes, but we expected " << num_nodes_per_chromosome << " nodes.");
+          MUNDY_THROW_ASSERT(chromosome_id == current_chromosome_id + 1, std::invalid_argument,
+                             "Chromosome IDs should be sequential.");
+          MUNDY_THROW_ASSERT(chromosome_id  <= num_chromosomes_, std::invalid_argument,
+                             "Chromosome ID " << chromosome_id << " is greater than the number of chromosomes.");
+          current_chromosome_id = chromosome_id;
+          num_nodes_per_this_chromosome = 0;
+        }
+        // Add the node to the chromosome
+        stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, current_node_id);
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                           "Node " << current_node_id << " is not valid for chromosome " << current_chromosome_id << " out of "
+                                   << num_chromosomes_ << " chromosomes.");
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = x;
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = y;
+        stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = z;
+        current_node_id++;
+        num_nodes_per_this_chromosome++;
+      }
+    }
+  }
+
   // Initialize the chromsomes on a grid
   void initialize_chromosome_positions_grid() {
     // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
@@ -1986,19 +2062,22 @@ class HP1 {
     // Initialize node positions for each chromosome
     if (!restart_performed_) {
       if (initialization_type_ == INITIALIZATION_TYPE::GRID) {
-        std::cout << "Initializing chromosomes on a grid\n";
+        std::cout << "Initializing chromosomes on a grid" << std::endl;
         initialize_chromosome_positions_grid();
+      } else if (initialization_type_ == INITIALIZATION_TYPE::FROM_DAT) {
+        std::cout << "Initializing chromosomes from a dat file" << std::endl;
+        initialize_chromosome_positions_from_file();
       } else if (initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL) {
-        std::cout << "Initializing chromosomes in a random unit cell\n";
+        std::cout << "Initializing chromosomes in a random unit cell" << std::endl;
         initialize_chromosome_positions_random_unit_cell();
       } else if (initialization_type_ == INITIALIZATION_TYPE::OVERLAP_TEST) {
-        std::cout << "Initializing chromosomes as an overlap test\n";
+        std::cout << "Initializing chromosomes as an overlap test" << std::endl;
         initialize_chromosome_positions_overlap_test();
       } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
-        std::cout << "Initializing chromosomes in a hilbert random unit cell\n";
+        std::cout << "Initializing chromosomes in a hilbert random unit cell" << std::endl;
         initialize_chromosome_positions_hilbert_random_unit_cell();
       } else if (initialization_type_ == INITIALIZATION_TYPE::USHAPE_TEST) {
-        std::cout << "Initializing chromosomes as a U-shaped test\n";
+        std::cout << "Initializing chromosomes as a U-shaped test" << std::endl;
         initialize_chromosome_positions_ushape_test();
       } else {
         MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
@@ -3897,7 +3976,8 @@ class HP1 {
   double backbone_sphere_hydrodynamic_radius_;
   double initial_chromosome_separation_;
   INITIALIZATION_TYPE initialization_type_;
-  std::string initialize_from_file_filename_;
+  std::string initialize_from_exo_filename_;
+  std::string initialize_from_dat_filename_;
   double unit_cell_size_[3];
   bool loadbalance_post_initialization_;
   bool check_maximum_speed_pre_position_update_;
@@ -4007,7 +4087,8 @@ class HP1 {
   static constexpr size_t default_num_heterochromatin_per_repeat_ = 1;
   static constexpr double default_initial_chromosome_separation_ = 1.0;
   static constexpr std::string_view default_initialization_type_string_ = "GRID";
-  static constexpr std::string_view default_initialize_from_file_filename_ = "HP1";
+  static constexpr std::string_view default_initialize_from_exo_filename_ = "HP1";
+  static constexpr std::string_view default_initialize_from_dat_filename_ = "HP1_pos.dat";
   static constexpr bool default_loadbalance_post_initialization_ = false;
   static constexpr double default_unit_cell_size_[3] = {10.0, 10.0, 10.0};
   static constexpr bool default_check_maximum_speed_pre_position_update_ = false;

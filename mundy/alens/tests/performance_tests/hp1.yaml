@@ -13,7 +13,8 @@ HP1:
     num_heterochromatin_per_repeat: 90
     backbone_sphere_hydrodynamic_radius: 0.5
     initial_chromosome_separation: 1.0
-    initialization_type: "HILBERT_RANDOM_UNIT_CELL"
+    initialization_type: "FROM_DAT"
+    initialize_from_dat_filename: "hp1_pos.dat"
     unit_cell_size: [0.0, 0.0, 0.0]
     loadbalance_post_initialization: true
     check_maximum_speed_pre_position_update: true
