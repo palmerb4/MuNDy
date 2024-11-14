@@ -221,6 +221,12 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
     that the linker between spheres 0 and 1 is deleted.
   */
 
+  // Only valid for multiple processes
+  if (stk::parallel_machine_size(MPI_COMM_WORLD) == 1) {
+    GTEST_SKIP() << "This test is only valid for multiple processes.";
+    return;
+  }
+
   // Free variables
   const double overlap = 0.1;
 
