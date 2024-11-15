@@ -492,7 +492,7 @@ TEST(DestroyNeighborLinkers, RepeatedNeighborLinkerGenerationAndDestructionForSp
   }
 
   // Free variables
-  const int num_spheres_per_process = 10;
+  const int num_spheres_per_process = 1000;
   const double volume_fraction = 0.4;
   const double sphere_radius = 1.0;
   const double sphere_volume = (4.0 / 3.0) * M_PI * std::pow(sphere_radius, 3);

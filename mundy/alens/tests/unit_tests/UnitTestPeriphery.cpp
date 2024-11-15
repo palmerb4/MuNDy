@@ -519,7 +519,7 @@ TEST(PeripheryTest, ReadWriteKokkosMatrixToFromFile) {
   // Check that the matrix read in is the same as the original matrix, to machine precision
   for (int i = 0; i < matrix_size; ++i) {
     for (int j = 0; j < matrix_size; ++j) {
-      EXPECT_DOUBLE_EQ(matrix(i, j), matrix_read(i, j));
+      EXPECT_NEAR(matrix(i, j), matrix_read(i, j), 1e-12);
     }
   }
 }
@@ -548,7 +548,7 @@ TEST(PeripheryTest, ReadWriteKokkosVectorToFromFile) {
 
   // Check that the vector read in is the same as the original vector, to machine precision
   for (int i = 0; i < vector_size; ++i) {
-    EXPECT_DOUBLE_EQ(vector(i), vector_read(i));
+    EXPECT_NEAR(vector(i), vector_read(i), 1e-12);
   }
 }
 

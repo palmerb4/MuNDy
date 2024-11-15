@@ -175,7 +175,7 @@ void invert_matrix([[maybe_unused]] const ExecutionSpace &space,
   KokkosBlas::gesv(matrix, matrix_inv, pivots);
 }
 
-/// \brief Write a matrix to a file
+/// \brief Write a matrix to a human-readable text file
 ///
 /// \param[in] filename The filename
 /// \param[in] matrix_host The matrix to write (host)
@@ -183,28 +183,35 @@ template <typename MatrixDataType, class Layout>
 void write_matrix_to_file(const std::string &filename,
                           const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
   // Perform the write
-  std::ofstream outfile(filename, std::ios::binary);
+  std::ofstream outfile(filename);
   if (!outfile) {
     std::cerr << "Failed to open file: " << filename << std::endl;
     return;
   }
 
-  // Write the matrix to the file (using reinterpret_cast to map directly to binary data)
+  // Write the matrix to the file (space separated)
+  // The first two lines are the number of rows and columns
   const size_t num_rows = matrix_host.extent(0);
   const size_t num_columns = matrix_host.extent(1);
-  outfile.write(reinterpret_cast<const char *>(&num_rows), sizeof(size_t));
-  outfile.write(reinterpret_cast<const char *>(&num_columns), sizeof(size_t));
+  outfile << num_rows << std::endl;
+  outfile << num_columns << std::endl;
+
+  // Write matrix data with appropriate precision
+  if constexpr (std::is_floating_point_v<MatrixDataType>) {
+    outfile << std::fixed << std::setprecision(std::numeric_limits<MatrixDataType>::digits10 + 1);
+  }
   for (size_t i = 0; i < num_rows; ++i) {
     for (size_t j = 0; j < num_columns; ++j) {
-      outfile.write(reinterpret_cast<const char *>(&matrix_host(i, j)), sizeof(MatrixDataType));
+      outfile << matrix_host(i, j) << " ";
     }
+    outfile << std::endl;
   }
 
   // Close the file
   outfile.close();
 }
 
-/// \brief Read a matrix from a file
+/// \brief Read a matrix from a human-readable text file
 ///
 /// \param[in] filename The filename
 /// \param[out] matrix_host The matrix to read (host)
@@ -213,7 +220,7 @@ void read_matrix_from_file(const std::string &filename, const size_t expected_nu
                            const size_t expected_num_columns,
                            const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
   // Read the matrix from a file
-  std::ifstream infile(filename, std::ios::binary);
+  std::ifstream infile(filename);
   if (!infile) {
     std::cerr << "Failed to open file: " << filename << std::endl;
     return;
@@ -222,8 +229,11 @@ void read_matrix_from_file(const std::string &filename, const size_t expected_nu
   // Parse the input
   size_t num_rows;
   size_t num_columns;
-  infile.read(reinterpret_cast<char *>(&num_rows), sizeof(size_t));
-  infile.read(reinterpret_cast<char *>(&num_columns), sizeof(size_t));
+  if (!(infile >> num_rows) || !(infile >> num_columns)) {
+    std::cerr << "Error reading matrix dimensions from file: " + filename << std::endl;
+    return;
+  }
+
   if ((num_rows != expected_num_rows) || (num_columns != expected_num_columns)) {
     std::cerr << "Matrix size mismatch: expected (" << expected_num_rows << ", " << expected_num_columns << "), got ("
               << num_rows << ", " << num_columns << ")" << std::endl;
@@ -231,7 +241,10 @@ void read_matrix_from_file(const std::string &filename, const size_t expected_nu
   }
   for (size_t i = 0; i < num_rows; ++i) {
     for (size_t j = 0; j < num_columns; ++j) {
-      infile.read(reinterpret_cast<char *>(&matrix_host(i, j)), sizeof(MatrixDataType));
+      if (!(infile >> matrix_host(i, j))) {
+        std::cerr << "Failed to read matrix element at (" << i << ", " << j << ")" << std::endl;
+        return;
+      }
     }
   }
 
@@ -239,7 +252,7 @@ void read_matrix_from_file(const std::string &filename, const size_t expected_nu
   infile.close();
 }
 
-/// \brief Write a vector to a file
+/// \brief Write a vector to a human readable text file
 ///
 /// \param[in] filename The filename
 /// \param[in] vector_host The vector to write (host)
@@ -247,17 +260,24 @@ template <typename VectorDataType, class Layout>
 void write_vector_to_file(const std::string &filename,
                           const Kokkos::View<VectorDataType *, Layout, Kokkos::HostSpace> &vector_host) {
   // Perform the write
-  std::ofstream outfile(filename, std::ios::binary);
+  std::ofstream outfile(filename);
   if (!outfile) {
     std::cerr << "Failed to open file: " << filename << std::endl;
     return;
   }
 
-  // Write the vector to the file (using reinterpret_cast to map directly to binary data)
+  // Write the vector to the file (space separated)
+  // The first line is the number of elements
   const size_t num_elements = vector_host.extent(0);
-  outfile.write(reinterpret_cast<const char *>(&num_elements), sizeof(size_t));
+  outfile << num_elements << std::endl;
+
+  // Write vector data with appropriate precision
+  if constexpr (std::is_floating_point_v<VectorDataType>) {
+    outfile << std::fixed << std::setprecision(std::numeric_limits<VectorDataType>::digits10 + 1);
+  }
+
   for (size_t i = 0; i < num_elements; ++i) {
-    outfile.write(reinterpret_cast<const char *>(&vector_host(i)), sizeof(VectorDataType));
+    outfile << vector_host(i) << std::endl;
   }
 
   // Close the file
@@ -272,7 +292,7 @@ template <typename VectorDataType, class Layout>
 void read_vector_from_file(const std::string &filename, const size_t expected_num_elements,
                            const Kokkos::View<VectorDataType *, Layout, Kokkos::HostSpace> &vector_host) {
   // Read the vector from a file
-  std::ifstream infile(filename, std::ios::binary);
+  std::ifstream infile(filename);
   if (!infile) {
     std::cerr << "Failed to open file: " << filename << std::endl;
     return;
@@ -280,18 +300,142 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 
   // Parse the input
   size_t num_elements;
-  infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
+  if (!(infile >> num_elements)) {
+    std::cerr << "Error reading vector size from file: " + filename << std::endl;
+    return;
+  }
+
   if (num_elements != expected_num_elements) {
     std::cerr << "Vector size mismatch: expected " << expected_num_elements << ", got " << num_elements << std::endl;
     return;
   }
+
   for (size_t i = 0; i < num_elements; ++i) {
-    infile.read(reinterpret_cast<char *>(&vector_host(i)), sizeof(VectorDataType));
+    if (!(infile >> vector_host(i))) {
+      std::cerr << "Failed to read vector element at index " << i << std::endl;
+      return;
+    }
   }
 
   // Close the file
   infile.close();
 }
+
+// /// \brief Write a matrix to a file
+// ///
+// /// \param[in] filename The filename
+// /// \param[in] matrix_host The matrix to write (host)
+// template <typename MatrixDataType, class Layout>
+// void write_matrix_to_file(const std::string &filename,
+//                           const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
+//   // Perform the write
+//   std::ofstream outfile(filename, std::ios::binary);
+//   if (!outfile) {
+//     std::cerr << "Failed to open file: " << filename << std::endl;
+//     return;
+//   }
+
+//   // Write the matrix to the file (using reinterpret_cast to map directly to binary data)
+//   const size_t num_rows = matrix_host.extent(0);
+//   const size_t num_columns = matrix_host.extent(1);
+//   outfile.write(reinterpret_cast<const char *>(&num_rows), sizeof(size_t));
+//   outfile.write(reinterpret_cast<const char *>(&num_columns), sizeof(size_t));
+//   for (size_t i = 0; i < num_rows; ++i) {
+//     for (size_t j = 0; j < num_columns; ++j) {
+//       outfile.write(reinterpret_cast<const char *>(&matrix_host(i, j)), sizeof(MatrixDataType));
+//     }
+//   }
+
+//   // Close the file
+//   outfile.close();
+// }
+
+// /// \brief Read a matrix from a file
+// ///
+// /// \param[in] filename The filename
+// /// \param[out] matrix_host The matrix to read (host)
+// template <typename MatrixDataType, class Layout>
+// void read_matrix_from_file(const std::string &filename, const size_t expected_num_rows,
+//                            const size_t expected_num_columns,
+//                            const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
+//   // Read the matrix from a file
+//   std::ifstream infile(filename, std::ios::binary);
+//   if (!infile) {
+//     std::cerr << "Failed to open file: " << filename << std::endl;
+//     return;
+//   }
+
+//   // Parse the input
+//   size_t num_rows;
+//   size_t num_columns;
+//   infile.read(reinterpret_cast<char *>(&num_rows), sizeof(size_t));
+//   infile.read(reinterpret_cast<char *>(&num_columns), sizeof(size_t));
+//   if ((num_rows != expected_num_rows) || (num_columns != expected_num_columns)) {
+//     std::cerr << "Matrix size mismatch: expected (" << expected_num_rows << ", " << expected_num_columns << "), got
+//     ("
+//               << num_rows << ", " << num_columns << ")" << std::endl;
+//     return;
+//   }
+//   for (size_t i = 0; i < num_rows; ++i) {
+//     for (size_t j = 0; j < num_columns; ++j) {
+//       infile.read(reinterpret_cast<char *>(&matrix_host(i, j)), sizeof(MatrixDataType));
+//     }
+//   }
+// }
+
+// /// \brief Write a vector to a file
+// ///
+// /// \param[in] filename The filename
+// /// \param[in] vector_host The vector to write (host)
+// template <typename VectorDataType, class Layout>
+// void write_vector_to_file(const std::string &filename,
+//                           const Kokkos::View<VectorDataType *, Layout, Kokkos::HostSpace> &vector_host) {
+//   // Perform the write
+//   std::ofstream outfile(filename, std::ios::binary);
+//   if (!outfile) {
+//     std::cerr << "Failed to open file: " << filename << std::endl;
+//     return;
+//   }
+
+//   // Write the vector to the file (using reinterpret_cast to map directly to binary data)
+//   const size_t num_elements = vector_host.extent(0);
+//   outfile.write(reinterpret_cast<const char *>(&num_elements), sizeof(size_t));
+//   for (size_t i = 0; i < num_elements; ++i) {
+//     outfile.write(reinterpret_cast<const char *>(&vector_host(i)), sizeof(VectorDataType));
+//   }
+
+//   // Close the file
+//   outfile.close();
+// }
+
+// /// \brief Read a vector from a file
+// ///
+// /// \param[in] filename The filename
+// /// \param[out] vector_host The vector to read (host)
+// template <typename VectorDataType, class Layout>
+// void read_vector_from_file(const std::string &filename, const size_t expected_num_elements,
+//                            const Kokkos::View<VectorDataType *, Layout, Kokkos::HostSpace> &vector_host) {
+//   // Read the vector from a file
+//   std::ifstream infile(filename, std::ios::binary);
+//   if (!infile) {
+//     std::cerr << "Failed to open file: " << filename << std::endl;
+//     return;
+//   }
+
+//   // Parse the input
+//   size_t num_elements;
+//   infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
+//   if (num_elements != expected_num_elements) {
+//     std::cerr << "Vector size mismatch: expected " << expected_num_elements << ", got " << num_elements << std::endl;
+//     return;
+//   }
+//   for (size_t i = 0; i < num_elements; ++i) {
+//     infile.read(reinterpret_cast<char *>(&vector_host(i)), sizeof(VectorDataType));
+//   }
+
+//   // Close the file
+//   infile.close();
+// }
 
 template <int panel_size, class ExecutionSpace, class MemorySpace, class Layout, typename Func>
 void panelize_velocity_kernel_over_target_points([[maybe_unused]] const ExecutionSpace &space, int num_target_points,
