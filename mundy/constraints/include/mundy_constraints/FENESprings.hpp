@@ -150,10 +150,10 @@ class FENESprings {
   static constexpr std::string_view node_coord_field_name_ = "NODE_COORDS";
 
   /// \brief The name of our element FENE spring constant field.
-  static constexpr std::string_view element_fene_spring_constant_field_name_ = "ELEMENT_FENE_SPRING_CONSTANT";
+  static constexpr std::string_view element_fene_spring_constant_field_name_ = "ELEMENT_SPRING_CONSTANT";
 
   /// \brief The name of our element FENE spring maximum extension field.
-  static constexpr std::string_view element_fene_spring_rmax_field_name_ = "ELEMENT_FENE_SPRING_RMAX";
+  static constexpr std::string_view element_fene_spring_rmax_field_name_ = "ELEMENT_SPRING_R0";
 
   /// \brief Our part requirements.
   static inline std::shared_ptr<mundy::meta::PartReqs> part_reqs_ptr_ = []() {

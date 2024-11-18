@@ -439,11 +439,11 @@ class HP1 {
     if (backbone_spring_type_string == "HARMONIC") {
       backbone_spring_type_ = BOND_TYPE::HARMONIC;
       backbone_spring_constant_ = param_list.get<double>("spring_constant");
-      backbone_spring_rest_length_ = param_list.get<double>("spring_rest_length");
+      backbone_spring_r0_ = param_list.get<double>("spring_r0");
     } else if (backbone_spring_type_string == "FENE") {
       backbone_spring_type_ = BOND_TYPE::FENE;
       backbone_spring_constant_ = param_list.get<double>("spring_constant");
-      backbone_spring_rmax_ = param_list.get<double>("spring_rmax");
+      backbone_spring_r0_ = param_list.get<double>("spring_r0");
     } else {
       MUNDY_THROW_ASSERT(false, std::invalid_argument,
                          "Invalid backbone spring type. Received '" << backbone_spring_type_string
@@ -472,13 +472,12 @@ class HP1 {
 
     crosslinker_kt_ = param_list.get<double>("kt");
     crosslinker_spring_constant_ = param_list.get<double>("spring_constant");
-    crosslinker_rest_length_ = param_list.get<double>("rest_length");
+    crosslinker_r0_ = param_list.get<double>("rest_length");
     crosslinker_left_binding_rate_ = param_list.get<double>("left_binding_rate");
     crosslinker_right_binding_rate_ = param_list.get<double>("right_binding_rate");
     crosslinker_left_unbinding_rate_ = param_list.get<double>("left_unbinding_rate");
     crosslinker_right_unbinding_rate_ = param_list.get<double>("right_unbinding_rate");
-    crosslinker_rcut_ =
-        crosslinker_rest_length_ + 5.0 * std::sqrt(1.0 / (crosslinker_kt_ * crosslinker_spring_constant_));
+    crosslinker_rcut_ = crosslinker_r0_ + 5.0 * std::sqrt(1.0 / (crosslinker_kt_ * crosslinker_spring_constant_));
   }
 
   void set_periphery_hydrodynamic_params(const Teuchos::ParameterList &param_list) {
@@ -557,7 +556,7 @@ class HP1 {
     periphery_binding_rate_ = param_list.get<double>("binding_rate");
     periphery_unbinding_rate_ = param_list.get<double>("unbinding_rate");
     periphery_spring_constant_ = param_list.get<double>("spring_constant");
-    periphery_spring_rest_length_ = param_list.get<double>("rest_length");
+    periphery_spring_r0_ = param_list.get<double>("rest_length");
     std::string periphery_bind_sites_type_string = param_list.get<std::string>("bind_sites_type");
     if (periphery_bind_sites_type_string == "RANDOM") {
       periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::RANDOM;
@@ -628,8 +627,10 @@ class HP1 {
              "self-interaction.")
         .set("initial_chromosome_separation", default_initial_chromosome_separation_, "Initial chromosome separation.")
         .set("initialization_type", std::string(default_initialization_type_string_), "Initialization_type.")
-        .set("initialize_from_exo_filename", std::string(default_initialize_from_exo_filename_), "Exo file to initialize from if initialization_type is FROM_EXO.")
-        .set("initialize_from_dat_filename", std::string(default_initialize_from_dat_filename_), "Dat file to initialize from if initialization_type is FROM_DAT.")
+        .set("initialize_from_exo_filename", std::string(default_initialize_from_exo_filename_),
+             "Exo file to initialize from if initialization_type is FROM_EXO.")
+        .set("initialize_from_dat_filename", std::string(default_initialize_from_dat_filename_),
+             "Dat file to initialize from if initialization_type is FROM_DAT.")
         .set<Teuchos::Array<double>>(
             "unit_cell_size",
             Teuchos::tuple<double>(default_unit_cell_size_[0], default_unit_cell_size_[1], default_unit_cell_size_[2]),
@@ -670,8 +671,7 @@ class HP1 {
     valid_parameter_list.sublist("backbone_springs")
         .set("spring_type", std::string(default_backbone_spring_type_string_), "Chromatin spring type.")
         .set("spring_constant", default_backbone_spring_constant_, "Chromatin spring constant.")
-        .set("spring_rest_length", default_backbone_spring_rest_length_, "Chromatin rest length (HARMONIC).")
-        .set("spring_rmax", default_backbone_spring_rmax_, "Chromatin rmax (FENE).");
+        .set("spring_r0", default_backbone_spring_r0_, "Chromatin rest length (HARMONIC) or rmax (FENE).");
 
     valid_parameter_list.sublist("backbone_collision")
         .set("backbone_excluded_volume_radius", default_backbone_excluded_volume_radius_,
@@ -683,7 +683,7 @@ class HP1 {
         .set("spring_type", std::string(default_crosslinker_spring_type_string_), "Crosslinker spring type.")
         .set("kt", default_crosslinker_kt_, "Temperature kT for crosslinkers.")
         .set("spring_constant", default_crosslinker_spring_constant_, "Crosslinker spring constant.")
-        .set("rest_length", default_crosslinker_rest_length_, "Crosslinker rest length.")
+        .set("rest_length", default_crosslinker_r0_, "Crosslinker rest length.")
         .set("left_binding_rate", default_crosslinker_left_binding_rate_, "Crosslinker left binding rate.")
         .set("right_binding_rate", default_crosslinker_right_binding_rate_, "Crosslinker right binding rate.")
         .set("left_unbinding_rate", default_crosslinker_left_unbinding_rate_, "Crosslinker left unbinding rate.")
@@ -742,7 +742,7 @@ class HP1 {
         .set("binding_rate", default_periphery_binding_rate_, "Periphery binding rate.")
         .set("unbinding_rate", default_periphery_unbinding_rate_, "Periphery unbinding rate.")
         .set("spring_constant", default_periphery_spring_constant_, "Periphery spring constant.")
-        .set("rest_length", default_periphery_spring_rest_length_, "Periphery spring rest length.")
+        .set("rest_length", default_periphery_spring_r0_, "Periphery spring rest length.")
         .set("bind_sites_type", std::string(default_periphery_bind_sites_type_string_), "Periphery bind sites type.")
         .set("num_bind_sites", default_periphery_num_bind_sites_,
              "Periphery number of binding sites (only used if periphery_binding_sites_type is RANDOM and periphery "
@@ -791,7 +791,7 @@ class HP1 {
       if (initialization_type_ == INITIALIZATION_TYPE::FROM_DAT) {
         std::cout << "  initialize_from_file_filename: " << initialize_from_dat_filename_ << std::endl;
       }
-        
+
       if ((initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL) ||
           (initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL)) {
         std::cout << "  unit_cell_size: {" << unit_cell_size_[0] << ", " << unit_cell_size_[1] << ", "
@@ -835,9 +835,9 @@ class HP1 {
         std::cout << "  spring_type:      " << backbone_spring_type_ << std::endl;
         std::cout << "  spring_constant:  " << backbone_spring_constant_ << std::endl;
         if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
-          std::cout << "  spring_rest_length: " << backbone_spring_rest_length_ << std::endl;
+          std::cout << "  spring_rest_length: " << backbone_spring_r0_ << std::endl;
         } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
-          std::cout << "  spring_rmax:        " << backbone_spring_rmax_ << std::endl;
+          std::cout << "  spring_rmax:        " << backbone_spring_r0_ << std::endl;
         }
       }
 
@@ -855,7 +855,7 @@ class HP1 {
         std::cout << "  spring_type: " << crosslinker_spring_type_ << std::endl;
         std::cout << "  kt: " << crosslinker_kt_ << std::endl;
         std::cout << "  spring_constant: " << crosslinker_spring_constant_ << std::endl;
-        std::cout << "  rest_length: " << crosslinker_rest_length_ << std::endl;
+        std::cout << "  rest_length: " << crosslinker_r0_ << std::endl;
         std::cout << "  left_binding_rate: " << crosslinker_left_binding_rate_ << std::endl;
         std::cout << "  right_binding_rate: " << crosslinker_right_binding_rate_ << std::endl;
         std::cout << "  left_unbinding_rate: " << crosslinker_left_unbinding_rate_ << std::endl;
@@ -920,7 +920,7 @@ class HP1 {
         std::cout << "  binding_rate: " << periphery_binding_rate_ << std::endl;
         std::cout << "  unbinding_rate: " << periphery_unbinding_rate_ << std::endl;
         std::cout << "  spring_constant: " << periphery_spring_constant_ << std::endl;
-        std::cout << "  rest_length: " << periphery_spring_rest_length_ << std::endl;
+        std::cout << "  rest_length: " << periphery_spring_r0_ << std::endl;
         if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::RANDOM) {
           std::cout << "  bind_sites_type: RANDOM" << std::endl;
           std::cout << "  num_bind_sites: " << periphery_num_bind_sites_ << std::endl;
@@ -1078,7 +1078,7 @@ class HP1 {
         .add_field_reqs<double>("ELEMENT_REALIZED_BINDING_RATES", element_rank_, 2, 1)
         .add_field_reqs<unsigned>("ELEMENT_RNG_COUNTER", element_rank_, 1, 1)
         .add_field_reqs<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_, 1, 1)
-        // .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
+        .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
         .add_subpart_reqs("LEFT_HP1", stk::topology::BEAM_2)
         .add_subpart_reqs("DOUBLY_HP1_H", stk::topology::BEAM_2)
         .add_subpart_reqs("DOUBLY_HP1_BS", stk::topology::BEAM_2);
@@ -1088,7 +1088,7 @@ class HP1 {
     auto custom_backbone_segments_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
         .set_part_topology(stk::topology::BEAM_2)
-        // .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
+        .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
         .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
@@ -1303,17 +1303,8 @@ class HP1 {
     node_rng_field_ptr_ = fetch_field<unsigned>("NODE_RNG_COUNTER", node_rank_);
 
     element_rng_field_ptr_ = fetch_field<unsigned>("ELEMENT_RNG_COUNTER", element_rank_);
-    // Because we have an if statement above for spring types, we need to make sure we are only grabbing the fields if
-    // they exist.
-    if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
-      element_hookean_spring_constant_field_ptr_ =
-          fetch_field<double>("ELEMENT_HOOKEAN_SPRING_CONSTANT", element_rank_);
-      element_hookean_spring_rest_length_field_ptr_ =
-          fetch_field<double>("ELEMENT_HOOKEAN_SPRING_REST_LENGTH", element_rank_);
-    } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
-      element_fene_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_CONSTANT", element_rank_);
-      element_fene_spring_rmax_field_ptr_ = fetch_field<double>("ELEMENT_FENE_SPRING_RMAX", element_rank_);
-    }
+    element_spring_constant_field_ptr_ = fetch_field<double>("ELEMENT_SPRING_CONSTANT", element_rank_);
+    element_spring_r0_field_ptr_ = fetch_field<double>("ELEMENT_SPRING_R0", element_rank_);
     element_radius_field_ptr_ = fetch_field<double>("ELEMENT_RADIUS", element_rank_);
     element_youngs_modulus_field_ptr_ = fetch_field<double>("ELEMENT_YOUNGS_MODULUS", element_rank_);
     element_poissons_ratio_field_ptr_ = fetch_field<double>("ELEMENT_POISSONS_RATIO", element_rank_);
@@ -1593,7 +1584,7 @@ class HP1 {
               bulk_data_ptr_->declare_relation(segment, left_node, 0);
               bulk_data_ptr_->declare_relation(segment, right_node, 1);
               // Assign the chainID
-              // stk::mesh::field_data(*element_chainid_field_ptr_, segment)[0] = j;
+              stk::mesh::field_data(*element_chainid_field_ptr_, segment)[0] = j;
             }
           }
         }
@@ -1633,7 +1624,7 @@ class HP1 {
                                  std::logic_error,
                                  "The crosslinker with id " << hp1_crosslinker_id << " has an invalid topology.");
               // Assign the chainID
-              // stk::mesh::field_data(*element_chainid_field_ptr_, hp1_crosslinker)[0] = j;
+              stk::mesh::field_data(*element_chainid_field_ptr_, hp1_crosslinker)[0] = j;
 
               hp1_sphere_index++;
             }
@@ -1658,18 +1649,19 @@ class HP1 {
     // 1 x2 y2 z2
     //
     // chromosome_id should start at 1
-    // 
-    // And so on for each chromosome. The total number of nodes per chromosome should match the expected number of nodes,
-    // as should the total number of chromosomes, lest we throw an exception.
+    //
+    // And so on for each chromosome. The total number of nodes per chromosome should match the expected number of
+    // nodes, as should the total number of chromosomes, lest we throw an exception.
     if (bulk_data_ptr_->parallel_rank() == 0) {
       const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
-                                                  num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+                                                 num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
       const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
       const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
 
       // Open the file
       std::ifstream infile(initialize_from_dat_filename_);
-      MUNDY_THROW_ASSERT(infile.is_open(), std::invalid_argument, "Could not open file " << initialize_from_dat_filename_);
+      MUNDY_THROW_ASSERT(infile.is_open(), std::invalid_argument,
+                         "Could not open file " << initialize_from_dat_filename_);
 
       // Read each line. While the chromosome_id is the same, keep adding nodes to the chromosome.
       size_t current_chromosome_id = 1;
@@ -1690,7 +1682,7 @@ class HP1 {
                                            << " nodes, but we expected " << num_nodes_per_chromosome << " nodes.");
           MUNDY_THROW_ASSERT(chromosome_id == current_chromosome_id + 1, std::invalid_argument,
                              "Chromosome IDs should be sequential.");
-          MUNDY_THROW_ASSERT(chromosome_id  <= num_chromosomes_, std::invalid_argument,
+          MUNDY_THROW_ASSERT(chromosome_id <= num_chromosomes_, std::invalid_argument,
                              "Chromosome ID " << chromosome_id << " is greater than the number of chromosomes.");
           current_chromosome_id = chromosome_id;
           num_nodes_per_this_chromosome = 0;
@@ -1698,8 +1690,8 @@ class HP1 {
         // Add the node to the chromosome
         stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, current_node_id);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
-                           "Node " << current_node_id << " is not valid for chromosome " << current_chromosome_id << " out of "
-                                   << num_chromosomes_ << " chromosomes.");
+                           "Node " << current_node_id << " is not valid for chromosome " << current_chromosome_id
+                                   << " out of " << num_chromosomes_ << " chromosomes.");
         stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = x;
         stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = y;
         stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = z;
@@ -1992,17 +1984,10 @@ class HP1 {
                        "Element youngs modulus field is null.");
     MUNDY_THROW_ASSERT(element_poissons_ratio_field_ptr_ != nullptr, std::invalid_argument,
                        "Element poisson's ratio field is null.");
-    if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
-      MUNDY_THROW_ASSERT(element_hookean_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
-                         "Element hookean spring constant field is null.");
-      MUNDY_THROW_ASSERT(element_hookean_spring_rest_length_field_ptr_ != nullptr, std::invalid_argument,
-                         "Element hookean spring rest length field is null.");
-    } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
-      MUNDY_THROW_ASSERT(element_fene_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
-                         "Element fene spring constant field is null.");
-      MUNDY_THROW_ASSERT(element_fene_spring_rmax_field_ptr_ != nullptr, std::invalid_argument,
-                         "Element fene spring rmax field is null.");
-    }
+    MUNDY_THROW_ASSERT(element_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
+                       "Element spring constant field is null.");
+    MUNDY_THROW_ASSERT(element_spring_r0_field_ptr_ != nullptr, std::invalid_argument,
+                       "Element spring r0 field is null.");
     MUNDY_THROW_ASSERT(element_rng_field_ptr_ != nullptr, std::invalid_argument, "Element rng field is null.");
     MUNDY_THROW_ASSERT(euchromatin_state_field_ptr_ != nullptr, std::invalid_argument,
                        "Euchromatin state field is null.");
@@ -2021,17 +2006,10 @@ class HP1 {
                                               std::array<double, 1>{backbone_poissons_ratio_});
     mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_radius_field_ptr_,
                                               std::array<double, 1>{backbone_excluded_volume_radius_});
-    if (backbone_spring_type_ == BOND_TYPE::HARMONIC) {
-      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_constant_field_ptr_,
-                                                std::array<double, 1>{backbone_spring_constant_});
-      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_hookean_spring_rest_length_field_ptr_,
-                                                std::array<double, 1>{backbone_spring_rest_length_});
-    } else if (backbone_spring_type_ == BOND_TYPE::FENE) {
-      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_fene_spring_constant_field_ptr_,
-                                                std::array<double, 1>{backbone_spring_constant_});
-      mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_fene_spring_rmax_field_ptr_,
-                                                std::array<double, 1>{backbone_spring_rmax_});
-    }
+    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_spring_constant_field_ptr_,
+                                              std::array<double, 1>{backbone_spring_constant_});
+    mundy::mesh::utils::fill_field_with_value(backbone_segments, *element_spring_r0_field_ptr_,
+                                              std::array<double, 1>{backbone_spring_r0_});
 
     // Initialize the EE springs (euchromatin activity)
     mundy::mesh::utils::fill_field_with_value(*ee_springs_part_ptr_, *element_rng_field_ptr_,
@@ -2046,10 +2024,10 @@ class HP1 {
                                               std::array<double, 1>{0});
 
     // Initialize HP1 springs
-    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_hookean_spring_constant_field_ptr_,
+    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_spring_constant_field_ptr_,
                                               std::array<double, 1>{crosslinker_spring_constant_});
-    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_hookean_spring_rest_length_field_ptr_,
-                                              std::array<double, 1>{crosslinker_rest_length_});
+    mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_spring_r0_field_ptr_,
+                                              std::array<double, 1>{crosslinker_r0_});
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_rng_field_ptr_, std::array<unsigned, 1>{0});
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_radius_field_ptr_,
                                               std::array<double, 1>{crosslinker_rcut_});
@@ -2520,8 +2498,8 @@ class HP1 {
     // Selectors and aliases
     const stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     const stk::mesh::Field<double> &constraint_state_change_probability = *constraint_state_change_rate_field_ptr_;
-    const stk::mesh::Field<double> &crosslinker_spring_constant = *element_hookean_spring_constant_field_ptr_;
-    const stk::mesh::Field<double> &crosslinker_spring_rest_length = *element_hookean_spring_rest_length_field_ptr_;
+    const stk::mesh::Field<double> &crosslinker_spring_constant = *element_spring_constant_field_ptr_;
+    const stk::mesh::Field<double> &crosslinker_spring_r0 = *element_spring_r0_field_ptr_;
     const mundy::linkers::LinkedEntitiesFieldType &constraint_linked_entities_field =
         *constraint_linked_entities_field_ptr_;
     stk::mesh::Part &left_hp1_part = *left_hp1_part_ptr_;
@@ -2532,7 +2510,7 @@ class HP1 {
     stk::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, hp1_h_neighbor_genx_part,
         [&node_coord_field, &constraint_linked_entities_field, &constraint_state_change_probability,
-         &crosslinker_spring_constant, &crosslinker_spring_rest_length, &left_hp1_part, &inv_kt,
+         &crosslinker_spring_constant, &crosslinker_spring_r0, &left_hp1_part, &inv_kt,
          &crosslinker_right_binding_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                           const stk::mesh::Entity &neighbor_genx) {
           // Get the sphere and crosslinker attached to the linker.
@@ -2566,7 +2544,7 @@ class HP1 {
             // r0 = crosslinker_spring_rest_length
             const double A = crosslinker_right_binding_rate;
             const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
-            const double r0 = stk::mesh::field_data(crosslinker_spring_rest_length, crosslinker)[0];
+            const double r0 = stk::mesh::field_data(crosslinker_spring_r0, crosslinker)[0];
             double Z = A * std::exp(-0.5 * inv_kt * k * (dr_mag - r0) * (dr_mag - r0));
             stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
           }
@@ -2575,13 +2553,13 @@ class HP1 {
     if (enable_periphery_binding_) {
       const double periphery_binding_rate = periphery_binding_rate_;
       const double periphery_spring_constant = periphery_spring_constant_;
-      const double periphery_spring_rest_length = periphery_spring_rest_length_;
+      const double periphery_spring_r0 = periphery_spring_r0_;
       stk::mesh::Part &hp1_bs_neighbor_genx_part = *hp1_bs_neighbor_genx_part_ptr_;
 
       stk::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, hp1_bs_neighbor_genx_part,
           [&node_coord_field, &constraint_linked_entities_field, &constraint_state_change_probability,
-           &periphery_spring_constant, &periphery_spring_rest_length, &left_hp1_part, &inv_kt, &periphery_binding_rate](
+           &periphery_spring_constant, &periphery_spring_r0, &left_hp1_part, &inv_kt, &periphery_binding_rate](
               [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &neighbor_genx) {
             // Get the sphere and crosslinker attached to the linker.
             const stk::mesh::EntityKey::entity_key_t *key_t_ptr =
@@ -2609,7 +2587,7 @@ class HP1 {
               // r0 = crosslinker_spring_rest_length
               const double A = periphery_binding_rate;
               const double k = periphery_spring_constant;
-              const double r0 = periphery_spring_rest_length;
+              const double r0 = periphery_spring_r0;
               double Z = A * std::exp(-0.5 * inv_kt * k * (dr_mag - r0) * (dr_mag - r0));
               stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
             }
@@ -3851,10 +3829,8 @@ class HP1 {
 
   stk::mesh::Field<unsigned> *element_rng_field_ptr_;
   stk::mesh::Field<double> *element_radius_field_ptr_;
-  stk::mesh::Field<double> *element_hookean_spring_constant_field_ptr_;
-  stk::mesh::Field<double> *element_hookean_spring_rest_length_field_ptr_;
-  stk::mesh::Field<double> *element_fene_spring_constant_field_ptr_;
-  stk::mesh::Field<double> *element_fene_spring_rmax_field_ptr_;
+  stk::mesh::Field<double> *element_spring_constant_field_ptr_;
+  stk::mesh::Field<double> *element_spring_r0_field_ptr_;
   stk::mesh::Field<double> *element_youngs_modulus_field_ptr_;
   stk::mesh::Field<double> *element_poissons_ratio_field_ptr_;
   stk::mesh::Field<double> *element_aabb_field_ptr_;
@@ -4006,8 +3982,7 @@ class HP1 {
   // Backbone springs params
   BOND_TYPE backbone_spring_type_;
   double backbone_spring_constant_;
-  double backbone_spring_rest_length_;
-  double backbone_spring_rmax_;
+  double backbone_spring_r0_;
 
   // Backbone collisions params
   double backbone_excluded_volume_radius_;
@@ -4018,7 +3993,7 @@ class HP1 {
   BOND_TYPE crosslinker_spring_type_;
   double crosslinker_kt_;
   double crosslinker_spring_constant_;
-  double crosslinker_rest_length_;
+  double crosslinker_r0_;
   double crosslinker_left_binding_rate_;
   double crosslinker_right_binding_rate_;
   double crosslinker_left_unbinding_rate_;
@@ -4057,7 +4032,7 @@ class HP1 {
   double periphery_binding_rate_;
   double periphery_unbinding_rate_;
   double periphery_spring_constant_;
-  double periphery_spring_rest_length_;
+  double periphery_spring_r0_;
   PERIPHERY_BIND_SITES_TYPE periphery_bind_sites_type_;
   size_t periphery_num_bind_sites_;
   std::string periphery_bind_site_locations_filename_;
@@ -4117,8 +4092,7 @@ class HP1 {
   // Backbone springs params
   static constexpr std::string_view default_backbone_spring_type_string_ = "HARMONIC";
   static constexpr double default_backbone_spring_constant_ = 100.0;
-  static constexpr double default_backbone_spring_rest_length_ = 1.0;
-  static constexpr double default_backbone_spring_rmax_ = 2.5;
+  static constexpr double default_backbone_spring_r0_ = 1.0;
 
   // Backbone collisions params
   static constexpr double default_backbone_excluded_volume_radius_ = 0.5;
@@ -4132,7 +4106,7 @@ class HP1 {
   static constexpr std::string_view default_crosslinker_spring_type_string_ = "HARMONIC";
   static constexpr double default_crosslinker_kt_ = 1.0;
   static constexpr double default_crosslinker_spring_constant_ = 10.0;
-  static constexpr double default_crosslinker_rest_length_ = 2.5;
+  static constexpr double default_crosslinker_r0_ = 2.5;
   static constexpr double default_crosslinker_left_binding_rate_ = 1.0;
   static constexpr double default_crosslinker_right_binding_rate_ = 1.0;
   static constexpr double default_crosslinker_left_unbinding_rate_ = 1.0;
@@ -4173,7 +4147,7 @@ class HP1 {
   static constexpr double default_periphery_binding_rate_ = 1.0;
   static constexpr double default_periphery_unbinding_rate_ = 1.0;
   static constexpr double default_periphery_spring_constant_ = 1000.0;
-  static constexpr double default_periphery_spring_rest_length_ = 1.0;
+  static constexpr double default_periphery_spring_r0_ = 1.0;
   static constexpr std::string_view default_periphery_bind_sites_type_string_ = "RANDOM";
   static constexpr size_t default_periphery_num_bind_sites_ = 1000;
   static constexpr std::string_view default_periphery_bind_site_locations_filename_ = "periphery_bind_sites.dat";
