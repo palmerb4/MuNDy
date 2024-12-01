@@ -80,13 +80,6 @@ class ComputeMobility : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
     return default_parameter_list;
   }
   //@}
-
- private:
-  //! \name Default parameters
-  //@{
-
-  // TODO(palmerb4): Add default parameters here
-  //@}
 };  // ComputeMobility
 
 }  // namespace motion

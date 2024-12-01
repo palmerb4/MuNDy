@@ -53,7 +53,7 @@ SelectorEval::SelectorEval(const SelectorEval &otherEval)
 
 SelectorNode *SelectorEval::new_node(const int &opcode) {
   node_ptrs_.push_back(std::make_shared<SelectorNode>(static_cast<Opcode>(opcode), this));
-  node_ptrs_.back().get()->current_node_index_ = node_ptrs_.size() - 1;
+  node_ptrs_.back().get()->current_node_index_ = static_cast<int>(node_ptrs_.size()) - 1;
   return node_ptrs_.back().get();
 }
 
@@ -70,14 +70,14 @@ SelectorNode *SelectorEval::new_node(const int &opcode, const std::string &part_
     data = bulk_data_.mesh_meta_data().aura_part();
   } else {
     stk::mesh::Part *part_ptr = bulk_data_.mesh_meta_data().get_part(part_name);
-    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
-                       "Could not find a part with name '" << part_name << "' while parsing the expression\n"
-                                                           << expression_);
+    MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
+                       std::string("Could not find a part with name '") + part_name + "' while parsing the expression\n"
+                                                           + expression_);
     data = *part_ptr;
   }
 
   node_ptrs_.push_back(std::make_shared<SelectorNode>(static_cast<Opcode>(opcode), this, data));
-  node_ptrs_.back().get()->current_node_index_ = node_ptrs_.size() - 1;
+  node_ptrs_.back().get()->current_node_index_ = static_cast<int>(node_ptrs_.size()) - 1;
   return node_ptrs_.back().get();
 }
 

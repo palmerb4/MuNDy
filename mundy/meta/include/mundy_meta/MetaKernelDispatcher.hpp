@@ -285,10 +285,10 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
            i != forwarded_parameter_list.end(); i++) {
         const std::string &forwarded_parameter_name = forwarded_parameter_list.name(i);
 
-        MUNDY_THROW_ASSERT(kernel_params.isParameter(forwarded_parameter_name), std::logic_error,
-                           "MetaKernelDispatcher: The kernel "
-                               << valid_kernel_name << " does not have the required (forwarded) parameter '"
-                               << forwarded_parameter_name << "' in its valid " << parameter_list_name << " params.");
+        MUNDY_THROW_REQUIRE(kernel_params.isParameter(forwarded_parameter_name), std::logic_error,
+                           std::string("MetaKernelDispatcher: The kernel ")
+                               + valid_kernel_name + " does not have the required (forwarded) parameter '"
+                               + forwarded_parameter_name + "' in its valid " + parameter_list_name + " params.");
         kernel_params.remove(forwarded_parameter_name);
       }
 
@@ -297,10 +297,10 @@ class MetaKernelDispatcher : public mundy::meta::MetaMethodSubsetExecutionInterf
            i != required_parameter_list.end(); i++) {
         const std::string &required_parameter_name = required_parameter_list.name(i);
 
-        MUNDY_THROW_ASSERT(kernel_params.isParameter(required_parameter_name), std::logic_error,
-                           "MetaKernelDispatcher: The kernel "
-                               << valid_kernel_name << " does not have the required (required) parameter '"
-                               << required_parameter_name << "' in its valid " << parameter_list_name << " params.");
+        MUNDY_THROW_REQUIRE(kernel_params.isParameter(required_parameter_name), std::logic_error,
+                           std::string("MetaKernelDispatcher: The kernel ")
+                               + valid_kernel_name + " does not have the required (required) parameter '"
+                               + required_parameter_name + "' in its valid " + parameter_list_name + " params.");
       }
     }
 
@@ -321,7 +321,7 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
     mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "MetaKernelDispatcher: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -343,8 +343,8 @@ MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapp
       // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels,
       // and the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in
       // the kernel sublists and forward them to the current kernel.
-      for (Teuchos::ParameterList::ConstIterator i = valid_fixed_params.begin(); i != valid_fixed_params.end(); i++) {
-        const std::string &param_name = valid_fixed_params.name(i);
+      for (Teuchos::ParameterList::ConstIterator j = valid_fixed_params.begin(); j != valid_fixed_params.end(); j++) {
+        const std::string &param_name = valid_fixed_params.name(j);
         const Teuchos::ParameterEntry &param_entry = valid_fixed_params.getEntry(param_name);
         if (!valid_fixed_params.isSublist(param_name) && param_name != "enabled_kernel_names") {
           kernel_params.setEntry(param_name, param_entry);
@@ -382,8 +382,8 @@ void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_
     // At this point, the only parameters are the set of enabled kernels, the forwarded parameters for the kernels,
     // and the non-forwarded kernel params within the kernel sublists. We'll loop over all parameters that aren't in
     // the kernel sublists and forward them to the current kernel.
-    for (Teuchos::ParameterList::ConstIterator i = valid_mutable_params.begin(); i != valid_mutable_params.end(); i++) {
-      const std::string &param_name = valid_mutable_params.name(i);
+    for (Teuchos::ParameterList::ConstIterator j = valid_mutable_params.begin(); j != valid_mutable_params.end(); j++) {
+      const std::string &param_name = valid_mutable_params.name(j);
       const Teuchos::ParameterEntry &param_entry = valid_mutable_params.getEntry(param_name);
       if (!valid_mutable_params.isSublist(param_name) && param_name != "enabled_kernel_names") {
         kernel_params.setEntry(param_name, param_entry);
@@ -414,7 +414,7 @@ template <typename DerivedType,
 void MetaKernelDispatcher<DerivedType, kernel_factory_registration_string_value_wrapper>::execute(
     const stk::mesh::Selector &input_selector) {
   const bool is_safe_to_loop_over_entities = bulk_data_ptr_->in_synchronized_state();
-  MUNDY_THROW_ASSERT(
+  MUNDY_THROW_REQUIRE(
       is_safe_to_loop_over_entities, std::logic_error,
       "MetaKernelDispatcher: The bulk data must NOT be in a modification cycle to execute kernels. "
       "Kernel dispatcher loops over entities in a way that assumes bucket stability, but that need not "

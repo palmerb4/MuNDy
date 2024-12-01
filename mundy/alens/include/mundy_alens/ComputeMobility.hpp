@@ -104,20 +104,19 @@ class ComputeMobility : public mundy::meta::MetaMethodSubsetExecutionDispatcher<
   //@}
 };  // ComputeMobility
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_mobility_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::alens::ComputeMobility::OurTechniqueFactory::register_new_class<
+          mundy::alens::compute_mobility::LocalDragNonOrientableSpheres>("LOCAL_DRAG_NONORIENTABLE_SPHERES");
+  mundy::alens::ComputeMobility::OurTechniqueFactory::register_new_class<
+          mundy::alens::compute_mobility::RPYSpheres>("RPY_SPHERES");
+  return true;
+}();
+
 }  // namespace alens
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// \brief Register our default techniques
-MUNDY_REGISTER_METACLASS("LOCAL_DRAG_NONORIENTABLE_SPHERES",
-                         mundy::alens::compute_mobility::LocalDragNonOrientableSpheres,
-                         mundy::alens::ComputeMobility::OurTechniqueFactory)
-
-MUNDY_REGISTER_METACLASS("RPY_SPHERES", mundy::alens::compute_mobility::RPYSpheres,
-                         mundy::alens::ComputeMobility::OurTechniqueFactory)
-//@}
 
 #endif  // MUNDY_ALENS_COMPUTEMOBILITY_HPP_

@@ -155,7 +155,7 @@ std::unique_ptr<BulkData> MeshBuilder::create_bulk_data() {
 }
 
 std::unique_ptr<BulkData> MeshBuilder::create_bulk_data(std::shared_ptr<MetaData> meta_data_ptr) {
-  MUNDY_THROW_ASSERT(has_comm_, std::logic_error,
+  MUNDY_THROW_REQUIRE(has_comm_, std::logic_error,
                      "MeshBuilder: Must be given an MPI communicator before creating BulkData.");
 
   return std::unique_ptr<BulkData>(new BulkData(meta_data_ptr, comm_, auto_aura_option_,

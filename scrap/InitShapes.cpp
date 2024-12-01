@@ -20,6 +20,9 @@
 /// \file GenerateCollisionConstraints.cpp
 /// \brief Definition of the GenerateCollisionConstraints class
 
+// External
+#include <fmt/format.h>  // for fmt::format
+
 // C++ core libs
 #include <algorithm>
 #include <memory>     // for std::shared_ptr, std::unique_ptr
@@ -35,6 +38,7 @@
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
+#include <mundy_mesh/fmt_stk_types.hpp>                                     // adds fmt::format for stk types
 #include <mundy_core/throw_assert.hpp>                             // for MUNDY_THROW_ASSERT
 #include <mundy_constraints/GenerateCollisionConstraints.hpp>  // for mundy::constraint::GenerateCollisionConstraints
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
@@ -55,7 +59,7 @@ GenerateCollisionConstraints::GenerateCollisionConstraints(mundy::mesh::BulkData
                                                            const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "GenerateCollisionConstraints: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -87,10 +91,10 @@ void GenerateCollisionConstraints::set_mutable_params([[maybe_unused]] const Teu
 
   // Parse the parameters
   Teuchos::ParameterList &kernels_sublist = valid_mutable_params.sublist("kernels", true);
-  MUNDY_THROW_ASSERT(num_multibody_types_ == kernels_sublist.get<int>("count"), std::invalid_argument,
+  MUNDY_THROW_REQUIRE(num_multibody_types_ == kernels_sublist.get<int>("count"), std::invalid_argument,
                      "GenerateCollisionConstraints: Internal error. Mismatch between the stored kernel count "
                      "and the parameter list kernel count.\n"
-                         << "Odd... Please contact the development team.");
+                      "Odd... Please contact the development team.");
   for (size_t i = 0; i < num_multibody_types_; i++) {
     Teuchos::ParameterList &kernel_params = kernels_sublist.sublist("kernel_" + std::to_string(i));
     multibody_kernel_ptrs_[i]->set_mutable_params(kernel_params);
@@ -255,9 +259,9 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(mundy::mesh::
                                                                    const std::string &name_of_ghosting,
                                                                    bool ghost_downward_connectivity,
                                                                    bool ghost_upward_connectivity) {
-  MUNDY_THROW_ASSERT(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
                      "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
-                         << "Be sure to run modificiation_begin() before running this routine.");
+                         "Be sure to run modificiation_begin() before running this routine.");
 
   std::vector<stk::mesh::EntityProc> entities_to_ghost;
   for (size_t i = 0; i < pairs_to_ghost.size(); ++i) {
@@ -283,13 +287,13 @@ stk::mesh::Ghosting &GenerateCollisionConstraints::ghost_neighbors(mundy::mesh::
       bool is_target_proc_consistent =
           (bulk_data_ptr->parallel_owner_rank(target_entity) == target_proc) == is_target_owned;
       MUNDY_THROW_ASSERT(is_source_proc_consistent, std::invalid_argument,
-                         "GenerateCollisionConstraints: The source proc for pair i = "
-                             << i << " gives inconsistent ownership.\n"
-                             << "Make sure that the entity proc of your source is correct.");
+                          fmt::format("GenerateCollisionConstraints: The source proc for pair {} gives inconsistent "
+                                       "ownership.\nMake sure that the entity proc of your source is correct.",
+                                       i));
       MUNDY_THROW_ASSERT(is_target_proc_consistent, std::invalid_argument,
-                         "GenerateCollisionConstraints: The target proc for pair i = "
-                             << i << " gives inconsistent ownership.\n"
-                             << "Make sure that the entity proc of your target is correct.");
+                        fmt::format("GenerateCollisionConstraints: The target proc for pair {} gives inconsistent "
+                                     "ownership.\nMake sure that the entity proc of your target is correct.",
+                                     i));
 
       if (is_source_owned) {
         if (is_target_owned) {
@@ -371,9 +375,9 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
   //   2. Change the topology of the c elements to be collision constraints.
   //   3. For each collision constraint, attach two unique nodes.
   //   4. For each pair, fetch their linkers and attach the respective nodes.
-  MUNDY_THROW_ASSERT(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr->in_modifiable_state(), std::invalid_argument,
                      "GenerateCollisionConstraints: The provided bulk data is not in a modified state. \n"
-                         << "Be sure to run modificiation_begin() before running this routine.");
+                         "Be sure to run modificiation_begin() before running this routine.");
 
   // All pairs must be valid.
   size_t num_pairs = pairs_to_connect.size();
@@ -382,7 +386,7 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
     stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].second.id());
     bool is_pair_valid = bulk_data_ptr->is_valid(source_entity) && bulk_data_ptr->is_valid(target_entity);
     MUNDY_THROW_ASSERT(is_pair_valid, std::invalid_argument,
-                       "GenerateCollisionConstraints: Constraint generation failed. Pair i = " << i << " is invalid.");
+                      fmt::format("GenerateCollisionConstraints: Constraint generation failed. Pair i = {} is invalid.", i));
   }
 
   // Step 0. Count the number of collision constraints C that need generated.
@@ -424,12 +428,14 @@ void GenerateCollisionConstraints::generate_empty_collision_constraints_between_
       stk::mesh::Entity target_entity = bulk_data_ptr->get_entity(pairs_to_connect[i].second.id());
       MUNDY_THROW_ASSERT(bulk_data_ptr->num_connectivity(source_entity, stk::topology::CONSTRAINT_RANK) == 1,
                          std::invalid_argument,
-                         "GenerateCollisionConstraints: The source entity within Pair i = "
-                             << i << " doesn't have a linker (or has multiple linkers).");
+                         fmt::format("GenerateCollisionConstraints: The source entity within Pair i = {} doesn't have a "
+                                      "linker (or has multiple linkers).",
+                                      i));
       MUNDY_THROW_ASSERT(bulk_data_ptr->num_connectivity(target_entity, stk::topology::CONSTRAINT_RANK) == 1,
                          std::invalid_argument,
-                         "GenerateCollisionConstraints: The target entity within Pair i = "
-                             << i << " doesn't have a linker (or has multiple linkers).");
+                          fmt::format("GenerateCollisionConstraints: The target entity within Pair i = {} doesn't have a "
+                                        "linker (or has multiple linkers).",
+                                        i));
       stk::mesh::Entity const source_linker = bulk_data_ptr_->begin(source_entity, stk::topology::CONSTRAINT_RANK)[0];
       stk::mesh::Entity const target_linker = bulk_data_ptr_->begin(target_entity, stk::topology::CONSTRAINT_RANK)[0];
       const size_t num_nodes_in_source_linker = bulk_data_ptr_->num_nodes(source_linker);

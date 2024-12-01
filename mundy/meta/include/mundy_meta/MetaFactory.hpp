@@ -23,6 +23,9 @@
 /// \file MetaFactory.hpp
 /// \brief Declaration of the MetaFactory class
 
+// External
+#include <fmt/core.h>  // for fmt::format
+
 // C++ core libs
 #include <functional>  // for std::function
 #include <iostream>
@@ -43,6 +46,7 @@
 #include <mundy_core/StringLiteral.hpp>                       // for mundy::core::StringLiteral
 #include <mundy_core/throw_assert.hpp>                        // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/BulkData.hpp>                            // for mundy::mesh::BulkData
+#include <mundy_mesh/fmt_stk_types.hpp>                       // adds fmt::format for stk types
 #include <mundy_meta/HasMeshReqsAndIsRegisterable.hpp>        // for mundy::meta::HasMeshReqsAndIsRegisterable
 #include <mundy_meta/MeshReqs.hpp>                            // for mundy::meta::MeshReqs
 #include <mundy_meta/MetaKernel.hpp>                          // for mundy::meta::MetaKernel
@@ -60,6 +64,90 @@ concept IsValidRegistrationValueWrapper = requires(T registration_value_wrapper)
   typename T::Type;
   { registration_value_wrapper.value() } -> std::same_as<typename T::Type>;
 };  // IsValidRegistrationValueWrapper
+
+//! \name Type specializations for a MetaFactory with string registration types
+//@{
+
+/// \brief A class that providers a non-template type-compatable wrapper for strings.
+///
+/// Designed to satisfy the requirements of \c MetaFactory's IsValidRegistrationValueWrapper concept.
+/// @tparam StrSize
+template <size_t StrSize>
+struct RegistrationStringValueWrapper {
+  using Type = std::string;
+
+  /// \brief Default constructor that initializes the string literal to an empty string.
+  KOKKOS_INLINE_FUNCTION
+  constexpr RegistrationStringValueWrapper() : value_{} {
+  }
+
+  /// \brief Constructor that copies the string literal into the struct.
+  /// \param str The string literal to copy
+  KOKKOS_INLINE_FUNCTION
+  constexpr explicit RegistrationStringValueWrapper(const char (&str)[StrSize]) {
+    copy_char_arrays(std::make_index_sequence<StrSize>(), str, value_);
+  }
+
+  /// \brief Convert the string literal to a std::string.
+  std::string to_string() const {
+    return std::string(value_);
+  }
+
+  std::string value() const {
+    return to_string();
+  }
+
+  /// \brief The string literal's content.
+  char value_[StrSize];
+
+  /// \brief The string literal's size.
+  static constexpr size_t size = StrSize;
+
+ private:
+  /// \brief Deep copy the first (Is...) characters of the source array into the destination array.
+  template <size_t... Is, size_t SourceSize, size_t DestSize>
+  KOKKOS_INLINE_FUNCTION static constexpr void copy_char_arrays(std::index_sequence<Is...>,
+                                                                const char (&source)[SourceSize],
+                                                                char (&dest)[DestSize]) {
+    ((dest[Is] = source[Is]), ...);
+  }
+};  // RegistrationStringValueWrapper
+
+/// \brief Non-member equality operator for comparing two RegistrationStringValueWrappers.
+/// \param lhs The left-hand side of the comparison
+/// \param rhs The right-hand side of the comparison
+template <size_t N>
+KOKKOS_INLINE_FUNCTION constexpr bool operator==(const RegistrationStringValueWrapper<N>& lhs,
+                                                 const RegistrationStringValueWrapper<N>& rhs) {
+  for (size_t i = 0; i < N; ++i) {
+    if (lhs.value_[i] != rhs.value_[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/// \brief Non-member << operator for printing a RegistrationStringValueWrapper.
+/// \param os The output stream to print to
+/// \param str The RegistrationStringValueWrapper to print
+template <size_t N>
+std::ostream& operator<<(std::ostream& os, const RegistrationStringValueWrapper<N>& str) {
+  os << str.to_string();
+  return os;
+}
+
+/// \brief A helper function for generating a \c RegistrationStringValueWrapper from a string.
+/// @tparam StrSize
+/// \param str The string to wrap.
+///
+/// Usage example (also works inside of a template):
+/// \code{.cpp}
+/// auto registration_string = make_registration_string("MY_REGISTRATION_STRING");
+/// \endcode
+template <size_t N>
+KOKKOS_INLINE_FUNCTION constexpr RegistrationStringValueWrapper<N> make_registration_string(const char (&str)[N]) {
+  return RegistrationStringValueWrapper<N>(str);
+}
 
 /// \class MetaFactory
 /// \brief A factory containing generation routines for classes that have mesh requirements and are registerable.
@@ -106,16 +194,15 @@ concept IsValidRegistrationValueWrapper = requires(T registration_value_wrapper)
 /// \tparam RegistrationValueWrapperType_t A wrapper type for the registration value.
 /// \tparam registration_value_wrapper A wrapper for the registration value. \c registration_value_wrapper::Type must be
 /// the return type of \c registration_value_wrapper.value().
-template <typename PolymorphicBaseType_t, typename RegistrationValueWrapperType_t,
-          RegistrationValueWrapperType_t registration_value_wrapper>
-// requires IsValidRegistrationValueWrapper<RegistrationValueWrapperType_t>
+template <typename PolymorphicBaseType_t,
+          RegistrationStringValueWrapper registration_value_wrapper>
 class MetaFactory {
  public:
   //! \name Typedefs
   //@{
 
   using PolymorphicBaseType = PolymorphicBaseType_t;
-  using RegistrationType = typename RegistrationValueWrapperType_t::Type;
+  using RegistrationType = typename std::decay_t<decltype(registration_value_wrapper)>::Type;
 
   /// \brief A function type that takes a parameter list and produces a shared pointer to an object derived from
   /// class.
@@ -191,8 +278,8 @@ class MetaFactory {
   ///
   /// \param key [in] A key corresponding to a registered class.
   static Teuchos::ParameterList get_valid_fixed_params(const RegistrationType& key) {
-    MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
-                       "MetaFactory: The provided key " << key << " is not valid.");
+    MUNDY_THROW_REQUIRE(is_valid_key(key), std::invalid_argument,
+                        fmt::format("MetaFactory: The provided key {} is not valid.", key));
     return get_valid_fixed_params_generator_map()[key]();
   }
 
@@ -204,14 +291,17 @@ class MetaFactory {
   ///
   /// \param key [in] A key corresponding to a registered class.
   static Teuchos::ParameterList get_valid_mutable_params(const RegistrationType& key) {
-    MUNDY_THROW_ASSERT(is_valid_key(key), std::invalid_argument,
-                       "MetaFactory: The provided key " << key << " is not valid.");
+    MUNDY_THROW_REQUIRE(is_valid_key(key), std::invalid_argument,
+                        fmt::format("MetaFactory: The provided key {} is not valid.", key));
     return get_valid_mutable_params_generator_map()[key]();
   }
   //@}
 
   //! \name Actions
   //@{
+
+  /// \brief Default constructor.
+  MetaFactory() = default;
 
   /// \brief Reset the factory to its initial state.
   ///
@@ -248,8 +338,8 @@ class MetaFactory {
                   "See the documentation of MetaFactory for more information about the expected interface.");
 
     // Register the class.
-    MUNDY_THROW_ASSERT(!is_valid_key(key), std::invalid_argument,
-                       "MetaFactory: The provided key " << key << " already exists.");
+    MUNDY_THROW_REQUIRE(!is_valid_key(key), std::invalid_argument,
+                        fmt::format("MetaFactory: The provided key {} already exists.", key));
     get_internal_keys().push_back(key);
     get_instance_generator_map().insert(std::make_pair(key, ClassToRegister::create_new_instance));
     get_requirement_generator_map().insert(std::make_pair(key, ClassToRegister::get_mesh_requirements));
@@ -327,41 +417,6 @@ class MetaFactory {
   //@}
 };  // MetaFactory
 
-//! \name Type specializations for a MetaFactory with string registration types
-//@{
-
-/// \brief A class that providers a non-template type-compatable wrapper for strings.
-///
-/// Designed to satisfy the requirements of \c MetaFactory's IsValidRegistrationValueWrapper concept.
-/// @tparam StrSize
-template <size_t StrSize>
-struct RegistrationStringValueWrapper : public mundy::core::StringLiteral<StrSize> {
-  using Type = std::string;
-
-  /// \brief Constructor that forwards the string literal to the base class.
-  /// \param str The string literal to forward.
-  constexpr explicit RegistrationStringValueWrapper(const char (&str)[StrSize])
-      : mundy::core::StringLiteral<StrSize>(str) {
-  }
-
-  Type value() const {
-    return this->to_string();
-  }
-};  // RegistrationStringValueWrapper
-
-/// \brief A helper function for generating a \c RegistrationStringValueWrapper from a string.
-/// @tparam StrSize
-/// \param str The string to wrap.
-///
-/// Usage example (also works inside of a template):
-/// \code{.cpp}
-/// auto registration_string = make_registration_string("MY_REGISTRATION_STRING");
-/// \endcode
-template <size_t StrSize>
-constexpr RegistrationStringValueWrapper<StrSize> make_registration_string(const char (&str)[StrSize]) {
-  return RegistrationStringValueWrapper<StrSize>(str);
-}
-
 /// \brief A type specialization of \c MetaFactory that uses a string as the registration identifier. See \c MetaFactory
 /// for details.
 /// @tparam PolymorphicBaseType
@@ -373,8 +428,7 @@ constexpr RegistrationStringValueWrapper<StrSize> make_registration_string(const
 /// make_registration_string("MY_REGISTRATION_STRING")>;
 /// \endcode
 template <typename PolymorphicBaseType, RegistrationStringValueWrapper registration_string_value_wrapper>
-using StringBasedMetaFactory =
-    MetaFactory<PolymorphicBaseType, decltype(registration_string_value_wrapper), registration_string_value_wrapper>;
+using StringBasedMetaFactory = MetaFactory<PolymorphicBaseType, registration_string_value_wrapper>;
 //@}
 
 }  // namespace meta

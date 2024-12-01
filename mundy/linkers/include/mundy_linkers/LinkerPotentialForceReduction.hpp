@@ -107,20 +107,21 @@ class LinkerPotentialForceReduction
 
 };  // LinkerPotentialForceReduction
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_linker_potential_reduction_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::linkers::LinkerPotentialForceReduction::OurKernelFactory::register_new_class<
+          mundy::linkers::linker_potential_force_reduction::kernels::Sphere>("SPHERE");
+ mundy::linkers::LinkerPotentialForceReduction::OurKernelFactory::register_new_class<
+          mundy::linkers::linker_potential_force_reduction::kernels::Spherocylinder>("SPHEROCYLINDER");
+ mundy::linkers::LinkerPotentialForceReduction::OurKernelFactory::register_new_class<
+          mundy::linkers::linker_potential_force_reduction::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
+  return true;
+}();
+
 }  // namespace linkers
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-/// \brief Register our default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", mundy::linkers::linker_potential_force_reduction::kernels::Sphere,
-                         mundy::linkers::LinkerPotentialForceReduction::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::linkers::linker_potential_force_reduction::kernels::Spherocylinder,
-                         mundy::linkers::LinkerPotentialForceReduction::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT",
-                         mundy::linkers::linker_potential_force_reduction::kernels::SpherocylinderSegment,
-                         mundy::linkers::LinkerPotentialForceReduction::OurKernelFactory)
-//@}
 
 #endif  // MUNDY_LINKERS_LINKERPOTENTIALFORCEMAGNITUDEREDUCTION_HPP_

@@ -54,9 +54,8 @@ namespace {
 /// \param[in] b The second algebraic type
 /// \param[in] message_if_fail The message to print if the test fails
 template <typename U, typename T>
-void is_close_debug(const U& a, const T& b, const std::string& message_if_fail = "")
   requires std::is_arithmetic_v<T> && std::is_arithmetic_v<U>
-{
+void is_close_debug(const U& a, const T& b, const std::string& message_if_fail = "") {
   if (!is_approx_close(a, b)) {
     std::cout << "a = " << a << std::endl;
     std::cout << "b = " << b << std::endl;
@@ -71,9 +70,10 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
 /// \param[in] v1 The first Vector
 /// \param[in] v2 The second Vector
 /// \param[in] message_if_fail The message to print if the test fails
-template <size_t N, typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_close_debug(const Vector<U, N, OtherAccessor>& v1, const Vector<T, N, Accessor>& v2,
-                    const std::string& message_if_fail = "") {
+template <size_t N, typename U, typename OtherAccessor, typename OtherOwnershipType, typename T, typename Accessor,
+          typename OwnershipType>
+void is_close_debug(const Vector<U, N, OtherAccessor, OtherOwnershipType>& v1,
+                    const Vector<T, N, Accessor, OwnershipType>& v2, const std::string& message_if_fail = "") {
   if (!is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
     std::cout << "v2 = " << v2 << std::endl;
@@ -85,9 +85,10 @@ void is_close_debug(const Vector<U, N, OtherAccessor>& v1, const Vector<T, N, Ac
 /// \param[in] v1 The first Vector
 /// \param[in] v2 The second Vector
 /// \param[in] message_if_fail The message to print if the test fails
-template <size_t N, typename U, typename OtherAccessor, typename T, typename Accessor>
-void is_different_debug(const Vector<U, N, OtherAccessor>& v1, const Vector<T, N, Accessor>& v2,
-                        const std::string& message_if_fail = "") {
+template <size_t N, typename U, typename OtherAccessor, typename OtherOwnershipType, typename T, typename Accessor,
+          typename OwnershipType>
+void is_different_debug(const Vector<U, N, OtherAccessor, OtherOwnershipType>& v1,
+                        const Vector<T, N, Accessor, OwnershipType>& v2, const std::string& message_if_fail = "") {
   if (is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
     std::cout << "v2 = " << v2 << std::endl;
@@ -655,31 +656,31 @@ TYPED_TEST(VectorSingleTypeTest, Views) {
   // We will illustrate this with std::array<TypeParam, N>
   {
     // Dim 1
-    std::array<TypeParam, 1> std_array1{1};
-    auto v1 = get_vector_view<TypeParam, 1>(std_array1);
+    Kokkos::Array<TypeParam, 1> array1{1};
+    auto v1 = get_vector_view<TypeParam, 1>(array1);
     is_close_debug(v1[0], 1, "1D array view failed.");
-    std_array1[0] = 2;
+    array1[0] = 2;
     is_close_debug(v1[0], 2, "1D array view somehow not not a view.");
 
     // Dim 2
-    std::array<TypeParam, 2> std_array2{1, 2};
-    auto v2 = get_vector_view<TypeParam, 2>(std_array2);
+    Kokkos::Array<TypeParam, 2> array2{1, 2};
+    auto v2 = get_vector_view<TypeParam, 2>(array2);
     is_close_debug(v2[0], 1, "2D array view failed.");
     is_close_debug(v2[1], 2, "2D array view failed.");
-    std_array2[0] = 3;
-    std_array2[1] = 4;
+    array2[0] = 3;
+    array2[1] = 4;
     is_close_debug(v2[0], 3, "2D array view somehow not a view.");
     is_close_debug(v2[1], 4, "2D array view somehow not a view.");
 
     // Dim 3
-    std::array<TypeParam, 3> std_array3{1, 2, 3};
-    auto v3 = get_vector_view<TypeParam, 3>(std_array3);
+    Kokkos::Array<TypeParam, 3> array3{1, 2, 3};
+    auto v3 = get_vector_view<TypeParam, 3>(array3);
     is_close_debug(v3[0], 1, "3D array view failed.");
     is_close_debug(v3[1], 2, "3D array view failed.");
     is_close_debug(v3[2], 3, "3D array view failed.");
-    std_array3[0] = 4;
-    std_array3[1] = 5;
-    std_array3[2] = 6;
+    array3[0] = 4;
+    array3[1] = 5;
+    array3[2] = 6;
     is_close_debug(v3[0], 4, "3D array view somehow not a view.");
     is_close_debug(v3[1], 5, "3D array view somehow not a view.");
     is_close_debug(v3[2], 6, "3D array view somehow not a view.");

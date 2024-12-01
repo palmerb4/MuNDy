@@ -102,7 +102,7 @@ int main(int argc, char** argv)
     std::string input_file_name;
     cmdp.setOption("input_file_name", &input_file_name, "The name of the input configuration yaml file.");
     bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+    MUNDY_THROW_REQUIRE(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
 
     // Create a configurator from the given config file
     auto configurator = mundy::driver::Configurator(input_file_name);

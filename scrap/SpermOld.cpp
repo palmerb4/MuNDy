@@ -153,7 +153,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
   SLT(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument, "SLT: bulk_data_ptr cannot be a nullptr.");
+    MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument, "SLT: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
     Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -197,8 +197,8 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
         meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, default_element_radius_field_name_);
 
     auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-      MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                         "SLT: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
+      MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                         std::string("SLT: Field ") + field_name + " cannot be a nullptr. Check that the field exists.");
     };  // field_exists
 
     field_exists(node_coordinates_field_ptr_, default_node_coordinates_field_name_);
@@ -319,11 +319,11 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
     time_step_size_ = valid_mutable_params.get<double>("time_step_size");
 
     // Check invariants: All material properties must be positive. Time step size must be positive.
-    MUNDY_THROW_ASSERT(youngs_modulus_ > 0.0, std::invalid_argument, "SLT: Young's modulus must be greater than zero.");
-    MUNDY_THROW_ASSERT(poissons_ratio_ > 0.0, std::invalid_argument, "SLT: Poisson's ratio must be greater than zero.");
-    MUNDY_THROW_ASSERT(shear_modulus_ > 0.0, std::invalid_argument, "SLT: Shear modulus must be greater than zero.");
-    MUNDY_THROW_ASSERT(density_ > 0.0, std::invalid_argument, "SLT: Density must be greater than zero.");
-    MUNDY_THROW_ASSERT(time_step_size_ > 0.0, std::invalid_argument, "SLT: time_step_size must be greater than zero.");
+    MUNDY_THROW_REQUIRE(youngs_modulus_ > 0.0, std::invalid_argument, "SLT: Young's modulus must be greater than zero.");
+    MUNDY_THROW_REQUIRE(poissons_ratio_ > 0.0, std::invalid_argument, "SLT: Poisson's ratio must be greater than zero.");
+    MUNDY_THROW_REQUIRE(shear_modulus_ > 0.0, std::invalid_argument, "SLT: Shear modulus must be greater than zero.");
+    MUNDY_THROW_REQUIRE(density_ > 0.0, std::invalid_argument, "SLT: Density must be greater than zero.");
+    MUNDY_THROW_REQUIRE(time_step_size_ > 0.0, std::invalid_argument, "SLT: time_step_size must be greater than zero.");
   }
   //@}
 
@@ -789,7 +789,7 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  MUNDY_THROW_ASSERT(timestep_size > 0, std::invalid_argument, "Time step size must be greater than zero.");
+  MUNDY_THROW_REQUIRE(timestep_size > 0, std::invalid_argument, "Time step size must be greater than zero.");
 
   // Dump the parameters to screen on rank 0
   if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
@@ -881,8 +881,8 @@ int main(int argc, char **argv) {
            destroy_neighbor_linkers_fixed_params, declare_and_init_constraints_fixed_params});
 
   auto check_class_instance = [](auto &class_instance_ptr, const std::string &class_name) {
-    MUNDY_THROW_ASSERT(class_instance_ptr != nullptr, std::invalid_argument,
-                       "Failed to create class instance with name << " << class_name << " >>.");
+    MUNDY_THROW_REQUIRE(class_instance_ptr != nullptr, std::invalid_argument,
+                       std::string("Failed to create class instance with name << ") + class_name + " >>.");
   };  // check_class_instance
 
   check_class_instance(node_euler_ptr, "NodeEuler");
@@ -896,9 +896,9 @@ int main(int argc, char **argv) {
   check_class_instance(destroy_neighbor_linkers_ptr, "DestroyNeighborLinkers");
   check_class_instance(declare_and_init_constraints_ptr, "DeclareAndInitConstraints");
 
-  MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, std::invalid_argument, "Bulk dta pointer cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr != nullptr, std::invalid_argument, "Bulk dta pointer cannot be a nullptr.");
   auto meta_data_ptr = bulk_data_ptr->mesh_meta_data_ptr();
-  MUNDY_THROW_ASSERT(meta_data_ptr != nullptr, std::invalid_argument, "Meta data pointer cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(meta_data_ptr != nullptr, std::invalid_argument, "Meta data pointer cannot be a nullptr.");
   meta_data_ptr->set_coordinate_field_name("NODE_COORDS");
 
   ///////////////////////////////////////////////////
@@ -973,7 +973,7 @@ int main(int argc, char **argv) {
       meta_data_ptr->get_field<int>(stk::topology::CONSTRAINT_RANK, "LINKER_DESTROY_FLAG");
 
   auto check_if_exists = [](const stk::mesh::FieldBase *const field_ptr, const std::string &name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 
@@ -993,32 +993,32 @@ int main(int argc, char **argv) {
   check_if_exists(element_angular_spring_constant_field_ptr, "ELEMENT_ANGULAR_SPRING_CONSTANT");
 
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part(mundy::shapes::Spheres::get_name());
-  MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
+  MUNDY_THROW_REQUIRE(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
   stk::mesh::Part &spheres_part = *spheres_part_ptr;
   stk::io::put_io_part_attribute(spheres_part);
 
   stk::mesh::Part *spherocylinder_segments_part_ptr =
       meta_data_ptr->get_part(mundy::shapes::SpherocylinderSegments::get_name());
-  MUNDY_THROW_ASSERT(spherocylinder_segments_part_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(spherocylinder_segments_part_ptr != nullptr, std::invalid_argument,
                      "SPHEROCYLINDER_SEGMENTS part not found.");
   stk::mesh::Part &spherocylinder_segments_part = *spherocylinder_segments_part_ptr;
   stk::io::put_io_part_attribute(spherocylinder_segments_part);
 
   stk::mesh::Part *spherocylinder_segment_spherocylinder_segment_linkers_part_ptr = meta_data_ptr->get_part(
       mundy::linkers::neighbor_linkers::SpherocylinderSegmentSpherocylinderSegmentLinkers::get_name());
-  MUNDY_THROW_ASSERT(spherocylinder_segment_spherocylinder_segment_linkers_part_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(spherocylinder_segment_spherocylinder_segment_linkers_part_ptr != nullptr, std::invalid_argument,
                      "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKERS part not found.");
   stk::mesh::Part &spherocylinder_segment_spherocylinder_segment_linkers_part =
       *spherocylinder_segment_spherocylinder_segment_linkers_part_ptr;
   stk::io::put_io_part_attribute(spherocylinder_segment_spherocylinder_segment_linkers_part);
 
   stk::mesh::Part *springs_part_ptr = meta_data_ptr->get_part(mundy::constraints::HookeanSprings::get_name());
-  MUNDY_THROW_ASSERT(springs_part_ptr != nullptr, std::invalid_argument, "HOOKEAN_SPRINGS part not found.");
+  MUNDY_THROW_REQUIRE(springs_part_ptr != nullptr, std::invalid_argument, "HOOKEAN_SPRINGS part not found.");
   stk::mesh::Part &springs_part = *springs_part_ptr;
   stk::io::put_io_part_attribute(springs_part);
 
   stk::mesh::Part *angular_springs_part_ptr = meta_data_ptr->get_part(mundy::constraints::AngularSprings::get_name());
-  MUNDY_THROW_ASSERT(angular_springs_part_ptr != nullptr, std::invalid_argument, "ANGULAR_SPRINGS part not found.");
+  MUNDY_THROW_REQUIRE(angular_springs_part_ptr != nullptr, std::invalid_argument, "ANGULAR_SPRINGS part not found.");
   stk::mesh::Part &angular_springs_part = *angular_springs_part_ptr;
   stk::io::put_io_part_attribute(angular_springs_part);
 

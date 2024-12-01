@@ -71,10 +71,10 @@ enum BINDING_STATE_CHANGE : unsigned {
 /// \param conn_ordinal The ordinal of the connection to the crosslinker for which the node will be unbound.
 inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
                                          const int &conn_ordinal) {
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
                            "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
   // Maybe unsafe?
-  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
@@ -109,12 +109,12 @@ inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const
 /// \param conn_ordinal The ordinal of the connection to the crosslinker for which the new node will be bound.
 inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
                                      const stk::mesh::Entity &new_node, const int &conn_ordinal) {
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
                            "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
+  MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
                            "bind_crosslinker_to_node: The node must have NODE_RANK.");
   // Maybe unsafe?
-  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // Check a node already exists at the ordinal
@@ -151,12 +151,12 @@ inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk
 inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk_data,
                                                      const stk::mesh::Entity &crosslinker,
                                                      const stk::mesh::Entity &new_node, const int &conn_ordinal) {
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
                            "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
-  MUNDY_DEBUG_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
+  MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
                            "bind_crosslinker_to_node: The node must have NODE_RANK.");
   // Maybe unsafe?
-  // MUNDY_DEBUG_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
   // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.

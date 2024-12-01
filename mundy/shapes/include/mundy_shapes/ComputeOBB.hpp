@@ -101,20 +101,21 @@ class ComputeOBB
   //@}
 };  // ComputeOBB
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_obb_kernels_ =
+[]() {
+  // Register our default kernels
+  mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<
+          mundy::shapes::compute_obb::kernels::Sphere>("SPHERE");
+  mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<
+          mundy::shapes::compute_obb::kernels::Spherocylinder>("SPHEROCYLINDER");
+  mundy::shapes::ComputeOBB::OurKernelFactory::register_new_class<
+          mundy::shapes::compute_obb::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
+  return true;
+}();
+
 }  // namespace shapes
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// \brief Register our default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_obb::kernels::Sphere,
-                         mundy::shapes::ComputeOBB::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_obb::kernels::Spherocylinder,
-                         mundy::shapes::ComputeOBB::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT", mundy::shapes::compute_obb::kernels::SpherocylinderSegment,
-                         mundy::shapes::ComputeOBB::OurKernelFactory)
-//@}
 
 #endif  // MUNDY_SHAPES_COMPUTEOBB_HPP_

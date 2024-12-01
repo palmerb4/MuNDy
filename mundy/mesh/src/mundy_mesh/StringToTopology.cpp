@@ -49,8 +49,11 @@ stk::topology::rank_t string_to_rank(const std::string &rank_string) {
   } else if (rank_string == "INVALID_RANK") {
     return stk::topology::INVALID_RANK;
   } else {
-    MUNDY_THROW_ASSERT(false, std::invalid_argument, "The provided rank string " << rank_string << " is not valid.");
+    MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                        std::string("The provided rank string ") + rank_string + " is not valid.");
   }
+
+  return stk::topology::INVALID_RANK;  // Should never be reached.
 }
 
 stk::topology string_to_topology(const std::string &topology_string) {
@@ -162,9 +165,11 @@ stk::topology string_to_topology(const std::string &topology_string) {
     const int num_nodes = std::stoi(base_match[1].str());
     return stk::create_superelement_topology(num_nodes);
   } else {
-    MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                       "PartReqs: The provided topology string " << topology_string << " is not valid.");
+    MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                        std::string("PartReqs: The provided topology string ") + topology_string + " is not valid.");
   }
+
+  return stk::topology::INVALID_TOPOLOGY;  // Should never be reached.
 }
 
 }  // namespace mesh

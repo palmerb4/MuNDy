@@ -65,14 +65,12 @@ TEST(MetaFactoryRegistration, RegistrationWorksProperly) {
   // Create our example class to register.
   // Reset the test counter within our classes to register.
   // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
-  using ClassToRegister = utils::ExampleMetaMethod<>;
+  using ClassToRegister = utils::DefaultExampleMetaMethod;
   using PolymorphicBaseType = ClassToRegister::PolymorphicBaseType;
   ClassToRegister::reset_counters();
 
   // Create our example meta factory.
-  constexpr auto factory_registration_string_wrapper = mundy::meta::make_registration_string("TEST_FACTORY");
-  using ExampleMetaFactory = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper),
-                                         factory_registration_string_wrapper>;
+  using ExampleMetaFactory = MetaFactory<PolymorphicBaseType, mundy::meta::make_registration_string("TEST_FACTORY")>;
   ExampleMetaFactory::reset();
 
   // Perform the registration.
@@ -123,9 +121,7 @@ TEST(MetaFactoryRegistration, Reregistration) {
   ClassToRegister2::reset_counters();
 
   // Create our example meta factory.
-  constexpr auto factory_registration_string_wrapper = mundy::meta::make_registration_string("TEST_FACTORY");
-  using ExampleMetaFactory = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper),
-                                         factory_registration_string_wrapper>;
+  using ExampleMetaFactory = MetaFactory<PolymorphicBaseType, mundy::meta::make_registration_string("TEST_FACTORY")>;
   ExampleMetaFactory::reset();
 
   // Register the first class.
@@ -153,17 +149,15 @@ TEST(MetaFactoryRegistration, RegistrationWithDifferentRegistrationIdentifier) {
   // Create our example class to register.
   // Reset the test counter within our classes to register.
   // We'll use these counters to ensure that MetaFactory is properly calling our internal methods.
-  using ClassToRegister = utils::ExampleMetaMethod<>;
+  using ClassToRegister = utils::DefaultExampleMetaMethod;
   using PolymorphicBaseType = ClassToRegister::PolymorphicBaseType;
   ClassToRegister::reset_counters();
 
   // Create our example meta factories.
   constexpr auto factory_registration_string_wrapper1 = mundy::meta::make_registration_string("TEST_FACTORY1");
   constexpr auto factory_registration_string_wrapper2 = mundy::meta::make_registration_string("TEST_FACTORY2");
-  using ExampleMetaFactory1 = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper1),
-                                          factory_registration_string_wrapper1>;
-  using ExampleMetaFactory2 = MetaFactory<PolymorphicBaseType, decltype(factory_registration_string_wrapper2),
-                                          factory_registration_string_wrapper2>;
+  using ExampleMetaFactory1 = MetaFactory<PolymorphicBaseType, factory_registration_string_wrapper1>;
+  using ExampleMetaFactory2 = MetaFactory<PolymorphicBaseType, factory_registration_string_wrapper2>;
   ExampleMetaFactory1::reset();
 
   // Register with the first factory.

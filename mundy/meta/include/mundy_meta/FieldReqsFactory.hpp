@@ -111,8 +111,8 @@ class FieldReqsFactory {
   template <typename FieldTypeToRegister,
             std::enable_if_t<std::is_trivially_copyable<FieldTypeToRegister>::value, bool> = true>
   void register_new_field_type(const std::string& field_type_string) {
-    MUNDY_THROW_ASSERT(is_valid_field_type_string(field_type_string), std::invalid_argument,
-                       "FieldReqsFactory: The provided field type string " << field_type_string << " already exists.");
+    MUNDY_THROW_REQUIRE(is_valid_field_type_string(field_type_string), std::invalid_argument,
+                       std::string("FieldReqsFactory: The provided field type string ") + field_type_string + " already exists.");
     get_instance_generator_map().insert(
         std::make_pair(field_type_string, FieldReqs<FieldTypeToRegister>::create_new_instance));
   }

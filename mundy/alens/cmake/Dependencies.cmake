@@ -1,9 +1,9 @@
 tribits_package_define_dependencies(
-  LIB_REQUIRED_PACKAGES MundyCore MundyMesh MundyMeta MundyShapes MundyLinkers MundyConstraints MundyIo
+  LIB_REQUIRED_PACKAGES MundyCore MundyMath MundyMesh MundyMeta MundyAgents MundyShapes MundyLinkers MundyIo MundyConstraints
   LIB_OPTIONAL_PACKAGES
   TEST_REQUIRED_PACKAGES
   TEST_OPTIONAL_PACKAGES
-  LIB_REQUIRED_TPLS STK Teuchos Kokkos KokkosKernels
+  LIB_REQUIRED_TPLS STK Teuchos Kokkos KokkosKernels fmt
   LIB_OPTIONAL_TPLS MPI STKFMM PVFMM
   TEST_REQUIRED_TPLS GTest OpenRAND
   TEST_OPTIONAL_TPLS

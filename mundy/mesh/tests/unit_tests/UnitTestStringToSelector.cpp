@@ -49,9 +49,7 @@ namespace {
 std::unique_ptr<BulkData> create_bulk_data() {
   // Create a dummy mesh.
   MeshBuilder builder(MPI_COMM_WORLD);
-  std::unique_ptr<BulkData> bulk_data_ptr = builder.create_bulk_data();
-
-  return std::move(bulk_data_ptr);
+  return builder.create_bulk_data();
 }
 
 std::pair<std::unique_ptr<BulkData>, std::vector<stk::mesh::Part *>> create_bulk_data_and_parts_with_names(

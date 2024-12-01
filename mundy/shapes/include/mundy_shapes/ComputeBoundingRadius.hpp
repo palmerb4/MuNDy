@@ -104,21 +104,21 @@ class ComputeBoundingRadius
   //@}
 };  // ComputeBoundingRadius
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_bounding_radius_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::shapes::ComputeBoundingRadius::OurKernelFactory::register_new_class<
+          mundy::shapes::compute_bounding_radius::kernels::Sphere>("SPHERE");
+  mundy::shapes::ComputeBoundingRadius::OurKernelFactory::register_new_class<
+          mundy::shapes::compute_bounding_radius::kernels::Spherocylinder>("SPHEROCYLINDER");
+  mundy::shapes::ComputeBoundingRadius::OurKernelFactory::register_new_class<
+          mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment>("SPHEROCYLINDER_SEGMENT");
+  return true;
+}();
+
 }  // namespace shapes
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// \brief Register our default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", mundy::shapes::compute_bounding_radius::kernels::Sphere,
-                         mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER", mundy::shapes::compute_bounding_radius::kernels::Spherocylinder,
-                         mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT",
-                         mundy::shapes::compute_bounding_radius::kernels::SpherocylinderSegment,
-                         mundy::shapes::ComputeBoundingRadius::OurKernelFactory)
-//@}
 
 #endif  // MUNDY_SHAPES_COMPUTEBOUNDINGRADIUS_HPP_

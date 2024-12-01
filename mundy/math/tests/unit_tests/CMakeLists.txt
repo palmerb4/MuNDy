@@ -23,51 +23,57 @@
 tribits_add_executable_and_test(
   UnitTestViews
   SOURCES
-  UnitTestViews.cpp
-  ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  )
+    UnitTestViews.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
   
 tribits_add_executable_and_test(
-      UnitTestVector
-      SOURCES
-        UnitTestVector.cpp
-        ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-      )
+  UnitTestVector
+  SOURCES
+    UnitTestVector.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
   
 tribits_add_executable_and_test(
-      UnitTestVector3
-      SOURCES
-      UnitTestVector3.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestVector3
+  SOURCES
+    UnitTestVector3.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestMatrix3
-    SOURCES
-      UnitTestMatrix3.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestMatrix3
+  SOURCES
+    UnitTestMatrix3.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+    NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-      UnitTestQuaternion
-      SOURCES
-        UnitTestQuaternion.cpp
-        ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-      )
+  UnitTestQuaternion
+  SOURCES
+    UnitTestQuaternion.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-      UnitTestMinimize
-      SOURCES
-      UnitTestMinimize.cpp
-        ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-      )
+  UnitTestMinimize
+  SOURCES
+    UnitTestMinimize.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
   UnitTestHilbert
   SOURCES
-  UnitTestHilbert.cpp
+    UnitTestHilbert.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  NUM_MPI_PROCS 1
-  )
+  NUM_MPI_PROCS 1-4
+)
   
 add_subdirectory(distance)

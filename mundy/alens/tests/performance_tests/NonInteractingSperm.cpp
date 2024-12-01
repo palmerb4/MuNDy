@@ -165,7 +165,7 @@ class SpermSimulation {
     bool use_input_file = false;
     cmdp.setOption("use_input_file", "no_use_input_file", &use_input_file, "Use an input file.");
     bool use_input_file_found = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    MUNDY_THROW_ASSERT(use_input_file_found, std::invalid_argument, "Failed to parse the command line arguments.");
+    MUNDY_THROW_REQUIRE(use_input_file_found, std::invalid_argument, "Failed to parse the command line arguments.");
 
     // Switch to requiring that all options must be recognized.
     cmdp.recogniseAllOptions(true);
@@ -197,11 +197,11 @@ class SpermSimulation {
       cmdp.setOption("io_frequency", &io_frequency_, "Number of timesteps between writing output.");
 
       bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-      MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+      MUNDY_THROW_REQUIRE(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
     } else {
       cmdp.setOption("input_file", &input_file_name_, "The name of the input file.");
       bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-      MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+      MUNDY_THROW_REQUIRE(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
 
       // Read in the parameters from the parameter list.
       Teuchos::ParameterList param_list_ = *Teuchos::getParametersFromYamlFile(input_file_name_);
@@ -229,21 +229,21 @@ class SpermSimulation {
 
   void check_input_parameters() {
     debug_print("Checking input parameters.");
-    MUNDY_THROW_ASSERT(num_sperm_ > 0, std::invalid_argument, "num_sperm_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_nodes_per_sperm_ > 0, std::invalid_argument, "num_nodes_per_sperm_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sperm_radius_ > 0, std::invalid_argument, "sperm_radius_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sperm_initial_segment_length_ > -1e-12, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(num_sperm_ > 0, std::invalid_argument, "num_sperm_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(num_nodes_per_sperm_ > 0, std::invalid_argument, "num_nodes_per_sperm_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(sperm_radius_ > 0, std::invalid_argument, "sperm_radius_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(sperm_initial_segment_length_ > -1e-12, std::invalid_argument,
                        "sperm_initial_segment_length_ must be greater than or equal to 0.");
-    MUNDY_THROW_ASSERT(sperm_rest_segment_length_ > -1e-12, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(sperm_rest_segment_length_ > -1e-12, std::invalid_argument,
                        "sperm_rest_segment_length_ must be greater than or equal to 0.");
-    MUNDY_THROW_ASSERT(sperm_youngs_modulus_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(sperm_youngs_modulus_ > 0, std::invalid_argument,
                        "sperm_youngs_modulus_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(sperm_poissons_ratio_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(sperm_poissons_ratio_ > 0, std::invalid_argument,
                        "sperm_poissons_ratio_ must be greater than 0.");
 
-    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
   }
 
   void dump_user_inputs() {
@@ -335,15 +335,15 @@ class SpermSimulation {
   template <typename FieldType>
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Field " << field_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
-    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
-                       "Part " << part_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
+                       std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -377,7 +377,7 @@ class SpermSimulation {
 
     // Fetch the parts
     centerline_twist_springs_part_ptr_ = fetch_part("CENTERLINE_TWIST_SPRINGS");
-    MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
+    MUNDY_THROW_REQUIRE(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3, std::logic_error,
                        "CENTERLINE_TWIST_SPRINGS part must have SHELL_TRI_3 topology.");
   }
 
@@ -567,7 +567,7 @@ class SpermSimulation {
         bulk_data_ptr_->declare_relation(spring, right_node, 2, perm, scratch1, scratch2, scratch3);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY,
                            std::logic_error,
-                           "The centerline twist spring with id " << spring_id << " has an invalid topology.");
+                           std::format("The centerline twist spring with id {} has an invalid topology.", spring_id));
 
         // Populate the spring's data
         stk::mesh::field_data(*element_radius_field_ptr_, spring)[0] = sperm_radius_;
@@ -588,36 +588,36 @@ class SpermSimulation {
           // Share the last node with rank 1.
           stk::mesh::Entity node = get_node(end_seq_node_index - 1);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                             "The node with id " << get_node_id(end_seq_node_index - 1) << " is not valid.");
+                              std::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1)));
           bulk_data_ptr_->add_node_sharing(node, rank + 1);
 
           // Receive the first node from rank 1
           stk::mesh::EntityId received_node_id = get_node_id(end_seq_node_index);
           stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(received_node), std::logic_error,
-                             "The node with id " << received_node_id << " is not valid.");
+                              std::format("The node with id {} is not valid.", received_node_id));
           bulk_data_ptr_->add_node_sharing(received_node, rank + 1);
         } else if (rank == bulk_data_ptr_->parallel_size() - 1) {
           // Share the first node with rank N - 1.
           stk::mesh::Entity node = get_node(start_seq_node_index);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                             "The node with id " << get_node_id(start_seq_node_index) << " is not valid.");
+                              std::format("The node with id {} is not valid.", get_node_id(start_seq_node_index))); 
           bulk_data_ptr_->add_node_sharing(node, rank - 1);
 
           // Receive the last node from rank N - 1.
           stk::mesh::EntityId received_node_id = get_node_id(start_seq_node_index - 1);
           stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(received_node), std::logic_error,
-                             "The node with id " << received_node_id << " is not valid.");
+                              std::format("The node with id {} is not valid.", received_node_id));
           bulk_data_ptr_->add_node_sharing(received_node, rank - 1);
         } else {
           // Share the first and last nodes with the corresponding neighboring ranks.
           stk::mesh::Entity first_node = get_node(start_seq_node_index);
           stk::mesh::Entity last_node = get_node(end_seq_node_index - 1);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(first_node), std::logic_error,
-                             "The node with id " << get_node_id(start_seq_node_index) << " is not valid.");
+                            std::format("The node with id {} is not valid.", get_node_id(start_seq_node_index)));
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(last_node), std::logic_error,
-                             "The node with id " << get_node_id(end_seq_node_index - 1) << " is not valid.");
+                            std::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1))); 
           bulk_data_ptr_->add_node_sharing(first_node, rank - 1);
           bulk_data_ptr_->add_node_sharing(last_node, rank + 1);
 
@@ -638,7 +638,8 @@ class SpermSimulation {
            i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
         stk::mesh::Entity node = get_node(i);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                           "The node with id " << get_node_id(i) << " is not valid.");
+                            std::format(
+                                "The node with id {} is not valid.", get_node_id(i)));
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
                            "The node must be a member of the centerline twist part.");
 
@@ -665,15 +666,15 @@ class SpermSimulation {
                            "The centerline twist spring must be a member of the centerline twist part.");
         MUNDY_THROW_ASSERT(centerline_twist_springs_part_ptr_->topology() == stk::topology::SHELL_TRI_3,
                            std::logic_error,
-                           "The centerline twist part must have SHELL_TRI_3 topology. Instead, it has topology "
-                               << centerline_twist_springs_part_ptr_->topology());
+                           std::string("The centerline twist part must have SHELL_TRI_3 topology. Instead, it has topology ")
+                               + centerline_twist_springs_part_ptr_->topology());
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).entity_rank() == stk::topology::ELEMENT_RANK,
                            std::logic_error,
-                           "The centerline twist spring must have element rank. Instead, it has rank "
-                               << bulk_data_ptr_->bucket(spring).entity_rank());
+                           std::string("The centerline twist spring must have element rank. Instead, it has rank ")
+                               + bulk_data_ptr_->bucket(spring).entity_rank());
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() == stk::topology::SHELL_TRI_3, std::logic_error,
-                           "The centerline twist spring must have SHELL_TRI_3 topology. Instead, it has topology "
-                               << bulk_data_ptr_->bucket(spring).topology());
+                           std::string("The centerline twist spring must have SHELL_TRI_3 topology. Instead, it has topology ")
+                               + bulk_data_ptr_->bucket(spring).topology());
       }
 
       {
@@ -949,11 +950,9 @@ class SpermSimulation {
           stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
           stk::mesh::Entity const *element_edges = bulk_data.begin_edges(element);
           MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) >= 3, std::logic_error,
-                             "The element must have at least 3 nodes. Currently, the element only has "
-                                 << bulk_data.num_nodes(element) << " nodes.");
+                             "The element must have at least 3 nodes.");
           MUNDY_THROW_ASSERT(bulk_data.num_edges(element) >= 2, std::logic_error,
-                             "The element must have at least 2 edges. Currently, the element only has "
-                                 << bulk_data.num_edges(element) << " edges.");
+                             "The element must have at least 2 edges.");
           const stk::mesh::Entity &center_node = element_nodes[1];
           const stk::mesh::Entity &left_edge = element_edges[0];
           const stk::mesh::Entity &right_edge = element_edges[1];
@@ -1027,11 +1026,9 @@ class SpermSimulation {
           stk::mesh::Entity const *element_nodes = bulk_data.begin_nodes(element);
           stk::mesh::Entity const *element_edges = bulk_data.begin_edges(element);
           MUNDY_THROW_ASSERT(bulk_data.num_nodes(element) >= 2, std::logic_error,
-                             "The element must have at least 2 nodes. Currently, the element only has "
-                                 << bulk_data.num_nodes(element) << " nodes.");
+                             "The element must have at least 2 nodes.");
           MUNDY_THROW_ASSERT(bulk_data.num_edges(element) >= 2, std::logic_error,
-                             "The element must have at least 2 edges. Currently, the element only has "
-                                 << bulk_data.num_edges(element) << " edges.");
+                             "The element must have at least 2 edges.");
 
           const stk::mesh::Entity &node_im1 = element_nodes[0];
           const stk::mesh::Entity &node_i = element_nodes[1];
@@ -1127,8 +1124,7 @@ class SpermSimulation {
           // Get the lower rank entities
           stk::mesh::Entity const *edge_nodes = bulk_data.begin_nodes(edge);
           MUNDY_THROW_ASSERT(bulk_data.num_nodes(edge) >= 2, std::logic_error,
-                             "The edge must have at least 2 nodes. Currently, the edge only has "
-                                 << bulk_data.num_nodes(edge) << " nodes.");
+                             "The edge must have at least 2 nodes.");
           const stk::mesh::Entity &node_im1 = edge_nodes[0];
           const stk::mesh::Entity &node_i = edge_nodes[1];
 

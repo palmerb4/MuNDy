@@ -118,7 +118,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_coord_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_coord_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'node_coord_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -129,7 +129,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
     if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -139,7 +139,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -149,9 +149,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
     if (fixed_params_ptr->isParameter("part_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
-      MUNDY_THROW_ASSERT(
+      MUNDY_THROW_REQUIRE(
           valid_type, std::invalid_argument,
-          "Sphere: Type error. Given a parameter with name 'part_name' but " << "with a type other than std::string");
+          "Sphere: Type error. Given a parameter with name 'part_name' but with a type other than std::string");
     } else {
       fixed_params_ptr->set("part_name", std::string(default_part_name_),
                             "Name of the part associated with this kernel.");

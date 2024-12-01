@@ -21,48 +21,49 @@
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
 tribits_add_executable_and_test(
-    UnitTestLinkers
-    SOURCES
-      UnitTestLinkers.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    NUM_MPI_PROCS 2
-    )
+  UnitTestLinkers
+  SOURCES
+    UnitTestLinkers.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 2
+)
 
 tribits_add_executable_and_test(
   UnitTestGenerateNeighborLinkers
   SOURCES
-  UnitTestGenerateNeighborLinkers.cpp
+    UnitTestGenerateNeighborLinkers.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   NUM_MPI_PROCS 1-4
-  )
+)
 
 tribits_add_executable_and_test(
   UnitTestDestroyNeighborLinkers
   SOURCES
-  UnitTestDestroyNeighborLinkers.cpp
+    UnitTestDestroyNeighborLinkers.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   NUM_MPI_PROCS 1-4
-  )
+)
 
 tribits_add_executable_and_test(
   UnitTestComputeSignedSeparationDistanceAndContactNormal
   SOURCES
-  UnitTestComputeSignedSeparationDistanceAndContactNormal.cpp
+    UnitTestComputeSignedSeparationDistanceAndContactNormal.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   NUM_MPI_PROCS 2
-  )
+)
 
 tribits_add_executable_and_test(
   UnitTestEvaluateLinkerPotentials
   SOURCES
-  UnitTestEvaluateLinkerPotentials.cpp
+    UnitTestEvaluateLinkerPotentials.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
   NUM_MPI_PROCS 2
-  )
+)
 
 tribits_add_executable_and_test(
   UnitTestLinkerPotentialForceReduction
   SOURCES
-  UnitTestLinkerPotentialForceReduction.cpp
+    UnitTestLinkerPotentialForceReduction.cpp
     ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-  )
+  NUM_MPI_PROCS 1-4
+)

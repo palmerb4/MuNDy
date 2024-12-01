@@ -80,7 +80,8 @@ class Array {
   /// \brief Constructor to initialize all elements explicitly.
   /// Requires the number of arguments to be N and the type of each to be T.
   template <typename... Args>
-    requires(sizeof...(Args) == N) && (std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, T> && ...)
+    requires(sizeof...(Args) == N) && (N != 1) &&
+            (std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, T> && ...)
   KOKKOS_INLINE_FUNCTION explicit Array(Args&&... args) : data_{std::forward<Args>(args)...} {
   }
 
@@ -103,6 +104,7 @@ class Array {
   }
 
   /// \brief Constructor to initialize all elements to a single value
+  KOKKOS_INLINE_FUNCTION
   Array(const T& value) : Array(value, std::make_index_sequence<N>{}) {
   }
 
@@ -184,7 +186,7 @@ class Array {
 
   /// \brief Constructor to initialize all elements to a single value using index_sequence
   template <size_t... I>
-  Array(const T& value, std::index_sequence<I...>) : data_{((void)I, value)...} {
+  KOKKOS_INLINE_FUNCTION Array(const T& value, std::index_sequence<I...>) : data_{((void)I, value)...} {
   }
 
   /// \brief Deep copy constructor using index_sequence

@@ -122,7 +122,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
       [[maybe_unused]] Teuchos::ParameterList *const fixed_params_ptr) {
     if (fixed_params_ptr->isParameter("node_force_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_force_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'element_aabb_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -133,7 +133,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
     if (fixed_params_ptr->isParameter("node_torque_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_torque_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'node_torque_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -144,7 +144,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
     if (fixed_params_ptr->isParameter("node_velocity_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_velocity_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'node_velocity_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -154,7 +154,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
     if (fixed_params_ptr->isParameter("node_omega_field_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("node_omega_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'node_omega_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -165,7 +165,7 @@ class Sphere : public mundy::meta::MetaKernel<> {
     if (fixed_params_ptr->isParameter("element_radius_field_name")) {
       const bool valid_type =
           fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("element_radius_field_name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "Sphere: Type error. Given a parameter with name 'element_radius_field_name' but "
                          "with a type other than std::string");
     } else {
@@ -175,9 +175,9 @@ class Sphere : public mundy::meta::MetaKernel<> {
 
     if (fixed_params_ptr->isParameter("part_name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("part_name");
-      MUNDY_THROW_ASSERT(
+      MUNDY_THROW_REQUIRE(
           valid_type, std::invalid_argument,
-          "Sphere: Type error. Given a parameter with name 'part_name' but " << "with a type other than std::string");
+          "Sphere: Type error. Given a parameter with name 'part_name' but with a type other than std::string");
     } else {
       fixed_params_ptr->set("part_name", std::string(default_part_name_),
                             "Name of the part associated with this kernel.");
@@ -189,13 +189,13 @@ class Sphere : public mundy::meta::MetaKernel<> {
       [[maybe_unused]] Teuchos::ParameterList *const mutable_params_ptr) {
     if (mutable_params_ptr->isParameter("viscosity")) {
       const bool valid_type = mutable_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<double>("viscosity");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
                          "NodeEuler: Type error. Given a parameter with name 'viscosity' but "
-                             << "with a type other than unsigned double");
+                             "with a type other than unsigned double");
       const bool is_viscocity_positive = mutable_params_ptr->get<double>("viscosity") > 0;
-      MUNDY_THROW_ASSERT(is_viscocity_positive, std::invalid_argument,
+      MUNDY_THROW_REQUIRE(is_viscocity_positive, std::invalid_argument,
                          "NodeEuler: Invalid parameter. Given a parameter with name 'viscosity' but "
-                             << "with a value less than or equal to zero.");
+                             "with a value less than or equal to zero.");
     } else {
       mutable_params_ptr->set("viscosity", default_viscosity_, "The viscosity of the suspending fluid.");
     }

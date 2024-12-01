@@ -21,16 +21,17 @@
 # and more complex classes are tested later. This is not a hard and fast rule, but it is a good guideline to follow, 
 # as it produces more logical error messages when a test fails.
 tribits_add_executable_and_test(
-    UnitTestDeclareAndInitConstraints
-    SOURCES
+  UnitTestDeclareAndInitConstraints
+  SOURCES
     UnitTestDeclareAndInitConstraints.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-4
+)
 
 tribits_add_executable_and_test(
-    UnitTestSprings
-    SOURCES
+  UnitTestSprings
+  SOURCES
     UnitTestSprings.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    NUM_MPI_PROCS 1-2
-    )
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  NUM_MPI_PROCS 1-2
+)

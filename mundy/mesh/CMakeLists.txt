@@ -20,6 +20,7 @@ SET(NOINSTALLHEADERS
   include/mundy_mesh/MetaData.hpp
   include/mundy_mesh/StringToSelector.hpp
   include/mundy_mesh/StringToTopology.hpp
+  include/mundy_mesh/fmt_stk_types.hpp
   include/mundy_mesh/utils/DestroyFlaggedEntities.hpp
   include/mundy_mesh/utils/FillFieldWithValue.hpp
   include/mundy_mesh/utils/SelectorEval.hpp

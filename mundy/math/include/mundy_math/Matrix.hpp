@@ -94,42 +94,43 @@ namespace impl {
 
 /// \brief Deep copy assignment operator with (potentially) different accessor
 /// \details Copies the data from the other matrix to our data. This is only enabled if T is not const.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
+          ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void deep_copy_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat,
-                                           const Matrix<T, N, M, auto, auto>& other) {
+KOKKOS_INLINE_FUNCTION void deep_copy_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat,
+                                           const Matrix<T, N, M, OtherAccessor, OtherOwnershipType>& other) {
   ((mat[Is] = other[Is]), ...);
 }
 
 /// \brief Move assignment operator with same accessor
 /// \details Moves the data from the other matrix to our data. This is only enabled if T is not const.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
+          ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void move_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat,
-                                      Matrix<T, N, M, auto, auto>&& other) {
+KOKKOS_INLINE_FUNCTION void move_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat,
+                                      Matrix<T, N, M, OtherAccessor, OtherOwnershipType>&& other) {
   ((mat[Is] = std::move(other[Is])), ...);
 }
 
 /// \brief Get a deep copy of a certain column of the matrix
 /// \param[in] col The column index.
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION Vector<std::remove_const_t<T>, N> copy_column_impl(std::index_sequence<Is...>,
-                                                                          const Matrix<T, N, M, auto, auto>& mat,
-                                                                          size_t col) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION Vector<std::remove_const_t<T>, N> copy_column_impl(
+    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat, size_t col) {
   return {mat[col + Is * N]...};
 }
 
 /// \brief Get a deep copy of a certain row of the matrix
 /// \param[in] row The row index.
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION Vector<std::remove_const_t<T>, M> copy_row_impl(std::index_sequence<Is...>,
-                                                                       const Matrix<T, N, M, auto, auto>& mat,
-                                                                       size_t row) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION Vector<std::remove_const_t<T>, M> copy_row_impl(
+    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat, size_t row) {
   return {mat[M * row + Is]...};
 }
 
 /// \brief Create a mask that excludes a specific row and column
 template <size_t N, size_t M, size_t excluded_row, size_t excluded_col>
+KOKKOS_INLINE_FUNCTION
 static constexpr Kokkos::Array<bool, N * M> create_row_and_col_mask() {
   Kokkos::Array<bool, N * M> mask{};
   for (size_t i = 0; i < N; ++i) {
@@ -141,50 +142,55 @@ static constexpr Kokkos::Array<bool, N * M> create_row_and_col_mask() {
 }
 
 /// \brief Cast (and copy) the matrix to a different type
-template <typename U, size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION auto cast_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <typename U, size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto cast_impl(std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return Matrix<U, N, M>{static_cast<U>(mat[Is])...};
 }
 
 /// \brief Set all elements of the matrix
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename... Args>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename... Args>
   requires HasNonConstAccessOperator<Accessor, T>
-void set_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat, Args&&... args) {
+KOKKOS_INLINE_FUNCTION void set_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat, Args&&... args) {
   ((mat[Is] = std::forward<Args>(args)), ...);
 }
 
 /// \brief Set all elements of the matrix using an accessor
 /// \param[in] accessor A valid accessor.
 /// \note A Matrix is also a valid accessor.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-void set_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat, const auto& accessor) {
+KOKKOS_INLINE_FUNCTION void set_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat, const auto& accessor) {
   ((mat[Is] = accessor[Is]), ...);
 }
 
 /// \brief Set a certain row of the matrix
 /// \param[in] i The row index.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename... Args>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename... Args>
   requires HasNonConstAccessOperator<Accessor, T>
-void set_row_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat, const size_t& i, Args&&... args) {
+KOKKOS_INLINE_FUNCTION void set_row_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat, const size_t& i,
+                  Args&&... args) {
   ((mat[Is + M * i] = std::forward<Args>(args)), ...);
 }
 
 /// \brief Set a certain row of the matrix
 /// \param[in] i The row index.
 /// \param[in] row The row vector.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
+          ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-void set_row_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat, const size_t& i,
-                  const Vector<T, M, auto>& row) {
+KOKKOS_INLINE_FUNCTION void set_row_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat, const size_t& i,
+                  const Vector<T, M, OtherAccessor, OtherOwnershipType>& row) {
   ((mat[Is + M * i] = row[Is]), ...);
 }
 
 /// \brief Set a certain column of the matrix
 /// \param[in] j The column index.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename... Args>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename... Args>
   requires HasNonConstAccessOperator<Accessor, T>
-void set_column_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat, const size_t& j,
+KOKKOS_INLINE_FUNCTION void set_column_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat, const size_t& j,
                      Args&&... args) {
   ((mat[j + Is * N] = std::forward<Args>(args)), ...);
 }
@@ -192,25 +198,26 @@ void set_column_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>
 /// \brief Set a certain column of the matrix
 /// \param[in] j The column index.
 /// \param[in] col The column vector.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
+          ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-void set_column_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat, const size_t& j,
-                     const Vector<T, N, auto>& col) {
+KOKKOS_INLINE_FUNCTION void set_column_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat, const size_t& j,
+                     const Vector<T, N, OtherAccessor, OtherOwnershipType>& col) {
   ((mat[j + Is * N] = col[Is]), ...);
 }
 
 /// \brief Set all elements of the matrix to a single value
 /// \param[in] value The value to set all elements to.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-void fill_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat, const T& value) {
+KOKKOS_INLINE_FUNCTION void fill_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat, const T& value) {
   ((mat[Is] = value), ...);
 }
 
 /// \brief Unary minus operator
-template <size_t... Is, typename T, size_t N, size_t M>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
 KOKKOS_INLINE_FUNCTION Matrix<T, N, M> unary_minus_impl(std::index_sequence<Is...>,
-                                                        const Matrix<T, N, M, auto, auto>& mat) {
+                                                        const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   Matrix<T, N, M> result;
   ((result[Is] = -mat[Is]), ...);
   return result;
@@ -218,10 +225,11 @@ KOKKOS_INLINE_FUNCTION Matrix<T, N, M> unary_minus_impl(std::index_sequence<Is..
 
 /// \brief Matrix-matrix addition
 /// \param[in] other The other matrix.
-template <size_t... Is, typename T, size_t N, size_t M, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, typename U, ValidAccessor<T> Accessor, typename OwnershipType,
+          ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
 KOKKOS_INLINE_FUNCTION auto matrix_matrix_addition_impl(
-    std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat,
-    const Matrix<U, N, M, auto, auto>& other) -> Matrix<std::common_type_t<T, U>, N, M> {
+    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat,
+    const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
   ((result[Is] = static_cast<CommonType>(mat[Is]) + static_cast<CommonType>(other[Is])), ...);
@@ -230,10 +238,12 @@ KOKKOS_INLINE_FUNCTION auto matrix_matrix_addition_impl(
 
 /// \brief Self-matrix addition
 /// \param[in] other The other matrix.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U,
+          ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void self_matrix_addition_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat,
-                                                      const Matrix<U, N, M, auto, auto>& other)
+KOKKOS_INLINE_FUNCTION void self_matrix_addition_impl(std::index_sequence<Is...>,
+                                                      Matrix<T, N, M, Accessor, OwnershipType>& mat,
+                                                      const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other)
   requires HasNonConstAccessOperator<Accessor, T>
 {
   ((mat[Is] += static_cast<T>(other[Is])), ...);
@@ -241,10 +251,11 @@ KOKKOS_INLINE_FUNCTION void self_matrix_addition_impl(std::index_sequence<Is...>
 
 /// \brief Matrix-matrix subtraction
 /// \param[in] other The other matrix.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U,
+          ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
 KOKKOS_INLINE_FUNCTION auto matrix_matrix_subtraction_impl(
-    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, auto>& mat,
-    const Matrix<U, N, M, auto, auto>& other) -> Matrix<std::common_type_t<T, U>, N, M> {
+    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat,
+    const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
   ((result[Is] = static_cast<CommonType>(mat[Is]) - static_cast<CommonType>(other[Is])), ...);
@@ -253,11 +264,12 @@ KOKKOS_INLINE_FUNCTION auto matrix_matrix_subtraction_impl(
 
 /// \brief Matrix-matrix subtraction
 /// \param[in] other The other matrix.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U,
+          ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void self_matrix_subtraction_impl(std::index_sequence<Is...>,
-                                                         Matrix<T, N, M, Accessor, auto>& mat,
-                                                         const Matrix<U, N, M, auto, auto>& other)
+KOKKOS_INLINE_FUNCTION void self_matrix_subtraction_impl(
+    std::index_sequence<Is...>, Matrix<T, N, M, Accessor, OwnershipType>& mat,
+    const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other)
   requires HasNonConstAccessOperator<Accessor, T>
 {
   ((mat[Is] -= static_cast<T>(other[Is])), ...);
@@ -265,9 +277,9 @@ KOKKOS_INLINE_FUNCTION void self_matrix_subtraction_impl(std::index_sequence<Is.
 
 /// \brief Matrix-scalar addition
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
 KOKKOS_INLINE_FUNCTION auto matrix_scalar_addition_impl(std::index_sequence<Is...>,
-                                                        const Matrix<T, N, M, Accessor, auto>& mat,
+                                                        const Matrix<T, N, M, Accessor, OwnershipType>& mat,
                                                         const U& scalar) -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
@@ -277,10 +289,10 @@ KOKKOS_INLINE_FUNCTION auto matrix_scalar_addition_impl(std::index_sequence<Is..
 
 /// \brief Matrix-scalar addition
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void self_scalar_addition_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat,
-                                                      const U& scalar)
+KOKKOS_INLINE_FUNCTION void self_scalar_addition_impl(std::index_sequence<Is...>,
+                                                      Matrix<T, N, M, Accessor, OwnershipType>& mat, const U& scalar)
   requires HasNonConstAccessOperator<Accessor, T>
 {
   ((mat[Is] += static_cast<T>(scalar)), ...);
@@ -288,9 +300,9 @@ KOKKOS_INLINE_FUNCTION void self_scalar_addition_impl(std::index_sequence<Is...>
 
 /// \brief Matrix-scalar subtraction
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
 KOKKOS_INLINE_FUNCTION auto matrix_scalar_subtraction_impl(std::index_sequence<Is...>,
-                                                           const Matrix<T, N, M, Accessor, auto>& mat,
+                                                           const Matrix<T, N, M, Accessor, OwnershipType>& mat,
                                                            const U& scalar) -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
@@ -300,10 +312,10 @@ KOKKOS_INLINE_FUNCTION auto matrix_scalar_subtraction_impl(std::index_sequence<I
 
 /// \brief Self-scalar subtraction
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
   requires HasNonConstAccessOperator<Accessor, T>
 KOKKOS_INLINE_FUNCTION void self_scalar_subtraction_impl(std::index_sequence<Is...>,
-                                                         Matrix<T, N, M, Accessor, auto>& mat, const U& scalar)
+                                                         Matrix<T, N, M, Accessor, OwnershipType>& mat, const U& scalar)
   requires HasNonConstAccessOperator<Accessor, T>
 {
   ((mat[Is] -= static_cast<T>(scalar)), ...);
@@ -311,11 +323,12 @@ KOKKOS_INLINE_FUNCTION void self_scalar_subtraction_impl(std::index_sequence<Is.
 
 /// \brief Matrix-matrix multiplication
 /// \param[in] other The other matrix.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U, size_t OtherN,
-          size_t OtherM>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U,
+          size_t OtherN, size_t OtherM, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
 KOKKOS_INLINE_FUNCTION auto matrix_matrix_multiplication_impl(
-    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, auto>& mat,
-    const Matrix<U, OtherN, OtherM, auto>& other) -> Matrix<std::common_type_t<T, U>, OtherN, OtherM> {
+    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat,
+    const Matrix<U, OtherN, OtherM, OtherAccessor, OtherOwnershipType>& other)
+    -> Matrix<std::common_type_t<T, U>, OtherN, OtherM> {
   static_assert(M == OtherN,
                 "Matrix-matrix multiplication requires the number of columns in the first matrix to be equal to the "
                 "number of rows in the second matrix.");
@@ -331,11 +344,12 @@ KOKKOS_INLINE_FUNCTION auto matrix_matrix_multiplication_impl(
 
 /// \brief Self-matrix multiplication
 /// \param[in] other The other matrix.
-template <size_t... Is, typename T, size_t N, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, ValidAccessor<T> Accessor, typename OwnershipType, typename U,
+          ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void self_matrix_multiplication_impl(std::index_sequence<Is...>,
-                                                            Matrix<T, N, N, Accessor, auto>& mat,
-                                                            const Matrix<U, N, N, auto>& other)
+KOKKOS_INLINE_FUNCTION void self_matrix_multiplication_impl(
+    std::index_sequence<Is...>, Matrix<T, N, N, Accessor, OwnershipType>& mat,
+    const Matrix<U, N, N, OtherAccessor, OtherOwnershipType>& other)
   requires HasNonConstAccessOperator<Accessor, T>
 {
   // When writing to self, it's important to not write over data before we use it.
@@ -347,10 +361,11 @@ KOKKOS_INLINE_FUNCTION void self_matrix_multiplication_impl(std::index_sequence<
 
 /// \brief Matrix-vector multiplication
 /// \param[in] other The other vector.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U,
+          ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
 KOKKOS_INLINE_FUNCTION auto matrix_vector_multiplication_impl(
-    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, auto>& mat,
-    const Vector<U, M, auto, auto>& other) -> Vector<std::common_type_t<T, U>, N> {
+    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat,
+    const Vector<U, M, OtherAccessor, OtherOwnershipType>& other) -> Vector<std::common_type_t<T, U>, N> {
   using CommonType = std::common_type_t<T, U>;
   Vector<CommonType, N> result;
   (..., (result[Is] = dot(mat.template view_row<Is>(), other)));
@@ -359,9 +374,9 @@ KOKKOS_INLINE_FUNCTION auto matrix_vector_multiplication_impl(
 
 /// \brief Matrix-scalar multiplication
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
 KOKKOS_INLINE_FUNCTION auto matrix_scalar_multiplication_impl(
-    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, auto>& mat,
+    std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat,
     const U& scalar) -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
@@ -371,10 +386,11 @@ KOKKOS_INLINE_FUNCTION auto matrix_scalar_multiplication_impl(
 
 /// \brief Self-scalar multiplication
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
   requires HasNonConstAccessOperator<Accessor, T>
 KOKKOS_INLINE_FUNCTION void self_scalar_multiplication_impl(std::index_sequence<Is...>,
-                                                            Matrix<T, N, M, Accessor, auto>& mat, const U& scalar)
+                                                            Matrix<T, N, M, Accessor, OwnershipType>& mat,
+                                                            const U& scalar)
   requires HasNonConstAccessOperator<Accessor, T>
 {
   ((mat[Is] *= static_cast<T>(scalar)), ...);
@@ -382,9 +398,9 @@ KOKKOS_INLINE_FUNCTION void self_scalar_multiplication_impl(std::index_sequence<
 
 /// \brief Matrix-scalar division
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
 KOKKOS_INLINE_FUNCTION auto matrix_scalar_division_impl(std::index_sequence<Is...>,
-                                                        const Matrix<T, N, M, Accessor, auto>& mat,
+                                                        const Matrix<T, N, M, Accessor, OwnershipType>& mat,
                                                         const U& scalar) -> Matrix<std::common_type_t<T, U>, N, M> {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
@@ -394,10 +410,10 @@ KOKKOS_INLINE_FUNCTION auto matrix_scalar_division_impl(std::index_sequence<Is..
 
 /// \brief Self-scalar division
 /// \param[in] scalar The scalar.
-template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename U>
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType, typename U>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void self_scalar_division_impl(std::index_sequence<Is...>, Matrix<T, N, M, Accessor, auto>& mat,
-                                                      const U& scalar)
+KOKKOS_INLINE_FUNCTION void self_scalar_division_impl(std::index_sequence<Is...>,
+                                                      Matrix<T, N, M, Accessor, OwnershipType>& mat, const U& scalar)
   requires HasNonConstAccessOperator<Accessor, T>
 {
   ((mat[Is] /= static_cast<T>(scalar)), ...);
@@ -407,29 +423,32 @@ KOKKOS_INLINE_FUNCTION void self_scalar_division_impl(std::index_sequence<Is...>
 /// \param[in] mat1 The first matrix.
 /// \param[in] mat2 The second matrix.
 /// \param[in] tol The tolerance.
-template <size_t... Is, typename T, size_t N, size_t M, typename U, typename V>
+template <size_t... Is, typename T, size_t N, size_t M, typename U, typename V, ValidAccessor<T> Accessor,
+          typename OwnershipType, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
   requires std::is_arithmetic_v<V>
-KOKKOS_INLINE_FUNCTION bool is_close_impl(std::index_sequence<Is...>, const Matrix<U, N, M, auto, auto>& mat1,
-                                          const Matrix<T, N, M, auto, auto>& mat2, const V& tol) {
+KOKKOS_INLINE_FUNCTION bool is_close_impl(std::index_sequence<Is...>,
+                                          const Matrix<U, N, M, Accessor, OwnershipType>& mat1,
+                                          const Matrix<T, N, M, OtherAccessor, OtherOwnershipType>& mat2,
+                                          const V& tol) {
   // Use the type of the tolerance to determine the comparison type
   return ((Kokkos::abs(static_cast<V>(mat1[Is]) - static_cast<V>(mat2[Is])) <= tol) && ...);
 }
 
 /// \brief Sum of all elements
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION T sum_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION T sum_impl(std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return (mat[Is] + ...);
 }
 
 /// \brief Product of all elements
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION T product_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION T product_impl(std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return (mat[Is] * ...);
 }
 
 /// \brief Min of all elements
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION T min_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION T min_impl(std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   // Initialize min_value with the first element
   T min_value = mat[0];
   ((min_value = (mat[Is] < min_value ? mat[Is] : min_value)), ...);
@@ -437,8 +456,8 @@ KOKKOS_INLINE_FUNCTION T min_impl(std::index_sequence<Is...>, const Matrix<T, N,
 }
 
 /// \brief Max of all elements
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION T max_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION T max_impl(std::index_sequence<Is...>, const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   // Initialize max_value with the first element
   T max_value = mat[0];
   ((max_value = (mat[Is] > max_value ? mat[Is] : max_value)), ...);
@@ -446,9 +465,10 @@ KOKKOS_INLINE_FUNCTION T max_impl(std::index_sequence<Is...>, const Matrix<T, N,
 }
 
 /// \brief Variance of all elements
-template <size_t... Is, typename T, size_t N, size_t M,
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
           typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_INLINE_FUNCTION OutputType variance_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+KOKKOS_INLINE_FUNCTION OutputType variance_impl(std::index_sequence<Is...>,
+                                                const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   OutputType inv_NM = static_cast<OutputType>(1.0) / static_cast<OutputType>(N * M);
   OutputType mat_mean = inv_NM * sum_impl(std::make_index_sequence<N * M>{}, mat);
   return (((static_cast<OutputType>(mat[Is]) - mat_mean) * (static_cast<OutputType>(mat[Is]) - mat_mean)) + ...) *
@@ -456,24 +476,26 @@ KOKKOS_INLINE_FUNCTION OutputType variance_impl(std::index_sequence<Is...>, cons
 }
 
 /// \brief Standard deviation of all elements
-template <size_t... Is, typename T, size_t N, size_t M,
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType,
           typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
 KOKKOS_INLINE_FUNCTION OutputType standard_deviation_impl(std::index_sequence<Is...>,
-                                                          const Matrix<T, N, M, auto, auto>& mat) {
+                                                          const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return std::sqrt(variance_impl(std::make_index_sequence<N * M>{}, mat));
 }
 
 /// \brief Matrix determinant (specialized for size 1 matrices)
-template <size_t N, size_t... Is, typename T>
+template <size_t N, size_t... Is, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
   requires(N == 1)
-KOKKOS_INLINE_FUNCTION auto determinant_impl(std::index_sequence<Is...>, const Matrix<T, N, N, auto, auto>& mat) {
+KOKKOS_INLINE_FUNCTION auto determinant_impl(std::index_sequence<Is...>,
+                                             const Matrix<T, N, N, Accessor, OwnershipType>& mat) {
   return mat(0, 0);
 }
 
 /// \brief Matrix determinant
-template <size_t N, size_t... Is, typename T>
+template <size_t N, size_t... Is, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
   requires(N != 1)
-KOKKOS_INLINE_FUNCTION auto determinant_impl(std::index_sequence<Is...>, const Matrix<T, N, N, auto, auto>& mat) {
+KOKKOS_INLINE_FUNCTION auto determinant_impl(std::index_sequence<Is...>,
+                                             const Matrix<T, N, N, Accessor, OwnershipType>& mat) {
   // Recursively compute the determinant using the Laplace expansion
   // Use views to avoid copying the matrix
   return ((mat(0, Is) * determinant_impl<N - 1>(std::make_index_sequence<N - 1>{}, mat.template view_minor<0, Is>()) *
@@ -482,34 +504,39 @@ KOKKOS_INLINE_FUNCTION auto determinant_impl(std::index_sequence<Is...>, const M
 }
 
 /// \brief Matrix transpose
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION auto transpose_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto transpose_impl(std::index_sequence<Is...>,
+                                           const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   Matrix<T, M, N> result;
   ((result(Is % M, Is / M) = mat(Is / N, Is % N)), ...);
   return result;
 }
 
 /// \brief Matrix cofactors
-template <size_t... Is, typename T, size_t N>
-KOKKOS_INLINE_FUNCTION auto cofactors_impl(std::index_sequence<Is...>, const Matrix<T, N, N, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto cofactors_impl(std::index_sequence<Is...>,
+                                           const Matrix<T, N, N, Accessor, OwnershipType>& mat) {
   Matrix<T, N, N> result;
   ((result[Is] = determinant(mat.template view_minor<Is / N, Is % N>()) * ((Is % 2 == 0) ? 1 : -1)), ...);
   return result;
 }
 
 /// \brief Frobenius inner product of two matrices
-template <size_t... Is, typename T, size_t N, size_t M, typename U>
-KOKKOS_INLINE_FUNCTION auto frobenius_inner_product_impl(std::index_sequence<Is...>,
-                                                         const Matrix<U, N, M, auto, auto>& mat1,
-                                                         const Matrix<T, N, M, auto, auto>& mat2) {
+template <size_t... Is, typename T, size_t N, size_t M, typename U, ValidAccessor<U> Accessor, typename OwnershipType,
+          ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
+KOKKOS_INLINE_FUNCTION auto frobenius_inner_product_impl(
+    std::index_sequence<Is...>, const Matrix<U, N, M, Accessor, OwnershipType>& mat1,
+    const Matrix<T, N, M, OtherAccessor, OtherOwnershipType>& mat2) {
   using CommonType = std::common_type_t<T, U>;
   return ((static_cast<CommonType>(mat1[Is]) * static_cast<CommonType>(mat2[Is])) + ...);
 }
 
 /// \brief Outer product of two vectors (result is a matrix)
-template <size_t... Is, typename T, size_t N, size_t M, typename U>
-KOKKOS_INLINE_FUNCTION auto outer_product_impl(std::index_sequence<Is...>, const Vector<U, N, auto, auto>& vec1,
-                                               const Vector<T, M, auto, auto>& vec2) {
+template <size_t... Is, typename T, size_t N, size_t M, typename U, ValidAccessor<U> Accessor, typename OwnershipType,
+          ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
+KOKKOS_INLINE_FUNCTION auto outer_product_impl(std::index_sequence<Is...>,
+                                               const Vector<U, N, Accessor, OwnershipType>& vec1,
+                                               const Vector<T, M, OtherAccessor, OtherOwnershipType>& vec2) {
   using CommonType = std::common_type_t<T, U>;
   Matrix<CommonType, N, M> result;
   ((result(Is / M, Is % M) = static_cast<CommonType>(vec1[Is / M]) * static_cast<CommonType>(vec2[Is % M])), ...);
@@ -517,16 +544,18 @@ KOKKOS_INLINE_FUNCTION auto outer_product_impl(std::index_sequence<Is...>, const
 }
 
 /// \brief Infinity norm
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION T infinity_norm_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION T infinity_norm_impl(std::index_sequence<Is...>,
+                                            const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   T max_value = Kokkos::abs(sum(mat.template view_row<0>()));
   ((max_value = Kokkos::max(max_value, Kokkos::abs(sum(mat.template view_row<Is>())))), ...);
   return max_value;
 }
 
 /// \brief One norm
-template <size_t... Is, typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION T one_norm_impl(std::index_sequence<Is...>, const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t... Is, typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION T one_norm_impl(std::index_sequence<Is...>,
+                                       const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   // Max absolute column sum
   T max_value = Kokkos::abs(sum(mat.template view_column<0>()));
   ((max_value = Kokkos::max(max_value, Kokkos::abs(sum(mat.template view_column<Is>())))), ...);
@@ -599,9 +628,9 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
 
   /// \brief Deep copy assignment operator with different accessor
   /// \details Copies the data from the other matrix to our data. This is only enabled if T is not const.
-  template <typename OtherAccessor>
+  template <typename OtherAccessor, typename OtherOwnershipType>
   KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator=(
-      const Matrix<T, N, M, OtherAccessor, auto>& other)
+      const Matrix<T, N, M, OtherAccessor, OtherOwnershipType>& other)
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
   {
     impl::deep_copy_impl(std::make_index_sequence<N * M>{}, *this, other);
@@ -611,8 +640,9 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Deep copy assignment operator with same accessor
   /// \details Copies the data from the other matrix to our data. This is only enabled if T is not const.
   /// Yes, this function is necessary. If we only use the version for differing accessor, the compiler can get confused.
+  template <typename OtherOwnershipType>
   KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator=(
-      const Matrix<T, N, M, Accessor, auto>& other)
+      const Matrix<T, N, M, Accessor, OtherOwnershipType>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::deep_copy_impl(std::make_index_sequence<N * M>{}, *this, other);
@@ -808,7 +838,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
     // diagonal.
     constexpr size_t stride = N + 1;
     auto strided_data_accessor = get_strided_view<T, stride>(accessor_);
-    return get_owning_vector<T, std::min(N, M)>(std::move(strided_data_accessor));
+    return get_owning_vector<T, Kokkos::min(N, M)>(std::move(strided_data_accessor));
   }
 
   /// \brief Get a view into the diagonal of the matrix
@@ -817,7 +847,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
     // diagonal.
     constexpr size_t stride = N + 1;
     auto strided_data_accessor = get_strided_view<T, stride>(accessor_);
-    return get_owning_vector<T, std::min(N, M)>(std::move(strided_data_accessor));
+    return get_owning_vector<T, Kokkos::min(N, M)>(std::move(strided_data_accessor));
   }
 
   /// \brief Get a view into the transpose of the matrix
@@ -903,7 +933,8 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Set a certain row of the matrix
   /// \param[in] i The row index.
   /// \param[in] row The row vector.
-  KOKKOS_INLINE_FUNCTION void set_row(const size_t& i, const Vector<T, M, auto, auto>& row)
+  template <ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION void set_row(const size_t& i, const Vector<T, M, OtherAccessor, OtherOwnershipType>& row)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::set_row_impl(std::make_index_sequence<M>{}, *this, i, row);
@@ -920,7 +951,8 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Set a certain column of the matrix
   /// \param[in] j The column index.
   /// \param[in] col The column vector.
-  KOKKOS_INLINE_FUNCTION void set_column(const size_t& j, const Vector<T, N, auto, auto>& col)
+  template <ValidAccessor<T> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION void set_column(const size_t& j, const Vector<T, N, OtherAccessor, OtherOwnershipType>& col)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::set_column_impl(std::make_index_sequence<N>{}, *this, j, col);
@@ -956,15 +988,16 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
 
   /// \brief Matrix-matrix addition
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator+(const Matrix<U, N, M, OtherAccessor>& other) const {
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION auto operator+(const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) const {
     return impl::matrix_matrix_addition_impl(std::make_index_sequence<N * M>{}, *this, other);
   }
 
   /// \brief Self-matrix addition
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator+=(const Matrix<U, N, M, OtherAccessor>& other)
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator+=(
+      const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_matrix_addition_impl(std::make_index_sequence<N * M>{}, *this, other);
@@ -973,15 +1006,16 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
 
   /// \brief Matrix-matrix subtraction
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator-(const Matrix<U, N, M, OtherAccessor>& other) const {
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION auto operator-(const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) const {
     return impl::matrix_matrix_subtraction_impl(std::make_index_sequence<N * M>{}, *this, other);
   }
 
   /// \brief Self-matrix subtraction
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator-=(const Matrix<U, N, M, OtherAccessor>& other)
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator-=(
+      const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_matrix_subtraction_impl(std::make_index_sequence<N * M>{}, *this, other);
@@ -998,7 +1032,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Self-scalar addition
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator+=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator+=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_addition_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1015,7 +1049,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Self-scalar subtraction
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator-=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator-=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_subtraction_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1028,15 +1062,17 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
 
   /// \brief Matrix-matrix multiplication
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor, size_t OtherN, size_t OtherM>
-  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix<U, OtherN, OtherM, OtherAccessor>& other) const {
+  template <typename U, size_t OtherN, size_t OtherM, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION auto operator*(
+      const Matrix<U, OtherN, OtherM, OtherAccessor, OtherOwnershipType>& other) const {
     return impl::matrix_matrix_multiplication_impl(std::make_index_sequence<N * OtherM>{}, *this, other);
   }
 
   /// \brief Self-matrix multiplication
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor, size_t OtherN, size_t OtherM>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator*=(const Matrix<U, OtherN, OtherM, OtherAccessor>& other)
+  template <typename U, size_t OtherN, size_t OtherM, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator*=(
+      const Matrix<U, OtherN, OtherM, OtherAccessor, OtherOwnershipType>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     constexpr bool all_sizes_match = (N == OtherM) && (M == OtherN) && (N == M);
@@ -1064,7 +1100,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Self-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator*=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator*=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_multiplication_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1081,7 +1117,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Self-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator/=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Views>& operator/=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_division_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1093,8 +1129,9 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   //@{
 
   // Declare the << operator as a friend
-  template <typename U, size_t OtherN, size_t OtherM>
-  friend std::ostream& operator<<(std::ostream& os, const Matrix<U, OtherN, OtherM, auto>& mat);
+  template <typename U, size_t OtherN, size_t OtherM, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const Matrix<U, OtherN, OtherM, OtherAccessor, OtherOwnershipType>& mat);
 
   // We are friends with all Matrixs  regardless of their Accessor or type
   template <typename U, size_t OtherN, size_t OtherM, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
@@ -1454,7 +1491,7 @@ class Matrix {
     // diagonal.
     constexpr size_t stride = N + 1;
     auto strided_data_accessor = get_strided_view<T, stride>(accessor_);
-    return get_owning_vector<T, std::min(N, M)>(std::move(strided_data_accessor));
+    return get_owning_vector<T, Kokkos::min(N, M)>(std::move(strided_data_accessor));
   }
 
   /// \brief Get a view into the diagonal of the matrix
@@ -1463,7 +1500,7 @@ class Matrix {
     // diagonal.
     constexpr size_t stride = N + 1;
     auto strided_data_accessor = get_strided_view<T, stride>(accessor_);
-    return get_owning_vector<T, std::min(N, M)>(std::move(strided_data_accessor));
+    return get_owning_vector<T, Kokkos::min(N, M)>(std::move(strided_data_accessor));
   }
 
   /// \brief Get a view into the transpose of the matrix
@@ -1604,15 +1641,16 @@ class Matrix {
 
   /// \brief Matrix-matrix addition
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator+(const Matrix<U, N, M, OtherAccessor>& other) const {
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION auto operator+(const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) const {
     return impl::matrix_matrix_addition_impl(std::make_index_sequence<N * M>{}, *this, other);
   }
 
   /// \brief Self-matrix addition
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator+=(const Matrix<U, N, M, OtherAccessor>& other)
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator+=(
+      const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_matrix_addition_impl(std::make_index_sequence<N * M>{}, *this, other);
@@ -1621,15 +1659,16 @@ class Matrix {
 
   /// \brief Matrix-matrix subtraction
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator-(const Matrix<U, N, M, OtherAccessor>& other) const {
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION auto operator-(const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) const {
     return impl::matrix_matrix_subtraction_impl(std::make_index_sequence<N * M>{}, *this, other);
   }
 
   /// \brief Self-matrix subtraction
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator-=(const Matrix<U, N, M, OtherAccessor>& other)
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator-=(
+      const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_matrix_subtraction_impl(std::make_index_sequence<N * M>{}, *this, other);
@@ -1646,7 +1685,7 @@ class Matrix {
   /// \brief Self-scalar addition
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator+=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Owns>& operator+=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_addition_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1663,7 +1702,7 @@ class Matrix {
   /// \brief Self-scalar subtraction
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator-=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Owns>& operator-=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_subtraction_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1676,15 +1715,16 @@ class Matrix {
 
   /// \brief Matrix-matrix multiplication
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix<U, N, M, OtherAccessor>& other) const {
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION auto operator*(const Matrix<U, N, M, OtherAccessor, OtherOwnershipType>& other) const {
     return impl::matrix_matrix_multiplication_impl(std::make_index_sequence<N * M>{}, *this, other);
   }
 
   /// \brief Self-matrix multiplication
   /// \param[in] other The other matrix.
-  template <typename U, typename OtherAccessor, size_t OtherN, size_t OtherM>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator*=(const Matrix<U, OtherN, OtherM, OtherAccessor>& other)
+  template <typename U, typename OtherAccessor, typename OtherOwnershipType, size_t OtherN, size_t OtherM>
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Owns>& operator*=(
+      const Matrix<U, OtherN, OtherM, OtherAccessor, OtherOwnershipType>& other)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     constexpr bool all_sizes_match = (N == OtherM) && (M == OtherN) && (N == M);
@@ -1695,8 +1735,8 @@ class Matrix {
   }
   /// \brief Matrix-vector multiplication
   /// \param[in] other The other vector.
-  template <typename U, typename OtherAccessor>
-  KOKKOS_INLINE_FUNCTION auto operator*(const Vector<U, M, OtherAccessor>& other) const {
+  template <typename U, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  KOKKOS_INLINE_FUNCTION auto operator*(const Vector<U, M, OtherAccessor, OtherOwnershipType>& other) const {
     return impl::matrix_vector_multiplication_impl(std::make_index_sequence<M>{}, *this, other);
   }
 
@@ -1710,7 +1750,7 @@ class Matrix {
   /// \brief Self-scalar multiplication
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator*=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Owns>& operator*=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_multiplication_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1727,7 +1767,7 @@ class Matrix {
   /// \brief Self-scalar division
   /// \param[in] scalar The scalar.
   template <typename U>
-  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor>& operator/=(const U& scalar)
+  KOKKOS_INLINE_FUNCTION Matrix<T, N, M, Accessor, Ownership::Owns>& operator/=(const U& scalar)
     requires HasNonConstAccessOperator<Accessor, T>
   {
     impl::self_scalar_division_impl(std::make_index_sequence<N * M>{}, *this, scalar);
@@ -1768,8 +1808,9 @@ class Matrix {
   //@{
 
   // Declare the << operator as a friend
-  template <typename U, size_t OtherN, size_t OtherM>
-  friend std::ostream& operator<<(std::ostream& os, const Matrix<U, OtherN, OtherM, auto, auto>& mat);
+  template <typename U, size_t OtherN, size_t OtherM, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const Matrix<U, OtherN, OtherM, OtherAccessor, OtherOwnershipType>& mat);
 
   // We are friends with all Matrixs  regardless of their Accessor or type
   template <typename U, size_t OtherN, size_t OtherM, ValidAccessor<U> OtherAccessor, typename OtherOwnershipType>
@@ -1841,8 +1882,8 @@ using OwningMatrix = Matrix<T, N, M, Accessor, Ownership::Owns>;
 /// \brief Write the matrix to an output stream
 /// \param[in] os The output stream.
 /// \param[in] mat The matrix.
-template <typename T, size_t N, size_t M>
-KOKKOS_INLINE_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix<T, N, M, auto, auto>& mat) {
+template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
+std::ostream& operator<<(std::ostream& os, const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   for (size_t i = 0; i < N; ++i) {
     os << "(";
     for (size_t j = 0; j < M; ++j) {
@@ -1867,20 +1908,22 @@ KOKKOS_INLINE_FUNCTION std::ostream& operator<<(std::ostream& os, const Matrix<T
 /// \param[in] mat1 The first matrix.
 /// \param[in] mat2 The second matrix.
 /// \param[in] tol The tolerance (default is determined by the given type).
-template <size_t N, size_t M, typename U, typename T>
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<U> Accessor1, typename OwnershipType1,
+          ValidAccessor<T> Accessor2, typename OwnershipType2>
 KOKKOS_INLINE_FUNCTION bool is_close(
-    const Matrix<U, N, M, auto, auto>& mat1, const Matrix<T, N, M, auto, auto>& mat2,
+    const Matrix<U, N, M, Accessor1, OwnershipType1>& mat1, const Matrix<T, N, M, Accessor2, OwnershipType2>& mat2,
     const std::common_type_t<T, U>& tol = get_zero_tolerance<std::common_type_t<T, U>>()) {
-  return impl::is_close_impl(std::make_index_sequence<N>{}, mat1, mat2, tol);
+  return impl::is_close_impl(std::make_index_sequence<N * M>{}, mat1, mat2, tol);
 }
 
 /// \brief Matrix-matrix equality (element-wise within a relaxed tolerance)
 /// \param[in] mat1 The first matrix.
 /// \param[in] mat2 The second matrix.
 /// \param[in] tol The tolerance (default is determined by the given type).
-template <size_t N, size_t M, typename U, typename T>
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<U> Accessor1, typename OwnershipType1,
+          ValidAccessor<T> Accessor2, typename OwnershipType2>
 KOKKOS_INLINE_FUNCTION bool is_approx_close(
-    const Matrix<U, N, M, auto, auto>& mat1, const Matrix<T, N, M, auto, auto>& mat2,
+    const Matrix<U, N, M, Accessor1, OwnershipType1>& mat1, const Matrix<T, N, M, Accessor2, OwnershipType2>& mat2,
     const std::common_type_t<T, U>& tol = get_relaxed_zero_tolerance<std::common_type_t<T, U>>()) {
   return is_close(mat1, mat2, tol);
 }
@@ -1892,8 +1935,8 @@ KOKKOS_INLINE_FUNCTION bool is_approx_close(
 /// \brief Scalar-matrix addition
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Matrix<T, N, M, auto, auto>& mat)
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Matrix<T, N, M, Accessor, OwnershipType>& mat)
     -> Matrix<std::common_type_t<T, U>, N, M> {
   return mat + scalar;
 }
@@ -1901,8 +1944,8 @@ KOKKOS_INLINE_FUNCTION auto operator+(const U& scalar, const Matrix<T, N, M, aut
 /// \brief Scalar-matrix subtraction
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Matrix<T, N, M, auto, auto>& mat)
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Matrix<T, N, M, Accessor, OwnershipType>& mat)
     -> Matrix<std::common_type_t<T, U>, N, M> {
   return -mat + scalar;
 }
@@ -1914,8 +1957,8 @@ KOKKOS_INLINE_FUNCTION auto operator-(const U& scalar, const Matrix<T, N, M, aut
 /// \brief Scalar-matrix multiplication
 /// \param[in] scalar The scalar.
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Matrix<T, N, M, auto, auto>& mat)
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Matrix<T, N, M, Accessor, OwnershipType>& mat)
     -> Matrix<std::common_type_t<T, U>, N, M> {
   return mat * scalar;
 }
@@ -1923,9 +1966,11 @@ KOKKOS_INLINE_FUNCTION auto operator*(const U& scalar, const Matrix<T, N, M, aut
 /// \brief Vector matrix multiplication (v^T M)
 /// \param[in] vec The vector.
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto operator*(const Vector<U, N, auto, auto>& vec,
-                                      const Matrix<T, N, M, auto, auto>& mat) -> Vector<std::common_type_t<T, U>, M> {
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<T> Accessor1, typename OwnershipType1,
+          ValidAccessor<U> Accessor2, typename OwnershipType2>
+KOKKOS_INLINE_FUNCTION auto operator*(const Vector<U, N, Accessor1, OwnershipType1>& vec,
+                                      const Matrix<T, N, M, Accessor2, OwnershipType2>& mat)
+    -> Vector<std::common_type_t<T, U>, M> {
   // Use view symmantics to avoid copying the matrix during the transpose.
   return mat.view_transpose() * vec;
 }
@@ -1936,86 +1981,92 @@ KOKKOS_INLINE_FUNCTION auto operator*(const Vector<U, N, auto, auto>& vec,
 
 /// \brief Matrix determinant
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto determinant(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto determinant(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   static_assert(N == M, "The determinant is only defined for square matrices.");
   return impl::determinant_impl(std::make_index_sequence<N>{}, mat);
 }
 
 /// \brief Matrix trace
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto trace(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto trace(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return sum(mat.view_diagonal());
 }
 
 /// \brief Sum of all elements
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto sum(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto sum(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::sum_impl(std::make_index_sequence<N * M>{}, mat);
 }
 
 /// \brief Product of all elements
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto product(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto product(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::product_impl(std::make_index_sequence<N * M>{}, mat);
 }
 
 /// \brief Minimum element of the matrix
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto min(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto min(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::min_impl(std::make_index_sequence<N * M>{}, mat);
 }
 
 /// \brief Maximum element of the matrix
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto max(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto max(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::max_impl(std::make_index_sequence<N * M>{}, mat);
 }
 
 /// \brief Mean of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_INLINE_FUNCTION OutputType mean(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_INLINE_FUNCTION OutputType mean(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return static_cast<OutputType>(sum(mat)) / OutputType(N * M);
 }
 
 /// \brief Mean of all elements (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_INLINE_FUNCTION OutputType mean_f(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_INLINE_FUNCTION OutputType mean_f(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return mean(mat);
 }
 
 /// \brief Variance of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_INLINE_FUNCTION OutputType variance(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_INLINE_FUNCTION OutputType variance(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::variance_impl(std::make_index_sequence<N * M>{}, mat);
 }
 
 /// \brief Variance of all elements (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_INLINE_FUNCTION OutputType variance_f(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_INLINE_FUNCTION OutputType variance_f(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return variance(mat);
 }
 
 /// \brief Standard deviation of all elements (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_INLINE_FUNCTION OutputType stddev(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_INLINE_FUNCTION OutputType stddev(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::standard_deviation_impl(std::make_index_sequence<N * M>{}, mat);
 }
 
 /// \brief Standard deviation of all elements (returns a float if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T, typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_INLINE_FUNCTION OutputType stddev_f(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_INLINE_FUNCTION OutputType stddev_f(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return stddev(mat);
 }
 //@}
@@ -2025,29 +2076,30 @@ KOKKOS_INLINE_FUNCTION OutputType stddev_f(const Matrix<T, N, M, auto, auto>& ma
 
 /// \brief Matrix transpose
 /// \param[in] mat The matrix.
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION Matrix<T, M, N> transpose(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION Matrix<T, M, N> transpose(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::transpose_impl(std::make_index_sequence<N * M>{}, mat);
 }
 
 /// \brief Matrix cofactors
 /// \param[in] mat The matrix.
-template <size_t N, typename T>
-KOKKOS_INLINE_FUNCTION Matrix<T, N, N> cofactors(const Matrix<T, N, N, auto, auto>& mat) {
+template <size_t N, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION Matrix<T, N, N> cofactors(const Matrix<T, N, N, Accessor, OwnershipType>& mat) {
   return impl::cofactors_impl(std::make_index_sequence<N * N>{}, mat);
 }
 
 /// \brief Matrix adjugate
 /// \param[in] mat The matrix.
-template <size_t N, typename T>
-KOKKOS_INLINE_FUNCTION Matrix<T, N, N> adjugate(const Matrix<T, N, N, auto, auto>& mat) {
+template <size_t N, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION Matrix<T, N, N> adjugate(const Matrix<T, N, N, Accessor, OwnershipType>& mat) {
   return transpose(cofactors(mat));
 }
 
 /// \briuf Matrix inverse (returns a double if T is an integral type, otherwise returns T)
 /// \param[in] mat The matrix.
-template <size_t N, typename T, typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
-KOKKOS_INLINE_FUNCTION Matrix<OutputType, N, N> inverse(const Matrix<T, N, N, auto, auto>& mat) {
+template <size_t N, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputType = std::conditional_t<std::is_integral_v<T>, double, T>>
+KOKKOS_INLINE_FUNCTION Matrix<OutputType, N, N> inverse(const Matrix<T, N, N, Accessor, OwnershipType>& mat) {
   const auto det = determinant(mat);
   MUNDY_THROW_ASSERT(det != T(0), std::runtime_error, "Matrix<T>: matrix is singular.");
   return adjugate(mat).template cast<OutputType>() / det;
@@ -2058,17 +2110,19 @@ KOKKOS_INLINE_FUNCTION Matrix<OutputType, N, N> inverse(const Matrix<T, N, N, au
 /// \tparam Accessor The accessor for the Matrix, assuming this is part of your implementation.
 /// \tparam OutputElementType The output matrix element type, defaults T if T is an integral type (e.g., float or
 /// double) and float otherwise.
-template <size_t N, typename T, typename OutputElementType = std::conditional_t<std::is_integral_v<T>, float, T>>
-KOKKOS_INLINE_FUNCTION auto inverse_f(const Matrix<T, N, N, auto, auto>& mat) {
+template <size_t N, typename T, ValidAccessor<T> Accessor, typename OwnershipType,
+          typename OutputElementType = std::conditional_t<std::is_integral_v<T>, float, T>>
+KOKKOS_INLINE_FUNCTION auto inverse_f(const Matrix<T, N, N, Accessor, OwnershipType>& mat) {
   return inverse(mat);
 }
 
 /// \brief Matrix Frobenius inner product
 /// \param[in] a The left matrix.
 /// \param[in] b The right matrix.
-template <size_t N, size_t M, typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto frobenius_inner_product(const Matrix<U, N, M, auto, auto>& a,
-                                                    const Matrix<T, N, M, auto, auto>& b) {
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<U> Accessor1, typename OwnershipType1,
+          ValidAccessor<T> Accessor2, typename OwnershipType2>
+KOKKOS_INLINE_FUNCTION auto frobenius_inner_product(const Matrix<U, N, M, Accessor1, OwnershipType1>& a,
+                                                    const Matrix<T, N, M, Accessor2, OwnershipType2>& b) {
   return impl::frobenius_inner_product_impl(std::make_index_sequence<N * M>{}, a, b);
 }
 //@}
@@ -2079,9 +2133,11 @@ KOKKOS_INLINE_FUNCTION auto frobenius_inner_product(const Matrix<U, N, M, auto, 
 /// \brief Outer product of two vectors
 /// \param[in] a The first vector.
 /// \param[in] b The second vector.
-template <size_t N, size_t M, typename U, typename T>
-KOKKOS_INLINE_FUNCTION auto outer_product(const Vector<U, N, auto, auto>& a,
-                                          const Vector<T, M, auto, auto>& b) -> Matrix<std::common_type_t<T, U>, N, M> {
+template <size_t N, size_t M, typename U, typename T, ValidAccessor<U> Accessor1, typename OwnershipType1,
+          ValidAccessor<T> Accessor2, typename OwnershipType2>
+KOKKOS_INLINE_FUNCTION auto outer_product(const Vector<U, N, Accessor1, OwnershipType1>& a,
+                                          const Vector<T, M, Accessor2, OwnershipType2>& b)
+    -> Matrix<std::common_type_t<T, U>, N, M> {
   return impl::outer_product_impl(std::make_index_sequence<N * M>{}, a, b);
 }
 //@}
@@ -2090,26 +2146,26 @@ KOKKOS_INLINE_FUNCTION auto outer_product(const Vector<U, N, auto, auto>& a,
 //@{
 
 /// \brief Matrix Frobenius norm
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto frobenius_norm(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto frobenius_norm(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return std::sqrt(frobenius_inner_product(mat, mat));
 }
 
 /// \brief Matrix infinity norm
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto infinity_norm(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto infinity_norm(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::infinity_norm_impl(std::make_index_sequence<N>{}, mat);
 }
 
 /// \brief Matrix 1-norm
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto one_norm(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto one_norm(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return impl::one_norm_impl(std::make_index_sequence<N>{}, mat);
 }
 
 /// \brief Matrix 2-norm
-template <size_t N, size_t M, typename T>
-KOKKOS_INLINE_FUNCTION auto two_norm(const Matrix<T, N, M, auto, auto>& mat) {
+template <size_t N, size_t M, typename T, ValidAccessor<T> Accessor, typename OwnershipType>
+KOKKOS_INLINE_FUNCTION auto two_norm(const Matrix<T, N, M, Accessor, OwnershipType>& mat) {
   return std::sqrt(frobenius_inner_product(mat, mat));
 }
 //@}

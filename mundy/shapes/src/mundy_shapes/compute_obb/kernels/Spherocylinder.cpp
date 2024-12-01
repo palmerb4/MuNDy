@@ -53,7 +53,7 @@ namespace kernels {
 Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -75,15 +75,15 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
   element_length_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_length_field_name);
   element_obb_field_ptr_ = meta_data_ptr_->get_field<double>(stk::topology::ELEMENT_RANK, element_obb_field_name);
 
-  MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(node_coord_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: node_coord_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_orientation_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_orientation_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_orientation_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_radius_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_radius_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_length_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_length_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_length_field_ptr cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(element_obb_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_obb_field_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: element_obb_field_ptr cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
@@ -94,8 +94,8 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "Spherocylinder: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("Spherocylinder: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;

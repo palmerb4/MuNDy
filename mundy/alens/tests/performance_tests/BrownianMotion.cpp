@@ -138,7 +138,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
                            const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "NodeEulerSphere: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
@@ -149,9 +149,9 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         "NodeEulerSphere: Part '"
-                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+      MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         std::string("NodeEulerSphere: Part '")
+                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -312,8 +312,14 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // NodeEulerSphere
 
-/// \brief Register NodeEulerSphere with NodeEuler default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", NodeEulerSphere, NodeEuler::OurKernelFactory)
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_node_euler_kernels_ =
+[]() {
+  // Register our default kernels
+  NodeEuler::OurKernelFactory::register_new_class<
+            NodeEulerSphere>("SPHERE");
+  return true;
+}();
 
 ///////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////
@@ -406,7 +412,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
                                          const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
       : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
     // The bulk data pointer must not be null.
-    MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                        "ComputeBrownianVelocitySphere: bulk_data_ptr cannot be a nullptr.");
 
     // Validate the input params. Use default values for any parameter not given.
@@ -417,9 +423,9 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
     for (const std::string &part_name : valid_entity_part_names) {
       valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-      MUNDY_THROW_ASSERT(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                         "ComputeBrownianVelocitySphere: Part '"
-                             << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+      MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                         std::string("ComputeBrownianVelocitySphere: Part '")
+                             + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
     }
 
     // Fetch the fields.
@@ -623,8 +629,16 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
   //@}
 };  // ComputeBrownianVelocitySphere
 
-/// \brief Register ComputeBrownianVelocitySphere with ComputeBrownianVelocity default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", ComputeBrownianVelocitySphere, ComputeBrownianVelocity::OurKernelFactory)
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_brownian_velocity_kernels_ =
+[]() {
+  // Register our default kernels
+ ComputeBrownianVelocity::OurKernelFactory::register_new_class<
+          ComputeBrownianVelocitySphere>("SPHERE");
+  return true;
+}();
+
+
 
 int main(int argc, char **argv) {
   // Initialize MPI
@@ -696,7 +710,7 @@ int main(int argc, char **argv) {
   int num_nodes_local = num_spheres_local;
 
   stk::mesh::Part *spheres_part_ptr = meta_data_ptr->get_part("SPHERES");
-  MUNDY_THROW_ASSERT(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
+  MUNDY_THROW_REQUIRE(spheres_part_ptr != nullptr, std::invalid_argument, "SPHERES part not found.");
   stk::mesh::Part &spheres_part = *spheres_part_ptr;
 
   bulk_data_ptr->modification_begin();
@@ -725,7 +739,7 @@ int main(int argc, char **argv) {
   auto node_rng_counter_field_ptr = meta_data_ptr->get_field<unsigned>(stk::topology::NODE_RANK, "NODE_RNG_COUNTER");
 
   auto check_if_exists = [](const stk::mesh::FieldBase *const field_ptr, const std::string &name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
                        name + "cannot be a nullptr. Check that the field exists.");
   };
 

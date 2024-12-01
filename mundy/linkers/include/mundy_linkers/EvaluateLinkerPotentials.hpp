@@ -96,40 +96,38 @@ class EvaluateLinkerPotentials
   //@}
 };  // EvaluateLinkerPotentials
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_evaluate_linker_potentials_kernels_ = []() {
+  // Register our default kernels
+  mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
+      mundy::linkers::evaluate_linker_potentials::kernels::
+          SphereSphereHertzianContact>("SPHERE_SPHERE_HERTZIAN_CONTACT");
+  mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
+      mundy::linkers::evaluate_linker_potentials::kernels::
+          SphereSpherocylinderHertzianContact>("SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT");
+  mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
+      mundy::linkers::evaluate_linker_potentials::kernels::
+          SphereSpherocylinderSegmentHertzianContact>("SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
+  mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
+      mundy::linkers::evaluate_linker_potentials::kernels::
+          SpherocylinderSegmentSpherocylinderSegmentHertzianContact>("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
+  mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
+      mundy::linkers::evaluate_linker_potentials::kernels::
+          SpherocylinderSpherocylinderHertzianContact>("SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT");
+  mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
+      mundy::linkers::evaluate_linker_potentials::kernels::
+          SpherocylinderSpherocylinderSegmentHertzianContact>(
+      "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT");
+  mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory::register_new_class<
+      mundy::linkers::evaluate_linker_potentials::kernels::
+          SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact>(
+      "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_FRICTIONAL_HERTZIAN_CONTACT");
+
+  return true;
+}();
+
 }  // namespace linkers
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-/// \brief Register our default kernels
-MUNDY_REGISTER_METACLASS("SPHERE_SPHERE_HERTZIAN_CONTACT",
-                         mundy::linkers::evaluate_linker_potentials::kernels::SphereSphereHertzianContact,
-                         mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_HERTZIAN_CONTACT",
-                         mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderHertzianContact,
-                         mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-MUNDY_REGISTER_METACLASS(
-    "SPHERE_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
-    mundy::linkers::evaluate_linker_potentials::kernels::SphereSpherocylinderSegmentHertzianContact,
-    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-MUNDY_REGISTER_METACLASS(
-    "SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
-    mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSegmentSpherocylinderSegmentHertzianContact,
-    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-MUNDY_REGISTER_METACLASS(
-    "SPHEROCYLINDER_SPHEROCYLINDER_HERTZIAN_CONTACT",
-    mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderHertzianContact,
-    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-MUNDY_REGISTER_METACLASS(
-    "SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_HERTZIAN_CONTACT",
-    mundy::linkers::evaluate_linker_potentials::kernels::SpherocylinderSpherocylinderSegmentHertzianContact,
-    mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_FRICTIONAL_HERTZIAN_CONTACT",
-                         mundy::linkers::evaluate_linker_potentials::kernels::
-                             SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact,
-                         mundy::linkers::EvaluateLinkerPotentials::OurKernelFactory)
-//@}
 
 #endif  // MUNDY_LINKERS_EVALUATELINKERPOTENTIALS_HPP_

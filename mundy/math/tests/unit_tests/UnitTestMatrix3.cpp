@@ -71,8 +71,9 @@ void is_close_debug(const U& a, const T& b, const std::string& message_if_fail =
 /// \param[in] m1 The first Matrix3
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename T>
-void is_close_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto, auto>& m2,
+template <typename U, typename T, ValidAccessor<U> Accessor1, typename Ownership1, ValidAccessor<T> Accessor2,
+          typename Ownership2>
+void is_close_debug(const Matrix3<U, Accessor1, Ownership1>& m1, const Matrix3<T, Accessor2, Ownership2>& m2,
                     const std::string& message_if_fail = "") {
   if (!is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
@@ -85,8 +86,9 @@ void is_close_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto, aut
 /// \param[in] v1 The first Vector3
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename T>
-void is_close_debug(const Vector3<U, auto, auto>& v1, const Vector3<T, auto, auto>& v2,
+template <typename U, typename T, ValidAccessor<U> Accessor1, typename Ownership1, ValidAccessor<T> Accessor2,
+          typename Ownership2>
+void is_close_debug(const Vector3<U, Accessor1, Ownership1>& v1, const Vector3<T, Accessor2, Ownership2>& v2,
                     const std::string& message_if_fail = "") {
   if (!is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
@@ -99,8 +101,9 @@ void is_close_debug(const Vector3<U, auto, auto>& v1, const Vector3<T, auto, aut
 /// \param[in] m1 The first Matrix3
 /// \param[in] m2 The second Matrix3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename T>
-void is_different_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto, auto>& m2,
+template <typename U, typename T, ValidAccessor<U> Accessor1, typename Ownership1, ValidAccessor<T> Accessor2,
+          typename Ownership2>
+void is_different_debug(const Matrix3<U, Accessor1, Ownership1>& m1, const Matrix3<T, Accessor2, Ownership2>& m2,
                         const std::string& message_if_fail = "") {
   if (is_approx_close(m1, m2)) {
     std::cout << "m1 = " << m1 << std::endl;
@@ -113,8 +116,9 @@ void is_different_debug(const Matrix3<U, auto, auto>& m1, const Matrix3<T, auto,
 /// \param[in] v1 The first Vector3
 /// \param[in] v2 The second Vector3
 /// \param[in] message_if_fail The message to print if the test fails
-template <typename U, typename T>
-void is_different_debug(const Vector3<U, auto, auto>& v1, const Vector3<T, auto, auto>& v2,
+template <typename U, typename T, ValidAccessor<U> Accessor1, typename Ownership1, ValidAccessor<T> Accessor2,
+          typename Ownership2>
+void is_different_debug(const Vector3<U, Accessor1, Ownership1>& v1, const Vector3<T, Accessor2, Ownership2>& v2,
                         const std::string& message_if_fail = "") {
   if (is_approx_close(v1, v2)) {
     std::cout << "v1 = " << v1 << std::endl;
@@ -613,7 +617,10 @@ TYPED_TEST(Matrix3SingleTypeTest, SpecialOperations) {
   is_close_debug(m2, Matrix3<T3>{1, 4, -7, 2, 5, -8, 3, 6, -9}, "Transpose failed.");
 
   // Test the inverse of a singular matrix
+  // Won't throw in release
+#ifndef NDEBUG
   EXPECT_ANY_THROW(inverse(m1));
+#endif
 
   // Test the inverse of a non-singular matrix
   m1 = {1, 2, 3, 0, 1, 4, 5, 6, 0};
@@ -633,7 +640,10 @@ TYPED_TEST(Matrix3SingleTypeTest, SpecialOperationsEdgeCases) {
   is_close_debug(m2, Matrix3<TypeParam>{1, 4, -7, 2, 5, -8, 3, 6, -9}, "Transpose failed.");
 
   // Test the inverse of a singular matrix
+  // Won't throw in release
+#ifndef NDEBUG
   EXPECT_ANY_THROW(inverse(Matrix3<TypeParam>(1, 2, 3, 2, 4, 6, 3, 6, 9)));
+#endif
 
   // Test the inverse of a non-singular matrix. Notice, that even though the input matrix may have integer entries, the
   // inverse will have floating point entries.

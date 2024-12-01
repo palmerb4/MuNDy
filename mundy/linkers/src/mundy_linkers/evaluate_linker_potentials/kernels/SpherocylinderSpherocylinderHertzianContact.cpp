@@ -53,7 +53,7 @@ SpherocylinderSpherocylinderHertzianContact::SpherocylinderSpherocylinderHertzia
     mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "SpherocylinderSpherocylinderHertzianContact: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -90,9 +90,9 @@ SpherocylinderSpherocylinderHertzianContact::SpherocylinderSpherocylinderHertzia
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "SpherocylinderSpherocylinderHertzianContact: Field "
-                           << field_name << " cannot be a nullptr. Check that the field exists.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("SpherocylinderSpherocylinderHertzianContact: Field ")
+                           + field_name + " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(element_radius_field_ptr_, element_radius_field_name);
@@ -113,9 +113,9 @@ SpherocylinderSpherocylinderHertzianContact::SpherocylinderSpherocylinderHertzia
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "SpherocylinderSpherocylinderHertzianContact: Part "
-                             << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("SpherocylinderSpherocylinderHertzianContact: Part ")
+                             + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;

@@ -92,18 +92,18 @@ class DeclareAndInitConstraints
   //@}
 };  // DeclareAndInitConstraints
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_declare_and_init_constraints_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::constraints::DeclareAndInitConstraints::OurTechniqueFactory::register_new_class<
+          mundy::constraints::declare_and_initialize_constraints::techniques::ChainOfSprings>("CHAIN_OF_SPRINGS");
+  return true;
+}();
+
+
 }  // namespace constraints
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// \brief Register our default techniques
-MUNDY_REGISTER_METACLASS("CHAIN_OF_SPRINGS",
-                         mundy::constraints::declare_and_initialize_constraints::techniques::ChainOfSprings,
-                         mundy::constraints::DeclareAndInitConstraints::OurTechniqueFactory)
-
-//@}
 
 #endif  // MUNDY_CONSTRAINTS_DECLAREANDINITCONSTRAINTS_HPP_

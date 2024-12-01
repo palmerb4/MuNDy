@@ -60,7 +60,7 @@ SpherocylinderSpherocylinderSegmentLinker::SpherocylinderSpherocylinderSegmentLi
     mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "SpherocylinderSpherocylinderSegmentLinker: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -97,9 +97,9 @@ SpherocylinderSpherocylinderSegmentLinker::SpherocylinderSpherocylinderSegmentLi
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "SpherocylinderSpherocylinderSegmentLinker: Field "
-                           << field_name << " cannot be a nullptr. Check that the field exists.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("SpherocylinderSpherocylinderSegmentLinker: Field ")
+                           + field_name + " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(node_coord_field_ptr_, node_coord_field_name);
@@ -123,9 +123,9 @@ SpherocylinderSpherocylinderSegmentLinker::SpherocylinderSpherocylinderSegmentLi
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "SpherocylinderSpherocylinderSegmentLinker: Part "
-                             << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("SpherocylinderSpherocylinderSegmentLinker: Part ")
+                             + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -226,9 +226,11 @@ void SpherocylinderSpherocylinderSegmentLinker::execute(
         // spherocylinder_segment
         mundy::math::Vector3<double> closest_point1;
         mundy::math::Vector3<double> closest_point2;
-        const double distance = std::sqrt(mundy::math::distance::distance_sq_between_line_segments(
+        double t1;
+        double t2;
+        const double distance = Kokkos::sqrt(mundy::math::distance::distance_sq_between_line_segments(
             spherocylinder_left_endpt, spherocylinder_right_endpt, spherocylinder_segment_left_endpt,
-            spherocylinder_segment_right_endpt, &closest_point1, &closest_point2));
+            spherocylinder_segment_right_endpt, closest_point1, closest_point2, t1, t2));
 
         // Compute the separation distance and contact normal
         const auto left_to_right_vector = closest_point2 - closest_point1;

@@ -500,7 +500,7 @@ TEST(EvaluateLinkerPotentials, FrictionalHertzianContactSlideSlipSphere) {
           // negative sign.
           const double left_mass = 4.0 / 3.0 * M_PI * left_radius * left_radius * left_radius * density;
           const double right_mass = 4.0 / 3.0 * M_PI * right_radius * right_radius * right_radius * density;
-          const double effective_radius = (left_radius * right_radius) / (left_radius + right_radius);
+          [[maybe_unused]] const double effective_radius = (left_radius * right_radius) / (left_radius + right_radius);
           const double effective_mass = (left_mass * right_mass) / (left_mass + right_mass);
           // const double hertz_poly = std::sqrt(-effective_radius * signed_sep_dist);
           const double hertz_poly = 1.0;  // Hookean contact model

@@ -56,8 +56,6 @@ a single GPU.
 #include <mundy_core/throw_assert.hpp>                                 // for MUNDY_THROW_ASSERT
 #define DOUBLE_ZERO 1.0e-12
 
-#define MUNDY_USE_TEAMS 1
-
 namespace mundy {
 
 namespace alens {
@@ -73,14 +71,14 @@ namespace periphery {
 void gen_sphere_quadrature(const int &order, const double &radius, std::vector<double> *const points_ptr,
                            std::vector<double> *const weights_ptr, std::vector<double> *const normals_ptr,
                            const bool include_poles = false, const bool invert = false) {
-  MUNDY_THROW_ASSERT(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
-  MUNDY_THROW_ASSERT(radius > 0, std::invalid_argument,
-                     "gen_sphere_quadrature: radius must be positive. The current value is " << radius);
-  MUNDY_THROW_ASSERT(points_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
+  MUNDY_THROW_REQUIRE(radius > 0, std::invalid_argument,
+                     std::string("gen_sphere_quadrature: radius must be positive. The current value is ") + radius);
+  MUNDY_THROW_REQUIRE(points_ptr != nullptr, std::invalid_argument,
                      "gen_sphere_quadrature: points_ptr must be non-null.");
-  MUNDY_THROW_ASSERT(weights_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(weights_ptr != nullptr, std::invalid_argument,
                      "gen_sphere_quadrature: weights_ptr must be non-null.");
-  MUNDY_THROW_ASSERT(normals_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(normals_ptr != nullptr, std::invalid_argument,
                      "gen_sphere_quadrature: normals_ptr must be non-null.");
 
   // Get references to the vectors
@@ -1215,7 +1213,7 @@ class FastDirectPeriphery {
   /// \param surface_positions The surface positions (size num_nodes * 3)
   template <class MemorySpace, class Layout>
   FastDirectPeriphery &set_surface_positions(const Kokkos::View<double *, Layout, MemorySpace> &surface_positions) {
-    MUNDY_THROW_ASSERT(surface_positions.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(surface_positions.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
                        "set_surface_positions: surface_positions must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_positions_, surface_positions);
     is_surface_positions_set_ = true;
@@ -1255,7 +1253,7 @@ class FastDirectPeriphery {
   /// \param surface_normals The surface normals (size num_nodes * 3)
   template <class MemorySpace, class Layout>
   FastDirectPeriphery &set_surface_normals(const Kokkos::View<double *, Layout, MemorySpace> &surface_normals) {
-    MUNDY_THROW_ASSERT(surface_normals.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(surface_normals.extent(0) == 3 * num_surface_nodes_, std::invalid_argument,
                        "set_surface_normals: surface_normals must have size 3 * num_surface_nodes.");
     Kokkos::deep_copy(surface_normals_, surface_normals);
     is_surface_normals_set_ = true;
@@ -1380,7 +1378,7 @@ class FastDirectPeriphery {
   FastDirectPeriphery &build_inverse_self_interaction_matrix(
       const bool &write_to_file = true,
       const std::string &inverse_self_interaction_matrix_filename = "inverse_self_interaction_matrix.dat") {
-    MUNDY_THROW_ASSERT(is_surface_positions_set_ && is_surface_normals_set_ && is_quadrature_weights_set_,
+    MUNDY_THROW_REQUIRE(is_surface_positions_set_ && is_surface_normals_set_ && is_quadrature_weights_set_,
                        std::runtime_error,
                        "build_inverse_self_interaction_matrix: surface_positions, surface_normals, and "
                        "quadrature_weights must be set before calling this function.");

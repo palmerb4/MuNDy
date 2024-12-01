@@ -55,8 +55,7 @@ namespace utils {
 ///
 /// \tparam registration_string_wrapper [in] A unique registration identifier associated with our kernel and method
 /// factories.
-template <mundy::meta::RegistrationStringValueWrapper registration_string_wrapper =
-              mundy::meta::make_registration_string("DEFAULT")>
+template <mundy::meta::RegistrationStringValueWrapper registration_string_wrapper>
 class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface<void> {
  public:
   //! \name Typedefs
@@ -79,7 +78,7 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
                     [[maybe_unused]] const Teuchos::ParameterList &fixed_params) {
     // Typically, we would use the following line to check that the bulk data pointer is not a nullptr.
     // However, in this case, we want to be able to allow a nullptr bulk data to simplify testing.
-    // MUNDY_THROW_ASSERT(bulk_data_ptr != nullptr, "ExampleMetaMethod: bulk_data_ptr must not be a nullptr.");
+    // MUNDY_THROW_REQUIRE(bulk_data_ptr != nullptr, "ExampleMetaMethod: bulk_data_ptr must not be a nullptr.");
   }
   //@}
 
@@ -221,6 +220,8 @@ class ExampleMetaMethod : public mundy::meta::MetaMethodSubsetExecutionInterface
   std::vector<stk::mesh::Part *> valid_entity_parts_;
   //@}
 };  // ExampleMetaMethod
+
+using DefaultExampleMetaMethod = ExampleMetaMethod<mundy::meta::make_registration_string("DEFAULT")>;
 
 }  // namespace utils
 

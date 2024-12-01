@@ -128,15 +128,15 @@ class NoSlipPeripheryTpetraOp : public TOP {
         surface_coords_rcp_(surface_coords_rcp),
         surface_normals_rcp_(surface_normals_rcp),
         surface_weights_rcp_(surface_weights_rcp) {
-    MUNDY_THROW_ASSERT(!periphery_scalar_map_rcp_.is_null() == false, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(!periphery_scalar_map_rcp_.is_null() == false, std::invalid_argument,
                        "The periphery map must not be a null.");
-    MUNDY_THROW_ASSERT(!periphery_vector_map_rcp_.is_null() == false, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(!periphery_vector_map_rcp_.is_null() == false, std::invalid_argument,
                        "The periphery map must not be a null.");
-    MUNDY_THROW_ASSERT(!surface_coords_rcp_.is_null() == false, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(!surface_coords_rcp_.is_null() == false, std::invalid_argument,
                        "The surface coordinates must not be a null.");
-    MUNDY_THROW_ASSERT(!surface_normals_rcp_.is_null() == false, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(!surface_normals_rcp_.is_null() == false, std::invalid_argument,
                        "The surface normals must not be a null.");
-    MUNDY_THROW_ASSERT(!surface_weights_rcp_.is_null() == false, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(!surface_weights_rcp_.is_null() == false, std::invalid_argument,
                        "The surface weights must not be a null.");
     MUNDY_THROW_ASSERT(surface_coords_rcp_->getMap()->isSameAs(*periphery_vector_map_rcp_), std::invalid_argument,
                        "The surface coordinates must have the same map as the periphery vector map.");

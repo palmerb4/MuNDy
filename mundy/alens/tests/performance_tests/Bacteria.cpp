@@ -355,7 +355,7 @@ class BacteriaSim {
     Teuchos::CommandLineProcessor cmdp(throw_exception_if_not_found, recognise_all_options);
     cmdp.setOption("params", &input_file_name_, "The name of the input file.");
     bool was_parse_successful = cmdp.parse(argc, argv) == Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL;
-    MUNDY_THROW_ASSERT(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
+    MUNDY_THROW_REQUIRE(was_parse_successful, std::invalid_argument, "Failed to parse the command line arguments.");
 
     // Read in the parameters from the parameter list.
     Teuchos::ParameterList param_list_ = *Teuchos::getParametersFromYamlFile(input_file_name_);
@@ -382,22 +382,22 @@ class BacteriaSim {
 
   void check_input_parameters() {
     debug_print("Checking input parameters.");
-    MUNDY_THROW_ASSERT(bacteria_radius_ > 0, std::invalid_argument, "bacteria_radius_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(bacteria_initial_length_ > -1e-12, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bacteria_radius_ > 0, std::invalid_argument, "bacteria_radius_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(bacteria_initial_length_ > -1e-12, std::invalid_argument,
                        "bacteria_initial_length_ must be greater than or equal to 0.");
-    MUNDY_THROW_ASSERT(bacteria_division_length_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bacteria_division_length_ > 0, std::invalid_argument,
                        "bacteria_division_length_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(bacteria_density_ > 0, std::invalid_argument, "bacteria_density_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(bacteria_youngs_modulus_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bacteria_density_ > 0, std::invalid_argument, "bacteria_density_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(bacteria_youngs_modulus_ > 0, std::invalid_argument,
                        "bacteria_youngs_modulus_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(bacteria_poissons_ratio_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(bacteria_poissons_ratio_ > 0, std::invalid_argument,
                        "bacteria_poissons_ratio_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(number_of_bacteria_ > 0, std::invalid_argument, "number_of_bacteria_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(buffer_distance_ > 0, std::invalid_argument, "buffer_distance_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(load_balance_frequency_ > 0, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(number_of_bacteria_ > 0, std::invalid_argument, "number_of_bacteria_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(buffer_distance_ > 0, std::invalid_argument, "buffer_distance_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(num_time_steps_ > 0, std::invalid_argument, "num_time_steps_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(io_frequency_ > 0, std::invalid_argument, "io_frequency_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(load_balance_frequency_ > 0, std::invalid_argument,
                        "load_balance_frequency_ must be greater than 0.");
   }
 
@@ -549,15 +549,15 @@ class BacteriaSim {
   template <typename FieldType>
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Field " << field_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
-    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
-                       "Part " << part_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
+                       std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -587,7 +587,7 @@ class BacteriaSim {
     // Fetch the parts
     bacteria_part_ptr_ = fetch_part("BACTERIA");
     spherocylinder_spherocylinder_linkers_part_ptr_ = fetch_part("SPHEROCYLINDER_SPHEROCYLINDER_LINKERS");
-    MUNDY_THROW_ASSERT(bacteria_part_ptr_->topology() == stk::topology::PARTICLE, std::logic_error,
+    MUNDY_THROW_REQUIRE(bacteria_part_ptr_->topology() == stk::topology::PARTICLE, std::logic_error,
                        "BACTERIA part must have PARTICLE topology.");
   }
 

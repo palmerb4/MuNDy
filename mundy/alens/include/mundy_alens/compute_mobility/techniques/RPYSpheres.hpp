@@ -76,8 +76,8 @@
                         const Teuchos::ParameterList &fixed_params = Teuchos::ParameterList())
         : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
       // The bulk data pointer must not be null.
-      MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                         "RPYSpheres: bulk_data_ptr cannot be a nullptr.");
+      MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
+                          "RPYSpheres: bulk_data_ptr cannot be a nullptr.");
 
       // Validate the input params. Use default values for any parameter not given.
       Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -87,9 +87,9 @@
       auto valid_entity_part_names = valid_fixed_params.get<Teuchos::Array<std::string>>("valid_entity_part_names");
       for (const std::string &part_name : valid_entity_part_names) {
         valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
-        MUNDY_THROW_ASSERT(
-            valid_entity_parts_.back() != nullptr, std::invalid_argument,
-            "RPYSpheres: Part '" << part_name << "' from the valid_entity_part_names does not exist in the meta data.");
+        MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
+                            std::string("RPYSpheres: Part '") + part_name +
+                                "' from the valid_entity_part_names does not exist in the meta data.");
       }
 
       // Fetch the fields.
@@ -201,13 +201,13 @@
       domain_origin = {domain_origin_array[0], domain_origin_array[1], domain_origin_array[2]};
       domain_length = valid_mutable_params.get<double>("domain_length");
 
-      MUNDY_THROW_ASSERT(viscosity_ > 0.0, std::invalid_argument, "RPYSpheres: viscosity must be greater than zero.");
-      MUNDY_THROW_ASSERT(fmm_multipole_order_ > 0, std::invalid_argument,
-                         "RPYSpheres: fmm_multipole_order must be greater than zero.");
-      MUNDY_THROW_ASSERT(max_num_leaf_pts_ > 0, std::invalid_argument,
-                         "RPYSpheres: max_num_leaf_pts must be greater than zero.");
-      MUNDY_THROW_ASSERT(domain_length > 0.0, std::invalid_argument,
-                         "RPYSpheres: domain_length must be greater than zero.");
+      MUNDY_THROW_REQUIRE(viscosity_ > 0.0, std::invalid_argument, "RPYSpheres: viscosity must be greater than zero.");
+      MUNDY_THROW_REQUIRE(fmm_multipole_order_ > 0, std::invalid_argument,
+                          "RPYSpheres: fmm_multipole_order must be greater than zero.");
+      MUNDY_THROW_REQUIRE(max_num_leaf_pts_ > 0, std::invalid_argument,
+                          "RPYSpheres: max_num_leaf_pts must be greater than zero.");
+      MUNDY_THROW_REQUIRE(domain_length > 0.0, std::invalid_argument,
+                          "RPYSpheres: domain_length must be greater than zero.");
     }
     //@}
 
@@ -257,10 +257,10 @@
       } else if (periodic_in_x_ && periodic_in_y_ && periodic_in_z_) {
         fmm_pbc = stkfmm::PAXIS::PXYZ;
       } else {
-        MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                           "Unsupported pbc configuration. The current configuration is "
-                               << "periodic_in_x = " << periodic_in_x_ << ", periodic_in_y = " << periodic_in_y_
-                               << ", periodic_in_z = " << periodic_in_z_);
+        MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                            std::string("Unsupported pbc configuration. The current configuration is ") +
+                                "periodic_in_x = " + periodic_in_x_ + ", periodic_in_y = " + periodic_in_y_ +
+                                ", periodic_in_z = " + periodic_in_z_);
       }
       std::cout << "RPYSpheres::execute pbc setup" << std::endl;
 
@@ -306,7 +306,7 @@
                 : ((node_coord[2] < domain_origin[2]) || (node_coord[2] >= domain_origin[2] + domain_length));
         const bool coordinate_out_of_domain_in_non_periodic_direction =
             coordinate_out_of_domain_in_x || coordinate_out_of_domain_in_y || coordinate_out_of_domain_in_z;
-        MUNDY_DEBUG_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
+        MUNDY_THROW_ASSERT(!coordinate_out_of_domain_in_non_periodic_direction, std::logic_error,
                                  "RPYSpheres: Node coordinate is out of domain. The current coordinate is "
                                      << node_coord[0] << " " << node_coord[1] << " " << node_coord[2]
                                      << " and the origin is " << domain_origin[0] << " " << domain_origin[1] << " "

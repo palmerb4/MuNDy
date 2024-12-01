@@ -20,14 +20,15 @@
 /// \file ChainOfSprings.cpp
 /// \brief Definition of DeclareAndInitConstraints' ChainOfSprings technique.
 
+// External libs
+#include <openrand/philox.h>
+#include <fmt/format.h>  // for fmt::format
+
 // C++ core libs
 #include <iostream>  // for std::cout, std::endl
 #include <memory>    // for std::shared_ptr, std::unique_ptr
 #include <string>    // for std::string
 #include <vector>    // for std::vector
-
-// External libs
-#include <openrand/philox.h>
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>      // for Teuchos::ParameterList
@@ -39,6 +40,7 @@
 #include <stk_search/SearchMethod.hpp>    // for stk::search::KDTREE
 
 // Mundy libs
+#include <mundy_mesh/fmt_stk_types.hpp>                                     // adds fmt::format for stk types
 #include <mundy_constraints/HookeanSprings.hpp>  // for mundy::constraints::HookeanSprings
 #include <mundy_constraints/declare_and_initialize_constraints/techniques/ArchlengthCoordinateMapping.hpp>  // for mundy::constraints::...::ArchlengthCoordinateMapping
 #include <mundy_constraints/declare_and_initialize_constraints/techniques/ChainOfSprings.hpp>  // for mundy::constraints::...::ChainOfSprings
@@ -61,7 +63,7 @@ namespace techniques {
 ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr_), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "ChainOfSprings: bulk_data_ptr_ cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -75,7 +77,7 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
   generate_spherocylinder_segments_along_edges_ =
       valid_fixed_params.get<bool>("generate_spherocylinder_segments_along_edges");
 
-  MUNDY_THROW_ASSERT(
+  MUNDY_THROW_REQUIRE(
       generate_hookean_springs_ || generate_angular_springs_ || generate_spheres_at_nodes_ ||
           generate_spherocylinder_segments_along_edges_,
       std::invalid_argument,
@@ -84,16 +86,16 @@ ChainOfSprings::ChainOfSprings(mundy::mesh::BulkData *const bulk_data_ptr_, cons
 
   // Get the field and pointers.
   auto validate_field_ptr = [](const stk::mesh::FieldBase *const field_ptr, const std::string &field_name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "ChainOfSprings: Expected a field with name '" << field_name << "' but field does not exist.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("ChainOfSprings: Expected a field with name '") + field_name + "' but field does not exist.");
   };
   auto parts_from_names = [](mundy::mesh::MetaData &meta_data,
                              const Teuchos::Array<std::string> &part_names) -> std::vector<stk::mesh::Part *> {
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "ChainOfSprings: Expected a part with name '" << part_name << "' but part does not exist.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("ChainOfSprings: Expected a part with name '") + part_name + "' but part does not exist.");
       parts.push_back(part);
     }
     return parts;
@@ -245,7 +247,7 @@ stk::mesh::Entity ChainOfSprings::get_spherocylinder_segment(
 stk::mesh::Entity ChainOfSprings::get_valid_node(const size_t &sequential_node_index) const {
   stk::mesh::Entity node = get_node(sequential_node_index);
   MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                     "The node with id " << get_node_id(sequential_node_index) << " is not valid.");
+                      fmt::format("The node with id {} is not valid.", get_node_id(sequential_node_index)));
   return node;
 }
 
@@ -253,7 +255,7 @@ stk::mesh::Entity ChainOfSprings::get_valid_hookean_spring(const size_t &sequent
   stk::mesh::Entity spring = get_hookean_spring(sequential_hookean_spring_index);
   MUNDY_THROW_ASSERT(
       bulk_data_ptr_->is_valid(spring), std::logic_error,
-      "The spring with id " << get_hookean_spring_id(sequential_hookean_spring_index) << " is not valid.");
+      fmt::format("The spring with id {} is not valid.", get_hookean_spring_id(sequential_hookean_spring_index)));
   return spring;
 }
 
@@ -261,14 +263,14 @@ stk::mesh::Entity ChainOfSprings::get_valid_angular_spring(const size_t &sequent
   stk::mesh::Entity spring = get_angular_spring(sequential_angular_spring_index);
   MUNDY_THROW_ASSERT(
       bulk_data_ptr_->is_valid(spring), std::logic_error,
-      "The spring with id " << get_angular_spring_id(sequential_angular_spring_index) << " is not valid.");
+      fmt::format("The spring with id {} is not valid.", get_angular_spring_id(sequential_angular_spring_index)));
   return spring;
 }
 
 stk::mesh::Entity ChainOfSprings::get_valid_sphere(const size_t &sequential_sphere_index) const {
   stk::mesh::Entity sphere = get_sphere(sequential_sphere_index);
   MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(sphere), std::logic_error,
-                     "The sphere with id " << get_sphere_id(sequential_sphere_index) << " is not valid.");
+                      fmt::format("The sphere with id {} is not valid.", get_sphere_id(sequential_sphere_index)));
   return sphere;
 }
 
@@ -276,8 +278,8 @@ stk::mesh::Entity ChainOfSprings::get_valid_spherocylinder_segment(
     const size_t &sequential_spherocylinder_segment_index) const {
   stk::mesh::Entity segment = get_spherocylinder_segment(sequential_spherocylinder_segment_index);
   MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(segment), std::logic_error,
-                     "The segment with id " << get_spherocylinder_segment_id(sequential_spherocylinder_segment_index)
-                                            << " is not valid.");
+                      fmt::format(
+                          "The segment with id {} is not valid.", get_spherocylinder_segment_id(sequential_spherocylinder_segment_index)));
   return segment;
 }
 //}
@@ -287,11 +289,11 @@ stk::mesh::Entity ChainOfSprings::get_valid_spherocylinder_segment(
 
 void ChainOfSprings::execute() {
   // Create the springs and their connected nodes, distributing the work across the ranks.
-  const size_t rank = bulk_data_ptr_->parallel_rank();
+  const int rank = bulk_data_ptr_->parallel_rank();
   const size_t nodes_per_rank = num_nodes_ / bulk_data_ptr_->parallel_size();
   const size_t remainder = num_nodes_ % bulk_data_ptr_->parallel_size();
-  const size_t start_node_index = rank * nodes_per_rank + std::min(rank, remainder);
-  const size_t end_node_index = start_node_index + nodes_per_rank + (rank < remainder ? 1 : 0);
+  const size_t start_node_index = rank * nodes_per_rank + Kokkos::min(static_cast<size_t>(rank), remainder);
+  const size_t end_node_index = start_node_index + nodes_per_rank + (static_cast<size_t>(rank) < remainder ? 1 : 0);
 
   // Concatenate the spring part pointers.
   std::vector<stk::mesh::Part *> element_part_ptrs_;
@@ -310,7 +312,7 @@ void ChainOfSprings::execute() {
     element_part_ptrs_.insert(element_part_ptrs_.end(), spherocylinder_segment_part_ptrs_.begin(),
                               spherocylinder_segment_part_ptrs_.end());
   }
-  MUNDY_THROW_ASSERT(!element_part_ptrs_.empty(), std::invalid_argument,
+  MUNDY_THROW_REQUIRE(!element_part_ptrs_.empty(), std::invalid_argument,
                      "ChainOfSprings: No parts were added to the elements.");
 
   bulk_data_ptr_->modification_begin();
@@ -351,7 +353,7 @@ void ChainOfSprings::execute() {
       node_coords[0] = coord_x;
       node_coords[1] = coord_y;
       node_coords[2] = coord_z;
-    } else if (rank == bulk_data_ptr_->parallel_size() - 1) {
+    } else if (rank == static_cast<int>(bulk_data_ptr_->parallel_size() - 1)) {
       // Share the first node with rank N - 1. Should already be declared.
       stk::mesh::Entity node = get_valid_node(start_node_index);
       bulk_data_ptr_->add_node_sharing(node, rank - 1);

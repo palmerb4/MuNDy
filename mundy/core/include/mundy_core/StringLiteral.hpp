@@ -23,8 +23,16 @@
 /// \file StringLiteral.cpp
 /// \brief Declaration of our StringLiteral class type.
 
+// C++ core
 #include <algorithm>
+#include <concepts>
 #include <iostream>
+#include <type_traits>
+
+// Kokkos
+#include <Kokkos_Core.hpp>
+
+static_assert(__cplusplus >= 202002L, "This code requires C++20 or later");
 
 namespace mundy {
 
@@ -68,10 +76,16 @@ namespace core {
 /// \tparam StrSize The size of the string literal
 template <size_t StrSize>
 struct StringLiteral {
+  /// \brief Default constructor that initializes the string literal to an empty string.
+  KOKKOS_INLINE_FUNCTION
+  constexpr StringLiteral() : value{} {
+  }
+
   /// \brief Constructor that copies the string literal into the struct.
   /// \param str The string literal to copy
+  KOKKOS_INLINE_FUNCTION
   constexpr explicit StringLiteral(const char (&str)[StrSize]) {
-    std::copy_n(str, StrSize, value);
+    copy_char_arrays(std::make_index_sequence<StrSize>(), str, value);
   }
 
   /// \brief Convert the string literal to a std::string.
@@ -84,19 +98,71 @@ struct StringLiteral {
 
   /// \brief The string literal's size.
   static constexpr size_t size = StrSize;
+
+  /// \brief Compile-time concatenation with another StringLiteral.
+  /// \param rhs The right-hand side of the concatenation
+  /// \return A new StringLiteral with the combined content of the two input StringLiterals
+  template <size_t OtherStrSize>
+  KOKKOS_INLINE_FUNCTION constexpr StringLiteral<StrSize + OtherStrSize> operator+(
+      const StringLiteral<OtherStrSize>& rhs) const {
+    StringLiteral<StrSize + OtherStrSize> result;
+    copy_char_arrays(std::make_index_sequence<StrSize>(), value, result.value);
+    copy_char_arrays_shift(std::make_index_sequence<OtherStrSize>(), rhs.value, result.value, 0, StrSize);
+    return result;
+  }
+
+  /// \brief Compile-time concatenation with a char array.
+  /// \param rhs The right-hand side of the concatenation
+  /// \return A new StringLiteral with the combined content of the input StringLiteral and char array
+  template <size_t OtherStrSize>
+  KOKKOS_INLINE_FUNCTION constexpr StringLiteral<StrSize + OtherStrSize> operator+(
+      const char (&rhs)[OtherStrSize]) const {
+    StringLiteral<StrSize + OtherStrSize> result;
+    copy_char_arrays(std::make_index_sequence<StrSize>(), value, result.value);
+    copy_char_arrays_shift(std::make_index_sequence<OtherStrSize>(), rhs, result.value, 0, StrSize);
+    return result;
+  }
+
+ private:
+  /// \brief Deep copy the first (Is...) characters of the source array into the destination array.
+  template <size_t... Is, size_t SourceSize, size_t DestSize>
+  KOKKOS_INLINE_FUNCTION static constexpr void copy_char_arrays(std::index_sequence<Is...>,
+                                                                const char (&source)[SourceSize],
+                                                                char (&dest)[DestSize]) {
+    ((dest[Is] = source[Is]), ...);
+  }
+
+  /// \brief Deep copy with shift the first (Is... + source_shift) from the source into the destination array +
+  /// destination shift
+  template <size_t... Is, size_t SourceSize, size_t DestSize>
+  KOKKOS_INLINE_FUNCTION static constexpr void copy_char_arrays_shift(std::index_sequence<Is...>,
+                                                                      const char (&source)[SourceSize],
+                                                                      char (&dest)[DestSize], size_t source_shift,
+                                                                      size_t dest_shift) {
+    ((dest[Is + dest_shift] = source[Is + source_shift]), ...);
+  }
 };  // StringLiteral
 
 /// \brief Non-member equality operator for comparing two StringLiterals.
 /// \param lhs The left-hand side of the comparison
 /// \param rhs The right-hand side of the comparison
 template <size_t N>
-constexpr bool operator==(const StringLiteral<N>& lhs, const StringLiteral<N>& rhs) {
+KOKKOS_INLINE_FUNCTION constexpr bool operator==(const StringLiteral<N>& lhs, const StringLiteral<N>& rhs) {
   for (size_t i = 0; i < N; ++i) {
     if (lhs.value[i] != rhs.value[i]) {
       return false;
     }
   }
   return true;
+}
+
+/// \brief Non-member << operator for printing a StringLiteral.
+/// \param os The output stream to print to
+/// \param str The StringLiteral to print
+template <size_t N>
+std::ostream& operator<<(std::ostream& os, const StringLiteral<N>& str) {
+  os << str.to_string();
+  return os;
 }
 
 /// \brief Helper function for creating a StringLiteral.
@@ -106,9 +172,44 @@ constexpr bool operator==(const StringLiteral<N>& lhs, const StringLiteral<N>& r
 /// \param str The string literal to copy
 /// \return A StringLiteral with the same content as the input string literal
 template <size_t N>
-constexpr StringLiteral<N> make_string_literal(const char (&str)[N]) {
+KOKKOS_INLINE_FUNCTION constexpr StringLiteral<N> make_string_literal(const char (&str)[N]) {
   return StringLiteral<N>(str);
 }
+
+//! \name Helpers for determining if an object is a string literal (type traits fails for string literals)
+//@{
+
+template <typename T>
+KOKKOS_INLINE_FUNCTION constexpr bool is_string_literal([[maybe_unused]] T t) {
+  return false;
+}
+
+template <size_t N>
+KOKKOS_INLINE_FUNCTION constexpr bool is_string_literal([[maybe_unused]] const char (&str)[N]) {
+  return true;
+}
+
+template <typename T>
+KOKKOS_INLINE_FUNCTION constexpr bool is_mundy_string_literal([[maybe_unused]] T t) {
+  return false;
+}
+
+template <size_t N>
+KOKKOS_INLINE_FUNCTION constexpr bool is_mundy_string_literal([[maybe_unused]] const StringLiteral<N>& str) {
+  return true;
+}
+
+template <typename T>
+concept ConstexprDefaultConstructible = requires { []() constexpr { T{}; }(); };
+
+template <typename T>
+constexpr bool is_string_literal_v =
+    ConstexprDefaultConstructible<std::remove_cv_t<T>> && is_string_literal(std::remove_cv_t<T>{});
+
+template <typename T>
+constexpr bool is_mundy_string_literal_v =
+    ConstexprDefaultConstructible<std::remove_cv_t<T>> && is_mundy_string_literal(std::remove_cv_t<T>{});
+//@}
 
 }  // namespace core
 

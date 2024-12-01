@@ -17,9 +17,9 @@
 # **********************************************************************************************************************
 # @HEADER
 
-tribits_add_executable(
-  RepeatedEntityCreationAndDestruction
-    SOURCES
-    RepeatedEntityCreationAndDestruction.cpp
-    CATEGORIES PERFORMANCE
-    )
+# tribits_add_executable(
+#     PerformanceTestNGPSpheres3
+#     SOURCES
+#     NGPSpheres3.cpp
+#     CATEGORIES PERFORMANCE
+#     )

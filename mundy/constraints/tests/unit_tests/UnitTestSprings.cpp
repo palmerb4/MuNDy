@@ -83,7 +83,6 @@ TEST(FENESprings, FENESpringsKernel) {
   ASSERT_TRUE(meta_data_ptr != nullptr);
 
   // This test is designed for either 1 or 2 ranks.
-  const int num_ranks = bulk_data_ptr->parallel_size();
   const int rank = bulk_data_ptr->parallel_rank();
 
   // Fetch the parts.

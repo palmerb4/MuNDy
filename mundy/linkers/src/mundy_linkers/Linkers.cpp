@@ -20,14 +20,17 @@
 /// \file Linkers.cpp
 /// \brief Defintion of the Linkers helper functions
 
-// C++ core libs
+// External
+#include <fmt/format.h>  // for fmt::format
+
+// C++ core
 #include <memory>         // for std::shared_ptr, std::unique_ptr
 #include <string>         // for std::string
 #include <type_traits>    // for std::enable_if, std::is_base_of
 #include <unordered_set>  // for std::unordered_set
 #include <vector>         // for std::vector
 
-// Trilinos libs
+// Trilinos
 #include <stk_mesh/base/EntityLess.hpp>                         // for stk::mesh::EntityLess
 #include <stk_mesh/base/FieldParallel.hpp>                      // for stk::mesh::communicate_field_data
 #include <stk_mesh/base/ForEachEntity.hpp>                      // for stk::mesh::for_each_entity_run
@@ -35,7 +38,8 @@
 #include <stk_topology/topology.hpp>                            // for stk::topology
 #include <stk_util/parallel/CommSparse.hpp>                     // for stk::CommSparse
 
-// Mundy libs
+// Mundy
+#include <mundy_mesh/fmt_stk_types.hpp>                                     // adds fmt::format for stk types
 #include <mundy_agents/Agents.hpp>          // for mundy::agents::Agents
 #include <mundy_agents/RankedAssembly.hpp>  // for mundy::agents::RankedAssembly
 #include <mundy_core/StringLiteral.hpp>     // for mundy::core::StringLiteral and mundy::core::make_string_literal
@@ -51,7 +55,7 @@ namespace linkers {
 void fixup_linker_entity_ghosting(stk::mesh::BulkData& bulk_data, const LinkedEntitiesFieldType& linked_entities_field,
                                   stk::mesh::Field<int>& linked_entity_owners_field,
                                   const stk::mesh::Selector& linker_selector) {
-  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+  MUNDY_THROW_REQUIRE(bulk_data.in_modifiable_state(), std::logic_error,
                      "fixup_linker_entity_sharing: The mesh must be in a modification cycle.");
 
   // If the mesh is serial, then there's nothing to do.
@@ -168,13 +172,11 @@ void fixup_linker_entity_ghosting(stk::mesh::BulkData& bulk_data, const LinkedEn
 
       const stk::mesh::Entity entity = bulk_data.get_entity(entity_key);
       MUNDY_THROW_ASSERT(bulk_data.is_valid(entity), std::logic_error,
-                         "fixup_linker_entity_sharing: Rank " << parallel_rank << " received request for " << entity_key
-                                                              << " from " << requester_proc
-                                                              << " but the entity is invalid.");
+                  fmt::format("fixup_linker_entity_sharing: Rank {} received request for {} from {} but the entity is invalid.",
+                              parallel_rank, entity_key, requester_proc));
       MUNDY_THROW_ASSERT(bulk_data.parallel_owner_rank(entity) == parallel_rank, std::logic_error,
-                         "fixup_linker_entity_sharing: Rank " << parallel_rank << " received request for " << entity_key
-                                                              << " from " << requester_proc
-                                                              << " but we do not own it.");
+                        fmt::format("fixup_linker_entity_sharing: Rank {} received request for {} from {} but we do not own it.",
+                                    parallel_rank, entity_key, requester_proc));
 
       // Receiving a request to ghost an entity we own.
       send_ghosts.emplace_back(entity, requester_proc);

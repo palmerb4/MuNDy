@@ -38,6 +38,9 @@ a single GPU.
 
 */
 
+// External
+#include <fmt/format.h>  // for fmt::format
+
 // C++ core
 #include <algorithm>
 #include <fstream>
@@ -54,6 +57,7 @@ a single GPU.
 // Mundy
 #include <mundy_alens/periphery/Gauss_Legendre_Nodes_and_Weights.hpp>  // for Gauss_Legendre_Nodes_and_Weights
 #include <mundy_core/throw_assert.hpp>                                 // for MUNDY_THROW_ASSERT
+#include <mundy_math/Vector3.hpp>                                      // for mundy::math::Vector3
 #define DOUBLE_ZERO 1.0e-12
 
 namespace mundy {
@@ -71,15 +75,15 @@ namespace periphery {
 void gen_sphere_quadrature(const int &order, const double &radius, std::vector<double> *const points_ptr,
                            std::vector<double> *const weights_ptr, std::vector<double> *const normals_ptr,
                            const bool include_poles = false, const bool invert = false) {
-  MUNDY_THROW_ASSERT(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
-  MUNDY_THROW_ASSERT(radius > 0, std::invalid_argument,
-                     "gen_sphere_quadrature: radius must be positive. The current value is " << radius);
-  MUNDY_THROW_ASSERT(points_ptr != nullptr, std::invalid_argument,
-                     "gen_sphere_quadrature: points_ptr must be non-null.");
-  MUNDY_THROW_ASSERT(weights_ptr != nullptr, std::invalid_argument,
-                     "gen_sphere_quadrature: weights_ptr must be non-null.");
-  MUNDY_THROW_ASSERT(normals_ptr != nullptr, std::invalid_argument,
-                     "gen_sphere_quadrature: normals_ptr must be non-null.");
+  MUNDY_THROW_REQUIRE(order >= 0, std::invalid_argument, "gen_sphere_quadrature: order must be non-negative.");
+  MUNDY_THROW_REQUIRE(radius > 0, std::invalid_argument,
+                      fmt::format("gen_sphere_quadrature: radius must be positive. The current value is {}", radius));
+  MUNDY_THROW_REQUIRE(points_ptr != nullptr, std::invalid_argument,
+                      "gen_sphere_quadrature: points_ptr must be non-null.");
+  MUNDY_THROW_REQUIRE(weights_ptr != nullptr, std::invalid_argument,
+                      "gen_sphere_quadrature: weights_ptr must be non-null.");
+  MUNDY_THROW_REQUIRE(normals_ptr != nullptr, std::invalid_argument,
+                      "gen_sphere_quadrature: normals_ptr must be non-null.");
 
   // Get references to the vectors
   std::vector<double> &points = *points_ptr;
@@ -437,6 +441,141 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 //   infile.close();
 // }
 
+template <class Space>
+struct VelocityReducer {
+ public:
+  // Required
+  typedef VelocityReducer reducer;
+  typedef mundy::math::Vector3<double> value_type;
+  typedef Kokkos::View<value_type *, Space, Kokkos::MemoryUnmanaged> result_view_type;
+
+ private:
+  value_type &value;
+
+ public:
+  KOKKOS_INLINE_FUNCTION
+  VelocityReducer(value_type &value_) : value(value_) {
+  }
+
+  // Required
+  KOKKOS_INLINE_FUNCTION
+  void join(value_type &dest, const value_type &src) const {
+    dest += src;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void init(value_type &val) const {
+    val.set(0.0, 0.0, 0.0);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  value_type &reference() const {
+    return value;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  result_view_type view() const {
+    return result_view_type(&value, 1);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  bool references_scalar() const {
+    return true;
+  }
+};
+
+template <typename Func>
+struct VelocityKernelThreadReductionFunctor {
+  KOKKOS_INLINE_FUNCTION
+  VelocityKernelThreadReductionFunctor(const Func &compute_velocity_contribution, const int t)
+      : compute_velocity_contribution_(compute_velocity_contribution), t_(t) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int s, mundy::math::Vector3<double> &v_accum) const {
+    // Call the custom operation to compute the contribution
+    compute_velocity_contribution_(t_, s, v_accum[0], v_accum[1], v_accum[2]);
+  }
+
+  const Func compute_velocity_contribution_;
+  const int t_;
+};
+
+template <int panel_size, typename ExecutionSpace, typename Func>
+struct VelocityKernelTeamFunctor {
+  using TeamMemberType = typename Kokkos::TeamPolicy<ExecutionSpace>::member_type;
+
+  KOKKOS_INLINE_FUNCTION
+  VelocityKernelTeamFunctor(const TeamMemberType &team_member, const Func &compute_velocity_contribution,
+                            const int panel_start, const int num_source_points,
+                            Kokkos::Array<double, panel_size> &local_vx, Kokkos::Array<double, panel_size> &local_vy,
+                            Kokkos::Array<double, panel_size> &local_vz)
+      : team_member_(team_member),
+        compute_velocity_contribution_(compute_velocity_contribution),
+        panel_start_(panel_start),
+        num_source_points_(num_source_points),
+        local_vx_(local_vx),
+        local_vy_(local_vy),
+        local_vz_(local_vz) {
+  }
+
+  KOKKOS_FUNCTION
+  void operator()(const int t) const {
+    mundy::math::Vector3<double> v_sum = {0.0, 0.0, 0.0};
+
+    // Loop over all source points
+    Kokkos::parallel_reduce(Kokkos::ThreadVectorRange(team_member_, num_source_points_),
+                            VelocityKernelThreadReductionFunctor<Func>(compute_velocity_contribution_, t),
+                            VelocityReducer<ExecutionSpace>(v_sum));
+
+    // Store the results in the local arrays
+    local_vx_[t - panel_start_] = v_sum[0];
+    local_vy_[t - panel_start_] = v_sum[1];
+    local_vz_[t - panel_start_] = v_sum[2];
+  }
+
+  const TeamMemberType &team_member_;
+  const Func compute_velocity_contribution_;
+  const int panel_start_;
+  const int num_source_points_;
+  Kokkos::Array<double, panel_size> &local_vx_;
+  Kokkos::Array<double, panel_size> &local_vy_;
+  Kokkos::Array<double, panel_size> &local_vz_;
+};
+
+template <int panel_size, class MemorySpace, class Layout>
+struct VelocityKernelTeamTeamAccumulator {
+  KOKKOS_INLINE_FUNCTION
+  VelocityKernelTeamTeamAccumulator(const Kokkos::View<double *, Layout, MemorySpace> &target_velocities,
+                                    const Kokkos::Array<double, panel_size> &local_vx,
+                                    const Kokkos::Array<double, panel_size> &local_vy,
+                                    const Kokkos::Array<double, panel_size> &local_vz, const int panel_start,
+                                    const int panel_end)
+      : target_velocities_(target_velocities),
+        local_vx_(local_vx),
+        local_vy_(local_vy),
+        local_vz_(local_vz),
+        panel_start_(panel_start),
+        panel_end_(panel_end) {
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()() const {
+    for (int t = panel_start_; t < panel_end_; ++t) {
+      Kokkos::atomic_add(&target_velocities_(3 * t + 0), local_vx_[t - panel_start_]);
+      Kokkos::atomic_add(&target_velocities_(3 * t + 1), local_vy_[t - panel_start_]);
+      Kokkos::atomic_add(&target_velocities_(3 * t + 2), local_vz_[t - panel_start_]);
+    }
+  }
+
+  const Kokkos::View<double *, Layout, MemorySpace> target_velocities_;
+  const Kokkos::Array<double, panel_size> &local_vx_;
+  const Kokkos::Array<double, panel_size> &local_vy_;
+  const Kokkos::Array<double, panel_size> &local_vz_;
+  const int panel_start_;
+  const int panel_end_;
+};
+
 template <int panel_size, class ExecutionSpace, class MemorySpace, class Layout, typename Func>
 void panelize_velocity_kernel_over_target_points([[maybe_unused]] const ExecutionSpace &space, int num_target_points,
                                                  int num_source_points,
@@ -445,45 +584,29 @@ void panelize_velocity_kernel_over_target_points([[maybe_unused]] const Executio
   int num_panels = (num_target_points + panel_size - 1) / panel_size;
 
   // Define the team policy with the number of panels
+  using team_policy = Kokkos::TeamPolicy<ExecutionSpace>;
   Kokkos::parallel_for(
-      "Panalize_Target_Points", Kokkos::TeamPolicy<>(num_panels, Kokkos::AUTO),
-      KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type &team_member) {
+      "Panalize_Target_Points", team_policy(num_panels, Kokkos::AUTO),
+      KOKKOS_LAMBDA(const team_policy::member_type &team_member) {
         const int panel_start = team_member.league_rank() * panel_size;
         const int panel_end =
             (panel_start + panel_size) > num_target_points ? num_target_points : (panel_start + panel_size);
 
         // Local accumulation arrays for each target point in the panel
-        double local_vx[panel_size] = {0.0};
-        double local_vy[panel_size] = {0.0};
-        double local_vz[panel_size] = {0.0};
+        Kokkos::Array<double, panel_size> local_vx = {0.0};
+        Kokkos::Array<double, panel_size> local_vy = {0.0};
+        Kokkos::Array<double, panel_size> local_vz = {0.0};
 
         // Loop over each target point in the panel
-        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, panel_start, panel_end), [&](const int t) {
-          Kokkos::Array<double, 3> v_sum({0.0, 0.0, 0.0});
-
-          // Loop over all source points
-          Kokkos::parallel_reduce(
-              Kokkos::ThreadVectorRange(team_member, num_source_points),
-              [&](const int s, Kokkos::Array<double, 3> &v_accum) {
-                // Call the custom operation to compute the contribution
-                compute_velocity_contribution(t, s, v_accum[0], v_accum[1], v_accum[2]);
-              },
-              v_sum);
-
-          // Store the results in the local arrays
-          local_vx[t - panel_start] = v_sum[0];
-          local_vy[t - panel_start] = v_sum[1];
-          local_vz[t - panel_start] = v_sum[2];
-        });
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, panel_start, panel_end),
+                             VelocityKernelTeamFunctor<panel_size, ExecutionSpace, Func>(
+                                 team_member, compute_velocity_contribution, panel_start, num_source_points, local_vx,
+                                 local_vy, local_vz));
 
         // After processing, update the global output using a single thread per team
-        Kokkos::single(Kokkos::PerTeam(team_member), [&]() {
-          for (int t = panel_start; t < panel_end; ++t) {
-            Kokkos::atomic_add(&target_velocities(3 * t + 0), local_vx[t - panel_start]);
-            Kokkos::atomic_add(&target_velocities(3 * t + 1), local_vy[t - panel_start]);
-            Kokkos::atomic_add(&target_velocities(3 * t + 2), local_vz[t - panel_start]);
-          }
-        });
+        Kokkos::single(Kokkos::PerTeam(team_member),
+                       VelocityKernelTeamTeamAccumulator<panel_size, MemorySpace, Layout>(
+                           target_velocities, local_vx, local_vy, local_vz, panel_start, panel_end));
       });
 }
 
@@ -1482,10 +1605,10 @@ class Periphery {
   Periphery &build_inverse_self_interaction_matrix(
       const bool &write_to_file = true,
       const std::string &inverse_self_interaction_matrix_filename = "inverse_self_interaction_matrix.dat") {
-    MUNDY_THROW_ASSERT(is_surface_positions_set_ && is_surface_normals_set_ && is_quadrature_weights_set_,
-                       std::runtime_error,
-                       "build_inverse_self_interaction_matrix: surface_positions, surface_normals, and "
-                       "quadrature_weights must be set before calling this function.");
+    MUNDY_THROW_REQUIRE(is_surface_positions_set_ && is_surface_normals_set_ && is_quadrature_weights_set_,
+                        std::runtime_error,
+                        "build_inverse_self_interaction_matrix: surface_positions, surface_normals, and "
+                        "quadrature_weights must be set before calling this function.");
 
     // Fill the self-interaction matrix using temporary storage
     Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace> M("M", 3 * num_surface_nodes_,

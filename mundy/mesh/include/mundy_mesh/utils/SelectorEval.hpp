@@ -100,11 +100,11 @@ class SelectorEval {
   }
 
   int get_node_count() const {
-    return node_ptrs_.size();
+    return static_cast<int>(node_ptrs_.size());
   }
 
   int get_result_buffer_size() const {
-    return result_buffer_.size();
+    return static_cast<int>(result_buffer_.size());
   }
 
   int get_head_node_index() const;

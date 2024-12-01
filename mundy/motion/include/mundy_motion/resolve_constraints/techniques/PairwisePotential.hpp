@@ -153,10 +153,10 @@ class PairwisePotential : public mundy::meta::MetaMethodSubsetExecutionInterface
 
     if (compute_pairwise_potential_params.isParameter("name")) {
       const bool valid_type = compute_pairwise_potential_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
+      MUNDY_THROW_REQUIRE(
           valid_type, std::invalid_argument,
           "PairwisePotential: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
-              << "with a type other than std::string");
+              "with a type other than std::string");
     } else {
       compute_pairwise_potential_params.set("name", std::string(default_compute_pairwise_potential_name_),
                                             "Name of the method for computing the pairwise potential.");
@@ -176,10 +176,10 @@ class PairwisePotential : public mundy::meta::MetaMethodSubsetExecutionInterface
 
     if (compute_pairwise_potential_params.isParameter("name")) {
       const bool valid_type = compute_pairwise_potential_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
+      MUNDY_THROW_REQUIRE(
           valid_type, std::invalid_argument,
           "PairwisePotential: Type error. Given a compute_constraint_forcing parameter with name 'name' but "
-              << "with a type other than std::string");
+              "with a type other than std::string");
     } else {
       compute_pairwise_potential_params.set("name", std::string(default_compute_pairwise_potential_name_),
                                             "Name of the method for computing the pairwise potential.");

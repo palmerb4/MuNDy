@@ -99,22 +99,21 @@ class ComputeConstraintForcing
   //@}
 };  // ComputeConstraintForcing
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_constraint_forcing_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
+          mundy::constraints::compute_constraint_forcing::kernels::HookeanSpringsKernel>("HOOKEAN_SPRINGS");
+ mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
+          mundy::constraints::compute_constraint_forcing::kernels::AngularSpringsKernel>("ANGULAR_SPRINGS");
+ mundy::constraints::ComputeConstraintForcing::OurKernelFactory::register_new_class<
+          mundy::constraints::compute_constraint_forcing::kernels::FENESpringsKernel>("FENE_SPRINGS");
+  return true;
+}();
+
 }  // namespace constraints
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// \brief Register our default kernels
-MUNDY_REGISTER_METACLASS("HOOKEAN_SPRINGS",
-                         mundy::constraints::compute_constraint_forcing::kernels::HookeanSpringsKernel,
-                         mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("ANGULAR_SPRINGS",
-                         mundy::constraints::compute_constraint_forcing::kernels::AngularSpringsKernel,
-                         mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("FENE_SPRINGS", mundy::constraints::compute_constraint_forcing::kernels::FENESpringsKernel,
-                         mundy::constraints::ComputeConstraintForcing::OurKernelFactory)
-//@}
 
 #endif  // MUNDY_CONSTRAINTS_COMPUTECONSTRAINTFORCING_HPP_

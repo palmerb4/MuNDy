@@ -47,7 +47,7 @@ namespace meta {
 ///
 /// \tparam ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
-template <class ClassToRegister, class FactoryToRegisterWith>
+template <typename ClassToRegister, typename FactoryToRegisterWith>
 struct MetaRegistry {
   //! \name Member variable definitions
   //@{
@@ -64,8 +64,7 @@ struct MetaRegistry {
 /// \brief A helper macro for checking if a \c MetaMethodSubsetExecutionInterface has been registered with the \c
 /// MetaMethodFactory.
 ///
-/// This macro is used to check if a \c MetaMethodSubsetExecutionInterface has been registered with the \c
-/// MetaMethodFactory. The macro should be used in the following way:
+/// The macro should be used in the following way:
 ///
 /// \code{.cpp}
 /// MUNDY_IS_REGISTERED(ClassToCheck, FactoryToCheckWith)
@@ -99,12 +98,11 @@ struct MetaRegistry {
 /// There are some important notes about proper use of this macro:
 ///
 /// - Registration in Global Scope: The registration should typically be done in the global scope, not inside any
-/// function (including main()). This is because if the registration is done inside a function, it will not happen until
-/// that function is called, which could be after main() starts.
+/// function (including main()).
 ///
 /// - Registration in Source Files: Best practice is to perform registration in a source file, not a header file. This
 /// is because if the registration is done in a header file, it will be registered in every translation unit that
-/// includes that header file. This can lead to multiple registrations of the same class, which will cause an error.
+/// includes that header file. This can lead to multiple registrations of the same class, causing an error.
 /// Using header guards will not prevent this issue.
 ///
 /// - No Dependency on Other Static Variables in Registration: Since C++ doesn't guarantee an order of initialization
@@ -121,8 +119,7 @@ struct MetaRegistry {
 /// first.
 ///
 /// - No commas within the key: The key should not contain any commas, as this will cause the macro to interpret the
-/// key as multiple arguments. I see absolutely no reason why a key would need to contain a comma, so this should not be
-/// an issue.
+/// key as multiple arguments. The workaround is to just perform the template specialization manually.
 ///
 /// \note The third argument to this macro is supposed to be the \c MetaMethodFactory that the class should be
 /// registered with. The reason we use the weird "... /* FactoryToRegisterWith */" syntax is because we want to allow
@@ -135,13 +132,9 @@ struct MetaRegistry {
 /// \param ClassToRegister A class derived from \c MetaMethodSubsetExecutionInterface that we wish to register.
 /// \param FactoryToRegisterWith The \c MetaMethodFactory to register the class with.
 #define MUNDY_REGISTER_METACLASS(Key, ClassToRegister, ... /* FactoryToRegisterWith */)                               \
-  namespace mundy {                                                                                                   \
-  namespace meta {                                                                                                    \
   template <>                                                                                                         \
-  struct MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                                 \
-    static inline volatile const bool is_registered = __VA_ARGS__::template register_new_class<ClassToRegister>(Key); \
-  };                                                                                                                  \
-  }                                                                                                                   \
-  }
+  struct mundy::meta::MetaRegistry<ClassToRegister, __VA_ARGS__> {                                                                 \
+    static inline volatile const bool is_registered = __VA_ARGS__::register_new_class<ClassToRegister>(Key); \
+  };                                                                                                                  
 
 #endif  // MUNDY_META_METAREGISTRY_HPP_

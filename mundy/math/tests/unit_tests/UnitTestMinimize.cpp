@@ -42,16 +42,31 @@ namespace math {
 
 namespace {
 
+KOKKOS_INLINE_FUNCTION double quadratic1(const Vector<double, 2>& x) {
+  return x[0] * x[0] + x[1] * x[1];
+};
+
+KOKKOS_INLINE_FUNCTION double quadratic2(const Vector<double, 2>& x) {
+  return (x[0] - 2.0) * (x[0] - 2.0) + (x[1] + 1.0) * (x[1] + 1.0);
+};
+
+template <size_t N>
+KOKKOS_INLINE_FUNCTION double rosenbrock(const Vector<double, N>& x) {
+  double sum = 0.0;
+  for (size_t i = 0; i < N - 1; ++i) {
+    sum += 2.0 * std::pow(x[i + 1] - x[i] * x[i], 2.0) + std::pow(1.0 - x[i], 2.0);
+  }
+  return sum;
+};
+
 TEST(Minimize, SimpleFunctions) {
   constexpr size_t lbfgs_max_memory_size = 10;
   const double min_objective_delta = 1e-7;
 
   // Simple quadratic function
   {
-    auto quadratic = [](const Vector<double, 2>& x) -> double { return x[0] * x[0] + x[1] * x[1]; };
-
     Vector<double, 2> x = {1.0, 1.0};
-    double min_cost = find_min_using_approximate_derivatives<lbfgs_max_memory_size>(quadratic, x, min_objective_delta);
+    double min_cost = find_min_using_approximate_derivatives<lbfgs_max_memory_size>(quadratic1, x, min_objective_delta);
     EXPECT_NEAR(min_cost, 0.0, min_objective_delta);
     EXPECT_NEAR(x[0], 0.0, min_objective_delta);
     EXPECT_NEAR(x[1], 0.0, min_objective_delta);
@@ -59,12 +74,8 @@ TEST(Minimize, SimpleFunctions) {
 
   // Simple shifted quadratic function
   {
-    auto quadratic = [](const Vector<double, 2>& x) {
-      return (x[0] - 2.0) * (x[0] - 2.0) + (x[1] + 1.0) * (x[1] + 1.0);
-    };
-
     Vector<double, 2> x = {1.0, 1.0};
-    double min_cost = find_min_using_approximate_derivatives<lbfgs_max_memory_size>(quadratic, x, min_objective_delta);
+    double min_cost = find_min_using_approximate_derivatives<lbfgs_max_memory_size>(quadratic2, x, min_objective_delta);
     EXPECT_NEAR(min_cost, 0.0, min_objective_delta);
     EXPECT_NEAR(x[0], 2.0, min_objective_delta);
     EXPECT_NEAR(x[1], -1.0, min_objective_delta);
@@ -81,16 +92,8 @@ TEST(Minimize, ComplexFunctions) {
 
   // N-dimensional Rosenbrock function
   {
-    auto rosenbrock = [](const Vector<double, N>& x) -> double {
-      double sum = 0.0;
-      for (size_t i = 0; i < N - 1; ++i) {
-        sum += 2.0 * std::pow(x[i + 1] - x[i] * x[i], 2.0) + std::pow(1.0 - x[i], 2.0);
-      }
-      return sum;
-    };
-
     Vector<double, N> x = {0.0};
-    double min_cost = find_min_using_approximate_derivatives<lbfgs_max_memory_size>(rosenbrock, x, min_objective_delta);
+    double min_cost = find_min_using_approximate_derivatives<lbfgs_max_memory_size>(rosenbrock<N>, x, min_objective_delta);
     EXPECT_NEAR(min_cost, 0.0, test_tolerance);
     for (size_t i = 0; i < N; ++i) {
       EXPECT_NEAR(x[i], 1.0, test_tolerance);

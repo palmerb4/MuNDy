@@ -106,17 +106,17 @@ class GenerateNeighborLinkers
   //@}
 };  // GenerateNeighborLinkers
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_generate_neighbor_linkers_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::linkers::GenerateNeighborLinkers::OurTechniqueFactory::register_new_class<
+          mundy::linkers::generate_neighbor_linkers::techniques::STKSearch>("STK_SEARCH");
+  return true;
+}();
+
 }  // namespace linkers
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// \brief Register our default techniques
-MUNDY_REGISTER_METACLASS("STK_SEARCH", mundy::linkers::generate_neighbor_linkers::techniques::STKSearch,
-                         mundy::linkers::GenerateNeighborLinkers::OurTechniqueFactory)
-
-//@}
 
 #endif  // MUNDY_LINKERS_GENERATENEIGHBORLINKERS_HPP_

@@ -114,37 +114,29 @@ class ComputeSignedSeparationDistanceAndContactNormal
   //@}
 };  // ComputeSignedSeparationDistanceAndContactNormal
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_brownian_velocity_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory::register_new_class<
+          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSphereLinker>("SPHERE_SPHERE_LINKER");
+ mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory::register_new_class<
+          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSpherocylinderLinker>("SPHERE_SPHEROCYLINDER_LINKER");
+ mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory::register_new_class<
+          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSpherocylinderSegmentLinker>("SPHERE_SPHEROCYLINDER_SEGMENT_LINKER");
+ mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory::register_new_class<
+          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SpherocylinderSegmentSpherocylinderSegmentLinker>("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER");
+ mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory::register_new_class<
+          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SpherocylinderSpherocylinderLinker>("SPHEROCYLINDER_SPHEROCYLINDER_LINKER");
+ mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory::register_new_class<
+          mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SpherocylinderSpherocylinderSegmentLinker>("SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_LINKER");  
+
+  return true;
+}();
+
+
 }  // namespace linkers
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-/// \brief Register our default kernels
-MUNDY_REGISTER_METACLASS(
-    "SPHERE_SPHERE_LINKER",
-    mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::SphereSphereLinker,
-    mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_LINKER",
-                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
-                             SphereSpherocylinderLinker,
-                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHERE_SPHEROCYLINDER_SEGMENT_LINKER",
-                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
-                             SphereSpherocylinderSegmentLinker,
-                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SEGMENT_SPHEROCYLINDER_SEGMENT_LINKER",
-                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
-                             SpherocylinderSegmentSpherocylinderSegmentLinker,
-                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SPHEROCYLINDER_LINKER",
-                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
-                             SpherocylinderSpherocylinderLinker,
-                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-MUNDY_REGISTER_METACLASS("SPHEROCYLINDER_SPHEROCYLINDER_SEGMENT_LINKER",
-                         mundy::linkers::compute_signed_separation_distance_contact_normal_and_contact_points::kernels::
-                             SpherocylinderSpherocylinderSegmentLinker,
-                         mundy::linkers::ComputeSignedSeparationDistanceAndContactNormal::OurKernelFactory)
-//@}
 
 #endif  // MUNDY_LINKERS_COMPUTESIGNEDSEPARATIONDISTANCEANDCONTACTNORMAL_HPP_

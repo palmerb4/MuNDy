@@ -50,6 +50,8 @@ Interactions:
 */
 
 // External libs
+#include <fmt/format.h>
+#include <fmt/ostream.h>
 #include <openrand/philox.h>
 
 // C++ core
@@ -101,8 +103,9 @@ Interactions:
 #include <mundy_math/Vector3.hpp>                           // for mundy::math::Vector3
 #include <mundy_math/distance/EllipsoidEllipsoid.hpp>       // for mundy::math::distance::ellipsoid_ellipsoid
 #include <mundy_mesh/BulkData.hpp>                          // for mundy::mesh::BulkData
-#include <mundy_mesh/FieldViews.hpp>  // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
-#include <mundy_mesh/MetaData.hpp>    // for mundy::mesh::MetaData
+#include <mundy_mesh/FieldViews.hpp>     // for mundy::mesh::vector3_field_data, mundy::mesh::quaternion_field_data
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
+#include <mundy_mesh/fmt_stk_types.hpp>  // adds fmt::format for stk types
 #include <mundy_mesh/utils/DestroyFlaggedEntities.hpp>        // for mundy::mesh::utils::destroy_flagged_entities
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>            // for mundy::mesh::utils::fill_field_with_value
 #include <mundy_meta/MetaFactory.hpp>                         // for mundy::meta::MetaKernelFactory
@@ -120,146 +123,169 @@ namespace mundy {
 
 namespace alens {
 
-namespace crosslinkers {
+namespace hp1 {
 
+enum class BINDING_STATE_CHANGE : unsigned {
+  NONE = 0u,
+  LEFT_TO_DOUBLY,
+  RIGHT_TO_DOUBLY,
+  DOUBLY_TO_LEFT,
+  DOUBLY_TO_RIGHT
+};
+enum class INITIALIZATION_TYPE : unsigned {
+  GRID = 0u,
+  RANDOM_UNIT_CELL,
+  OVERLAP_TEST,
+  HILBERT_RANDOM_UNIT_CELL,
+  FROM_FILE
+};
+
+enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
+enum class PERIPHERY_BIND_SITES_TYPE : unsigned { RANDOM = 0u, FROM_FILE };
+enum class PERIPHERY_SHAPE : unsigned { SPHERE = 0u, ELLIPSOID };
+enum class PERIPHERY_QUADRATURE : unsigned { GAUSS_LEGENDRE = 0u, FROM_FILE };
+
+std::ostream &operator<<(std::ostream &os, const BINDING_STATE_CHANGE &state) {
+  switch (state) {
+    case BINDING_STATE_CHANGE::NONE:
+      os << "NONE";
+      break;
+    case BINDING_STATE_CHANGE::LEFT_TO_DOUBLY:
+      os << "LEFT_TO_DOUBLY";
+      break;
+    case BINDING_STATE_CHANGE::RIGHT_TO_DOUBLY:
+      os << "RIGHT_TO_DOUBLY";
+      break;
+    case BINDING_STATE_CHANGE::DOUBLY_TO_LEFT:
+      os << "DOUBLY_TO_LEFT";
+      break;
+    case BINDING_STATE_CHANGE::DOUBLY_TO_RIGHT:
+      os << "DOUBLY_TO_RIGHT";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const INITIALIZATION_TYPE &init_type) {
+  switch (init_type) {
+    case INITIALIZATION_TYPE::GRID:
+      os << "GRID";
+      break;
+    case INITIALIZATION_TYPE::RANDOM_UNIT_CELL:
+      os << "RANDOM_UNIT_CELL";
+      break;
+    case INITIALIZATION_TYPE::OVERLAP_TEST:
+      os << "OVERLAP_TEST";
+      break;
+    case INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL:
+      os << "HILBERT_RANDOM_UNIT_CELL";
+      break;
+    case INITIALIZATION_TYPE::FROM_FILE:
+      os << "FROM_FILE";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const BOND_TYPE &bond_type) {
+  switch (bond_type) {
+    case BOND_TYPE::HARMONIC:
+      os << "HARMONIC";
+      break;
+    case BOND_TYPE::FENE:
+      os << "FENE";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const PERIPHERY_BIND_SITES_TYPE &bind_sites_type) {
+  switch (bind_sites_type) {
+    case PERIPHERY_BIND_SITES_TYPE::RANDOM:
+      os << "RANDOM";
+      break;
+    case PERIPHERY_BIND_SITES_TYPE::FROM_FILE:
+      os << "FROM_FILE";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const PERIPHERY_SHAPE &periphery_shape) {
+  switch (periphery_shape) {
+    case PERIPHERY_SHAPE::SPHERE:
+      os << "SPHERE";
+      break;
+    case PERIPHERY_SHAPE::ELLIPSOID:
+      os << "ELLIPSOID";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const PERIPHERY_QUADRATURE &periphery_quadrature) {
+  switch (periphery_quadrature) {
+    case PERIPHERY_QUADRATURE::GAUSS_LEGENDRE:
+      os << "GAUSS_LEGENDRE";
+      break;
+    case PERIPHERY_QUADRATURE::FROM_FILE:
+      os << "FROM_FILE";
+      break;
+    default:
+      os << "UNKNOWN";
+      break;
+  }
+  return os;
+}
+
+}  // namespace hp1
+
+}  // namespace alens
+
+}  // namespace mundy
+
+template <>
+struct fmt::formatter<mundy::alens::hp1::BINDING_STATE_CHANGE> : fmt::ostream_formatter {};
+
+template <>
+struct fmt::formatter<mundy::alens::hp1::INITIALIZATION_TYPE> : fmt::ostream_formatter {};
+
+template <>
+struct fmt::formatter<mundy::alens::hp1::BOND_TYPE> : fmt::ostream_formatter {};
+
+template <>
+struct fmt::formatter<mundy::alens::hp1::PERIPHERY_BIND_SITES_TYPE> : fmt::ostream_formatter {};
+
+template <>
+struct fmt::formatter<mundy::alens::hp1::PERIPHERY_SHAPE> : fmt::ostream_formatter {};
+
+template <>
+struct fmt::formatter<mundy::alens::hp1::PERIPHERY_QUADRATURE> : fmt::ostream_formatter {};
+
+namespace mundy {
+
+namespace alens {
+
+namespace hp1 {
+
+// Forward declare the enums and declare their fmt formatters.
 class HP1 {
  public:
-  enum class BINDING_STATE_CHANGE : unsigned {
-    NONE = 0u,
-    LEFT_TO_DOUBLY,
-    RIGHT_TO_DOUBLY,
-    DOUBLY_TO_LEFT,
-    DOUBLY_TO_RIGHT
-  };
-  enum class INITIALIZATION_TYPE : unsigned {
-    GRID = 0u,
-    RANDOM_UNIT_CELL,
-    OVERLAP_TEST,
-    HILBERT_RANDOM_UNIT_CELL,
-    FROM_EXO,
-    FROM_DAT,
-    USHAPE_TEST
-  };
-
-  enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
-  enum class PERIPHERY_BIND_SITES_TYPE : unsigned { RANDOM = 0u, FROM_FILE };
-  enum class PERIPHERY_SHAPE : unsigned { SPHERE = 0u, ELLIPSOID };
-  enum class PERIPHERY_QUADRATURE : unsigned { GAUSS_LEGENDRE = 0u, FROM_FILE };
-
-  friend std::ostream &operator<<(std::ostream &os, const BINDING_STATE_CHANGE &state) {
-    switch (state) {
-      case BINDING_STATE_CHANGE::NONE:
-        os << "NONE";
-        break;
-      case BINDING_STATE_CHANGE::LEFT_TO_DOUBLY:
-        os << "LEFT_TO_DOUBLY";
-        break;
-      case BINDING_STATE_CHANGE::RIGHT_TO_DOUBLY:
-        os << "RIGHT_TO_DOUBLY";
-        break;
-      case BINDING_STATE_CHANGE::DOUBLY_TO_LEFT:
-        os << "DOUBLY_TO_LEFT";
-        break;
-      case BINDING_STATE_CHANGE::DOUBLY_TO_RIGHT:
-        os << "DOUBLY_TO_RIGHT";
-        break;
-      default:
-        os << "UNKNOWN";
-        break;
-    }
-    return os;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os, const INITIALIZATION_TYPE &init_type) {
-    switch (init_type) {
-      case INITIALIZATION_TYPE::GRID:
-        os << "GRID";
-        break;
-      case INITIALIZATION_TYPE::RANDOM_UNIT_CELL:
-        os << "RANDOM_UNIT_CELL";
-        break;
-      case INITIALIZATION_TYPE::OVERLAP_TEST:
-        os << "OVERLAP_TEST";
-        break;
-      case INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL:
-        os << "HILBERT_RANDOM_UNIT_CELL";
-        break;
-      case INITIALIZATION_TYPE::FROM_EXO:
-        os << "FROM_EXO";
-        break;
-      case INITIALIZATION_TYPE::FROM_DAT:
-        os << "FROM_DAT";
-        break;
-      case INITIALIZATION_TYPE::USHAPE_TEST:
-        os << "USHAPE_TEST";
-        break;
-      default:
-        os << "UNKNOWN";
-        break;
-    }
-    return os;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os, const BOND_TYPE &bond_type) {
-    switch (bond_type) {
-      case BOND_TYPE::HARMONIC:
-        os << "HARMONIC";
-        break;
-      case BOND_TYPE::FENE:
-        os << "FENE";
-        break;
-      default:
-        os << "UNKNOWN";
-        break;
-    }
-    return os;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os, const PERIPHERY_BIND_SITES_TYPE &bind_sites_type) {
-    switch (bind_sites_type) {
-      case PERIPHERY_BIND_SITES_TYPE::RANDOM:
-        os << "RANDOM";
-        break;
-      case PERIPHERY_BIND_SITES_TYPE::FROM_FILE:
-        os << "FROM_FILE";
-        break;
-      default:
-        os << "UNKNOWN";
-        break;
-    }
-    return os;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os, const PERIPHERY_SHAPE &periphery_shape) {
-    switch (periphery_shape) {
-      case PERIPHERY_SHAPE::SPHERE:
-        os << "SPHERE";
-        break;
-      case PERIPHERY_SHAPE::ELLIPSOID:
-        os << "ELLIPSOID";
-        break;
-      default:
-        os << "UNKNOWN";
-        break;
-    }
-    return os;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os, const PERIPHERY_QUADRATURE &periphery_quadrature) {
-    switch (periphery_quadrature) {
-      case PERIPHERY_QUADRATURE::GAUSS_LEGENDRE:
-        os << "GAUSS_LEGENDRE";
-        break;
-      case PERIPHERY_QUADRATURE::FROM_FILE:
-        os << "FROM_FILE";
-        break;
-      default:
-        os << "UNKNOWN";
-        break;
-    }
-    return os;
-  }
-
   using DeviceExecutionSpace = Kokkos::DefaultExecutionSpace;
   using DeviceMemorySpace = typename DeviceExecutionSpace::memory_space;
 
@@ -343,10 +369,10 @@ class HP1 {
     num_heterochromatin_per_repeat_ = simulation_params.get<size_t>("num_heterochromatin_per_repeat");
     backbone_sphere_hydrodynamic_radius_ = simulation_params.get<double>("backbone_sphere_hydrodynamic_radius");
     initial_chromosome_separation_ = simulation_params.get<double>("initial_chromosome_separation");
-    MUNDY_THROW_ASSERT(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(viscosity_ > 0, std::invalid_argument, "viscosity_ must be greater than 0.");
-    MUNDY_THROW_ASSERT(initial_chromosome_separation_ >= 0, std::invalid_argument,
-                       "initial_chromosome_separation_ must be greater than or equal to 0.");
+    MUNDY_THROW_REQUIRE(timestep_size_ > 0, std::invalid_argument, "timestep_size_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(viscosity_ > 0, std::invalid_argument, "viscosity_ must be greater than 0.");
+    MUNDY_THROW_REQUIRE(initial_chromosome_separation_ >= 0, std::invalid_argument,
+                        "initial_chromosome_separation_ must be greater than or equal to 0.");
 
     io_frequency_ = simulation_params.get<size_t>("io_frequency");
     log_frequency_ = simulation_params.get<size_t>("log_frequency");
@@ -370,11 +396,11 @@ class HP1 {
     } else if (initiliazation_type_string == "USHAPE_TEST") {
       initialization_type_ = INITIALIZATION_TYPE::USHAPE_TEST;
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid initialization type. Received '" << initiliazation_type_string
-                                                                   << "' but expected 'GRID', 'RANDOM_UNIT_CELL', "
-                                                                      "'OVERLAP_TEST', 'HILBERT_RANDOM_UNIT_CELL', or "
-                                                                      "'FROM_FILE'.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Invalid initialization type. Received '") + initiliazation_type_string +
+                              "' but expected 'GRID', 'RANDOM_UNIT_CELL', "
+                              "'OVERLAP_TEST', 'HILBERT_RANDOM_UNIT_CELL', or "
+                              "'FROM_FILE'.");
     }
     if (initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL ||
         initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
@@ -397,9 +423,9 @@ class HP1 {
     enable_periphery_collision_ = simulation_params.get<bool>("enable_periphery_collision");
     enable_periphery_hydrodynamics_ = simulation_params.get<bool>("enable_periphery_hydrodynamics");
     enable_periphery_binding_ = simulation_params.get<bool>("enable_periphery_binding");
-    MUNDY_THROW_ASSERT(enable_periphery_hydrodynamics_ ? enable_backbone_n_body_hydrodynamics_ : true,
-                       std::invalid_argument,
-                       "Logically periphery hydrodynamics requires backbone hydrodynamics to be enabled.");
+    MUNDY_THROW_REQUIRE(enable_periphery_hydrodynamics_ ? enable_backbone_n_body_hydrodynamics_ : true,
+                        std::invalid_argument,
+                        "Logically periphery hydrodynamics requires backbone hydrodynamics to be enabled.");
     enable_active_euchromatin_forces_ = simulation_params.get<bool>("enable_active_euchromatin_forces");
 
     if (enable_chromatin_brownian_motion_) {
@@ -445,9 +471,9 @@ class HP1 {
       backbone_spring_constant_ = param_list.get<double>("spring_constant");
       backbone_spring_r0_ = param_list.get<double>("spring_r0");
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid backbone spring type. Received '" << backbone_spring_type_string
-                                                                    << "' but expected 'HARMONIC' or 'FENE'.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Invalid backbone spring type. Received '") + backbone_spring_type_string +
+                              "' but expected 'HARMONIC' or 'FENE'.");
     }
   }
 
@@ -464,9 +490,9 @@ class HP1 {
     } else if (crosslinker_spring_type_string == "FENE") {
       crosslinker_spring_type_ = BOND_TYPE::FENE;
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid crosslinker spring type. Received '" << crosslinker_spring_type_string
-                                                                       << "' but expected 'HARMONIC' or 'FENE'.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Invalid crosslinker spring type. Received '") + crosslinker_spring_type_string +
+                              "' but expected 'HARMONIC' or 'FENE'.");
     }
 
     crosslinker_kt_ = param_list.get<double>("kt");
@@ -500,18 +526,18 @@ class HP1 {
       periphery_hydro_axis_radius2_ = param_list.get<double>("axis_radius2");
       periphery_hydro_axis_radius3_ = param_list.get<double>("axis_radius3");
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid hydrodynamic periphery shape. Received '"
-                             << periphery_hydro_shape_string << "' but expected 'SPHERE' or 'ELLIPSOID'.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Invalid hydrodynamic periphery shape. Received '") +
+                              periphery_hydro_shape_string + "' but expected 'SPHERE' or 'ELLIPSOID'.");
     }
     std::string periphery_hydro_quadrature_string = param_list.get<std::string>("quadrature");
     if (periphery_hydro_quadrature_string == "GAUSS_LEGENDRE") {
-      MUNDY_THROW_ASSERT((periphery_hydro_shape_ == PERIPHERY_SHAPE::SPHERE) ||
-                             ((periphery_hydro_shape_ == PERIPHERY_SHAPE::ELLIPSOID) &&
-                              (periphery_hydro_axis_radius1_ == periphery_hydro_axis_radius2_) &&
-                              (periphery_hydro_axis_radius2_ == periphery_hydro_axis_radius3_) &&
-                              (periphery_hydro_axis_radius3_ == periphery_hydro_axis_radius1_)),
-                         std::invalid_argument, "Gauss-Legendre quadrature is only valid for spherical peripheries.");
+      MUNDY_THROW_REQUIRE((periphery_hydro_shape_ == PERIPHERY_SHAPE::SPHERE) ||
+                              ((periphery_hydro_shape_ == PERIPHERY_SHAPE::ELLIPSOID) &&
+                               (periphery_hydro_axis_radius1_ == periphery_hydro_axis_radius2_) &&
+                               (periphery_hydro_axis_radius2_ == periphery_hydro_axis_radius3_) &&
+                               (periphery_hydro_axis_radius3_ == periphery_hydro_axis_radius1_)),
+                          std::invalid_argument, "Gauss-Legendre quadrature is only valid for spherical peripheries.");
       periphery_hydro_quadrature_ = PERIPHERY_QUADRATURE::GAUSS_LEGENDRE;
       periphery_hydro_spectral_order_ = param_list.get<size_t>("spectral_order");
     } else if (periphery_hydro_quadrature_string == "FROM_FILE") {
@@ -521,9 +547,9 @@ class HP1 {
       periphery_hydro_quadrature_weights_filename_ = param_list.get<std::string>("quadrature_weights_filename");
       periphery_hydro_quadrature_normals_filename_ = param_list.get<std::string>("quadrature_normals_filename");
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid periphery quadrature. Received '"
-                             << periphery_hydro_quadrature_string << "' but expected 'GAUSS_LEGENDRE' or 'FROM_FILE'.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Invalid periphery quadrature. Received '") + periphery_hydro_quadrature_string +
+                              "' but expected 'GAUSS_LEGENDRE' or 'FROM_FILE'.");
     }
   }
 
@@ -539,9 +565,9 @@ class HP1 {
       periphery_collision_axis_radius2_ = param_list.get<double>("axis_radius2");
       periphery_collision_axis_radius3_ = param_list.get<double>("axis_radius3");
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid collision periphery shape. Received '" << periphery_collision_shape_string
-                                                                         << "' but expected 'SPHERE' or 'ELLIPSOID'.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Invalid collision periphery shape. Received '") +
+                              periphery_collision_shape_string + "' but expected 'SPHERE' or 'ELLIPSOID'.");
     }
 
     periphery_collision_use_fast_approx_ = param_list.get<bool>("use_fast_approx");
@@ -570,9 +596,9 @@ class HP1 {
       periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::FROM_FILE;
       periphery_bind_site_locations_filename_ = param_list.get<std::string>("bind_site_locations_filename");
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Invalid periphery binding sites type. Received '"
-                             << periphery_bind_sites_type_string << "' but expected 'RANDOM' or 'FROM_FILE'.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          std::string("Invalid periphery binding sites type. Received '") +
+                              periphery_bind_sites_type_string + "' but expected 'RANDOM' or 'FROM_FILE'.");
     }
   }
 
@@ -1292,23 +1318,23 @@ class HP1 {
       meta_data_ptr_->commit();
     } else {
       // The mesh better be committed already
-      MUNDY_THROW_ASSERT(meta_data_ptr_->is_commit(), std::runtime_error,
-                         "The restart should have already committed the mesh. Something went wrong.");
+      MUNDY_THROW_REQUIRE(meta_data_ptr_->is_commit(), std::runtime_error,
+                          "The restart should have already committed the mesh. Something went wrong.");
     }
   }
 
   template <typename FieldType>
   stk::mesh::Field<FieldType> *fetch_field(const std::string &field_name, stk::topology::rank_t rank) {
     auto field_ptr = meta_data_ptr_->get_field<FieldType>(rank, field_name);
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Field " << field_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                        std::string("Field ") + field_name + " not found in the mesh meta data.");
     return field_ptr;
   }
 
   stk::mesh::Part *fetch_part(const std::string &part_name) {
     auto part_ptr = meta_data_ptr_->get_part(part_name);
-    MUNDY_THROW_ASSERT(part_ptr != nullptr, std::invalid_argument,
-                       "Part " << part_name << " not found in the mesh meta data.");
+    MUNDY_THROW_REQUIRE(part_ptr != nullptr, std::invalid_argument,
+                        std::string("Part ") + part_name + " not found in the mesh meta data.");
     return part_ptr;
   }
 
@@ -1625,7 +1651,8 @@ class HP1 {
           for (size_t sphere_local_idx = 0; sphere_local_idx < num_spheres_per_chromosome; sphere_local_idx++) {
             stk::mesh::Entity sphere_node = bulk_data_ptr_->get_entity(node_rank_, get_node_id(sphere_local_idx));
             MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(sphere_node), std::invalid_argument,
-                               "Node " << sphere_local_idx << " is not valid.");
+                               fmt::format("Node {} is not valid", sphere_local_idx));
+
             // Check if we are a heterochromatin sphere
             if (get_region_by_id(sphere_local_idx) == "H") {
               // Bind left and right nodes to the same node to start simulation (everybody is left bound)
@@ -1637,9 +1664,10 @@ class HP1 {
               stk::mesh::Permutation invalid_perm = stk::mesh::Permutation::INVALID_PERMUTATION;
               bulk_data_ptr_->declare_relation(hp1_crosslinker, sphere_node, 0, invalid_perm);
               bulk_data_ptr_->declare_relation(hp1_crosslinker, sphere_node, 1, invalid_perm);
-              MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(hp1_crosslinker).topology() != stk::topology::INVALID_TOPOLOGY,
-                                 std::logic_error,
-                                 "The crosslinker with id " << hp1_crosslinker_id << " has an invalid topology.");
+              MUNDY_THROW_ASSERT(
+                  bulk_data_ptr_->bucket(hp1_crosslinker).topology() != stk::topology::INVALID_TOPOLOGY,
+                  std::logic_error,
+                  fmt::format("The crosslinker with id {} has an invalid topology.", hp1_crosslinker_id));
               // Assign the chainID
               stk::mesh::field_data(*element_chainid_field_ptr_, hp1_crosslinker)[0] = j;
 
@@ -1740,7 +1768,8 @@ class HP1 {
         size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
         for (size_t i = start_node_index; i < end_node_index; ++i) {
           stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
-          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                             fmt::format("Node {} is not valid", i));
 
           // Assign the node coordinates
           mundy::math::Vector3<double> r =
@@ -1777,7 +1806,8 @@ class HP1 {
         size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
         for (size_t i = start_node_index; i < end_node_index; ++i) {
           stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
-          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                             fmt::format("Node {} is not valid", i));
 
           // Assign the node coordinates
           mundy::math::Vector3<double> r =
@@ -1821,7 +1851,8 @@ class HP1 {
         size_t end_node_index = num_nodes_per_chromosome * (j + 1) + 1u;
         for (size_t i = start_node_index; i < end_node_index; ++i) {
           stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
-          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                             fmt::format("Node {} is not valid", i));
 
           // Assign the node coordinates
           mundy::math::Vector3<double> r =
@@ -1962,8 +1993,8 @@ class HP1 {
             break;
           }
         }
-        MUNDY_THROW_ASSERT(chromosome_inserted, std::runtime_error,
-                           "Failed to insert chromosome after " << max_trials << " trials.");
+        MUNDY_THROW_REQUIRE(chromosome_inserted, std::runtime_error,
+                            fmt::format("Failed to insert chromosome after {} trials.", max_trials));
 
         // Generate all the positions along the curve due to the placement in the global space
         std::vector<mundy::math::Vector3<double>> new_position_array;
@@ -1975,7 +2006,8 @@ class HP1 {
         // Update the coordinates for this chromosome
         for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
           stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
-          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                             fmt::format("Node {} is not valid", i));
 
           // Assign the node coordinates
           stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = new_position_array[idx][0];
@@ -1994,26 +2026,26 @@ class HP1 {
     // Note, the positions are potentially read from the restart file, the following fields are not.
 
     // Assert that all pointers are non-null
-    MUNDY_THROW_ASSERT(node_coord_field_ptr_ != nullptr, std::invalid_argument, "Node coordinate field is null.");
-    MUNDY_THROW_ASSERT(element_chainid_field_ptr_ != nullptr, std::invalid_argument, "Element chainID field is null.");
-    MUNDY_THROW_ASSERT(element_radius_field_ptr_ != nullptr, std::invalid_argument, "Element radius field is null.");
-    MUNDY_THROW_ASSERT(element_youngs_modulus_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element youngs modulus field is null.");
-    MUNDY_THROW_ASSERT(element_poissons_ratio_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element poisson's ratio field is null.");
-    MUNDY_THROW_ASSERT(element_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(node_coord_field_ptr_ != nullptr, std::invalid_argument, "Node coordinate field is null.");
+    MUNDY_THROW_REQUIRE(element_chainid_field_ptr_ != nullptr, std::invalid_argument, "Element chainID field is null.");
+    MUNDY_THROW_REQUIRE(element_radius_field_ptr_ != nullptr, std::invalid_argument, "Element radius field is null.");
+    MUNDY_THROW_REQUIRE(element_youngs_modulus_field_ptr_ != nullptr, std::invalid_argument,
+                        "Element youngs modulus field is null.");
+    MUNDY_THROW_REQUIRE(element_poissons_ratio_field_ptr_ != nullptr, std::invalid_argument,
+                        "Element poisson's ratio field is null.");
+    MUNDY_THROW_REQUIRE(element_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
                        "Element spring constant field is null.");
-    MUNDY_THROW_ASSERT(element_spring_r0_field_ptr_ != nullptr, std::invalid_argument,
+    MUNDY_THROW_REQUIRE(element_spring_r0_field_ptr_ != nullptr, std::invalid_argument,
                        "Element spring r0 field is null.");
-    MUNDY_THROW_ASSERT(element_rng_field_ptr_ != nullptr, std::invalid_argument, "Element rng field is null.");
-    MUNDY_THROW_ASSERT(euchromatin_state_field_ptr_ != nullptr, std::invalid_argument,
-                       "Euchromatin state field is null.");
-    MUNDY_THROW_ASSERT(euchromatin_perform_state_change_field_ptr_ != nullptr, std::invalid_argument,
-                       "Euchromatin perform state change field is null.");
-    MUNDY_THROW_ASSERT(euchromatin_state_change_next_time_field_ptr_ != nullptr, std::invalid_argument,
-                       "Euchromatin state change next time field is null.");
-    MUNDY_THROW_ASSERT(euchromatin_state_change_elapsed_time_field_ptr_ != nullptr, std::invalid_argument,
-                       "Euchromatin state change elapsed time field is null.");
+    MUNDY_THROW_REQUIRE(element_rng_field_ptr_ != nullptr, std::invalid_argument, "Element rng field is null.");
+    MUNDY_THROW_REQUIRE(euchromatin_state_field_ptr_ != nullptr, std::invalid_argument,
+                        "Euchromatin state field is null.");
+    MUNDY_THROW_REQUIRE(euchromatin_perform_state_change_field_ptr_ != nullptr, std::invalid_argument,
+                        "Euchromatin perform state change field is null.");
+    MUNDY_THROW_REQUIRE(euchromatin_state_change_next_time_field_ptr_ != nullptr, std::invalid_argument,
+                        "Euchromatin state change next time field is null.");
+    MUNDY_THROW_REQUIRE(euchromatin_state_change_elapsed_time_field_ptr_ != nullptr, std::invalid_argument,
+                        "Euchromatin state change elapsed time field is null.");
 
     // Initialize the backbone springs (EE, EH, HH)
     const stk::mesh::Selector backbone_segments = *ee_springs_part_ptr_ | *eh_springs_part_ptr_ | *hh_springs_part_ptr_;
@@ -2075,7 +2107,8 @@ class HP1 {
         std::cout << "Initializing chromosomes as a U-shaped test" << std::endl;
         initialize_chromosome_positions_ushape_test();
       } else {
-        MUNDY_THROW_ASSERT(false, std::invalid_argument, "Unknown initialization type: " << initialization_type_);
+        MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                            fmt::format("Unknown initialization type: {}", initialization_type_));
       }
     }
 
@@ -2155,10 +2188,10 @@ class HP1 {
           .set_quadrature_weights(periphery_hydro_quadrature_weights_filename_)
           .set_surface_normals(periphery_hydro_quadrature_normals_filename_);
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "We currently only support GAUSS_LEGENDRE quadrature for "
-                         "spheres and ellipsoids with equal radii or direct specification of the quadrature from a "
-                         "file using FROM_FILE.");
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                          "We currently only support GAUSS_LEGENDRE quadrature for "
+                          "spheres and ellipsoids with equal radii or direct specification of the quadrature from a "
+                          "file using FROM_FILE.");
     }
 
     // Run the precomputation for the inverse self-interaction matrix
@@ -2246,9 +2279,9 @@ class HP1 {
           }
         }
       } else {
-        MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                           "Unknown periphery shape. Recieved: " << periphery_collision_shape_
-                                                                 << " but expected SPHERE or ELLIPSOID.");
+        MUNDY_THROW_REQUIRE(false, std::invalid_argument,
+                            fmt::format("Unknown periphery shape. Recieved: {} but expected SPHERE or ELLIPSOID.",
+                                        periphery_collision_shape_));
       }
     } else if (periphery_bind_sites_type_ == PERIPHERY_BIND_SITES_TYPE::FROM_FILE) {
       if (bulk_data_ptr_->parallel_rank() == 0) {
@@ -2261,9 +2294,9 @@ class HP1 {
         // Parse the input
         size_t num_elements;
         infile.read(reinterpret_cast<char *>(&num_elements), sizeof(size_t));
-        MUNDY_THROW_ASSERT(
-            num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
-            "Num bind sites mismatch: expected " << periphery_num_bind_sites_ << ", got " << num_elements / 3);
+        MUNDY_THROW_REQUIRE(num_elements == 3 * periphery_num_bind_sites_, std::invalid_argument,
+                            fmt::format("Num bind sites mismatch: expected {} but got {}",
+                                        3 * periphery_num_bind_sites_, num_elements));
         for (size_t i = 0; i < periphery_num_bind_sites_; ++i) {
           const stk::mesh::Entity &node_i = requested_entities[i];
           const stk::mesh::Entity &sphere_i = requested_entities[periphery_num_bind_sites_ + i];
@@ -2277,9 +2310,10 @@ class HP1 {
         infile.close();
       }
     } else {
-      MUNDY_THROW_ASSERT(false, std::invalid_argument,
-                         "Unknown periphery bind sites type. Recieved: " << periphery_bind_sites_type_
-                                                                         << " but expected RANDOM or FROM_FILE.");
+      MUNDY_THROW_REQUIRE(
+          false, std::invalid_argument,
+          fmt::format("Unknown periphery bind sites type. Recieved: {} but expected RANDOM or FROM_FILE.",
+                      periphery_bind_sites_type_));
     }
   }
 
@@ -2423,7 +2457,6 @@ class HP1 {
   }
 
   void update_accumulators() {
-#pragma TODO This will be at the mercy of periodic boundary condition calculations.
     Kokkos::Profiling::pushRegion("HP1::update_accumulators");
 
     // Selectors and aliases
@@ -2877,8 +2910,8 @@ class HP1 {
         // Call the binding function
         if (state_change_action == BINDING_STATE_CHANGE::LEFT_TO_DOUBLY) {
           // Unbind the right side of the crosslinker from the left node and bind it to the target node
-          const bool bind_worked =
-              bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker_hp1, target_sphere_node, 1);
+          const bool bind_worked = ::mundy::alens::crosslinkers::bind_crosslinker_to_node_unbind_existing(
+              *bulk_data_ptr_, crosslinker_hp1, target_sphere_node, 1);
           MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
 
           std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Binding crosslinker "
@@ -2905,8 +2938,8 @@ class HP1 {
       if (state_change_action == BINDING_STATE_CHANGE::DOUBLY_TO_LEFT) {
         // Unbind the right side of the crosslinker from the current node and bind it to the left crosslinker node
         const stk::mesh::Entity &left_node = bulk_data_ptr_->begin_nodes(crosslinker_hp1)[0];
-        const bool unbind_worked =
-            bind_crosslinker_to_node_unbind_existing(*bulk_data_ptr_, crosslinker_hp1, left_node, 1);
+        const bool unbind_worked = ::mundy::alens::crosslinkers::bind_crosslinker_to_node_unbind_existing(
+            *bulk_data_ptr_, crosslinker_hp1, left_node, 1);
         MUNDY_THROW_ASSERT(unbind_worked, std::logic_error, "Failed to unbind crosslinker from node.");
 
         std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Unbinding crosslinker "
@@ -3069,7 +3102,7 @@ class HP1 {
                 std::cout << "  node_coords: " << node_coords << std::endl;
                 std::cout << "  norm(node_coords): " << mundy::math::norm(node_coords) << std::endl;
               }
-              MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
+              MUNDY_THROW_REQUIRE(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
             }
           });
     } else if (periphery_hydro_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
@@ -3114,11 +3147,11 @@ class HP1 {
                 std::cout << "  node_coords: " << node_coords << std::endl;
                 std::cout << "  value: " << value << std::endl;
               }
-              MUNDY_THROW_ASSERT(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
+              MUNDY_THROW_REQUIRE(false, std::runtime_error, "Sphere node outside hydrodynamic periphery.");
             }
           });
     } else {
-      MUNDY_THROW_ASSERT(false, std::logic_error, "Invalid periphery type.");
+      MUNDY_THROW_REQUIRE(false, std::logic_error, "Invalid periphery type.");
     }
   }
 
@@ -3290,7 +3323,7 @@ class HP1 {
             mundy::math::Vector3<double> ellipsoid_nhat;
             const double shared_normal_ssd =
                 -mundy::math::distance::shared_normal_ssd_between_ellipsoid_and_point(
-                    center, orientation, a, b, c, node_coords, &contact_point, &ellipsoid_nhat) -
+                    center, orientation, a, b, c, node_coords, contact_point, ellipsoid_nhat) -
                 sphere_radius;
 
             if (shared_normal_ssd < 0.0) {
@@ -3411,7 +3444,7 @@ class HP1 {
         compute_ellipsoidal_periphery_collision_forces();
       }
     } else {
-      MUNDY_THROW_ASSERT(false, std::logic_error, "Invalid periphery type.");
+      MUNDY_THROW_REQUIRE(false, std::logic_error, "Invalid periphery type.");
     }
     Kokkos::Profiling::popRegion();
   }
@@ -3622,8 +3655,8 @@ class HP1 {
           }
         });
 
-    MUNDY_THROW_ASSERT(!maximum_speed_exceeded, std::runtime_error,
-                       "Maximum speed exceeded on timestep " + timestep_index_);
+    MUNDY_THROW_REQUIRE(!maximum_speed_exceeded, std::runtime_error,
+                        fmt::format("Maximum speed exceeded on timestep {}", timestep_index_));
   }
 
   void update_positions() {
@@ -4211,7 +4244,7 @@ class HP1 {
   //@}
 };  // class HP1
 
-}  // namespace crosslinkers
+}  // namespace hp1
 
 }  // namespace alens
 
@@ -4226,7 +4259,7 @@ int main(int argc, char **argv) {
   Kokkos::initialize(argc, argv);
 
   // Run the simulation using the given parameters
-  mundy::alens::crosslinkers::HP1().run(argc, argv);
+  mundy::alens::hp1::HP1().run(argc, argv);
 
   // Before exiting, sleep for some amount of time to force Kokkos to print better at the end.
   std::this_thread::sleep_for(std::chrono::milliseconds(stk::parallel_machine_rank(MPI_COMM_WORLD)));

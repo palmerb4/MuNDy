@@ -54,5 +54,8 @@ if (NOT CMAKE_CXX_STANDARD MATCHES "^${${PROJECT_NAME}_CMAKE_CXX_STANDARDS_ALLOW
     "${${PROJECT_NAME}_CMAKE_CXX_STANDARDS_ALLOWED}")
 endif ()
 
+# Print the CMAKE_CXX_FLAGS
+message(STATUS "CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
+
 # Do all of the processing for this Tribits project
 tribits_project()

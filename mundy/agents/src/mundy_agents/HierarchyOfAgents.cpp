@@ -20,6 +20,9 @@
 /// \file HierarchyOfAgents.cpp
 /// \brief Definition of the HierarchyOfAgents class
 
+// External
+#include <fmt/format.h>  // for fmt::format
+
 // C++ core libs
 #include <iostream>   // for std::cout
 #include <map>        // for std::map
@@ -57,21 +60,19 @@ bool HierarchyOfAgents::is_valid(const agent_t agent_type) {
 }
 
 void HierarchyOfAgents::assert_is_valid(const std::string& name) {
-  MUNDY_THROW_ASSERT(is_valid(name), std::invalid_argument,
-                     "HierarchyOfAgents: The provided class's name '"
-                         << name << "' is not valid.\n"
-                         << "There are currently " << get_number_of_registered_types() << " registered classes.\n"
-                         << "The hierarchy is:\n"
-                         << get_hierarchy_as_a_string() << "\n");
+  MUNDY_THROW_REQUIRE(is_valid(name), std::invalid_argument,
+                      fmt::format("HierarchyOfAgents: The provided class's name '{}' is not valid.\n"
+                                  "There are currently {} registered classes.\n"
+                                  "The hierarchy is:\n{}",
+                                  name, get_number_of_registered_types(), get_hierarchy_as_a_string()));
 }
 
 void HierarchyOfAgents::assert_is_valid(const agent_t agent_type) {
-  MUNDY_THROW_ASSERT(is_valid(agent_type), std::invalid_argument,
-                     "HierarchyOfAgents: The provided class's id '"
-                         << agent_type << "' is not valid." << "There are currently "
-                         << get_number_of_registered_types() << " registered classes.\n"
-                         << "The hierarchy is:\n"
-                         << get_hierarchy_as_a_string() << "\n");
+  MUNDY_THROW_REQUIRE(is_valid(agent_type), std::invalid_argument,
+                      fmt::format("HierarchyOfAgents: The provided class's id '{}' is not valid.\n"
+                                  "There are currently {} registered classes.\n"
+                                  "The hierarchy is:\n{}",
+                                  agent_type, get_number_of_registered_types(), get_hierarchy_as_a_string()));
 }
 
 agent_t HierarchyOfAgents::get_agent_type(const std::string& name) {

@@ -111,16 +111,17 @@ class ComputeBrownianVelocity
   //@}
 };  // ComputeBrownianVelocity
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_compute_brownian_velocity_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::alens::ComputeBrownianVelocity::OurKernelFactory::register_new_class<
+          mundy::alens::compute_brownian_velocity::kernels::SpheresKernel>("SPHERE");
+  return true;
+}();
+
 }  // namespace alens
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-/// \brief Register our default kernels
-MUNDY_REGISTER_METACLASS("SPHERE", mundy::alens::compute_brownian_velocity::kernels::SpheresKernel,
-                         mundy::alens::ComputeBrownianVelocity::OurKernelFactory)
-
-//@}
 
 #endif  // MUNDY_ALENS_COMPUTEBROWNIANVELOCITY_HPP_

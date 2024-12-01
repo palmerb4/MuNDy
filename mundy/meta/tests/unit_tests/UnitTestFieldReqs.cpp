@@ -141,15 +141,29 @@ TEST(FieldReqsGetters, IsGettable) {
   EXPECT_THROW(field_reqs.get_field_rank(), std::logic_error);
   EXPECT_THROW(field_reqs.get_field_dimension(), std::logic_error);
   EXPECT_THROW(field_reqs.get_field_min_num_states(), std::logic_error);
+  std::cout << "Threw as expected" << std::endl;
+
   field_reqs.set_field_name(field_name);
   field_reqs.set_field_rank(field_rank);
   field_reqs.set_field_dimension(field_dimension);
   field_reqs.set_field_min_number_of_states(field_min_number_of_states);
+  std::cout << "Set without error" << std::endl;
+
   EXPECT_EQ(field_reqs.get_field_name(), field_name);
+  std::cout << "get_field_name finished" << std::endl;
+
   EXPECT_EQ(field_reqs.get_field_rank(), field_rank);
+  std::cout << "get_field_rank finished" << std::endl;
+
   EXPECT_EQ(field_reqs.get_field_dimension(), field_dimension);
+  std::cout << "get_field_dimension finished" << std::endl;
+
   EXPECT_EQ(field_reqs.get_field_min_num_states(), field_min_number_of_states);
+  std::cout << "get_field_min_num_states finished" << std::endl;
+
   EXPECT_EQ(field_reqs.get_field_type_info(), typeid(ExampleFieldType));
+  std::cout << "get_field_type_info finished" << std::endl;
+  std::cout << "Set set correctly and got got correctly" << std::endl;
 }
 //@}
 

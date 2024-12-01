@@ -126,10 +126,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 
     if (map_rbf_to_rbv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity "
-                         "parameter with name 'name' but "
-                             << "with a type other than std::string");
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
+                         std::string("RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity ")
+                         + "parameter with name 'name' but "
+                             + "with a type other than std::string");
     } else {
       map_rbf_to_rbv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
                                 "Name of the method for mapping from rigid body force to rigid body velocity.");
@@ -137,10 +137,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 
     if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
-                         "parameter with name 'name' but "
-                             << "with a type other than std::string");
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
+                         std::string("RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity ")
+                         + "parameter with name 'name' but "
+                             + "with a type other than std::string");
     } else {
       map_rbv_to_sv_params.set("name", std::string(default_map_rbv_to_sv_name_),
                                "Name of the method for mapping from rigid body velocity to surface velocity.");
@@ -148,10 +148,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = fixed_params_ptr->INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
+      MUNDY_THROW_REQUIRE(
           valid_type, std::invalid_argument,
-          "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
-              << "with a type other than std::string");
+          std::string("RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but ")
+              + "with a type other than std::string");
     } else {
       map_sf_to_rbf_params.set("name", std::string(default_map_sf_to_rbf_name_),
                                "Name of the method for mapping from surface force to rigid body force.");
@@ -177,10 +177,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 
     if (map_rbf_to_rbv_params.isParameter("name")) {
       const bool valid_type = map_rbf_to_rbv_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity "
-                         "parameter with name 'name' but "
-                             << "with a type other than std::string");
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
+                         std::string("RigidBodyMotion: Type error. Given a map_rigid_body_force_to_rigid_body_velocity ")
+                         + "parameter with name 'name' but "
+                             + "with a type other than std::string");
     } else {
       map_rbf_to_rbv_params.set("name", std::string(default_map_rbf_to_rbv_name_),
                                 "Name of the method for mapping from rigid body force to rigid body velocity.");
@@ -188,10 +188,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 
     if (map_rbv_to_sv_params.isParameter("name")) {
       const bool valid_type = map_rbv_to_sv_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(valid_type, std::invalid_argument,
-                         "RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity "
-                         "parameter with name 'name' but "
-                             << "with a type other than std::string");
+      MUNDY_THROW_REQUIRE(valid_type, std::invalid_argument,
+                         std::string("RigidBodyMotion: Type error. Given a map_rigid_body_velocity_to_surface_velocity ")
+                         + "parameter with name 'name' but "
+                             + "with a type other than std::string");
     } else {
       map_rbv_to_sv_params.set("name", std::string(default_map_rbv_to_sv_name_),
                                "Name of the method for mapping from rigid body velocity to surface velocity.");
@@ -199,10 +199,10 @@ class RigidBodyMotion : public mundy::meta::MetaMethodSubsetExecutionInterface<v
 
     if (map_sf_to_rbf_params.isParameter("name")) {
       const bool valid_type = map_sf_to_rbf_params.INVALID_TEMPLATE_QUALIFIER isType<std::string>("name");
-      MUNDY_THROW_ASSERT(
+      MUNDY_THROW_REQUIRE(
           valid_type, std::invalid_argument,
-          "RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but "
-              << "with a type other than std::string");
+          std::string("RigidBodyMotion: Type error. Given a map_surface_force_to_rigid_body_force parameter with name 'name' but ")
+              + "with a type other than std::string");
     } else {
       map_sf_to_rbf_params.set("name", std::string(default_map_sf_to_rbf_name_),
                                "Name of the method for mapping from surface force to rigid body force.");

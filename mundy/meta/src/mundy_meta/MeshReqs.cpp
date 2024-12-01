@@ -229,10 +229,8 @@ unsigned MeshReqs::get_spatial_dimension() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_spatial_dimension();
   } else {
-    MUNDY_THROW_ASSERT(this->constrains_spatial_dimension(), std::logic_error,
-                       "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(this->constrains_spatial_dimension(), std::logic_error,
+                       "MeshReqs: Attempting to access a requirement though it is unconstrained.");
     return spatial_dimension_;
   }
 }
@@ -241,10 +239,8 @@ std::string MeshReqs::get_node_coordinates_name() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_node_coordinates_name();
   } else {
-    MUNDY_THROW_ASSERT(this->constrains_node_coordinates_name(), std::logic_error,
-                       "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(this->constrains_node_coordinates_name(), std::logic_error,
+                       "MeshReqs: Attempting to access a requirement though it is unconstrained.");
     return node_coordinates_name_;
   }
 }
@@ -253,10 +249,8 @@ std::vector<std::string> MeshReqs::get_entity_rank_names() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_entity_rank_names();
   } else {
-    MUNDY_THROW_ASSERT(this->constrains_entity_rank_names(), std::logic_error,
-                       "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(this->constrains_entity_rank_names(), std::logic_error,
+                       "MeshReqs: Attempting to access a requirement though it is unconstrained.");
     return entity_rank_names_;
   }
 }
@@ -265,10 +259,8 @@ stk::ParallelMachine MeshReqs::get_communicator() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_communicator();
   } else {
-    MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
-                       "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(this->constrains_communicator(), std::logic_error,
+                       "MeshReqs: Attempting to access a requirement though it is unconstrained.");
     return communicator_;
   }
 }
@@ -277,11 +269,9 @@ mundy::mesh::BulkData::AutomaticAuraOption MeshReqs::get_aura_option() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_aura_option();
   } else {
-    MUNDY_THROW_ASSERT(
+    MUNDY_THROW_REQUIRE(
         this->constrains_aura_option(), std::logic_error,
-        "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.\n"
-            << "The current set of requirements is:\n"
-            << get_reqs_as_a_string());
+        "MeshReqs: Attempting to access the part name requirement even though part name is unconstrained.");
     return aura_option_;
   }
 }
@@ -290,10 +280,8 @@ stk::mesh::FieldDataManager *MeshReqs::get_field_data_manager() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_field_data_manager();
   } else {
-    MUNDY_THROW_ASSERT(this->constrains_field_data_manager(), std::logic_error,
-                       "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(this->constrains_field_data_manager(), std::logic_error,
+                       "MeshReqs: Attempting to access a requirement though it is unconstrained.");
     return field_data_manager_ptr_;
   }
 }
@@ -302,10 +290,8 @@ unsigned MeshReqs::get_bucket_capacity() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_bucket_capacity();
   } else {
-    MUNDY_THROW_ASSERT(this->constrains_bucket_capacity(), std::logic_error,
-                       "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(this->constrains_bucket_capacity(), std::logic_error,
+                       "MeshReqs: Attempting to access a requirement though it is unconstrained.");
     return bucket_capacity_;
   }
 }
@@ -314,10 +300,8 @@ bool MeshReqs::get_upward_connectivity_flag() const {
   if (has_master_mesh_reqs_) {
     return master_mesh_reqs_ptr_->get_upward_connectivity_flag();
   } else {
-    MUNDY_THROW_ASSERT(this->constrains_upward_connectivity_flag(), std::logic_error,
-                       "MeshReqs: Attempting to access a requirement though it is unconstrained.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(this->constrains_upward_connectivity_flag(), std::logic_error,
+                       "MeshReqs: Attempting to access a requirement though it is unconstrained.");
     return upward_connectivity_flag_;
   }
 }
@@ -356,7 +340,7 @@ std::vector<std::string> &MeshReqs::get_mesh_attribute_names() {
 // \name Private member functions
 //{
 MeshReqs &MeshReqs::set_master_mesh_reqs(std::shared_ptr<MeshReqs> master_mesh_req_ptr) {
-  MUNDY_THROW_ASSERT(
+  MUNDY_THROW_REQUIRE(
       !has_master_mesh_reqs_, std::logic_error,
       "MeshReqs: The master mesh requirements have already been set. Overriding it could lead to undefined behavior.");
   master_mesh_reqs_ptr_ = std::move(master_mesh_req_ptr);
@@ -365,7 +349,7 @@ MeshReqs &MeshReqs::set_master_mesh_reqs(std::shared_ptr<MeshReqs> master_mesh_r
 }
 
 std::shared_ptr<MeshReqs> MeshReqs::get_master_mesh_reqs() {
-  MUNDY_THROW_ASSERT(has_master_mesh_reqs_, std::logic_error,
+  MUNDY_THROW_REQUIRE(has_master_mesh_reqs_, std::logic_error,
                      "MeshReqs: The master mesh requirements have not been set. Cannot return a null pointer.");
   return master_mesh_reqs_ptr_;
 }
@@ -378,10 +362,8 @@ bool MeshReqs::has_master_mesh_reqs() const {
 // \name Actions
 //{
 std::shared_ptr<mundy::mesh::BulkData> MeshReqs::declare_mesh() {
-  MUNDY_THROW_ASSERT(this->constrains_communicator(), std::logic_error,
-                     "MeshReqs: The MPI communicator must be set before calling declare_mesh.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  MUNDY_THROW_REQUIRE(this->constrains_communicator(), std::logic_error,
+                     "MeshReqs: The MPI communicator must be set before calling declare_mesh.");
 
   // The mesh itself is generated using stk's MeshBuilder which we provide a wrapper for.
   // If any of our parameters are not constrained, we use the default value.
@@ -519,20 +501,16 @@ MeshReqs &MeshReqs::delete_upward_connectivity_flag() {
 MeshReqs &MeshReqs::check_if_valid() {
   if (has_master_mesh_reqs_) {
     // One invalid state is if we have a master mesh reqs object but master_mesh_reqs_ptr_ is null.
-    MUNDY_THROW_ASSERT(master_mesh_reqs_ptr_ != nullptr, std::logic_error,
-                       "MeshReqs: We have a master mesh reqs object but master_mesh_reqs_ptr_ is null.\n"
-                           << "The current set of requirements is:\n"
-                           << get_reqs_as_a_string());
+    MUNDY_THROW_REQUIRE(master_mesh_reqs_ptr_ != nullptr, std::logic_error,
+                       "MeshReqs: We have a master mesh reqs object but master_mesh_reqs_ptr_ is null.");
     master_mesh_reqs_ptr_->check_if_valid();
   }
   return *this;
 }
 
 MeshReqs &MeshReqs::add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field_reqs_ptr) {
-  MUNDY_THROW_ASSERT(field_reqs_ptr != nullptr, std::invalid_argument,
-                     "MeshReqs: The pointer passed to add_and_sync_field_reqs cannot be a nullptr.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  MUNDY_THROW_REQUIRE(field_reqs_ptr != nullptr, std::invalid_argument,
+                     "MeshReqs: The pointer passed to add_and_sync_field_reqs cannot be a nullptr.");
 
   // Check if the provided parameters are valid.
   field_reqs_ptr->check_if_valid();
@@ -560,10 +538,8 @@ MeshReqs &MeshReqs::add_and_sync_field_reqs(std::shared_ptr<FieldReqsBase> field
 }
 
 MeshReqs &MeshReqs::add_and_sync_part_reqs(std::shared_ptr<PartReqs> part_reqs_ptr) {
-  MUNDY_THROW_ASSERT(part_reqs_ptr != nullptr, std::invalid_argument,
-                     "MeshReqs: The pointer passed to add_and_sync_part_reqs cannot be a nullptr.\n"
-                         << "The current set of requirements is:\n"
-                         << get_reqs_as_a_string());
+  MUNDY_THROW_REQUIRE(part_reqs_ptr != nullptr, std::invalid_argument,
+                    "MeshReqs: The pointer passed to add_and_sync_part_reqs cannot be a nullptr.");
 
   // Check if the provided parameters are valid.
   part_reqs_ptr->check_if_valid();
@@ -607,7 +583,7 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
   // TODO(palmerb4): Optimize this function for perfect forwarding.
 
   // Check if the provided pointer is valid. Throw an error if it is not.
-  MUNDY_THROW_ASSERT(mesh_reqs_ptr != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(mesh_reqs_ptr != nullptr, std::invalid_argument,
                      "MeshReqs: The given MeshReqs pointer cannot be null.");
 
   auto merge = [&](MeshReqs *us_ptr, MeshReqs *them_ptr, MeshReqs *merged_ptr) {
@@ -619,11 +595,9 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
     const bool we_constrain_spatial_dimension = us_ptr->constrains_spatial_dimension();
     const bool they_constrain_spatial_dimension = them_ptr->constrains_spatial_dimension();
     if (we_constrain_spatial_dimension && they_constrain_spatial_dimension) {
-      MUNDY_THROW_ASSERT(us_ptr->get_spatial_dimension() == them_ptr->get_spatial_dimension(), std::invalid_argument,
-                         "MeshReqs: One of the inputs has incompatible spatial dimension ("
-                             << them_ptr->get_spatial_dimension() << ").\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+      MUNDY_THROW_REQUIRE(us_ptr->get_spatial_dimension() == them_ptr->get_spatial_dimension(), std::invalid_argument,
+                         fmt::format("MeshReqs: One of the inputs has incompatible spatial dimension ({}).",
+                                     them_ptr->get_spatial_dimension()));
       merged_ptr->set_spatial_dimension(us_ptr->get_spatial_dimension());
     } else if (we_constrain_spatial_dimension) {
       merged_ptr->set_spatial_dimension(us_ptr->get_spatial_dimension());
@@ -634,10 +608,8 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
     const bool we_constrain_entity_rank_names = us_ptr->constrains_entity_rank_names();
     const bool they_constrain_entity_rank_names = them_ptr->constrains_entity_rank_names();
     if (we_constrain_entity_rank_names && they_constrain_entity_rank_names) {
-      MUNDY_THROW_ASSERT(us_ptr->get_entity_rank_names() == them_ptr->get_entity_rank_names(), std::invalid_argument,
-                         "MeshReqs: One of the inputs has incompatible entity rank names.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+      MUNDY_THROW_REQUIRE(us_ptr->get_entity_rank_names() == them_ptr->get_entity_rank_names(), std::invalid_argument,
+                         "MeshReqs: One of the inputs has incompatible entity rank names.");
       merged_ptr->set_entity_rank_names(us_ptr->get_entity_rank_names());
     } else if (we_constrain_entity_rank_names) {
       merged_ptr->set_entity_rank_names(us_ptr->get_entity_rank_names());
@@ -648,10 +620,8 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
     const bool we_constrain_communicator = us_ptr->constrains_communicator();
     const bool they_constrain_communicator = them_ptr->constrains_communicator();
     if (we_constrain_communicator && they_constrain_communicator) {
-      MUNDY_THROW_ASSERT(us_ptr->get_communicator() == them_ptr->get_communicator(), std::invalid_argument,
-                         "MeshReqs: One of the inputs has incompatible MPI communicator.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+      MUNDY_THROW_REQUIRE(us_ptr->get_communicator() == them_ptr->get_communicator(), std::invalid_argument,
+                        "MeshReqs: One of the inputs has incompatible MPI communicator.");
       merged_ptr->set_communicator(us_ptr->get_communicator());
     } else if (we_constrain_communicator) {
       merged_ptr->set_communicator(us_ptr->get_communicator());
@@ -662,10 +632,8 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
     const bool we_constrain_aura_option = us_ptr->constrains_aura_option();
     const bool they_constrain_aura_option = them_ptr->constrains_aura_option();
     if (we_constrain_aura_option && they_constrain_aura_option) {
-      MUNDY_THROW_ASSERT(us_ptr->get_aura_option() == them_ptr->get_aura_option(), std::invalid_argument,
-                         "MeshReqs: One of the inputs has incompatible aura option.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+      MUNDY_THROW_REQUIRE(us_ptr->get_aura_option() == them_ptr->get_aura_option(), std::invalid_argument,
+                         "MeshReqs: One of the inputs has incompatible aura option.");
       merged_ptr->set_aura_option(us_ptr->get_aura_option());
     } else if (we_constrain_aura_option) {
       merged_ptr->set_aura_option(us_ptr->get_aura_option());
@@ -676,10 +644,8 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
     const bool we_constrain_field_data_manager = us_ptr->constrains_field_data_manager();
     const bool they_constrain_field_data_manager = them_ptr->constrains_field_data_manager();
     if (we_constrain_field_data_manager && they_constrain_field_data_manager) {
-      MUNDY_THROW_ASSERT(us_ptr->get_field_data_manager() == them_ptr->get_field_data_manager(), std::invalid_argument,
-                         "MeshReqs: One of the inputs has incompatible field data manager.\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+      MUNDY_THROW_REQUIRE(us_ptr->get_field_data_manager() == them_ptr->get_field_data_manager(), std::invalid_argument,
+                         "MeshReqs: One of the inputs has incompatible field data manager.");
       merged_ptr->set_field_data_manager(us_ptr->get_field_data_manager());
     } else if (we_constrain_field_data_manager) {
       merged_ptr->set_field_data_manager(us_ptr->get_field_data_manager());
@@ -690,11 +656,9 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
     const bool we_constrain_bucket_capacity = us_ptr->constrains_bucket_capacity();
     const bool they_constrain_bucket_capacity = them_ptr->constrains_bucket_capacity();
     if (we_constrain_bucket_capacity && they_constrain_bucket_capacity) {
-      MUNDY_THROW_ASSERT(us_ptr->get_bucket_capacity() == them_ptr->get_bucket_capacity(), std::invalid_argument,
-                         "MeshReqs: One of the inputs has incompatible bucket capacity ("
-                             << them_ptr->get_bucket_capacity() << ").\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+      MUNDY_THROW_REQUIRE(us_ptr->get_bucket_capacity() == them_ptr->get_bucket_capacity(), std::invalid_argument,
+                         fmt::format("MeshReqs: One of the inputs has incompatible bucket capacity ({}).",
+                                     them_ptr->get_bucket_capacity()));
       merged_ptr->set_bucket_capacity(us_ptr->get_bucket_capacity());
     } else if (we_constrain_bucket_capacity) {
       merged_ptr->set_bucket_capacity(us_ptr->get_bucket_capacity());
@@ -705,12 +669,10 @@ MeshReqs &MeshReqs::sync(std::shared_ptr<MeshReqs> mesh_reqs_ptr) {
     const bool we_constrain_upward_connectivity_flag = us_ptr->constrains_upward_connectivity_flag();
     const bool they_constrain_upward_connectivity_flag = them_ptr->constrains_upward_connectivity_flag();
     if (we_constrain_upward_connectivity_flag && they_constrain_upward_connectivity_flag) {
-      MUNDY_THROW_ASSERT(us_ptr->get_upward_connectivity_flag() == them_ptr->get_upward_connectivity_flag(),
+      MUNDY_THROW_REQUIRE(us_ptr->get_upward_connectivity_flag() == them_ptr->get_upward_connectivity_flag(),
                          std::invalid_argument,
-                         "MeshReqs: One of the inputs has incompatible connectivity flag ("
-                             << them_ptr->get_upward_connectivity_flag() << ").\n"
-                             << "The current set of requirements is:\n"
-                             << get_reqs_as_a_string());
+                          fmt::format("MeshReqs: One of the inputs has incompatible connectivity flag ({}).",
+                                      them_ptr->get_upward_connectivity_flag()));
       merged_ptr->set_upward_connectivity_flag(us_ptr->get_upward_connectivity_flag());
     } else if (we_constrain_upward_connectivity_flag) {
       merged_ptr->set_upward_connectivity_flag(us_ptr->get_upward_connectivity_flag());

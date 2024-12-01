@@ -102,21 +102,20 @@ class DestroyNeighborLinkers
   //@}
 };  // DestroyNeighborLinkers
 
+// Workaround due to CUDA not liking our meta factory registration
+static inline volatile const bool register_destroy_neighbor_linkers_kernels_ =
+[]() {
+  // Register our default kernels
+ mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory::register_new_class<
+          mundy::linkers::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors>("DESTROY_DISTANT_NEIGHBORS");
+ mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory::register_new_class<
+          mundy::linkers::destroy_neighbor_linkers::techniques::DestroyBoundNeighbors>("DESTROY_BOUND_NEIGHBORS");
+  return true;
+}();
+
+
 }  // namespace linkers
 
 }  // namespace mundy
-
-//! \name Registration
-//@{
-
-/// \brief Register our default techniques
-MUNDY_REGISTER_METACLASS("DESTROY_DISTANT_NEIGHBORS",
-                         mundy::linkers::destroy_neighbor_linkers::techniques::DestroyDistantNeighbors,
-                         mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory)
-MUNDY_REGISTER_METACLASS("DESTROY_BOUND_NEIGHBORS",
-                         mundy::linkers::destroy_neighbor_linkers::techniques::DestroyBoundNeighbors,
-                         mundy::linkers::DestroyNeighborLinkers::OurTechniqueFactory)
-
-//@}
 
 #endif  // MUNDY_LINKERS_DESTROYNEIGHBORLINKERS_HPP_

@@ -53,7 +53,7 @@ namespace kernels {
 Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
                      "Spherocylinder: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
@@ -81,8 +81,8 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
 
   auto field_exists = [](const stk::mesh::FieldBase *field_ptr, const std::string &field_name) {
-    MUNDY_THROW_ASSERT(field_ptr != nullptr, std::invalid_argument,
-                       "Spherocylinder: Field " << field_name << " cannot be a nullptr. Check that the field exists.");
+    MUNDY_THROW_REQUIRE(field_ptr != nullptr, std::invalid_argument,
+                       std::string("Spherocylinder: Field ") + field_name + " cannot be a nullptr. Check that the field exists.");
   };  // field_exists
 
   field_exists(node_coord_field_ptr_, node_coord_field_name);
@@ -102,8 +102,8 @@ Spherocylinder::Spherocylinder(mundy::mesh::BulkData *const bulk_data_ptr, const
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "Spherocylinder: Part " << part_name << " cannot be a nullptr. Check that the part exists.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("Spherocylinder: Part ") + part_name + " cannot be a nullptr. Check that the part exists.");
       parts.push_back(part);
     }
     return parts;
@@ -181,12 +181,12 @@ void Spherocylinder::execute(const stk::mesh::Selector &spherocylinder_selector)
                 reinterpret_cast<stk::mesh::EntityKey::entity_key_t *>(
                     stk::mesh::field_data(linked_entities_field, connected_linker));
 
-            const bool are_we_the_left_spherocylinder = (key_t_ptr[0] == bulk_data.entity_key(spherocylinder));
-            const bool are_we_the_right_spherocylinder = (key_t_ptr[1] == bulk_data.entity_key(spherocylinder));
-            const double sign = are_we_the_left_spherocylinder ? 1.0 : (are_we_the_right_spherocylinder ? -1.0 : 0.0);
+            const bool is_left_spherocylinder = (key_t_ptr[0] == bulk_data.entity_key(spherocylinder));
+            const bool is_right_spherocylinder = (key_t_ptr[1] == bulk_data.entity_key(spherocylinder));
+            const double sign = is_left_spherocylinder ? 1.0 : (is_right_spherocylinder ? -1.0 : 0.0);
             auto contact_point = mundy::math::get_vector3_view<double>(
                 stk::mesh::field_data(linker_contact_points_field, connected_linker) +
-                3 * !are_we_the_left_spherocylinder);
+                3 * !is_left_spherocylinder);
             const auto potential_force =
                 sign * mundy::mesh::vector3_field_data(linker_potential_force_field, connected_linker);
 

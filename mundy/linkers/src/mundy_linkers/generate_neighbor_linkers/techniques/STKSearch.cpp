@@ -74,7 +74,7 @@ struct pair_hash {
 STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::ParameterList &fixed_params)
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
-  MUNDY_THROW_ASSERT(bulk_data_ptr_ != nullptr, std::invalid_argument, "STKSearch: bulk_data_ptr cannot be a nullptr.");
+  MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument, "STKSearch: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -89,16 +89,16 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
       stk::topology::CONSTRAINT_RANK, linked_entities_field_name);
   linked_entity_owners_field_ptr_ =
       meta_data_ptr_->get_field<int>(stk::topology::CONSTRAINT_RANK, linked_entity_owners_field_name);
-  MUNDY_THROW_ASSERT(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(element_aabb_field_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: element_aabb_field_ptr_ cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(linked_entities_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(linked_entities_field_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: linked_entities_field_ptr_ cannot be a nullptr. Check that the field exists.");
-  MUNDY_THROW_ASSERT(linked_entity_owners_field_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(linked_entity_owners_field_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: linked_entity_owners_field_ptr_ cannot be a nullptr. Check that the field exists.");
 
   // Get the part pointers.
   neighbor_linkers_part_ptr_ = meta_data_ptr_->get_part("NEIGHBOR_LINKERS");
-  MUNDY_THROW_ASSERT(neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
+  MUNDY_THROW_REQUIRE(neighbor_linkers_part_ptr_ != nullptr, std::invalid_argument,
                      "STKSearch: Expected a part with name 'NEIGHBOR_LINKERS' but part does not exist.");
 
   const Teuchos::Array<std::string> specialized_neighbor_linkers_part_names =
@@ -112,8 +112,8 @@ STKSearch::STKSearch(mundy::mesh::BulkData *const bulk_data_ptr, const Teuchos::
     std::vector<stk::mesh::Part *> parts;
     for (const std::string &part_name : part_names) {
       stk::mesh::Part *part = meta_data.get_part(part_name);
-      MUNDY_THROW_ASSERT(part != nullptr, std::invalid_argument,
-                         "STKSearch: Expected a part with name '" << part_name << "' but part does not exist.");
+      MUNDY_THROW_REQUIRE(part != nullptr, std::invalid_argument,
+                         std::string("STKSearch: Expected a part with name '") + part_name + "' but part does not exist.");
       parts.push_back(part);
     }
     return parts;
@@ -395,8 +395,30 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
   std::vector<size_t> requests(bulk_data_ptr_->mesh_meta_data().entity_rank_count(), 0);
   requests[stk::topology::CONSTRAINT_RANK] = num_linkers_to_create;
   std::vector<stk::mesh::Entity> requested_entities;
-  bulk_data_ptr_->generate_new_entities(requests, requested_entities);
-  bulk_data_ptr_->change_entity_parts(requested_entities, specialized_neighbor_linkers_part_ptrs_);
+  // Unpacked version of generate_new_entities to avoid a costly change of part post creation.
+  {
+    size_t num_ranks = requests.size();
+    std::vector<std::vector<stk::mesh::EntityId>> requested_ids(num_ranks);
+    for (size_t i = 0; i < num_ranks; ++i) {
+      stk::topology::rank_t rank = static_cast<stk::topology::rank_t>(i);
+      bulk_data_ptr_->generate_new_ids(rank, requests[i], requested_ids[i]);
+    }
+
+    // generating 'owned' entities
+    stk::mesh::PartVector add_parts;
+    add_parts.push_back(&bulk_data_ptr_->mesh_meta_data().locally_owned_part());
+    for (stk::mesh::Part *part : specialized_neighbor_linkers_part_ptrs_) {
+      add_parts.push_back(part);
+    }
+
+    requested_entities.clear();
+    for (size_t i = 0; i < num_ranks; ++i) {
+      stk::topology::rank_t rank = static_cast<stk::topology::rank_t>(i);
+      std::vector<stk::mesh::Entity> new_entities;
+      bulk_data_ptr_->declare_entities(rank, requested_ids[i], add_parts, new_entities);
+      requested_entities.insert(requested_entities.end(), new_entities.begin(), new_entities.end());
+    }
+  }
 
   // Connect the linkers that were created on this process.
   size_t offset = 0;
@@ -410,12 +432,11 @@ void STKSearch::execute(const stk::mesh::Selector &domain_input_selector,
       stk::mesh::Entity linker = requested_entities[offset];
 
       MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(source_entity), std::invalid_argument,
-                         "STKSearch: source entity " << source_entity_key << " is invalid. On rank " << parallel_rank);
+                         "STKSearch: source entity is invalid");
       MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(target_entity), std::invalid_argument,
-                         "STKSearch: target entity " << target_entity_key << " is invalid. On rank " << parallel_rank);
+                         "STKSearch: target entity is invalid.");
       MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(linker), std::invalid_argument,
-                         "STKSearch: linker entity " << bulk_data_ptr_->entity_key(linker) << " is invalid. On rank "
-                                                     << parallel_rank);
+                         "STKSearch: linker entity is invalid.");
 
       // Connect the linker to the source and target entities' nodes and stash their entity keys in the linker's field.
       mundy::linkers::connect_linker_to_entitys_nodes(*bulk_data_ptr_, linker, source_entity, target_entity);

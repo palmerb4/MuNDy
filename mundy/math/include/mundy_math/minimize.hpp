@@ -130,11 +130,13 @@ KOKKOS_INLINE_FUNCTION double poly_min_extrap(const double f0, const double d0, 
 template <size_t N, typename CostFunctionType>
 class line_search_funct {
  public:
+  KOKKOS_FUNCTION
   line_search_funct(const CostFunctionType& const_func, const Vector<double, N>& start,
                     const Vector<double, N>& direction)
       : const_func_(const_func), start_(start), direction_(direction) {
   }
 
+  KOKKOS_FUNCTION
   double operator()(const double& x) const {
     return const_func_(start_ + x * direction_);
   }
@@ -147,16 +149,19 @@ class line_search_funct {
 
 class objective_delta_stop_strategy {
  public:
+  KOKKOS_FUNCTION
   explicit objective_delta_stop_strategy(const double min_delta = 1e-7)
       : been_used_(false), min_delta_(min_delta), max_iter_(0), cur_iter_(0), prev_funct_value_(0) {
   }
 
+  KOKKOS_FUNCTION
   objective_delta_stop_strategy(double min_delta, size_t max_iter)
       : been_used_(false), min_delta_(min_delta), max_iter_(max_iter), cur_iter_(0), prev_funct_value_(0) {
   }
 
   template <size_t N>
-  bool should_continue_search(const Vector<double, N>&, const double funct_value, const Vector<double, N>&) {
+  KOKKOS_FUNCTION bool should_continue_search(const Vector<double, N>&, const double funct_value,
+                                              const Vector<double, N>&) {
     ++cur_iter_;
     if (been_used_) {
       // Check if we have hit the max allowable number of iterations.  (but only
@@ -187,12 +192,13 @@ class objective_delta_stop_strategy {
 template <typename CostFunctionType>
 class central_differences {
  public:
+  KOKKOS_FUNCTION
   explicit central_differences(const CostFunctionType& const_func, double eps = 1e-7)
       : const_func_(const_func), eps_(eps) {
   }
 
   template <size_t N>
-  Vector<double, N> operator()(const Vector<double, N>& x) const {
+  KOKKOS_FUNCTION Vector<double, N> operator()(const Vector<double, N>& x) const {
     Vector<double, N> der;
     Vector<double, N> e = x;
     for (size_t i = 0; i < N; ++i) {
@@ -212,6 +218,7 @@ class central_differences {
     return der;
   }
 
+  KOKKOS_FUNCTION
   double operator()(const double& x) const {
     return (const_func_(x + eps_) - const_func_(x - eps_)) / ((x + eps_) - (x - eps_));
   }
@@ -400,6 +407,7 @@ KOKKOS_FUNCTION double line_search(const CostFunctionType& f, const double f0, c
 template <size_t max_size, size_t N>
 class lbfgs_search_strategy {
  public:
+  KOKKOS_FUNCTION
   lbfgs_search_strategy()
       : data(),
         alpha(0.0),
@@ -412,6 +420,7 @@ class lbfgs_search_strategy {
     static_assert(max_size > 0, "max_size must be greater than 0");
   }
 
+  KOKKOS_FUNCTION
   lbfgs_search_strategy(const lbfgs_search_strategy& item)
       : data(item.data),
         alpha(item.alpha),
@@ -423,18 +432,22 @@ class lbfgs_search_strategy {
         dh_temp(item.dh_temp) {
   }
 
-  double get_wolfe_rho() const {
+  KOKKOS_FUNCTION
+  static constexpr double get_wolfe_rho() {
     return 0.01;
   }
 
-  double get_wolfe_sigma() const {
+  KOKKOS_FUNCTION
+  static constexpr double get_wolfe_sigma() {
     return 0.9;
   }
 
-  size_t get_max_line_search_iterations() const {
+  KOKKOS_FUNCTION
+  static constexpr size_t get_max_line_search_iterations() {
     return 100;
   }
 
+  KOKKOS_FUNCTION
   const Vector<double, N>& get_next_direction(const Vector<double, N>& x, const double,
                                               const Vector<double, N>& funct_derivative) {
     prev_direction = -funct_derivative;
@@ -490,9 +503,47 @@ class lbfgs_search_strategy {
     Vector<double, N> s;
     Vector<double, N> y;
     double rho;
+
+    /// \brief Default constructor
+    KOKKOS_FUNCTION
+    data_helper() : s(), y(), rho(0.0) {
+    }
+
+    /// \brief Deep copy constructor
+    KOKKOS_FUNCTION
+    data_helper(const data_helper& item) : s(item.s), y(item.y), rho(item.rho) {
+    }
+
+    /// \brief Deep move constructor
+    KOKKOS_FUNCTION
+    data_helper(data_helper&& item) : s(std::move(item.s)), y(std::move(item.y)), rho(item.rho) {
+    }
+
+    /// \brief Deep copy assignment operator
+    KOKKOS_FUNCTION
+    data_helper& operator=(const data_helper& item) {
+      s = item.s;
+      y = item.y;
+      rho = item.rho;
+      return *this;
+    }
+
+    /// \brief Deep move assignment operator
+    KOKKOS_FUNCTION
+    data_helper& operator=(data_helper&& item) {
+      s = std::move(item.s);
+      y = std::move(item.y);
+      rho = item.rho;
+      return *this;
+    }
+
+    /// \brief Destructor
+    KOKKOS_FUNCTION
+    ~data_helper() {
+    }
   };
 
-  Kokkos::Array<data_helper, max_size> data;
+  Array<data_helper, max_size> data;
   Vector<double, max_size> alpha;
 
   bool been_used;
@@ -502,8 +553,9 @@ class lbfgs_search_strategy {
   Vector<double, N> prev_direction;
   data_helper dh_temp;
 
+  KOKKOS_FUNCTION
   void rotate_data() {
-    data_helper first = data[0];
+    data_helper& first = data[0];
     for (size_t i = 1; i < max_size; ++i) {
       data[i - 1] = data[i];
     }
