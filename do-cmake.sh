@@ -18,6 +18,7 @@ cmake \
 -DKokkos_ENABLE_CUDA=OFF \
 -DMundy_ENABLE_MundyCore=ON \
 -DMundy_ENABLE_MundyMath=ON \
+-DMundy_ENABLE_MundyGeom=OFF \
 -DMundy_ENABLE_MundyMesh=ON \
 -DMundy_ENABLE_MundyMeta=ON \
 -DMundy_ENABLE_MundyAgents=ON \

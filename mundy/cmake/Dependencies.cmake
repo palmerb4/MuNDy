@@ -12,6 +12,7 @@ tribits_package_define_dependencies(
   SUBPACKAGES_DIRS_CLASSIFICATIONS_OPTREQS
     Core         core        PT  OPTIONAL
     Math         math        PT  OPTIONAL
+    Geom         geom        PT  OPTIONAL
     Mesh         mesh        PT  OPTIONAL
     Meta         meta        PT  OPTIONAL
     Agents       agents      PT  OPTIONAL
