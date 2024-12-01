@@ -17,9 +17,16 @@
 # **********************************************************************************************************************
 # @HEADER
 
-# tribits_add_executable(
-#     PerformanceTestNGPSpheres3
-#     SOURCES
-#     NGPSpheres3.cpp
-#     CATEGORIES PERFORMANCE
-#     )
+tribits_add_executable(
+    PerfTestDeclareEntities
+    SOURCES
+    PerfTestDeclareEntities.cpp
+    CATEGORIES PERFORMANCE
+    )
+tribits_copy_files_to_binary_dir(
+    PerfTestDeclareEntitiesCopyFiles
+    SOURCE_FILES
+        2013_03_06_cell08_876_H41_05_Cell2_cell-axon.ply
+        sphere.ply
+    EXEDEPS PerfTestDeclareEntities
+    )

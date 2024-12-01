@@ -391,10 +391,8 @@ std::string FieldReqs<FieldType>::get_field_name() const {
   if (has_master_field_reqs_) {
     MUNDY_THROW_REQUIRE(master_field_reqs_ptr_ != nullptr, std::logic_error,
                        "FieldReqs: The master field requirements have not been set. Cannot return a null pointer.");
-    std::cout << "Am a child. Calling get_field_name on the master" << std::endl;
     return master_field_reqs_ptr_->get_field_name();
   } else {
-    std::cout << "this->constrains_field_name(): " << this->constrains_field_name() << std::endl;
     MUNDY_THROW_REQUIRE(
         this->constrains_field_name(), std::logic_error,
         "FieldReqs: Attempting to access the field name requirement even though field name is unconstrained.");

@@ -18,6 +18,7 @@ SET(NOINSTALLHEADERS
   include/mundy_mesh/BulkData.hpp
   include/mundy_mesh/MeshBuilder.hpp
   include/mundy_mesh/MetaData.hpp
+  include/mundy_mesh/DeclareEntities.hpp
   include/mundy_mesh/StringToSelector.hpp
   include/mundy_mesh/StringToTopology.hpp
   include/mundy_mesh/fmt_stk_types.hpp
@@ -32,6 +33,7 @@ SET(NOINSTALLHEADERS
 SET(SOURCES 
   src/mundy_mesh/MeshBuilder.cpp
   src/mundy_mesh/MetaData.cpp
+  src/mundy_mesh/DeclareEntities.cpp
   src/mundy_mesh/StringToSelector.cpp
   src/mundy_mesh/StringToTopology.cpp
   src/mundy_mesh/utils/DestroyFlaggedEntities.cpp

@@ -99,9 +99,9 @@ TEST(FENESprings, FENESpringsKernel) {
   stk::mesh::Field<double> *node_force_field_ptr =
       meta_data_ptr->get_field<double>(stk::topology::NODE_RANK, "NODE_FORCE");
   stk::mesh::Field<double> *element_fene_spring_constant_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_FENE_SPRING_CONSTANT");
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_SPRING_CONSTANT");
   stk::mesh::Field<double> *element_fene_spring_rmax_field_ptr =
-      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_FENE_SPRING_RMAX");
+      meta_data_ptr->get_field<double>(stk::topology::ELEMENT_RANK, "ELEMENT_SPRING_R0");
 
   ASSERT_TRUE(node_coord_field_ptr != nullptr);
   ASSERT_TRUE(node_force_field_ptr != nullptr);

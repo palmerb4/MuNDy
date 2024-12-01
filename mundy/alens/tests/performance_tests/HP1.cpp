@@ -137,7 +137,9 @@ enum class INITIALIZATION_TYPE : unsigned {
   RANDOM_UNIT_CELL,
   OVERLAP_TEST,
   HILBERT_RANDOM_UNIT_CELL,
-  FROM_FILE
+  USHAPE_TEST,
+  FROM_EXO,
+  FROM_DAT
 };
 
 enum class BOND_TYPE : unsigned { HARMONIC = 0u, FENE };
@@ -183,8 +185,14 @@ std::ostream &operator<<(std::ostream &os, const INITIALIZATION_TYPE &init_type)
     case INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL:
       os << "HILBERT_RANDOM_UNIT_CELL";
       break;
-    case INITIALIZATION_TYPE::FROM_FILE:
-      os << "FROM_FILE";
+    case INITIALIZATION_TYPE::USHAPE_TEST:
+      os << "USHAPE_TEST";
+      break;
+    case INITIALIZATION_TYPE::FROM_EXO:
+      os << "FROM_EXO";
+      break;
+    case INITIALIZATION_TYPE::FROM_DAT:
+      os << "FROM_DAT";
       break;
     default:
       os << "UNKNOWN";
