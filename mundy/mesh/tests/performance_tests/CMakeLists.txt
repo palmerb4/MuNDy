@@ -28,5 +28,8 @@ tribits_copy_files_to_binary_dir(
     SOURCE_FILES
         2013_03_06_cell08_876_H41_05_Cell2_cell-axon.ply
         sphere.ply
-    EXEDEPS PerfTestDeclareEntities
+        ellipsoid.ply
+        cube.ply
+        bee_hive.ply
+        EXEDEPS PerfTestDeclareEntities
     )

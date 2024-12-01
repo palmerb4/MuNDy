@@ -887,8 +887,6 @@ void chromatin() {
     std::vector<mundy::math::Vector3<double>> fiber_walk = random_walk_inside_ellipsoid(
         start, nucleus_center, nucleus_radii, num_nodes_per_heterochromatin, segment_length);
 
-    std::cout << "**Fiber: " << f << "***" << std::endl;
-
     // Declare the nodes, segments, and heterochromatin/euchromatin
     for (size_t r = 0; r < num_hetero_euchromatin_repeats; ++r) {
       // Heterochromatin
@@ -913,8 +911,6 @@ void chromatin() {
               .add_field_data<double>(&segment_radius_field, {fiber_radius})
               .add_field_data<double>(&segment_spring_constant_field, {segment_spring_constant});
 
-          std::cout << "Segment: " << element_count + 1 << " between nodes {" << node_count << ", " << node_count + 1
-                    << "}" << std::endl;
           element_count++;
         }
 
@@ -951,8 +947,6 @@ void chromatin() {
               .add_field_data<double>(&segment_radius_field, {fiber_radius})
               .add_field_data<double>(&segment_spring_constant_field, {segment_spring_constant});
 
-          std::cout << "Segment: " << element_count + 1 << " between nodes {" << node_count << ", " << node_count + 1
-                    << "}" << std::endl;
           element_count++;
         }
 
@@ -1248,19 +1242,19 @@ void bee_hive() {
           rod_length * std::sin(phi) * std::sin(theta) + left_node_coord[1],
           rod_length * std::cos(phi) + left_node_coord[2]};
 
-      // Check if the rod intersects any triangles
+      // Check if the rod intersects any triangles TODO: This currently doesn't work!!
       bool intersects = false;
-      for (size_t j = 0; j < num_faces; ++j) {
-        const mundy::math::Vector3<double> coord1 = {x[face_ind[j][0]], y[face_ind[j][0]], z[face_ind[j][0]]};
-        const mundy::math::Vector3<double> coord2 = {x[face_ind[j][1]], y[face_ind[j][1]], z[face_ind[j][1]]};
-        const mundy::math::Vector3<double> coord3 = {x[face_ind[j][2]], y[face_ind[j][2]], z[face_ind[j][2]]};
+      // for (size_t j = 0; j < num_faces; ++j) {
+      //   const mundy::math::Vector3<double> coord1 = {x[face_ind[j][0]], y[face_ind[j][0]], z[face_ind[j][0]]};
+      //   const mundy::math::Vector3<double> coord2 = {x[face_ind[j][1]], y[face_ind[j][1]], z[face_ind[j][1]]};
+      //   const mundy::math::Vector3<double> coord3 = {x[face_ind[j][2]], y[face_ind[j][2]], z[face_ind[j][2]]};
 
-        const double signed_sep = line_segment_signed_distance_to_triangle(left_node_coord, right_node_coord, coord1, coord2, coord3) - rod_radius;
-        if (signed_sep < 0.0) {
-          intersects = true;
-          break;
-        }
-      }
+      //   const double signed_sep = line_segment_signed_distance_to_triangle(left_node_coord, right_node_coord, coord1, coord2, coord3) - rod_radius;
+      //   if (signed_sep < 0.0) {
+      //     intersects = true;
+      //     break;
+      //   }
+      // }
 
       if (!intersects) {
         // Declare the left and right nodes
@@ -1306,10 +1300,10 @@ int main(int argc, char **argv) {
   stk::parallel_machine_init(&argc, &argv);
   Kokkos::initialize(argc, argv);
 
-  // neuron();
-  // ciliated_sphere();
-  // bacteria_in_a_porous_media();
-  // chromatin();
+  neuron();
+  ciliated_sphere();
+  bacteria_in_a_porous_media();
+  chromatin();
   bee_hive();
 
   Kokkos::finalize();
