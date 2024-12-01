@@ -50,7 +50,7 @@ SET(SOURCES
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
-tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #
@@ -62,7 +62,7 @@ mundy_tribits_add_library(
   mundy_motion
   HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
   NOINSTALLHEADERS ${NOINSTALLHEADERS}
-  DIRECTORIES include/mundy_motion
+  DIRECTORIES src/mundy_motion
   FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )

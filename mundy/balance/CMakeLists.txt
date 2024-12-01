@@ -19,7 +19,7 @@ SET(NOINSTALLHEADERS "")
 SET(SOURCES "")
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
-tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #
@@ -31,7 +31,7 @@ mundy_tribits_add_library(
   mundy_balance
   HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
   NOINSTALLHEADERS ${NOINSTALLHEADERS}
-  DIRECTORIES include/mundy_balance
+  DIRECTORIES src/mundy_balance
   FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )

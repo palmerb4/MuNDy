@@ -17,4 +17,4 @@
 # **********************************************************************************************************************
 # @HEADER
 
-add_subdirectory(compute_brownian_velocity)
+add_subdirectory(mundy_alens)

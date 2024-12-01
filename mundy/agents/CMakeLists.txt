@@ -13,15 +13,15 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 
 # Headers are relative to the tribits_include_directory
 # We don't recommend typing these by hand. Use 
-# find include/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
+# find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
-  include/mundy_agents/Agents.hpp
-  include/mundy_agents/Assembly.hpp
-  include/mundy_agents/HierarchyOfAgents.hpp
-  include/mundy_agents/IsAgentType.hpp
-  include/mundy_agents/RankedAssembly.hpp
-  include/mundy_agents/RegisterAgents.hpp
+  src/mundy_agents/Agents.hpp
+  src/mundy_agents/Assembly.hpp
+  src/mundy_agents/HierarchyOfAgents.hpp
+  src/mundy_agents/IsAgentType.hpp
+  src/mundy_agents/RankedAssembly.hpp
+  src/mundy_agents/RegisterAgents.hpp
   )
 
 SET(SOURCES 
@@ -29,7 +29,7 @@ SET(SOURCES
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)
-tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+tribits_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 tribits_include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 #
@@ -41,7 +41,7 @@ mundy_tribits_add_library(
   mundy_agents
   HEADERS ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_NAME}_config.hpp
   NOINSTALLHEADERS ${NOINSTALLHEADERS}
-  DIRECTORIES include/mundy_agents
+  DIRECTORIES src/mundy_agents
   FILES_MATCHING PATTERN "*.hpp"
   SOURCES ${SOURCES}
   )

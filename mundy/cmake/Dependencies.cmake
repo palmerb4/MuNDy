@@ -20,7 +20,6 @@ tribits_package_define_dependencies(
     Io           io          PT  OPTIONAL
     Constraints  constraints  PT  OPTIONAL
     # Balance      balance     PT  OPTIONAL
-    # Motion       motion      PT  OPTIONAL
     Alens        alens       PT  OPTIONAL
     Driver       driver      PT  OPTIONAL
   REGRESSION_EMAIL_LIST brycepalmer96@gmail.com
