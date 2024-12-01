@@ -33,6 +33,7 @@
 
 // Mundy
 #include <mundy_alens/periphery/Periphery.hpp>  // for gen_sphere_quadrature
+#include <mundy_math/Vector3.hpp>               // for Vector3
 
 namespace mundy {
 
@@ -71,6 +72,15 @@ double compute_log_log_slope(const std::vector<double> &x, const std::vector<dou
   double slope = (static_cast<double>(data_size) * sum_log_x_log_y - sum_log_x * sum_log_y) /
                  (static_cast<double>(data_size) * sum_log_x_squared - sum_log_x * sum_log_x);
   return slope;
+}
+
+double fd_l2_norm(const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &a) {
+  const size_t num_elements = a.extent(0);
+  double l2_norm = 0.0;
+  for (size_t i = 0; i < num_elements; ++i) {
+    l2_norm += a(i) * a(i);
+  }
+  return std::sqrt(l2_norm / static_cast<double>(num_elements));
 }
 
 double fd_l2_norm_difference(const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &a,
@@ -119,8 +129,10 @@ using QuadInOutFunc = std::function<void(
 /// \brief A struct for storing the results of a convergence study
 struct ConvergenceResults {
   std::vector<double> num_quadrature_points;
-  std::vector<double> error;
-  double slope;
+  std::vector<double> abs_error;
+  double abs_slope;
+  std::vector<double> rel_error;
+  double rel_slope;
 };
 
 /// \brief Perform a convergence study against an expected result
@@ -128,7 +140,8 @@ ConvergenceResults perform_convergence_study(const double &viscosity, const Quad
                                              const QuadInOutFunc &func, const QuadVectorFunc &input_field_gen,
                                              const QuadVectorFunc &expected_results_gen) {
   std::vector<double> stashed_num_quadrature_points;
-  std::vector<double> stashed_error;
+  std::vector<double> stashed_error_abs;
+  std::vector<double> stashed_error_rel;
   for (int order = 2; order <= 64; order *= 2) {
     // Generate the quadrature rule
     auto [points, weights, normals] = quad_gen(order);
@@ -142,18 +155,26 @@ ConvergenceResults perform_convergence_study(const double &viscosity, const Quad
 
     // Apply the function and compute the finite difference error
     Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> result_vector("result_vector",
-                                                                                3 * num_quadrature_points);
+                                                                                expected_results.extent(0));
     func(viscosity, points, normals, weights, input_field, result_vector);
+
+    // Absolute error
     const double fd_l2_error = fd_l2_norm_difference(result_vector, expected_results);
 
+    // Relative error
+    const double fd_l2_norm_expected = fd_l2_norm(expected_results);
+    const double l2_rel_error = fd_l2_error / fd_l2_norm_expected;
+
     // Stash the error
-    stashed_error.push_back(fd_l2_error);
+    stashed_error_abs.push_back(fd_l2_error);
+    stashed_error_rel.push_back(l2_rel_error);
     stashed_num_quadrature_points.push_back(static_cast<double>(num_quadrature_points));
   }
 
   // Check that the error converges to zero at the expected rate
-  const double slope = compute_log_log_slope(stashed_num_quadrature_points, stashed_error);
-  return {stashed_num_quadrature_points, stashed_error, slope};
+  const double slope_absolute = compute_log_log_slope(stashed_num_quadrature_points, stashed_error_abs);
+  const double slope_relative = compute_log_log_slope(stashed_num_quadrature_points, stashed_error_rel);
+  return {stashed_num_quadrature_points, stashed_error_abs, slope_absolute, stashed_error_rel, slope_relative};
 }
 
 /// \brief Perform a self-convergence study
@@ -174,7 +195,8 @@ ConvergenceResults perform_self_convergence_study(const double &viscosity, const
 
   // Perform the self-convergence study
   std::vector<double> stashed_num_quadrature_points;
-  std::vector<double> stashed_error;
+  std::vector<double> stashed_error_abs;
+  std::vector<double> stashed_error_rel;
   for (int order = 2; order <= 32; order *= 2) {
     // Generate the quadrature rule
     auto [points, weights, normals] = quad_gen(order);
@@ -195,15 +217,18 @@ ConvergenceResults perform_self_convergence_study(const double &viscosity, const
     // the high-order results. Note, this is the spherical l2 norm, not the Euclidean l2 norm.
     const double current_l2_norm = spherical_l2_norm<3>(result_vector, weights);
     const double l2_error = std::fabs(current_l2_norm - expected_l2_norm);
+    const double l2_error_relative = l2_error / expected_l2_norm;
 
     // Stash the error
-    stashed_error.push_back(l2_error);
+    stashed_error_abs.push_back(l2_error);
+    stashed_error_rel.push_back(l2_error_relative);
     stashed_num_quadrature_points.push_back(static_cast<double>(num_quadrature_points));
   }
 
   // Check that the error converges to zero at the expected rate
-  const double slope = compute_log_log_slope(stashed_num_quadrature_points, stashed_error);
-  return {stashed_num_quadrature_points, stashed_error, slope};
+  const double slope_absolute = compute_log_log_slope(stashed_num_quadrature_points, stashed_error_abs);
+  const double slope_relative = compute_log_log_slope(stashed_num_quadrature_points, stashed_error_rel);
+  return {stashed_num_quadrature_points, stashed_error_abs, slope_absolute, stashed_error_rel, slope_relative};
 }
 
 /// \brief Apply the stokes double layer matrix to surface forces to get surface velocities
@@ -298,6 +323,95 @@ void apply_skfie_wrapper(const double viscosity,
               points, normals, normals, weights, input_field, output_field);
 }
 
+/// \brief Solve for the velocity on a bulk point given an imposed slip velocity on the periphery
+///
+/// Mathematically U_bulk = G_{periphery -> bulk} * M^{-1} * U_slip
+void apply_resistance(const double viscosity,
+                      const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_points,
+                      const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_normals,
+                      const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_weights,
+                      const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_velocities,
+                      const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_forces,
+                      const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &bulk_points,
+                      const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &bulk_velocities) {
+  const size_t num_surface_points = surface_weights.extent(0);
+  const size_t num_bulk_points = bulk_points.extent(0) / 3;
+
+  // Fill the SKFIE matrix M
+  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M("M", 3 * num_surface_points, 3 * num_surface_points);
+  fill_skfie_matrix(Kokkos::DefaultHostExecutionSpace(), viscosity, num_surface_points, num_surface_points,
+                    surface_points, surface_points, surface_normals, surface_weights, M);
+
+  // Invert the SKFIE matrix
+  Kokkos::View<double **, Kokkos::LayoutLeft, Kokkos::HostSpace> M_inv("M_inv", 3 * num_surface_points,
+                                                                       3 * num_surface_points);
+  invert_matrix(Kokkos::DefaultHostExecutionSpace(), M, M_inv);
+
+  // F = M^{-1} * U_slip
+  KokkosBlas::gemv(Kokkos::DefaultHostExecutionSpace(), "N", 1.0, M_inv, surface_velocities, 0.0, surface_forces);
+
+  // U_bulk = G^{dl}_{periphery -> bulk} * F
+  apply_stokes_double_layer_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, num_surface_points, num_bulk_points,
+                                   surface_points, bulk_points, surface_normals, surface_weights, surface_forces,
+                                   bulk_velocities);
+}
+
+/// \brief A wrapper for the apply_resistance function that tests the error within randomly sampled bulk points
+struct ApplyResistanceWrapper {
+  ApplyResistanceWrapper(const double &sphere_radius, const size_t num_bulk_points)
+      : num_bulk_points_(num_bulk_points), bulk_points_("bulk_points", 3 * num_bulk_points) {
+    // Generate random bulk points
+    openrand::Philox rng(0, 0);
+    for (size_t i = 0; i < num_bulk_points; ++i) {
+      const double theta = rng.uniform(0.0, 2.0 * M_PI);
+      const double phi = rng.uniform(0.0, M_PI);
+      const double r = rng.uniform(0.1 * sphere_radius, 0.2 * sphere_radius);  // Avoid landing on the surface
+      bulk_points_(3 * i) = r * std::sin(phi) * std::cos(theta);
+      bulk_points_(3 * i + 1) = r * std::sin(phi) * std::sin(theta);
+      bulk_points_(3 * i + 2) = r * std::cos(phi);
+    }
+  }
+
+  ApplyResistanceWrapper(const std::vector<double> &bulk_points)
+      : num_bulk_points_(bulk_points.size() / 3), bulk_points_("bulk_points", 3 * num_bulk_points_) {
+    // Copy the bulk points
+    for (size_t i = 0; i < num_bulk_points_; ++i) {
+      for (size_t j = 0; j < 3; ++j) {
+        bulk_points_(3 * i + j) = bulk_points[3 * i + j];
+      }
+    }
+  }
+
+  ApplyResistanceWrapper(const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &bulk_points)
+      : num_bulk_points_(bulk_points.extent(0) / 3), bulk_points_("bulk_points", 3 * num_bulk_points_) {
+    // Copy the bulk points
+    for (size_t i = 0; i < num_bulk_points_; ++i) {
+      for (size_t j = 0; j < 3; ++j) {
+        bulk_points_(3 * i + j) = bulk_points(3 * i + j);
+      }
+    }
+  }
+
+  void operator()(const double &viscosity,
+                  const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_points,
+                  const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_normals,
+                  const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &surface_weights,
+                  const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &input_field,
+                  const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &output_field) {
+    // The input field is the slip velocity on the periphery
+    // The output field is the velocity on the bulk points
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces",
+                                                                                 surface_points.extent(0));
+    apply_resistance(viscosity, surface_points, surface_normals, surface_weights, input_field, surface_forces,
+                     bulk_points_, output_field);
+  }
+
+ private:
+  double num_bulk_points_;
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_points_;
+
+};  // struct ApplyResistanceWrapper
+
 /// \brief A functor for generate a quadrature rule on the sphere
 class SphereQuadFunctor {
  public:
@@ -332,6 +446,7 @@ class SphereQuadFunctor {
   bool include_pole_;
   bool invert_;
 };  // class SphereQuadFunctor
+
 //@}
 
 //! \name Quadrature tests
@@ -712,37 +827,47 @@ TEST(PeripheryTest, StokesDoubleLayerConstantForce) {
       perform_convergence_study(viscosity, quad_gen, apply_skfie_wrapper, in_field_gen, new_expected_results_gen);
 
   // For now, just print the results
-  std::cout << "matrix_results.slope = " << matrix_results.slope << std::endl;
+  std::cout << "matrix_results.abs_slope = " << matrix_results.abs_slope << " rel_slope = " << matrix_results.rel_slope
+            << std::endl;
   for (size_t i = 0; i < matrix_results.num_quadrature_points.size(); ++i) {
-    std::cout << "matrix_results.num_quadrature_points[" << i << "] = " << matrix_results.num_quadrature_points[i]
-              << ", matrix_results.error[" << i << "] = " << matrix_results.error[i] << std::endl;
+    std::cout << "  num_quadrature_points[" << i << "] = " << matrix_results.num_quadrature_points[i];
+    std::cout << ", abs_error[" << i << "] = " << matrix_results.abs_error[i];
+    std::cout << ", rel_error[" << i << "] = " << matrix_results.rel_error[i] << std::endl;
   }
-  std::cout << "kernel_results.slope = " << kernel_results.slope << std::endl;
+  std::cout << "kernel_results.abs_slope = " << kernel_results.abs_slope << " rel_slope = " << kernel_results.rel_slope
+            << std::endl;
   for (size_t i = 0; i < kernel_results.num_quadrature_points.size(); ++i) {
-    std::cout << "kernel_results.num_quadrature_points[" << i << "] = " << kernel_results.num_quadrature_points[i]
-              << ", kernel_results.error[" << i << "] = " << kernel_results.error[i] << std::endl;
+    std::cout << "  num_quadrature_points[" << i << "] = " << kernel_results.num_quadrature_points[i];
+    std::cout << ", abs_error[" << i << "] = " << kernel_results.abs_error[i];
+    std::cout << ", rel_error[" << i << "] = " << kernel_results.rel_error[i] << std::endl;
   }
-  std::cout << "matrix_ss_results.slope = " << matrix_ss_results.slope << std::endl;
+  std::cout << "matrix_ss_results.abs_slope = " << matrix_ss_results.abs_slope
+            << " rel_slope = " << matrix_ss_results.rel_slope << std::endl;
   for (size_t i = 0; i < matrix_ss_results.num_quadrature_points.size(); ++i) {
-    std::cout << "matrix_ss_results.num_quadrature_points[" << i << "] = " << matrix_ss_results.num_quadrature_points[i]
-              << ", matrix_ss_results.error[" << i << "] = " << matrix_ss_results.error[i] << std::endl;
+    std::cout << "  num_quadrature_points[" << i << "] = " << matrix_ss_results.num_quadrature_points[i];
+    std::cout << ", matrix_ss_results.abs_error[" << i << "] = " << matrix_ss_results.abs_error[i];
+    std::cout << ", matrix_ss_results.rel_error[" << i << "] = " << matrix_ss_results.rel_error[i] << std::endl;
   }
-  std::cout << "kernel_ss_results.slope = " << kernel_ss_results.slope << std::endl;
+  std::cout << "kernel_ss_results.abs_slope = " << kernel_ss_results.abs_slope
+            << " rel_slope = " << kernel_ss_results.rel_slope << std::endl;
   for (size_t i = 0; i < kernel_ss_results.num_quadrature_points.size(); ++i) {
-    std::cout << "kernel_ss_results.num_quadrature_points[" << i << "] = " << kernel_ss_results.num_quadrature_points[i]
-              << ", kernel_ss_results.error[" << i << "] = " << kernel_ss_results.error[i] << std::endl;
+    std::cout << "  num_quadrature_points[" << i << "] = " << kernel_ss_results.num_quadrature_points[i];
+    std::cout << ", kernel_ss_results.abs_error[" << i << "] = " << kernel_ss_results.abs_error[i];
+    std::cout << ", kernel_ss_results.rel_error[" << i << "] = " << kernel_ss_results.rel_error[i] << std::endl;
   }
-  std::cout << "matrix_skfie_results.slope = " << matrix_skfie_results.slope << std::endl;
+  std::cout << "matrix_skfie_results.abs_slope = " << matrix_skfie_results.abs_slope
+            << " rel_slope = " << matrix_skfie_results.rel_slope << std::endl;
   for (size_t i = 0; i < matrix_skfie_results.num_quadrature_points.size(); ++i) {
-    std::cout << "matrix_skfie_results.num_quadrature_points[" << i
-              << "] = " << matrix_skfie_results.num_quadrature_points[i] << ", matrix_skfie_results.error[" << i
-              << "] = " << matrix_skfie_results.error[i] << std::endl;
+    std::cout << "  num_quadrature_points[" << i << "] = " << matrix_skfie_results.num_quadrature_points[i];
+    std::cout << ", abs_error[" << i << "] = " << matrix_skfie_results.abs_error[i];
+    std::cout << ", rel_error[" << i << "] = " << matrix_skfie_results.rel_error[i] << std::endl;
   }
-  std::cout << "kernel_skfie_results.slope = " << kernel_skfie_results.slope << std::endl;
+  std::cout << "kernel_skfie_results.abs_slope = " << kernel_skfie_results.abs_slope
+            << " rel_slope = " << kernel_skfie_results.rel_slope << std::endl;
   for (size_t i = 0; i < kernel_skfie_results.num_quadrature_points.size(); ++i) {
-    std::cout << "kernel_skfie_results.num_quadrature_points[" << i
-              << "] = " << kernel_skfie_results.num_quadrature_points[i] << ", kernel_skfie_results.error[" << i
-              << "] = " << kernel_skfie_results.error[i] << std::endl;
+    std::cout << "  num_quadrature_points[" << i << "] = " << kernel_skfie_results.num_quadrature_points[i];
+    std::cout << ", abs_error[" << i << "] = " << kernel_skfie_results.abs_error[i];
+    std::cout << ", rel_error[" << i << "] = " << kernel_skfie_results.rel_error[i] << std::endl;
   }
 }
 
@@ -797,39 +922,47 @@ TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
         // For now, just print the results
         std::cout << "###########################################################" << std::endl;
         std::cout << "function_name = " << function_name << std::endl;
-        std::cout << "matrix_results.slope = " << matrix_results.slope << std::endl;
+        std::cout << "matrix_results.abs_slope = " << matrix_results.abs_slope
+                  << " rel_slope = " << matrix_results.rel_slope << std::endl;
         for (size_t i = 0; i < matrix_results.num_quadrature_points.size(); ++i) {
-          std::cout << "matrix_results.num_quadrature_points[" << i << "] = " << matrix_results.num_quadrature_points[i]
-                    << ", matrix_results.error[" << i << "] = " << matrix_results.error[i] << std::endl;
+          std::cout << "  num_quadrature_points[" << i << "] = " << matrix_results.num_quadrature_points[i];
+          std::cout << ", abs_error[" << i << "] = " << matrix_results.abs_error[i];
+          std::cout << ", rel_error[" << i << "] = " << matrix_results.rel_error[i] << std::endl;
         }
-        std::cout << "kernel_results.slope = " << kernel_results.slope << std::endl;
+        std::cout << "kernel_results.abs_slope = " << kernel_results.abs_slope
+                  << " rel_slope = " << kernel_results.rel_slope << std::endl;
         for (size_t i = 0; i < kernel_results.num_quadrature_points.size(); ++i) {
-          std::cout << "kernel_results.num_quadrature_points[" << i << "] = " << kernel_results.num_quadrature_points[i]
-                    << ", kernel_results.error[" << i << "] = " << kernel_results.error[i] << std::endl;
+          std::cout << "  num_quadrature_points[" << i << "] = " << kernel_results.num_quadrature_points[i];
+          std::cout << ", abs_error[" << i << "] = " << kernel_results.abs_error[i];
+          std::cout << ", rel_error[" << i << "] = " << kernel_results.rel_error[i] << std::endl;
         }
-        std::cout << "matrix_ss_results.slope = " << matrix_ss_results.slope << std::endl;
+        std::cout << "matrix_ss_results.abs_slope = " << matrix_ss_results.abs_slope
+                  << " rel_slope = " << matrix_ss_results.rel_slope << std::endl;
         for (size_t i = 0; i < matrix_ss_results.num_quadrature_points.size(); ++i) {
-          std::cout << "matrix_ss_results.num_quadrature_points[" << i
-                    << "] = " << matrix_ss_results.num_quadrature_points[i] << ", matrix_ss_results.error[" << i
-                    << "] = " << matrix_ss_results.error[i] << std::endl;
+          std::cout << "  num_quadrature_points[" << i << "] = " << matrix_ss_results.num_quadrature_points[i];
+          std::cout << ", abs_error[" << i << "] = " << matrix_ss_results.abs_error[i];
+          std::cout << ", rel_error[" << i << "] = " << matrix_ss_results.rel_error[i] << std::endl;
         }
-        std::cout << "kernel_ss_results.slope = " << kernel_ss_results.slope << std::endl;
+        std::cout << "kernel_ss_results.abs_slope = " << kernel_ss_results.abs_slope
+                  << " rel_slope = " << kernel_ss_results.rel_slope << std::endl;
         for (size_t i = 0; i < kernel_ss_results.num_quadrature_points.size(); ++i) {
-          std::cout << "kernel_ss_results.num_quadrature_points[" << i
-                    << "] = " << kernel_ss_results.num_quadrature_points[i] << ", kernel_ss_results.error[" << i
-                    << "] = " << kernel_ss_results.error[i] << std::endl;
+          std::cout << "  num_quadrature_points[" << i << "] = " << kernel_ss_results.num_quadrature_points[i];
+          std::cout << ", abs_error[" << i << "] = " << kernel_ss_results.abs_error[i];
+          std::cout << ", rel_error[" << i << "] = " << kernel_ss_results.rel_error[i] << std::endl;
         }
-        std::cout << "matrix_skfie_results.slope = " << matrix_skfie_results.slope << std::endl;
+        std::cout << "matrix_skfie_results.abs_slope = " << matrix_skfie_results.abs_slope
+                  << " rel_slope = " << matrix_skfie_results.rel_slope << std::endl;
         for (size_t i = 0; i < matrix_skfie_results.num_quadrature_points.size(); ++i) {
-          std::cout << "matrix_skfie_results.num_quadrature_points[" << i
-                    << "] = " << matrix_skfie_results.num_quadrature_points[i] << ", matrix_skfie_results.error[" << i
-                    << "] = " << matrix_skfie_results.error[i] << std::endl;
+          std::cout << "  num_quadrature_points[" << i << "] = " << matrix_skfie_results.num_quadrature_points[i];
+          std::cout << ", abs_error[" << i << "] = " << matrix_skfie_results.abs_error[i];
+          std::cout << ", rel_error[" << i << "] = " << matrix_skfie_results.rel_error[i] << std::endl;
         }
-        std::cout << "kernel_skfie_results.slope = " << kernel_skfie_results.slope << std::endl;
+        std::cout << "kernel_skfie_results.abs_slope = " << kernel_skfie_results.abs_slope
+                  << " rel_slope = " << kernel_skfie_results.rel_slope << std::endl;
         for (size_t i = 0; i < kernel_skfie_results.num_quadrature_points.size(); ++i) {
-          std::cout << "kernel_skfie_results.num_quadrature_points[" << i
-                    << "] = " << kernel_skfie_results.num_quadrature_points[i] << ", kernel_skfie_results.error[" << i
-                    << "] = " << kernel_skfie_results.error[i] << std::endl;
+          std::cout << "  num_quadrature_points[" << i << "] = " << kernel_skfie_results.num_quadrature_points[i];
+          std::cout << ", abs_error[" << i << "] = " << kernel_skfie_results.abs_error[i];
+          std::cout << ", rel_error[" << i << "] = " << kernel_skfie_results.rel_error[i] << std::endl;
         }
       };  // run_test_for_function
 
@@ -853,6 +986,364 @@ TEST(PeripheryTest, StokesDoubleLayerSmoothForces) {
                                             sin_theta * y * inv_radius - cos_theta * sin_phi * inv_radius,
                                             sin_theta * x * inv_radius};
                         });
+}
+
+TEST(PeripheryTest, SKFIERigidBodyMotion) {
+  // Test the convergence for a point not on the periphery.
+  //
+  // The test is based on the following fact:
+  //   If the velocity on the periphery is given by v = omega x p for some angular velocity omega in R^3 and p on the
+  //   periphery, then the velocity at a point b in the bulk is also v = omega x b.
+  //
+  // Given the rigid body surface slip velocity U, the velocity at points in the bulk is given by G_{periphery to bulk}
+  // M^{-1} U
+
+  // Setup the convergence study
+  const double sphere_radius = 1.0;
+  const double viscosity = 1.0;
+  const size_t num_bulk_points = 8;
+  const mundy::math::Vector3<double> omega(0.0, 0.0, 1.0);
+  const double cube_side_half_length = sphere_radius / 3;
+
+  // Setup the bulk points at the corner of the cube with side length cude_side_length
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_points("bulk_points", 3 * num_bulk_points);
+  bulk_points(0) = cube_side_half_length;
+  bulk_points(1) = cube_side_half_length;
+  bulk_points(2) = cube_side_half_length;
+
+  bulk_points(3) = -cube_side_half_length;
+  bulk_points(4) = cube_side_half_length;
+  bulk_points(5) = cube_side_half_length;
+
+  bulk_points(6) = cube_side_half_length;
+  bulk_points(7) = -cube_side_half_length;
+  bulk_points(8) = cube_side_half_length;
+
+  bulk_points(12) = cube_side_half_length;
+  bulk_points(13) = cube_side_half_length;
+  bulk_points(14) = -cube_side_half_length;
+
+  bulk_points(9) = -cube_side_half_length;
+  bulk_points(10) = -cube_side_half_length;
+  bulk_points(11) = cube_side_half_length;
+
+  bulk_points(15) = -cube_side_half_length;
+  bulk_points(16) = cube_side_half_length;
+  bulk_points(17) = -cube_side_half_length;
+
+  bulk_points(18) = cube_side_half_length;
+  bulk_points(19) = -cube_side_half_length;
+  bulk_points(20) = -cube_side_half_length;
+
+  bulk_points(21) = -cube_side_half_length;
+  bulk_points(22) = -cube_side_half_length;
+  bulk_points(23) = -cube_side_half_length;
+
+  // size_t seed = 1234;
+  // size_t counter = 0;
+  // openrand::Philox rng(seed, counter);
+  // for (size_t i = 0; i < num_bulk_points; ++i) {
+  //   const double theta = rng.uniform(0.0, 2.0 * M_PI);
+  //   const double phi = rng.uniform(0.0, M_PI);
+  //   const double r = rng.uniform(0.1 * sphere_radius, 0.2 * sphere_radius);  // Avoid landing on the surface
+  //   bulk_points(3 * i) = r * std::sin(phi) * std::cos(theta);
+  //   bulk_points(3 * i + 1) = r * std::sin(phi) * std::sin(theta);
+  //   bulk_points(3 * i + 2) = r * std::cos(phi);
+  // }
+
+  // Print the bulk points and the expected velocity
+  std::cout << "bulk_points = " << std::endl;
+  for (size_t i = 0; i < num_bulk_points; ++i) {
+    std::cout << "  " << bulk_points(3 * i) << " " << bulk_points(3 * i + 1) << " " << bulk_points(3 * i + 2)
+              << std::endl;
+  }
+
+  std::cout << "expected_bulk_velocity = " << std::endl;
+  for (size_t i = 0; i < num_bulk_points; ++i) {
+    const double x = bulk_points(3 * i);
+    const double y = bulk_points(3 * i + 1);
+    const double z = bulk_points(3 * i + 2);
+    const mundy::math::Vector3<double> p(x, y, z);
+    const auto v = mundy::math::cross(omega, p);
+
+    std::cout << "  " << v[0] << " " << v[1] << " " << v[2] << std::endl;
+  }
+
+
+
+  // Setup the test
+  const bool include_poles = false;
+  const bool invert = true;
+  const QuadGenerationFunc quad_gen = SphereQuadFunctor(sphere_radius, include_poles, invert);
+  const QuadVectorFunc in_field_gen =
+      [&omega](const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
+               [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
+               [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights) {
+        Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> input_field("input_field", 3 * weights.extent(0));
+        for (size_t i = 0; i < weights.extent(0); ++i) {
+          const double x = points(3 * i);
+          const double y = points(3 * i + 1);
+          const double z = points(3 * i + 2);
+          const mundy::math::Vector3<double> p(x, y, z);
+          const auto v = mundy::math::cross(omega, p);
+          input_field(3 * i) = v[0];
+          input_field(3 * i + 1) = v[1];
+          input_field(3 * i + 2) = v[2];
+        }
+        return input_field;
+      };
+  const QuadVectorFunc expected_results_gen =
+      [&omega, &bulk_points, &num_bulk_points](
+          [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &points,
+          [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &normals,
+          [[maybe_unused]] const Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> &weights) {
+        Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_results("expected_results",
+                                                                                       3 * num_bulk_points);
+        for (size_t i = 0; i < num_bulk_points; ++i) {
+          const double x = bulk_points(3 * i);
+          const double y = bulk_points(3 * i + 1);
+          const double z = bulk_points(3 * i + 2);
+          const mundy::math::Vector3<double> b(x, y, z);
+          const auto v = mundy::math::cross(omega, b);
+          expected_results(3 * i) = v[0];
+          expected_results(3 * i + 1) = v[1];
+          expected_results(3 * i + 2) = v[2];
+        }
+        return expected_results;
+      };
+
+  // Use apply_resistance to map the in_field (surface velocities) to the bulk surface velocities
+  ApplyResistanceWrapper apply_resistance_wrapper(bulk_points);
+  const ConvergenceResults rigid_body_results =
+      perform_convergence_study(viscosity, quad_gen, apply_resistance_wrapper, in_field_gen, expected_results_gen);
+
+  // For now, just print the results
+  std::cout << "###########################################################" << std::endl;
+  std::cout << "Rigid body motion" << std::endl;
+  std::cout << "rigid_body_results.abs_slope = " << rigid_body_results.abs_slope
+            << " rel_slope = " << rigid_body_results.rel_slope << std::endl;
+  for (size_t i = 0; i < rigid_body_results.num_quadrature_points.size(); ++i) {
+    std::cout << "  num_quadrature_points[" << i << "] = " << rigid_body_results.num_quadrature_points[i];
+    std::cout << ", abs_error[" << i << "] = " << rigid_body_results.abs_error[i];
+    std::cout << ", rel_error[" << i << "] = " << rigid_body_results.rel_error[i] << std::endl;
+  }
+}
+
+TEST(PeripheryTest, SKFIERigidBodyMotionFromFile) {
+  // Test the convergence for a point not on the periphery.
+  //
+  // The test is based on the following fact:
+  //   If the velocity on the periphery is given by v = omega x p for some angular velocity omega in R^3 and p on the
+  //   periphery, then the velocity at a point b in the bulk is also v = omega x b.
+  //
+  // Given the rigid body surface slip velocity U, the velocity at points in the bulk is given by G_{periphery to bulk}
+  // M^{-1} U
+
+  // Setup the convergence study
+  const double sphere_radius = 28.0;
+  const double viscosity = 1.0;
+  const size_t num_bulk_points = 8;
+  const mundy::math::Vector3<double> omega(1.0, 1.0, 1.0);
+  const double cube_side_half_length = sphere_radius / 3;
+
+  // Setup the bulk points at the corner of the cube with side length cude_side_length
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_points("bulk_points", 3 * num_bulk_points);
+  bulk_points(0) = cube_side_half_length;
+  bulk_points(1) = cube_side_half_length;
+  bulk_points(2) = cube_side_half_length;
+
+  bulk_points(3) = -cube_side_half_length;
+  bulk_points(4) = cube_side_half_length;
+  bulk_points(5) = cube_side_half_length;
+
+  bulk_points(6) = cube_side_half_length;
+  bulk_points(7) = -cube_side_half_length;
+  bulk_points(8) = cube_side_half_length;
+
+  bulk_points(12) = cube_side_half_length;
+  bulk_points(13) = cube_side_half_length;
+  bulk_points(14) = -cube_side_half_length;
+
+  bulk_points(9) = -cube_side_half_length;
+  bulk_points(10) = -cube_side_half_length;
+  bulk_points(11) = cube_side_half_length;
+
+  bulk_points(15) = -cube_side_half_length;
+  bulk_points(16) = cube_side_half_length;
+  bulk_points(17) = -cube_side_half_length;
+
+  bulk_points(18) = cube_side_half_length;
+  bulk_points(19) = -cube_side_half_length;
+  bulk_points(20) = -cube_side_half_length;
+
+  bulk_points(21) = -cube_side_half_length;
+  bulk_points(22) = -cube_side_half_length;
+  bulk_points(23) = -cube_side_half_length;
+
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_bulk_velocity("expected_bulk_velocity",
+                                                                                        3 * num_bulk_points);
+  for (size_t i = 0; i < num_bulk_points; ++i) {
+    const double x = bulk_points(3 * i);
+    const double y = bulk_points(3 * i + 1);
+    const double z = bulk_points(3 * i + 2);
+    const mundy::math::Vector3<double> b(x, y, z);
+    const auto v = mundy::math::cross(omega, b);
+    expected_bulk_velocity(3 * i) = v[0];
+    expected_bulk_velocity(3 * i + 1) = v[1];
+    expected_bulk_velocity(3 * i + 2) = v[2];
+  }
+
+  // Print the bulk points and the expected velocity
+  std::cout << "bulk_points = " << std::endl;
+  for (size_t i = 0; i < num_bulk_points; ++i) {
+    std::cout << "  " << bulk_points(3 * i) << " " << bulk_points(3 * i + 1) << " " << bulk_points(3 * i + 2)
+              << std::endl;
+  }
+
+  std::cout << "expected_bulk_velocity = " << std::endl;
+  for (size_t i = 0; i < num_bulk_points; ++i) {
+    std::cout << "  " << expected_bulk_velocity(3 * i) << " " << expected_bulk_velocity(3 * i + 1) << " "
+              << expected_bulk_velocity(3 * i + 2) << std::endl;
+  }
+
+  std::cout << "###########################################################" << std::endl;
+  std::cout << "Rigid body motion from file" << std::endl;
+  std::vector<size_t> vec_num_quad_points = {1280, 3840, 5120, 15360, 20480, 30720};
+  for (size_t i = 0; i < vec_num_quad_points.size(); ++i) {
+    // Read in the normals, points, and weights to kokkos views
+    const size_t num_quad_points = vec_num_quad_points[i];
+    std::string filename_normals = "./dat_files/sphere_triangle_normals_" + std::to_string(num_quad_points) + ".dat";
+    std::string filename_points = "./dat_files/sphere_triangle_points_" + std::to_string(num_quad_points) + ".dat";
+    std::string filename_weights = "./dat_files/sphere_triangle_weights_" + std::to_string(num_quad_points) + ".dat";
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> normals("normal", 3 * num_quad_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> points("points", 3 * num_quad_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> weights("weights", num_quad_points);
+    read_vector_from_file(filename_normals, 3 * num_quad_points, normals);
+    read_vector_from_file(filename_points, 3 * num_quad_points, points);
+    read_vector_from_file(filename_weights, num_quad_points, weights);
+
+    // Setup the test
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_slip_velocity("surface_slip_velocity",
+                                                                                         3 * num_quad_points);
+    for (size_t j = 0; j < weights.extent(0); ++j) {
+      const double x = points(3 * j);
+      const double y = points(3 * j + 1);
+      const double z = points(3 * j + 2);
+      const mundy::math::Vector3<double> p(x, y, z);
+      const auto v = mundy::math::cross(omega, p);
+      surface_slip_velocity(3 * j) = v[0];
+      surface_slip_velocity(3 * j + 1) = v[1];
+      surface_slip_velocity(3 * j + 2) = v[2];
+    }
+
+    // Use apply_resistance to map the surface velocities to the bulk surface velocities
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces",
+                                                                                 points.extent(0));
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity",
+                                                                                        3 * num_bulk_points);
+    Kokkos::deep_copy(surface_forces, 0.0);
+    Kokkos::deep_copy(bulk_velocity, 0.0);
+    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces,
+                     bulk_points, bulk_velocity);
+
+    // Absolute error
+    const double fd_l2_error = fd_l2_norm_difference(bulk_velocity, expected_bulk_velocity);
+
+    // Relative error
+    const double fd_l2_norm_expected = fd_l2_norm(expected_bulk_velocity);
+    const double l2_rel_error = fd_l2_error / fd_l2_norm_expected;
+    std::cout << "  num_quadrature_points[" << i << "] = " << num_quad_points;
+    std::cout << ", abs_error[" << i << "] = " << fd_l2_error;
+    std::cout << ", rel_error[" << i << "] = " << l2_rel_error << std::endl;
+  }
+}
+
+
+TEST(PeripheryTest, SKFIESelfConvFromFile) {
+  // Test the convergence for the flow induced by N points within the bulk of the sphere
+  // Assign to each point in the bulk a smoothly varying force field
+  // f(x,y,z) = (y, -x, z) / sqrt(x^2 + y^2 + z^2)
+
+  // Setup the convergence study
+  const double sphere_radius = 28.0;
+  const double viscosity = 1.0;
+  const size_t num_bulk_points = 1000;
+
+  // Setup the bulk points at the corner of the cube with side length cude_side_length
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_points("bulk_points", 3 * num_bulk_points);
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_forces("bulk_forces",
+                                                                                        3 * num_bulk_points);
+  size_t seed = 1234;
+  size_t counter = 0;
+  openrand::Philox rng(seed, counter);
+  for (size_t i = 0; i < num_bulk_points; ++i) {
+    const double theta = rng.uniform(0.0, 2.0 * M_PI);
+    const double phi = rng.uniform(0.0, M_PI);
+    const double r = rng.uniform(0.0, 0.9*sphere_radius - 1e-12);  // Avoid landing on the surface
+    bulk_points(3 * i) = r * std::sin(phi) * std::cos(theta);
+    bulk_points(3 * i + 1) = r * std::sin(phi) * std::sin(theta);
+    bulk_points(3 * i + 2) = r * std::cos(phi);
+
+    const double x = bulk_points(3 * i);
+    const double y = bulk_points(3 * i + 1);
+    const double z = bulk_points(3 * i + 2);
+    const double inv_radius = 1.0 / std::sqrt(x * x + y * y + z * z);
+    bulk_forces(3 * i) = y * inv_radius;
+    bulk_forces(3 * i + 1) = -x * inv_radius;
+    bulk_forces(3 * i + 2) = z * inv_radius;
+  }
+
+  Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> expected_bulk_velocity("expected_bulk_velocity",
+                                                                                        3 * num_bulk_points);
+
+  std::cout << "###########################################################" << std::endl;
+  std::cout << "Self-conv from file" << std::endl;
+  std::vector<size_t> vec_num_quad_points = {30720, 20480, 15360, 5120, 3840, 1280};
+  for (size_t i = 0; i < vec_num_quad_points.size(); ++i) {
+    // Read in the normals, points, and weights to kokkos views
+    const size_t num_quad_points = vec_num_quad_points[i];
+    std::string filename_normals = "./dat_files/sphere_triangle_normals_" + std::to_string(num_quad_points) + ".dat";
+    std::string filename_points = "./dat_files/sphere_triangle_points_" + std::to_string(num_quad_points) + ".dat";
+    std::string filename_weights = "./dat_files/sphere_triangle_weights_" + std::to_string(num_quad_points) + ".dat";
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> normals("normal", 3 * num_quad_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> points("points", 3 * num_quad_points);
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> weights("weights", num_quad_points);
+    read_vector_from_file(filename_normals, 3 * num_quad_points, normals);
+    read_vector_from_file(filename_points, 3 * num_quad_points, points);
+    read_vector_from_file(filename_weights, num_quad_points, weights);
+
+    // Compute the surface slip velocity induced by the bulk forces
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_slip_velocity("surface_slip_velocity",
+                                                                                         3 * num_quad_points);
+    apply_stokes_kernel(Kokkos::DefaultHostExecutionSpace(), viscosity, bulk_points, points, bulk_forces,
+                                    surface_slip_velocity);
+
+    // Use apply_resistance to map the surface velocities to the bulk surface velocities
+    // The surface forces are unknown and will be computed by apply_resistance
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> surface_forces("surface_forces",
+                                                                                 points.extent(0));
+    Kokkos::View<double *, Kokkos::LayoutLeft, Kokkos::HostSpace> bulk_velocity("bulk_velocity",
+                                                                                        3 * num_bulk_points);
+    Kokkos::deep_copy(surface_forces, 0.0);
+    Kokkos::deep_copy(bulk_velocity, 0.0);
+    apply_resistance(viscosity, points, normals, weights, surface_slip_velocity, surface_forces,
+                     bulk_points, bulk_velocity);
+
+    // Save the self-conv results
+    if (i == 0) {
+      Kokkos::deep_copy(expected_bulk_velocity, bulk_velocity);
+    }
+
+    // Absolute error
+    const double fd_l2_error = fd_l2_norm_difference(bulk_velocity, expected_bulk_velocity);
+
+    // Relative error
+    const double fd_l2_norm_expected = fd_l2_norm(expected_bulk_velocity);
+    const double l2_rel_error = fd_l2_error / fd_l2_norm_expected;
+    std::cout << "  num_quadrature_points[" << i << "] = " << num_quad_points;
+    std::cout << ", abs_error[" << i << "] = " << fd_l2_error;
+    std::cout << ", rel_error[" << i << "] = " << l2_rel_error << std::endl;
+  }
 }
 
 TEST(PeripheryTest, SKFIEIsInvertible) {

@@ -576,6 +576,18 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     const double fy = source_forces(3 * s + 1) * source_weights(s);
     const double fz = source_forces(3 * s + 2) * source_weights(s);
 
+    // const double r2 = dx * dx + dy * dy + dz * dz;
+    // const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
+    // const double rinv3 = rinv * rinv * rinv;
+
+    // const double inner_prod = fx * dx + fy * dy + fz * dz;
+    // const double scale_factor_rinv3 = scale_factor * rinv3;
+
+    // // Accumulate velocity contribution to local variables
+    // vx_accum += scale_factor_rinv3 * (r2 * fx + dx * inner_prod);
+    // vy_accum += scale_factor_rinv3 * (r2 * fy + dy * inner_prod);
+    // vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
+    
     const double r2 = dx * dx + dy * dy + dz * dz;
     const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
     const double rinv2 = rinv * rinv;
