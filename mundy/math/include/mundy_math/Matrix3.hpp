@@ -50,6 +50,9 @@ using Matrix3 = Matrix<T, 3, 3, Accessor, OwnershipType>;
 template <typename T, ValidAccessor<T> Accessor = Array<T, 9>>
 using Matrix3View = Matrix<T, 3, 3, Accessor, Ownership::Views>;
 
+template <typename T, ValidAccessor<T> Accessor = Array<T, 9>>
+using OwningMatrix3 = Matrix<T, 3, 3, Accessor, Ownership::Owns>;
+
 //! \name Matrix3<T, Accessor> views
 //@{
 
@@ -74,6 +77,16 @@ KOKKOS_INLINE_FUNCTION auto get_matrix3_view(Accessor& data) {
 template <typename T, ValidAccessor<T> Accessor>
 KOKKOS_INLINE_FUNCTION auto get_matrix3_view(Accessor&& data) {
   return Matrix3View<T, Accessor>(std::forward<Accessor>(data));
+}
+
+template <typename T, ValidAccessor<T> Accessor>
+KOKKOS_INLINE_FUNCTION auto get_owning_matrix3(Accessor& data) {
+  return OwningMatrix3<T, Accessor>(data);
+}
+
+template <typename T, ValidAccessor<T> Accessor>
+KOKKOS_INLINE_FUNCTION auto get_owning_matrix3(Accessor&& data) {
+  return OwningMatrix3<T, Accessor>(std::forward<Accessor>(data));
 }
 //@}
 

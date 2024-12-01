@@ -40,7 +40,7 @@
 #include <stk_mesh/base/DumpMeshInfo.hpp>        // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>              // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>               // for stk::mesh::Field, stk::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>       // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>       // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>                // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>            // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>             // for stk::topology
@@ -162,7 +162,7 @@ void subdivide_spherocylinder_segments(
     const std::tuple<ElementFieldToCopyType...> &element_fields_to_copy) {
   // Update the length and coordinates of the children
   // This is only done for locally owned entities.
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       bulk_data, stk::topology::ELEMENT_RANK, selector & bulk_data.mesh_meta_data().locally_owned_part(),
       [&coordinate_field, &radius_field, &length_field, &initial_length, &child_to_parent_map, &node_fields_to_copy,
        &element_fields_to_copy](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &child) {
@@ -765,7 +765,7 @@ class FilamentSim {
     const double filament_growth_rate = filament_growth_rate_;
     const double boundary_radius = boundary_radius_;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&node_coord_field, &node_velocity_field, &node_rng_counter_field, &element_radius_field,
          &element_tangent_field, &filament_growth_rate,
@@ -820,7 +820,7 @@ class FilamentSim {
     const double boundary_radius = boundary_radius_;
 
     // Update the generalized position using Euler's method
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&node_coord_field, &node_coord_field_old, &node_velocity_field, &node_velocity_field_old,
          &element_radius_field, &element_tangent_field, &element_length_field, &timestep_size,
@@ -871,7 +871,7 @@ class FilamentSim {
     const double timestep_size = timestep_size_;
 
     // Grow the filament
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&element_length_field, &filament_growth_rate, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &filament) {
@@ -894,7 +894,7 @@ class FilamentSim {
     const double filament_division_length = filament_division_length_;
 
     // Loop over all particles and stash if they divide or not
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *filament_part_ptr_,
         [&element_length_field, &element_marked_for_division_field, &filament_division_length](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &filament) {
@@ -929,7 +929,7 @@ class FilamentSim {
     stk::mesh::Field<double> &element_tangent_field = *element_tangent_field_ptr_;
 
     // Update the tangent
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *tip_part_ptr_,
         [&node_coord_field, &element_tangent_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                     const stk::mesh::Entity &polymer_segment) {

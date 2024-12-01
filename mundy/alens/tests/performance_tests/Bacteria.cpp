@@ -42,7 +42,7 @@
 #include <stk_mesh/base/DumpMeshInfo.hpp>        // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>              // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>               // for stk::mesh::Field, stk::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>       // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>       // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>                // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>            // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>             // for stk::topology
@@ -165,7 +165,7 @@ void subdivide_spherocylinders(stk::mesh::BulkData &bulk_data, const stk::mesh::
                                const std::tuple<ElementFieldToCopyType...> &element_fields_to_copy) {
   // Update the length and coordinates of the children
   // This is only done for locally owned entities.
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       bulk_data, stk::topology::ELEMENT_RANK, selector & bulk_data.mesh_meta_data().locally_owned_part(),
       [&coordinate_field, &orientation_field, &radius_field, &length_field, &parent_to_child_map, &node_fields_to_copy,
        &element_fields_to_copy](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &parent) {
@@ -687,7 +687,7 @@ class BacteriaSim {
     stk::mesh::Field<double> &element_corner_displacement_field = *element_aabb_displacement_field_ptr_;
 
     // Update the accumulators based on the difference to the previous state
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *bacteria_part_ptr_,
         [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -715,7 +715,7 @@ class BacteriaSim {
     const double buffer_distance_sqr = buffer_distance_ * buffer_distance_;
 
     // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *bacteria_part_ptr_,
         [&local_update_neighbor_list_int, &buffer_distance_sqr, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -823,7 +823,7 @@ class BacteriaSim {
     // Solve the mobility problem for the nodes
     const double one_over_6_pi_viscosity = 1.0 / (6.0 * M_PI * viscosity);
     const double one_over_8_pi_viscosity = 1.0 / (8.0 * M_PI * viscosity);
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
         [&node_force_field, &node_velocity_field, &element_radius_field, &node_torque_field, &node_omega_field,
          &one_over_6_pi_viscosity, &one_over_8_pi_viscosity]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
@@ -863,7 +863,7 @@ class BacteriaSim {
     const double timestep_size = timestep_size_;
 
     // Update the generalized position using Euler's method
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
         [&node_coord_field, &node_coord_field_old, &node_velocity_field_old, &element_orientation_field,
          &element_orientation_field_old, &node_omega_field_old,
@@ -910,7 +910,7 @@ class BacteriaSim {
     const double timestep_size = timestep_size_;
 
     // Grow the bacteria
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
         [&element_length_field, &bacteria_growth_rate, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &bacteria) {
@@ -933,7 +933,7 @@ class BacteriaSim {
     const double bacteria_division_length = bacteria_division_length_;
 
     // Loop over all particles and stash if they divide or not
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
         [&element_length_field, &element_marked_for_division_field, &bacteria_division_length](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &bacteria) {
@@ -965,7 +965,7 @@ class BacteriaSim {
 
     // // Loop over all particles and apply a small random orientational kick to any that divided
     // // This is independent of the parent-child relationship.
-    // stk::mesh::for_each_entity_run(*bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
+    // mundy::mesh::for_each_entity_run(*bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
     //                                [&node_rng_counter_field, &node_omega_field, &element_marked_for_division_field](
     //                                    const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &bacteria) {
     //                                  if (stk::mesh::field_data(element_marked_for_division_field, bacteria)[0] == 1)
@@ -996,7 +996,7 @@ class BacteriaSim {
     stk::mesh::Field<double> &element_tangent_field = *element_tangent_field_ptr_;
 
     // Update the tangent
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, *bacteria_part_ptr_,
         [&element_orientation_field, &element_tangent_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                              const stk::mesh::Entity &bacteria) {

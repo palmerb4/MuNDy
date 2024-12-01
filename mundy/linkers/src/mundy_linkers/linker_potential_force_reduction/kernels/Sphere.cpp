@@ -29,7 +29,7 @@
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>                                        // for MUNDY_THROW_ASSERT
@@ -135,7 +135,7 @@ void Sphere::execute(const stk::mesh::Selector &sphere_selector) {
   stk::mesh::Selector locally_owned_or_globally_shared_intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector &
       (meta_data_ptr_->locally_owned_part() | meta_data_ptr_->globally_shared_part());
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::ELEMENT_RANK,
       locally_owned_or_globally_shared_intersection_with_valid_entity_parts,
       [&linker_potential_force_field, &node_force_field, &linkers_part_to_reduce_over, &linked_entities_field](

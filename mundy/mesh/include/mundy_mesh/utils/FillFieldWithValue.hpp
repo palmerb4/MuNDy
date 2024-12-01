@@ -32,7 +32,7 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
 // Mundy libs
@@ -58,7 +58,7 @@ template <typename value_t, std::size_t value_size>
 void fill_field_with_value(const stk::mesh::Selector &selector, const stk::mesh::Field<value_t> &field,
                            const std::array<value_t, value_size> &value) {
   stk::mesh::BulkData &bulk_data = field.get_mesh();
-  stk::mesh::for_each_entity_run(
+  ::mundy::mesh::for_each_entity_run(
       bulk_data, field.entity_rank(), selector,
       [&field, &value]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &entity) {
         for (std::size_t i = 0; i < value_size; ++i) {

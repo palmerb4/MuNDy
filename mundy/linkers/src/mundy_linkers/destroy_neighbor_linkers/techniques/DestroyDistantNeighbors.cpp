@@ -154,7 +154,7 @@ void DestroyDistantNeighbors::execute(const stk::mesh::Selector &input_selector)
   const stk::mesh::Field<int> &linker_destroy_flag_field = *linker_destroy_flag_field_ptr_;
   const LinkedEntitiesFieldType &linked_entities_field = *linked_entities_field_ptr_;
 
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, input_selector,
       [&element_aabb_field, &linker_destroy_flag_field, &linked_entities_field](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {

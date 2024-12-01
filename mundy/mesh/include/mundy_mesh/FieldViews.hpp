@@ -33,6 +33,7 @@
 
 // Trilinos libs
 #include <stk_mesh/base/FieldBase.hpp>  // for stk::mesh::FieldBase, stk::mesh::field_data
+#include <stk_mesh/base/NgpField.hpp>   // for stk::mesh::NgpField
 
 // Mundy
 #include <mundy_math/Matrix3.hpp>     // for mundy::math::get_matrix3_view and mundy::math::Matrix3
@@ -42,6 +43,9 @@
 namespace mundy {
 
 namespace mesh {
+
+//! \name stk::mesh::Field data views
+///@{
 
 /// \brief A helper function for getting a view of a field's data as a Vector3
 template <class FieldType, typename StkDebugger = stk::mesh::DefaultStkFieldSyncDebugger>
@@ -69,6 +73,29 @@ inline math::Matrix3View<typename FieldType::value_type, typename FieldType::val
   return math::get_matrix3_view<typename FieldType::value_type>(
       stk::mesh::field_data(f, e, dummyArg, fileName, lineNumber));
 }
+//@}
+
+//! \name stk::mesh::NgpField data views
+///@{
+
+/// \brief A helper function for getting a view of a field's data as a Vector3
+template <class FieldType>
+inline auto vector3_field_data(FieldType& f, const stk::mesh::FastMeshIndex& i) {
+  return math::get_owning_vector3<typename FieldType::value_type>(f(i));
+}
+
+/// \brief A helper function for getting a view of a field's data as a Quaternion
+template <class FieldType>
+inline auto quaternion_field_data(FieldType& f, const stk::mesh::FastMeshIndex& i) {
+  return math::get_owning_quaternion<typename FieldType::value_type>(f(i));
+}
+
+/// \brief A helper function for getting a view of a field's data as a Matrix3
+template <class FieldType>
+inline auto matrix3_field_data(FieldType& f, const stk::mesh::FastMeshIndex& i) {
+  return math::get_owning_matrix3<typename FieldType::value_type>(f(i));
+}
+//@}
 
 }  // namespace mesh
 

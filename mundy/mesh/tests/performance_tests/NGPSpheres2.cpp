@@ -117,7 +117,7 @@ void randomize_positions_and_radii(stk::mesh::NgpMesh &ngp_mesh, const stk::mesh
                                    const Kokkos::Array<double, 3> &top_right,
                                    stk::mesh::NgpField<double> &node_coordinates,
                                    stk::mesh::NgpField<double> &element_radius) {
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::ELEMENT_RANK, spheres, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
         stk::mesh::Entity sphere = ngp_mesh.get_entity(stk::topology::ELEM_RANK, sphere_index);
         stk::mesh::EntityId sphere_id = ngp_mesh.identifier(sphere);
@@ -245,7 +245,7 @@ void apply_hertzian_contact_between_spheres(stk::mesh::NgpMesh &ngp_mesh, const 
 void update_sphere_positions(stk::mesh::NgpMesh &ngp_mesh, const double time_step,
                              stk::mesh::NgpField<double> &node_coordinates,
                              stk::mesh::NgpField<double> &node_velocity) {
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       ngp_mesh, stk::topology::NODE_RANK, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
         stk::mesh::Entity node = ngp_mesh.get_entity(stk::topology::NODE_RANK, node_index);
         stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);

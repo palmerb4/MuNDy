@@ -981,7 +981,7 @@ inline void randomize_positions(Mesh &mesh, Field &coords_field,  //
                                 const mundy::math::Vector3<double> &domain_high, const stk::mesh::Selector &selector,
                                 const size_t seed = 1234) {
   sync_field_to_owning_space(coords_field);
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       mesh, stk::topology::NODE_RANK, field_selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
         stk::mesh::Entity node = mesh.get_entity(stk::topology::NODE_RANK, node_index);
         stk::mesh::EntityId node_id = mesh.identifier(node);

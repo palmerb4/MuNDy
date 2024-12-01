@@ -62,7 +62,7 @@ integrated into Mundy and runnable via our Configurator/Driver system.
 #include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>   // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
@@ -406,7 +406,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
     //   v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2
 
     // First x(t + dt) = x(t) + v(t) * dt + a(t) * dt^2 / 2
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::NODE_RANK, locally_owned_selector,
         [&node_coordinates_field, &node_velocity_field, &node_acceleration_field, &node_twist_field,
          &node_coordinates_field_ref, &node_velocity_field_ref, &node_acceleration_field_ref, &node_twist_field_ref,
@@ -439,7 +439,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
     // length^i = ||x_{i+1} - x_i||
     // edge_tangent^i = (x_{i+1} - x_i) / length
     // edge_binormal^i = (2 edge_tangent_ref^i x edge_tangent^i) / (1 + edge_tangent_ref^i dot edge_tangent^i)
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::EDGE_RANK, locally_owned_selector,
         [&node_coordinates_field, &edge_orientation_field, &edge_tangent_field, &edge_tangent_field_ref,
          &edge_binormal_field,
@@ -474,7 +474,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
     //   kappa^i = q_i - conj(q_i) = 2 * vec(q_i)
     // where
     //   q_i = conj(d^{i-1}) d^i is the Lagrangian rotation gradient.
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::ELEMENT_RANK, locally_owned_selector,
         [&edge_orientation_field, &node_curvature_field, &node_rotation_gradient_field](
             const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &slt_element) {
@@ -504,7 +504,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
         });
 
     // Compute internal force and torque
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::ELEMENT_RANK, locally_owned_selector,
         [&node_force_field, &&node_curvature_field, &node_rest_curvature_field, &node_twist_field,
          &node_rotation_gradient_field, &edge_tangent_field, &edge_binormal_field, &edge_length_field,
@@ -608,7 +608,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
     // Compute collision forces
 
     // At this point, we finally have f(x(t + dt)). Now we need to compute a(t + dt) = M^{-1} f(x(t + dt))
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::NODE_RANK, locally_owned_selector,
         [&node_acceleration_field, &node_force_field, $node_twist_acceleration_field, &node_twist_torque_field,
          node_mass, node_moment_of_inertia](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {
@@ -626,7 +626,7 @@ class SLT : public mundy::meta::MetaMethodExecutionInterface<void> {
         });
 
     // Finally, we can compute v(t + dt) = v(t) + (a(t) + a(t + dt)) * dt / 2
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         bulk_data, stk::topology::NODE_RANK, locally_owned_selector,
         [&node_velocity_field, &node_velocity_field_ref, &node_acceleration_field, &node_acceleration_field_ref,
          &node_twist_rate_field, &node_twist_rate_field_ref, &node_twist_acceleration_field,

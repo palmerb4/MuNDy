@@ -54,7 +54,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <stk_io/StkMeshIoBroker.hpp>        // for stk::io::StkMeshIoBroker
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>   // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
@@ -289,7 +289,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
@@ -567,7 +567,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_brownian_velocity_field, &node_rng_counter_field, &timestep_size, &diffusion_coeff](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -904,7 +904,7 @@ class LocalDragNonorientableSphere : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
+    mundy::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
                                    [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
                                        const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
                                      const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];

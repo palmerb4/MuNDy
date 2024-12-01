@@ -40,7 +40,7 @@ We'll need two MetaMethods: one for computing the brownian motion and one for ta
 #include <Kokkos_Core.hpp>                  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>        // for stk::topology
@@ -263,7 +263,7 @@ class NodeEulerSphere : public mundy::meta::MetaKernel<> {
     // At the end of this loop, all locally owned and ghosted entities will be up-to-date.
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_coord_field, &node_velocity_field, &time_step_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -560,7 +560,7 @@ class ComputeBrownianVelocitySphere : public mundy::meta::MetaKernel<> {
     // At the end of this loop, all locally owned and ghosted entities will be up-to-date.
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
         [&node_brownian_velocity_field, &node_rng_counter_field, &time_step_size, &diffusion_coeff, &alpha, &beta](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {

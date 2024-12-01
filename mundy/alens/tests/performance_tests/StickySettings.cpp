@@ -162,7 +162,7 @@ Order of operations:
 #include <stk_mesh/base/Comm.hpp>            // for stk::mesh::comm_mesh_counts
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>   // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
@@ -371,7 +371,7 @@ class StickySettings {
     //                                                 bulk_data_ptr_->buckets(element_rank_))
     //           << std::endl;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_crosslinkers_selector,
         [&message, &left_bound_crosslinkers_part, &doubly_bound_crosslinkers_part](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -409,7 +409,7 @@ class StickySettings {
                              std::string("Left and right nodes are not the same.\n") + message);
         });
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_crosslinkers_selector,
         [&message, &left_bound_crosslinkers_part, &doubly_bound_crosslinkers_part](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -761,7 +761,7 @@ class StickySettings {
       double &youngs_modulus = sphere_youngs_modulus_;
       double &poissons_ratio = sphere_poissons_ratio_;
 
-      stk::mesh::for_each_entity_run(
+      mundy::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_part,
           [&element_youngs_modulus_field, &element_poissons_ratio_field, &youngs_modulus, &poissons_ratio](
               [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere) {
@@ -950,7 +950,7 @@ class StickySettings {
         stk::mesh::Selector(*crosslinker_sphere_linkers_part_ptr_) &
         bulk_data_ptr_->mesh_meta_data().locally_owned_part();
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, locally_owned_input_selector,
         [&left_bound_crosslinkers_part, &right_bound_crosslinkers_part, &linker_destroy_flag_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &linker) {
@@ -1066,7 +1066,7 @@ class StickySettings {
     const double &crosslinker_right_binding_rate = crosslinker_right_binding_rate_;
     const BOND_TYPE &crosslinker_spring_type = crosslinker_spring_type_;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, crosslinker_sphere_linkers_part,
         [&node_coord_field, &constraint_state_change_probability, &crosslinker_spring_type,
          &crosslinker_spring_constant, &crosslinker_spring_rest_length, &left_bound_crosslinkers_part, &inv_kt,
@@ -1130,7 +1130,7 @@ class StickySettings {
     const double &crosslinker_right_unbinding_rate = crosslinker_right_unbinding_rate_;
 
     // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only.
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&node_coord_field, &crosslinker_unbinding_rates, &doubly_bound_crosslinkers_part,
          &crosslinker_right_unbinding_rate]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
@@ -1167,7 +1167,7 @@ class StickySettings {
     stk::mesh::Part &left_bound_crosslinkers_part = *left_bound_crosslinkers_part_ptr_;
 
     // Loop over left-bound crosslinkers and decide if they bind or not
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_bound_crosslinkers_part,
         [&crosslinker_sphere_linkers_part, &element_rng_field, &constraint_perform_state_change_field,
          &element_perform_state_change_field, &constraint_state_change_rate_field,
@@ -1253,7 +1253,7 @@ class StickySettings {
     stk::mesh::Part &doubly_bound_crosslinkers_part = *doubly_bound_crosslinkers_part_ptr_;
 
     // This is just a loop over the doubly bound crosslinkers, since we know that the right head in is [1].
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_bound_crosslinkers_part,
         [&element_rng_field, &element_perform_state_change_field, &crosslinker_unbinding_rates, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -1447,7 +1447,7 @@ class StickySettings {
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
          &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -1481,7 +1481,7 @@ class StickySettings {
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -1508,7 +1508,7 @@ class StickySettings {
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
 
     // Update the positions for all spheres based on velocity
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, spheres_part,
         [&node_coord_field, &node_velocity_field, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                   const stk::mesh::Entity &sphere_node) {
@@ -1540,7 +1540,7 @@ class StickySettings {
         (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
 
     // Update the accumulators based on the difference to the previous state
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
         [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -1578,7 +1578,7 @@ class StickySettings {
         (stk::mesh::Selector(spheres_part) | stk::mesh::Selector(crosslinkers_part));
 
     // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, spheres_and_crosslinkers_selector,
         [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {

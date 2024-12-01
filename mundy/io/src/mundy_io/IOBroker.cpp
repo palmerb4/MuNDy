@@ -227,7 +227,7 @@ void IOBroker::synchronize_node_coordinates_from_transient() {
   auto &coordinate_field = *coordinate_field_ptr_;
   auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
 
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {
@@ -252,7 +252,7 @@ void IOBroker::synchronize_node_coordinates_to_transient() {
   auto &coordinate_field = *coordinate_field_ptr_;
   auto &transient_coordinate_field = *transient_coordinate_field_ptr_;
 
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::NODE_RANK, meta_data_ptr_->universal_part(),
       [&coordinate_field, &transient_coordinate_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                        const stk::mesh::Entity &entity) {

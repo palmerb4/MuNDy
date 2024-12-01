@@ -29,7 +29,7 @@
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_alens/compute_brownian_velocity/kernels/SpheresKernel.hpp>  // for mundy::alens::compute_brownian_velocity::kernels::SpheresKernel
@@ -107,7 +107,7 @@ void SpheresKernel::execute(const stk::mesh::Selector &sphere_selector) {
 
   stk::mesh::Selector intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & sphere_selector;
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::NODE_RANK, intersection_with_valid_entity_parts,
       [&node_brownian_velocity_field, &node_rng_counter_field, &time_step_size, &diffusion_coeff](
           [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {

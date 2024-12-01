@@ -33,7 +33,7 @@
 // Trilinos
 #include <stk_mesh/base/EntityLess.hpp>                         // for stk::mesh::EntityLess
 #include <stk_mesh/base/FieldParallel.hpp>                      // for stk::mesh::communicate_field_data
-#include <stk_mesh/base/ForEachEntity.hpp>                      // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>                      // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/baseImpl/ForEachEntityLoopAbstractions.hpp>  // for stk::mesh::impl::for_each_selected_entity_run_no_threads
 #include <stk_topology/topology.hpp>                            // for stk::topology
 #include <stk_util/parallel/CommSparse.hpp>                     // for stk::CommSparse
@@ -69,7 +69,7 @@ void fixup_linker_entity_ghosting(stk::mesh::BulkData& bulk_data, const LinkedEn
   // Each locally owned linker has access to the entities it links either through ownership or the aura. It is the
   // only process guarenteed to know the ownership of the linked entities. We propagate this information to all other
   // processes that ghost the linker via the linked_entity_owners_field.
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       bulk_data, stk::topology::CONSTRAINT_RANK, linker_selector & bulk_data.mesh_meta_data().locally_owned_part(),
       [&linked_entities_field, &linked_entity_owners_field, &parallel_rank](const stk::mesh::BulkData& bulk_data,
                                                                             const stk::mesh::Entity& linker) {

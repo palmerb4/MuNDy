@@ -30,7 +30,7 @@
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/Field.hpp>          // for stk::mesh::Field, stl::mesh::field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
@@ -419,7 +419,7 @@ void SpherocylinderSegmentSpherocylinderSegmentFrictionalHertzianContact::execut
   // At the end of this loop, all locally owned and ghosted linkers will be up-to-date.
   stk::mesh::Selector intersection_with_valid_entity_parts =
       stk::mesh::selectUnion(valid_entity_parts_) & sy_seg_sy_seg_linker_selector;
-  stk::mesh::for_each_entity_run(
+  mundy::mesh::for_each_entity_run(
       *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, intersection_with_valid_entity_parts,
       [&node_coords_field, &node_velocity_field_old, &element_radius_field, &linker_potential_force_field,
        &linker_signed_separation_distance_field, &linker_tangential_displacement_field, &linker_contact_normal_field,

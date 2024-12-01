@@ -29,7 +29,7 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
@@ -134,7 +134,7 @@ void NonSmoothLCP::execute(const stk::mesh::Selector &input_selector) {
   // The following is the BBPGD solution to the linear complementarity problem.
 
   // Fill the Lagrange multipliers xkm1 with our initial guess. Our choice of initial guess is zero.
-  stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, input_selector,
+  mundy::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, input_selector,
                                  [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity element) {
                                    stk::mesh::field_data(*element_constraint_violation_field_ptr_, element)[0] = 0.0;
                                  });

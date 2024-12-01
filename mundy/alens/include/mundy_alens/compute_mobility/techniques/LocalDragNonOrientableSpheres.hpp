@@ -200,7 +200,7 @@ class LocalDragNonorientableSpheres : public mundy::meta::MetaKernel<> {
 
     stk::mesh::Selector intersection_with_valid_entity_parts =
         stk::mesh::selectUnion(valid_entity_parts_) & meta_data_ptr_->locally_owned_part() & sphere_selector;
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
+    mundy::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::ELEMENT_RANK, intersection_with_valid_entity_parts,
                                    [&node_force_field, &node_velocity_field, &element_radius_field, &viscosity](
                                        const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
                                      const stk::mesh::Entity &node = bulk_data.begin_nodes(sphere_element)[0];

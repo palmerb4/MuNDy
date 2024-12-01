@@ -75,7 +75,7 @@ Interactions:
 #include <stk_mesh/base/DumpMeshInfo.hpp>    // for stk::mesh::impl::dump_all_mesh_info
 #include <stk_mesh/base/Entity.hpp>          // for stk::mesh::Entity
 #include <stk_mesh/base/FieldParallel.hpp>   // for stk::parallel_sum
-#include <stk_mesh/base/ForEachEntity.hpp>   // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>   // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>            // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>        // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>         // for stk::topology
@@ -2135,7 +2135,7 @@ class HP1 {
     const double kon_inv = 1.0 / active_euchromatin_force_kon_;
 
     // Loop over the ee_springs and set the first time we would see a transition
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
         [&element_rng_field, &euchromatin_state, &euchromatin_state_change_next_time, &kon_inv](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &euchromatin_spring) {
@@ -2478,7 +2478,7 @@ class HP1 {
     stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
 
     // Update the accumulators based on the difference to the previous state
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
         [&element_aabb_field, &element_aabb_field_old, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -2517,7 +2517,7 @@ class HP1 {
     stk::mesh::Selector combined_selector = spheres_selector | backbone_segments_selector | hp1_selector;
 
     // Check if each corner has moved skin_distance/2. Or, if dr_mag2 >= skin_distance^2/4
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, combined_selector,
         [&local_update_neighbor_list_int, &skin_distance2_over4, &element_corner_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -2567,7 +2567,7 @@ class HP1 {
 
     const auto &crosslinker_spring_type = crosslinker_spring_type_;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, hp1_h_neighbor_genx_part,
         [&node_coord_field, &constraint_linked_entities_field, &constraint_state_change_probability,
          &crosslinker_spring_constant, &crosslinker_spring_r0, &left_hp1_part, &inv_kt, &crosslinker_right_binding_rate,
@@ -2629,7 +2629,7 @@ class HP1 {
       const double periphery_spring_r0 = periphery_spring_r0_;
       stk::mesh::Part &hp1_bs_neighbor_genx_part = *hp1_bs_neighbor_genx_part_ptr_;
 
-      stk::mesh::for_each_entity_run(
+      mundy::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::CONSTRAINT_RANK, hp1_bs_neighbor_genx_part,
           [&node_coord_field, &constraint_linked_entities_field, &constraint_state_change_probability,
            &periphery_spring_constant, &periphery_spring_r0, &left_hp1_part, &inv_kt, &periphery_binding_rate,
@@ -2693,7 +2693,7 @@ class HP1 {
     const double &crosslinker_right_unbinding_rate = crosslinker_right_unbinding_rate_;
 
     // Loop over the neighbor list of the crosslinkers, then select down to the ones that are left-bound only.
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_hp1_h_part,
         [&node_coord_field, &crosslinker_unbinding_rates, &doubly_hp1_h_part, &crosslinker_right_unbinding_rate](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -2737,7 +2737,7 @@ class HP1 {
     stk::mesh::Part &left_hp1_part = *left_hp1_part_ptr_;
 
     // Loop over left-bound crosslinkers and decide if they bind or not
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, left_hp1_part,
         [&hp1_h_neighbor_genx_part, &hp1_bs_neighbor_genx_part, &element_rng_field,
          &constraint_perform_state_change_field, &element_perform_state_change_field,
@@ -2827,7 +2827,7 @@ class HP1 {
     stk::mesh::Part &doubly_hp1_h_part = *doubly_hp1_h_part_ptr_;
 
     // This is just a loop over the doubly bound crosslinkers, since we know that the right head in is [1].
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, doubly_hp1_h_part,
         [&element_rng_field, &element_perform_state_change_field, &crosslinker_unbinding_rates, &timestep_size](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker) {
@@ -3010,7 +3010,7 @@ class HP1 {
     double koff_inv = 1.0 / active_euchromatin_force_koff_;
 
     // Loop over the euchromatin spring elements and decide if they switch to the active state
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
         [&element_rng_field, &euchromatin_state, &euchromatin_perform_state_change, &euchromatin_state_change_next_time,
          &euchromatin_state_change_elapsed_time, &kon_inv, &koff_inv](
@@ -3065,7 +3065,7 @@ class HP1 {
     const double &timestep_size = timestep_size_;
 
     // Loop over the euchromatin spring elements and decide if they switch to the active state
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
         [&euchromatin_state_change_elapsed_time, &timestep_size]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                                  const stk::mesh::Entity &euchromatin_spring) {
@@ -3093,7 +3093,7 @@ class HP1 {
       stk::mesh::Field<double> &element_hydro_radius_field = *element_radius_field_ptr_;
       double shifted_periphery_hydro_radius = periphery_hydro_radius_ + maximum_allowed_periphery_overlap_;
 
-      stk::mesh::for_each_entity_run(
+      mundy::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
           [&node_coord_field, &element_hydro_radius_field, &shifted_periphery_hydro_radius](
               const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
@@ -3121,7 +3121,7 @@ class HP1 {
       double shifted_periphery_axis_radius2 = periphery_hydro_axis_radius2_ + maximum_allowed_periphery_overlap_;
       double shifted_periphery_axis_radius3 = periphery_hydro_axis_radius3_ + maximum_allowed_periphery_overlap_;
 
-      stk::mesh::for_each_entity_run(
+      mundy::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
           [&node_coord_field, &element_hydro_radius_field, &shifted_periphery_axis_radius1,
            &shifted_periphery_axis_radius2, &shifted_periphery_axis_radius3](const stk::mesh::BulkData &bulk_data,
@@ -3288,7 +3288,7 @@ class HP1 {
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
 
     const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &level_set, &center,
          &orientation, &a, &b, &c,
@@ -3385,7 +3385,7 @@ class HP1 {
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
 
     const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_force_field, &element_radius_field, &level_set, &outward_normal, &center,
          &orientation, &a, &b, &c,
@@ -3420,7 +3420,7 @@ class HP1 {
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
 
     const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_force_field, &element_aabb_field, &element_radius_field, &periphery_collision_radius,
          &spring_constant](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_element) {
@@ -3476,7 +3476,7 @@ class HP1 {
     const double &active_force_sigma = active_euchromatin_force_sigma_;
 
     // Loop over the euchromatin spring elements and decide if they switch to the active state
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, ee_springs_part,
         [&euchromatin_state, &node_coord_field, &node_force_field, &active_force_sigma](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &euchromatin_spring) {
@@ -3595,7 +3595,7 @@ class HP1 {
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
         [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
          &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -3629,7 +3629,7 @@ class HP1 {
     double inv_drag_coeff = 1.0 / sphere_drag_coeff;
 
     // Compute the total velocity of the nonorientable spheres
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
         [&node_velocity_field, &node_force_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -3652,7 +3652,7 @@ class HP1 {
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
     double max_allowable_speed = max_allowable_speed_;
     bool maximum_speed_exceeded = false;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
         [&node_velocity_field, &max_allowable_speed, &maximum_speed_exceeded](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
@@ -3683,7 +3683,7 @@ class HP1 {
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
 
     // Update the positions for all spheres based on velocity
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
         [&node_coord_field, &node_velocity_field, &timestep_size, &timestep_index](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {

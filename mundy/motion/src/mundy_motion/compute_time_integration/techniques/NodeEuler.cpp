@@ -29,7 +29,7 @@
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>       // for stk::mesh::Selector
 
@@ -104,7 +104,7 @@ void NodeEuler::execute(const stk::mesh::Selector &input_selector) {
   // TODO(palmerb4): NodeEuler should only act on the mulitbody Body type. Take the intersection.
   for (size_t i = 0; i < num_parts_; i++) {
     stk::mesh::Selector locally_owned_part = input_selector & stk::mesh::Selector(meta_data_ptr_->locally_owned_part());
-    stk::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
+    mundy::mesh::for_each_entity_run(*bulk_data_ptr_, stk::topology::NODE_RANK, locally_owned_part,
                                    [&]([[maybe_unused]] const stk::mesh::BulkData &bulk_data, stk::mesh::Entity node) {
                                      // TODO(palmerb4): Add a flag for specifying that node position has changed
                                      // This is the best way to indicate that things like the normal vector need

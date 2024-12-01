@@ -33,7 +33,7 @@
 #include <stk_mesh/base/Comm.hpp>           // for comm_mesh_counts
 #include <stk_mesh/base/Entity.hpp>         // for stk::mesh::Entity
 #include <stk_mesh/base/FieldParallel.hpp>  // for stk:::mesh::communicate_field_data
-#include <stk_mesh/base/ForEachEntity.hpp>  // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/GetEntities.hpp>    // for stk::mesh::get_selected_entities
 #include <stk_mesh/base/MeshBuilder.hpp>    // for stk::mesh::MeshBuilder
 #include <stk_mesh/base/Part.hpp>           // for stk::mesh::Part, stk::mesh::intersect
@@ -325,7 +325,7 @@ TEST(GenerateNeighborLinkers, PerformsNeighborLinkerDestructionCorrectlyForSpher
     EXPECT_EQ(total_num_linkers, bulk_data_ptr->parallel_size() - 2) << "One linker should have been destroyed.";
 
     // As a sanity check, loop over all linkers and validate that they are valid.
-    stk::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()),
+    mundy::mesh::for_each_entity_run(*static_cast<stk::mesh::BulkData *>(bulk_data_ptr.get()),
                                    stk::topology::CONSTRAINT_RANK, *neighbor_linkers_part_ptr,
                                    []([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                       const stk::mesh::Entity &linker) { EXPECT_TRUE(bulk_data.is_valid(linker)); });

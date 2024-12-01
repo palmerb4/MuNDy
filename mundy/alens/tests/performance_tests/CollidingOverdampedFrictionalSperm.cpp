@@ -42,7 +42,7 @@ The goal of this example is to simulate the swimming motion of a multiple, colli
 #include <stk_mesh/base/FEMHelpers.hpp>          // for stk::mesh::declare_element, stk::mesh::declare_element_edge
 #include <stk_mesh/base/Field.hpp>               // for stk::mesh::Field, stk::mesh::field_data
 #include <stk_mesh/base/FieldParallel.hpp>       // for stk::mesh::parallel_sum
-#include <stk_mesh/base/ForEachEntity.hpp>       // for stk::mesh::for_each_entity_run
+#include <stk_mesh/base/ForEachEntity.hpp>       // for mundy::mesh::for_each_entity_run
 #include <stk_mesh/base/Part.hpp>                // for stk::mesh::Part, stk::mesh::intersect
 #include <stk_mesh/base/Selector.hpp>            // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>             // for stk::topology
@@ -1040,7 +1040,7 @@ class SpermSimulation {
       stk::mesh::Field<double> &edge_orientation_field = *edge_orientation_field_ptr_;
       stk::mesh::Field<double> &edge_tangent_field = *edge_tangent_field_ptr_;
       stk::mesh::Field<double> &edge_length_field = *edge_length_field_ptr_;
-      stk::mesh::for_each_entity_run(
+      mundy::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::EDGE_RANK, meta_data_ptr_->locally_owned_part(),
           [&node_coord_field, &edge_orientation_field, &edge_tangent_field, &edge_length_field, &flip_sperm](
               const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &edge) {
@@ -1113,7 +1113,7 @@ class SpermSimulation {
     // kappa_rest = amplitude * sin(spatial_frequency * archlength + temporal_frequency * time).
     const double time = timestep_index_ * timestep_size_;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, node_rank_, *centerline_twist_springs_part_ptr_,
         [&node_rest_curvature_field, &node_archlength_field, &node_sperm_id_field, &amplitude, &spatial_frequency,
          &temporal_frequency,
@@ -1193,7 +1193,7 @@ class SpermSimulation {
     //
     // p^j(x_{j}, x_{j+1}) = p_{ T^i }^{ t^j(x_{j}, x_{j+1}) } is the parallel transport quaternion from the reference
     // tangent T^i to the current tangent t^j(x_{j}, x_{j+1}).
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::EDGE_RANK, *centerline_twist_springs_part_ptr_,
         [&node_coord_field, &node_twist_field, &edge_orientation_field, &edge_orientation_field_old,
          &edge_tangent_field, &edge_tangent_field_old, &edge_binormal_field,
@@ -1286,7 +1286,7 @@ class SpermSimulation {
     //   kappa^i = q_i - conj(q_i) = 2 * vec(q_i)
     // where
     //   q_i = conj(d^{i-1}) d^i is the Lagrangian rotation gradient.
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *centerline_twist_springs_part_ptr_,
         [&edge_orientation_field, &node_curvature_field, &node_rotation_gradient_field](
             const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &element) {
@@ -1346,7 +1346,7 @@ class SpermSimulation {
     // Note, we only loop over locally owned edges to avoid double counting the influence of ghosted edges.
     auto locally_owned_selector =
         stk::mesh::Selector(*centerline_twist_springs_part_ptr_) & meta_data_ptr_->locally_owned_part();
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, element_rank_, locally_owned_selector,
         [&node_radius_field, &node_force_field, &node_twist_torque_field, &node_curvature_field,
          &node_rest_curvature_field, &node_rotation_gradient_field, &edge_tangent_field, &edge_binormal_field,
@@ -1459,7 +1459,7 @@ class SpermSimulation {
 
     // Compute internal force induced by differences in rest and current length
     // Note, we only loop over locally owned edges to avoid double counting the influence of ghosted edges.
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, edge_rank_, locally_owned_selector,
         [&node_radius_field, &node_force_field, &edge_tangent_field, &edge_length_field, &sperm_rest_segment_length,
          &sperm_youngs_modulus,
@@ -1535,7 +1535,7 @@ class SpermSimulation {
     // Copy the AABBs to the old AABBs
     auto &element_aabb_field = *element_aabb_field_ptr_;
     auto &element_aabb_old_field = *element_aabb_old_field_ptr_;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spherocylinder_segments_part_ptr_,
         [&element_aabb_field, &element_aabb_old_field](const stk::mesh::BulkData &bulk_data,
                                                         const stk::mesh::Entity &element) {
@@ -1566,7 +1566,7 @@ class SpermSimulation {
     auto &element_aabb_field = *element_aabb_field_ptr_;
     auto &element_aabb_old_field = *element_aabb_old_field_ptr_;
     auto &element_aabb_displacement_field = *element_aabb_displacement_field_ptr_;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, segments,
         [&element_aabb_field, &element_aabb_old_field, &element_aabb_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -1587,7 +1587,7 @@ class SpermSimulation {
 
     int local_update_neighbor_list = 0;
     const double skin_distance2_over4 = 0.25 * skin_distance_ * skin_distance_;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::ELEMENT_RANK, segments,
         [&local_update_neighbor_list, &skin_distance2_over4, &element_aabb_displacement_field](
             [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &aabb_entity) {
@@ -1619,7 +1619,7 @@ class SpermSimulation {
                                                         std::array<double, 6>{0.0});
 
       // Copy AABBs to the old AABBs
-      stk::mesh::for_each_entity_run(
+      mundy::mesh::for_each_entity_run(
           *bulk_data_ptr_, stk::topology::ELEMENT_RANK, *spherocylinder_segments_part_ptr_,
           [&element_aabb_field, &element_aabb_old_field](const stk::mesh::BulkData &bulk_data,
                                                           const stk::mesh::Entity &element) {
@@ -1756,7 +1756,7 @@ class SpermSimulation {
     // Solve the mobility problem for the nodes
     const double one_over_6_pi_viscosity = 1.0 / (6.0 * M_PI * viscosity);
     const double one_over_8_pi_viscosity = 1.0 / (8.0 * M_PI * viscosity);
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, node_rank_, *spherocylinder_segments_part_ptr_,
         [&node_force_field, &node_velocity_field, &node_radius_field, &node_twist_torque_field,
          &node_twist_velocity_field, &one_over_6_pi_viscosity,
@@ -1797,7 +1797,7 @@ class SpermSimulation {
                                                         &node_twist_field_old, &node_twist_velocity_field_old});
 
     // Update the generalized position using Euler's method
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, node_rank_, *centerline_twist_springs_part_ptr_,
         [&node_coord_field, &node_coord_field_old, &node_velocity_field_old, &node_twist_field, &node_twist_field_old,
          &node_twist_velocity_field_old,
@@ -1849,7 +1849,7 @@ class SpermSimulation {
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
 
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, node_rank_, *centerline_twist_springs_part_ptr_,
         [&node_coord_field, &node_velocity_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
                                                   const stk::mesh::Entity &node) {
@@ -1877,7 +1877,7 @@ class SpermSimulation {
         stk::mesh::Selector(*centerline_twist_springs_part_ptr_) & meta_data_ptr_->locally_owned_part();
     double global_kinetic_energy = 0.0;
     double local_kinetic_energy = 0.0;
-    stk::mesh::for_each_entity_run(
+    mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, node_rank_, locally_owned_selector,
         [&node_velocity_field, &node_twist_velocity_field, &node_radius_field, &sperm_density, &local_kinetic_energy](
             const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &node) {

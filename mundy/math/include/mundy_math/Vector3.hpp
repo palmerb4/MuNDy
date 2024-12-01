@@ -49,10 +49,13 @@ template <typename T, ValidAccessor<T> Accessor = Array<T, 3>, typename Ownershi
   requires std::is_arithmetic_v<T>
 using Vector3 = Vector<T, 3, Accessor, OwnershipType>;
 
-template <typename T, ValidAccessor<T> Accessor = Array<T, 3>, typename OwnershipType = Ownership::Owns>
+template <typename T, ValidAccessor<T> Accessor = Array<T, 3>>
   requires std::is_arithmetic_v<T>
 using Vector3View = Vector<T, 3, Accessor, Ownership::Views>;
 
+template <typename T, ValidAccessor<T> Accessor = Array<T, 3>>
+  requires std::is_arithmetic_v<T>
+using OwningVector3 = Vector<T, 3, Accessor, Ownership::Owns>;
 //! \name Non-member functions
 //@{
 
@@ -117,6 +120,16 @@ KOKKOS_INLINE_FUNCTION auto get_vector3_view(Accessor& data) {
 template <typename T, ValidAccessor<T> Accessor>
 KOKKOS_INLINE_FUNCTION auto get_vector3_view(Accessor&& data) {
   return Vector3View<T, Accessor>(std::forward<Accessor>(data));
+}
+
+template <typename T, ValidAccessor<T> Accessor>
+KOKKOS_INLINE_FUNCTION auto get_owning_vector3(Accessor& data) {
+  return OwningVector3<T, Accessor>(data);
+}
+
+template <typename T, ValidAccessor<T> Accessor>
+KOKKOS_INLINE_FUNCTION auto get_owning_vector3(Accessor&& data) {
+  return OwningVector3<T, Accessor>(std::forward<Accessor>(data));
 }
 //@}
 
