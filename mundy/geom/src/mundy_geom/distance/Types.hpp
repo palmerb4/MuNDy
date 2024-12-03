@@ -17,15 +17,15 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_TYPES_HPP_
-#define MUNDY_MATH_DISTANCE_TYPES_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_TYPES_HPP_
+#define MUNDY_GEOM_DISTANCE_TYPES_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
 
 namespace mundy {
 
-namespace math {
+namespace geom {
 
 /// \brief The distance types
 ///
@@ -37,8 +37,8 @@ namespace math {
 struct Euclidean {};
 struct SharedNormalSigned {};
 
-}  // namespace math
+}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_TYPES_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_TYPES_HPP_

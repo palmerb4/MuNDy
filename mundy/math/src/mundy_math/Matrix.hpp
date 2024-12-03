@@ -567,7 +567,7 @@ KOKKOS_INLINE_FUNCTION T one_norm_impl(std::index_sequence<Is...>,
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
   requires std::is_arithmetic_v<T>
 class Matrix<T, N, M, Accessor, Ownership::Views> {
- private:
+ public:
   //! \name Internal data
   //@{
 
@@ -575,7 +575,6 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
   //@}
 
- public:
   //! \name Type aliases
   //@{
 
@@ -600,29 +599,28 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
 
   /// \brief Constructor for reference accessors
   KOKKOS_INLINE_FUNCTION
-  explicit Matrix(Accessor& data)
+  explicit constexpr Matrix(Accessor& data)
     requires(!std::is_pointer_v<Accessor>)
       : accessor_(data) {
   }
 
   /// \brief Constructor for pointer accessors
   KOKKOS_INLINE_FUNCTION
-  explicit Matrix(Accessor data)
+  explicit constexpr Matrix(Accessor data)
     requires std::is_pointer_v<Accessor>
       : accessor_(data) {
   }
 
   /// \brief Destructor
   KOKKOS_INLINE_FUNCTION
-  ~Matrix() {
-  }
+  constexpr ~Matrix() = default;
 
   /// \brief Shallow copy constructor. Stores a reference to the accessor in the other matrix.
-  KOKKOS_INLINE_FUNCTION Matrix(const Matrix<T, N, M, Accessor, Ownership::Views>& other) : accessor_(other.data()) {
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(const Matrix<T, N, M, Accessor, Ownership::Views>& other) : accessor_(other.data()) {
   }
 
   /// \brief Shallow move constructor. Stores and moves the reference to the accessor from the other matrix.
-  KOKKOS_INLINE_FUNCTION Matrix(Matrix<T, N, M, Accessor, Ownership::Views>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(Matrix<T, N, M, Accessor, Ownership::Views>&& other)
       : accessor_(std::move(other.data())) {
   }
 
@@ -1143,7 +1141,7 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor, typename OwnershipType>
   requires std::is_arithmetic_v<T>
 class Matrix {
- private:
+ public:
   //! \name Internal data
   //@{
 
@@ -1151,7 +1149,6 @@ class Matrix {
   Accessor accessor_;
   //@}
 
- public:
   //! \name Type aliases
   //@{
 
@@ -1175,13 +1172,12 @@ class Matrix {
   /// \note This constructor is only enabled if the Accessor has a default constructor.
   KOKKOS_INLINE_FUNCTION Matrix()
     requires HasDefaultConstructor<Accessor>
-      : accessor_() {
-  }
+      = default;
 
   /// \brief Constructor from a given accessor
   /// \param[in] accessor The accessor.
   KOKKOS_INLINE_FUNCTION
-  explicit Matrix(const Accessor& accessor)
+  explicit constexpr Matrix(const Accessor& accessor)
     requires std::is_copy_constructible_v<Accessor>
       : accessor_(accessor) {
   }
@@ -1192,12 +1188,12 @@ class Matrix {
   template <typename... Args>
     requires(sizeof...(Args) == N * M) &&
             (std::is_convertible_v<Args, T> && ...) && HasNArgConstructor<Accessor, T, N * M>
-  KOKKOS_INLINE_FUNCTION explicit Matrix(Args&&... args) : accessor_{static_cast<T>(std::forward<Args>(args))...} {
+  KOKKOS_INLINE_FUNCTION explicit constexpr Matrix(Args&&... args) : accessor_{static_cast<T>(std::forward<Args>(args))...} {
   }
 
   /// \brief Constructor to initialize all elements via initializer list
   /// \param[in] list The initializer list.
-  KOKKOS_INLINE_FUNCTION Matrix(const std::initializer_list<T>& list)
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(const std::initializer_list<T>& list)
     requires HasInitializerListConstructor<Accessor, T>
       : accessor_(list) {
     MUNDY_THROW_ASSERT(list.size() == N * M, std::invalid_argument, "Matrix: Initializer list must have 3 elements.");
@@ -1205,23 +1201,22 @@ class Matrix {
 
   /// \brief Destructor
   KOKKOS_INLINE_FUNCTION
-  ~Matrix() {
-  }
+  constexpr ~Matrix() = default;
 
   /// \brief Deep copy constructor
-  KOKKOS_INLINE_FUNCTION Matrix(const Matrix<T, N, M, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(const Matrix<T, N, M, Accessor, Ownership::Owns>& other)
     requires HasCopyConstructor<Accessor>
       : accessor_(other.accessor_) {
   }
 
   /// \brief Deep copy constructor
-  KOKKOS_INLINE_FUNCTION Matrix(const Matrix<T, N, M, Accessor, Ownership::Views>& other)
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(const Matrix<T, N, M, Accessor, Ownership::Views>& other)
     requires HasCopyConstructor<Accessor>
       : accessor_(other.accessor_) {
   }
 
   /// \brief Deep copy constructor
-  KOKKOS_INLINE_FUNCTION Matrix(const Matrix<T, N, M, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(const Matrix<T, N, M, Accessor, Ownership::Owns>& other)
     requires(!HasCopyConstructor<Accessor>) && HasNonConstAccessOperator<Accessor, T>
       : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N * M>{}, *this, other);
@@ -1230,19 +1225,19 @@ class Matrix {
   /// \brief Deep copy constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Matrix(const Matrix<T, N, M, OtherAccessor, Ownership::Owns>& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(const Matrix<T, N, M, OtherAccessor, Ownership::Owns>& other) : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N * M>{}, *this, other);
   }
 
   /// \brief Deep copy constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Matrix(const Matrix<T, N, M, OtherAccessor, Ownership::Views>& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(const Matrix<T, N, M, OtherAccessor, Ownership::Views>& other) : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N * M>{}, *this, other);
   }
 
   /// \brief Deep move constructor
-  KOKKOS_INLINE_FUNCTION Matrix(Matrix<T, N, M, Accessor, Ownership::Owns>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(Matrix<T, N, M, Accessor, Ownership::Owns>&& other)
     requires(HasCopyConstructor<Accessor> || HasMoveConstructor<Accessor>)
       : accessor_(std::move(other.accessor_)) {
   }
@@ -1250,7 +1245,7 @@ class Matrix {
   /// \brief Deep move constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Matrix(Matrix<T, N, M, OtherAccessor, Ownership::Owns>&& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(Matrix<T, N, M, OtherAccessor, Ownership::Owns>&& other) : accessor_() {
     // Other owns its accessor but that doesn't mean that it owns the data the accessor accesses.
     // Since the accessor neither has a copy constructor nor a move constructor, we must deep copy.
     impl::deep_copy_impl(std::make_index_sequence<N * M>{}, *this, std::move(other));
@@ -1258,7 +1253,7 @@ class Matrix {
   /// \brief Deep move constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Matrix(Matrix<T, N, M, OtherAccessor, Ownership::Views>&& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Matrix(Matrix<T, N, M, OtherAccessor, Ownership::Views>&& other) : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N * M>{}, *this, std::move(other));
   }
 

@@ -47,27 +47,29 @@ class StridedAccessor;
 template <typename T, size_t stride, ValidAccessor<T> Accessor>
 class StridedAccessor<T, stride, Accessor, Ownership::Views> {
  public:
+  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
+
   /// \brief Constructor for reference accessors
   KOKKOS_INLINE_FUNCTION
-  explicit StridedAccessor(Accessor& accessor)
+  explicit constexpr StridedAccessor(Accessor& accessor)
     requires(!std::is_pointer_v<Accessor>)
       : accessor_(accessor) {
   }
 
   /// \brief Constructor for pointer accessors
   KOKKOS_INLINE_FUNCTION
-  explicit StridedAccessor(Accessor accessor)
+  explicit constexpr StridedAccessor(Accessor accessor)
     requires std::is_pointer_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION StridedAccessor(const StridedAccessor<T, stride, Accessor, Ownership::Views>& other)
+  KOKKOS_INLINE_FUNCTION constexpr StridedAccessor(const StridedAccessor<T, stride, Accessor, Ownership::Views>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION StridedAccessor(StridedAccessor<T, stride, Accessor, Ownership::Views>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr StridedAccessor(StridedAccessor<T, stride, Accessor, Ownership::Views>&& other)
       : accessor_(other.accessor_) {
   }
 
@@ -76,36 +78,34 @@ class StridedAccessor<T, stride, Accessor, Ownership::Views> {
   KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
     return accessor_[idx * stride];
   }
-
- private:
-  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
 };  // class StridedAccessor
 
 template <typename T, size_t stride, ValidAccessor<T> Accessor>
 class StridedAccessor<T, stride, Accessor, Ownership::Owns> {
  public:
+  Accessor accessor_;
+
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
   KOKKOS_INLINE_FUNCTION StridedAccessor()
     requires HasDefaultConstructor<Accessor>
-      : accessor_() {
-  }
+  = default;
 
   /// \brief Constructor from a given accessor
   /// \param[in] data The accessor.
   KOKKOS_INLINE_FUNCTION
-  explicit StridedAccessor(const Accessor& accessor)
+  explicit constexpr StridedAccessor(const Accessor& accessor)
     requires std::is_copy_constructible_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION StridedAccessor(const StridedAccessor<T, stride, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr StridedAccessor(const StridedAccessor<T, stride, Accessor, Ownership::Owns>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION StridedAccessor(StridedAccessor<T, stride, Accessor, Ownership::Owns>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr StridedAccessor(StridedAccessor<T, stride, Accessor, Ownership::Owns>&& other)
       : accessor_(std::move(other.accessor_)) {
   }
 
@@ -114,9 +114,6 @@ class StridedAccessor<T, stride, Accessor, Ownership::Owns> {
   KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
     return accessor_[idx * stride];
   }
-
- private:
-  Accessor accessor_;
 };  // class StridedAccessor
 
 template <typename T, size_t stride, ValidAccessor<T> Accessor>

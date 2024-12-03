@@ -362,7 +362,7 @@ KOKKOS_INLINE_FUNCTION auto dot_product_impl(std::index_sequence<Is...>,
 template <typename T, size_t N, ValidAccessor<T> Accessor>
   requires std::is_arithmetic_v<T>
 class Vector<T, N, Accessor, Ownership::Views> {
- private:
+ public:
   //! \name Internal data
   //@{
 
@@ -370,7 +370,6 @@ class Vector<T, N, Accessor, Ownership::Views> {
   std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
   //@}
 
- public:
   //! \name Type aliases
   //@{
 
@@ -406,8 +405,7 @@ class Vector<T, N, Accessor, Ownership::Views> {
 
   /// \brief Destructor
   KOKKOS_INLINE_FUNCTION
-  ~Vector() {
-  }
+  ~Vector() = default;
 
   /// \brief Shallow copy constructor. Stores a reference to the accessor in the other vector.
   KOKKOS_INLINE_FUNCTION Vector(const Vector<T, N, Accessor, Ownership::Views>& other) : accessor_(other.data()) {
@@ -737,7 +735,7 @@ class Vector<T, N, Accessor, Ownership::Views> {
 template <typename T, size_t N, ValidAccessor<T> Accessor, typename OwnershipType>
   requires std::is_arithmetic_v<T>
 class Vector {
- private:
+ public:
   //! \name Internal data
   //@{
 
@@ -745,7 +743,6 @@ class Vector {
   Accessor accessor_;
   //@}
 
- public:
   //! \name Type aliases
   //@{
 
@@ -764,15 +761,12 @@ class Vector {
 
   /// \brief Default constructor. Assume elements are uninitialized.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION Vector()
-    requires HasDefaultConstructor<Accessor>
-      : accessor_() {
-  }
+  KOKKOS_INLINE_FUNCTION constexpr Vector() requires HasDefaultConstructor<Accessor> = default;
 
   /// \brief Constructor from a given accessor
   /// \param[in] data The accessor.
   KOKKOS_INLINE_FUNCTION
-  explicit Vector(const Accessor& data)
+  constexpr explicit Vector(const Accessor& data)
     requires std::is_copy_constructible_v<Accessor>
       : accessor_(data) {
   }
@@ -780,7 +774,7 @@ class Vector {
   /// \brief Constructor from a given accessor
   /// \param[in] data The accessor.
   KOKKOS_INLINE_FUNCTION
-  explicit Vector(Accessor&& data)
+  constexpr explicit Vector(Accessor&& data)
     requires(std::is_copy_constructible_v<Accessor> || std::is_move_constructible_v<Accessor>)
       : accessor_(std::forward<Accessor>(data)) {
   }
@@ -788,7 +782,7 @@ class Vector {
   /// \brief Constructor to initialize all elements to a single value.
   /// Requires the number of arguments to be N and the type of each to be T.
   /// Only enabled if the Accessor has a N-argument constructor.
-  KOKKOS_INLINE_FUNCTION explicit Vector(const T& value)
+  KOKKOS_INLINE_FUNCTION constexpr explicit Vector(const T& value)
     requires HasNArgConstructor<Accessor, T, 1>
       : accessor_(value) {
   }
@@ -799,35 +793,34 @@ class Vector {
   template <typename... Args>
     requires(sizeof...(Args) == N) && (N != 1) &&
             (std::is_convertible_v<Args, T> && ...) && HasNArgConstructor<Accessor, T, N>
-  KOKKOS_INLINE_FUNCTION explicit Vector(Args&&... args) : accessor_{static_cast<T>(std::forward<Args>(args))...} {
+  KOKKOS_INLINE_FUNCTION constexpr explicit Vector(Args&&... args) : accessor_{static_cast<T>(std::forward<Args>(args))...} {
   }
 
   /// \brief Constructor to initialize all elements via initializer list
   /// \param[in] list The initializer list.
-  KOKKOS_INLINE_FUNCTION Vector(const std::initializer_list<T>& list)
+  KOKKOS_INLINE_FUNCTION constexpr Vector(const std::initializer_list<T>& list)
     requires HasInitializerListConstructor<Accessor, T>
       : accessor_(list) {
   }
 
   /// \brief Destructor
   KOKKOS_INLINE_FUNCTION
-  ~Vector() {
-  }
+  constexpr ~Vector() = default;
 
   /// \brief Deep copy constructor
-  KOKKOS_INLINE_FUNCTION Vector(const Vector<T, N, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr Vector(const Vector<T, N, Accessor, Ownership::Owns>& other)
     requires HasCopyConstructor<Accessor>
       : accessor_(other.accessor_) {
   }
 
   /// \brief Deep copy constructor
-  KOKKOS_INLINE_FUNCTION Vector(const Vector<T, N, Accessor, Ownership::Views>& other)
+  KOKKOS_INLINE_FUNCTION constexpr Vector(const Vector<T, N, Accessor, Ownership::Views>& other)
     requires HasCopyConstructor<Accessor>
       : accessor_(other.accessor_) {
   }
 
   /// \brief Deep copy constructor
-  KOKKOS_INLINE_FUNCTION Vector(const Vector<T, N, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr Vector(const Vector<T, N, Accessor, Ownership::Owns>& other)
     requires(!HasCopyConstructor<Accessor>) && HasNonConstAccessOperator<Accessor, T>
       : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
@@ -836,19 +829,19 @@ class Vector {
   /// \brief Deep copy constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Vector(const Vector<T, N, OtherAccessor, Ownership::Owns>& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Vector(const Vector<T, N, OtherAccessor, Ownership::Owns>& other) : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
   }
 
   /// \brief Deep copy constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Vector(const Vector<T, N, OtherAccessor, Ownership::Views>& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Vector(const Vector<T, N, OtherAccessor, Ownership::Views>& other) : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, other);
   }
 
   /// \brief Deep move constructor
-  KOKKOS_INLINE_FUNCTION Vector(Vector<T, N, Accessor, Ownership::Owns>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr Vector(Vector<T, N, Accessor, Ownership::Owns>&& other)
     requires(HasCopyConstructor<Accessor> || HasMoveConstructor<Accessor>)
       : accessor_(std::move(other.accessor_)) {
   }
@@ -856,13 +849,13 @@ class Vector {
   /// \brief Deep move constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Vector(Vector<T, N, OtherAccessor, Ownership::Owns>&& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Vector(Vector<T, N, OtherAccessor, Ownership::Owns>&& other) : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, std::move(other));
   }
   /// \brief Deep move constructor
   template <typename OtherAccessor>
     requires(!std::is_same_v<Accessor, OtherAccessor>) && HasNonConstAccessOperator<Accessor, T>
-  KOKKOS_INLINE_FUNCTION Vector(Vector<T, N, OtherAccessor, Ownership::Views>&& other) : accessor_() {
+  KOKKOS_INLINE_FUNCTION constexpr Vector(Vector<T, N, OtherAccessor, Ownership::Views>&& other) : accessor_() {
     impl::deep_copy_impl(std::make_index_sequence<N>{}, *this, std::move(other));
   }
 

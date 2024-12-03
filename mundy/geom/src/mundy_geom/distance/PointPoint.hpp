@@ -17,19 +17,19 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_POINTPOINT_HPP_
-#define MUNDY_MATH_DISTANCE_POINTPOINT_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_POINTPOINT_HPP_
+#define MUNDY_GEOM_DISTANCE_POINTPOINT_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_math/Point.hpp>           // for mundy::math::Point
-#include <mundy_math/distance/Types.hpp>  // for SharedNormalSigned, Euclidean
+#include <mundy_geom/primitives/Point.hpp>           // for mundy::geom::Point
+#include <mundy_geom/distance/Types.hpp>  // for mundy::geom::SharedNormalSigned, Euclidean
 
 namespace mundy {
 
-namespace math {
+namespace geom {
 
 /// \brief Compute the shared normal signed separation distance between two points
 /// \tparam Scalar The scalar type
@@ -47,9 +47,9 @@ KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point1, const Point<Scalar>
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distance_type, const Point<Scalar>& point1,
                                 const Point<Scalar>& point2) {
-  Scalar dx = point1[0] - point2[0];
-  Scalar dy = point1[1] - point2[1];
-  Scalar dz = point1[2] - point2[2];
+  Scalar dx = point2[0] - point1[0];
+  Scalar dy = point2[1] - point1[1];
+  Scalar dz = point2[2] - point1[2];
   return Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
@@ -69,7 +69,7 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const Euclidean distance_type, 
 /// \param[in] point2 The second point
 /// \param[out] sep The separation vector (from point1 to point2)
 template <typename Scalar>
-KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point1, const Point<Scalar>& point2, Vector3<Scalar>& sep) {
+KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point1, const Point<Scalar>& point2, mundy::math::Vector3<Scalar>& sep) {
   return distance(SharedNormalSigned{}, point1, point2, sep);
 }
 
@@ -80,9 +80,9 @@ KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point1, const Point<Scalar>
 /// \param[out] sep The separation vector (from point1 to point2)
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distance_type, const Point<Scalar>& point1,
-                                const Point<Scalar>& point2, Vector3<Scalar>& sep) {
-  sep = point1 - point2;
-  return norm(sep);
+                                const Point<Scalar>& point2, mundy::math::Vector3<Scalar>& sep) {
+  sep = point2 - point1;
+  return mundy::math::norm(sep);
 }
 
 /// \brief Compute the euclidean distance between two points
@@ -92,12 +92,12 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
 /// \param[out] sep The separation vector (from point1 to point2)
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const Euclidean distance_type, const Point<Scalar>& point1,
-                                const Point<Scalar>& point2, Vector3<Scalar>& sep) {
+                                const Point<Scalar>& point2, mundy::math::Vector3<Scalar>& sep) {
   return distance(SharedNormalSigned{}, point1, point2, sep);
 }
 
-}  // namespace math
+}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_POINTPOINT_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_POINTPOINT_HPP_

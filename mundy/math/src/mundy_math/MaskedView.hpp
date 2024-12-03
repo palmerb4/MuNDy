@@ -47,28 +47,47 @@ class MaskedAccessor;
 
 template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
 class MaskedAccessor<T, N, mask, Accessor, Ownership::Views> {
+ private:
+  static constexpr Kokkos::Array<size_t, N> create_index_array() {
+    Kokkos::Array<size_t, N> indices{};
+    size_t idx = 0;
+    for (size_t i = 0; i < N; ++i) {
+      if (mask[i]) {
+        indices[idx++] = i;
+      }
+    }
+    return indices;
+  }
+
  public:
+  //! \name Internal data
+  //@{
+
+  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
+  static constexpr Kokkos::Array<size_t, N> valid_indices_ = create_index_array();
+  //@}
+
   /// \brief Constructor for reference accessors
   KOKKOS_INLINE_FUNCTION
-  explicit MaskedAccessor(Accessor& accessor)
+  explicit constexpr MaskedAccessor(Accessor& accessor)
     requires(!std::is_pointer_v<Accessor>)
       : accessor_(accessor) {
   }
 
   /// \brief Constructor for pointer accessors
   KOKKOS_INLINE_FUNCTION
-  explicit MaskedAccessor(Accessor accessor)
+  explicit constexpr MaskedAccessor(Accessor accessor)
     requires std::is_pointer_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION MaskedAccessor(const MaskedAccessor<T, N, mask, Accessor, Ownership::Views>& other)
+  KOKKOS_INLINE_FUNCTION constexpr MaskedAccessor(const MaskedAccessor<T, N, mask, Accessor, Ownership::Views>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION MaskedAccessor(MaskedAccessor<T, N, mask, Accessor, Ownership::Views>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr MaskedAccessor(MaskedAccessor<T, N, mask, Accessor, Ownership::Views>&& other)
       : accessor_(std::move(other.accessor_)) {
   }
 
@@ -77,10 +96,11 @@ class MaskedAccessor<T, N, mask, Accessor, Ownership::Views> {
   KOKKOS_INLINE_FUNCTION const auto& operator[](size_t idx) const {
     return accessor_[valid_indices_[idx]];
   }
+};  // class MaskedAccessor
 
+template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
+class MaskedAccessor<T, N, mask, Accessor, Ownership::Owns> {
  private:
-  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
-
   static constexpr Kokkos::Array<size_t, N> create_index_array() {
     Kokkos::Array<size_t, N> indices{};
     size_t idx = 0;
@@ -92,34 +112,35 @@ class MaskedAccessor<T, N, mask, Accessor, Ownership::Views> {
     return indices;
   }
 
-  static constexpr Kokkos::Array<size_t, N> valid_indices_ = create_index_array();
-};  // class MaskedAccessor
-
-template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>
-class MaskedAccessor<T, N, mask, Accessor, Ownership::Owns> {
  public:
+  //! \name Internal data
+  //@{
+
+  Accessor accessor_;
+  static constexpr Kokkos::Array<size_t, N> valid_indices_ = create_index_array();
+  //@}
+
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION MaskedAccessor()
+  KOKKOS_INLINE_FUNCTION constexpr MaskedAccessor()
     requires HasDefaultConstructor<Accessor>
-      : accessor_() {
-  }
+  = default;
 
   /// \brief Constructor from a given accessor
   /// \param[in] accessor The accessor.
   KOKKOS_INLINE_FUNCTION
-  explicit MaskedAccessor(const Accessor& accessor)
+  explicit constexpr MaskedAccessor(const Accessor& accessor)
     requires std::is_copy_constructible_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION MaskedAccessor(const MaskedAccessor<T, N, mask, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr MaskedAccessor(const MaskedAccessor<T, N, mask, Accessor, Ownership::Owns>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION MaskedAccessor(MaskedAccessor<T, N, mask, Accessor, Ownership::Owns>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr MaskedAccessor(MaskedAccessor<T, N, mask, Accessor, Ownership::Owns>&& other)
       : accessor_(other.accessor_) {
   }
 
@@ -128,22 +149,6 @@ class MaskedAccessor<T, N, mask, Accessor, Ownership::Owns> {
   KOKKOS_INLINE_FUNCTION const auto& operator[](size_t idx) const {
     return accessor_[valid_indices_[idx]];
   }
-
- private:
-  Accessor accessor_;
-
-  static constexpr Kokkos::Array<size_t, N> create_index_array() {
-    Kokkos::Array<size_t, N> indices{};
-    size_t idx = 0;
-    for (size_t i = 0; i < N; ++i) {
-      if (mask[i]) {
-        indices[idx++] = i;
-      }
-    }
-    return indices;
-  }
-
-  static constexpr Kokkos::Array<size_t, N> valid_indices_ = create_index_array();
 };  // class MaskedAccessor
 
 template <typename T, size_t N, Kokkos::Array<bool, N> mask, ValidAccessor<T> Accessor>

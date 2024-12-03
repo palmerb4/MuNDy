@@ -47,27 +47,29 @@ class ShiftedAccessor;
 template <typename T, size_t shift, ValidAccessor<T> Accessor>
 class ShiftedAccessor<T, shift, Accessor, Ownership::Views> {
  public:
+  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
+
   /// \brief Constructor for reference accessors
   KOKKOS_INLINE_FUNCTION
-  explicit ShiftedAccessor(Accessor& accessor)
+  explicit constexpr ShiftedAccessor(Accessor& accessor)
     requires(!std::is_pointer_v<Accessor>)
       : accessor_(accessor) {
   }
 
   /// \brief Constructor for pointer accessors
   KOKKOS_INLINE_FUNCTION
-  explicit ShiftedAccessor(Accessor accessor)
+  explicit constexpr ShiftedAccessor(Accessor accessor)
     requires std::is_pointer_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION ShiftedAccessor(const ShiftedAccessor<T, shift, Accessor, Ownership::Views>& other)
+  KOKKOS_INLINE_FUNCTION constexpr ShiftedAccessor(const ShiftedAccessor<T, shift, Accessor, Ownership::Views>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION ShiftedAccessor(ShiftedAccessor<T, shift, Accessor, Ownership::Views>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr ShiftedAccessor(ShiftedAccessor<T, shift, Accessor, Ownership::Views>&& other)
       : accessor_(other.accessor_) {
   }
 
@@ -76,36 +78,34 @@ class ShiftedAccessor<T, shift, Accessor, Ownership::Views> {
   KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
     return accessor_[idx + shift];
   }
-
- private:
-  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
 };  // class ShiftedAccessor
 
 template <typename T, size_t shift, ValidAccessor<T> Accessor>
 class ShiftedAccessor<T, shift, Accessor, Ownership::Owns> {
  public:
+  Accessor accessor_;
+
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION ShiftedAccessor()
+  KOKKOS_INLINE_FUNCTION constexpr ShiftedAccessor()
     requires HasDefaultConstructor<Accessor>
-      : accessor_() {
-  }
+  = default;
 
   /// \brief Constructor from a given accessor
   /// \param[in] accessor The accessor.
   KOKKOS_INLINE_FUNCTION
-  explicit ShiftedAccessor(const Accessor& accessor)
+  explicit constexpr ShiftedAccessor(const Accessor& accessor)
     requires std::is_copy_constructible_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION ShiftedAccessor(const ShiftedAccessor<T, shift, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr ShiftedAccessor(const ShiftedAccessor<T, shift, Accessor, Ownership::Owns>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION ShiftedAccessor(ShiftedAccessor<T, shift, Accessor, Ownership::Owns>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr ShiftedAccessor(ShiftedAccessor<T, shift, Accessor, Ownership::Owns>&& other)
       : accessor_(std::move(other.accessor_)) {
   }
 
@@ -114,9 +114,6 @@ class ShiftedAccessor<T, shift, Accessor, Ownership::Owns> {
   KOKKOS_INLINE_FUNCTION auto& operator[](size_t idx) const {
     return accessor_[idx + shift];
   }
-
- private:
-  Accessor accessor_;
 };  // class ShiftedAccessor
 
 template <typename T, size_t shift, ValidAccessor<T> Accessor>

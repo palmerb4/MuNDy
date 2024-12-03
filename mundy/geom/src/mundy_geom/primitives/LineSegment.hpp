@@ -30,7 +30,7 @@
 
 // Our libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_math/Point.hpp>         // for mundy::math::Point
+#include <mundy_geom/primitives/Point.hpp>         // for mundy::geom::Point
 
 namespace mundy {
 
@@ -44,7 +44,7 @@ class LineSegment {
 
   /// \brief The LineSegment's scalar type
   using scalar_type = Scalar;
-  using point_type = mundy::math::Point<Scalar>;
+  using point_type = Point<Scalar>;
   //@}
 
   //! \name Constructors and destructor

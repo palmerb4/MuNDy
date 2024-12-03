@@ -17,16 +17,5 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_DISTANCE_PLANEPLANE_HPP_
-#define MUNDY_GEOM_DISTANCE_PLANEPLANE_HPP_
-
-// External libs
-#include <Kokkos_Core.hpp>
-
-namespace mundy {
-
-namespace geom {}  // namespace geom
-
-}  // namespace mundy
-
-#endif  // MUNDY_GEOM_DISTANCE_PLANEPLANE_HPP_
+/// \file a_necessary_empty_file.cpp
+/// \brief A file used to trick TriBITS into compiling header only packages/subpackages

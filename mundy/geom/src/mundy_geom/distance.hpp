@@ -17,45 +17,34 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_HPP_
-#define MUNDY_MATH_DISTANCE_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_HPP_
+#define MUNDY_GEOM_DISTANCE_HPP_
 
 // All of our headers for computing separation distances between shape primitives
 
-// For now, we are skipping planes
-
-
 // Point to <shape> distance headers
-#include <mundy_math/distance/PointPoint.hpp>
-#include <mundy_math/distance/PointLine.hpp>
-#include <mundy_math/distance/PointLineSegment.hpp>
-// #include <mundy_math/distance/PointPlane.hpp>
-#include <mundy_math/distance/PointSphere.hpp>
-#include <mundy_math/distance/PointEllipsoid.hpp>
+#include <mundy_geom/distance/PointEllipsoid.hpp>
+#include <mundy_geom/distance/PointLine.hpp>
+#include <mundy_geom/distance/PointLineSegment.hpp>
+#include <mundy_geom/distance/PointPoint.hpp>
+#include <mundy_geom/distance/PointSphere.hpp>
 
 // Line to <shape> distance headers
-#include <mundy_math/distance/LineLine.hpp>
-#include <mundy_math/distance/LineLineSegment.hpp>
-// #include <mundy_math/distance/LinePlane.hpp>
-#include <mundy_math/distance/LineSphere.hpp>
-#include <mundy_math/distance/LineEllipsoid.hpp>
+#include <mundy_geom/distance/LineEllipsoid.hpp>
+#include <mundy_geom/distance/LineLine.hpp>
+// #include <mundy_geom/distance/LineLineSegment.hpp>  // Not implemented
+#include <mundy_geom/distance/LineSphere.hpp>
 
 // Line segment to <shape> distance headers
-#include <mundy_math/distance/LineSegmentLineSegment.hpp>
-// #include <mundy_math/distance/LineSegmentPlane.hpp>
-#include <mundy_math/distance/LineSegmentSphere.hpp>
-#include <mundy_math/distance/LineSegmentEllipsoid.hpp>
-
-// Plane to <shape> distance headers
-// #include <mundy_math/distance/PlanePlane.hpp>
-// #include <mundy_math/distance/PlaneSphere.hpp>
-// #include <mundy_math/distance/PlaneEllipsoid.hpp>
+#include <mundy_geom/distance/LineSegmentEllipsoid.hpp>
+#include <mundy_geom/distance/LineSegmentLineSegment.hpp>
+#include <mundy_geom/distance/LineSegmentSphere.hpp>
 
 // Sphere to <shape> distance headers
-#include <mundy_math/distance/SphereSphere.hpp>
-#include <mundy_math/distance/SphereEllipsoid.hpp>
+#include <mundy_geom/distance/SphereEllipsoid.hpp>
+#include <mundy_geom/distance/SphereSphere.hpp>
 
 // Ellipsoid to <shape> distance headers
-#include <mundy_math/distance/EllipsoidEllipsoid.hpp>
+#include <mundy_geom/distance/EllipsoidEllipsoid.hpp>
 
-#endif  // MUNDY_MATH_DISTANCE_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_HPP_

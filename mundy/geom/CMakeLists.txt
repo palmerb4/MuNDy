@@ -15,11 +15,39 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
-
+  src/mundy_geom/distance/EllipsoidEllipsoid.hpp
+  src/mundy_geom/distance.hpp
+  src/mundy_geom/distance/LineEllipsoid.hpp
+  src/mundy_geom/distance/LineLine.hpp
+  src/mundy_geom/distance/LinePlane.hpp
+  src/mundy_geom/distance/LineSegmentEllipsoid.hpp
+  src/mundy_geom/distance/LineSegmentLineSegment.hpp
+  src/mundy_geom/distance/LineSegmentPlane.hpp
+  src/mundy_geom/distance/LineSegmentSphere.hpp
+  src/mundy_geom/distance/LineSphere.hpp
+  src/mundy_geom/distance/PlaneEllipsoid.hpp
+  src/mundy_geom/distance/PlanePlane.hpp
+  src/mundy_geom/distance/PlaneSphere.hpp
+  src/mundy_geom/distance/PointEllipsoid.hpp
+  src/mundy_geom/distance/PointLine.hpp
+  src/mundy_geom/distance/PointLineSegment.hpp
+  src/mundy_geom/distance/PointPlane.hpp
+  src/mundy_geom/distance/PointPoint.hpp
+  src/mundy_geom/distance/PointSphere.hpp
+  src/mundy_geom/distance/SphereEllipsoid.hpp
+  src/mundy_geom/distance/SphereSphere.hpp
+  src/mundy_geom/distance/Types.hpp
+  src/mundy_geom/primitives/AABB.hpp
+  src/mundy_geom/primitives/Ellipsoid.hpp
+  src/mundy_geom/primitives.hpp
+  src/mundy_geom/primitives/Line.hpp
+  src/mundy_geom/primitives/LineSegment.hpp
+  src/mundy_geom/primitives/Point.hpp
+  src/mundy_geom/primitives/Sphere.hpp
   )
 
 SET(SOURCES
-
+  src/mundy_geom/a_necessary_empty_file.cpp
   )
 
 tribits_configure_file(${PACKAGE_NAME}_config.hpp)

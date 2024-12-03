@@ -30,7 +30,7 @@
 
 // Our libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_math/Point.hpp>         // for mundy::math::Point
+#include <mundy_geom/primitives/Point.hpp>         // for mundy::geom::Point
 
 namespace mundy {
 
@@ -46,7 +46,7 @@ class AABB {
   using scalar_type = Scalar;
 
   /// \brief The AABB's point type
-  using point_type = mundy::math::Point<Scalar>;
+  using point_type = Point<Scalar>;
   //@}
 
   //! \name Constructors and destructor
@@ -157,7 +157,7 @@ class AABB {
 
   /// \brief Accessor for x_min
   KOKKOS_FUNCTION
-  const& Scalar x_min() const {
+  const Scalar& x_min() const {
     return min_corner_[0];
   }
 
@@ -169,7 +169,7 @@ class AABB {
 
   /// \brief Accessor for y_min
   KOKKOS_FUNCTION
-  const& Scalar y_min() const {
+  const Scalar& y_min() const {
     return min_corner_[1];
   }
 
@@ -181,7 +181,7 @@ class AABB {
 
   /// \brief Accessor for z_min
   KOKKOS_FUNCTION
-  const& Scalar z_min() const {
+  const Scalar& z_min() const {
     return min_corner_[2];
   }
 
@@ -193,7 +193,7 @@ class AABB {
 
   /// \brief Accessor for x_max
   KOKKOS_FUNCTION
-  const& Scalar x_max() const {
+  const Scalar& x_max() const {
     return max_corner_[0];
   }
 
@@ -205,7 +205,7 @@ class AABB {
 
   /// \brief Accessor for y_max
   KOKKOS_FUNCTION
-  const& Scalar y_max() const {
+  const Scalar& y_max() const {
     return max_corner_[1];
   }
 
@@ -217,7 +217,7 @@ class AABB {
 
   /// \brief Accessor for z_max
   KOKKOS_FUNCTION
-  const& Scalar z_max() const {
+  const Scalar& z_max() const {
     return max_corner_[2];
   }
 
@@ -273,15 +273,15 @@ class AABB {
   //@{
 
   /// \brief Get the maximum possible scalar value
-  static KOKKOS_FUNCTION constexpr value_type scalar_max() {
-    return Kokkos::Experimental::finite_max_v<T>;
+  static KOKKOS_FUNCTION constexpr Scalar scalar_max() {
+    return Kokkos::Experimental::finite_max_v<Scalar>;
   }
 
   /// \brief Get the minimum possible scalar value
-  static KOKKOS_FUNCTION constexpr value_type scalar_min() {
+  static KOKKOS_FUNCTION constexpr Scalar scalar_min() {
     // finite_min_v<T> returns the most negative real value (equivalent to numeric_limits<T>::lowest).
     // it is the 'lowest' value that we want here.
-    return Kokkos::Experimental::finite_min_v<T>;
+    return Kokkos::Experimental::finite_min_v<Scalar>;
   }
   //@}
 

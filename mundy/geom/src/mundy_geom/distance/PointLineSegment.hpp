@@ -17,21 +17,22 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_POINTLINESEGMENT_HPP_
-#define MUNDY_MATH_DISTANCE_POINTLINESEGMENT_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_POINTLINESEGMENT_HPP_
+#define MUNDY_GEOM_DISTANCE_POINTLINESEGMENT_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_math/LineSegment.hpp>          // for mundy::math::LineSegment
-#include <mundy_math/Point.hpp>                // for mundy::math::Point
-#include <mundy_math/distance/PointPoint.hpp>  // for mundy::math::distance(Point, Point)
-#include <mundy_math/distance/Types.hpp>       // for SharedNormalSigned
+#include <mundy_geom/primitives/LineSegment.hpp>          // for mundy::geom::LineSegment
+#include <mundy_geom/primitives/Point.hpp>                // for mundy::geom::Point
+#include <mundy_geom/distance/PointPoint.hpp>  // for mundy::geom::distance(Point, Point)
+#include <mundy_geom/distance/Types.hpp>       // for mundy::geom::SharedNormalSigned
+#include <mundy_math/Tolerance.hpp>       // for mundy::math::get_zero_tolerance
 
 namespace mundy {
 
-namespace math {
+namespace geom {
 
 /// \brief Compute the shared normal signed separation distance between a point and a line segment
 /// \tparam Scalar The scalar type
@@ -49,17 +50,17 @@ KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const LineSegment<Sc
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distance_type, const Point<Scalar>& point,
                                 const LineSegment<Scalar>& line_segment) {
-  const auto& p1 = line_segment.p1();
-  const auto& p2 = line_segment.p2();
+  const auto& p1 = line_segment.start();
+  const auto& p2 = line_segment.end();
   const auto p21 = p2 - p1;
 
   // Define some temporary variables
-  Vector3<double> closest_point_tmp;
+  mundy::math::Vector3<Scalar> closest_point_tmp;
   double t_tmp;
 
   // Get parametric location
-  const Scalar num = dot(p21, point - p1);
-  if ((num < get_zero_tolerance<Scalar>()) & (num > -get_zero_tolerance<Scalar>())) {
+  const Scalar num = mundy::math::dot(p21, point - p1);
+  if ((num < mundy::math::get_zero_tolerance<Scalar>()) & (num > -mundy::math::get_zero_tolerance<Scalar>())) {
     // CASE 1: The vector from p1 to x is orthogonal to the line.
     // In this case, the closest point is p1 and the parametric coordinate is 0.
     closest_point_tmp = p1;
@@ -67,14 +68,14 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
   } else {
     const Scalar denom = dot(p21, p21);
 
-    if (denom < get_zero_tolerance<Scalar>()) {
+    if (denom < mundy::math::get_zero_tolerance<Scalar>()) {
       // CASE 2: The line is degenerate (i.e., p1 and p2 are numerically the same point).
       // In this case, either point could really be the closest point. We'll arbitrarily pick p1 and set t to 0.
       closest_point_tmp = p1;
       t_tmp = static_cast<Scalar>(0.0);
     } else {
       // CASE 3: The line is well-defined and we can compute the closest point.
-      const double t_tmp = num / denom;
+      const Scalar t_tmp = num / denom;
 
       if (t_tmp < static_cast<Scalar>(0.0)) {
         // CASE 3.1: The parameter for the infinite line is less than 0. Therefore, the closest point is p1.
@@ -101,7 +102,7 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
 /// \param[out] sep The separation vector (from point to line segment)
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const LineSegment<Scalar>& line_segment,
-                                Point<Scalar>& closest_point, Scalar& arch_length, Vector3<Scalar>& sep) {
+                                Point<Scalar>& closest_point, Scalar& arch_length, mundy::math::Vector3<Scalar>& sep) {
   return distance(SharedNormalSigned{}, point, line_segment, closest_point, arch_length, sep);
 }
 
@@ -115,32 +116,29 @@ KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const LineSegment<Sc
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distance_type, const Point<Scalar>& point,
                                 const LineSegment<Scalar>& line_segment, Point<Scalar>& closest_point,
-                                Scalar& arch_length, Vector3<Scalar>& sep) {
-  const auto& p1 = line_segment.p1();
-  const auto& p2 = line_segment.p2();
+                                Scalar& arch_length, mundy::math::Vector3<Scalar>& sep) {
+  const auto& p1 = line_segment.start();
+  const auto& p2 = line_segment.end();
   const auto p21 = p2 - p1;
 
-  // Define some temporary variables
-  Vector3<double> closest_point_tmp;
-
   // Get parametric location
-  const Scalar num = dot(p21, point - p1);
-  if ((num < get_zero_tolerance<Scalar>()) & (num > -get_zero_tolerance<Scalar>())) {
+  const Scalar num = mundy::math::dot(p21, point - p1);
+  if ((num < mundy::math::get_zero_tolerance<Scalar>()) & (num > -mundy::math::get_zero_tolerance<Scalar>())) {
     // CASE 1: The vector from p1 to x is orthogonal to the line.
     // In this case, the closest point is p1 and the parametric coordinate is 0.
     closest_point = p1;
     arch_length = static_cast<Scalar>(0.0);
   } else {
-    const Scalar denom = dot(p21, p21);
+    const Scalar denom = mundy::math::dot(p21, p21);
 
-    if (denom < get_zero_tolerance<Scalar>()) {
+    if (denom < mundy::math::get_zero_tolerance<Scalar>()) {
       // CASE 2: The line is degenerate (i.e., p1 and p2 are numerically the same point).
       // In this case, either point could really be the closest point. We'll arbitrarily pick p1 and set t to 0.
       closest_point = p1;
       arch_length = static_cast<Scalar>(0.0);
     } else {
       // CASE 3: The line is well-defined and we can compute the closest point.
-      const double arch_length = num / denom;
+      arch_length = num / denom;
 
       if (arch_length < static_cast<Scalar>(0.0)) {
         // CASE 3.1: The parameter for the infinite line is less than 0. Therefore, the closest point is p1.
@@ -158,8 +156,8 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
   return distance(point, closest_point, sep);
 }
 
-}  // namespace math
+}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_POINTLINESEGMENT_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_POINTLINESEGMENT_HPP_

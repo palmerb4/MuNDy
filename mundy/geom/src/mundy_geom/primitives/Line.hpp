@@ -30,7 +30,8 @@
 
 // Our libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_math/Point.hpp>         // for mundy::math::Point
+#include <mundy_geom/primitives/Point.hpp>         // for mundy::geom::Point
+#include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
 
@@ -44,16 +45,17 @@ class Line {
 
   /// \brief The Line's scalar type
   using scalar_type = Scalar;
-  using point_type = mundy::math::Point<Scalar>;
+  using point_type = Point<Scalar>;
   using vector_type = mundy::math::Vector3<Scalar>;
   //@}
 
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Default constructor. Default initialize the 
+  /// \brief Default constructor. Default initialize the
   KOKKOS_FUNCTION
-  Line() : center_(scalar_type(), scalar_type(), scalar_type()), direction_(scalar_type(), scalar_type(), scalar_type()) {
+  Line()
+      : center_(scalar_type(), scalar_type(), scalar_type()), direction_(scalar_type(), scalar_type(), scalar_type()) {
   }
 
   /// \brief Constructor to initialize the center and radius.
@@ -128,16 +130,16 @@ class Line {
     return center_;
   }
 
-  /// \brief Accessor for the radius
+  /// \brief Accessor for the direction
   KOKKOS_FUNCTION
-  const Scalar& radius() const {
-    return radius_;
+  const vector_type& direction() const {
+    return direction_;
   }
 
-  /// \brief Accessor for the radius
+  /// \brief Accessor for the direction
   KOKKOS_FUNCTION
-  Scalar& radius() {
-    return radius_;
+  vector_type& direction() {
+    return direction_;
   }
   //@}
 
@@ -162,22 +164,33 @@ class Line {
     center_[2] = z;
   }
 
-  /// \brief Set the radius
-  /// \param[in] radius The new radius.
+  /// \brief Set the direction
+  /// \param[in] direction The new direction.
   KOKKOS_FUNCTION
-  void set_radius(const Scalar& radius) {
-    radius_ = radius;
+  void set_direction(const vector_type& direction) {
+    direction_ = direction;
+  }
+
+  /// \brief Set the direction
+  /// \param[in] x The x-component.
+  /// \param[in] y The y-component.
+  /// \param[in] z The z-component.
+  KOKKOS_FUNCTION
+  void set_direction(const Scalar& x, const Scalar& y, const Scalar& z) {
+    direction_[0] = x;
+    direction_[1] = y;
+    direction_[2] = z;
   }
   //@}
 
  private:
-  point_type center_;    ///< The center of the line.
+  point_type center_;      ///< The center of the line.
   vector_type direction_;  ///< The direction of the line.
 };
 
 template <typename Scalar>
-std::ostream& operator<<(std::ostream& os, const Line<Scalar>& sphere) {
-  os << "{" << sphere.center() << ":" << sphere.radius() << "}";
+std::ostream& operator<<(std::ostream& os, const Line<Scalar>& line) {
+  os << "{" << line.center() << ":" << line.direction() << "}";
   return os;
 }
 

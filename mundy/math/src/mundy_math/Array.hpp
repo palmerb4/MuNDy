@@ -62,6 +62,13 @@ KOKKOS_INLINE_FUNCTION void fill_impl(std::index_sequence<Is...>, Array<T, N>& a
 template <typename T, size_t N>
 class Array {
  public:
+  //! \name Internal data
+  //@{
+
+  /// \brief Our data
+  Kokkos::Array<T, N> data_;
+  //@}
+
   //! \name Type aliases
   //@{
 
@@ -74,20 +81,19 @@ class Array {
 
   /// \brief Default constructor. Elements are uninitialized.
   KOKKOS_INLINE_FUNCTION
-  Array() : data_{} {
-  }
+  constexpr Array() = default;
 
   /// \brief Constructor to initialize all elements explicitly.
   /// Requires the number of arguments to be N and the type of each to be T.
   template <typename... Args>
     requires(sizeof...(Args) == N) && (N != 1) &&
             (std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, T> && ...)
-  KOKKOS_INLINE_FUNCTION explicit Array(Args&&... args) : data_{std::forward<Args>(args)...} {
+  KOKKOS_INLINE_FUNCTION constexpr explicit Array(Args&&... args) : data_{std::forward<Args>(args)...} {
   }
 
-  /// \brief Constructor to initialize all elements via initializer list
+  // /// \brief Constructor to initialize all elements via initializer list
   KOKKOS_INLINE_FUNCTION
-  Array(const std::initializer_list<T>& list)
+  constexpr Array(const std::initializer_list<T>& list)
     requires(!std::is_const_v<T>)
   {
     if (list.size() == N) {
@@ -105,22 +111,21 @@ class Array {
 
   /// \brief Constructor to initialize all elements to a single value
   KOKKOS_INLINE_FUNCTION
-  Array(const T& value) : Array(value, std::make_index_sequence<N>{}) {
+  constexpr Array(const T& value) : Array(value, std::make_index_sequence<N>{}) {
   }
 
   /// \brief Destructor
-  KOKKOS_INLINE_FUNCTION ~Array() {
-  }
+  KOKKOS_INLINE_FUNCTION constexpr ~Array() = default;
 
   /// \brief Deep copy constructor
   // Deep copy constructor
   KOKKOS_INLINE_FUNCTION
-  Array(const Array<T, N>& other) : Array(other, std::make_index_sequence<N>{}) {
+  constexpr Array(const Array<T, N>& other) : Array(other, std::make_index_sequence<N>{}) {
   }
 
   /// \brief Deep move constructor
   KOKKOS_INLINE_FUNCTION
-  Array(Array<T, N>&& other) : Array(other, std::make_index_sequence<N>{}) {
+  constexpr Array(Array<T, N>&& other) : Array(other, std::make_index_sequence<N>{}) {
   }
 
   /// \brief Deep copy assignment operator
@@ -186,25 +191,18 @@ class Array {
 
   /// \brief Constructor to initialize all elements to a single value using index_sequence
   template <size_t... I>
-  KOKKOS_INLINE_FUNCTION Array(const T& value, std::index_sequence<I...>) : data_{((void)I, value)...} {
+  KOKKOS_INLINE_FUNCTION constexpr Array(const T& value, std::index_sequence<I...>) : data_{((void)I, value)...} {
   }
 
   /// \brief Deep copy constructor using index_sequence
   template <size_t... I>
-  KOKKOS_INLINE_FUNCTION Array(const Array<T, N>& other, std::index_sequence<I...>) : data_{other.data_[I]...} {
+  KOKKOS_INLINE_FUNCTION constexpr Array(const Array<T, N>& other, std::index_sequence<I...>) : data_{other.data_[I]...} {
   }
 
   /// \brief Deep move constructor using index_sequence
   template <size_t... I>
-  KOKKOS_INLINE_FUNCTION Array(Array<T, N>&& other, std::index_sequence<I...>) : data_{other.data_[I]...} {
+  KOKKOS_INLINE_FUNCTION constexpr Array(Array<T, N>&& other, std::index_sequence<I...>) : data_{other.data_[I]...} {
   }
-  //@}
-
-  //! \name Internal data
-  //@{
-
-  /// \brief Our data
-  Kokkos::Array<T, N> data_;
   //@}
 };  // Array
 

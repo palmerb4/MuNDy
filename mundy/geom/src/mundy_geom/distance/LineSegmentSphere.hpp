@@ -17,22 +17,22 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_LINESEGMENTSPHERE_HPP_
-#define MUNDY_MATH_DISTANCE_LINESEGMENTSPHERE_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_LINESEGMENTSPHERE_HPP_
+#define MUNDY_GEOM_DISTANCE_LINESEGMENTSPHERE_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_math/LineSegment.hpp>                // for mundy::math::LineSegment
-#include <mundy_math/Point.hpp>                      // for mundy::math::Point
-#include <mundy_math/Sphere.hpp>                     // for mundy::math::Sphere
-#include <mundy_math/distance/PointLineSegment.hpp>  // for mundy::math::distance(Point, LineSegment)
-#include <mundy_math/distance/Types.hpp>             // for SharedNormalSigned
+#include <mundy_geom/primitives/LineSegment.hpp>                // for mundy::geom::LineSegment
+#include <mundy_geom/primitives/Point.hpp>                      // for mundy::geom::Point
+#include <mundy_geom/primitives/Sphere.hpp>                     // for mundy::geom::Sphere
+#include <mundy_geom/distance/PointLineSegment.hpp>  // for mundy::geom::distance(Point, LineSegment)
+#include <mundy_geom/distance/Types.hpp>             // for mundy::geom::SharedNormalSigned
 
 namespace mundy {
 
-namespace math {
+namespace geom {
 
 /// \brief Compute the distance between a line segment and a sphere
 /// \tparam Scalar The scalar type
@@ -62,7 +62,7 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
 /// \param[out] sep The separation vector (from line_segment to sphere)
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance(const LineSegment<Scalar>& line_segment, const Sphere<Scalar>& sphere,
-                                Point<Scalar>& closest_point, Scalar& arch_length, Vector3<Scalar>& sep) {
+                                Point<Scalar>& closest_point, Scalar& arch_length, mundy::math::Vector3<Scalar>& sep) {
   return distance(SharedNormalSigned{}, line_segment, sphere, closest_point, arch_length, sep);
 }
 
@@ -76,17 +76,17 @@ KOKKOS_FUNCTION Scalar distance(const LineSegment<Scalar>& line_segment, const S
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distance_type,
                                 const LineSegment<Scalar>& line_segment, const Sphere<Scalar>& sphere,
-                                Point<Scalar>& closest_point, Scalar& arch_length, Vector3<Scalar>& sep) {
+                                Point<Scalar>& closest_point, Scalar& arch_length, mundy::math::Vector3<Scalar>& sep) {
   const Scalar line_center_distance = distance(sphere.center(), line_segment, closest_point, arch_length, sep);
 
   // Rescale the separation vector to the surface of the sphere
-  const Scalar surface_distance = center_point_distance - sphere.radius();
-  sep *= surface_distance / line_center_distance
-  return surface_distance
+  const Scalar surface_distance = line_center_distance - sphere.radius();
+  sep *= surface_distance / line_center_distance;
+  return surface_distance;
 }
 
-}  // namespace math
+}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_LINESEGMENTSPHERE_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_LINESEGMENTSPHERE_HPP_

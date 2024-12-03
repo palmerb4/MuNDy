@@ -17,21 +17,21 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_POINTSPHERE_HPP_
-#define MUNDY_MATH_DISTANCE_POINTSPHERE_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_POINTSPHERE_HPP_
+#define MUNDY_GEOM_DISTANCE_POINTSPHERE_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_math/Point.hpp>                // for mundy::math::Point
-#include <mundy_math/Sphere.hpp>               // for mundy::math::Sphere
-#include <mundy_math/distance/PointPoint.hpp>  // for distance(Point, Point)
-#include <mundy_math/distance/Types.hpp>       // for SharedNormalSigned
+#include <mundy_geom/primitives/Point.hpp>                // for mundy::geom::Point
+#include <mundy_geom/primitives/Sphere.hpp>               // for mundy::geom::Sphere
+#include <mundy_geom/distance/PointPoint.hpp>  // for distance(Point, Point)
+#include <mundy_geom/distance/Types.hpp>       // for mundy::geom::SharedNormalSigned
 
 namespace mundy {
 
-namespace math {
+namespace geom {
 
 /// \brief Compute the shared normal signed separation distance between a point and a sphere
 /// \tparam Scalar The scalar type
@@ -58,9 +58,8 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
 /// \param[in] sphere The sphere
 /// \param[out] sep The separation vector (from point to sphere)
 template <typename Scalar>
-KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const Sphere<Scalar>& sphere,
-                                Vector3<Scalar>& sep) {
-  const Scalar center_point_distance = distance(point, sphere.center(), closest_point, sep);
+KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const Sphere<Scalar>& sphere, mundy::math::Vector3<Scalar>& sep) {
+  const Scalar center_point_distance = distance(point, sphere.center(), sep);
 
   // Rescale the separation vector to the surface of the sphere
   const Scalar surface_distance = center_point_distance - sphere.radius();
@@ -68,8 +67,8 @@ KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const Sphere<Scalar>
   return surface_distance;
 }
 
-}  // namespace math
+}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_POINTSPHERE_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_POINTSPHERE_HPP_

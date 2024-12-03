@@ -159,10 +159,13 @@ TYPED_TEST(VectorSingleTypeTest, DefaultConstructor) {
   ASSERT_NO_THROW(OurVector3<TypeParam>());
 }
 
-TYPED_TEST(VectorSingleTypeTest, ConstructorFromInitializerList) {
-  ASSERT_NO_THROW(OurVector1<TypeParam>({1}));
-  ASSERT_NO_THROW(OurVector2<TypeParam>({1, 2}));
-  ASSERT_NO_THROW(OurVector3<TypeParam>({1, 2, 3}));
+TYPED_TEST(VectorSingleTypeTest, LiteralConstruction) {
+  OurVector1<TypeParam>{1};
+  OurVector2<TypeParam>{1, 2};
+  OurVector3<TypeParam>{1, 2, 3};
+  constexpr OurVector1<TypeParam> v1{1};
+  constexpr OurVector2<TypeParam> v2{1, 2};
+  constexpr OurVector3<TypeParam> v3{1, 2, 3};
 }
 
 TYPED_TEST(VectorSingleTypeTest, ConstructorFromNScalars) {

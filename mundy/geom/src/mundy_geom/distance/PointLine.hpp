@@ -17,20 +17,20 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_POINTLINE_HPP_
-#define MUNDY_MATH_DISTANCE_POINTLINE_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_POINTLINE_HPP_
+#define MUNDY_GEOM_DISTANCE_POINTLINE_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_math/Line.hpp>            // for mundy::math::Line
-#include <mundy_math/Point.hpp>           // for mundy::math::Point
-#include <mundy_math/distance/Types.hpp>  // for SharedNormalSigned
+#include <mundy_geom/primitives/Line.hpp>            // for mundy::geom::Line
+#include <mundy_geom/primitives/Point.hpp>           // for mundy::geom::Point
+#include <mundy_geom/distance/Types.hpp>  // for mundy::geom::SharedNormalSigned
 
 namespace mundy {
 
-namespace math {
+namespace geom {
 
 /// \brief Compute the shared normal signed separation distance between a point and a line
 /// \tparam Scalar The scalar type
@@ -49,12 +49,12 @@ template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distance_type, const Point<Scalar>& point,
                                 const Line<Scalar>& line) {
   // Compute the projection of the vector onto the line's direction
-  Vector3<Scalar> line_to_point = point - line.center();
-  Scalar projection = dot(line_to_point, line.direction());
+  auto line_to_point = point - line.center();
+  Scalar projection = mundy::math::dot(line_to_point, line.direction());
 
   // Compute the component of the vector perpendicular to the line
-  Vector3<Scalar> point_to_line_shortest_path = line_to_point - projection * line.direction();
-  return norm(point_to_line_shortest_path);
+  auto point_to_line_shortest_path = line_to_point - projection * line.direction();
+  return mundy::math::norm(point_to_line_shortest_path);
 }
 
 /// \brief Compute the euclidean distance between a point and a line
@@ -66,7 +66,7 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
 /// \param[out] sep The separation vector (from point to line)
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const Line<Scalar>& line, Point<Scalar>& closest_point,
-                                Scalar& arch_length, Vector3<Scalar>& sep) {
+                                Scalar& arch_length, mundy::math::Vector3<Scalar>& sep) {
   // No difference between distance types for points and lines
   return distance(SharedNormalSigned{}, point, line, closest_point, arch_length, sep);
 }
@@ -81,18 +81,19 @@ KOKKOS_FUNCTION Scalar distance(const Point<Scalar>& point, const Line<Scalar>& 
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distance_type, const Point<Scalar>& point,
                                 const Line<Scalar>& line, Point<Scalar>& closest_point, Scalar& arch_length,
-                                Vector3<Scalar>& sep) {
+                                mundy::math::Vector3<Scalar>& sep) {
   // Compute the projection of the vector onto the line's direction
-  Vector3<Scalar> line_to_point = point - line.center();
-  Scalar arch_length = dot(line_to_point, line.direction());
+  auto line_to_point = point - line.center();
+  arch_length = mundy::math::dot(line_to_point, line.direction());
+  closest_point = line.center() + arch_length * line.direction();
 
   // Compute the component of the vector perpendicular to the line
-  sep = line_to_point - projection * line.direction();
-  return norm(sep);
+  sep = line_to_point - arch_length * line.direction();
+  return mundy::math::norm(sep);
 }
 
-}  // namespace math
+}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_POINTLINE_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_POINTLINE_HPP_

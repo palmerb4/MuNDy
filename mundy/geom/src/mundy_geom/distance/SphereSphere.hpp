@@ -17,20 +17,20 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_SPHERESPHERE_HPP_
-#define MUNDY_MATH_DISTANCE_SPHERESPHERE_HPP_
+#ifndef MUNDY_GEOM_DISTANCE_SPHERESPHERE_HPP_
+#define MUNDY_GEOM_DISTANCE_SPHERESPHERE_HPP_
 
 // External libs
 #include <Kokkos_Core.hpp>
 
 // Mundy
-#include <mundy_math/Sphere.hpp>               // for mundy::math::Sphere
-#include <mundy_math/distance/PointPoint.hpp>  // for distance(Point, Point)
-#include <mundy_math/distance/Types.hpp>       // for SharedNormalSigned
+#include <mundy_geom/primitives/Sphere.hpp>               // for mundy::geom::Sphere
+#include <mundy_geom/distance/PointPoint.hpp>  // for distance(Point, Point)
+#include <mundy_geom/distance/Types.hpp>       // for mundy::geom::SharedNormalSigned
 
 namespace mundy {
 
-namespace math {
+namespace geom {
 
 /// \brief Compute the shared normal signed separation distance between two spheres
 /// \tparam Scalar The scalar type
@@ -58,8 +58,8 @@ KOKKOS_FUNCTION Scalar distance([[maybe_unused]] const SharedNormalSigned distan
 /// \param[out] sep The separation vector (from the surface of sphere1 to the surface of sphere2)
 template <typename Scalar>
 KOKKOS_FUNCTION Scalar distance(const Sphere<Scalar>& sphere1, const Sphere<Scalar>& sphere2,
-                                Vector<Scalar>* const sep) {
-  const Scalar center_center_distance = distance(sphere1.center(), sphere2.center(), closest_point, sep);
+                                mundy::math::Vector3<Scalar> &sep) {
+  const Scalar center_center_distance = distance(sphere1.center(), sphere2.center(), sep);
 
   // Rescale the separation vector to the surface of the sphere
   const Scalar surface_distance = center_center_distance - sphere1.radius() - sphere2.radius();
@@ -67,8 +67,8 @@ KOKKOS_FUNCTION Scalar distance(const Sphere<Scalar>& sphere1, const Sphere<Scal
   return surface_distance;
 }
 
-}  // namespace math
+}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_SPHERESPHERE_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_SPHERESPHERE_HPP_

@@ -51,27 +51,30 @@ class TransposedAccessor;
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
 class TransposedAccessor<T, N, M, Accessor, Ownership::Views> {
  public:
+  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
+
   /// \brief Constructor for reference accessors
   KOKKOS_INLINE_FUNCTION
-  explicit TransposedAccessor(Accessor& accessor)
+  explicit constexpr TransposedAccessor(Accessor& accessor)
     requires(!std::is_pointer_v<Accessor>)
       : accessor_(accessor) {
   }
 
   /// \brief Constructor for pointer accessors
   KOKKOS_INLINE_FUNCTION
-  explicit TransposedAccessor(Accessor accessor)
+  explicit constexpr TransposedAccessor(Accessor accessor)
     requires std::is_pointer_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION TransposedAccessor(const TransposedAccessor<T, N, M, Accessor, Ownership::Views>& other)
+  KOKKOS_INLINE_FUNCTION constexpr TransposedAccessor(
+      const TransposedAccessor<T, N, M, Accessor, Ownership::Views>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION TransposedAccessor(TransposedAccessor<T, N, M, Accessor, Ownership::Views>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr TransposedAccessor(TransposedAccessor<T, N, M, Accessor, Ownership::Views>&& other)
       : accessor_(other.accessor_) {
   }
 
@@ -85,36 +88,35 @@ class TransposedAccessor<T, N, M, Accessor, Ownership::Views> {
     const size_t matrix_idx = j * M + i;
     return accessor_[matrix_idx];
   }
-
- private:
-  std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor&> accessor_;
 };  // class TransposedAccessor
 
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>
 class TransposedAccessor<T, N, M, Accessor, Ownership::Owns> {
  public:
+  Accessor accessor_;
+
   /// \brief Default constructor.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION TransposedAccessor()
+  KOKKOS_INLINE_FUNCTION constexpr TransposedAccessor()
     requires HasDefaultConstructor<Accessor>
-      : accessor_() {
-  }
+  = default;
 
   /// \brief Constructor from a given accessor
   /// \param[in] data The accessor.
   KOKKOS_INLINE_FUNCTION
-  explicit TransposedAccessor(const Accessor& accessor)
+  explicit constexpr TransposedAccessor(const Accessor& accessor)
     requires std::is_copy_constructible_v<Accessor>
       : accessor_(accessor) {
   }
 
   /// \brief Shallow copy constructor.
-  KOKKOS_INLINE_FUNCTION TransposedAccessor(const TransposedAccessor<T, N, M, Accessor, Ownership::Owns>& other)
+  KOKKOS_INLINE_FUNCTION constexpr TransposedAccessor(
+      const TransposedAccessor<T, N, M, Accessor, Ownership::Owns>& other)
       : accessor_(other.accessor_) {
   }
 
   /// \brief Shallow move constructor.
-  KOKKOS_INLINE_FUNCTION TransposedAccessor(TransposedAccessor<T, N, M, Accessor, Ownership::Owns>&& other)
+  KOKKOS_INLINE_FUNCTION constexpr TransposedAccessor(TransposedAccessor<T, N, M, Accessor, Ownership::Owns>&& other)
       : accessor_(std::move(other.accessor_)) {
   }
 
@@ -128,9 +130,6 @@ class TransposedAccessor<T, N, M, Accessor, Ownership::Owns> {
     const size_t matrix_idx = j * M + i;
     return accessor_[matrix_idx];
   }
-
- private:
-  Accessor accessor_;
 };  // class TransposedAccessor
 
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor>

@@ -341,7 +341,7 @@ KOKKOS_INLINE_FUNCTION void self_scalar_division_impl(Quaternion<T, Accessor, Ow
 template <typename T, ValidAccessor<T> Accessor>
   requires std::is_floating_point_v<T>
 class Quaternion<T, Accessor, Ownership::Views> {
- private:
+ public:
   //! \name Internal data
   //@{
 
@@ -349,7 +349,6 @@ class Quaternion<T, Accessor, Ownership::Views> {
   std::conditional_t<std::is_pointer_v<Accessor>, Accessor, Accessor &> accessor_;
   //@}
 
- public:
   //! \name Type aliases
   //@{
 
@@ -812,7 +811,7 @@ class Quaternion<T, Accessor, Ownership::Views> {
 template <typename T, ValidAccessor<T> Accessor, typename OwnershipType>
   requires std::is_floating_point_v<T>
 class Quaternion {
- private:
+ public:
   //! \name Internal data
   //@{
 
@@ -820,7 +819,6 @@ class Quaternion {
   Accessor accessor_;
   //@}
 
- public:
   //! \name Type aliases
   //@{
 
@@ -862,7 +860,7 @@ class Quaternion {
 
   /// \brief Constructor to initialize all elements via initializer list
   /// \param[in] list The initializer list.
-  KOKKOS_INLINE_FUNCTION Quaternion(const std::initializer_list<T> &list)
+  KOKKOS_INLINE_FUNCTION constexpr Quaternion(const std::initializer_list<T> &list)
     requires HasInitializerListConstructor<Accessor, T>
       : accessor_(list) {
     MUNDY_THROW_ASSERT(list.size() == 4, std::invalid_argument, "Quaternion: Initializer list must have 4 elements.");
@@ -870,8 +868,7 @@ class Quaternion {
 
   /// \brief Destructor
   KOKKOS_INLINE_FUNCTION
-  ~Quaternion() {
-  }
+  ~Quaternion() = default;
 
   /// \brief Deep copy constructor
   KOKKOS_INLINE_FUNCTION Quaternion(const Quaternion<T, Accessor, Ownership::Owns> &other)

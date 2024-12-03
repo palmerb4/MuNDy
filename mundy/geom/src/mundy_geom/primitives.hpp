@@ -17,16 +17,28 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_PRIMITIVES_HPP_
-#define MUNDY_MATH_PRIMITIVES_HPP_
+#ifndef MUNDY_GEOM_PRIMITIVES_HPP_
+#define MUNDY_GEOM_PRIMITIVES_HPP_
 
 // All of our headers for primitive geometric objects
-#include <mundy_math/primitives/AABB.hpp>
-#include <mundy_math/primitives/Ellipsoid.hpp>
-#include <mundy_math/primitives/Line.hpp>
-#include <mundy_math/primitives/LineSegment.hpp>
-#include <mundy_math/primitives/Plane.hpp>
-#include <mundy_math/primitives/Point.hpp>
-#include <mundy_math/primitives/Sphere.hpp>
+//
+// The total set of desired shape primatives is:
+//   - Point
+//   - Line
+//   - LineSegment
+//   - Plane
+//   - AABB
+//   - Tri3
+//   - Quad4
+//   - Sphere
+//   - Ellipsoid
+//   - Spherocylinder
 
-#endif  // MUNDY_MATH_PRIMITIVES_HPP_
+#include <mundy_geom/primitives/AABB.hpp>
+#include <mundy_geom/primitives/Ellipsoid.hpp>
+#include <mundy_geom/primitives/Line.hpp>
+#include <mundy_geom/primitives/LineSegment.hpp>
+#include <mundy_geom/primitives/Point.hpp>
+#include <mundy_geom/primitives/Sphere.hpp>
+
+#endif  // MUNDY_GEOM_PRIMITIVES_HPP_

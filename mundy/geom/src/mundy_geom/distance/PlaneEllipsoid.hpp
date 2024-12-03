@@ -17,16 +17,13 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_MATH_DISTANCE_PLANEELLIPSOID_HPP_
-#define MUNDY_MATH_DISTANCE_PLANEELLIPSOID_HPP_
-
-// External libs
-#include <Kokkos_Core.hpp>
+#ifndef MUNDY_GEOM_DISTANCE_PLANEELLIPSOID_HPP_
+#define MUNDY_GEOM_DISTANCE_PLANEELLIPSOID_HPP_
 
 namespace mundy {
 
-namespace math {}  // namespace math
+namespace geom {}  // namespace geom
 
 }  // namespace mundy
 
-#endif  // MUNDY_MATH_DISTANCE_PLANEELLIPSOID_HPP_
+#endif  // MUNDY_GEOM_DISTANCE_PLANEELLIPSOID_HPP_
