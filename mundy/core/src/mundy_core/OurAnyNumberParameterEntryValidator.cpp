@@ -70,8 +70,9 @@
       output = CONVERT_NUMBER_USING_FUNC(Teuchos::any_cast<long double>(any_value));                                \
     } else if (accepted_types_.is_string_allowed() && any_value.type() == typeid(std::string)) {                    \
       output = CONVERT_STRING_USING_FUNC<TYPE>(Teuchos::any_cast<std::string>(any_value));                          \
+    } else {                                                                                                        \
+      throw_type_error(entry, param_name, sublist_name);                                                            \
     }                                                                                                               \
-    throw_type_error(entry, param_name, sublist_name);                                                              \
     return output;                                                                                                  \
   }                                                                                                                 \
   TYPE OurAnyNumberParameterEntryValidator::MUNDY_CONCAT2(get_, TYPE_NAME)(                                         \
@@ -343,7 +344,7 @@ void OurAnyNumberParameterEntryValidator::throw_type_error(Teuchos::ParameterEnt
                                              ",type=\""
                                           << entry_name << "\"}" << "\nin the sublist \"" << sublist_name << "\""
                                           << "\nhas the wrong type."
-                                          << "\n\nThe accepted types are: " << accepted_types_string_ << "!";);
+                                          << "\n\nThe accepted types are: " << accepted_types_string_;);
 }
 
 }  // namespace core

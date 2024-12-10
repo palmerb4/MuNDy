@@ -3789,23 +3789,17 @@ class HP1 {
 
       // Determine KMC events
       if (enable_crosslinkers_) update_crosslinker_state();
-
       if (enable_active_euchromatin_forces_) update_active_euchromatin_state();
 
       // Evaluate forces f(x(t)).
       if (enable_backbone_collision_) compute_hertzian_contact_forces();
-
       if (enable_backbone_springs_) compute_backbone_harmonic_bond_forces();
-
       if (enable_crosslinkers_) compute_crosslinker_harmonic_bond_forces();
-
       if (enable_periphery_collision_) compute_periphery_collision_forces();
-
       if (enable_active_euchromatin_forces_) compute_euchromatin_active_forces();
 
       // Compute velocities.
       if (enable_chromatin_brownian_motion_) compute_brownian_velocity();
-
       if (enable_backbone_n_body_hydrodynamics_) {
         compute_rpy_hydro();
       } else {

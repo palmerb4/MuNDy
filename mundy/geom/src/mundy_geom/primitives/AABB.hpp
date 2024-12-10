@@ -29,8 +29,8 @@
 #include <utility>
 
 // Our libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_geom/primitives/Point.hpp>         // for mundy::geom::Point
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
+#include <mundy_geom/primitives/Point.hpp>  // for mundy::geom::Point
 
 namespace mundy {
 
@@ -293,6 +293,21 @@ template <typename Scalar>
 std::ostream& operator<<(std::ostream& os, const AABB<Scalar>& aabb) {
   os << "{" << aabb.min_corner() << "->" << aabb.max_corner() << "}";
   return os;
+}
+
+// intersects: AABB-AABB
+template <typename T1, typename T2>
+KOKKOS_FORCEINLINE_FUNCTION bool intersects(AABB<T1> const& a, AABB<T2> const& b) {
+  const Point<T1>& amax = a.max_corner();
+  const Point<T2>& bmin = b.min_corner();
+  if (amax[0] < bmin[0] || amax[1] < bmin[1] || amax[2] < bmin[2]) {
+    return false;
+  }
+
+  const Point<T2>& bmax = b.max_corner();
+  const Point<T1>& amin = a.min_corner();
+  const bool disjoint2 = bmax[0] < amin[0] || bmax[1] < amin[1] || bmax[2] < amin[2];
+  return !disjoint2;
 }
 
 }  // namespace geom
