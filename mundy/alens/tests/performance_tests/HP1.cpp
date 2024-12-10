@@ -1713,8 +1713,8 @@ class HP1 {
 
       // Open the file
       std::ifstream infile(initialize_from_dat_filename_);
-      MUNDY_THROW_ASSERT(infile.is_open(), std::invalid_argument,
-                         "Could not open file " << initialize_from_dat_filename_);
+      MUNDY_THROW_REQUIRE(infile.is_open(), std::invalid_argument,
+                          fmt::format("Could not open file {}", initialize_from_dat_filename_));
 
       // Read each line. While the chromosome_id is the same, keep adding nodes to the chromosome.
       size_t current_chromosome_id = 1;
@@ -1726,25 +1726,26 @@ class HP1 {
         int chromosome_id;
         double x, y, z;
         if (!(iss >> chromosome_id >> x >> y >> z)) {
-          MUNDY_THROW_ASSERT(false, std::invalid_argument, "Could not parse line " << line);
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument, 
+            fmt::format("Could not parse line {}", line));
         }
         if (chromosome_id != current_chromosome_id) {
           // We are starting a new chromosome
-          MUNDY_THROW_ASSERT(num_nodes_per_this_chromosome == num_nodes_per_chromosome, std::invalid_argument,
-                             "Chromosome " << current_chromosome_id << " has " << num_nodes_per_this_chromosome
-                                           << " nodes, but we expected " << num_nodes_per_chromosome << " nodes.");
-          MUNDY_THROW_ASSERT(chromosome_id == current_chromosome_id + 1, std::invalid_argument,
+          MUNDY_THROW_REQUIRE(num_nodes_per_this_chromosome == num_nodes_per_chromosome, std::invalid_argument,
+                            fmt::format("Chromosome {} has {} nodes, but we expected {} nodes.", current_chromosome_id,
+                                        num_nodes_per_this_chromosome, num_nodes_per_chromosome));
+          MUNDY_THROW_REQUIRE(chromosome_id == current_chromosome_id + 1, std::invalid_argument,
                              "Chromosome IDs should be sequential.");
-          MUNDY_THROW_ASSERT(chromosome_id <= num_chromosomes_, std::invalid_argument,
-                             "Chromosome ID " << chromosome_id << " is greater than the number of chromosomes.");
+          MUNDY_THROW_REQUIRE(chromosome_id <= num_chromosomes_, std::invalid_argument,
+                              fmt::format("Chromosome ID {} is greater than the number of chromosomes.", chromosome_id));
           current_chromosome_id = chromosome_id;
           num_nodes_per_this_chromosome = 0;
         }
         // Add the node to the chromosome
         stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, current_node_id);
-        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
-                           "Node " << current_node_id << " is not valid for chromosome " << current_chromosome_id
-                                   << " out of " << num_chromosomes_ << " chromosomes.");
+        MUNDY_THROW_REQUIRE(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                           fmt::format("Node {} is not valid for chromosome {} out of {} chromosomes.", current_node_id,
+                                       current_chromosome_id, num_chromosomes_));
         stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = x;
         stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = y;
         stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = z;
@@ -1752,6 +1753,8 @@ class HP1 {
         num_nodes_per_this_chromosome++;
       }
     }
+
+    std::cout << "Finished initializing from file" << std::endl;
   }
 
   // Initialize the chromsomes on a grid
