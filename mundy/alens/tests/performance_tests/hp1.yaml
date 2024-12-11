@@ -19,7 +19,8 @@ HP1:
     loadbalance_post_initialization: true
     check_maximum_speed_pre_position_update: true
     max_allowable_speed: 10.0
-    
+    hydro_update_frequency: 2
+
     io_frequency: 20
     log_frequency: 20
     output_filename: "HP1"

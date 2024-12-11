@@ -422,6 +422,9 @@ class HP1 {
     if (check_maximum_speed_pre_position_update_) {
       max_allowable_speed_ = simulation_params.get<double>("max_allowable_speed");
     }
+    hydro_update_frequency_ = simulation_params.get<size_t>("hydro_update_frequency");
+    MUNDY_THROW_REQUIRE(hydro_update_frequency_ > 0, std::invalid_argument,
+                        "hydro_update_frequency_ must be greater than 0.");
 
     enable_chromatin_brownian_motion_ = simulation_params.get<bool>("enable_chromatin_brownian_motion");
     enable_backbone_springs_ = simulation_params.get<bool>("enable_backbone_springs");
@@ -679,6 +682,10 @@ class HP1 {
         .set("max_allowable_speed", default_max_allowable_speed_,
              "Maximum allowable speed (only used if "
              "check_maximum_speed_pre_position_update is true).")
+        .set("hydro_update_frequency", default_hydro_update_frequency_,
+             "The frequency at which we should update the background fluid velocity field. If not 1, the old velocity "
+             "will be reused for the next update_frequency steps.",
+             make_new_validator(prefer_size_t, accept_int))
         // IO
         .set("loadbalance_post_initialization", default_loadbalance_post_initialization_,
              "If we should load balance post-initialization or not.")
@@ -842,6 +849,7 @@ class HP1 {
       if (check_maximum_speed_pre_position_update_) {
         std::cout << "  max_allowable_speed: " << max_allowable_speed_ << std::endl;
       }
+      std::cout << "  hydro_update_frequency: " << hydro_update_frequency_ << std::endl;
 
       std::cout << std::endl;
       std::cout << "IO:" << std::endl;
@@ -1091,6 +1099,8 @@ class HP1 {
     // Spheres need to be modified to contain the subparts for E, H, and BindSite.
     auto custom_sphere_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_sphere_part_reqs->add_field_reqs<double>("NODE_VELOCITY", node_rank_, 3, 1)
+        .add_field_reqs<double>("NODE_VELOCITY_HYDRO", node_rank_, 3, 1)
+        .add_field_reqs<double>("NODE_VELOCITY_HYDRO_OLD", node_rank_, 3, 1)
         .add_field_reqs<double>("NODE_FORCE", node_rank_, 3, 1)
         .add_field_reqs<unsigned>("NODE_RNG_COUNTER", node_rank_, 1, 1)
         .add_field_reqs<double>("TRANSIENT_NODE_COORDINATES", node_rank_, 3, 1)
@@ -1358,6 +1368,8 @@ class HP1 {
     // Fetch the fields
     node_coord_field_ptr_ = fetch_field<double>("NODE_COORDS", node_rank_);
     node_velocity_field_ptr_ = fetch_field<double>("NODE_VELOCITY", node_rank_);
+    node_velocity_hydro_field_ptr_ = fetch_field<double>("NODE_VELOCITY_HYDRO", node_rank_);
+    node_velocity_hydro_old_field_ptr_ = fetch_field<double>("NODE_VELOCITY_HYDRO_OLD", node_rank_);
     node_force_field_ptr_ = fetch_field<double>("NODE_FORCE", node_rank_);
     node_rng_field_ptr_ = fetch_field<unsigned>("NODE_RNG_COUNTER", node_rank_);
 
@@ -1543,9 +1555,9 @@ class HP1 {
                  seq_crosslinker_index;
         };
 
-        auto is_first_or_last_element_in_chain = [start_element_id, num_segments_per_chromosome](const size_t &seq_segment_index) {
-          return seq_segment_index == 0 ||
-                 seq_segment_index == num_segments_per_chromosome - 1;  // 0-based indexing
+        auto is_first_or_last_element_in_chain = [start_element_id,
+                                                  num_segments_per_chromosome](const size_t &seq_segment_index) {
+          return seq_segment_index == 0 || seq_segment_index == num_segments_per_chromosome - 1;  // 0-based indexing
         };
 
         // Try to use modulo math to determine region
@@ -3230,6 +3242,7 @@ class HP1 {
       const size_t num_surface_nodes = periphery_ptr_->get_num_nodes();
       auto surface_positions = periphery_ptr_->get_surface_positions();
       auto surface_weights = periphery_ptr_->get_quadrature_weights();
+      auto surface_normals = periphery_ptr_->get_surface_normals();
       Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_radii("surface_radii", num_surface_nodes);
       Kokkos::View<double *, Kokkos::LayoutLeft, DeviceMemorySpace> surface_velocities("surface_velocities",
                                                                                        3 * num_surface_nodes);
@@ -3245,22 +3258,13 @@ class HP1 {
       // This is done in two steps: first, we compute the forces on the periphery necessary to enforce no-slip
       // Then we evaluate the flow these forces induce on the spheres.
       periphery_ptr_->compute_surface_forces(surface_velocities, surface_forces);
+      mundy::alens::periphery::apply_stokes_double_layer_kernel(
+          DeviceExecutionSpace(), viscosity, num_surface_nodes, num_spheres, surface_positions, sphere_positions,
+          surface_normals, surface_weights, surface_forces, sphere_velocities);
 
-      // // If we evaluate the flow these forces induce on the periphery, do they satisfy no-slip?
-      // Kokkos::View<double **, Kokkos::LayoutLeft, DeviceMemorySpace> M("Mnew", 3 * num_surface_nodes,
-      //                                                                  3 * num_surface_nodes);
-      // fill_skfie_matrix(DeviceExecutionSpace(), viscosity, num_surface_nodes, num_surface_nodes, surface_positions,
-      //                   surface_positions, surface_normals, surface_weights, M);
-      // KokkosBlas::gemv(DeviceExecutionSpace(), "N", 1.0, M, surface_forces, 1.0, surface_velocities);
-      // EXPECT_NEAR(max_speed(surface_velocities), 0.0, 1.0e-10);
-
-      mundy::alens::periphery::apply_weighted_stokes_kernel(DeviceExecutionSpace(), viscosity, surface_positions,
-                                                            sphere_positions, surface_forces, surface_weights,
-                                                            sphere_velocities);
-
-      // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-      mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
-                                                sphere_radii);
+      // // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+      // mundy::alens::periphery::apply_local_drag(DeviceExecutionSpace(), viscosity, sphere_velocities, sphere_forces,
+      //                                           sphere_radii);
     }
 
     // Copy the sphere forces and velocities back to STK fields
@@ -3269,11 +3273,11 @@ class HP1 {
       stk::mesh::Entity sphere_element = sphere_elements[i];
       stk::mesh::Entity sphere_node = bulk_data_ptr_->begin_nodes(sphere_element)[0];
       double *sphere_force = stk::mesh::field_data(*node_force_field_ptr_, sphere_node);
-      double *sphere_velocity = stk::mesh::field_data(*node_velocity_field_ptr_, sphere_node);
+      double *sphere_hydro_velocity = stk::mesh::field_data(*node_velocity_hydro_field_ptr_, sphere_node);
 
       for (size_t j = 0; j < 3; j++) {
         sphere_force[j] = sphere_forces(i * 3 + j);
-        sphere_velocity[j] = sphere_velocities(i * 3 + j);
+        sphere_hydro_velocity[j] = sphere_velocities(i * 3 + j);
       }
     }
     Kokkos::Profiling::popRegion();
@@ -3885,9 +3889,62 @@ class HP1 {
       // Compute velocities.
       if (enable_chromatin_brownian_motion_) compute_brownian_velocity();
       if (enable_backbone_n_body_hydrodynamics_) {
-        compute_rpy_hydro();
-      } else {
+        // RPY hydro is only the long range hydrodynamics. We still need to compute the self-interaction.
         compute_dry_velocity();
+
+        stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
+        stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
+        stk::mesh::Field<double> &node_velocity_hydro_field = *node_velocity_hydro_field_ptr_;
+        stk::mesh::Field<double> &node_velocity_hydro_old_field = *node_velocity_hydro_old_field_ptr_;
+        if (timestep_index_ % hydro_update_frequency_ == 0) {
+          // Copy the current hydro velocity to the previous hydro velocity
+          if (hydro_update_frequency_ != 1) {
+            mundy::mesh::for_each_entity_run(
+                *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+                [&node_velocity_hydro_field, &node_velocity_hydro_old_field](
+                    [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+                  double *node_velocity_hydro = stk::mesh::field_data(node_velocity_hydro_field, sphere_node);
+                  double *node_velocity_hydro_old = stk::mesh::field_data(node_velocity_hydro_old_field, sphere_node);
+                  node_velocity_hydro_old[0] = node_velocity_hydro[0];
+                  node_velocity_hydro_old[1] = node_velocity_hydro[1];
+                  node_velocity_hydro_old[2] = node_velocity_hydro[2];
+                });
+          }
+
+          compute_rpy_hydro();
+
+          // Compute the finite difference regurized l2 norm of the change in the hydro velocity
+          if (hydro_update_frequency_ != 1) {
+            double hydro_velocity_change_norm = 0.0;
+            mundy::mesh::for_each_entity_run(
+                *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+                [&node_velocity_hydro_field, &node_velocity_hydro_old_field, &hydro_velocity_change_norm](
+                    [[maybe_unused]] const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
+                  double *node_velocity_hydro = stk::mesh::field_data(node_velocity_hydro_field, sphere_node);
+                  double *node_velocity_hydro_old = stk::mesh::field_data(node_velocity_hydro_old_field, sphere_node);
+                  const double dx = node_velocity_hydro[0] - node_velocity_hydro_old[0];
+                  const double dy = node_velocity_hydro[1] - node_velocity_hydro_old[1];
+                  const double dz = node_velocity_hydro[2] - node_velocity_hydro_old[2];
+#pragma omp atomic
+                  hydro_velocity_change_norm += dx * dx + dy * dy + dz * dz;
+                });
+            size_t num_endpoints = 2.0 * num_chromosomes_;
+            hydro_velocity_change_norm = std::sqrt(hydro_velocity_change_norm / num_endpoints);
+            std::cout << "||v_new - v_old||_2 / sqrt(len(v_old)): " << hydro_velocity_change_norm << std::endl;
+          }
+        }
+
+        // Sum the hydro velocity into the total velocity
+        mundy::mesh::for_each_entity_run(
+            *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
+            [&node_velocity_field, &node_velocity_hydro_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                                                               const stk::mesh::Entity &sphere_node) {
+              double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
+              double *node_velocity_hydro = stk::mesh::field_data(node_velocity_hydro_field, sphere_node);
+              node_velocity[0] += node_velocity_hydro[0];
+              node_velocity[1] += node_velocity_hydro[1];
+              node_velocity[2] += node_velocity_hydro[2];
+            });
       }
 
       // Logging, if desired, write to console
@@ -3991,6 +4048,8 @@ class HP1 {
   stk::mesh::Field<double> *node_coord_field_ptr_;
   stk::mesh::Field<double> *node_velocity_field_ptr_;
   stk::mesh::Field<double> *node_force_field_ptr_;
+  stk::mesh::Field<double> *node_velocity_hydro_field_ptr_;
+  stk::mesh::Field<double> *node_velocity_hydro_old_field_ptr_;
 
   stk::mesh::Field<unsigned> *element_rng_field_ptr_;
   stk::mesh::Field<double> *element_radius_field_ptr_;
@@ -4167,6 +4226,7 @@ class HP1 {
   double crosslinker_rcut_;
 
   // Periphery hydro params
+  size_t hydro_update_frequency_;
   bool check_maximum_periphery_overlap_;
   double maximum_allowed_periphery_overlap_;
   PERIPHERY_SHAPE periphery_hydro_shape_;
@@ -4279,6 +4339,7 @@ class HP1 {
   static constexpr double default_crosslinker_right_unbinding_rate_ = 1.0;
 
   // Periphery hydro params
+  static constexpr size_t default_hydro_update_frequency_ = 1;
   static constexpr bool default_check_maximum_periphery_overlap_ = false;
   static constexpr double default_maximum_allowed_periphery_overlap_ = 1e-6;
   static constexpr std::string_view default_periphery_hydro_shape_string_ = "SPHERE";
