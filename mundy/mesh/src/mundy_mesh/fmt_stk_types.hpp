@@ -38,6 +38,7 @@
 
 MUNDY_ADD_FMT_OSTREAM_SUPPORT(stk::mesh::Entity)
 MUNDY_ADD_FMT_OSTREAM_SUPPORT(stk::mesh::EntityId)
+MUNDY_ADD_FMT_OSTREAM_SUPPORT(stk::mesh::EntityKey)
 MUNDY_ADD_FMT_OSTREAM_SUPPORT(stk::mesh::Selector)
 MUNDY_ADD_FMT_OSTREAM_SUPPORT(stk::topology)
 MUNDY_ADD_FMT_OSTREAM_SUPPORT(stk::topology::rank_t)

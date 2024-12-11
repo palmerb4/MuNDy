@@ -567,7 +567,7 @@ class SpermSimulation {
         bulk_data_ptr_->declare_relation(spring, right_node, 2, perm, scratch1, scratch2, scratch3);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(spring).topology() != stk::topology::INVALID_TOPOLOGY,
                            std::logic_error,
-                           std::format("The centerline twist spring with id {} has an invalid topology.", spring_id));
+                          fmt::format("The centerline twist spring with id {} has an invalid topology.", spring_id));
 
         // Populate the spring's data
         stk::mesh::field_data(*element_radius_field_ptr_, spring)[0] = sperm_radius_;
@@ -588,36 +588,36 @@ class SpermSimulation {
           // Share the last node with rank 1.
           stk::mesh::Entity node = get_node(end_seq_node_index - 1);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                              std::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1)));
+                             fmt::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1)));
           bulk_data_ptr_->add_node_sharing(node, rank + 1);
 
           // Receive the first node from rank 1
           stk::mesh::EntityId received_node_id = get_node_id(end_seq_node_index);
           stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(received_node), std::logic_error,
-                              std::format("The node with id {} is not valid.", received_node_id));
+                             fmt::format("The node with id {} is not valid.", received_node_id));
           bulk_data_ptr_->add_node_sharing(received_node, rank + 1);
         } else if (rank == bulk_data_ptr_->parallel_size() - 1) {
           // Share the first node with rank N - 1.
           stk::mesh::Entity node = get_node(start_seq_node_index);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                              std::format("The node with id {} is not valid.", get_node_id(start_seq_node_index))); 
+                             fmt::format("The node with id {} is not valid.", get_node_id(start_seq_node_index))); 
           bulk_data_ptr_->add_node_sharing(node, rank - 1);
 
           // Receive the last node from rank N - 1.
           stk::mesh::EntityId received_node_id = get_node_id(start_seq_node_index - 1);
           stk::mesh::Entity received_node = bulk_data_ptr_->declare_node(received_node_id);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(received_node), std::logic_error,
-                              std::format("The node with id {} is not valid.", received_node_id));
+                             fmt::format("The node with id {} is not valid.", received_node_id));
           bulk_data_ptr_->add_node_sharing(received_node, rank - 1);
         } else {
           // Share the first and last nodes with the corresponding neighboring ranks.
           stk::mesh::Entity first_node = get_node(start_seq_node_index);
           stk::mesh::Entity last_node = get_node(end_seq_node_index - 1);
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(first_node), std::logic_error,
-                            std::format("The node with id {} is not valid.", get_node_id(start_seq_node_index)));
+                           fmt::format("The node with id {} is not valid.", get_node_id(start_seq_node_index)));
           MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(last_node), std::logic_error,
-                            std::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1))); 
+                           fmt::format("The node with id {} is not valid.", get_node_id(end_seq_node_index - 1))); 
           bulk_data_ptr_->add_node_sharing(first_node, rank - 1);
           bulk_data_ptr_->add_node_sharing(last_node, rank + 1);
 
@@ -638,7 +638,7 @@ class SpermSimulation {
            i < end_seq_node_index + 1 * (rank < bulk_data_ptr_->parallel_size() - 1); ++i) {
         stk::mesh::Entity node = get_node(i);
         MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::logic_error,
-                            std::format(
+                            fmt::format(
                                 "The node with id {} is not valid.", get_node_id(i)));
         MUNDY_THROW_ASSERT(bulk_data_ptr_->bucket(node).member(*centerline_twist_springs_part_ptr_), std::logic_error,
                            "The node must be a member of the centerline twist part.");

@@ -508,16 +508,16 @@ class HP1 {
 
     crosslinker_kt_ = param_list.get<double>("kt");
     crosslinker_spring_constant_ = param_list.get<double>("spring_constant");
-    crosslinker_r0_ = param_list.get<double>("r0");
+    crosslinker_r0_ = param_list.get<double>("spring_r0");
     crosslinker_left_binding_rate_ = param_list.get<double>("left_binding_rate");
     crosslinker_right_binding_rate_ = param_list.get<double>("right_binding_rate");
     crosslinker_left_unbinding_rate_ = param_list.get<double>("left_unbinding_rate");
     crosslinker_right_unbinding_rate_ = param_list.get<double>("right_unbinding_rate");
     if (crosslinker_spring_type_ == BOND_TYPE::HARMONIC) {
-      crosslinker_rcut_ = crosslinker_r0_ + 5.0 * std::sqrt(1.0 / (crosslinker_kt_ * crosslinker_spring_constant_));
+      crosslinker_cutoff_radius_ = crosslinker_r0_ + 5.0 * std::sqrt(1.0 / (crosslinker_kt_ * crosslinker_spring_constant_));
     } else if (crosslinker_spring_type_ == BOND_TYPE::FENE) {
       // The r0 quantity for FENE bonds is the rmax at which force goes to infinity, so anything beyond this in invalid!
-      crosslinker_rcut_ = crosslinker_r0_;
+      crosslinker_cutoff_radius_ = crosslinker_r0_;
     }
   }
 
@@ -598,7 +598,7 @@ class HP1 {
     periphery_unbinding_rate_ = param_list.get<double>("unbinding_rate");
     // NOTE: Binding to the periphery will piggyback off of the type of crosslinking bonds (HARMONIC or FENE) used.
     periphery_spring_constant_ = param_list.get<double>("spring_constant");
-    periphery_spring_r0_ = param_list.get<double>("r0");
+    periphery_spring_r0_ = param_list.get<double>("spring_r0");
     std::string periphery_bind_sites_type_string = param_list.get<std::string>("bind_sites_type");
     if (periphery_bind_sites_type_string == "RANDOM") {
       periphery_bind_sites_type_ = PERIPHERY_BIND_SITES_TYPE::RANDOM;
@@ -729,7 +729,7 @@ class HP1 {
         .set("spring_type", std::string(default_crosslinker_spring_type_string_), "Crosslinker spring type.")
         .set("kt", default_crosslinker_kt_, "Temperature kT for crosslinkers.")
         .set("spring_constant", default_crosslinker_spring_constant_, "Crosslinker spring constant.")
-        .set("r0", default_crosslinker_r0_, "Crosslinker rest length.")
+        .set("spring_r0", default_crosslinker_r0_, "Crosslinker rest length.")
         .set("left_binding_rate", default_crosslinker_left_binding_rate_, "Crosslinker left binding rate.")
         .set("right_binding_rate", default_crosslinker_right_binding_rate_, "Crosslinker right binding rate.")
         .set("left_unbinding_rate", default_crosslinker_left_unbinding_rate_, "Crosslinker left unbinding rate.")
@@ -788,7 +788,7 @@ class HP1 {
         .set("binding_rate", default_periphery_binding_rate_, "Periphery binding rate.")
         .set("unbinding_rate", default_periphery_unbinding_rate_, "Periphery unbinding rate.")
         .set("spring_constant", default_periphery_spring_constant_, "Periphery spring constant.")
-        .set("r0", default_periphery_spring_r0_, "Periphery spring rest length.")
+        .set("spring_r0", default_periphery_spring_r0_, "Periphery spring rest length.")
         .set("bind_sites_type", std::string(default_periphery_bind_sites_type_string_), "Periphery bind sites type.")
         .set("num_bind_sites", default_periphery_num_bind_sites_,
              "Periphery number of binding sites (only used if periphery_binding_sites_type is RANDOM and periphery "
@@ -907,7 +907,7 @@ class HP1 {
         std::cout << "  right_binding_rate: " << crosslinker_right_binding_rate_ << std::endl;
         std::cout << "  left_unbinding_rate: " << crosslinker_left_unbinding_rate_ << std::endl;
         std::cout << "  right_unbinding_rate: " << crosslinker_right_unbinding_rate_ << std::endl;
-        std::cout << "  rcut: " << crosslinker_rcut_ << std::endl;
+        std::cout << "  cutoff_radius: " << crosslinker_cutoff_radius_ << std::endl;
       }
 
       if (enable_periphery_hydrodynamics_) {
@@ -1930,7 +1930,8 @@ class HP1 {
 
       for (size_t i = start_node_index; i < end_node_index; ++i) {
         stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
-        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, "Node " << i << " is not valid.");
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, 
+          fmt::format("Node {} is not valid.", i));
 
         // Assign the node coordinates
         mundy::math::Vector3<double> r(0.0, 0.0, 0.0);
@@ -2120,7 +2121,7 @@ class HP1 {
                                               std::array<double, 1>{crosslinker_r0_});
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_rng_field_ptr_, std::array<unsigned, 1>{0});
     mundy::mesh::utils::fill_field_with_value(*hp1_part_ptr_, *element_radius_field_ptr_,
-                                              std::array<double, 1>{crosslinker_rcut_});
+                                              std::array<double, 1>{crosslinker_cutoff_radius_});
 
     // Initialize the hydrodynamic spheres
     const stk::mesh::Selector chromatin_spheres = *e_part_ptr_ | *h_part_ptr_;
@@ -3934,8 +3935,8 @@ class HP1 {
 #pragma omp atomic
                   hydro_velocity_change_norm += dx * dx + dy * dy + dz * dz;
                 });
-            size_t num_endpoints = 2.0 * num_chromosomes_;
-            hydro_velocity_change_norm = std::sqrt(hydro_velocity_change_norm / num_endpoints);
+            size_t len_v = num_chromosomes_ * num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);  
+            hydro_velocity_change_norm = std::sqrt(hydro_velocity_change_norm / len_v);
             std::cout << "||v_new - v_old||_2 / sqrt(len(v_old)): " << hydro_velocity_change_norm << std::endl;
           }
         }
@@ -4229,7 +4230,7 @@ class HP1 {
   double crosslinker_right_binding_rate_;
   double crosslinker_left_unbinding_rate_;
   double crosslinker_right_unbinding_rate_;
-  double crosslinker_rcut_;
+  double crosslinker_cutoff_radius_;
 
   // Periphery hydro params
   size_t hydro_update_frequency_;
