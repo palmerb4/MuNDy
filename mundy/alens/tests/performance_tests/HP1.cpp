@@ -2647,7 +2647,10 @@ class HP1 {
               const double A = crosslinker_right_binding_rate;
               const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
               const double r0 = stk::mesh::field_data(crosslinker_spring_r0, crosslinker)[0];
-              double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+              double Z = 0.0;
+              if (dr_mag < r0) {
+                double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+              }
               stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
             }
           }
@@ -2703,7 +2706,10 @@ class HP1 {
                 const double A = periphery_binding_rate;
                 const double k = periphery_spring_constant;
                 const double r0 = periphery_spring_r0;
-                double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+                double Z = 0.0;
+                if (dr_mag < r0) {
+                  double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
+                }
                 stk::mesh::field_data(constraint_state_change_probability, neighbor_genx)[0] = Z;
               }
             }
