@@ -2258,8 +2258,7 @@ void run(int argc, char **argv) {
                   .topology(stk::topology::BEAM_2)  //
                   .add_part(&backbone_segs_part)    //
                   .nodes({node_count, node_count + 1})
-                  .add_field_data<unsigned>(&elem_rng_field, {0})
-                  .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0});
+                  .add_field_data<unsigned>(&elem_rng_field, {0});
 
               if (sim_params.get<bool>("enable_backbone_springs")) {
                 segment

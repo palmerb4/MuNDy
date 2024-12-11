@@ -98,6 +98,7 @@ class DeclareEntitiesHelper {
     virtual void set_field_data(const stk::mesh::Entity& entity) = 0;
     virtual std::type_index type() const = 0;
     virtual std::string name() const = 0;
+    virtual stk::mesh::FieldBase* field() const = 0;
   };
 
   template <typename T>
@@ -119,6 +120,18 @@ class DeclareEntitiesHelper {
 
     std::string name() const override {
       return field_->name();
+    }
+
+    std::vector<T>& data() {
+      return data_;
+    }
+
+    const std::vector<T>& data() const {
+      return data_;
+    }
+
+    stk::mesh::FieldBase* field() const override {
+      return field_;
     }
 
    private:

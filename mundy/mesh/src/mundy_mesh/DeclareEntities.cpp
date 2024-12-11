@@ -99,6 +99,25 @@ void DeclareEntitiesHelper::check_consistency(const stk::mesh::BulkData& bulk_da
                         fmt::format("Element {} has {} nodes but its topology {} expects {} nodes", element_info.id,
                                     num_nodes, topo.name(), num_nodes_expected));
   }
+
+  // Check that the field rank matches the rank of the entity.
+  for (const auto& node_info : node_info_vec_) {
+    for (const auto& field_data : node_info.field_data) {
+      const stk::mesh::FieldBase* field = field_data->field();
+      const stk::mesh::EntityRank field_rank = field->entity_rank();
+      MUNDY_THROW_REQUIRE(field_rank == stk::topology::NODE_RANK, std::runtime_error,
+                          fmt::format("Field {} is not a node-rank field and yet is set on node {}", field->name(), node_info.id));
+    }
+  }
+
+  for (const auto& element_info : element_info_vec_) {
+    for (const auto& field_data : element_info.field_data) {
+      const stk::mesh::FieldBase* field = field_data->field();
+      const stk::mesh::EntityRank field_rank = field->entity_rank();
+      MUNDY_THROW_REQUIRE(field_rank == stk::topology::ELEMENT_RANK, std::runtime_error,
+                          fmt::format("Field {} is not an element-rank field and yet is set on element {}", field->name(), element_info.id));
+    }
+  }
 }
 
 DeclareEntitiesHelper& DeclareEntitiesHelper::declare_entities(stk::mesh::BulkData& bulk_data) {

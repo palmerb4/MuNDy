@@ -144,19 +144,19 @@ tribits_add_executable(
     CATEGORIES PERFORMANCE
     )
       
-tribits_add_executable(
-    NgpHP1
-    SOURCES
-    NgpHP1.cpp
-    CATEGORIES PERFORMANCE
-    )
-tribits_copy_files_to_binary_dir(
-    NgpHP1CopyFiles
-    SOURCE_FILES
-    ngp_hp1.yaml
-    hp1_periphery_quadrature_normals.dat
-    hp1_periphery_quadrature_points.dat
-    hp1_periphery_quadrature_weights.dat
-    hp1_pos.dat
-    EXEDEPS NgpHP1
-    )
+# tribits_add_executable(
+#     NgpHP1
+#     SOURCES
+#     NgpHP1.cpp
+#     CATEGORIES PERFORMANCE
+#     )
+# tribits_copy_files_to_binary_dir(
+#     NgpHP1CopyFiles
+#     SOURCE_FILES
+#     ngp_hp1.yaml
+#     hp1_periphery_quadrature_normals.dat
+#     hp1_periphery_quadrature_points.dat
+#     hp1_periphery_quadrature_weights.dat
+#     hp1_pos.dat
+#     EXEDEPS NgpHP1
+#     )
