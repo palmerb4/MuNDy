@@ -1132,6 +1132,14 @@ class HP1 {
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segments_part_reqs);
+
+    // Create a special part for the endpoints of the chains.
+    // These endpoints require a correction force to prevent their segments from contracting to zero length
+    auto custom_backbone_segment_endpoints_part_reqs = std::make_shared<mundy::meta::PartReqs>();
+    custom_backbone_segment_endpoints_part_reqs->set_part_name("BACKBONE_SEGMENT_ENDPOINTS")
+        .set_part_topology(stk::topology::BEAM_2);
+    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segment_endpoints_part_reqs);
+
     // Create the force-dipole information on just the EESPRINGS (euchromatin springs), in active and inactive states
     auto custom_euchromatin_part_reqs = std::make_shared<mundy::meta::PartReqs>();
     custom_euchromatin_part_reqs->set_part_name("EESPRINGS")
@@ -1398,6 +1406,7 @@ class HP1 {
     ee_springs_part_ptr_ = fetch_part("EESPRINGS");
     eh_springs_part_ptr_ = fetch_part("EHSPRINGS");
     hh_springs_part_ptr_ = fetch_part("HHSPRINGS");
+    backbone_segment_endpoints_part_ptr_ = fetch_part("BACKBONE_SEGMENT_ENDPOINTS");
 
     backbone_backbone_neighbor_genx_part_ptr_ = fetch_part("BACKBONE_BACKBONE_NEIGHBOR_GENXS");
     hp1_h_neighbor_genx_part_ptr_ = fetch_part("HP1_H_NEIGHBOR_GENXS");
@@ -1534,6 +1543,11 @@ class HP1 {
                  seq_crosslinker_index;
         };
 
+        auto is_first_or_last_element_in_chain = [start_element_id, num_segments_per_chromosome](const size_t &seq_segment_index) {
+          return seq_segment_index == 0 ||
+                 seq_segment_index == num_segments_per_chromosome - 1;  // 0-based indexing
+        };
+
         // Try to use modulo math to determine region
         const size_t num_heterochromatin_per_repeat = num_heterochromatin_per_repeat_;
         const size_t num_euchromatin_per_repeat = num_euchromatin_per_repeat_;
@@ -1631,6 +1645,9 @@ class HP1 {
                   pvector.push_back(hh_springs_part_ptr_);
                 }
               }
+              if (is_first_or_last_element_in_chain(segment_local_idx)) {
+                pvector.push_back(backbone_segment_endpoints_part_ptr_);
+              }
               segment = bulk_data_ptr_->declare_element(get_segment_id(segment_local_idx), pvector);
               bulk_data_ptr_->declare_relation(segment, left_node, 0);
               bulk_data_ptr_->declare_relation(segment, right_node, 1);
@@ -1726,26 +1743,27 @@ class HP1 {
         int chromosome_id;
         double x, y, z;
         if (!(iss >> chromosome_id >> x >> y >> z)) {
-          MUNDY_THROW_REQUIRE(false, std::invalid_argument, 
-            fmt::format("Could not parse line {}", line));
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Could not parse line {}", line));
         }
         if (chromosome_id != current_chromosome_id) {
           // We are starting a new chromosome
-          MUNDY_THROW_REQUIRE(num_nodes_per_this_chromosome == num_nodes_per_chromosome, std::invalid_argument,
-                            fmt::format("Chromosome {} has {} nodes, but we expected {} nodes.", current_chromosome_id,
-                                        num_nodes_per_this_chromosome, num_nodes_per_chromosome));
+          MUNDY_THROW_REQUIRE(
+              num_nodes_per_this_chromosome == num_nodes_per_chromosome, std::invalid_argument,
+              fmt::format("Chromosome {} has {} nodes, but we expected {} nodes.", current_chromosome_id,
+                          num_nodes_per_this_chromosome, num_nodes_per_chromosome));
           MUNDY_THROW_REQUIRE(chromosome_id == current_chromosome_id + 1, std::invalid_argument,
-                             "Chromosome IDs should be sequential.");
-          MUNDY_THROW_REQUIRE(chromosome_id <= num_chromosomes_, std::invalid_argument,
-                              fmt::format("Chromosome ID {} is greater than the number of chromosomes.", chromosome_id));
+                              "Chromosome IDs should be sequential.");
+          MUNDY_THROW_REQUIRE(
+              chromosome_id <= num_chromosomes_, std::invalid_argument,
+              fmt::format("Chromosome ID {} is greater than the number of chromosomes.", chromosome_id));
           current_chromosome_id = chromosome_id;
           num_nodes_per_this_chromosome = 0;
         }
         // Add the node to the chromosome
         stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, current_node_id);
         MUNDY_THROW_REQUIRE(bulk_data_ptr_->is_valid(node), std::invalid_argument,
-                           fmt::format("Node {} is not valid for chromosome {} out of {} chromosomes.", current_node_id,
-                                       current_chromosome_id, num_chromosomes_));
+                            fmt::format("Node {} is not valid for chromosome {} out of {} chromosomes.",
+                                        current_node_id, current_chromosome_id, num_chromosomes_));
         stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = x;
         stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = y;
         stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = z;
@@ -2045,9 +2063,9 @@ class HP1 {
     MUNDY_THROW_REQUIRE(element_poissons_ratio_field_ptr_ != nullptr, std::invalid_argument,
                         "Element poisson's ratio field is null.");
     MUNDY_THROW_REQUIRE(element_spring_constant_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element spring constant field is null.");
+                        "Element spring constant field is null.");
     MUNDY_THROW_REQUIRE(element_spring_r0_field_ptr_ != nullptr, std::invalid_argument,
-                       "Element spring r0 field is null.");
+                        "Element spring r0 field is null.");
     MUNDY_THROW_REQUIRE(element_rng_field_ptr_ != nullptr, std::invalid_argument, "Element rng field is null.");
     MUNDY_THROW_REQUIRE(euchromatin_state_field_ptr_ != nullptr, std::invalid_argument,
                         "Euchromatin state field is null.");
@@ -2122,9 +2140,6 @@ class HP1 {
                             fmt::format("Unknown initialization type: {}", initialization_type_));
       }
     }
-
-    // Dump the mesh info
-    // stk::mesh::impl::dump_all_mesh_info(*bulk_data_ptr_, std::cout);
   }
 
   void initialize_euchromatin() {
@@ -3559,6 +3574,72 @@ class HP1 {
     evaluate_linker_potentials_ptr_->execute(backbone_backbone_neighbor_genx_selector);
     linker_potential_force_reduction_ptr_->execute(backbone_selector);
 
+    // Apply a correction force to the endpoints of the chain segments
+    //
+    // When three segments connect, even though the collision force between segments that share a node will be zero,
+    // the two segments on either end will collide if the segement in the middle shrinks too much. This is a behavior
+    // which we want to be applied consistantly to all segments. However, the segments at the beginning and end of the
+    // chain will not have a segment on one side, so we need to apply a correction force to account for this.
+    //
+    // Assume hertzian contact force.
+    const double backbone_excluded_volume_radius = backbone_excluded_volume_radius_;
+    const double backbone_youngs_modulus = backbone_youngs_modulus_;
+    const double backbone_poissons_ratio = backbone_poissons_ratio_;
+    const double effective_radius = (backbone_excluded_volume_radius * backbone_excluded_volume_radius) /
+                                    (backbone_excluded_volume_radius + backbone_excluded_volume_radius);
+    const double effective_youngs_modulus =
+        (backbone_youngs_modulus * backbone_youngs_modulus) /
+        (backbone_youngs_modulus - backbone_youngs_modulus * backbone_poissons_ratio * backbone_poissons_ratio +
+         backbone_youngs_modulus - backbone_youngs_modulus * backbone_poissons_ratio * backbone_poissons_ratio);
+    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
+    stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+
+    mundy::mesh::for_each_entity_run(
+        *bulk_data_ptr_, stk::topology::ELEM_RANK, *backbone_segment_endpoints_part_ptr_,
+        [&backbone_excluded_volume_radius, &effective_radius, &effective_youngs_modulus, &node_coord_field,
+         &node_force_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                            const stk::mesh::Entity &endpoint_seg) {
+          // Get the segment length and tangent
+          const stk::mesh::Entity *nodes = bulk_data.begin_nodes(endpoint_seg);
+          const stk::mesh::Entity &node1 = nodes[0];
+          const stk::mesh::Entity &node2 = nodes[1];
+          const double *node1_coords = stk::mesh::field_data(node_coord_field, node1);
+          const double *node2_coords = stk::mesh::field_data(node_coord_field, node2);
+          const double segment_length =
+              std::sqrt((node2_coords[0] - node1_coords[0]) * (node2_coords[0] - node1_coords[0]) +
+                        (node2_coords[1] - node1_coords[1]) * (node2_coords[1] - node1_coords[1]) +
+                        (node2_coords[2] - node1_coords[2]) * (node2_coords[2] - node1_coords[2]));
+          const double segment_tangent[3] = {(node2_coords[0] - node1_coords[0]) / segment_length,
+                                             (node2_coords[1] - node1_coords[1]) / segment_length,
+                                             (node2_coords[2] - node1_coords[2]) / segment_length};
+
+          // Get the amount of overlap
+          const double signed_sep = segment_length - 2.0 * backbone_excluded_volume_radius;
+          const bool particles_overlap = signed_sep < 0.0;
+          const double normal_force_magnitude =
+              particles_overlap
+                  ? (4.0 / 3.0) * effective_youngs_modulus * std::sqrt(effective_radius) * std::pow(-signed_sep, 1.5)
+                  : 0.0;
+
+          // Apply the force to the nodes
+          double *node1_force = stk::mesh::field_data(node_force_field, node1);
+          double *node2_force = stk::mesh::field_data(node_force_field, node2);
+
+#pragma omp atomic
+          node1_force[0] -= normal_force_magnitude * segment_tangent[0];
+#pragma omp atomic
+          node1_force[1] -= normal_force_magnitude * segment_tangent[1];
+#pragma omp atomic
+          node1_force[2] -= normal_force_magnitude * segment_tangent[2];
+
+#pragma omp atomic
+          node2_force[0] += normal_force_magnitude * segment_tangent[0];
+#pragma omp atomic
+          node2_force[1] += normal_force_magnitude * segment_tangent[1];
+#pragma omp atomic
+          node2_force[2] += normal_force_magnitude * segment_tangent[2];
+        });
+
     Kokkos::Profiling::popRegion();
   }
 
@@ -3831,11 +3912,11 @@ class HP1 {
       Kokkos::Profiling::popRegion();
 
       // IO. If desired, write out the data for time t (STK or mundy)
-      Kokkos::Profiling::pushRegion("HP1::IO");
       if (timestep_index_ % io_frequency_ == 0) {
+        Kokkos::Profiling::pushRegion("HP1::IO");
         io_broker_ptr_->write_io_broker_timestep(static_cast<int>(timestep_index_), timestep_current_time_);
+        Kokkos::Profiling::popRegion();
       }
-      Kokkos::Profiling::popRegion();
 
       // Update positions. x(t + dt) = x(t) + dt * v(t).
       update_positions();
@@ -3950,6 +4031,7 @@ class HP1 {
   stk::mesh::Part *doubly_hp1_bs_part_ptr_ = nullptr;
 
   stk::mesh::Part *backbone_segments_part_ptr_ = nullptr;
+  stk::mesh::Part *backbone_segment_endpoints_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_active_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_inactive_part_ptr_ = nullptr;
