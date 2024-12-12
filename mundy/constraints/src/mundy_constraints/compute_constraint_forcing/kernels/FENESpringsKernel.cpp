@@ -21,9 +21,10 @@
 /// \brief Definition of the ComputeCOnstraintForcing's FENESpringsKernel.
 
 // C++ core libs
-#include <memory>  // for std::shared_ptr, std::unique_ptr
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <algorithm>  // for std::min
+#include <memory>     // for std::shared_ptr, std::unique_ptr
+#include <string>     // for std::string
+#include <vector>     // for std::vector
 
 // Trilinos libs
 #include <Teuchos_ParameterList.hpp>        // for Teuchos::ParameterList
@@ -140,15 +141,21 @@ void FENESpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         edge_tangent_left_to_right[1] *= inv_edge_length;
         edge_tangent_left_to_right[2] *= inv_edge_length;
 
+#pragma TODO This needs to be a control parameter for regularization
+
+        // Threshold on the edge length in case we have exceeded the maximum length and set a maximum spring force.
+        const double epsilon_reg = 1e-4;
+        const double edge_length_adj = std::min(edge_length, element_rmax[0] - epsilon_reg);
+
         // Check if the maximum spring extend is less than the rmax value, otherwise, FENE bonds will be unstable.
-        MUNDY_THROW_REQUIRE(edge_length < element_rmax[0], std::runtime_error,
+        MUNDY_THROW_REQUIRE(edge_length_adj < element_rmax[0], std::runtime_error,
                             std::string("FENESpringsKernel: FENE bond is unstable. The current bond length is ") +
-                                std::to_string(edge_length) + std::string(" and the maximum bond length is ") +
+                                std::to_string(edge_length_adj) + std::string(" and the maximum bond length is ") +
                                 std::to_string(element_rmax[0]) + std::string("."));
 
         // Compute the spring force.
-        const double spring_force = element_spring_constant[0] * edge_length /
-                                    (1.0 - (edge_length / element_rmax[0]) * (edge_length / element_rmax[0]));
+        const double spring_force = element_spring_constant[0] * edge_length_adj /
+                                    (1.0 - (edge_length_adj / element_rmax[0]) * (edge_length_adj / element_rmax[0]));
         const double right_node_force[3] = {-spring_force * edge_tangent_left_to_right[0],
                                             -spring_force * edge_tangent_left_to_right[1],
                                             -spring_force * edge_tangent_left_to_right[2]};
