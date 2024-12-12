@@ -54,7 +54,7 @@ FENESpringsKernel::FENESpringsKernel(mundy::mesh::BulkData *const bulk_data_ptr,
     : bulk_data_ptr_(bulk_data_ptr), meta_data_ptr_(&bulk_data_ptr_->mesh_meta_data()) {
   // The bulk data pointer must not be null.
   MUNDY_THROW_REQUIRE(bulk_data_ptr_ != nullptr, std::invalid_argument,
-                     "FENESpringsKernel: bulk_data_ptr cannot be a nullptr.");
+                      "FENESpringsKernel: bulk_data_ptr cannot be a nullptr.");
 
   // Validate the input params. Use default values for any parameter not given.
   Teuchos::ParameterList valid_fixed_params = fixed_params;
@@ -66,8 +66,8 @@ FENESpringsKernel::FENESpringsKernel(mundy::mesh::BulkData *const bulk_data_ptr,
   for (const std::string &part_name : valid_entity_part_names) {
     valid_entity_parts_.push_back(meta_data_ptr_->get_part(part_name));
     MUNDY_THROW_REQUIRE(valid_entity_parts_.back() != nullptr, std::invalid_argument,
-                       std::string("FENESpringsKernel: Part '")
-                           + part_name + "' from the valid_entity_part_names does not exist in the meta data.");
+                        std::string("FENESpringsKernel: Part '") + part_name +
+                            "' from the valid_entity_part_names does not exist in the meta data.");
   }
 
   // Fetch the fields.
@@ -139,6 +139,12 @@ void FENESpringsKernel::execute(const stk::mesh::Selector &spring_selector) {
         edge_tangent_left_to_right[0] *= inv_edge_length;
         edge_tangent_left_to_right[1] *= inv_edge_length;
         edge_tangent_left_to_right[2] *= inv_edge_length;
+
+        // Check if the maximum spring extend is less than the rmax value, otherwise, FENE bonds will be unstable.
+        MUNDY_THROW_REQUIRE(edge_length < element_rmax[0], std::runtime_error,
+                            std::string("FENESpringsKernel: FENE bond is unstable. The current bond length is ") +
+                                std::to_string(edge_length) + std::string(" and the maximum bond length is ") +
+                                std::to_string(element_rmax[0]) + std::string("."));
 
         // Compute the spring force.
         const double spring_force = element_spring_constant[0] * edge_length /
