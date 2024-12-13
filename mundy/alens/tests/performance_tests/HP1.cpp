@@ -137,6 +137,7 @@ enum class INITIALIZATION_TYPE : unsigned {
   RANDOM_UNIT_CELL,
   OVERLAP_TEST,
   HILBERT_RANDOM_UNIT_CELL,
+  HILBERT_LATTICE,
   USHAPE_TEST,
   FROM_EXO,
   FROM_DAT
@@ -184,6 +185,9 @@ std::ostream &operator<<(std::ostream &os, const INITIALIZATION_TYPE &init_type)
       break;
     case INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL:
       os << "HILBERT_RANDOM_UNIT_CELL";
+      break;
+    case INITIALIZATION_TYPE::HILBERT_LATTICE:
+      os << "HILBERT_LATTICE";
       break;
     case INITIALIZATION_TYPE::USHAPE_TEST:
       os << "USHAPE_TEST";
@@ -395,6 +399,8 @@ class HP1 {
       initialization_type_ = INITIALIZATION_TYPE::OVERLAP_TEST;
     } else if (initiliazation_type_string == "HILBERT_RANDOM_UNIT_CELL") {
       initialization_type_ = INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL;
+    } else if (initiliazation_type_string == "HILBERT_LATTICE") {
+      initialization_type_ = INITIALIZATION_TYPE::HILBERT_LATTICE;
     } else if (initiliazation_type_string == "FROM_EXO") {
       initialization_type_ = INITIALIZATION_TYPE::FROM_EXO;
       initialize_from_exo_filename_ = simulation_params.get<std::string>("initialize_from_exo_filename");
@@ -407,11 +413,12 @@ class HP1 {
       MUNDY_THROW_REQUIRE(false, std::invalid_argument,
                           std::string("Invalid initialization type. Received '") + initiliazation_type_string +
                               "' but expected 'GRID', 'RANDOM_UNIT_CELL', "
-                              "'OVERLAP_TEST', 'HILBERT_RANDOM_UNIT_CELL', or "
+                              "'OVERLAP_TEST', 'HILBERT_RANDOM_UNIT_CELL', 'HILBERT_LATTICE', or "
                               "'FROM_FILE'.");
     }
     if (initialization_type_ == INITIALIZATION_TYPE::RANDOM_UNIT_CELL ||
-        initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL) {
+        initialization_type_ == INITIALIZATION_TYPE::HILBERT_RANDOM_UNIT_CELL ||
+        initialization_type_ == INITIALIZATION_TYPE::HILBERT_LATTICE) {
       Teuchos::Array<double> unit_cell_size = simulation_params.get<Teuchos::Array<double>>("unit_cell_size");
       unit_cell_size_[0] = unit_cell_size[0];
       unit_cell_size_[1] = unit_cell_size[1];
@@ -514,7 +521,8 @@ class HP1 {
     crosslinker_left_unbinding_rate_ = param_list.get<double>("left_unbinding_rate");
     crosslinker_right_unbinding_rate_ = param_list.get<double>("right_unbinding_rate");
     if (crosslinker_spring_type_ == BOND_TYPE::HARMONIC) {
-      crosslinker_cutoff_radius_ = crosslinker_r0_ + 5.0 * std::sqrt(1.0 / (crosslinker_kt_ * crosslinker_spring_constant_));
+      crosslinker_cutoff_radius_ =
+          crosslinker_r0_ + 5.0 * std::sqrt(1.0 / (crosslinker_kt_ * crosslinker_spring_constant_));
     } else if (crosslinker_spring_type_ == BOND_TYPE::FENE) {
       // The r0 quantity for FENE bonds is the rmax at which force goes to infinity, so anything beyond this in invalid!
       crosslinker_cutoff_radius_ = crosslinker_r0_;
@@ -1930,8 +1938,8 @@ class HP1 {
 
       for (size_t i = start_node_index; i < end_node_index; ++i) {
         stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
-        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument, 
-          fmt::format("Node {} is not valid.", i));
+        MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                           fmt::format("Node {} is not valid.", i));
 
         // Assign the node coordinates
         mundy::math::Vector3<double> r(0.0, 0.0, 0.0);
@@ -2060,6 +2068,93 @@ class HP1 {
     }
   }
 
+  // Initialize the chromosomes (hilbert curves) on a lattice)
+  void initialize_chromosome_positions_hilbert_lattice() {
+    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
+    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    if (bulk_data_ptr_->parallel_rank() == 0) {
+      std::vector<mundy::math::Vector3<double>> chromosome_centers_array;
+      std::vector<double> chromosome_radii_array;
+      for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
+        // Figure out which nodes we are doing
+        const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                   num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+        const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+        const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+        size_t start_node_index = num_nodes_per_chromosome * ichromosome + 1u;
+        size_t end_node_index = num_nodes_per_chromosome * (ichromosome + 1) + 1u;
+
+        // Generate a random unit vector (will be used for creating the locatino of the nodes, the random position in
+        // the unit cell will be handled later).
+        openrand::Philox rng(ichromosome, 0);
+        const double zrand = rng.rand<double>() - 1.0;
+        const double wrand = std::sqrt(1.0 - zrand * zrand);
+        const double trand = 2.0 * M_PI * rng.rand<double>();
+        mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+
+        // Once we have the number of chromosome spheres we can get the hilbert curve set up. This will be at some
+        // orientation and then have sides with a length of initial_chromosome_separation.
+        auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
+            num_nodes_per_chromosome, u_hat, initial_chromosome_separation_);
+
+        // Create the local positions of the spheres
+        std::vector<mundy::math::Vector3<double>> sphere_position_array;
+        for (size_t isphere = 0; isphere < num_nodes_per_chromosome; isphere++) {
+          sphere_position_array.push_back(hilbert_position_array[isphere]);
+        }
+
+        // Figure out where the center of the chromosome is, and its radius, in its own local space
+        mundy::math::Vector3<double> r_chromosome_center_local(0.0, 0.0, 0.0);
+        double r_max = 0.0;
+        for (size_t i = 0; i < sphere_position_array.size(); i++) {
+          r_chromosome_center_local += sphere_position_array[i];
+        }
+        r_chromosome_center_local /= static_cast<double>(sphere_position_array.size());
+        for (size_t i = 0; i < sphere_position_array.size(); i++) {
+          r_max = std::max(r_max, mundy::math::two_norm(r_chromosome_center_local - sphere_position_array[i]));
+        }
+
+        // Get the lattice position of this chromosome
+        const size_t num_chromosomes_per_side = static_cast<size_t>(std::ceil(std::pow(num_chromosomes_, 1.0 / 3.0)));
+        const size_t ix = ichromosome % num_chromosomes_per_side;
+        const size_t iy = (ichromosome / num_chromosomes_per_side) % num_chromosomes_per_side;
+        const size_t iz = ichromosome / (num_chromosomes_per_side * num_chromosomes_per_side);
+        // Place the chromosomes in the bounding sphere defined by the unit cell, with the center of the bounding
+        // sphere at the origin, rather than the lattice vector (the lattice vectors think the bottom/left of the
+        // cube is 0,0, but we want the center to be at the origin)
+        const double x = (ix + 0.5) * unit_cell_size_[0] / num_chromosomes_per_side - 0.5 * unit_cell_size_[0];
+        const double y = (iy + 0.5) * unit_cell_size_[1] / num_chromosomes_per_side - 0.5 * unit_cell_size_[1];
+        const double z = (iz + 0.5) * unit_cell_size_[2] / num_chromosomes_per_side - 0.5 * unit_cell_size_[2];
+
+        // Add this position to the global chromosome position array
+        chromosome_centers_array.push_back(mundy::math::Vector3<double>(x, y, z));
+
+        // Write the coordinates to the screen to double check...
+        std::cout << "Chromosome " << ichromosome << " at (" << x << " " << y << " " << z << "), and radius " << r_max
+                  << std::endl;
+
+        // Generate all the positions along the curve due to the placement in the global space
+        std::vector<mundy::math::Vector3<double>> new_position_array;
+        for (size_t i = 0; i < sphere_position_array.size(); i++) {
+          new_position_array.push_back(chromosome_centers_array.back() + r_chromosome_center_local -
+                                       sphere_position_array[i]);
+        }
+
+        // Update the coordinates for this chromosome
+        for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
+          stk::mesh::Entity node = bulk_data_ptr_->get_entity(node_rank_, i);
+          MUNDY_THROW_ASSERT(bulk_data_ptr_->is_valid(node), std::invalid_argument,
+                             fmt::format("Node {} is not valid", i));
+
+          // Assign the node coordinates
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = new_position_array[idx][0];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = new_position_array[idx][1];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = new_position_array[idx][2];
+        }
+      }
+    }
+  }
+
   // Initialize the chromatin backbone and HP1 linkers based on part membership
   //
   // The part membership should already be set up, which makes this much easier to do, as we can just loop over the
@@ -2148,6 +2243,9 @@ class HP1 {
       } else if (initialization_type_ == INITIALIZATION_TYPE::USHAPE_TEST) {
         std::cout << "Initializing chromosomes as a U-shaped test" << std::endl;
         initialize_chromosome_positions_ushape_test();
+      } else if (initialization_type_ == INITIALIZATION_TYPE::HILBERT_LATTICE) {
+        std::cout << "Initializing chromosomes in a hilbert lattice" << std::endl;
+        initialize_chromosome_positions_hilbert_lattice();
       } else {
         MUNDY_THROW_REQUIRE(false, std::invalid_argument,
                             fmt::format("Unknown initialization type: {}", initialization_type_));
@@ -3935,7 +4033,8 @@ class HP1 {
 #pragma omp atomic
                   hydro_velocity_change_norm += dx * dx + dy * dy + dz * dz;
                 });
-            size_t len_v = num_chromosomes_ * num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);  
+            size_t len_v = num_chromosomes_ * num_chromatin_repeats_ *
+                           (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);
             hydro_velocity_change_norm = std::sqrt(hydro_velocity_change_norm / len_v);
             std::cout << "||v_new - v_old||_2 / sqrt(len(v_old)): " << hydro_velocity_change_norm << std::endl;
           }
