@@ -33,3 +33,4 @@ tribits_copy_files_to_binary_dir(
         bee_hive.ply
         EXEDEPS PerfTestDeclareEntities
     )
+

@@ -1924,7 +1924,7 @@ void run(int argc, char **argv) {
   auto &h_spheres_part = meta_data.declare_part_with_topology("HETEROCHROMATIN_SPHERES", particle_top);
   meta_data.declare_part_subset(spheres_part, e_spheres_part);
   meta_data.declare_part_subset(spheres_part, h_spheres_part);
-  stk::io::put_io_part_attribute(spheres_part);
+  // stk::io::put_io_part_attribute(spheres_part);  // This is an asstempy part. Do not write to exodus.
   stk::io::put_io_part_attribute(e_spheres_part);
   stk::io::put_io_part_attribute(h_spheres_part);
 
@@ -1935,7 +1935,7 @@ void run(int argc, char **argv) {
   meta_data.declare_part_subset(hp1_part, left_hp1_part);
   meta_data.declare_part_subset(hp1_part, doubly_hp1_h_part);
   meta_data.declare_part_subset(hp1_part, doubly_hp1_bs_part);
-  stk::io::put_io_part_attribute(hp1_part);
+  // stk::io::put_io_part_attribute(hp1_part);    // This is an asstempy part. Do not write to exodus.
   stk::io::put_io_part_attribute(left_hp1_part);
   stk::io::put_io_part_attribute(doubly_hp1_h_part);
   stk::io::put_io_part_attribute(doubly_hp1_bs_part);
@@ -1950,7 +1950,7 @@ void run(int argc, char **argv) {
   meta_data.declare_part_subset(backbone_segs_part, ee_segs_part);
   meta_data.declare_part_subset(backbone_segs_part, eh_segs_part);
   meta_data.declare_part_subset(backbone_segs_part, hh_segs_part);
-  stk::io::put_io_part_attribute(backbone_segs_part);
+  // stk::io::put_io_part_attribute(backbone_segs_part);    // This is an asstempy part. Do not write to exodus.
   stk::io::put_io_part_attribute(ee_segs_part);
   stk::io::put_io_part_attribute(eh_segs_part);
   stk::io::put_io_part_attribute(hh_segs_part);
@@ -2259,6 +2259,7 @@ void run(int argc, char **argv) {
                   .add_part(&backbone_segs_part)    //
                   .nodes({node_count, node_count + 1})
                   .add_field_data<unsigned>(&elem_rng_field, {0});
+              element_count++;
 
               if (sim_params.get<bool>("enable_backbone_springs")) {
                 segment
@@ -2288,7 +2289,6 @@ void run(int argc, char **argv) {
                 segment.add_part(&eh_segs_part);
               }
 
-              element_count++;
             }
 
             // Declare the heterochromatin sphere
@@ -2325,8 +2325,8 @@ void run(int argc, char **argv) {
                   .topology(stk::topology::BEAM_2)      //
                   .add_part(&backbone_segs_part)        //
                   .nodes({node_count, node_count + 1})  //
-                  .add_field_data<unsigned>(&elem_rng_field, {0})
-                  .add_field_data<double>(&node_force_field, {0.0, 0.0, 0.0});
+                  .add_field_data<unsigned>(&elem_rng_field, {0});
+              element_count++;
 
               if (sim_params.get<bool>("enable_backbone_springs")) {
                 segment
@@ -2355,7 +2355,6 @@ void run(int argc, char **argv) {
               } else {
                 segment.add_part(&eh_segs_part);
               }
-              element_count++;
             }
 
             // Declare the euchromatin sphere
@@ -2382,7 +2381,7 @@ void run(int argc, char **argv) {
 
     // Write the mesh to file
     size_t step = 1;  // Step = 0 doesn't write out fields...
-    stk::io::write_mesh_with_fields("neuron.exo", bulk_data, step);
+    stk::io::write_mesh_with_fields("ngp_hp1.exo", bulk_data, step);
   }
 
   // // Post-setup but pre-run

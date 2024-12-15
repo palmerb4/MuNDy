@@ -3781,7 +3781,6 @@ class HP1 {
     const stk::mesh::Selector chromatin_spheres_selector = *e_part_ptr_ | *h_part_ptr_;
     stk::mesh::Field<unsigned> &node_rng_field = *node_rng_field_ptr_;
     stk::mesh::Field<double> &node_velocity_field = *node_velocity_field_ptr_;
-    stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
     double &timestep_size = timestep_size_;
     double &kt = brownian_kt_;
     double sphere_drag_coeff = 6.0 * M_PI * viscosity_ * backbone_sphere_hydrodynamic_radius_;
@@ -3790,7 +3789,7 @@ class HP1 {
     // Compute the total velocity of the nonorientable spheres
     mundy::mesh::for_each_entity_run(
         *bulk_data_ptr_, stk::topology::NODE_RANK, chromatin_spheres_selector,
-        [&node_velocity_field, &node_force_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
+        [&node_velocity_field, &node_rng_field, &timestep_size, &sphere_drag_coeff, &inv_drag_coeff,
          &kt](const stk::mesh::BulkData &bulk_data, const stk::mesh::Entity &sphere_node) {
           // Get the specific values for each sphere
           double *node_velocity = stk::mesh::field_data(node_velocity_field, sphere_node);
@@ -4033,8 +4032,8 @@ class HP1 {
 #pragma omp atomic
                   hydro_velocity_change_norm += dx * dx + dy * dy + dz * dz;
                 });
-            size_t len_v = num_chromosomes_ * num_chromatin_repeats_ *
-                           (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);
+
+            size_t len_v = 3 * num_chromosomes_ * num_chromatin_repeats_ * (num_euchromatin_per_repeat_ + num_heterochromatin_per_repeat_);  
             hydro_velocity_change_norm = std::sqrt(hydro_velocity_change_norm / len_v);
             std::cout << "||v_new - v_old||_2 / sqrt(len(v_old)): " << hydro_velocity_change_norm << std::endl;
           }
@@ -4051,6 +4050,8 @@ class HP1 {
               node_velocity[1] += node_velocity_hydro[1];
               node_velocity[2] += node_velocity_hydro[2];
             });
+      } else {
+        compute_dry_velocity();
       }
 
       // Logging, if desired, write to console
