@@ -103,6 +103,7 @@ create_hilbert_positions_and_directors(size_t num_points,
   std::vector<mundy::math::Vector3<double>> position_array(num_side_points * num_side_points * num_side_points);
   mundy::math::Vector3<double> current_position(0.0, 0.0, 0.0);
   // Create a orthogonal right handed coordinate system for the cell vectors
+  // TODO(palmerb4): This is not valid for all orientations :(
   mundy::math::Vector3<double> zhat(0.0, 0.0, 1.0);
   mundy::math::Vector3<double> dr1_hat = orientation;
   dr1_hat = dr1_hat / two_norm(dr1_hat);

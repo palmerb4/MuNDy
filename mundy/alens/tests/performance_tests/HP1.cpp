@@ -2068,77 +2068,87 @@ class HP1 {
     }
   }
 
-  // Initialize the chromosomes (hilbert curves) on a lattice)
   void initialize_chromosome_positions_hilbert_lattice() {
-    // We need to get which chromosome this rank is responsible for initializing, luckily, should follow what was done
-    // for the creation step. Do this inside a modification loop so we can go by node index, rather than ID.
+    // Initialize the chromosomes (hilbert curves) on a lattice inscribed within the collision periphery.
+    // If no periphery is specified, the lattice will be inscribed within the unit cell.
+    //
+    // If the periphery is a sphere, then the lattice can have a side length of 2 * r_sphere * sqrt(3) / 3.
+    // The same is true for the ellipsoid but with r_sphere replaced by the smallest axis radius of the ellipsoid.
+    //
+    // Each chromosome is initialized as a hilbert curve with a random orientation and segment length initial_chromosome_separation_.
+    // All chromosomes are considered to have the same number of nodes.
+
     if (bulk_data_ptr_->parallel_rank() == 0) {
+
+      const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
+                                                  num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
+      const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
+      const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
+
+      // Because all chromosomes are the same, we can create a single hilbert curve and then place it in the lattice
+      // for each chromosome.
+      const mundy::math::Vector3<double> x_hat(1.0, 0.0, 0.0);
+      auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
+          num_nodes_per_chromosome, x_hat, initial_chromosome_separation_);
+
+      // Determine the center and bounding radius of the hilbert curve
+      mundy::math::Vector3<double> hilbert_center(0.0, 0.0, 0.0);
+      for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
+        hilbert_center += hilbert_position_array[i];
+      }
+      hilbert_center /= static_cast<double>(num_nodes_per_chromosome);
+      double hilbert_bounding_radius = 0.0;
+      for (size_t i = 0; i < num_nodes_per_chromosome; i++) {
+        hilbert_bounding_radius = std::max(hilbert_bounding_radius, mundy::math::two_norm(hilbert_center - hilbert_position_array[i]));
+      }
+      std::cout << "Hilbert curve center: " << hilbert_center << " bounding radius: " << hilbert_bounding_radius << std::endl;
+
+      // Assert that the periphery is large enough to fit the lattice.
+      double max_lattice_side_length;
+      if (enable_periphery_collision_) {
+        if (periphery_collision_shape_ == PERIPHERY_SHAPE::SPHERE) {
+          max_lattice_side_length = 2.0 * periphery_collision_radius_ * std::sqrt(3.0) / 3.0;
+        } else if (periphery_collision_shape_ == PERIPHERY_SHAPE::ELLIPSOID) {
+          const double min_axis_radius = std::min({periphery_collision_axis_radius1_, periphery_collision_axis_radius2_, periphery_collision_axis_radius3_});
+          max_lattice_side_length = 2.0 * min_axis_radius * std::sqrt(3.0) / 3.0;
+        } else {
+          MUNDY_THROW_REQUIRE(false, std::invalid_argument, "Invalid periphery shape.");
+        }
+      } else {
+        max_lattice_side_length = std::min({unit_cell_size_[0], unit_cell_size_[1], unit_cell_size_[2]});
+      }
+      
+      const size_t num_chromosomes_per_side = static_cast<size_t>(std::ceil(std::pow(num_chromosomes_, 1.0 / 3.0)));
+      const double lattice_spacing = max_lattice_side_length / num_chromosomes_per_side;
+      MUNDY_THROW_REQUIRE(max_lattice_side_length >= num_chromosomes_per_side * hilbert_bounding_radius, std::invalid_argument,
+                         fmt::format("The lattice side length is too small to fit the chromosomes. The lattice side length is {} and the bounding radius is {}.",
+                                      max_lattice_side_length, num_chromosomes_per_side * hilbert_bounding_radius));
+
       std::vector<mundy::math::Vector3<double>> chromosome_centers_array;
       std::vector<double> chromosome_radii_array;
       for (size_t ichromosome = 0; ichromosome < num_chromosomes_; ichromosome++) {
         // Figure out which nodes we are doing
-        const size_t num_heterochromatin_spheres = num_chromatin_repeats_ / 2 * num_heterochromatin_per_repeat_ +
-                                                   num_chromatin_repeats_ % 2 * num_heterochromatin_per_repeat_;
-        const size_t num_euchromatin_spheres = num_chromatin_repeats_ / 2 * num_euchromatin_per_repeat_;
-        const size_t num_nodes_per_chromosome = num_heterochromatin_spheres + num_euchromatin_spheres;
         size_t start_node_index = num_nodes_per_chromosome * ichromosome + 1u;
         size_t end_node_index = num_nodes_per_chromosome * (ichromosome + 1) + 1u;
 
-        // Generate a random unit vector (will be used for creating the locatino of the nodes, the random position in
-        // the unit cell will be handled later).
+        // Get the lattice position of this chromosome
+        const size_t ix = ichromosome % num_chromosomes_per_side;
+        const size_t iy = (ichromosome / num_chromosomes_per_side) % num_chromosomes_per_side;
+        const size_t iz = ichromosome / (num_chromosomes_per_side * num_chromosomes_per_side);
+        const mundy::math::Vector3<double> center = mundy::math::Vector3<double>(
+            (ix + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length,
+            (iy + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length,
+            (iz + 0.5) * lattice_spacing - 0.5 * max_lattice_side_length);
+
+        // Generate a random orientation for the chromosome
         openrand::Philox rng(ichromosome, 0);
         const double zrand = rng.rand<double>() - 1.0;
         const double wrand = std::sqrt(1.0 - zrand * zrand);
         const double trand = 2.0 * M_PI * rng.rand<double>();
         mundy::math::Vector3<double> u_hat(wrand * std::cos(trand), wrand * std::sin(trand), zrand);
+        mundy::math::Quaternion<double> quat = mundy::math::quat_from_parallel_transport(x_hat, u_hat);
 
-        // Once we have the number of chromosome spheres we can get the hilbert curve set up. This will be at some
-        // orientation and then have sides with a length of initial_chromosome_separation.
-        auto [hilbert_position_array, hilbert_directors] = mundy::math::create_hilbert_positions_and_directors(
-            num_nodes_per_chromosome, u_hat, initial_chromosome_separation_);
-
-        // Create the local positions of the spheres
-        std::vector<mundy::math::Vector3<double>> sphere_position_array;
-        for (size_t isphere = 0; isphere < num_nodes_per_chromosome; isphere++) {
-          sphere_position_array.push_back(hilbert_position_array[isphere]);
-        }
-
-        // Figure out where the center of the chromosome is, and its radius, in its own local space
-        mundy::math::Vector3<double> r_chromosome_center_local(0.0, 0.0, 0.0);
-        double r_max = 0.0;
-        for (size_t i = 0; i < sphere_position_array.size(); i++) {
-          r_chromosome_center_local += sphere_position_array[i];
-        }
-        r_chromosome_center_local /= static_cast<double>(sphere_position_array.size());
-        for (size_t i = 0; i < sphere_position_array.size(); i++) {
-          r_max = std::max(r_max, mundy::math::two_norm(r_chromosome_center_local - sphere_position_array[i]));
-        }
-
-        // Get the lattice position of this chromosome
-        const size_t num_chromosomes_per_side = static_cast<size_t>(std::ceil(std::pow(num_chromosomes_, 1.0 / 3.0)));
-        const size_t ix = ichromosome % num_chromosomes_per_side;
-        const size_t iy = (ichromosome / num_chromosomes_per_side) % num_chromosomes_per_side;
-        const size_t iz = ichromosome / (num_chromosomes_per_side * num_chromosomes_per_side);
-        // Place the chromosomes in the bounding sphere defined by the unit cell, with the center of the bounding
-        // sphere at the origin, rather than the lattice vector (the lattice vectors think the bottom/left of the
-        // cube is 0,0, but we want the center to be at the origin)
-        const double x = (ix + 0.5) * unit_cell_size_[0] / num_chromosomes_per_side - 0.5 * unit_cell_size_[0];
-        const double y = (iy + 0.5) * unit_cell_size_[1] / num_chromosomes_per_side - 0.5 * unit_cell_size_[1];
-        const double z = (iz + 0.5) * unit_cell_size_[2] / num_chromosomes_per_side - 0.5 * unit_cell_size_[2];
-
-        // Add this position to the global chromosome position array
-        chromosome_centers_array.push_back(mundy::math::Vector3<double>(x, y, z));
-
-        // Write the coordinates to the screen to double check...
-        std::cout << "Chromosome " << ichromosome << " at (" << x << " " << y << " " << z << "), and radius " << r_max
-                  << std::endl;
-
-        // Generate all the positions along the curve due to the placement in the global space
-        std::vector<mundy::math::Vector3<double>> new_position_array;
-        for (size_t i = 0; i < sphere_position_array.size(); i++) {
-          new_position_array.push_back(chromosome_centers_array.back() + r_chromosome_center_local -
-                                       sphere_position_array[i]);
-        }
+        std::cout << "Chromosome " << ichromosome << " center: " << center << " orientation: " << quat << " radius: " << hilbert_bounding_radius << std::endl;
 
         // Update the coordinates for this chromosome
         for (size_t i = start_node_index, idx = 0; i < end_node_index; ++i, ++idx) {
@@ -2147,9 +2157,10 @@ class HP1 {
                              fmt::format("Node {} is not valid", i));
 
           // Assign the node coordinates
-          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = new_position_array[idx][0];
-          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = new_position_array[idx][1];
-          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = new_position_array[idx][2];
+          auto pos = quat * (hilbert_position_array[idx] - hilbert_center) + center;
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[0] = pos[0];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[1] = pos[1];
+          stk::mesh::field_data(*node_coord_field_ptr_, node)[2] = pos[2];
         }
       }
     }
@@ -2502,29 +2513,48 @@ class HP1 {
 
     compute_aabb_ptr_->execute(backbone_segments_selector | hp1_selector | h_selector | bs_selector);
     if (enable_backbone_collision_ || enable_crosslinkers_ || enable_periphery_binding_) {
+      std::cout << "Destroying neighbor linkers" << std::endl;
       destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
                                              hp1_bs_neighbor_genx_selector);
+      std::cout << "Done destroying neighbor linkers" << std::endl;
     }
+
+    bool reghost = false;
 
     // Generate the GENX neighbor linkers
     if (enable_backbone_collision_) {
+      std::cout << "Generating SCS-SCS linkers" << std::endl;
       generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
-      ghost_linked_entities();
+      reghost = true;
+      std::cout << "Done generating SCS-SCS linkers" << std::endl;
     }
     if (enable_crosslinkers_) {
+      std::cout << "Generating HP1-H linkers" << std::endl;
       generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
-      ghost_linked_entities();
+      reghost = true;
+      std::cout << "Done generating HP1-H linkers" << std::endl;
     }
     if (enable_periphery_binding_) {
+      std::cout << "Generating HP1-BS linkers" << std::endl;
       generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
-      ghost_linked_entities();
+      reghost = true;
+      std::cout << "Done generating HP1-BS linkers" << std::endl;
     }
 
     // Destroy linkers along backbone chains
     if (enable_backbone_collision_) {
+      std::cout << "Destroying bound neighbor linkers" << std::endl;
       destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
-      ghost_linked_entities();
+      reghost = true;
+      std::cout << "Done destroying bound neighbor linkers" << std::endl;
     }
+
+    if (reghost) {
+      std::cout << "Ghosting linked entities" << std::endl;
+      ghost_linked_entities();
+      std::cout << "Done ghosting linked entities" << std::endl;
+    }
+
     Kokkos::Profiling::popRegion();
   }
 
