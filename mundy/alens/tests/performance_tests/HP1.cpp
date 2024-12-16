@@ -2592,31 +2592,50 @@ class HP1 {
       // Reset the accumulators
       zero_out_accumulator_fields();
 
+      bool reghost = false;
+
+
       // Update the neighbor list
       if (enable_backbone_collision_ || enable_crosslinkers_ || enable_periphery_binding_) {
+        std::cout << "Destroying neighbor linkers" << std::endl;
         destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
                                                hp1_bs_neighbor_genx_selector);
-        ghost_linked_entities();
+        reghost = true;
+        std::cout << "Done destroying neighbor linkers" << std::endl;
       }
 
       // Generate the GENX neighbor linkers
       if (enable_backbone_collision_) {
+        std::cout << "Generating SCS-SCS linkers" << std::endl;
         generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
-        ghost_linked_entities();
+        reghost = true;
+        std::cout << "Done generating SCS-SCS linkers" << std::endl;
       }
       if (enable_crosslinkers_) {
+        std::cout << "Generating HP1-H linkers" << std::endl;
         generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
-        ghost_linked_entities();
+        reghost = true;
+        std::cout << "Done generating HP1-H linkers" << std::endl;
       }
       if (enable_periphery_binding_) {
+        std::cout << "Generating HP1-BS linkers" << std::endl;
         generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
-        ghost_linked_entities();
+        reghost = true;
+        std::cout << "Done generating HP1-BS linkers" << std::endl;
       }
 
       // Destroy linkers along backbone chains
       if (enable_backbone_collision_) {
+        std::cout << "Destroying bound neighbor linkers" << std::endl;
         destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
+        reghost = true;
+        std::cout << "Done destroying bound neighbor linkers" << std::endl;
+      }
+
+      if (reghost) {
+        std::cout << "Ghosting linked entities" << std::endl;
         ghost_linked_entities();
+        std::cout << "Done ghosting linked entities" << std::endl;
       }
     }
 
