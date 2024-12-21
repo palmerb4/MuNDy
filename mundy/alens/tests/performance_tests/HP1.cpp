@@ -1034,7 +1034,7 @@ class HP1 {
                  mundy::core::make_string_array(
                      "ELEMENT_RADIUS", "ELEMENT_RNG_COUNTER", "ELEMENT_REALIZED_BINDING_RATES",
                      "ELEMENT_REALIZED_UNBINDING_RATES", "ELEMENT_PERFORM_STATE_CHANGE", "EUCHROMATIN_STATE",
-                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", "ELEMENT_CHAINID"))
+                     "EUCHROMATIN_STATE_CHANGE_NEXT_TIME", "EUCHROMATIN_STATE_CHANGE_ELAPSED_TIME", "ELEMENT_CHAINID", "REQUIRES_ENDPOINT_CORRECTION"))
             .set("coordinate_field_name", "NODE_COORDS")
             .set("transient_coordinate_field_name", "TRANSIENT_NODE_COORDINATES")
             .set("exodus_database_output_filename", output_filename_)
@@ -1146,17 +1146,11 @@ class HP1 {
     custom_backbone_segments_part_reqs->set_part_name("BACKBONE_SEGMENTS")
         .set_part_topology(stk::topology::BEAM_2)
         .add_field_reqs<unsigned>("ELEMENT_CHAINID", element_rank_, 1, 1)
+        .add_field_reqs<double>("REQUIRES_ENDPOINT_CORRECTION", element_rank_, 1, 1)
         .add_subpart_reqs("EESPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("EHSPRINGS", stk::topology::BEAM_2)
         .add_subpart_reqs("HHSPRINGS", stk::topology::BEAM_2);
     mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segments_part_reqs);
-
-    // Create a special part for the endpoints of the chains.
-    // These endpoints require a correction force to prevent their segments from contracting to zero length
-    auto custom_backbone_segment_endpoints_part_reqs = std::make_shared<mundy::meta::PartReqs>();
-    custom_backbone_segment_endpoints_part_reqs->set_part_name("BACKBONE_SEGMENT_ENDPOINTS")
-        .set_part_topology(stk::topology::BEAM_2);
-    mesh_reqs_ptr_->add_and_sync_part_reqs(custom_backbone_segment_endpoints_part_reqs);
 
     // Create the force-dipole information on just the EESPRINGS (euchromatin springs), in active and inactive states
     auto custom_euchromatin_part_reqs = std::make_shared<mundy::meta::PartReqs>();
@@ -1393,6 +1387,7 @@ class HP1 {
     element_unbinding_rates_field_ptr_ = fetch_field<double>("ELEMENT_REALIZED_UNBINDING_RATES", element_rank_);
     element_perform_state_change_field_ptr_ = fetch_field<unsigned>("ELEMENT_PERFORM_STATE_CHANGE", element_rank_);
     element_chainid_field_ptr_ = fetch_field<unsigned>("ELEMENT_CHAINID", element_rank_);
+    element_requires_endpoint_correction_field_ptr_ = fetch_field<double>("REQUIRES_ENDPOINT_CORRECTION", element_rank_);
 
     euchromatin_state_field_ptr_ = fetch_field<unsigned>("EUCHROMATIN_STATE", element_rank_);
     euchromatin_perform_state_change_field_ptr_ =
@@ -1426,7 +1421,6 @@ class HP1 {
     ee_springs_part_ptr_ = fetch_part("EESPRINGS");
     eh_springs_part_ptr_ = fetch_part("EHSPRINGS");
     hh_springs_part_ptr_ = fetch_part("HHSPRINGS");
-    backbone_segment_endpoints_part_ptr_ = fetch_part("BACKBONE_SEGMENT_ENDPOINTS");
 
     backbone_backbone_neighbor_genx_part_ptr_ = fetch_part("BACKBONE_BACKBONE_NEIGHBOR_GENXS");
     hp1_h_neighbor_genx_part_ptr_ = fetch_part("HP1_H_NEIGHBOR_GENXS");
@@ -1665,14 +1659,14 @@ class HP1 {
                   pvector.push_back(hh_springs_part_ptr_);
                 }
               }
-              if (is_first_or_last_element_in_chain(segment_local_idx)) {
-                pvector.push_back(backbone_segment_endpoints_part_ptr_);
-              }
               segment = bulk_data_ptr_->declare_element(get_segment_id(segment_local_idx), pvector);
               bulk_data_ptr_->declare_relation(segment, left_node, 0);
               bulk_data_ptr_->declare_relation(segment, right_node, 1);
               // Assign the chainID
               stk::mesh::field_data(*element_chainid_field_ptr_, segment)[0] = j;
+              
+              // Assign if the segment is an endpoint or not
+              stk::mesh::field_data(*element_requires_endpoint_correction_field_ptr_, segment)[0] = is_first_or_last_element_in_chain(segment_local_idx);
             }
           }
         }
@@ -2523,36 +2517,26 @@ class HP1 {
 
     // Generate the GENX neighbor linkers
     if (enable_backbone_collision_) {
-      std::cout << "Generating SCS-SCS linkers" << std::endl;
       generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
       reghost = true;
-      std::cout << "Done generating SCS-SCS linkers" << std::endl;
     }
     if (enable_crosslinkers_) {
-      std::cout << "Generating HP1-H linkers" << std::endl;
       generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
       reghost = true;
-      std::cout << "Done generating HP1-H linkers" << std::endl;
     }
     if (enable_periphery_binding_) {
-      std::cout << "Generating HP1-BS linkers" << std::endl;
       generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
       reghost = true;
-      std::cout << "Done generating HP1-BS linkers" << std::endl;
     }
 
     // Destroy linkers along backbone chains
     if (enable_backbone_collision_) {
-      std::cout << "Destroying bound neighbor linkers" << std::endl;
       destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
       reghost = true;
-      std::cout << "Done destroying bound neighbor linkers" << std::endl;
     }
 
     if (reghost) {
-      std::cout << "Ghosting linked entities" << std::endl;
       ghost_linked_entities();
-      std::cout << "Done ghosting linked entities" << std::endl;
     }
 
     Kokkos::Profiling::popRegion();
@@ -2597,45 +2581,33 @@ class HP1 {
 
       // Update the neighbor list
       if (enable_backbone_collision_ || enable_crosslinkers_ || enable_periphery_binding_) {
-        std::cout << "Destroying neighbor linkers" << std::endl;
         destroy_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector | hp1_h_neighbor_genx_selector |
                                                hp1_bs_neighbor_genx_selector);
         reghost = true;
-        std::cout << "Done destroying neighbor linkers" << std::endl;
       }
 
       // Generate the GENX neighbor linkers
       if (enable_backbone_collision_) {
-        std::cout << "Generating SCS-SCS linkers" << std::endl;
         generate_scs_scs_genx_ptr_->execute(backbone_segments_selector, backbone_segments_selector);
         reghost = true;
-        std::cout << "Done generating SCS-SCS linkers" << std::endl;
       }
       if (enable_crosslinkers_) {
-        std::cout << "Generating HP1-H linkers" << std::endl;
         generate_hp1_h_genx_ptr_->execute(hp1_selector, h_selector);
         reghost = true;
-        std::cout << "Done generating HP1-H linkers" << std::endl;
       }
       if (enable_periphery_binding_) {
-        std::cout << "Generating HP1-BS linkers" << std::endl;
         generate_hp1_bs_genx_ptr_->execute(hp1_selector, bs_selector);
         reghost = true;
-        std::cout << "Done generating HP1-BS linkers" << std::endl;
       }
 
       // Destroy linkers along backbone chains
       if (enable_backbone_collision_) {
-        std::cout << "Destroying bound neighbor linkers" << std::endl;
         destroy_bound_neighbor_linkers_ptr_->execute(backbone_backbone_neighbor_genx_selector);
         reghost = true;
-        std::cout << "Done destroying bound neighbor linkers" << std::endl;
       }
 
       if (reghost) {
-        std::cout << "Ghosting linked entities" << std::endl;
         ghost_linked_entities();
-        std::cout << "Done ghosting linked entities" << std::endl;
       }
     }
 
@@ -3388,8 +3360,10 @@ class HP1 {
     }
 
     // Apply the RPY kernel from spheres to spheres
-    mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
-                                              sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+    // mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+    //                                           sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+    mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, sphere_positions,
+                                                 sphere_forces, sphere_velocities);
 
     // If enabled, apply the correction for the no-slip boundary condition
     if (enable_periphery_hydrodynamics_) {
@@ -3405,8 +3379,10 @@ class HP1 {
       Kokkos::deep_copy(surface_radii, 0.0);
 
       // Apply the RPY kernel from spheres to periphery
-      mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
-                                                sphere_radii, surface_radii, sphere_forces, surface_velocities);
+      // mundy::alens::periphery::apply_rpy_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+      //                                           sphere_radii, surface_radii, sphere_forces, surface_velocities);
+      mundy::alens::periphery::apply_stokes_kernel(DeviceExecutionSpace(), viscosity, sphere_positions, surface_positions,
+                                                   sphere_forces, surface_velocities);
 
       // Apply no-slip boundary conditions
       // This is done in two steps: first, we compute the forces on the periphery necessary to enforce no-slip
@@ -3751,14 +3727,16 @@ class HP1 {
          backbone_youngs_modulus - backbone_youngs_modulus * backbone_poissons_ratio * backbone_poissons_ratio);
     stk::mesh::Field<double> &node_force_field = *node_force_field_ptr_;
     stk::mesh::Field<double> &node_coord_field = *node_coord_field_ptr_;
+    stk::mesh::Field<double> &element_requires_endpoint_correction_field = *element_requires_endpoint_correction_field_ptr_;
 
     mundy::mesh::for_each_entity_run(
-        *bulk_data_ptr_, stk::topology::ELEM_RANK, *backbone_segment_endpoints_part_ptr_,
+        *bulk_data_ptr_, stk::topology::ELEM_RANK, backbone_selector,
         [&backbone_excluded_volume_radius, &effective_radius, &effective_youngs_modulus, &node_coord_field,
-         &node_force_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
-                            const stk::mesh::Entity &endpoint_seg) {
+         &node_force_field, &element_requires_endpoint_correction_field]([[maybe_unused]] const stk::mesh::BulkData &bulk_data,
+                            const stk::mesh::Entity &seg) {
+          if (static_cast<bool>(stk::mesh::field_data(element_requires_endpoint_correction_field, seg)[0])) {
           // Get the segment length and tangent
-          const stk::mesh::Entity *nodes = bulk_data.begin_nodes(endpoint_seg);
+          const stk::mesh::Entity *nodes = bulk_data.begin_nodes(seg);
           const stk::mesh::Entity &node1 = nodes[0];
           const stk::mesh::Entity &node2 = nodes[1];
           const double *node1_coords = stk::mesh::field_data(node_coord_field, node1);
@@ -3796,6 +3774,7 @@ class HP1 {
           node2_force[1] += normal_force_magnitude * segment_tangent[1];
 #pragma omp atomic
           node2_force[2] += normal_force_magnitude * segment_tangent[2];
+          }
         });
 
     Kokkos::Profiling::popRegion();
@@ -4219,6 +4198,7 @@ class HP1 {
   stk::mesh::Field<double> *element_unbinding_rates_field_ptr_;
   stk::mesh::Field<unsigned> *element_perform_state_change_field_ptr_;
   stk::mesh::Field<unsigned> *element_chainid_field_ptr_;
+  stk::mesh::Field<double> *element_requires_endpoint_correction_field_ptr_;
 
   stk::mesh::Field<unsigned> *euchromatin_state_field_ptr_;
   stk::mesh::Field<unsigned> *euchromatin_perform_state_change_field_ptr_;
@@ -4246,7 +4226,6 @@ class HP1 {
   stk::mesh::Part *doubly_hp1_bs_part_ptr_ = nullptr;
 
   stk::mesh::Part *backbone_segments_part_ptr_ = nullptr;
-  stk::mesh::Part *backbone_segment_endpoints_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_active_part_ptr_ = nullptr;
   stk::mesh::Part *ee_springs_inactive_part_ptr_ = nullptr;

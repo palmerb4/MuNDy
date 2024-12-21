@@ -155,10 +155,23 @@ void gen_sphere_quadrature(const int &order, const double &radius, std::vector<d
 /// \param space The execution space
 /// \param[in & out] matrix The matrix to invert. On exit, the matrix is replaced with its LU decomposition
 /// \param[out] M_inv The inverse of the matrix.
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void invert_matrix([[maybe_unused]] const ExecutionSpace &space,
-                   const Kokkos::View<double **, Layout, MemorySpace> &matrix,
-                   const Kokkos::View<double **, Layout, MemorySpace> &matrix_inv) {
+template <class ExecutionSpace, typename MatrixType1, typename MatrixType2>
+void invert_matrix([[maybe_unused]] const ExecutionSpace &space, const MatrixType1 &matrix,
+                   const MatrixType2 &matrix_inv) {
+  static_assert(
+      Kokkos::is_view<MatrixType1>::value && Kokkos::is_view<MatrixType2>::value,
+      "The matrices must be a Kokkos::View");
+  static_assert(std::is_same_v<typename MatrixType1::value_type, double> &&
+                                                               std::is_same_v<typename MatrixType2::value_type, double>,
+                                                           "invert_matrix: The view must have 'double' as its value "
+                                                           "type");
+  static_assert(MatrixType1::rank == 2 && MatrixType2::rank == 2,
+                "invert_matrix: The view must have rank 2 (i.e., double**)");
+  static_assert(std::is_same_v<typename MatrixType1::memory_space, typename MatrixType2::memory_space>,
+                "invert_matrix: The matrices must have the same memory space");
+  static_assert(std::is_same_v<typename MatrixType1::array_layout, typename MatrixType2::array_layout>,
+                "invert_matrix: The matrices must have the same layout");
+
   // Check the input sizes
   const size_t matrix_size = matrix.extent(0);
   MUNDY_THROW_ASSERT(matrix.extent(1) == matrix_size, std::invalid_argument, "invert_matrix: matrix must be square.");
@@ -166,7 +179,7 @@ void invert_matrix([[maybe_unused]] const ExecutionSpace &space,
                      std::invalid_argument, "invert_matrix: matrix_inv must be the same size as the matrix to invert.");
 
   // Create a view to store the pivots
-  Kokkos::View<int *, Layout, MemorySpace> pivots("pivots", matrix_size);
+  Kokkos::View<int *, typename MatrixType1::array_layout, typename MatrixType1::memory_space> pivots("pivots", matrix_size);
 
   // Fill matrix_inv with the identity matrix
   Kokkos::deep_copy(matrix_inv, 0.0);
@@ -183,9 +196,13 @@ void invert_matrix([[maybe_unused]] const ExecutionSpace &space,
 ///
 /// \param[in] filename The filename
 /// \param[in] matrix_host The matrix to write (host)
-template <typename MatrixDataType, class Layout>
-void write_matrix_to_file(const std::string &filename,
-                          const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
+template <typename MatrixType>
+void write_matrix_to_file(const std::string &filename, const MatrixType &matrix_host) {
+  static_assert(Kokkos::is_view<MatrixType>::value, "The matrix must be a Kokkos::View");
+  static_assert(MatrixType::rank == 2, "write_matrix_to_file: The view must have rank 2 (i.e., double**)");
+  static_assert(std::is_same_v<typename MatrixType::memory_space, Kokkos::HostSpace>,
+                "write_matrix_to_file: The matrix must be in host memory");
+
   // Perform the write
   std::ofstream outfile(filename);
   if (!outfile) {
@@ -201,8 +218,9 @@ void write_matrix_to_file(const std::string &filename,
   outfile << num_columns << std::endl;
 
   // Write matrix data with appropriate precision
-  if constexpr (std::is_floating_point_v<MatrixDataType>) {
-    outfile << std::fixed << std::setprecision(std::numeric_limits<MatrixDataType>::digits10 + 1);
+  using ValueType = typename MatrixType::value_type;
+  if constexpr (std::is_floating_point_v<ValueType>) {
+    outfile << std::fixed << std::setprecision(std::numeric_limits<ValueType>::digits10 + 1);
   }
   for (size_t i = 0; i < num_rows; ++i) {
     for (size_t j = 0; j < num_columns; ++j) {
@@ -219,10 +237,14 @@ void write_matrix_to_file(const std::string &filename,
 ///
 /// \param[in] filename The filename
 /// \param[out] matrix_host The matrix to read (host)
-template <typename MatrixDataType, class Layout>
+template <typename MatrixType>
 void read_matrix_from_file(const std::string &filename, const size_t expected_num_rows,
-                           const size_t expected_num_columns,
-                           const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
+                           const size_t expected_num_columns, const MatrixType &matrix_host) {
+  static_assert(Kokkos::is_view<MatrixType>::value, "The matrix must be a Kokkos::View");
+  static_assert(MatrixType::rank == 2, "read_matrix_from_file: The view must have rank 2 (i.e., double**)");
+  static_assert(std::is_same_v<typename MatrixType::memory_space, Kokkos::HostSpace>,
+                "read_matrix_from_file: The matrix must be in host memory");
+
   // Read the matrix from a file
   std::ifstream infile(filename);
   if (!infile) {
@@ -260,9 +282,13 @@ void read_matrix_from_file(const std::string &filename, const size_t expected_nu
 ///
 /// \param[in] filename The filename
 /// \param[in] vector_host The vector to write (host)
-template <typename VectorDataType, class Layout>
-void write_vector_to_file(const std::string &filename,
-                          const Kokkos::View<VectorDataType *, Layout, Kokkos::HostSpace> &vector_host) {
+template <typename VectorType>
+void write_vector_to_file(const std::string &filename, const VectorType &vector_host) {
+  static_assert(Kokkos::is_view<VectorType>::value, "The vector must be a Kokkos::View");
+  static_assert(VectorType::rank == 1, "write_vector_to_file: The view must have rank 1 (i.e., double*)");
+  static_assert(std::is_same_v<typename VectorType::memory_space, Kokkos::HostSpace>,
+                "write_vector_to_file: The vector must be in host memory");
+
   // Perform the write
   std::ofstream outfile(filename);
   if (!outfile) {
@@ -276,8 +302,9 @@ void write_vector_to_file(const std::string &filename,
   outfile << num_elements << std::endl;
 
   // Write vector data with appropriate precision
-  if constexpr (std::is_floating_point_v<VectorDataType>) {
-    outfile << std::fixed << std::setprecision(std::numeric_limits<VectorDataType>::digits10 + 1);
+  using ValueType = typename VectorType::value_type;
+  if constexpr (std::is_floating_point_v<ValueType>) {
+    outfile << std::fixed << std::setprecision(std::numeric_limits<ValueType>::digits10 + 1);
   }
 
   for (size_t i = 0; i < num_elements; ++i) {
@@ -292,9 +319,14 @@ void write_vector_to_file(const std::string &filename,
 ///
 /// \param[in] filename The filename
 /// \param[out] vector_host The vector to read (host)
-template <typename VectorDataType, class Layout>
+template <typename VectorType>
 void read_vector_from_file(const std::string &filename, const size_t expected_num_elements,
-                           const Kokkos::View<VectorDataType *, Layout, Kokkos::HostSpace> &vector_host) {
+                           const VectorType &vector_host) {
+  static_assert(Kokkos::is_view<VectorType>::value, "The vector must be a Kokkos::View");
+  static_assert(VectorType::rank == 1, "read_vector_from_file: The view must have rank 1 (i.e., double*)");
+  static_assert(std::is_same_v<typename VectorType::memory_space, Kokkos::HostSpace>,
+                "read_vector_from_file: The vector must be in host memory");
+
   // Read the vector from a file
   std::ifstream infile(filename);
   if (!infile) {
@@ -329,9 +361,9 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 // ///
 // /// \param[in] filename The filename
 // /// \param[in] matrix_host The matrix to write (host)
-// template <typename MatrixDataType, class Layout>
+// template <typename ValueType, class Layout>
 // void write_matrix_to_file(const std::string &filename,
-//                           const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
+//                           const Kokkos::View<ValueType **, Layout, Kokkos::HostSpace> &matrix_host) {
 //   // Perform the write
 //   std::ofstream outfile(filename, std::ios::binary);
 //   if (!outfile) {
@@ -346,7 +378,7 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 //   outfile.write(reinterpret_cast<const char *>(&num_columns), sizeof(size_t));
 //   for (size_t i = 0; i < num_rows; ++i) {
 //     for (size_t j = 0; j < num_columns; ++j) {
-//       outfile.write(reinterpret_cast<const char *>(&matrix_host(i, j)), sizeof(MatrixDataType));
+//       outfile.write(reinterpret_cast<const char *>(&matrix_host(i, j)), sizeof(ValueType));
 //     }
 //   }
 
@@ -358,10 +390,10 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 // ///
 // /// \param[in] filename The filename
 // /// \param[out] matrix_host The matrix to read (host)
-// template <typename MatrixDataType, class Layout>
+// template <typename ValueType, class Layout>
 // void read_matrix_from_file(const std::string &filename, const size_t expected_num_rows,
 //                            const size_t expected_num_columns,
-//                            const Kokkos::View<MatrixDataType **, Layout, Kokkos::HostSpace> &matrix_host) {
+//                            const Kokkos::View<ValueType **, Layout, Kokkos::HostSpace> &matrix_host) {
 //   // Read the matrix from a file
 //   std::ifstream infile(filename, std::ios::binary);
 //   if (!infile) {
@@ -382,7 +414,7 @@ void read_vector_from_file(const std::string &filename, const size_t expected_nu
 //   }
 //   for (size_t i = 0; i < num_rows; ++i) {
 //     for (size_t j = 0; j < num_columns; ++j) {
-//       infile.read(reinterpret_cast<char *>(&matrix_host(i, j)), sizeof(MatrixDataType));
+//       infile.read(reinterpret_cast<char *>(&matrix_host(i, j)), sizeof(ValueType));
 //     }
 //   }
 // }
@@ -543,13 +575,14 @@ struct VelocityKernelTeamFunctor {
   Kokkos::Array<double, panel_size> &local_vz_;
 };
 
-template <int panel_size, class MemorySpace, class Layout>
+template <int panel_size, typename VectorType>
 struct VelocityKernelTeamTeamAccumulator {
   KOKKOS_INLINE_FUNCTION
-  VelocityKernelTeamTeamAccumulator(const Kokkos::View<double *, Layout, MemorySpace> &target_velocities,
-                                    const Kokkos::Array<double, panel_size> &local_vx,
-                                    const Kokkos::Array<double, panel_size> &local_vy,
-                                    const Kokkos::Array<double, panel_size> &local_vz, const int panel_start,
+  VelocityKernelTeamTeamAccumulator(const VectorType &target_velocities,                //
+                                    const Kokkos::Array<double, panel_size> &local_vx,  //
+                                    const Kokkos::Array<double, panel_size> &local_vy,  //
+                                    const Kokkos::Array<double, panel_size> &local_vz,  //
+                                    const int panel_start,                              //
                                     const int panel_end)
       : target_velocities_(target_velocities),
         local_vx_(local_vx),
@@ -568,7 +601,14 @@ struct VelocityKernelTeamTeamAccumulator {
     }
   }
 
-  const Kokkos::View<double *, Layout, MemorySpace> target_velocities_;
+  static_assert(Kokkos::is_view<VectorType>::value,
+                "VelocityKernelTeamTeamAccumulator: target_velocities must be a "
+                "Kokkos::View.");
+  static_assert(VectorType::rank == 1, "VelocityKernelTeamTeamAccumulator: target_velocities must be rank 1.");
+  static_assert(std::is_same_v<typename VectorType::value_type, double>,
+                "VelocityKernelTeamTeamAccumulator: target_velocities must have double as its value type.");
+
+  const VectorType target_velocities_;
   const Kokkos::Array<double, panel_size> &local_vx_;
   const Kokkos::Array<double, panel_size> &local_vy_;
   const Kokkos::Array<double, panel_size> &local_vz_;
@@ -576,11 +616,20 @@ struct VelocityKernelTeamTeamAccumulator {
   const int panel_end_;
 };
 
-template <int panel_size, class ExecutionSpace, class MemorySpace, class Layout, typename Func>
-void panelize_velocity_kernel_over_target_points([[maybe_unused]] const ExecutionSpace &space, int num_target_points,
-                                                 int num_source_points,
-                                                 Kokkos::View<double *, Layout, MemorySpace> target_velocities,
+template <int panel_size, class ExecutionSpace, typename VectorType, typename Func>
+void panelize_velocity_kernel_over_target_points([[maybe_unused]] const ExecutionSpace &space,  //
+                                                 int num_target_points,                         //
+                                                 int num_source_points,                         //
+                                                 const VectorType target_velocities,            //
                                                  const Func &compute_velocity_contribution) {
+  static_assert(Kokkos::is_view<VectorType>::value,
+                "panelize_velocity_kernel_over_target_points: target_velocities must be a "
+                "Kokkos::View.");
+  static_assert(VectorType::rank == 1,
+                "panelize_velocity_kernel_over_target_points: target_velocities must be rank 1.");
+  static_assert(std::is_same_v<typename VectorType::value_type, double>,
+                "panelize_velocity_kernel_over_target_points: target_velocities must have double as its value type.");
+
   int num_panels = (num_target_points + panel_size - 1) / panel_size;
 
   // Define the team policy with the number of panels
@@ -605,8 +654,8 @@ void panelize_velocity_kernel_over_target_points([[maybe_unused]] const Executio
 
         // After processing, update the global output using a single thread per team
         Kokkos::single(Kokkos::PerTeam(team_member),
-                       VelocityKernelTeamTeamAccumulator<panel_size, MemorySpace, Layout>(
-                           target_velocities, local_vx, local_vy, local_vz, panel_start, panel_end));
+                       VelocityKernelTeamTeamAccumulator<panel_size, VectorType>(target_velocities, local_vx, local_vy, local_vz,
+                                                                     panel_start, panel_end));
       });
 }
 
@@ -618,12 +667,31 @@ void panelize_velocity_kernel_over_target_points([[maybe_unused]] const Executio
 /// \param[in] target_positions The positions of the target points (size num_target_points x 3)
 /// \param[in] source_forces The source values (size num_source_points x 3)
 /// \param[out] target_values The target values (size num_target_points x 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                         const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                         const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                         const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
-                         const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceForceVectorType, typename TargetVelocityVectorType>
+void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space,  //
+                         const double viscosity,                        //
+                         const SourcePosVectorType &source_positions,   //
+                         const TargetPosVectorType &target_positions,   //
+                         const SourceForceVectorType &source_forces,    //
+                         const TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<TargetVelocityVectorType>::value,
+                "apply_stokes_kernel: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceForceVectorType::rank == 1 &&
+                    TargetVelocityVectorType::rank == 1,
+                "apply_stokes_kernel: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "apply_stokes_kernel: The input vectors must have 'double' as their value type.");
+  static_assert(
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+                "apply_stokes_kernel: The input vectors must have the same memory space.");
+
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
   MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
@@ -670,13 +738,35 @@ void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, const dou
 /// \param[in] target_positions The positions of the target points (size num_target_points x 3)
 /// \param[in] source_forces The source values (size num_source_points x 3)
 /// \param[out] target_values The target values (size num_target_points x 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                                  const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                                  const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                                  const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
-                                  const Kokkos::View<double *, Layout, MemorySpace> &source_weights,
-                                  const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceForceVectorType, typename SourceWeightVectorType, typename TargetVelocityVectorType>
+void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space,  //
+                                  const double viscosity,                        //
+                                  const SourcePosVectorType &source_positions,   //
+                                  const TargetPosVectorType &target_positions,   //
+                                  const SourceForceVectorType &source_forces,    //
+                                  const SourceWeightVectorType &source_weights,  //
+                                  const TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<SourceWeightVectorType>::value &&
+                    Kokkos::is_view<TargetVelocityVectorType>::value,
+                "apply_stokes_kernel: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceForceVectorType::rank == 1 &&
+                    SourceWeightVectorType::rank == 1 && TargetVelocityVectorType::rank == 1,
+                "apply_stokes_kernel: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "apply_stokes_kernel: The input vectors must have 'double' as their value type.");
+  static_assert(
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceWeightVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+                "apply_stokes_kernel: The input vectors must have the same memory space.");
+
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
   MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
@@ -710,7 +800,7 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     // vx_accum += scale_factor_rinv3 * (r2 * fx + dx * inner_prod);
     // vy_accum += scale_factor_rinv3 * (r2 * fy + dy * inner_prod);
     // vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
-    
+
     const double r2 = dx * dx + dy * dy + dz * dz;
     const double rinv = r2 < DOUBLE_ZERO ? 0.0 : 1.0 / sqrt(r2);
     const double rinv2 = rinv * rinv;
@@ -738,14 +828,40 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
 /// \param[in] target_positions The positions of the target points (size num_target_points x 3)
 /// \param[in] source_forces The source values (size num_source_points x 3)
 /// \param[out] target_values The target values (size num_target_points x 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                      const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                      const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                      const Kokkos::View<double *, Layout, MemorySpace> &source_radii,
-                      const Kokkos::View<double *, Layout, MemorySpace> &target_radii,
-                      const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
-                      const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceRadiusVectorType, typename TargetRadiusVectorType, typename SourceForceVectorType,
+          typename TargetVelocityVectorType>
+void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space,  //
+                      const double viscosity,                        //
+                      const SourcePosVectorType &source_positions,   //
+                      const TargetPosVectorType &target_positions,   //
+                      const SourceRadiusVectorType &source_radii,    //
+                      const TargetRadiusVectorType &target_radii,    //
+                      const SourceForceVectorType &source_forces,    //
+                      const TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceRadiusVectorType>::value && Kokkos::is_view<TargetRadiusVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<TargetVelocityVectorType>::value,
+                "apply_rpy_kernel: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceRadiusVectorType::rank == 1 &&
+                    TargetRadiusVectorType::rank == 1 && SourceForceVectorType::rank == 1 &&
+                    TargetVelocityVectorType::rank == 1,
+                "apply_rpy_kernel: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceRadiusVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetRadiusVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "apply_rpy_kernel: The input vectors must have 'double' as their value type.");
+  static_assert(
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceRadiusVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetRadiusVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+                "apply_rpy_kernel: The input vectors must have the same memory space.");
+
   const size_t num_source_points = source_positions.extent(0) / 3;
   const size_t num_target_points = target_positions.extent(0) / 3;
   MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
@@ -819,15 +935,43 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space, const double
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
 /// \param[in] source_forces The vector to apply the self-interaction matrix to (size num_nodes * 3)
 /// \param[out] target_velocities The result of applying the self-interaction matrix to f (size num_nodes * 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                                         const size_t num_source_points, const size_t num_target_points,
-                                         const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                                         const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                                         const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                                         const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                                         const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
-                                         const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceNormalVectorType, typename QuadratureWeightVectorType, typename SourceForceVectorType,
+          typename TargetVelocityVectorType>
+void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &space,          //
+                                         const double viscosity,                                //
+                                         const size_t num_source_points,                        //
+                                         const size_t num_target_points,                        //
+                                         const SourcePosVectorType &source_positions,           //
+                                         const TargetPosVectorType &target_positions,           //
+                                         const SourceNormalVectorType &source_normals,          //
+                                         const QuadratureWeightVectorType &quadrature_weights,  //
+                                         const SourceForceVectorType &source_forces,            //
+                                         const TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceNormalVectorType>::value &&
+                    Kokkos::is_view<QuadratureWeightVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<TargetVelocityVectorType>::value,
+                "apply_stokes_double_layer_kernel_ss: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceNormalVectorType::rank == 1 &&
+                    QuadratureWeightVectorType::rank == 1 && SourceForceVectorType::rank == 1 &&
+                    TargetVelocityVectorType::rank == 1,
+                "apply_stokes_double_layer_kernel_ss: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename QuadratureWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "apply_stokes_double_layer_kernel_ss: The input vectors must have 'double' as their value type.");
+  static_assert(
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename QuadratureWeightVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+                "apply_stokes_double_layer_kernel_ss: The input vectors must have the same memory space.");
+
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "apply_stokes_double_layer_kernel_ss: source_positions must have size 3 * num_source_points.");
   MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
@@ -908,15 +1052,43 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
 /// \param[in] source_forces The vector to apply the self-interaction matrix to (size num_nodes * 3)
 /// \param[out] target_velocities The result of applying the self-interaction matrix to f (size num_nodes * 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                                      const size_t num_source_points, const size_t num_target_points,
-                                      const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                                      const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                                      const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                                      const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                                      const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
-                                      const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceNormalVectorType, typename QuadratureWeightVectorType, typename SourceForceVectorType,
+          typename TargetVelocityVectorType>
+void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &space,          //
+                                      const double viscosity,                                //
+                                      const size_t num_source_points,                        //
+                                      const size_t num_target_points,                        //
+                                      const SourcePosVectorType &source_positions,           //
+                                      const TargetPosVectorType &target_positions,           //
+                                      const SourceNormalVectorType &source_normals,          //
+                                      const QuadratureWeightVectorType &quadrature_weights,  //
+                                      const SourceForceVectorType &source_forces,            //
+                                      const TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceNormalVectorType>::value &&
+                    Kokkos::is_view<QuadratureWeightVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<TargetVelocityVectorType>::value,
+                "apply_stokes_double_layer_kernel: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceNormalVectorType::rank == 1 &&
+                    QuadratureWeightVectorType::rank == 1 && SourceForceVectorType::rank == 1 &&
+                    TargetVelocityVectorType::rank == 1,
+                "apply_stokes_double_layer_kernel: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename QuadratureWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "apply_stokes_double_layer_kernel: The input vectors must have 'double' as their value type.");
+  static_assert(
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename QuadratureWeightVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+    std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+                "apply_stokes_double_layer_kernel: The input vectors must have the same memory space.");
+
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "apply_stokes_double_layer_kernel: source_positions must have size 3 * num_source_points.");
   MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
@@ -977,11 +1149,33 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
 }
 
 /// \brief Apply local drag to the sphere velocities v += 1/(6 pi mu r) f
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void apply_local_drag([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                      Kokkos::View<double *, Layout, MemorySpace> sphere_velocities,
-                      Kokkos::View<double *, Layout, MemorySpace> sphere_forces,
-                      Kokkos::View<double *, Layout, MemorySpace> sphere_radii) {
+template <class ExecutionSpace, typename SphereVelocityVectorType, typename SphereForceVectorType,
+          typename SphereRadiusVectorType>
+void apply_local_drag([[maybe_unused]] const ExecutionSpace &space,       //
+                      const double viscosity,                             //
+                      const SphereVelocityVectorType &sphere_velocities,  //
+                      const SphereForceVectorType &sphere_forces,         //
+                      const SphereRadiusVectorType &sphere_radii) {
+  static_assert(Kokkos::is_view<SphereVelocityVectorType>::value && Kokkos::is_view<SphereForceVectorType>::value &&
+                    Kokkos::is_view<SphereRadiusVectorType>::value,
+                "apply_local_drag: The input vectors must be a Kokkos::View.");
+  static_assert(
+      SphereVelocityVectorType::rank == 1 && SphereForceVectorType::rank == 1 && SphereRadiusVectorType::rank == 1,
+      "apply_local_drag: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SphereVelocityVectorType::value_type, double> &&
+                    std::is_same_v<typename SphereForceVectorType::value_type, double> &&
+                    std::is_same_v<typename SphereRadiusVectorType::value_type, double>,
+                "apply_local_drag: The input vectors must have 'double' as their value type.");
+  static_assert(
+    std::is_same_v<typename SphereVelocityVectorType::memory_space, typename SphereForceVectorType::memory_space> &&
+        std::is_same_v<typename SphereVelocityVectorType::memory_space, typename SphereRadiusVectorType::memory_space>,
+                "apply_local_drag: The input vectors must have the same memory space.");
+
+  MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * sphere_radii.extent(0), std::invalid_argument,
+                     "apply_local_drag: sphere_velocities must have size 3 * num_spheres.");
+  MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * sphere_radii.extent(0), std::invalid_argument,
+                     "apply_local_drag: sphere_forces must have size 3 * num_spheres.");
+
   const size_t num_spheres = sphere_radii.extent(0);
   const double scale = 1.0 / (6.0 * M_PI * viscosity);
   Kokkos::parallel_for(
@@ -1006,14 +1200,37 @@ void apply_local_drag([[maybe_unused]] const ExecutionSpace &space, const double
 /// \param[in] target_positions The positions of the target points (size num_target_points * 3)
 /// \param[in] source_normals The normals of the source points (size num_source_points * 3)
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                                     const size_t num_source_points, const size_t num_target_points,
-                                     const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                                     const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                                     const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                                     const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                                     const Kokkos::View<double **, Layout, MemorySpace> &T) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceNormalVectorType, typename QuadratureWeightVectorType, typename MatrixType>
+void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &space,          //
+                                     const double viscosity,                                //
+                                     const size_t num_source_points,                        //
+                                     const size_t num_target_points,                        //
+                                     const SourcePosVectorType &source_positions,           //
+                                     const TargetPosVectorType &target_positions,           //
+                                     const SourceNormalVectorType &source_normals,          //
+                                     const QuadratureWeightVectorType &quadrature_weights,  //
+                                     const MatrixType &T) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceNormalVectorType>::value &&
+                    Kokkos::is_view<QuadratureWeightVectorType>::value && Kokkos::is_view<MatrixType>::value,
+                "fill_stokes_double_layer_matrix: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceNormalVectorType::rank == 1 &&
+                    QuadratureWeightVectorType::rank == 1 && MatrixType::rank == 2,
+                "fill_stokes_double_layer_matrix: The input vectors must be rank 1 and the matrix must be rank 2.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename QuadratureWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename MatrixType::value_type, double>,
+                "fill_stokes_double_layer_matrix: The input vectors must have 'double' as their value type.");
+  static_assert(
+    std::is_same_v<typename MatrixType::memory_space, typename SourcePosVectorType::memory_space> &&
+        std::is_same_v<typename MatrixType::memory_space, typename TargetPosVectorType::memory_space> &&
+        std::is_same_v<typename MatrixType::memory_space, typename SourceNormalVectorType::memory_space> &&
+        std::is_same_v<typename MatrixType::memory_space, typename QuadratureWeightVectorType::memory_space>,
+                "fill_stokes_double_layer_matrix: The input vectors must have the same memory space.");
+
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "fill_stokes_double_layer_matrix: source_positions must have size 3 * num_source_points.");
   MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
@@ -1071,14 +1288,21 @@ void fill_stokes_double_layer_matrix([[maybe_unused]] const ExecutionSpace &spac
 /// \param space The execution space
 /// \param[in] T The stokes double layer times weighted normal matrix to apply singularity subtraction to (size
 /// num_target_points * 3 x num_source_points * 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void add_singularity_subtraction([[maybe_unused]] const ExecutionSpace &space,
-                                 const Kokkos::View<double **, Layout, MemorySpace> &T) {
+template <class ExecutionSpace, typename MatrixType>
+void add_singularity_subtraction([[maybe_unused]] const ExecutionSpace &space, const MatrixType &T) {
+  static_assert(Kokkos::is_view<MatrixType>::value,
+                "add_singularity_subtraction: The input matrix must be a Kokkos::View.");
+  static_assert(MatrixType::rank == 2, "add_singularity_subtraction: The input matrix must be rank 2.");
+  static_assert(std::is_same_v<typename MatrixType::value_type, double>,
+                "add_singularity_subtraction: The input matrix must have 'double' as its value type.");
+
   const size_t num_source_points = T.extent(1) / 3;
   const size_t num_target_points = T.extent(0) / 3;
 
   // Add the singularity subtraction to T
   // Create a vector that has 1 in the x-component and 0 in the y and z components for each source point
+  using Layout = typename MatrixType::array_layout;
+  using MemorySpace = typename MatrixType::memory_space;
   Kokkos::View<double *, Layout, MemorySpace> e1("e1", 3 * num_source_points);
   Kokkos::View<double *, Layout, MemorySpace> e2("e2", 3 * num_source_points);
   Kokkos::View<double *, Layout, MemorySpace> e3("e3", 3 * num_source_points);
@@ -1148,11 +1372,26 @@ void add_singularity_subtraction([[maybe_unused]] const ExecutionSpace &space,
 /// \param[in] source_normals The normals of the source points (size num_source_points * 3)
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
 /// \param[in] T The stokes double layer matrix (size num_target_points * 3 x num_source_points * 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
-                              const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                              const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                              const Kokkos::View<double **, Layout, MemorySpace> &T) {
+template <class ExecutionSpace, typename SourceNormalVectorType, typename QuadratureWeightVectorType,
+          typename MatrixType>
+void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,          //
+                              const SourceNormalVectorType &source_normals,          //
+                              const QuadratureWeightVectorType &quadrature_weights,  //
+                              const MatrixType &T) {
+  static_assert(Kokkos::is_view<SourceNormalVectorType>::value && Kokkos::is_view<QuadratureWeightVectorType>::value &&
+                    Kokkos::is_view<MatrixType>::value,
+                "add_complementary_matrix: The input vectors must be a Kokkos::View.");
+  static_assert(SourceNormalVectorType::rank == 1 && QuadratureWeightVectorType::rank == 1 && MatrixType::rank == 2,
+                "add_complementary_matrix: The input vectors must be rank 1 and the matrix must be rank 2.");
+  static_assert(std::is_same_v<typename SourceNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename QuadratureWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename MatrixType::value_type, double>,
+                "add_complementary_matrix: The input vectors must have 'double' as their value type.");
+  static_assert(std::is_same_v<typename SourceNormalVectorType::memory_space,
+                               typename QuadratureWeightVectorType::memory_space> &&
+                    std::is_same_v<typename SourceNormalVectorType::memory_space, typename MatrixType::memory_space>,
+                "add_complementary_matrix: The input vectors must have the same memory space.");
+
   const size_t num_source_points = T.extent(1) / 3;
   const size_t num_target_points = T.extent(0) / 3;
   MUNDY_THROW_ASSERT(source_normals.extent(0) == 3 * num_source_points, std::invalid_argument,
@@ -1198,13 +1437,37 @@ void add_complementary_matrix([[maybe_unused]] const ExecutionSpace &space,
 /// \param[in] source_normals The normals of the source points (size num_source_points * 3)
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
 /// \param[in] T The stokes double layer matrix (size num_target_points * 3 x num_source_points * 3)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,
-                              const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                              const Kokkos::View<double *, Layout, MemorySpace> &target_normals,
-                              const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                              const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
-                              const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+template <class ExecutionSpace, typename SourceNormalVectorType, typename TargetNormalVectorType,
+          typename QuadratureWeightVectorType, typename SourceForceVectorType, typename TargetVelocityVectorType>
+void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,          //
+                              const SourceNormalVectorType &source_normals,          //
+                              const TargetNormalVectorType &target_normals,          //
+                              const QuadratureWeightVectorType &quadrature_weights,  //
+                              const SourceForceVectorType &source_forces,            //
+                              const TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourceNormalVectorType>::value && Kokkos::is_view<TargetNormalVectorType>::value &&
+                    Kokkos::is_view<QuadratureWeightVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<TargetVelocityVectorType>::value,
+                "add_complementary_kernel: The input vectors must be a Kokkos::View.");
+  static_assert(SourceNormalVectorType::rank == 1 && TargetNormalVectorType::rank == 1 &&
+                    QuadratureWeightVectorType::rank == 1 && SourceForceVectorType::rank == 1 &&
+                    TargetVelocityVectorType::rank == 1,
+                "add_complementary_kernel: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourceNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename QuadratureWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "add_complementary_kernel: The input vectors must have 'double' as their value type.");
+  static_assert(
+      std::is_same_v<typename SourceNormalVectorType::memory_space, typename TargetNormalVectorType::memory_space> &&
+          std::is_same_v<typename SourceNormalVectorType::memory_space,
+                         typename QuadratureWeightVectorType::memory_space> &&
+          std::is_same_v<typename SourceNormalVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourceNormalVectorType::memory_space,
+                         typename TargetVelocityVectorType::memory_space>,
+      "add_complementary_kernel: The input vectors must have the same memory space.");
+
   const size_t num_source_points = source_normals.extent(0) / 3;
   const size_t num_target_points = target_normals.extent(0) / 3;
   MUNDY_THROW_ASSERT(source_forces.extent(0) == 3 * num_source_points, std::invalid_argument,
@@ -1258,14 +1521,38 @@ void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,
 /// \param[in] target_positions The positions of the target points (size num_target_points * 3)
 /// \param[in] source_normals The normals of the source points (size num_source_points * 3)
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void fill_skfie_matrix([[maybe_unused]] const ExecutionSpace &space, const double viscosity,
-                       const size_t num_source_points, const size_t num_target_points,
-                       const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                       const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                       const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                       const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                       const Kokkos::View<double **, Layout, MemorySpace> &M) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceNormalVectorType, typename QuadratureWeightVectorType, typename MatrixType>
+void fill_skfie_matrix([[maybe_unused]] const ExecutionSpace &space,          //
+                       const double viscosity,                                //
+                       const size_t num_source_points,                        //
+                       const size_t num_target_points,                        //
+                       const SourcePosVectorType &source_positions,           //
+                       const TargetPosVectorType &target_positions,           //
+                       const SourceNormalVectorType &source_normals,          //
+                       const QuadratureWeightVectorType &quadrature_weights,  //
+                       MatrixType &M) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceNormalVectorType>::value &&
+                    Kokkos::is_view<QuadratureWeightVectorType>::value && Kokkos::is_view<MatrixType>::value,
+                "fill_skfie_matrix: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceNormalVectorType::rank == 1 &&
+                    QuadratureWeightVectorType::rank == 1 && MatrixType::rank == 2,
+                "fill_skfie_matrix: The input vectors must be rank 1 and the matrix must be rank 2.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename QuadratureWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename MatrixType::value_type, double>,
+                "fill_skfie_matrix: The input vectors must have 'double' as their value type.");
+  static_assert(
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space,
+                         typename QuadratureWeightVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename MatrixType::memory_space>,
+      "fill_skfie_matrix: The input vectors must have the same memory space.");
+
   // Fill the stokes double layer matrix
   fill_stokes_double_layer_matrix(space, viscosity, num_source_points, num_target_points, source_positions,
                                   target_positions, source_normals, quadrature_weights, M);
@@ -1296,15 +1583,47 @@ void fill_skfie_matrix([[maybe_unused]] const ExecutionSpace &space, const doubl
 /// \param[in] target_positions The positions of the target points (size num_target_points * 3)
 /// \param[in] source_normals The normals of the source points (size num_source_points * 3)
 /// \param[in] quadrature_weights The quadrature weights (size num_source_points)
-template <class ExecutionSpace, class MemorySpace, class Layout>
-void apply_skfie([[maybe_unused]] const ExecutionSpace &space, const double viscosity, const size_t num_source_points,
-                 const size_t num_target_points, const Kokkos::View<double *, Layout, MemorySpace> &source_positions,
-                 const Kokkos::View<double *, Layout, MemorySpace> &target_positions,
-                 const Kokkos::View<double *, Layout, MemorySpace> &source_normals,
-                 const Kokkos::View<double *, Layout, MemorySpace> &target_normals,
-                 const Kokkos::View<double *, Layout, MemorySpace> &quadrature_weights,
-                 const Kokkos::View<double *, Layout, MemorySpace> &source_forces,
-                 const Kokkos::View<double *, Layout, MemorySpace> &target_velocities) {
+template <class ExecutionSpace, typename SourcePosVectorType, typename TargetPosVectorType,
+          typename SourceNormalVectorType, typename TargetNormalVectorType, typename QuadratureWeightVectorType,
+          typename SourceForceVectorType, typename TargetVelocityVectorType>
+void apply_skfie([[maybe_unused]] const ExecutionSpace &space,          //
+                 const double viscosity,                                //
+                 const size_t num_source_points,                        //
+                 const size_t num_target_points,                        //
+                 const SourcePosVectorType &source_positions,           //
+                 const TargetPosVectorType &target_positions,           //
+                 const SourceNormalVectorType &source_normals,          //
+                 const TargetNormalVectorType &target_normals,          //
+                 const QuadratureWeightVectorType &quadrature_weights,  //
+                 const SourceForceVectorType &source_forces,            //
+                 TargetVelocityVectorType &target_velocities) {
+  static_assert(Kokkos::is_view<SourcePosVectorType>::value && Kokkos::is_view<TargetPosVectorType>::value &&
+                    Kokkos::is_view<SourceNormalVectorType>::value && Kokkos::is_view<TargetNormalVectorType>::value &&
+                    Kokkos::is_view<QuadratureWeightVectorType>::value &&
+                    Kokkos::is_view<SourceForceVectorType>::value && Kokkos::is_view<TargetVelocityVectorType>::value,
+                "apply_skfie: The input vectors must be a Kokkos::View.");
+  static_assert(SourcePosVectorType::rank == 1 && TargetPosVectorType::rank == 1 && SourceNormalVectorType::rank == 1 &&
+                    TargetNormalVectorType::rank == 1 && QuadratureWeightVectorType::rank == 1 &&
+                    SourceForceVectorType::rank == 1 && TargetVelocityVectorType::rank == 1,
+                "apply_skfie: The input vectors must be rank 1.");
+  static_assert(std::is_same_v<typename SourcePosVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetPosVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetNormalVectorType::value_type, double> &&
+                    std::is_same_v<typename QuadratureWeightVectorType::value_type, double> &&
+                    std::is_same_v<typename SourceForceVectorType::value_type, double> &&
+                    std::is_same_v<typename TargetVelocityVectorType::value_type, double>,
+                "apply_skfie: The input vectors must have 'double' as their value type.");
+  static_assert(
+      std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetPosVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceNormalVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetNormalVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space,
+                         typename QuadratureWeightVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename SourceForceVectorType::memory_space> &&
+          std::is_same_v<typename SourcePosVectorType::memory_space, typename TargetVelocityVectorType::memory_space>,
+      "apply_skfie: The input vectors must have the same memory space.");
+
   MUNDY_THROW_ASSERT(source_positions.extent(0) == 3 * num_source_points, std::invalid_argument,
                      "apply_skfie: source_positions must have size 3 * num_source_points.");
   MUNDY_THROW_ASSERT(target_positions.extent(0) == 3 * num_target_points, std::invalid_argument,
@@ -1367,7 +1686,8 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space, const double visc
     coeff += (syz + szy) * dy * dz;
     coeff *= -scale_factor * rinv5;
 
-    // Compute the complementarity term v += normal(t) * normal(s) dot f(s) w(s)
+    // TODO(palmerb4): The following only works with normal source...
+    // Compute the complementarity term v += normal(s) * normal(s) dot f(s) w(s)
     const double scaled_normal_dot_force =
         (normal_s0 * force_s0 + normal_s1 * force_s1 + normal_s2 * force_s2) * quadrature_weight_s;
 

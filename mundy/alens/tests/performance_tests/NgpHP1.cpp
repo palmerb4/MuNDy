@@ -105,650 +105,769 @@
 using DoubleVecDeviceView = Kokkos::View<double *, Kokkos::LayoutLeft, stk::ngp::MemSpace>;
 using DoubleMatDeviceView = Kokkos::View<double **, Kokkos::LayoutLeft, stk::ngp::MemSpace>;
 
-// namespace mundy {
-
-// namespace mesh {
-
-// void get_selected_entities(const Selector &selector, const BucketVector &input_buckets,
-//                            stk::NgpVector<stk::mesh::Entity> &ngp_entities, bool sort_by_global_id = true) {
-//   if (input_buckets.empty()) {
-//     return;
-//   }
-
-//   // Fetch the entities on the host
-//   stk::mesh::EntityVector entity_vector,
-//       stk::mesh::get_selected_entities(selector, input_buckets, entity_vector, sort_by_global_id);
-
-//   // Fill the ngp vector on the host
-//   const size_t num_entities = entity_vector.size();
-//   ngp_entities.resize(num_entities);
-//   for (unsigned i = 0; i < num_entities; i++) {
-//     ngp_entities[i] = entity_vector[i];
-//   }
-//   ngp_entities.copy_host_to_device();
-// }
-
-// template <typename FieldDataType>
-// void print_field(const stk::mesh::Field<FieldDataType> &field) {
-//   mundy::mesh::BulkData &bulk_data = field.get_mesh();
-//   stk::mesh::Selector selector = stk::mesh::Selector(field);
-
-//   stk::mesh::EntityVector entities;
-//   stk::mesh::get_selected_entities(selector, bulk_data_ptr_->buckets(field.entity_rank()), entities);
-
-//   for (const stk::mesh::Entity &entity : entities) {
-//     const FieldDataType *field_data = stk::mesh::field_data(field, entity);
-//     std::cout << "Entity " << entity << " field data: ";
-//     const unsigned field_num_components =
-//         stk::mesh::field_scalars_per_entity(field, bulk_data.bucket(entity).bucket_id());
-//     for (size_t i = 0; i < field_num_components; ++i) {
-//       std::cout << field_data[i] << " ";
-//     }
-//     std::cout << std::endl;
-//   }
-// }
-
-// }  // namespace mesh
-
-// namespace geom {
-
-// void compute_aabb_spheres(stk::mesh::NgpMesh &ngp_mesh, const double &skin_distance,
-//                           stk::mesh::NgpField<double> &node_coords, stk::mesh::NgpField<double> &elem_radius,
-//                           stk::mesh::NgpField<double> &elem_aabb_field, const stk::mesh::Selector &selector) {
-//   node_coords.sync_to_device();
-//   elem_radius.sync_to_device();
-//   elem_aabb_field.sync_to_device();
-
-//   stk::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &elem_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, elem_index);
-//         stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
-
-//         const auto coords = mundy::mesh::vector3_field_data(node_coords, node_index);
-//         const double radius = elem_radius(elem, 0);
-//         double min_x = coords[0] - radius;
-//         double min_y = coords[1] - radius;
-//         double min_z = coords[2] - radius;
-//         double max_x = coords[0] + radius;
-//         double max_y = coords[1] + radius;
-//         double max_z = coords[2] + radius;
-//         elem_aabb_field(elem, 0) = min_x - skin_distance;
-//         elem_aabb_field(elem, 1) = min_y - skin_distance;
-//         elem_aabb_field(elem, 2) = min_z - skin_distance;
-//         elem_aabb_field(elem, 3) = max_x + skin_distance;
-//         elem_aabb_field(elem, 4) = max_y + skin_distance;
-//         elem_aabb_field(elem, 5) = max_z + skin_distance;
-//       });
-
-//   elem_aabb_field.modify_on_device();
-// }
-
-// void compute_aabb_segs(stk::mesh::NgpMesh &ngp_mesh, const double &skin_distance,
-//                        stk::mesh::NgpField<double> &node_coords, stk::mesh::NgpField<double> &elem_radius,
-//                        stk::mesh::NgpField<double> &elem_aabb_field, const stk::mesh::Selector &selector) {
-//   node_coords.sync_to_device();
-//   elem_radius.sync_to_device();
-//   elem_aabb_field.sync_to_device();
-
-//   stk::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &elem_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, elem_index);
-//         stk::mesh::FastMeshIndex node0_index = ngp_mesh.fast_mesh_index(nodes[0]);
-//         stk::mesh::FastMeshIndex node1_index = ngp_mesh.fast_mesh_index(nodes[1]);
-
-//         const auto coord0 = mundy::mesh::vector3_field_data(node_coords, node0_index);
-//         const auto coord1 = mundy::mesh::vector3_field_data(node_coords, node1_index);
-
-//         const double radius = elem_radius(elem, 0);
-//         double min_x = Kokkos::min(coord0[0], coord1[0]) - radius;
-//         double min_y = Kokkos::min(coord0[1], coord1[1]) - radius;
-//         double min_z = Kokkos::min(coord0[2], coord1[2]) - radius;
-//         double max_x = Kokkos::max(coord0[0], coord1[0]) + radius;
-//         double max_y = Kokkos::max(coord0[1], coord1[1]) + radius;
-//         double max_z = Kokkos::max(coord0[2], coord1[2]) + radius;
-//         elem_aabb_field(elem, 0) = min_x - skin_distance;
-//         elem_aabb_field(elem, 1) = min_y - skin_distance;
-//         elem_aabb_field(elem, 2) = min_z - skin_distance;
-//         elem_aabb_field(elem, 3) = max_x + skin_distance;
-//         elem_aabb_field(elem, 4) = max_y + skin_distance;
-//         elem_aabb_field(elem, 5) = max_z + skin_distance;
-//       });
-
-//   elem_aabb_field.modify_on_device();
-// }
-
-// void accumulate_aabb_displacements(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &old_elem_aabb_field,
-//                                    stk::mesh::NgpField<double> &elem_aabb_field,
-//                                    stk::mesh::NgpField<double> &elem_displacement_field,
-//                                    const stk::mesh::Selector &selector) {
-//   old_elem_aabb_field.sync_to_device();
-//   elem_aabb_field.sync_to_device();
-//   elem_displacement_field.sync_to_device();
-
-//   stk::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &elem_index) {
-//         for (int i = 0; i < 6; ++i) {
-//           elem_displacement_field(elem, i) += elem_aabb_field(elem, i) - old_elem_aabb_field(elem, i);
-//         }
-//       });
-
-//   elem_displacement_field.modify_on_device();
-// }
-
-// }  // namespace geom
-
-// namespace mech {
-
-// //! \name Spring forces
-// //@{
-
-// void compute_hookean_spring_forces(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &node_coords_field,
-//                                    stk::mesh::NgpField<double> &node_force_field,
-//                                    stk::mesh::NgpField<double> &spring_constant_field,
-//                                    stk::mesh::NgpField<double> &spring_rest_length_field,
-//                                    const stk::mesh::Selector &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_hookean_spring_forces");
-
-//   node_coords_field.sync_to_device();
-//   node_force_field.sync_to_device();
-//   spring_constant_field.sync_to_device();
-//   spring_rest_length_field.sync_to_device();
-
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::mesh::ELEM_RANG, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &spring_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, spring_index);
-//         const stk::mesh::Entity node1 = nodes[0];
-//         const stk::mesh::Entity node2 = nodes[1];
-//         const auto node1_coords = node_coords_field(node1);
-//         const auto node2_coords = node_coords_field(node2);
-//         const double spring_constant = spring_constant_field(spring_index);
-//         const double spring_rest_length = spring_rest_length_field(spring_index);
-//         const double inv_spring_length = 1.0 / spring_length;
-
-//         // Compute the spring force
-//         const double dx = node2_coords[0] - node1_coords[0];
-//         const double dy = node2_coords[1] - node1_coords[1];
-//         const double dz = node2_coords[2] - node1_coords[2];
-//         const double length = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
-//         const double force_magnitude = spring_constant * (length - spring_rest_length) * inv_spring_length;
-//         const double fx = force_magnitude * dx;
-//         const double fy = force_magnitude * dy;
-//         const double fz = force_magnitude * dz;
-
-//         // Apply the force to the nodes. Use atomic add
-//         Kokkos::atomic_add(&node_force_field(node1, 0), fx);
-//         Kokkos::atomic_add(&node_force_field(node1, 1), fy);
-//         Kokkos::atomic_add(&node_force_field(node1, 2), fz);
-//         Kokkos::atomic_add(&node_force_field(node2, 0), -fx);
-//         Kokkos::atomic_add(&node_force_field(node2, 1), -fy);
-//         Kokkos::atomic_add(&node_force_field(node2, 2), -fz);
-//       });
-
-//   node_force_field.modify_on_device();
-//   Kokkos::Profiling::popRegion();
-// }
-
-// void compute_fene_spring_forces(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &node_coords_field,
-//                                 stk::mesh::NgpField<double> &node_force_field,
-//                                 stk::mesh::NgpField<double> &spring_constant_field,
-//                                 stk::mesh::NgpField<double> &spring_max_length_field,
-//                                 const stk::mesh::Selector &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_fene_spring_forces");
-
-//   node_coords_field.sync_to_device();
-//   node_force_field.sync_to_device();
-//   spring_constant_field.sync_to_device();
-//   spring_max_length_field.sync_to_device();
-
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::mesh::ELEM_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &spring_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, spring_index);
-//         const stk::mesh::Entity node1 = nodes[0];
-//         const stk::mesh::Entity node2 = nodes[1];
-//         const auto node1_coords = node_coords_field(node1);
-//         const auto node2_coords = node_coords_field(node2);
-//         const double spring_constant = spring_constant_field(spring_index);
-//         const double spring_max_length = spring_max_length_field(spring_index);
-//         const double inv_spring_max_length = 1.0 / spring_max_length;
-
-//         // Compute the spring force
-//         // The fene spring force is F = -k * r / (1 - (r / r_max)^2)
-//         const double dx = node2_coords[0] - node1_coords[0];
-//         const double dy = node2_coords[1] - node1_coords[1];
-//         const double dz = node2_coords[2] - node1_coords[2];
-//         const double length = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
-//         const double inv_length = 1.0 / length;
-//         const double force_magnitude =
-//             spring_constant / (1.0 - (length * inv_spring_max_length) * (length * inv_spring_max_length));
-//         const double fx = force_magnitude * dx;
-//         const double fy = force_magnitude * dy;
-//         const double fz = force_magnitude * dz;
-
-//         // Apply the force to the nodes. Use atomic add
-//         Kokkos::atomic_add(&node_force_field(node1, 0), -fx);
-//         Kokkos::atomic_add(&node_force_field(node1, 1), -fy);
-//         Kokkos::atomic_add(&node_force_field(node1, 2), -fz);
-//         Kokkos::atomic_add(&node_force_field(node2, 0), fx);
-//         Kokkos::atomic_add(&node_force_field(node2, 1), fy);
-//         Kokkos::atomic_add(&node_force_field(node2, 2), fz);
-//       });
-
-//   node_force_field.modify_on_device();
-//   Kokkos::Profiling::popRegion();
-// }
-// //@}
-
-// }  // namespace mech
-
-// namespace alens {
-
-// //! \name Dynamic spring bind/unbind via Kinetic Monte Carlo
-// //@{
-
-// struct HarmonicCrosslinkerBindRateHeterochromatin {
-//   HarmonicCrosslinkerBindRateHeterochromatin(const mundy::mesh::BulkData &bulk_data, const double &kt,
-//                                              const double &crosslinker_binding_rate,
-//                                              const double &crosslinker_spring_constant,
-//                                              const double &crosslinker_rest_length,
-//                                              const stk::mesh::Field<double> &node_coords_field,
-//                                              const stk::mesh::Selector &heterochromatin_selector)
-//       : bulk_data_(bulk_data),
-//         inv_kt_(1.0 / kt),
-//         crosslinker_binding_rate_(crosslinker_binding_rate),
-//         crosslinker_spring_constant_(crosslinker_spring_constant),
-//         crosslinker_rest_length_(crosslinker_rest_length),
-//         node_coord_field_(node_coords_field) {
-//     heterochromatin_selector.get_parts(heterochromatin_parts_);
-//   }
-
-//   double operator()(const stk::mesh::Entity &crosslinker, const stk::mesh::Entity &bind_site) const {
-//     // Get the distance from the crosslinker's left node and the bind site
-//     const stk::mesh::Entity left_node = bulk_data_.begin_nodes(crosslinker)[0];
-//     const double *left_node_coords = stk::mesh::field_data(node_coord_field_, left_node);
-//     const double *bind_site_coords = stk::mesh::field_data(node_coord_field_, bind_site);
-
-//     const double dx = bind_site_coords[0] - left_node_coords[0];
-//     const double dy = bind_site_coords[1] - left_node_coords[1];
-//     const double dz = bind_site_coords[2] - left_node_coords[2];
-//     const double dr_mag = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
-
-//     // Z = A * exp(-0.5 * 1/kt * k * (dr - r0)^2)
-//     // A = crosslinker_binding_rates
-//     // k = crosslinker_spring_constant
-//     // r0 = crosslinker_spring_rest_length
-//     const double A = crosslinker_binding_rate_;
-//     const double k = crosslinker_spring_constant_;
-//     const double r0 = crosslinker_rest_length_;
-//     double Z = A * Kokkos::exp(-0.5 * inv_kt_ * k * (dr_mag - r0) * (dr_mag - r0));
-//     return Z;
-//   }
-
-//   const mundy::mesh::BulkData &bulk_data_;
-//   const double inv_kt_;
-//   const double crosslinker_binding_rate_;
-//   const double crosslinker_spring_constant_;
-//   const double crosslinker_rest_length_;
-//   const stk::mesh::Field<double> &node_coord_field_;
-//   stk::mesh::PartVector heterochromatin_parts_;
-// };
-
-// struct FeneCrosslinkerBindRateHeterochromatin {
-//   FeneCrosslinkerBindRateHeterochromatin(const mundy::mesh::BulkData &bulk_data, const double &kt,
-//                                          const double &crosslinker_binding_rate,
-//                                          const double &crosslinker_spring_constant,
-//                                          const double &crosslinker_rest_length,
-//                                          const stk::mesh::Field<double> &node_coords_field,
-//                                          const stk::mesh::Selector &heterochromatin_selector)
-//       : bulk_data_(bulk_data),
-//         inv_kt_(1.0 / kt),
-//         crosslinker_binding_rate_(crosslinker_binding_rate),
-//         crosslinker_spring_constant_(crosslinker_spring_constant),
-//         crosslinker_rest_length_(crosslinker_rest_length),
-//         node_coord_field_(node_coords_field) {
-//     heterochromatin_selector.get_parts(heterochromatin_parts_);
-//   }
-
-//   double operator()(const stk::mesh::Entity &crosslinker, const stk::mesh::Entity &bind_site) const {
-//     // Get the distance from the crosslinker's left node and the bind site
-//     const stk::mesh::Entity left_node = bulk_data_.begin_nodes(crosslinker)[0];
-//     const double *left_node_coords = stk::mesh::field_data(node_coord_field_, left_node);
-//     const double *bind_site_coords = stk::mesh::field_data(node_coord_field_, bind_site);
-
-//     const double dx = bind_site_coords[0] - left_node_coords[0];
-//     const double dy = bind_site_coords[1] - left_node_coords[1];
-//     const double dz = bind_site_coords[2] - left_node_coords[2];
-//     const double dr_mag = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
-
-//     // Z = A * (1 - (r/r0)^2)^(0.5 * 1/kt * k * r0^2)
-//     // A = crosslinker_binding_rates
-//     // k = crosslinker_spring_constant
-//     // r0 = crosslinker_spring_max_length (FENE)
-//     // R = crosslinker_fene_max_distance
-//     const double A = crosslinker_right_binding_rate;
-//     const double k = stk::mesh::field_data(crosslinker_spring_constant, crosslinker)[0];
-//     const double r0 = stk::mesh::field_data(crosslinker_spring_r0, crosslinker)[0];
-//     double Z = A * std::pow(1.0 - (dr_mag / r0) * (dr_mag / r0), 0.5 * inv_kt * k * r0 * r0);
-//     return Z;
-//   }
-
-//   const mundy::mesh::BulkData &bulk_data_;
-//   const double inv_kt_;
-//   const double crosslinker_binding_rate_;
-//   const double crosslinker_spring_constant_;
-//   const double crosslinker_rest_length_;
-//   const stk::mesh::Field<double> &node_coord_field_;
-//   stk::mesh::PartVector heterochromatin_parts_;
-// };
-
-// template <typename CrosslinkerBindRateHeterochromatin, typename CrosslinkerBindRatePeriphery>
-// struct CrosslinkerBindRateHeterochromatinOrPeriphery {
-//   CrosslinkerBindRateHeterochromatinOrPeriphery(
-//       const CrosslinkerBindRateHeterochromatin &crosslinker_bind_rate_heterochromatin,
-//       const CrosslinkerBindRatePeriphery &crosslinker_bind_rate_periphery,
-//       const stk::mesh::Selector &heterochromatin_selector, const stk::mesh::Selector &periphery_selector)
-//       : crosslinker_bind_rate_heterochromatin_(crosslinker_bind_rate_heterochromatin),
-//         crosslinker_bind_rate_periphery_(crosslinker_bind_rate_periphery) {
-//     heterochromatin_selector.get_parts(heterochromatin_parts_);
-//     periphery_selector.get_parts(periphery_parts_);
-//   }
-
-//   double operator()(const stk::mesh::Entity &crosslinker, const stk::mesh::Entity &bind_site) const {
-//     // Determine if the bind site is in the heterochromatin or periphery
-//     bool is_heterochromatin = false;
-//     for (const stk::mesh::Part *part : heterochromatin_parts_) {
-//       if (bind_site.bucket().member(*part)) {
-//         is_heterochromatin = true;
-//         break;
-//       }
-//     }
-//     bool is_periphery = false;
-//     for (const stk::mesh::Part *part : periphery_parts_) {
-//       if (bind_site.bucket().member(*part)) {
-//         is_periphery = true;
-//         break;
-//       }
-//     }
-
-//     if (is_heterochromatin) {
-//       return crosslinker_bind_rate_heterochromatin_(crosslinker, bind_site);
-//     } else if (is_periphery) {
-//       return crosslinker_bind_rate_periphery_(crosslinker, bind_site);
-//     } else {
-//       MUNDY_THROW_ASSERT(false, std::logic_error, "Bind site is not in heterochromatin or periphery.");
-//     }
-//   }
-
-//   const CrosslinkerBindRateHeterochromatin &crosslinker_bind_rate_heterochromatin_;
-//   const CrosslinkerBindRatePeriphery &crosslinker_bind_rate_periphery_;
-//   stk::mesh::PartVector heterochromatin_parts_;
-//   stk::mesh::PartVector periphery_parts_;
-// };
-
-// template <typename LeftToDoublyStateChangeRate>
-// void kmc_perform_state_change_left_bound(mundy::mesh::BulkData &bulk_data, const double timestep_size,
-//                                          const LeftToDoublyStateChangeRate &left_to_doubly_state_change_rate_getter,
-//                                          const stk::mesh::Field<double> &neighboring_bind_sites_field,
-//                                          const stk::mesh::Field<double> &el_rng_field,
-//                                          const stk::mesh::Selector &left_bound_springs_selector,
-//                                          const stk::mesh::Selector &doubly_bound_springs_selector) {
-//   MUNDY_THROW_REQUIRE(bulk_data.in_modifiable_state(), std::logic_error, "Bulk data is not in a modification
-//   cycle.");
-
-//   // Get the vector of left/right bound parts in the selector
-//   stk::mesh::PartVector left_bound_spring_parts;
-//   stk::mesh::PartVector doubly_bound_spring_parts;
-//   left_bound_springs_selector.get_parts(left_bound_spring_parts);
-//   doubly_bound_springs_selector.get_parts(doubly_bound_spring_parts);
-
-//   // Get the vector of entities to modify
-//   stk::mesh::EntityVector left_bound_springs;
-//   stk::mesh::get_selected_entities(left_bound_springs_selector, bulk_data.buckets(stk::mesh::ELEMENT_RANK),
-//                                    left_bound_springs);
-
-//   for (const stk::mesh::Entity &left_bound_spring : left_bound_springs) {
-//     const double *neighboring_bind_sites = stk::mesh::field_data(neighboring_bind_sites_field, left_bound_spring);
-//     const int num_neighboring_bind_sites = neighboring_bind_sites[0];
-
-//     double z_tot = 0.0;
-//     for (int s = 0; s < num_neighboring_bind_sites; ++s) {
-//       const auto &neighboring_bind_site_index = static_cast<stk::mesh::FastMeshIndex>(neighboring_bind_sites[s + 1]);
-//       const stk::mesh::Entity &bind_site = bulk_data.get_entity(neighboring_bind_site_index);
-//       const double z_i = timestep_size * left_to_doubly_state_change_rate_getter(left_bound_spring, bind_site);
-//       z_tot += z_i;
-//     }
-
-//     // Fetch the RNG state, get a random number out of it, and increment
-//     unsigned *rng_counter = stk::mesh::field_data(el_rng_field, left_bound_spring);
-//     const stk::mesh::EntityId spring_gid = bulk_data.identifier(left_bound_spring);
-//     openrand::Philox rng(spring_gid, rng_counter[0]);
-//     const double randu01 = rng.rand<double>();
-//     rng_counter[0]++;
-
-//     // Notice that the sum of all probabilities is 1.
-//     // The probability of nothing happening is
-//     //   std::exp(-z_tot)
-//     // The probability of an individual event happening is
-//     //   z_i / z_tot * (1 - std::exp(-z_tot))
-//     //
-//     // This is (by construction) true since
-//     //  std::exp(-z_tot) + sum_i(z_i / z_tot * (1 - std::exp(-z_tot)))
-//     //    = std::exp(-z_tot) + (1 - std::exp(-z_tot)) = 1
-//     //
-//     // This means that binding only happens if randu01 < (1 - std::exp(-z_tot))
-//     const double probability_of_no_state_change = 1.0 - std::exp(-z_tot);
-//     if (randu01 < probability_of_no_state_change) {
-//       // Binding occurs. Loop back over the neighbor bind sites to see which one we bind to.
-//       const double scale_factor = probability_of_no_state_change * timestep_size / z_tot;
-//       double cumsum = 0.0;
-//       for (int s = 0; s < num_neighboring_bind_sites; ++s) {
-//         const auto &neighboring_bind_site_index = static_cast<stk::mesh::FastMeshIndex>(neighboring_bind_sites[s +
-//         1]); const stk::mesh::Entity &bind_site =
-//             bulk_data.get_entity(neighboring_bind_site_index, stk::topology::NODE_RANK);
-//         const double binding_probability =
-//             scale_factor * left_to_doubly_state_change_rate_getter(left_bound_spring, bind_site);
-//         cumsum += binding_probability;
-//         if (randu01 < cumsum) {
-//           // Bind to the given site
-//           const int right_node_index = 1;
-//           const bool bind_worked =
-//               bind_crosslinker_to_node_unbind_existing(bulk_data, left_bound_spring, bind_site, right_node_index);
-//           MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
-
-//           std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Binding crosslinker "
-//                     << bulk_data.identifier(spring) << " to node " << bulk_data.identifier(target_sphere_node)
-//                     << std::endl;
-
-//           // Now change the part from left to doubly bound. Add to doubly bound, remove
-//           // from left bound
-//           const bool is_spring_locally_owned =
-//               bulk_data.parallel_owner_rank(left_bound_spring) == bulk_data.parallel_rank();
-//           if (is_spring_locally_owned) {
-//             bulk_data.change_entity_parts(left_bound_spring, doubly_bound_spring_parts, left_bound_spring_parts);
-//           }
-//         }
-//       }
-//     }
-//   }
-// }
-
-// template <typename LeftToDoublyStateChangeRate>
-// void kmc_perform_state_change_doubly_bound(mundy::mesh::BulkData &bulk_data, const double timestep_size,
-//                                            const LeftToDoublyStateChangeRate
-//                                            &doubly_to_left_state_change_rate_getter, const stk::mesh::Field<double>
-//                                            &neighboring_bind_sites_field, const stk::mesh::Field<double>
-//                                            &el_rng_field, const stk::mesh::Selector &left_bound_springs_selector,
-//                                            const stk::mesh::Selector &doubly_bound_springs_selector) {
-//   MUNDY_THROW_REQUIRE(bulk_data.in_modifiable_state(), std::logic_error, "Bulk data is not in a modification
-//   cycle.");
-
-//   // Get the vector of left/right bound parts in the selector
-//   stk::mesh::PartVector left_bound_spring_parts;
-//   stk::mesh::PartVector doubly_bound_spring_parts;
-//   left_bound_springs_selector.get_parts(left_bound_spring_parts);
-//   doubly_bound_springs_selector.get_parts(doubly_bound_spring_parts);
-
-//   // Get the vector of entities to modify
-//   stk::mesh::EntityVector doubly_bound_springs;
-//   stk::mesh::get_selected_entities(doubly_bound_springs_selector, bulk_data.buckets(stk::mesh::ELEMENT_RANK),
-//                                    doubly_bound_springs);
-
-//   for (const stk::mesh::Entity &doubly_bound_spring : doubly_bound_springs) {
-//     double z_tot - timestep_size *doubly_to_left_state_change_rate_getter(doubly_bound_spring);
-
-//     // Fetch the RNG state, get a random number out of it, and increment
-//     unsigned *rng_counter = stk::mesh::field_data(el_rng_field, doubly_bound_spring);
-//     const stk::mesh::EntityId spring_gid = bulk_data.identifier(doubly_bound_spring);
-//     openrand::Philox rng(spring_gid, rng_counter[0]);
-//     const double randu01 = rng.rand<double>();
-//     rng_counter[0]++;
-
-//     // Notice that the sum of all probabilities is 1.
-//     // The probability of nothing happening is
-//     //   std::exp(-z_tot)
-//     // The probability of an individual event happening is
-//     //   z_i / z_tot * (1 - std::exp(-z_tot))
-//     //
-//     // This is (by construction) true since
-//     //  std::exp(-z_tot) + sum_i(z_i / z_tot * (1 - std::exp(-z_tot)))
-//     //    = std::exp(-z_tot) + (1 - std::exp(-z_tot)) = 1
-//     //
-//     // This means that unbinding only happens if randu01 < (1 - std::exp(-z_tot))
-//     // For now, its either transition to right bound or nothing
-//     const double probability_of_no_state_change = 1.0 - std::exp(-z_tot);
-//     if (randu01 < probability_of_no_state_change) {
-//       // Unbind the right side of the crosslinker from the current node and bind it to
-//       // the left crosslinker node
-//       const stk::mesh::Entity &left_node = bulk_data.begin_nodes(doubly_bound_spring)[0];
-//       const int right_node_index = 1;
-//       const bool unbind_worked =
-//           bind_crosslinker_to_node_unbind_existing(bulk_data, doubly_bound_spring, left_node, right_node_index);
-//       MUNDY_THROW_ASSERT(unbind_worked, std::logic_error, "Failed to unbind crosslinker from node.");
-
-//       std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Unbinding crosslinker "
-//                 << bulk_data.identifier(spring) << " from node "
-//                 << bulk_data.identifier(bulk_data.begin_nodes(spring)[1]) << std::endl;
-
-//       // Now change the part from doubly to left bound. Add to left bound, remove from
-//       // doubly bound
-//       const bool is_spring_locally_owned =
-//           bulk_data.parallel_owner_rank(doubly_bound_spring) == bulk_data.parallel_rank();
-//       if (is_spring_locally_owned) {
-//         bulk_data.change_entity_parts(doubly_bound_spring, left_bound_spring_parts, doubly_bound_spring_parts);
-//       }
-//     }
-//   }
-// }
-// //@}
-
-// //! \name Misc domain-specific physics
-// //@{
-
-// void compute_brownian_velocity(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size, const double &kt,
-//                                const double &viscosity, stk::mesh::NgpField<double> &node_velocity_field,
-//                                stk::mesh::NgpField<unsigned> &elem_rng_field,
-//                                stk::mesh::NgpField<double> &element_radius_field, stk::mesh::Selector &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
-
-//   node_velocity_field.sync_to_device();
-//   elem_rng_field.sync_to_device();
-//   element_radius_field.sync_to_device();
-
-//   constexpr double pi = Kokkos::numbers::pi_v<double>;
-//   const double six_pi_mu = 6.0 * pi * viscosity;
-//   const double sqrt_6_pi_mu = Kokkos::sqrt(six_pi_mu);
-//   const double inv_six_pi_mu = 1.0 / six_pi_mu;
-//   const double inv_dt = 1.0 / timestep_size;
-//   const double sqrt_2_kt = Kokkos::sqrt(2.0 * kt);
-
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEM_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-//         const stk::mesh::Entity node = nodes[0];
-
-//         // Setup the rng
-//         const stk::mesh::EntityId sphere_gid = ngp_mesh.identifier(sphere_index);
-//         auto rng_counter = elem_rng_field(sphere_index);
-//         openrand::Philox rng(sphere_gid, rng_counter[0]);
-
-//         // U_brown = sqrt(2 * kt * gamma / dt) * randn / gamma
-//         // for drag coeff gamma = 6 * pi * mu * r
-//         const double sphere_radius = element_radius_field(node, 0);
-//         auto node_velocity = node_velocity_field(node);
-//         const double coeff =
-//             sqrt_2_kt * Kokkos::sqrt(sqrt_6_pi_mu * sphere_radius * inv_dt) * inv_six_pi_mu / sphere_radius;
-//         node_velocity[0] += coeff * rng.randn<double>();
-//         node_velocity[1] += coeff * rng.randn<double>();
-//         node_velocity[2] += coeff * rng.randn<double>();
-//         rng_counter[0]++;
-//       });
-
-//   Kokkos::Profiling::popRegion();
-// }
-
-// void node_euler_position_update(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size,
-//                                 stk::mesh::NgpField<double> &node_coords_field,
-//                                 stk::mesh::NgpField<double> &node_velocity_field, const stk::mesh::Selector
-//                                 &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::update_positions");
-
-//   node_coords_field.sync_to_device();
-//   node_velocity_field.sync_to_device();
-
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
-//         const stk::mesh::Entity node = ngp_mesh.get_entity(stk::topology::NODE_RANK, node_index);
-//         auto node_coords = node_coords_field(node);
-//         auto node_velocity = node_velocity_field(node);
-
-//         node_coords[0] += timestep_size * node_velocity[0];
-//         node_coords[1] += timestep_size * node_velocity[1];
-//         node_coords[2] += timestep_size * node_velocity[2];
-//       });
-
-//   node_coords_field.modify_on_device();
-
-//   Kokkos::Profiling::popRegion();
-// }
-// //@}
-
-// }  // namespace alens
-
-// }  // namespace mundy
+namespace mundy {
+
+namespace mesh {
+
+void get_selected_entities(const stk::mesh::Selector &selector, const stk::mesh::BucketVector &input_buckets,
+                           stk::NgpVector<stk::mesh::Entity> &ngp_entities, bool sort_by_global_id = true) {
+  if (input_buckets.empty()) {
+    return;
+  }
+
+  // Fetch the entities on the host
+  stk::mesh::EntityVector entity_vector;
+  stk::mesh::get_selected_entities(selector, input_buckets, entity_vector, sort_by_global_id);
+
+  // Fill the ngp vector on the host
+  const size_t num_entities = entity_vector.size();
+  ngp_entities.resize(num_entities, stk::mesh::Entity());
+  for (unsigned i = 0; i < num_entities; i++) {
+    ngp_entities[i] = entity_vector[i];
+  }
+  ngp_entities.copy_host_to_device();
+}
+
+template <typename FieldDataType>
+void print_field(const stk::mesh::Field<FieldDataType> &field) {
+  stk::mesh::BulkData &bulk_data = field.get_mesh();
+  stk::mesh::Selector selector = stk::mesh::Selector(field);
+
+  stk::mesh::EntityVector entities;
+  stk::mesh::get_selected_entities(selector, bulk_data.buckets(field.entity_rank()), entities);
+
+  for (const stk::mesh::Entity &entity : entities) {
+    const FieldDataType *field_data = stk::mesh::field_data(field, entity);
+    std::cout << "Entity " << entity << " field data: ";
+    const unsigned field_num_components =
+        stk::mesh::field_scalars_per_entity(field, bulk_data.bucket(entity).bucket_id());
+    for (size_t i = 0; i < field_num_components; ++i) {
+      std::cout << field_data[i] << " ";
+    }
+    std::cout << std::endl;
+  }
+}
+
+}  // namespace mesh
+
+namespace geom {
+
+void compute_aabb_spheres(stk::mesh::NgpMesh &ngp_mesh, const double &skin_distance,
+                          stk::mesh::NgpField<double> &node_coords, stk::mesh::NgpField<double> &elem_radius,
+                          stk::mesh::NgpField<double> &elem_aabb_field, const stk::mesh::Selector &selector) {
+  node_coords.sync_to_device();
+  elem_radius.sync_to_device();
+  elem_aabb_field.sync_to_device();
+
+  stk::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &elem_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, elem_index);
+        stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
+
+        const auto coords = mundy::mesh::vector3_field_data(node_coords, node_index);
+        const double radius = elem_radius(elem_index, 0);
+        double min_x = coords[0] - radius;
+        double min_y = coords[1] - radius;
+        double min_z = coords[2] - radius;
+        double max_x = coords[0] + radius;
+        double max_y = coords[1] + radius;
+        double max_z = coords[2] + radius;
+        elem_aabb_field(elem_index, 0) = min_x - skin_distance;
+        elem_aabb_field(elem_index, 1) = min_y - skin_distance;
+        elem_aabb_field(elem_index, 2) = min_z - skin_distance;
+        elem_aabb_field(elem_index, 3) = max_x + skin_distance;
+        elem_aabb_field(elem_index, 4) = max_y + skin_distance;
+        elem_aabb_field(elem_index, 5) = max_z + skin_distance;
+      });
+
+  elem_aabb_field.modify_on_device();
+}
+
+void compute_aabb_segs(stk::mesh::NgpMesh &ngp_mesh, const double &skin_distance,
+                       stk::mesh::NgpField<double> &node_coords, stk::mesh::NgpField<double> &elem_radius,
+                       stk::mesh::NgpField<double> &elem_aabb_field, const stk::mesh::Selector &selector) {
+  node_coords.sync_to_device();
+  elem_radius.sync_to_device();
+  elem_aabb_field.sync_to_device();
+
+  stk::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &elem_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, elem_index);
+        stk::mesh::FastMeshIndex node0_index = ngp_mesh.fast_mesh_index(nodes[0]);
+        stk::mesh::FastMeshIndex node1_index = ngp_mesh.fast_mesh_index(nodes[1]);
+
+        const auto coord0 = mundy::mesh::vector3_field_data(node_coords, node0_index);
+        const auto coord1 = mundy::mesh::vector3_field_data(node_coords, node1_index);
+
+        const double radius = elem_radius(elem_index, 0);
+        double min_x = Kokkos::min(coord0[0], coord1[0]) - radius;
+        double min_y = Kokkos::min(coord0[1], coord1[1]) - radius;
+        double min_z = Kokkos::min(coord0[2], coord1[2]) - radius;
+        double max_x = Kokkos::max(coord0[0], coord1[0]) + radius;
+        double max_y = Kokkos::max(coord0[1], coord1[1]) + radius;
+        double max_z = Kokkos::max(coord0[2], coord1[2]) + radius;
+        elem_aabb_field(elem_index, 0) = min_x - skin_distance;
+        elem_aabb_field(elem_index, 1) = min_y - skin_distance;
+        elem_aabb_field(elem_index, 2) = min_z - skin_distance;
+        elem_aabb_field(elem_index, 3) = max_x + skin_distance;
+        elem_aabb_field(elem_index, 4) = max_y + skin_distance;
+        elem_aabb_field(elem_index, 5) = max_z + skin_distance;
+      });
+
+  elem_aabb_field.modify_on_device();
+}
+
+void accumulate_aabb_displacements(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &old_elem_aabb_field,
+                                   stk::mesh::NgpField<double> &elem_aabb_field,
+                                   stk::mesh::NgpField<double> &elem_displacement_field,
+                                   const stk::mesh::Selector &selector) {
+  old_elem_aabb_field.sync_to_device();
+  elem_aabb_field.sync_to_device();
+  elem_displacement_field.sync_to_device();
+
+  stk::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &elem_index) {
+        for (int i = 0; i < 6; ++i) {
+          elem_displacement_field(elem_index, i) += elem_aabb_field(elem_index, i) - old_elem_aabb_field(elem_index, i);
+        }
+      });
+
+  elem_displacement_field.modify_on_device();
+}
+
+}  // namespace geom
+
+namespace mech {
+
+//! \name Spring forces
+//@{
+
+void compute_hookean_spring_forces(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &node_coords_field,
+                                   stk::mesh::NgpField<double> &node_force_field,
+                                   stk::mesh::NgpField<double> &spring_constant_field,
+                                   stk::mesh::NgpField<double> &spring_rest_length_field,
+                                   const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_hookean_spring_forces");
+
+  node_coords_field.sync_to_device();
+  node_force_field.sync_to_device();
+  spring_constant_field.sync_to_device();
+  spring_rest_length_field.sync_to_device();
+
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEM_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &spring_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, spring_index);
+        const stk::mesh::Entity node1 = nodes[0];
+        const stk::mesh::Entity node2 = nodes[1];
+        const stk::mesh::FastMeshIndex node1_index = ngp_mesh.fast_mesh_index(node1);
+        const stk::mesh::FastMeshIndex node2_index = ngp_mesh.fast_mesh_index(node2);
+        const auto node1_coords = node_coords_field(node1_index);
+        const auto node2_coords = node_coords_field(node2_index);
+        const double spring_constant = spring_constant_field(spring_index, 0);
+        const double spring_rest_length = spring_rest_length_field(spring_index, 0);
+
+        // Compute the spring force
+        // Note the extract inv_spring_length due to not normalizing the direction vector.
+        const double dx = node2_coords[0] - node1_coords[0];
+        const double dy = node2_coords[1] - node1_coords[1];
+        const double dz = node2_coords[2] - node1_coords[2];
+        const double spring_length = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
+        const double inv_spring_length = 1.0 / spring_length;
+        const double force_magnitude = spring_constant * (spring_length - spring_rest_length) * inv_spring_length;
+        const double fx = force_magnitude * dx;
+        const double fy = force_magnitude * dy;
+        const double fz = force_magnitude * dz;
+
+        // Apply the force to the nodes. Use atomic add
+        Kokkos::atomic_add(&node_force_field(node1_index, 0), fx);
+        Kokkos::atomic_add(&node_force_field(node1_index, 1), fy);
+        Kokkos::atomic_add(&node_force_field(node1_index, 2), fz);
+        Kokkos::atomic_add(&node_force_field(node2_index, 0), -fx);
+        Kokkos::atomic_add(&node_force_field(node2_index, 1), -fy);
+        Kokkos::atomic_add(&node_force_field(node2_index, 2), -fz);
+      });
+
+  node_force_field.modify_on_device();
+  Kokkos::Profiling::popRegion();
+}
+
+void compute_fene_spring_forces(stk::mesh::NgpMesh &ngp_mesh, stk::mesh::NgpField<double> &node_coords_field,
+                                stk::mesh::NgpField<double> &node_force_field,
+                                stk::mesh::NgpField<double> &spring_constant_field,
+                                stk::mesh::NgpField<double> &spring_max_length_field,
+                                const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_fene_spring_forces");
+
+  node_coords_field.sync_to_device();
+  node_force_field.sync_to_device();
+  spring_constant_field.sync_to_device();
+  spring_max_length_field.sync_to_device();
+
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEM_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &spring_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, spring_index);
+        const stk::mesh::Entity node1 = nodes[0];
+        const stk::mesh::Entity node2 = nodes[1];
+        const stk::mesh::FastMeshIndex node1_index = ngp_mesh.fast_mesh_index(node1);
+        const stk::mesh::FastMeshIndex node2_index = ngp_mesh.fast_mesh_index(node2);
+        const auto node1_coords = node_coords_field(node1_index);
+        const auto node2_coords = node_coords_field(node2_index);
+        const double spring_constant = spring_constant_field(spring_index, 0);
+        const double spring_max_length = spring_max_length_field(spring_index, 0);
+        const double inv_spring_max_length = 1.0 / spring_max_length;
+
+        // Compute the spring force
+        // The fene spring force is F = -k * r / (1 - (r / r_max)^2)
+        const double dx = node2_coords[0] - node1_coords[0];
+        const double dy = node2_coords[1] - node1_coords[1];
+        const double dz = node2_coords[2] - node1_coords[2];
+        const double length = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
+        const double inv_length = 1.0 / length;
+        const double force_magnitude =
+            spring_constant / (1.0 - (length * inv_spring_max_length) * (length * inv_spring_max_length));
+        const double fx = force_magnitude * dx;
+        const double fy = force_magnitude * dy;
+        const double fz = force_magnitude * dz;
+
+        // Apply the force to the nodes. Use atomic add
+        Kokkos::atomic_add(&node_force_field(node1_index, 0), -fx);
+        Kokkos::atomic_add(&node_force_field(node1_index, 1), -fy);
+        Kokkos::atomic_add(&node_force_field(node1_index, 2), -fz);
+        Kokkos::atomic_add(&node_force_field(node2_index, 0), fx);
+        Kokkos::atomic_add(&node_force_field(node2_index, 1), fy);
+        Kokkos::atomic_add(&node_force_field(node2_index, 2), fz);
+      });
+
+  node_force_field.modify_on_device();
+  Kokkos::Profiling::popRegion();
+}
+//@}
+
+}  // namespace mech
+
+namespace alens {
+
+//! \name Dynamic spring bind/unbind via Kinetic Monte Carlo
+//@{
+
+/// \brief Unbind a crosslinker from a node.
+///
+/// If the crosslinker isn't connected to the node on the given ordinal. This is a no-op if the crosslinker isn't
+/// connected to the node on the given ordinal. We'll return a bool indicating whether the operation was successful.
+///
+/// A parallel-local mesh modification operation.
+///
+/// Note, the relation-declarations must be symmetric across all sharers of the involved entities within a
+/// modification cycle.
+///
+/// \param bulk_data The bulk data object.
+/// \param crosslinker The crosslinker entity.
+/// \param conn_ordinal The ordinal of the connection to the crosslinker for which the node will be unbound.
+inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
+                                         const int &conn_ordinal) {
+  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+                     "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
+  // Maybe unsafe?
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
+  // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
+
+  // If a node already exists at the ordinal, we'll destroy that relation.
+  const int num_nodes = bulk_data.num_nodes(crosslinker);
+  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
+  stk::mesh::ConnectivityOrdinal const *node_ords = bulk_data.begin_node_ordinals(crosslinker);
+  for (int i = 0; i < num_nodes; ++i) {
+    if (node_ords[i] == conn_ordinal) {
+      // We found the node in the ordinal that we're trying to bind to. We'll attempt to destroy this relation.
+      // This doesn't mean that it was sucessfully destroyed. That's up to the bulk data object and will be returned by
+      // destroy_relation.
+      return bulk_data.destroy_relation(crosslinker, nodes[i], conn_ordinal);
+    }
+  }
+
+  // If we didn't find the node, this is a no-op.
+  return false;
+}
+
+/// \brief Connect a crosslinker to a new node.
+///
+/// If the crosslinker is already connected to to a node on the given ordinal, the operation will fail.
+///
+/// A parallel-local mesh modification operation.
+///
+/// Note, the relation-declarations must be symmetric across all sharers of the involved entities within a
+/// modification cycle.
+///
+/// \param bulk_data The bulk data object.
+/// \param crosslinker The crosslinker entity.
+/// \param new_node The new node entity.
+/// \param conn_ordinal The ordinal of the connection to the crosslinker for which the new node will be bound.
+inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data, const stk::mesh::Entity &crosslinker,
+                                     const stk::mesh::Entity &new_node, const int &conn_ordinal) {
+  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+                     "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
+  MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
+                     "bind_crosslinker_to_node: The node must have NODE_RANK.");
+  // Maybe unsafe?
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
+  // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
+
+  // Check a node already exists at the ordinal
+  const int num_nodes = bulk_data.num_nodes(crosslinker);
+  stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
+  stk::mesh::ConnectivityOrdinal const *node_ords = bulk_data.begin_node_ordinals(crosslinker);
+  for (int i = 0; i < num_nodes; ++i) {
+    if (node_ords[i] == conn_ordinal) {
+      // We found the node in the ordinal that we're trying to bind to. Fail the operation.
+      return false;
+    }
+  }
+
+  // Declare the new relation.
+  bulk_data.declare_relation(crosslinker, new_node, conn_ordinal);
+
+  return true;
+}
+
+/// \brief Connect a crosslinker to a new node and unbind the existing node.
+///
+/// If the crosslinker is already connected to to a node on the given ordinal, we'll destroy that relation and replace
+/// it with the new one. We'll return a bool indicating whether the operation was successful.
+///
+/// A parallel-local mesh modification operation.
+///
+/// Note, the relation-declarations must be symmetric across all sharers of the involved entities within a
+/// modification cycle.
+///
+/// \param bulk_data The bulk data object.
+/// \param crosslinker The crosslinker entity.
+/// \param new_node The new node entity.
+/// \param conn_ordinal The ordinal of the connection to the crosslinker for which the new node will be bound.
+inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk_data,
+                                                     const stk::mesh::Entity &crosslinker,
+                                                     const stk::mesh::Entity &new_node, const int &conn_ordinal) {
+  MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
+                     "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
+  MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
+                     "bind_crosslinker_to_node: The node must have NODE_RANK.");
+  // Maybe unsafe?
+  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
+  // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
+
+  // If a node already exists at the ordinal, we'll destroy that relation.
+  unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
+
+  // Declare the new relation.
+  bulk_data.declare_relation(crosslinker, new_node, conn_ordinal);
+
+  return true;
+}
+
+struct HarmonicCrosslinkerBindRateHeterochromatin {
+  HarmonicCrosslinkerBindRateHeterochromatin(const mundy::mesh::BulkData &bulk_data, const double &kt,
+                                             const double &crosslinker_binding_rate,
+                                             const double &crosslinker_spring_constant,
+                                             const double &crosslinker_rest_length,
+                                             const stk::mesh::Field<double> &node_coords_field,
+                                             const stk::mesh::Selector &heterochromatin_selector)
+      : bulk_data_(bulk_data),
+        inv_kt_(1.0 / kt),
+        crosslinker_binding_rate_(crosslinker_binding_rate),
+        crosslinker_spring_constant_(crosslinker_spring_constant),
+        crosslinker_rest_length_(crosslinker_rest_length),
+        node_coord_field_(node_coords_field) {
+    heterochromatin_selector.get_parts(heterochromatin_parts_);
+  }
+
+  double operator()(const stk::mesh::Entity &crosslinker, const stk::mesh::Entity &bind_site) const {
+    // Get the distance from the crosslinker's left node and the bind site
+    const stk::mesh::Entity left_node = bulk_data_.begin_nodes(crosslinker)[0];
+    const double *left_node_coords = stk::mesh::field_data(node_coord_field_, left_node);
+    const double *bind_site_coords = stk::mesh::field_data(node_coord_field_, bind_site);
+
+    const double dx = bind_site_coords[0] - left_node_coords[0];
+    const double dy = bind_site_coords[1] - left_node_coords[1];
+    const double dz = bind_site_coords[2] - left_node_coords[2];
+    const double dr_mag = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
+
+    // Z = A * exp(-0.5 * 1/kt * k * (dr - r0)^2)
+    // A = crosslinker_binding_rates
+    // k = crosslinker_spring_constant
+    // r0 = crosslinker_spring_rest_length
+    const double A = crosslinker_binding_rate_;
+    const double k = crosslinker_spring_constant_;
+    const double r0 = crosslinker_rest_length_;
+    double Z = A * Kokkos::exp(-0.5 * inv_kt_ * k * (dr_mag - r0) * (dr_mag - r0));
+    return Z;
+  }
+
+  const mundy::mesh::BulkData &bulk_data_;
+  const double inv_kt_;
+  const double crosslinker_binding_rate_;
+  const double crosslinker_spring_constant_;
+  const double crosslinker_rest_length_;
+  const stk::mesh::Field<double> &node_coord_field_;
+  stk::mesh::PartVector heterochromatin_parts_;
+};
+
+struct FeneCrosslinkerBindRateHeterochromatin {
+  FeneCrosslinkerBindRateHeterochromatin(const mundy::mesh::BulkData &bulk_data, const double &kt,
+                                         const double &crosslinker_binding_rate,
+                                         const double &crosslinker_spring_constant, const double &crosslinker_rmax,
+                                         const stk::mesh::Field<double> &node_coords_field,
+                                         const stk::mesh::Selector &heterochromatin_selector)
+      : bulk_data_(bulk_data),
+        inv_kt_(1.0 / kt),
+        crosslinker_binding_rate_(crosslinker_binding_rate),
+        crosslinker_spring_constant_(crosslinker_spring_constant),
+        crosslinker_rmax_(crosslinker_rmax),
+        node_coord_field_(node_coords_field) {
+    heterochromatin_selector.get_parts(heterochromatin_parts_);
+  }
+
+  double operator()(const stk::mesh::Entity &crosslinker, const stk::mesh::Entity &bind_site) const {
+    // Get the distance from the crosslinker's left node and the bind site
+    const stk::mesh::Entity left_node = bulk_data_.begin_nodes(crosslinker)[0];
+    const double *left_node_coords = stk::mesh::field_data(node_coord_field_, left_node);
+    const double *bind_site_coords = stk::mesh::field_data(node_coord_field_, bind_site);
+
+    const double dx = bind_site_coords[0] - left_node_coords[0];
+    const double dy = bind_site_coords[1] - left_node_coords[1];
+    const double dz = bind_site_coords[2] - left_node_coords[2];
+    const double dr_mag = Kokkos::sqrt(dx * dx + dy * dy + dz * dz);
+
+    // Z = A * (1 - (r/r0)^2)^(0.5 * 1/kt * k * rmax^2)
+    // A = crosslinker_binding_rates
+    // k = crosslinker_spring_constant
+    // rmax = crosslinker_spring_max_length (FENE)
+    // R = crosslinker_fene_max_distance
+    const double A = crosslinker_binding_rate_;
+    const double k = crosslinker_spring_constant_;
+    const double rmax = crosslinker_rmax_;
+    double Z = A * std::pow(1.0 - (dr_mag / rmax) * (dr_mag / rmax), 0.5 * inv_kt_ * k * rmax * rmax);
+    return Z;
+  }
+
+  const mundy::mesh::BulkData &bulk_data_;
+  const double inv_kt_;
+  const double crosslinker_binding_rate_;
+  const double crosslinker_spring_constant_;
+  const double crosslinker_rmax_;
+  const stk::mesh::Field<double> &node_coord_field_;
+  stk::mesh::PartVector heterochromatin_parts_;
+};
+
+template <typename CrosslinkerBindRateHeterochromatin, typename CrosslinkerBindRatePeriphery>
+struct CrosslinkerBindRateHeterochromatinOrPeriphery {
+  CrosslinkerBindRateHeterochromatinOrPeriphery(
+      const stk::mesh::BulkData &bulk_data,
+      const CrosslinkerBindRateHeterochromatin &crosslinker_bind_rate_heterochromatin,
+      const CrosslinkerBindRatePeriphery &crosslinker_bind_rate_periphery,
+      const stk::mesh::Selector &heterochromatin_selector, const stk::mesh::Selector &periphery_selector)
+      : bulk_data_(bulk_data),
+        crosslinker_bind_rate_heterochromatin_(crosslinker_bind_rate_heterochromatin),
+        crosslinker_bind_rate_periphery_(crosslinker_bind_rate_periphery) {
+    heterochromatin_selector.get_parts(heterochromatin_parts_);
+    periphery_selector.get_parts(periphery_parts_);
+  }
+
+  double operator()(const stk::mesh::Entity &crosslinker, const stk::mesh::Entity &bind_site) const {
+    // Determine if the bind site is in the heterochromatin or periphery
+    bool is_heterochromatin = false;
+    for (const stk::mesh::Part *part : heterochromatin_parts_) {
+      if (bulk_data_.bucket(bind_site).member(*part)) {
+        is_heterochromatin = true;
+        break;
+      }
+    }
+    bool is_periphery = false;
+    for (const stk::mesh::Part *part : periphery_parts_) {
+      if (bulk_data_.bucket(bind_site).member(*part)) {
+        is_periphery = true;
+        break;
+      }
+    }
+
+    if (is_heterochromatin) {
+      return crosslinker_bind_rate_heterochromatin_(crosslinker, bind_site);
+    } else if (is_periphery) {
+      return crosslinker_bind_rate_periphery_(crosslinker, bind_site);
+    } else {
+      MUNDY_THROW_ASSERT(false, std::logic_error, "Bind site is not in heterochromatin or periphery.");
+    }
+  }
+
+  const mundy::mesh::BulkData &bulk_data_;
+  const CrosslinkerBindRateHeterochromatin &crosslinker_bind_rate_heterochromatin_;
+  const CrosslinkerBindRatePeriphery &crosslinker_bind_rate_periphery_;
+  stk::mesh::PartVector heterochromatin_parts_;
+  stk::mesh::PartVector periphery_parts_;
+};
+
+template <typename LeftToDoublyStateChangeRate>
+void kmc_perform_state_change_left_bound(mundy::mesh::BulkData &bulk_data, const double timestep_size,
+                                         const LeftToDoublyStateChangeRate &left_to_doubly_state_change_rate_getter,
+                                         const stk::mesh::Field<double> &neighboring_bind_sites_field,
+                                         const stk::mesh::Field<double> &el_rng_field,
+                                         const stk::mesh::Selector &left_bound_springs_selector,
+                                         const stk::mesh::Selector &doubly_bound_springs_selector) {
+  MUNDY_THROW_REQUIRE(bulk_data.in_modifiable_state(), std::logic_error, "Bulk data is not in a modification cycle.");
+
+  // Get the vector of left/right bound parts in the selector
+  stk::mesh::PartVector left_bound_spring_parts;
+  stk::mesh::PartVector doubly_bound_spring_parts;
+  left_bound_springs_selector.get_parts(left_bound_spring_parts);
+  doubly_bound_springs_selector.get_parts(doubly_bound_spring_parts);
+
+  // Get the vector of entities to modify
+  stk::mesh::EntityVector left_bound_springs;
+  stk::mesh::get_selected_entities(left_bound_springs_selector, bulk_data.buckets(stk::topology::ELEM_RANK),
+                                   left_bound_springs);
+
+  for (const stk::mesh::Entity &left_bound_spring : left_bound_springs) {
+    const double *neighboring_bind_sites = stk::mesh::field_data(neighboring_bind_sites_field, left_bound_spring);
+    const int num_neighboring_bind_sites = neighboring_bind_sites[0];
+
+    double z_tot = 0.0;
+    for (int s = 0; s < num_neighboring_bind_sites; ++s) {
+      const auto &neighboring_bind_site_index = static_cast<stk::mesh::FastMeshIndex>(neighboring_bind_sites[s + 1]);
+      const stk::mesh::Entity &bind_site = (*(bulk_data.buckets(
+          stk::topology::NODE_RANK)[neighboring_bind_site_index.bucket_id]))[neighboring_bind_site_index.bucket_ord];
+      const double z_i = timestep_size * left_to_doubly_state_change_rate_getter(left_bound_spring, bind_site);
+      z_tot += z_i;
+    }
+
+    // Fetch the RNG state, get a random number out of it, and increment
+    unsigned *rng_counter = stk::mesh::field_data(el_rng_field, left_bound_spring);
+    const stk::mesh::EntityId spring_gid = bulk_data.identifier(left_bound_spring);
+    openrand::Philox rng(spring_gid, rng_counter[0]);
+    const double randu01 = rng.rand<double>();
+    rng_counter[0]++;
+
+    // Notice that the sum of all probabilities is 1.
+    // The probability of nothing happening is
+    //   std::exp(-z_tot)
+    // The probability of an individual event happening is
+    //   z_i / z_tot * (1 - std::exp(-z_tot))
+    //
+    // This is (by construction) true since
+    //  std::exp(-z_tot) + sum_i(z_i / z_tot * (1 - std::exp(-z_tot)))
+    //    = std::exp(-z_tot) + (1 - std::exp(-z_tot)) = 1
+    //
+    // This means that binding only happens if randu01 < (1 - std::exp(-z_tot))
+    const double probability_of_no_state_change = 1.0 - std::exp(-z_tot);
+    if (randu01 < probability_of_no_state_change) {
+      // Binding occurs. Loop back over the neighbor bind sites to see which one we bind to.
+      const double scale_factor = probability_of_no_state_change * timestep_size / z_tot;
+      double cumsum = 0.0;
+      for (int s = 0; s < num_neighboring_bind_sites; ++s) {
+        const auto &neighboring_bind_site_index = static_cast<stk::mesh::FastMeshIndex>(neighboring_bind_sites[s + 1]);
+        const stk::mesh::Entity &bind_site = (*(bulk_data.buckets(
+            stk::topology::NODE_RANK)[neighboring_bind_site_index.bucket_id]))[neighboring_bind_site_index.bucket_ord];
+        const double binding_probability =
+            scale_factor * left_to_doubly_state_change_rate_getter(left_bound_spring, bind_site);
+        cumsum += binding_probability;
+        if (randu01 < cumsum) {
+          // Bind to the given site
+          const int right_node_index = 1;
+          const bool bind_worked =
+              bind_crosslinker_to_node_unbind_existing(bulk_data, left_bound_spring, bind_site, right_node_index);
+          MUNDY_THROW_ASSERT(bind_worked, std::logic_error, "Failed to bind crosslinker to node.");
+
+          std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Binding crosslinker "
+                    << bulk_data.identifier(left_bound_spring) << " to node " << bulk_data.identifier(bind_site)
+                    << std::endl;
+
+          // Now change the part from left to doubly bound. Add to doubly bound, remove
+          // from left bound
+          const bool is_spring_locally_owned =
+              bulk_data.parallel_owner_rank(left_bound_spring) == bulk_data.parallel_rank();
+          if (is_spring_locally_owned) {
+            bulk_data.change_entity_parts(left_bound_spring, doubly_bound_spring_parts, left_bound_spring_parts);
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename LeftToDoublyStateChangeRate>
+void kmc_perform_state_change_doubly_bound(mundy::mesh::BulkData &bulk_data, const double timestep_size,
+                                           const LeftToDoublyStateChangeRate &doubly_to_left_state_change_rate_getter,
+                                           const stk::mesh::Field<double> &neighboring_bind_sites_field,
+                                           const stk::mesh::Field<double> &el_rng_field,
+                                           const stk::mesh::Selector &left_bound_springs_selector,
+                                           const stk::mesh::Selector &doubly_bound_springs_selector) {
+  MUNDY_THROW_REQUIRE(bulk_data.in_modifiable_state(), std::logic_error, "Bulk data is not in a modification cycle.");
+
+  // Get the vector of left/right bound parts in the selector
+  stk::mesh::PartVector left_bound_spring_parts;
+  stk::mesh::PartVector doubly_bound_spring_parts;
+  left_bound_springs_selector.get_parts(left_bound_spring_parts);
+  doubly_bound_springs_selector.get_parts(doubly_bound_spring_parts);
+
+  // Get the vector of entities to modify
+  stk::mesh::EntityVector doubly_bound_springs;
+  stk::mesh::get_selected_entities(doubly_bound_springs_selector, bulk_data.buckets(stk::topology::ELEM_RANK),
+                                   doubly_bound_springs);
+
+  for (const stk::mesh::Entity &doubly_bound_spring : doubly_bound_springs) {
+    double z_tot = timestep_size * doubly_to_left_state_change_rate_getter(doubly_bound_spring);
+
+    // Fetch the RNG state, get a random number out of it, and increment
+    unsigned *rng_counter = stk::mesh::field_data(el_rng_field, doubly_bound_spring);
+    const stk::mesh::EntityId spring_gid = bulk_data.identifier(doubly_bound_spring);
+    openrand::Philox rng(spring_gid, rng_counter[0]);
+    const double randu01 = rng.rand<double>();
+    rng_counter[0]++;
+
+    // Notice that the sum of all probabilities is 1.
+    // The probability of nothing happening is
+    //   std::exp(-z_tot)
+    // The probability of an individual event happening is
+    //   z_i / z_tot * (1 - std::exp(-z_tot))
+    //
+    // This is (by construction) true since
+    //  std::exp(-z_tot) + sum_i(z_i / z_tot * (1 - std::exp(-z_tot)))
+    //    = std::exp(-z_tot) + (1 - std::exp(-z_tot)) = 1
+    //
+    // This means that unbinding only happens if randu01 < (1 - std::exp(-z_tot))
+    // For now, its either transition to right bound or nothing
+    const double probability_of_no_state_change = 1.0 - Kokkos::exp(-z_tot);
+    if (randu01 < probability_of_no_state_change) {
+      // Unbind the right side of the crosslinker from the current node and bind it to
+      // the left crosslinker node
+      const stk::mesh::Entity &left_node = bulk_data.begin_nodes(doubly_bound_spring)[0];
+      const int right_node_index = 1;
+      const bool unbind_worked =
+          bind_crosslinker_to_node_unbind_existing(bulk_data, doubly_bound_spring, left_node, right_node_index);
+      MUNDY_THROW_ASSERT(unbind_worked, std::logic_error, "Failed to unbind crosslinker from node.");
+
+      std::cout << "Rank: " << stk::parallel_machine_rank(MPI_COMM_WORLD) << " Unbinding crosslinker "
+                << bulk_data.identifier(doubly_bound_spring) << " from node "
+                << bulk_data.identifier(bulk_data.begin_nodes(doubly_bound_spring)[1]) << std::endl;
+
+      // Now change the part from doubly to left bound. Add to left bound, remove from
+      // doubly bound
+      const bool is_spring_locally_owned =
+          bulk_data.parallel_owner_rank(doubly_bound_spring) == bulk_data.parallel_rank();
+      if (is_spring_locally_owned) {
+        bulk_data.change_entity_parts(doubly_bound_spring, left_bound_spring_parts, doubly_bound_spring_parts);
+      }
+    }
+  }
+}
+//@}
+
+//! \name Misc domain-specific physics
+//@{
+
+void compute_brownian_velocity(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size, const double &kt,
+                               const double &viscosity, stk::mesh::NgpField<double> &node_velocity_field,
+                               stk::mesh::NgpField<unsigned> &elem_rng_field,
+                               stk::mesh::NgpField<double> &element_radius_field, stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
+
+  node_velocity_field.sync_to_device();
+  elem_rng_field.sync_to_device();
+  element_radius_field.sync_to_device();
+
+  constexpr double pi = Kokkos::numbers::pi_v<double>;
+  const double six_pi_mu = 6.0 * pi * viscosity;
+  const double sqrt_6_pi_mu = Kokkos::sqrt(six_pi_mu);
+  const double inv_six_pi_mu = 1.0 / six_pi_mu;
+  const double inv_dt = 1.0 / timestep_size;
+  const double sqrt_2_kt = Kokkos::sqrt(2.0 * kt);
+
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEM_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+
+        // Setup the rng
+        const stk::mesh::Entity sphere = ngp_mesh.get_entity(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::EntityId sphere_gid = ngp_mesh.identifier(sphere);
+        auto rng_counter = elem_rng_field(sphere_index);
+        openrand::Philox rng(sphere_gid, rng_counter[0]);
+
+        // U_brown = sqrt(2 * kt * gamma / dt) * randn / gamma
+        // for drag coeff gamma = 6 * pi * mu * r
+        const double sphere_radius = element_radius_field(sphere_index, 0);
+        auto node_velocity = node_velocity_field(node_index);
+        const double coeff =
+            sqrt_2_kt * Kokkos::sqrt(sqrt_6_pi_mu * sphere_radius * inv_dt) * inv_six_pi_mu / sphere_radius;
+        node_velocity[0] += coeff * rng.randn<double>();
+        node_velocity[1] += coeff * rng.randn<double>();
+        node_velocity[2] += coeff * rng.randn<double>();
+        rng_counter[0]++;
+      });
+
+  Kokkos::Profiling::popRegion();
+}
+
+void node_euler_position_update(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size,
+                                stk::mesh::NgpField<double> &node_coords_field,
+                                stk::mesh::NgpField<double> &node_velocity_field, const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::update_positions");
+
+  node_coords_field.sync_to_device();
+  node_velocity_field.sync_to_device();
+
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
+        const stk::mesh::Entity node = ngp_mesh.get_entity(stk::topology::NODE_RANK, node_index);
+        auto node_coords = node_coords_field(node_index);
+        auto node_velocity = node_velocity_field(node_index);
+
+        node_coords[0] += timestep_size * node_velocity[0];
+        node_coords[1] += timestep_size * node_velocity[1];
+        node_coords[2] += timestep_size * node_velocity[2];
+      });
+
+  node_coords_field.modify_on_device();
+
+  Kokkos::Profiling::popRegion();
+}
+//@}
+
+}  // namespace alens
+
+}  // namespace mundy
 
 namespace mundy {
 
 namespace chromalens {
 
-// using DeviceExecutionSpace = Kokkos::DefaultExecutionSpace;
-// using DeviceMemorySpace = typename DeviceExecutionSpace::memory_space;
+using DeviceExecutionSpace = Kokkos::DefaultExecutionSpace;
+using DeviceMemorySpace = typename DeviceExecutionSpace::memory_space;
 
-// void print_rank0(auto thing_to_print, int indent_level = 0) {
-//   if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
-//     std::string indent(indent_level * 2, ' ');
-//     std::cout << indent << thing_to_print << std::endl;
-//   }
-// }
+void print_rank0(auto thing_to_print, int indent_level = 0) {
+  if (stk::parallel_machine_rank(MPI_COMM_WORLD) == 0) {
+    std::string indent(indent_level * 2, ' ');
+    std::cout << indent << thing_to_print << std::endl;
+  }
+}
 
-// class RcbSettings : public stk::balance::BalanceSettings {
-//  public:
-//   RcbSettings() {
-//   }
-//   virtual ~RcbSettings() {
-//   }
+class RcbSettings : public stk::balance::BalanceSettings {
+ public:
+  RcbSettings() {
+  }
+  virtual ~RcbSettings() {
+  }
 
-//   virtual bool isIncrementalRebalance() const {
-//     return false;
-//   }
-//   virtual std::string getDecompMethod() const {
-//     return std::string("rcb");
-//   }
-//   virtual std::string getCoordinateFieldName() const {
-//     return std::string("NODE_COORDS");
-//   }
-//   virtual bool shouldPrintMetrics() const {
-//     return false;
-//   }
-// };  // RcbSettings
+  virtual bool isIncrementalRebalance() const {
+    return false;
+  }
+  virtual std::string getDecompMethod() const {
+    return std::string("rcb");
+  }
+  virtual std::string getCoordinateFieldName() const {
+    return std::string("NODE_COORDS");
+  }
+  virtual bool shouldPrintMetrics() const {
+    return false;
+  }
+};  // RcbSettings
 
 //! \name Chromatin position generators
 //@{
@@ -922,419 +1041,420 @@ std::vector<std::vector<mundy::geom::Point<double>>> get_chromosome_positions_hi
 }
 //@}
 
-// //! \name Mobility
-// //@{
+//! \name Mobility
+//@{
 
-// void check_maximum_overlap_with_periphery(stk::mesh::NgpMesh ngp_mesh, const double &maximum_allowed_overlap,
-//                                           const mundy::geom::Sphere &periphery_shape,
-//                                           stk::mesh::NgpField<double> &node_coords_field,
-//                                           stk::mesh::NgpField<double> &element_radius_field,
-//                                           const stk::mesh::Selector &selector) {
-//   node_coords_field.sync_to_device();
-//   element_radius_field.sync_to_device();
+void check_maximum_overlap_with_periphery(stk::mesh::NgpMesh ngp_mesh, const double &maximum_allowed_overlap,
+                                          const mundy::geom::Sphere<double> &periphery_shape,
+                                          stk::mesh::NgpField<double> &node_coords_field,
+                                          stk::mesh::NgpField<double> &element_radius_field,
+                                          const stk::mesh::Selector &selector) {
+  node_coords_field.sync_to_device();
+  element_radius_field.sync_to_device();
 
-//   double shifted_periphery_hydro_radius = periphery_shape.radius() + maximum_allowed_overlap;
+  double shifted_periphery_hydro_radius = periphery_shape.radius() + maximum_allowed_overlap;
 
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-//         const stk::mesh::Entity node = nodes[0];
-//         const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node);
-//         const double sphere_radius = element_radius_field(node, 0);
-//         const bool overlap_exceeds_threshold =
-//             mundy::math::norm(node_coords) + sphere_radius > shifted_periphery_hydro_radius;
-//         MUNDY_THROW_REQUIRE(!overlap_exceeds_threshold, std::runtime_error,
-//                             "Sphere overlaps with peruphery beyond maximum extent allowed.");
-//       });
-// }
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+        const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
+        const double sphere_radius = element_radius_field(sphere_index, 0);
+        const bool overlap_exceeds_threshold =
+            mundy::math::norm(node_coords) + sphere_radius > shifted_periphery_hydro_radius;
+        MUNDY_THROW_REQUIRE(!overlap_exceeds_threshold, std::runtime_error,
+                            "Sphere overlaps with peruphery beyond maximum extent allowed.");
+      });
+}
 
-// void check_maximum_overlap_with_periphery(stk::mesh::NgpMesh &ngp_mesh, const double &maximum_allowed_overlap,
-//                                           const mundy::geom::Ellipsoid &periphery_shape,
-//                                           stk::mesh::NgpField<double> &node_coords_field,
-//                                           stk::mesh::NgpField<double> &element_radius_field,
-//                                           const stk::mesh::Selector &selector) {
-//   node_coords_field.sync_to_device();
-//   element_radius_field.sync_to_device();
+void check_maximum_overlap_with_periphery(stk::mesh::NgpMesh &ngp_mesh, const double &maximum_allowed_overlap,
+                                          const mundy::geom::Ellipsoid<double> &periphery_shape,
+                                          stk::mesh::NgpField<double> &node_coords_field,
+                                          stk::mesh::NgpField<double> &element_radius_field,
+                                          const stk::mesh::Selector &selector) {
+  node_coords_field.sync_to_device();
+  element_radius_field.sync_to_device();
 
-//   double shifted_periphery_hydro_radius1 = 0.5 * periphery_shape.axis_length1() + maximum_allowed_overlap;
-//   double shifted_periphery_hydro_radius2 = 0.5 * periphery_shape.axis_length2() + maximum_allowed_overlap;
-//   double shifted_periphery_hydro_radius3 = 0.5 * periphery_shape.axis_length3() + maximum_allowed_overlap;
+  double shifted_periphery_hydro_radius1 = 0.5 * periphery_shape.axis_length_1() + maximum_allowed_overlap;
+  double shifted_periphery_hydro_radius2 = 0.5 * periphery_shape.axis_length_2() + maximum_allowed_overlap;
+  double shifted_periphery_hydro_radius3 = 0.5 * periphery_shape.axis_length_3() + maximum_allowed_overlap;
 
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-//         // The following is an in-exact but cheap check.
-//         // If shrinks the periphery's level set by the maximum allowed overlap and the sphere radius and then checks
-//         if the
-//         // sphere's center is inside the shrunk periphery. Level sets don't follow the same rules as Euclidean
-//         geometry, so
-//         // this is a rough check and is not even guarenteed to be conservative.
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-//         const stk::mesh::Entity node = nodes[0];
-//         const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node);
-//         const double sphere_radius = element_radius_field(node, 0);
-//         const double x = node_coords[0];
-//         const double y = node_coords[1];
-//         const double z = node_coords[2];
-//         const double x2 = x * x;
-//         const double y2 = y * y;
-//         const double z2 = z * z;
-//         const double a2 =
-//             (shifted_periphery_hydro_radius1 - sphere_radius) * (shifted_periphery_hydro_radius1 - sphere_radius);
-//         const double b2 =
-//             (shifted_periphery_hydro_radius2 - sphere_radius) * (shifted_periphery_hydro_radius2 - sphere_radius);
-//         const double c2 =
-//             (shifted_periphery_hydro_radius3 - sphere_radius) * (shifted_periphery_hydro_radius3 - sphere_radius);
-//         const double value = x2 / a2 + y2 / b2 + z2 / c2;
-//         MUNDY_THROW_REQUIRE(value <= 1.0, std::runtime_error,
-//                             "Sphere overlaps with periphery beyond maximum extent allowed.");
-//       });
-// }
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        // The following is an in-exact but cheap check.
+        // If shrinks the periphery's level set by the maximum allowed overlap and the sphere radius and then checks
+        // if the sphere's center is inside the shrunk periphery. Level sets don't follow the same rules as Euclidean
+        // geometry, so this is a rough check and is not even guarenteed to be conservative.
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+        const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
+        const double sphere_radius = element_radius_field(sphere_index, 0);
+        const double x = node_coords[0];
+        const double y = node_coords[1];
+        const double z = node_coords[2];
+        const double x2 = x * x;
+        const double y2 = y * y;
+        const double z2 = z * z;
+        const double a2 =
+            (shifted_periphery_hydro_radius1 - sphere_radius) * (shifted_periphery_hydro_radius1 - sphere_radius);
+        const double b2 =
+            (shifted_periphery_hydro_radius2 - sphere_radius) * (shifted_periphery_hydro_radius2 - sphere_radius);
+        const double c2 =
+            (shifted_periphery_hydro_radius3 - sphere_radius) * (shifted_periphery_hydro_radius3 - sphere_radius);
+        const double value = x2 / a2 + y2 / b2 + z2 / c2;
+        MUNDY_THROW_REQUIRE(value <= 1.0, std::runtime_error,
+                            "Sphere overlaps with periphery beyond maximum extent allowed.");
+      });
+}
 
-// void copy_spheres_to_view(stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,
-//                           stk::mesh::NgpField<double> &node_coords_field,
-//                           stk::mesh::NgpField<double> &element_radius_field,
-//                           stk::mesh::NgpField<double> &node_force_field,
-//                           stk::mesh::NgpField<double> &node_velocity_field, DoubleVecDeviceView &sphere_positions,
-//                           DoubleVecDeviceView &sphere_radii, DoubleVecDeviceView &sphere_forces,
-//                           DoubleVecDeviceView &sphere_velocities) {
-//   node_coords_field.sync_to_device();
-//   element_radius_field.sync_to_device();
-//   node_force_field.sync_to_device();
-//   node_velocity_field.sync_to_device();
+void copy_spheres_to_view(stk::mesh::NgpMesh &ngp_mesh, const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,
+                          stk::mesh::NgpField<double> &node_coords_field,
+                          stk::mesh::NgpField<double> &element_radius_field,
+                          stk::mesh::NgpField<double> &node_force_field,
+                          stk::mesh::NgpField<double> &node_velocity_field, DoubleVecDeviceView &sphere_positions,
+                          DoubleVecDeviceView &sphere_radii, DoubleVecDeviceView &sphere_forces,
+                          DoubleVecDeviceView &sphere_velocities) {
+  node_coords_field.sync_to_device();
+  element_radius_field.sync_to_device();
+  node_force_field.sync_to_device();
+  node_velocity_field.sync_to_device();
 
-//   const size_t num_spheres = ngp_sphere_entities.size();
-//   Kokkos::parallel_for(
-//       stk::ngp::RangePolicy<ExecSpace>(0, num_spheres), KOKKOS_LAMBDA(const int &vector_index) {
-//         stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
-//         auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
+  const size_t num_spheres = ngp_sphere_entities.size();
+  Kokkos::parallel_for(
+      stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres), KOKKOS_LAMBDA(const int &vector_index) {
+        stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
+        auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
 
-//         sphere_positions(vector_index * 3 + 0) = node_coords_field(sphere_index, 0);
-//         sphere_positions(vector_index * 3 + 1) = node_coords_field(sphere_index, 1);
-//         sphere_positions(vector_index * 3 + 2) = node_coords_field(sphere_index, 2);
+        sphere_positions(vector_index * 3 + 0) = node_coords_field(node_index, 0);
+        sphere_positions(vector_index * 3 + 1) = node_coords_field(node_index, 1);
+        sphere_positions(vector_index * 3 + 2) = node_coords_field(node_index, 2);
 
-//         sphere_radii(vector_index) = element_radius_field(sphere_index, 0);
+        sphere_radii(vector_index) = element_radius_field(sphere_index, 0);
 
-//         sphere_forces(vector_index * 3 + 0) = node_force_field(sphere_index, 0);
-//         sphere_forces(vector_index * 3 + 1) = node_force_field(sphere_index, 1);
-//         sphere_forces(vector_index * 3 + 2) = node_force_field(sphere_index, 2);
+        sphere_forces(vector_index * 3 + 0) = node_force_field(node_index, 0);
+        sphere_forces(vector_index * 3 + 1) = node_force_field(node_index, 1);
+        sphere_forces(vector_index * 3 + 2) = node_force_field(node_index, 2);
 
-//         sphere_velocities(vector_index * 3 + 0) = node_velocity_field(sphere_index, 0);
-//         sphere_velocities(vector_index * 3 + 1) = node_velocity_field(sphere_index, 1);
-//         sphere_velocities(vector_index * 3 + 2) = node_velocity_field(sphere_index, 2);
-//       });
-// }
+        sphere_velocities(vector_index * 3 + 0) = node_velocity_field(node_index, 0);
+        sphere_velocities(vector_index * 3 + 1) = node_velocity_field(node_index, 1);
+        sphere_velocities(vector_index * 3 + 2) = node_velocity_field(node_index, 2);
+      });
+}
 
-// void compute_rpy_hydro(const double &viscosity, DoubleVecDeviceView &sphere_positions,
-//                        DoubleVecDeviceView &sphere_radii, DoubleVecDeviceView &sphere_forces,
-//                        DoubleVecDeviceView &sphere_velocities) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro");
-//   const size_t num_spheres = sphere_radii.extent(0);
-//   MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
-//                      "Sphere positions has the wrong size.");
-//   MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
-//                      "Sphere forces has the wrong size.");
-//   MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
-//                      "Sphere velocities has the wrong size.");
+void compute_rpy_hydro(const double &viscosity, DoubleVecDeviceView &sphere_positions,
+                       DoubleVecDeviceView &sphere_radii, DoubleVecDeviceView &sphere_forces,
+                       DoubleVecDeviceView &sphere_velocities) {
+  Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro");
+  const size_t num_spheres = sphere_radii.extent(0);
+  MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere positions has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere forces has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere velocities has the wrong size.");
 
-//   // Apply the RPY kernel from spheres to spheres
-//   mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
-//                                             sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+  // Apply the RPY kernel from spheres to spheres
+  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
+                                            sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
 
-//   // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-//   mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
-//                                             sphere_radii);
+  // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+  mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
+                                            sphere_radii);
 
-//   Kokkos::Profiling::popRegion();
-// }
+  Kokkos::Profiling::popRegion();
+}
 
-// void compute_confined_rpy_hydro(const double &viscosity, DoubleVecDeviceView &sphere_positions,
-//                                 DoubleVecDeviceView &sphere_radii, DoubleVecDeviceView &sphere_forces,
-//                                 DoubleVecDeviceView &sphere_velocities, DoubleVecDeviceView &surface_positions,
-//                                 DoubleVecDeviceView &surface_normals, DoubleVecDeviceView &surface_weights,
-//                                 DoubleVecDeviceView &surface_radii, DoubleVecDeviceView &surface_velocities,
-//                                 DoubleVecDeviceView &surface_forces, DoubleMatDeviceView
-//                                 &inv_self_interaction_matrix) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro");
-//   const size_t num_spheres = sphere_radii.extent(0);
-//   const size_t num_surface_nodes = surface_weights.extent(0);
-//   MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
-//                      "Sphere positions has the wrong size.");
-//   MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
-//                      "Sphere forces has the wrong size.");
-//   MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
-//                      "Sphere velocities has the wrong size.");
-//   MUNDY_THROW_ASSERT(surface_positions.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-//                      "Surface positions has the wrong size.");
-//   MUNDY_THROW_ASSERT(surface_normals.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-//                      "Surface normals has the wrong size.");
-//   MUNDY_THROW_ASSERT(surface_weights.extent(0) == num_surface_nodes, std::runtime_error,
-//                      "Surface weights has the wrong size.");
-//   MUNDY_THROW_ASSERT(surface_radii.extent(0) == num_surface_nodes, std::runtime_error,
-//                      "Surface radii has the wrong size.");
-//   MUNDY_THROW_ASSERT(surface_forces.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-//                      "Surface forces has the wrong size.");
-//   MUNDY_THROW_ASSERT(surface_velocities.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-//                      "Surface velocities has the wrong size.");
-//   MUNDY_THROW_ASSERT((inv_self_interaction_matrix.extent(0) == 3 * num_spheres &&
-//                       inv_self_interaction_matrix.extent(1) == 3 * num_spheres),
-//                      std::runtime_error, "Self interaction matrix has the wrong size.");
+void compute_confined_rpy_hydro(const double &viscosity, DoubleVecDeviceView &sphere_positions,
+                                DoubleVecDeviceView &sphere_radii, DoubleVecDeviceView &sphere_forces,
+                                DoubleVecDeviceView &sphere_velocities, DoubleVecDeviceView &surface_positions,
+                                DoubleVecDeviceView &surface_normals, DoubleVecDeviceView &surface_weights,
+                                DoubleVecDeviceView &surface_radii, DoubleVecDeviceView &surface_velocities,
+                                DoubleVecDeviceView &surface_forces, DoubleMatDeviceView &inv_self_interaction_matrix) {
+  Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro");
+  const size_t num_spheres = sphere_radii.extent(0);
+  const size_t num_surface_nodes = surface_weights.extent(0);
+  MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere positions has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere forces has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere velocities has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_positions.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface positions has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_normals.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface normals has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_weights.extent(0) == num_surface_nodes, std::runtime_error,
+                     "Surface weights has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_radii.extent(0) == num_surface_nodes, std::runtime_error,
+                     "Surface radii has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_forces.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface forces has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_velocities.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface velocities has the wrong size.");
+  MUNDY_THROW_ASSERT((inv_self_interaction_matrix.extent(0) == 3 * num_spheres &&
+                      inv_self_interaction_matrix.extent(1) == 3 * num_spheres),
+                     std::runtime_error, "Self interaction matrix has the wrong size.");
 
-//   // Apply the RPY kernel from spheres to spheres
-//   mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
-//                                             sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+  // Apply the RPY kernel from spheres to spheres
+  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
+                                            sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
 
-//   /////////////////////////////////////////////////////////////
-//   // Apply the correction for the no-slip boundary condition //
-//   /////////////////////////////////////////////////////////////
-//   // Apply the RPY kernel from spheres to periphery
-//   mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, surface_positions,
-//                                             sphere_radii, surface_radii, sphere_forces, surface_velocities);
+  /////////////////////////////////////////////////////////////
+  // Apply the correction for the no-slip boundary condition //
+  /////////////////////////////////////////////////////////////
+  // Apply the RPY kernel from spheres to periphery
+  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, surface_positions,
+                                            sphere_radii, surface_radii, sphere_forces, surface_velocities);
 
-//   // Map the slip velocities to the surface forces
-//   // The negative one in the gemv call accounts for the fact that our force should balance the u_slip
-//   KokkosBlas::gemv(stk::ngp::ExecSpace(), "N", -1.0, inv_self_interaction_matrix, surface_velocities, 1.0,
-//                    surface_forces);
-//   mundy::alens::periphery::apply_stokes_double_layer_kernel(
-//       stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_spheres, surface_positions, sphere_positions,
-//       surface_normals, surface_weights, surface_forces, sphere_velocities);
+  // Map the slip velocities to the surface forces
+  // The negative one in the gemv call accounts for the fact that our force should balance the u_slip
+  KokkosBlas::gemv(stk::ngp::ExecSpace(), "N", -1.0, inv_self_interaction_matrix, surface_velocities, 1.0,
+                   surface_forces);
+  mundy::alens::periphery::apply_stokes_double_layer_kernel(
+      stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_spheres, surface_positions, sphere_positions,
+      surface_normals, surface_weights, surface_forces, sphere_velocities);
 
-//   //////////////////////
-//   // Self-interaction //
-//   //////////////////////
-//   // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-//   mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
-//                                             sphere_radii);
+  //////////////////////
+  // Self-interaction //
+  //////////////////////
+  // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+  mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
+                                            sphere_radii);
 
-//   Kokkos::Profiling::popRegion();
-// }
+  Kokkos::Profiling::popRegion();
+}
 
-// void compute_dry_velocity(stk::mesh::NgpMesh &ngp_mesh, const double &viscosity,
-//                           stk::mesh::NgpField<double> &node_velocity_field,
-//                           stk::mesh::NgpField<double> &node_force_field,
-//                           stk::mesh::NgpField<double> &element_radius_field, const stk::mesh::Selector &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_dry_velocity");
+void compute_dry_velocity(stk::mesh::NgpMesh &ngp_mesh, const double &viscosity,
+                          stk::mesh::NgpField<double> &node_velocity_field,
+                          stk::mesh::NgpField<double> &node_force_field,
+                          stk::mesh::NgpField<double> &element_radius_field, const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_dry_velocity");
 
-//   node_velocity_field.sync_to_device();
-//   node_force_field.sync_to_device();
-//   element_radius_field.sync_to_device();
+  node_velocity_field.sync_to_device();
+  node_force_field.sync_to_device();
+  element_radius_field.sync_to_device();
 
-//   constexpr double pi = Kokkos::numbers::pi_v<double>;
-//   const double six_pi_mu = 6.0 * pi * viscosity;
-//   const double inv_six_pi_mu = 1.0 / six_pi_mu;
+  constexpr double pi = Kokkos::numbers::pi_v<double>;
+  const double six_pi_mu = 6.0 * pi * viscosity;
+  const double inv_six_pi_mu = 1.0 / six_pi_mu;
 
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-//         const stk::mesh::Entity node = nodes[0];
-//         const auto node_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node);
-//         const auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
-//         const double sphere_radius = element_radius_field(node, 0);
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+        const double sphere_radius = element_radius_field(sphere_index, 0);
+        const auto node_force = mundy::mesh::vector3_field_data(node_force_field, node_index);
 
-//         const double inv_drag_coeff = inv_six_pi_mu / sphere_radius;
-//         node_velocity[0] += node_force[0] * inv_drag_coeff;
-//         node_velocity[1] += node_force[1] * inv_drag_coeff;
-//         node_velocity[2] += node_force[2] * inv_drag_coeff;
-//       });
+        const double inv_drag_coeff = inv_six_pi_mu / sphere_radius;
+        auto node_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node_index);
+        node_velocity[0] += node_force[0] * inv_drag_coeff;
+        node_velocity[1] += node_force[1] * inv_drag_coeff;
+        node_velocity[2] += node_force[2] * inv_drag_coeff;
+      });
 
-//   node_velocity_field.modify_on_device();
+  node_velocity_field.modify_on_device();
 
-//   Kokkos::Profiling::popRegion();
-// }
-// //@}
+  Kokkos::Profiling::popRegion();
+}
+//@}
 
-// //! \name Collision resolution
-// //@{
+//! \name Collision resolution
+//@{
 
-// void compute_spherical_periphery_collision_forces(stk::mesh::NgpMesh &ngp_mesh,
-//                                                   const double &periphery_collision_spring_constant,
-//                                                   const mundy::geom::Sphere &periphery_shape,
-//                                                   stk::mesh::NgpField<double> &node_coords_field,
-//                                                   stk::mesh::NgpField<double> &node_force_field,
-//                                                   stk::mesh::NgpField<double> &element_radius_field,
-//                                                   const stk::mesh::Selector &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_spherical_periphery_collision_forces");
+void compute_spherical_periphery_collision_forces(stk::mesh::NgpMesh &ngp_mesh,
+                                                  const double &periphery_collision_spring_constant,
+                                                  const mundy::geom::Sphere<double> &periphery_shape,
+                                                  stk::mesh::NgpField<double> &node_coords_field,
+                                                  stk::mesh::NgpField<double> &node_force_field,
+                                                  stk::mesh::NgpField<double> &element_radius_field,
+                                                  const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_spherical_periphery_collision_forces");
 
-//   node_coords_field.sync_to_device();
-//   node_force_field.sync_to_device();
-//   element_radius_field.sync_to_device();
+  node_coords_field.sync_to_device();
+  node_force_field.sync_to_device();
+  element_radius_field.sync_to_device();
 
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-//         const stk::mesh::Entity node = nodes[0];
-//         const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node);
-//         const double sphere_radius = element_radius_field(node, 0);
-//         const double node_coords_norm = mundy::math::two_norm(node_coords);
-//         const double shared_normal_ssd = periphery_shape.radius() - node_coords_norm - sphere_radius;
-//         if (shared_normal_ssd < 0.0) {
-//           auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
-//           auto inward_normal = -node_coords / node_coords_norm;
-//           node_force[0] -= periphery_collision_spring_constant * inward_normal[0] * shared_normal_ssd;
-//           node_force[1] -= periphery_collision_spring_constant * inward_normal[1] * shared_normal_ssd;
-//           node_force[2] -= periphery_collision_spring_constant * inward_normal[2] * shared_normal_ssd;
-//         }
-//       });
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+        const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
+        const double sphere_radius = element_radius_field(node_index, 0);
+        const double node_coords_norm = mundy::math::two_norm(node_coords);
+        const double shared_normal_ssd = periphery_shape.radius() - node_coords_norm - sphere_radius;
+        if (shared_normal_ssd < 0.0) {
+          auto node_force = mundy::mesh::vector3_field_data(node_force_field, node_index);
+          auto inward_normal = -node_coords / node_coords_norm;
+          node_force[0] -= periphery_collision_spring_constant * inward_normal[0] * shared_normal_ssd;
+          node_force[1] -= periphery_collision_spring_constant * inward_normal[1] * shared_normal_ssd;
+          node_force[2] -= periphery_collision_spring_constant * inward_normal[2] * shared_normal_ssd;
+        }
+      });
 
-//   node_force_field.modify_on_device();
-//   Kokkos::Profiling::popRegion();
-// }
+  node_force_field.modify_on_device();
+  Kokkos::Profiling::popRegion();
+}
 
-// void compute_ellipsoidal_periphery_collision_forces(
-//     stk::mesh::NgpMesh &ngp_mesh, const double &periphery_collision_spring_constant,
-//     const mundy::geom::Ellipsoid &periphery_shape, stk::mesh::NgpField<double> &node_coords_field,
-//     stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &element_radius_field,
-//     stk::mesh::NgpField<double> &element_aabb_field, const stk::mesh::Selector &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces");
+void compute_ellipsoidal_periphery_collision_forces(
+    stk::mesh::NgpMesh &ngp_mesh, const double &periphery_collision_spring_constant,
+    const mundy::geom::Ellipsoid<double> &periphery_shape, stk::mesh::NgpField<double> &node_coords_field,
+    stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &element_radius_field,
+    stk::mesh::NgpField<double> &element_aabb_field, const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_ellipsoidal_periphery_collision_forces");
 
-//   // Setup the ellipsoid level set function
-//   const double a = 0.5 * periphery_shape.axis_length1();
-//   const double b = 0.5 * periphery_shape.axis_length2();
-//   const double c = 0.5 * periphery_shape.axis_length3();
-//   const double inv_a2 = 1.0 / (a * a);
-//   const double inv_b2 = 1.0 / (b * b);
-//   const double inv_c2 = 1.0 / (c * c);
-//   auto level_set = [&inv_a2, &inv_b2, &inv_c2, &periphery_shape](const mundy::math::Vector3<double> &point) -> double
-//   {
-//     const auto body_frame_point =
-//         mundy::math::conjugate(periphery_shape.orientation()) * (point - periphery_shape.center());
-//     return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
-//             body_frame_point[2] * body_frame_point[2] * inv_c2) -
-//            1;
-//   };
+  // Setup the ellipsoid level set function
+  const double a = 0.5 * periphery_shape.axis_length_1();
+  const double b = 0.5 * periphery_shape.axis_length_2();
+  const double c = 0.5 * periphery_shape.axis_length_3();
+  const double inv_a2 = 1.0 / (a * a);
+  const double inv_b2 = 1.0 / (b * b);
+  const double inv_c2 = 1.0 / (c * c);
+  auto level_set = [&inv_a2, &inv_b2, &inv_c2, &periphery_shape](const mundy::math::Vector3<double> &point) -> double {
+    const auto body_frame_point =
+        mundy::math::conjugate(periphery_shape.orientation()) * (point - periphery_shape.center());
+    return (body_frame_point[0] * body_frame_point[0] * inv_a2 + body_frame_point[1] * body_frame_point[1] * inv_b2 +
+            body_frame_point[2] * body_frame_point[2] * inv_c2) -
+           1;
+  };
 
-//   // Evaluate the potential
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-//         const stk::mesh::Entity node = nodes[0];
+  // Evaluate the potential
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        // For our coarse search, we check if the coners of the sphere's aabb lie inside the ellipsoidal periphery
+        // This can be done via the (body frame) inside outside unftion f(x, y, z) = 1 - (x^2/a^2 + y^2/b^2  z^2/c^2)
+        // This is possible due to the convexity of the ellipsoid
+        auto aabb = element_aabb_field(sphere_index);
+        const double &x0 = aabb[0];
+        const double &y0 = aabb[1];
+        const double &z0 = aabb[2];
+        const double &x1 = aabb[3];
+        const double &y1 = aabb[4];
+        const double &z1 = aabb[5];
 
-//         // For our coarse search, we check if the coners of the sphere's aabb lie inside the ellipsoidal periphery
-//         // This can be done via the (body frame) inside outside unftion f(x, y, z) = 1 - (x^2/a^2 + y^2/b^2 +
-//         z^2/c^2)
-//         // This is possible due to the convexity of the ellipsoid
-//         auto aabb = element_aabb_field(sphere_index);
-//         const double &x0 = aabb[0];
-//         const double &y0 = aabb[1];
-//         const double &z0 = aabb[2];
-//         const double &x1 = aabb[3];
-//         const double &y1 = aabb[4];
-//         const double &z1 = aabb[5];
+        // Compute all 8 corners of the AABB
+        const auto bottom_left_front = mundy::math::Vector3<double>(x0, y0, z0);
+        const auto bottom_right_front = mundy::math::Vector3<double>(x1, y0, z0);
+        const auto top_left_front = mundy::math::Vector3<double>(x0, y1, z0);
+        const auto top_right_front = mundy::math::Vector3<double>(x1, y1, z0);
+        const auto bottom_left_back = mundy::math::Vector3<double>(x0, y0, z1);
+        const auto bottom_right_back = mundy::math::Vector3<double>(x1, y0, z1);
+        const auto top_left_back = mundy::math::Vector3<double>(x0, y1, z1);
+        const auto top_right_back = mundy::math::Vector3<double>(x1, y1, z1);
+        const double all_points_inside_periphery =
+            level_set(bottom_left_front) < 0.0 && level_set(bottom_right_front) < 0.0 &&
+            level_set(top_left_front) < 0.0 && level_set(top_right_front) < 0.0 && level_set(bottom_left_back) < 0.0 &&
+            level_set(bottom_right_back) < 0.0 && level_set(top_left_back) < 0.0 && level_set(top_right_back) < 0.0;
 
-//         // Compute all 8 corners of the AABB
-//         const auto bottom_left_front = mundy::math::Vector3<double>(x0, y0, z0);
-//         const auto bottom_right_front = mundy::math::Vector3<double>(x1, y0, z0);
-//         const auto top_left_front = mundy::math::Vector3<double>(x0, y1, z0);
-//         const auto top_right_front = mundy::math::Vector3<double>(x1, y1, z0);
-//         const auto bottom_left_back = mundy::math::Vector3<double>(x0, y0, z1);
-//         const auto bottom_right_back = mundy::math::Vector3<double>(x1, y0, z1);
-//         const auto top_left_back = mundy::math::Vector3<double>(x0, y1, z1);
-//         const auto top_right_back = mundy::math::Vector3<double>(x1, y1, z1);
-//         const double all_points_inside_periphery =
-//             level_set(bottom_left_front) < 0.0 && level_set(bottom_right_front) < 0.0 &&
-//             level_set(top_left_front) < 0.0 && level_set(top_right_front) < 0.0 && level_set(bottom_left_back) < 0.0
-//             && level_set(bottom_right_back) < 0.0 && level_set(top_left_back) < 0.0 && level_set(top_right_back) <
-//             0.0;
+        if (!all_points_inside_periphery) {
+          // We might have a collision, perform the more expensive check
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          const stk::mesh::Entity node = nodes[0];
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+          const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
+          const double sphere_radius = element_radius_field(sphere_index, 0);
 
-//         if (!all_points_inside_periphery) {
-//           // We might have a collision, perform the more expensive check
-//           const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node);
-//           const double sphere_radius = element_radius_field(node, 0);
+          // Note, the ellipsoid for the ssd calc has outward normal, whereas the periphery has inward normal.
+          // Hence, the sign flip.
+          mundy::math::Vector3<double> contact_point;
+          mundy::math::Vector3<double> ellipsoid_nhat;
+          const double shared_normal_ssd = -mundy::math::distance::shared_normal_ssd_between_ellipsoid_and_point(
+                                               periphery_shape.center(), periphery_shape.orientation(), a, b, c,
+                                               node_coords, contact_point, ellipsoid_nhat) -
+                                           sphere_radius;
 
-//           // Note, the ellipsoid for the ssd calc has outward normal, whereas the periphery has inward normal.
-//           // Hence, the sign flip.
-//           mundy::math::Vector3<double> contact_point;
-//           mundy::math::Vector3<double> ellipsoid_nhat;
-//           const double shared_normal_ssd = -mundy::math::distance::shared_normal_ssd_between_ellipsoid_and_point(
-//                                                periphery_shape.center(), periphery_shape.orientation(), a, b, c,
-//                                                node_coords, contact_point, ellipsoid_nhat) -
-//                                            sphere_radius;
+          if (shared_normal_ssd < 0.0) {
+            // We have a collision, compute the force
+            auto node_force = mundy::mesh::vector3_field_data(node_force_field, node_index);
+            auto periphery_nhat = -ellipsoid_nhat;
+            node_force[0] -= periphery_collision_spring_constant * periphery_nhat[0] * shared_normal_ssd;
+            node_force[1] -= periphery_collision_spring_constant * periphery_nhat[1] * shared_normal_ssd;
+            node_force[2] -= periphery_collision_spring_constant * periphery_nhat[2] * shared_normal_ssd;
+          }
+        }
+      });
 
-//           if (shared_normal_ssd < 0.0) {
-//             // We have a collision, compute the force
-//             auto node_force = mundy::mesh::vector3_field_data(node_force_field, node);
-//             auto periphery_nhat = -ellipsoid_nhat;
-//             node_force[0] -= periphery_collision_spring_constant * periphery_nhat[0] * shared_normal_ssd;
-//             node_force[1] -= periphery_collision_spring_constant * periphery_nhat[1] * shared_normal_ssd;
-//             node_force[2] -= periphery_collision_spring_constant * periphery_nhat[2] * shared_normal_ssd;
-//           }
-//         }
-//       });
+  node_force_field.modify_on_device();
+  Kokkos::Profiling::popRegion();
+}
+//@}
 
-//   node_force_field.modify_on_device();
-//   Kokkos::Profiling::popRegion();
-// }
-// //@}
+//! \name Misc problem-specific physics
+//@{
 
-// //! \name Misc problem-specific physics
-// //@{
+void compute_brownian_velocity(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size, const double &kt,
+                               const double &viscosity, stk::mesh::NgpField<double> &node_velocity_field,
+                               stk::mesh::NgpField<unsigned> &elem_rng_field,
+                               stk::mesh::NgpField<double> &element_radius_field, stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
 
-// void compute_brownian_velocity(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size, const double &kt,
-//                                const double &viscosity, stk::mesh::NgpField<double> &node_velocity_field,
-//                                stk::mesh::NgpField<unsigned> &elem_rng_field,
-//                                stk::mesh::NgpField<double> &element_radius_field, stk::mesh::Selector &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::compute_brownian_velocity");
+  node_velocity_field.sync_to_device();
+  elem_rng_field.sync_to_device();
+  element_radius_field.sync_to_device();
 
-//   node_velocity_field.sync_to_device();
-//   elem_rng_field.sync_to_device();
-//   element_radius_field.sync_to_device();
+  constexpr double pi = Kokkos::numbers::pi_v<double>;
+  const double six_pi_mu = 6.0 * pi * viscosity;
+  const double sqrt_6_pi_mu = Kokkos::sqrt(six_pi_mu);
+  const double inv_six_pi_mu = 1.0 / six_pi_mu;
+  const double inv_dt = 1.0 / timestep_size;
+  const double sqrt_2_kt = Kokkos::sqrt(2.0 * kt);
 
-//   constexpr double pi = Kokkos::numbers::pi_v<double>;
-//   const double six_pi_mu = 6.0 * pi * viscosity;
-//   const double sqrt_6_pi_mu = Kokkos::sqrt(six_pi_mu);
-//   const double inv_six_pi_mu = 1.0 / six_pi_mu;
-//   const double inv_dt = 1.0 / timestep_size;
-//   const double sqrt_2_kt = Kokkos::sqrt(2.0 * kt);
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEM_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
 
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::ELEM_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-//         stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-//         const stk::mesh::Entity node = nodes[0];
+        // Setup the rng
+        const stk::mesh::Entity sphere = ngp_mesh.get_entity(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::EntityId sphere_gid = ngp_mesh.identifier(sphere);
+        auto rng_counter = elem_rng_field(sphere_index);
+        openrand::Philox rng(sphere_gid, rng_counter[0]);
 
-//         // Setup the rng
-//         const stk::mesh::EntityId sphere_gid = ngp_mesh.identifier(sphere_index);
-//         auto rng_counter = elem_rng_field(sphere_index);
-//         openrand::Philox rng(sphere_gid, rng_counter[0]);
+        // U_brown = sqrt(2 * kt * gamma / dt) * randn / gamma
+        // for drag coeff gamma = 6 * pi * mu * r
+        const double sphere_radius = element_radius_field(sphere_index, 0);
+        auto node_velocity = node_velocity_field(node_index);
+        const double coeff =
+            sqrt_2_kt * Kokkos::sqrt(sqrt_6_pi_mu * sphere_radius * inv_dt) * inv_six_pi_mu / sphere_radius;
+        node_velocity[0] += coeff * rng.randn<double>();
+        node_velocity[1] += coeff * rng.randn<double>();
+        node_velocity[2] += coeff * rng.randn<double>();
+        rng_counter[0]++;
+      });
 
-//         // U_brown = sqrt(2 * kt * gamma / dt) * randn / gamma
-//         // for drag coeff gamma = 6 * pi * mu * r
-//         const double sphere_radius = element_radius_field(node, 0);
-//         auto node_velocity = node_velocity_field(node);
-//         const double coeff =
-//             sqrt_2_kt * Kokkos::sqrt(sqrt_6_pi_mu * sphere_radius * inv_dt) * inv_six_pi_mu / sphere_radius;
-//         node_velocity[0] += coeff * rng.randn<double>();
-//         node_velocity[1] += coeff * rng.randn<double>();
-//         node_velocity[2] += coeff * rng.randn<double>();
-//         rng_counter[0]++;
-//       });
+  Kokkos::Profiling::popRegion();
+}
 
-//   Kokkos::Profiling::popRegion();
-// }
+void node_euler_position_update(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size,
+                                stk::mesh::NgpField<double> &node_coords_field,
+                                stk::mesh::NgpField<double> &node_velocity_field, const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::update_positions");
 
-// void node_euler_position_update(stk::mesh::NgpMesh &ngp_mesh, const double &timestep_size,
-//                                 stk::mesh::NgpField<double> &node_coords_field,
-//                                 stk::mesh::NgpField<double> &node_velocity_field, const stk::mesh::Selector
-//                                 &selector) {
-//   Kokkos::Profiling::pushRegion("HP1::update_positions");
+  node_coords_field.sync_to_device();
+  node_velocity_field.sync_to_device();
 
-//   node_coords_field.sync_to_device();
-//   node_velocity_field.sync_to_device();
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
+        auto node_coords = node_coords_field(node_index);
+        auto node_velocity = node_velocity_field(node_index);
 
-//   mundy::mesh::for_each_entity_run(
-//       ngp_mesh, stk::topology::NODE_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &node_index) {
-//         const stk::mesh::Entity node = ngp_mesh.get_entity(stk::topology::NODE_RANK, node_index);
-//         auto node_coords = node_coords_field(node);
-//         auto node_velocity = node_velocity_field(node);
+        node_coords[0] += timestep_size * node_velocity[0];
+        node_coords[1] += timestep_size * node_velocity[1];
+        node_coords[2] += timestep_size * node_velocity[2];
+      });
 
-//         node_coords[0] += timestep_size * node_velocity[0];
-//         node_coords[1] += timestep_size * node_velocity[1];
-//         node_coords[2] += timestep_size * node_velocity[2];
-//       });
+  node_coords_field.modify_on_device();
 
-//   node_coords_field.modify_on_device();
-
-//   Kokkos::Profiling::popRegion();
-// }
-// //@}
+  Kokkos::Profiling::popRegion();
+}
+//@}
 
 //! \name Simulation setupo/run
 //@{
@@ -1497,8 +1617,8 @@ struct HP1ParamParser {
         .set("viscosity", 1.0, "Viscosity.")
         .set("num_chromosomes", static_cast<size_t>(1), "Number of chromosomes.",
              make_new_validator(prefer_size_t, accept_int))
-        .set("num_hetero_euchromatin_repeats", static_cast<size_t>(2), "Number of heterochromatin/euchromatin repeats per chain.",
-             make_new_validator(prefer_size_t, accept_int))
+        .set("num_hetero_euchromatin_repeats", static_cast<size_t>(2),
+             "Number of heterochromatin/euchromatin repeats per chain.", make_new_validator(prefer_size_t, accept_int))
         .set("num_euchromatin_per_repeat", static_cast<size_t>(1), "Number of euchromatin beads per repeat.",
              make_new_validator(prefer_size_t, accept_int))
         .set("num_heterochromatin_per_repeat", static_cast<size_t>(1), "Number of heterochromatin beads per repeat.",
@@ -1613,8 +1733,10 @@ struct HP1ParamParser {
         .set("spring_constant", 1000.0, "Periphery spring constant.")
         .set("spring_r0", 1.0, "Periphery spring rest length.")
         .set("bind_sites_type", std::string("RANDOM"),
-             "Periphery bind sites type. Valid options are RANDOM or FROM_FILE.")       
-        .set("shape", std::string("SPHERE"), "The shape of the binding site locations. Only used if bind_sites_type is RANDOM. Valid options are SPHERE or ELLIPSOID.")
+             "Periphery bind sites type. Valid options are RANDOM or FROM_FILE.")
+        .set("shape", std::string("SPHERE"),
+             "The shape of the binding site locations. Only used if bind_sites_type is RANDOM. Valid options are "
+             "SPHERE or ELLIPSOID.")
         .set("radius", 5.0, "Periphery radius (only used if periphery_shape is SPHERE).")
         .set("axis_radius1", 5.0, "Periphery axis length 1 (only used if periphery_shape is ELLIPSOID).")
         .set("axis_radius2", 5.0, "Periphery axis length 2 (only used if periphery_shape is ELLIPSOID).")
@@ -1654,7 +1776,8 @@ struct HP1ParamParser {
       std::cout << "  timestep_size:   " << sim_params.get<double>("timestep_size") << std::endl;
       std::cout << "  viscosity:       " << sim_params.get<double>("viscosity") << std::endl;
       std::cout << "  num_chromosomes: " << sim_params.get<size_t>("num_chromosomes") << std::endl;
-      std::cout << "  num_hetero_euchromatin_repeats:      " << sim_params.get<size_t>("num_hetero_euchromatin_repeats") << std::endl;
+      std::cout << "  num_hetero_euchromatin_repeats:      " << sim_params.get<size_t>("num_hetero_euchromatin_repeats")
+                << std::endl;
       std::cout << "  num_euchromatin_per_repeat: " << sim_params.get<size_t>("num_euchromatin_per_repeat")
                 << std::endl;
       std::cout << "  num_heterochromatin_per_repeat:  " << sim_params.get<size_t>("num_heterochromatin_per_repeat")
@@ -1968,7 +2091,7 @@ void run(int argc, char **argv) {
   auto &elem_binding_radius_field = meta_data.declare_field<double>(element_rank, "BINDING_RADIUS");
 
   auto &elem_spring_constant_field = meta_data.declare_field<double>(element_rank, "SPRING_CONSTANT");
-  auto &elem_spring_r0_field = meta_data.declare_field<double>(element_rank, "SPRING_R0");
+  auto &elem_spring_rest_length_field = meta_data.declare_field<double>(element_rank, "SPRING_R0");
 
   auto &elem_youngs_modulus_field = meta_data.declare_field<double>(element_rank, "YOUNGS_MODULUS");
   auto &elem_poissons_ratio_field = meta_data.declare_field<double>(element_rank, "POISSONS_RATIO");
@@ -1994,7 +2117,7 @@ void run(int argc, char **argv) {
   stk::io::set_field_role(elem_collision_radius_field, transient_role);
   stk::io::set_field_role(elem_binding_radius_field, transient_role);
   stk::io::set_field_role(elem_spring_constant_field, transient_role);
-  stk::io::set_field_role(elem_spring_r0_field, transient_role);
+  stk::io::set_field_role(elem_spring_rest_length_field, transient_role);
   stk::io::set_field_role(elem_youngs_modulus_field, transient_role);
   stk::io::set_field_role(elem_poissons_ratio_field, transient_role);
   stk::io::set_field_role(elem_aabb_field, transient_role);
@@ -2016,7 +2139,7 @@ void run(int argc, char **argv) {
   stk::io::set_field_output_type(elem_collision_radius_field, scalar_io_type);
   stk::io::set_field_output_type(elem_binding_radius_field, scalar_io_type);
   stk::io::set_field_output_type(elem_spring_constant_field, scalar_io_type);
-  stk::io::set_field_output_type(elem_spring_r0_field, scalar_io_type);
+  stk::io::set_field_output_type(elem_spring_rest_length_field, scalar_io_type);
   stk::io::set_field_output_type(elem_youngs_modulus_field, scalar_io_type);
   stk::io::set_field_output_type(elem_poissons_ratio_field, scalar_io_type);
   // stk::io::set_field_output_type(elem_aabb_field, ...);
@@ -2051,7 +2174,7 @@ void run(int argc, char **argv) {
   stk::mesh::put_field_on_mesh(node_force_field, backbone_segs_part, 3, nullptr);
   stk::mesh::put_field_on_mesh(elem_collision_radius_field, backbone_segs_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_spring_constant_field, backbone_segs_part, 1, nullptr);
-  stk::mesh::put_field_on_mesh(elem_spring_r0_field, backbone_segs_part, 1, nullptr);
+  stk::mesh::put_field_on_mesh(elem_spring_rest_length_field, backbone_segs_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_youngs_modulus_field, backbone_segs_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_poissons_ratio_field, backbone_segs_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_aabb_field, backbone_segs_part, 6, nullptr);
@@ -2265,7 +2388,7 @@ void run(int argc, char **argv) {
                 segment
                     .add_field_data<double>(&elem_spring_constant_field,
                                             {backbone_springs_params.get<double>("spring_constant")})  //
-                    .add_field_data<double>(&elem_spring_r0_field, {backbone_springs_params.get<double>("spring_r0")});
+                    .add_field_data<double>(&elem_spring_rest_length_field, {backbone_springs_params.get<double>("spring_r0")});
               }
 
               if (sim_params.get<bool>("enable_backbone_collision")) {
@@ -2288,7 +2411,6 @@ void run(int argc, char **argv) {
               } else {
                 segment.add_part(&eh_segs_part);
               }
-
             }
 
             // Declare the heterochromatin sphere
@@ -2332,7 +2454,7 @@ void run(int argc, char **argv) {
                 segment
                     .add_field_data<double>(&elem_spring_constant_field,
                                             {backbone_springs_params.get<double>("spring_constant")})  //
-                    .add_field_data<double>(&elem_spring_r0_field, {backbone_springs_params.get<double>("spring_r0")});
+                    .add_field_data<double>(&elem_spring_rest_length_field, {backbone_springs_params.get<double>("spring_r0")});
               }
 
               if (sim_params.get<bool>("enable_backbone_collision")) {
@@ -2384,169 +2506,173 @@ void run(int argc, char **argv) {
     stk::io::write_mesh_with_fields("ngp_hp1.exo", bulk_data, step);
   }
 
-  // // Post-setup but pre-run
-  // if (sim_params.get<bool>("loadbalance_post_initialization")) {
-  //   stk::balance::balanceStkMesh(RcbSettings{}, bulk_data);
-  // }
+  // Post-setup but pre-run
+  if (sim_params.get<bool>("loadbalance_post_initialization")) {
+    stk::balance::balanceStkMesh(RcbSettings{}, bulk_data);
+  }
 
-  // // Get the NGP stuff
-  // stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
-  // auto &ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
-  // auto &ngp_node_velocity_field = stk::mesh::get_updated_ngp_field<double>(node_velocity_field);
-  // auto &ngp_node_force_field = stk::mesh::get_updated_ngp_field<double>(node_force_field);
-  // auto &ngp_node_rng_field = stk::mesh::get_updated_ngp_field<unsigned>(node_rng_field);
-  // auto &ngp_elem_hydrodynamic_radius_field =
-  // stk::mesh::get_updated_ngp_field<double>(elem_hydrodynamic_radius_field); auto &ngp_elem_binding_radius_field =
-  // stk::mesh::get_updated_ngp_field<double>(elem_binding_radius_field); auto &ngp_elem_collision_radius_field =
-  // stk::mesh::get_updated_ngp_field<double>(elem_collision_radius_field); auto &ngp_elem_hookean_spring_constant_field
-  // =
-  //     stk::mesh::get_updated_ngp_field<double>(elem_hookean_spring_constant_field);
-  // auto &ngp_elem_hookean_spring_rest_length_field =
-  //     stk::mesh::get_updated_ngp_field<double>(elem_hookean_spring_rest_length_field);
-  // auto &ngp_elem_youngs_modulus_field = stk::mesh::get_updated_ngp_field<double>(elem_youngs_modulus_field);
-  // auto &ngp_elem_poissons_ratio_field = stk::mesh::get_updated_ngp_field<double>(elem_poissons_ratio_field);
-  // auto &ngp_elem_aabb_field = stk::mesh::get_updated_ngp_field<double>(elem_aabb_field);
-  // auto &ngp_elem_aabb_displacement_field = stk::mesh::get_updated_ngp_field<double>(elem_aabb_displacement_field);
-  // auto &ngp_elem_binding_rates_field = stk::mesh::get_updated_ngp_field<double>(elem_binding_rates_field);
-  // auto &ngp_elem_unbinding_rates_field = stk::mesh::get_updated_ngp_field<double>(elem_unbinding_rates_field);
-  // auto &ngp_elem_perform_state_change_field =
-  //     stk::mesh::get_updated_ngp_field<unsigned>(elem_perform_state_change_field);
-  // auto &ngp_elem_rng_field = stk::mesh::get_updated_ngp_field<unsigned>(elem_rng_field);
+  // Get the NGP stuff
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
+  auto &ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
+  auto &ngp_node_velocity_field = stk::mesh::get_updated_ngp_field<double>(node_velocity_field);
+  auto &ngp_node_force_field = stk::mesh::get_updated_ngp_field<double>(node_force_field);
+  auto &ngp_node_rng_field = stk::mesh::get_updated_ngp_field<unsigned>(node_rng_field);
+  auto &ngp_elem_hydrodynamic_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_hydrodynamic_radius_field);
+  auto &ngp_elem_binding_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_binding_radius_field);
+  auto &ngp_elem_collision_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_collision_radius_field);
+  auto &ngp_elem_spring_constant_field =
+      stk::mesh::get_updated_ngp_field<double>(elem_spring_constant_field);
+  auto &ngp_elem_spring_rest_length_field =
+      stk::mesh::get_updated_ngp_field<double>(elem_spring_rest_length_field);
+  auto &ngp_elem_youngs_modulus_field = stk::mesh::get_updated_ngp_field<double>(elem_youngs_modulus_field);
+  auto &ngp_elem_poissons_ratio_field = stk::mesh::get_updated_ngp_field<double>(elem_poissons_ratio_field);
+  auto &ngp_elem_aabb_field = stk::mesh::get_updated_ngp_field<double>(elem_aabb_field);
+  auto &ngp_elem_aabb_displacement_field = stk::mesh::get_updated_ngp_field<double>(elem_aabb_displacement_field);
+  auto &ngp_elem_binding_rates_field = stk::mesh::get_updated_ngp_field<double>(elem_binding_rates_field);
+  auto &ngp_elem_unbinding_rates_field = stk::mesh::get_updated_ngp_field<double>(elem_unbinding_rates_field);
+  auto &ngp_elem_rng_field = stk::mesh::get_updated_ngp_field<unsigned>(elem_rng_field);
 
-  // // Time loop
-  // print_rank0(std::string("Running the simulation for ") + std::to_string(sim_params.get<size_t>("num_time_steps")) +
-  //             " timesteps.");
+  // Time loop
+  print_rank0(std::string("Running the simulation for ") + std::to_string(sim_params.get<size_t>("num_time_steps")) +
+              " timesteps.");
 
-  // unsigned num_surface_nodes = 0;
-  // DoubleMatDeviceView inv_self_interaction_matrix(
-  //     Kokkos::view_alloc(Kokkos::WithoutInitializing, "inv_self_interaction_matrix"), 0, 0);
-  // DoubleVecDeviceView surface_positions(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_positions"), 0);
-  // DoubleVecDeviceView surface_normals(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_normals"), 0);
-  // DoubleVecDeviceView surface_weights(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_weights"), 0);
-  // DoubleVecDeviceView surface_radii(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_radii"), 0);
-  // DoubleVecDeviceView surface_velocities(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_velocities"), 0);
-  // DoubleVecDeviceView surface_forces(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_forces"), 0);
-  // DoubleVecDeviceView::HostMirror surface_positions_host = Kokkos::create_mirror_view(surface_positions);
-  // DoubleVecDeviceView::HostMirror surface_normals_host = Kokkos::create_mirror_view(surface_normals);
-  // DoubleVecDeviceView::HostMirror surface_weights_host = Kokkos::create_mirror_view(surface_weights);
-  // DoubleVecDeviceView::HostMirror surface_radii_host = Kokkos::create_mirror_view(surface_radii);
-  // DoubleVecDeviceView::HostMirror surface_velocities_host = Kokkos::create_mirror_view(surface_velocities);
-  // DoubleVecDeviceView::HostMirror surface_forces_host = Kokkos::create_mirror_view(surface_forces);
+  unsigned num_surface_nodes = 0;
+  DoubleMatDeviceView inv_self_interaction_matrix(
+      Kokkos::view_alloc(Kokkos::WithoutInitializing, "inv_self_interaction_matrix"), 0, 0);
+  DoubleVecDeviceView surface_positions(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_positions"), 0);
+  DoubleVecDeviceView surface_normals(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_normals"), 0);
+  DoubleVecDeviceView surface_weights(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_weights"), 0);
+  DoubleVecDeviceView surface_radii(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_radii"), 0);
+  DoubleVecDeviceView surface_velocities(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_velocities"), 0);
+  DoubleVecDeviceView surface_forces(Kokkos::view_alloc(Kokkos::WithoutInitializing, "surface_forces"), 0);
+  DoubleVecDeviceView::HostMirror surface_positions_host = Kokkos::create_mirror_view(surface_positions);
+  DoubleVecDeviceView::HostMirror surface_normals_host = Kokkos::create_mirror_view(surface_normals);
+  DoubleVecDeviceView::HostMirror surface_weights_host = Kokkos::create_mirror_view(surface_weights);
+  DoubleVecDeviceView::HostMirror surface_radii_host = Kokkos::create_mirror_view(surface_radii);
+  DoubleVecDeviceView::HostMirror surface_velocities_host = Kokkos::create_mirror_view(surface_velocities);
+  DoubleVecDeviceView::HostMirror surface_forces_host = Kokkos::create_mirror_view(surface_forces);
 
-  // if (sim_params.get<bool>("enable_periphery_hydro")) {
-  //   // Initialize the periphery points, weights, normals, and radii
-  //   if ((periphery_hydro_quadrature_ == PERIPHERY_QUADRATURE::GAUSS_LEGENDRE) &&
-  //       ((periphery_hydro_shape_ == PERIPHERY_SHAPE::SPHERE) ||
-  //        ((periphery_hydro_shape_ == PERIPHERY_SHAPE::ELLIPSOID) &&
-  //         (periphery_hydro_axis_radius1_ == periphery_hydro_axis_radius2_) &&
-  //         (periphery_hydro_axis_radius2_ == periphery_hydro_axis_radius3_) &&
-  //         (periphery_hydro_axis_radius3_ == periphery_hydro_axis_radius1_)))) {
-  //     // Generate the quadrature points and weights for the sphere using GL quadrature
-  //     std::vector<double> points_vec;
-  //     std::vector<double> weights_vec;
-  //     std::vector<double> normals_vec;
-  //     const bool invert = true;
-  //     const bool include_poles = false;
-  //     const size_t spectral_order = periphery_hydro_spectral_order_;
-  //     const double radius =
-  //         (periphery_hydro_shape_ == PERIPHERY_SHAPE::SPHERE) ? periphery_hydro_radius_ :
-  //         periphery_hydro_axis_radius1_;
-  //     mundy::alens::periphery::gen_sphere_quadrature(spectral_order, radius, &points_vec, &weights_vec, &normals_vec,
-  //                                                    include_poles, invert);
+  if (sim_params.get<bool>("enable_periphery_hydro")) {
+    // Initialize the periphery points, weights, normals, and radii
+    std::string quadrature_type = periphery_hydro_params.get<std::string>("quadrature");
 
-  //     // Allocate the views. Note, resizing does not automatically update the mirror views.
-  //     num_surface_nodes = weights_vec.size();
-  //     Kokkos::resize(surface_positions, 3 * num_surface_nodes);
-  //     Kokkos::resize(surface_normals, 3 * num_surface_nodes);
-  //     Kokkos::resize(surface_weights, num_surface_nodes);
-  //     Kokkos::resize(surface_radii, num_surface_nodes);
-  //     Kokkos::resize(surface_velocities, 3 * num_surface_nodes);
-  //     Kokkos::resize(surface_forces, 3 * num_surface_nodes);
-  //     surface_positions_host = Kokkos::create_mirror_view(surface_positions);
-  //     surface_normals_host = Kokkos::create_mirror_view(surface_normals);
-  //     surface_weights_host = Kokkos::create_mirror_view(surface_weights);
-  //     surface_radii_host = Kokkos::create_mirror_view(surface_radii);
-  //     surface_velocities_host = Kokkos::create_mirror_view(surface_velocities);
-  //     surface_forces_host = Kokkos::create_mirror_view(surface_forces);
+    if (quadrature_type == "GAUSS_LEGENDRE") {
+      std::string hydro_shape = periphery_hydro_params.get<std::string>("shape");
+      const bool shape_is_sphere = (hydro_shape == "SPHERE");
+      const bool shape_is_ellipsoid_with_equal_radii =
+          (hydro_shape == "ELLIPSOID") && (periphery_hydro_params.get<double>("axis_radius1") ==
+                                           periphery_hydro_params.get<double>("axis_radius2")) &&
+          (periphery_hydro_params.get<double>("axis_radius2") == periphery_hydro_params.get<double>("axis_radius3")) &&
+          (periphery_hydro_params.get<double>("axis_radius3") == periphery_hydro_params.get<double>("axis_radius1"));
+      MUNDY_THROW_REQUIRE(shape_is_sphere || shape_is_ellipsoid_with_equal_radii, std::invalid_argument,
+                          "We only support GAUSS_LEGENDRE quadrature for spheres or ellipsoids with equal radii.");
+      
+      // Generate the quadrature points and weights for the sphere using GL quadrature
+      const size_t spectral_order = periphery_hydro_params.get<size_t>("spectral_order");
+      const double radius = shape_is_sphere ? periphery_hydro_params.get<double>("radius")
+                                            : periphery_hydro_params.get<double>("axis_radius1");
+      std::vector<double> points_vec;
+      std::vector<double> weights_vec;
+      std::vector<double> normals_vec;
+      const bool invert = true;
+      const bool include_poles = false;
+      mundy::alens::periphery::gen_sphere_quadrature(spectral_order, radius, &points_vec, &weights_vec, &normals_vec,
+                                                     include_poles, invert);
 
-  //     // Copy the raw data into the views
-  //     for (unsigned i = 0; i < num_surface_nodes; i++) {
-  //       surface_positions_host(3 * i + 0) = points_vec[3 * i + 0];
-  //       surface_positions_host(3 * i + 1) = points_vec[3 * i + 1];
-  //       surface_positions_host(3 * i + 2) = points_vec[3 * i + 2];
-  //       surface_normals_host(3 * i + 0) = normals_vec[3 * i + 0];
-  //       surface_normals_host(3 * i + 1) = normals_vec[3 * i + 1];
-  //       surface_normals_host(3 * i + 2) = normals_vec[3 * i + 2];
-  //       surface_velocities_host(3 * i + 0) = 0.0;
-  //       surface_velocities_host(3 * i + 1) = 0.0;
-  //       surface_velocities_host(3 * i + 2) = 0.0;
-  //       surface_forces_host(3 * i + 0) = 0.0;
-  //       surface_forces_host(3 * i + 1) = 0.0;
-  //       surface_forces_host(3 * i + 2) = 0.0;
-  //       surface_weights_host(i) = weights_vec[i];
-  //       surface_radii_host(i) = 0.0;
-  //     }
+      // Allocate the views. Note, resizing does not automatically update the mirror views.
+      num_surface_nodes = weights_vec.size();
+      Kokkos::resize(surface_positions, 3 * num_surface_nodes);
+      Kokkos::resize(surface_normals, 3 * num_surface_nodes);
+      Kokkos::resize(surface_weights, num_surface_nodes);
+      Kokkos::resize(surface_radii, num_surface_nodes);
+      Kokkos::resize(surface_velocities, 3 * num_surface_nodes);
+      Kokkos::resize(surface_forces, 3 * num_surface_nodes);
+      surface_positions_host = Kokkos::create_mirror_view(surface_positions);
+      surface_normals_host = Kokkos::create_mirror_view(surface_normals);
+      surface_weights_host = Kokkos::create_mirror_view(surface_weights);
+      surface_radii_host = Kokkos::create_mirror_view(surface_radii);
+      surface_velocities_host = Kokkos::create_mirror_view(surface_velocities);
+      surface_forces_host = Kokkos::create_mirror_view(surface_forces);
 
-  //     // Copy the views to the device
-  //     Kokkos::deep_copy(surface_positions, surface_positions_host);
-  //     Kokkos::deep_copy(surface_normals, surface_normals_host);
-  //     Kokkos::deep_copy(surface_weights, surface_weights_host);
-  //     Kokkos::deep_copy(surface_radii, surface_radii_host);
-  //     Kokkos::deep_copy(surface_velocities, surface_velocities_host);
-  //     Kokkos::deep_copy(surface_forces, surface_forces_host);
-  //   } else if (periphery_hydro_quadrature_ == PERIPHERY_QUADRATURE::FROM_FILE) {
-  //     read_vector_from_file(quadrature_weights_filename, num_surface_nodes, surface_weights_host);
-  //     read_vector_from_file(quadrature_points_filename, 3 * num_surface_nodes, surface_positions_host);
-  //     read_vector_from_file(quadrature_normals_filename, 3 * num_surface_nodes, surface_normals_host);
-  //     Kokkos::deep_copy(surface_positions, surface_positions_host);
-  //     Kokkos::deep_copy(surface_normals, surface_normals_host);
-  //     Kokkos::deep_copy(surface_weights, surface_weights_host);
+      // Copy the raw data into the views
+      for (unsigned i = 0; i < num_surface_nodes; i++) {
+        surface_positions_host(3 * i + 0) = points_vec[3 * i + 0];
+        surface_positions_host(3 * i + 1) = points_vec[3 * i + 1];
+        surface_positions_host(3 * i + 2) = points_vec[3 * i + 2];
+        surface_normals_host(3 * i + 0) = normals_vec[3 * i + 0];
+        surface_normals_host(3 * i + 1) = normals_vec[3 * i + 1];
+        surface_normals_host(3 * i + 2) = normals_vec[3 * i + 2];
+        surface_velocities_host(3 * i + 0) = 0.0;
+        surface_velocities_host(3 * i + 1) = 0.0;
+        surface_velocities_host(3 * i + 2) = 0.0;
+        surface_forces_host(3 * i + 0) = 0.0;
+        surface_forces_host(3 * i + 1) = 0.0;
+        surface_forces_host(3 * i + 2) = 0.0;
+        surface_weights_host(i) = weights_vec[i];
+        surface_radii_host(i) = 0.0;
+      }
 
-  //     // Zero out the radii, forces, and velocities (on host and device)
-  //     Kokkos::deep_copy(surface_radii_host, 0.0);
-  //     Kokkos::deep_copy(surface_velocities_host, 0.0);
-  //     Kokkos::deep_copy(surface_forces_host, 0.0);
-  //     Kokkos::deep_copy(surface_radii, 0.0);
-  //     Kokkos::deep_copy(surface_velocities, 0.0);
-  //     Kokkos::deep_copy(surface_forces, 0.0);
-  //   } else {
-  //     MUNDY_THROW_REQUIRE(false, std::invalid_argument,
-  //                         "We currently only support GAUSS_LEGENDRE quadrature for "
-  //                         "spheres and ellipsoids with equal radii or direct specification of the quadrature from a "
-  //                         "file using FROM_FILE.");
-  //   }
+      // Copy the views to the device
+      Kokkos::deep_copy(surface_positions, surface_positions_host);
+      Kokkos::deep_copy(surface_normals, surface_normals_host);
+      Kokkos::deep_copy(surface_weights, surface_weights_host);
+      Kokkos::deep_copy(surface_radii, surface_radii_host);
+      Kokkos::deep_copy(surface_velocities, surface_velocities_host);
+      Kokkos::deep_copy(surface_forces, surface_forces_host);
+    } else if (quadrature_type == "FROM_FILE") {
+      const std::string quadrature_points_filename = periphery_hydro_params.get<std::string>("quadrature_points_filename");
+      const std::string quadrature_normals_filename = periphery_hydro_params.get<std::string>("quadrature_normals_filename");
+      const std::string quadrature_weights_filename = periphery_hydro_params.get<std::string>("quadrature_weights_filename");
+      num_surface_nodes = periphery_hydro_params.get<size_t>("num_surface_nodes");
+      mundy::alens::periphery::read_vector_from_file(quadrature_weights_filename, num_surface_nodes, surface_weights_host);
+      mundy::alens::periphery::read_vector_from_file(quadrature_points_filename, 3 * num_surface_nodes, surface_positions_host);
+      mundy::alens::periphery::read_vector_from_file(quadrature_normals_filename, 3 * num_surface_nodes, surface_normals_host);
+      Kokkos::deep_copy(surface_positions, surface_positions_host);
+      Kokkos::deep_copy(surface_normals, surface_normals_host);
+      Kokkos::deep_copy(surface_weights, surface_weights_host);
 
-  //   // Run the precomputation for the inverse self-interaction matrix
-  //   const bool write_to_file = true;
-  //   const bool use_values_from_file_if_present = true;
-  //   const std::string inverse_self_interaction_matrix_filename = "inverse_self_interaction_matrix.dat";
-  //   Kokkos::resize(inv_self_interaction_matrix, 3 * num_surface_nodes, 3 * num_surface_nodes);
+      // Zero out the radii, forces, and velocities (on host and device)
+      Kokkos::deep_copy(surface_radii_host, 0.0);
+      Kokkos::deep_copy(surface_velocities_host, 0.0);
+      Kokkos::deep_copy(surface_forces_host, 0.0);
+      Kokkos::deep_copy(surface_radii, 0.0);
+      Kokkos::deep_copy(surface_velocities, 0.0);
+      Kokkos::deep_copy(surface_forces, 0.0);
+    } else {
+      MUNDY_THROW_REQUIRE(false, std::invalid_argument, fmt::format("Invalid quadrature type: {}", quadrature_type));
+    }
 
-  //   bool matrix_read_from_file = false;
-  //   if (use_values_from_file_if_present) {
-  //     auto does_file_exist = [](const std::string &filename) {
-  //       std::ifstream f(inverse_self_interaction_matrix_filename.c_str());
-  //       return f.good();
-  //     };
+    // Run the precomputation for the inverse self-interaction matrix
+    const bool write_to_file = true;
+    const bool use_values_from_file_if_present = true;
+    const std::string inverse_self_interaction_matrix_filename = "inverse_self_interaction_matrix.dat";
+    Kokkos::resize(inv_self_interaction_matrix, 3 * num_surface_nodes, 3 * num_surface_nodes);
 
-  //     if (does_file_exist(inverse_self_interaction_matrix_filename)) {
-  //       read_matrix_from_file(inverse_self_interaction_matrix_filename, inv_self_interaction_matrix);
-  //       matrix_read_from_file = true;
-  //     }
-  //   }
+    bool matrix_read_from_file = false;
+    if (use_values_from_file_if_present) {
+      auto does_file_exist = [](const std::string &filename) {
+        std::ifstream f(inverse_self_interaction_matrix_filename.c_str());
+        return f.good();
+      };
 
-  //   if (!matrix_read_from_file) {
-  //     DoubleMatDeviceView self_interaction_matrix("self_interaction_matrix", 3 * num_surface_nodes,
-  //                                                 3 * num_surface_nodes);
-  //     fill_skfie_matrix(stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_surface_nodes, surface_positions,
-  //                       surface_positions, surface_normals, surface_weights, self_interaction_matrix);
-  //     invert_matrix(stk::ngp::ExecSpace(), self_interaction_matrix, inv_self_interaction_matrix);
+      if (does_file_exist(inverse_self_interaction_matrix_filename)) {
+        read_matrix_from_file(inverse_self_interaction_matrix_filename, inv_self_interaction_matrix);
+        matrix_read_from_file = true;
+      }
+    }
 
-  //     if (write_to_file) {
-  //       write_matrix_to_file(inverse_self_interaction_matrix_filename, inv_self_interaction_matrix);
-  //     }
-  //   }
-  // }
+    if (!matrix_read_from_file) {
+      DoubleMatDeviceView self_interaction_matrix("self_interaction_matrix", 3 * num_surface_nodes,
+                                                  3 * num_surface_nodes);
+      fill_skfie_matrix(stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_surface_nodes, surface_positions,
+                        surface_positions, surface_normals, surface_weights, self_interaction_matrix);
+      invert_matrix(stk::ngp::ExecSpace(), self_interaction_matrix, inv_self_interaction_matrix);
+
+      if (write_to_file) {
+        write_matrix_to_file(inverse_self_interaction_matrix_filename, inv_self_interaction_matrix);
+      }
+    }
+  }
 
   // bool rebuild_neighbors = true;
   // Kokkos::Timer overall_timer;
@@ -2557,7 +2683,6 @@ void run(int argc, char **argv) {
   //   ngp_node_force_field.sync_to_device();
   //   ngp_elem_binding_rates_field.sync_to_device();
   //   ngp_elem_unbinding_rates_field.sync_to_device();
-  //   ngp_elem_perform_state_change_field.sync_to_device();
   //   ngp_elem_constraint_perform_state_change_field.sync_to_device();
   //   ngp_elem_constraint_state_change_rate_field.sync_to_device();
   //   ngp_elem_constraint_potential_force_field.sync_to_device();
@@ -2566,7 +2691,6 @@ void run(int argc, char **argv) {
   //   ngp_node_force_field.set_all(ngp_mesh, 0.0);
   //   ngp_elem_binding_rates_field.set_all(ngp_mesh, 0.0);
   //   ngp_elem_unbinding_rates_field.set_all(ngp_mesh, 0.0);
-  //   ngp_elem_perform_state_change_field.set_all(ngp_mesh, 0u);
   //   ngp_elem_constraint_perform_state_change_field.set_all(ngp_mesh, 0u);
   //   ngp_elem_constraint_state_change_rate_field.set_all(ngp_mesh, 0.0);
   //   ngp_elem_constraint_potential_force_field.set_all(ngp_mesh, 0.0);
@@ -2575,7 +2699,6 @@ void run(int argc, char **argv) {
   //   ngp_node_force_field.modify_on_device();
   //   ngp_elem_binding_rates_field.modify_on_device();
   //   ngp_elem_unbinding_rates_field.modify_on_device();
-  //   ngp_elem_perform_state_change_field.modify_on_device();
   //   ngp_elem_constraint_perform_state_change_field.modify_on_device();
   //   ngp_elem_constraint_state_change_rate_field.modify_on_device();
   //   ngp_elem_constraint_potential_force_field.modify_on_device();
