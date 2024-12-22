@@ -53,8 +53,15 @@ tribits_add_executable_and_test(
 )
 
 tribits_add_executable_and_test(
-    UnitTestDeclareEntities
-    SOURCES
-    UnitTestDeclareEntities.cpp
-      ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
-    )
+  UnitTestDeclareEntities
+  SOURCES
+  UnitTestDeclareEntities.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  )
+
+tribits_add_executable_and_test(
+  UnitTestFieldBLAS
+  SOURCES
+  UnitTestFieldBLAS.cpp
+    ${MUNDY_DEFAULT_UNIT_TEST_MAIN}
+  )

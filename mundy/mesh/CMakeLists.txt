@@ -16,12 +16,17 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
   src/mundy_mesh/BulkData.hpp
+  src/mundy_mesh/DeclareEntities.hpp
+  src/mundy_mesh/FieldViews.hpp
+  src/mundy_mesh/fmt_stk_types.hpp
+  src/mundy_mesh/ForEachEntity.hpp
+  src/mundy_mesh/impl/NgpFieldBLASImpl.hpp
   src/mundy_mesh/MeshBuilder.hpp
   src/mundy_mesh/MetaData.hpp
-  src/mundy_mesh/DeclareEntities.hpp
+  src/mundy_mesh/NgpFieldBLAS.hpp
+  src/mundy_mesh/NgpUtils.hpp
   src/mundy_mesh/StringToSelector.hpp
   src/mundy_mesh/StringToTopology.hpp
-  src/mundy_mesh/fmt_stk_types.hpp
   src/mundy_mesh/utils/DestroyFlaggedEntities.hpp
   src/mundy_mesh/utils/FillFieldWithValue.hpp
   src/mundy_mesh/utils/SelectorEval.hpp

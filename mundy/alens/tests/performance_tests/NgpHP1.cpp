@@ -97,7 +97,7 @@
 #include <mundy_mesh/MetaData.hpp>         // for mundy::mesh::MetaData
 #include <mundy_mesh/fmt_stk_types.hpp>    // adds fmt::format for stk types
 #include <mundy_mesh/utils/FillFieldWithValue.hpp>  // for mundy::mesh::utils::fill_field_with_value
-
+#include <mundy_mesh/NgpFieldBLAS.hpp>           // for mundy::mesh::field_fill, mundy::mesh::field_copy, etc
 // aLENS
 #include <mundy_alens/actions_crosslinkers.hpp>  // for mundy::alens::crosslinkers...
 #include <mundy_alens/periphery/Periphery.hpp>   // for gen_sphere_quadrature
@@ -2097,6 +2097,7 @@ void run(int argc, char **argv) {
   auto &elem_poissons_ratio_field = meta_data.declare_field<double>(element_rank, "POISSONS_RATIO");
 
   auto &elem_aabb_field = meta_data.declare_field<double>(element_rank, "AABB");
+  auto &elem_old_aabb_field = meta_data.declare_field<double>(element_rank, "OLD_AABB");
   auto &elem_aabb_displacement_field = meta_data.declare_field<double>(element_rank, "AABB_DISPLACEMENT");
 
   auto &elem_binding_rates_field = meta_data.declare_field<double>(element_rank, "BINDING_RATES");
@@ -2121,6 +2122,7 @@ void run(int argc, char **argv) {
   stk::io::set_field_role(elem_youngs_modulus_field, transient_role);
   stk::io::set_field_role(elem_poissons_ratio_field, transient_role);
   stk::io::set_field_role(elem_aabb_field, transient_role);
+  stk::io::set_field_role(elem_old_aabb_field, transient_role);
   stk::io::set_field_role(elem_aabb_displacement_field, transient_role);
   stk::io::set_field_role(elem_binding_rates_field, transient_role);
   stk::io::set_field_role(elem_unbinding_rates_field, transient_role);
@@ -2142,7 +2144,7 @@ void run(int argc, char **argv) {
   stk::io::set_field_output_type(elem_spring_rest_length_field, scalar_io_type);
   stk::io::set_field_output_type(elem_youngs_modulus_field, scalar_io_type);
   stk::io::set_field_output_type(elem_poissons_ratio_field, scalar_io_type);
-  // stk::io::set_field_output_type(elem_aabb_field, ...);
+  // stk::io::set_field_output_type(elem_aabb_field, ...);  // No output type for AABB.
   // stk::io::set_field_output_type(elem_aabb_displacement_field, ...);
   stk::io::set_field_output_type(elem_binding_rates_field, stk::io::FieldOutputType::VECTOR_2D);
   stk::io::set_field_output_type(elem_unbinding_rates_field, stk::io::FieldOutputType::VECTOR_2D);
@@ -2178,6 +2180,7 @@ void run(int argc, char **argv) {
   stk::mesh::put_field_on_mesh(elem_youngs_modulus_field, backbone_segs_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_poissons_ratio_field, backbone_segs_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(elem_aabb_field, backbone_segs_part, 6, nullptr);
+  stk::mesh::put_field_on_mesh(elem_old_aabb_field, backbone_segs_part, 6, nullptr);
   stk::mesh::put_field_on_mesh(elem_aabb_displacement_field, backbone_segs_part, 6, nullptr);
 
   // HP1 crosslinkers are used for binding/unbinding and apply forces to their nodes.
@@ -2388,7 +2391,8 @@ void run(int argc, char **argv) {
                 segment
                     .add_field_data<double>(&elem_spring_constant_field,
                                             {backbone_springs_params.get<double>("spring_constant")})  //
-                    .add_field_data<double>(&elem_spring_rest_length_field, {backbone_springs_params.get<double>("spring_r0")});
+                    .add_field_data<double>(&elem_spring_rest_length_field,
+                                            {backbone_springs_params.get<double>("spring_r0")});
               }
 
               if (sim_params.get<bool>("enable_backbone_collision")) {
@@ -2400,6 +2404,7 @@ void run(int argc, char **argv) {
                     .add_field_data<double>(&elem_poissons_ratio_field,
                                             {backbone_collision_params.get<double>("poissons_ratio")})
                     .add_field_data<double>(&elem_aabb_field, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0})
+                    .add_field_data<double>(&elem_old_aabb_field, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
                     .add_field_data<double>(&elem_aabb_displacement_field, {0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
               }
 
@@ -2454,7 +2459,8 @@ void run(int argc, char **argv) {
                 segment
                     .add_field_data<double>(&elem_spring_constant_field,
                                             {backbone_springs_params.get<double>("spring_constant")})  //
-                    .add_field_data<double>(&elem_spring_rest_length_field, {backbone_springs_params.get<double>("spring_r0")});
+                    .add_field_data<double>(&elem_spring_rest_length_field,
+                                            {backbone_springs_params.get<double>("spring_r0")});
               }
 
               if (sim_params.get<bool>("enable_backbone_collision")) {
@@ -2520,13 +2526,12 @@ void run(int argc, char **argv) {
   auto &ngp_elem_hydrodynamic_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_hydrodynamic_radius_field);
   auto &ngp_elem_binding_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_binding_radius_field);
   auto &ngp_elem_collision_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_collision_radius_field);
-  auto &ngp_elem_spring_constant_field =
-      stk::mesh::get_updated_ngp_field<double>(elem_spring_constant_field);
-  auto &ngp_elem_spring_rest_length_field =
-      stk::mesh::get_updated_ngp_field<double>(elem_spring_rest_length_field);
+  auto &ngp_elem_spring_constant_field = stk::mesh::get_updated_ngp_field<double>(elem_spring_constant_field);
+  auto &ngp_elem_spring_rest_length_field = stk::mesh::get_updated_ngp_field<double>(elem_spring_rest_length_field);
   auto &ngp_elem_youngs_modulus_field = stk::mesh::get_updated_ngp_field<double>(elem_youngs_modulus_field);
   auto &ngp_elem_poissons_ratio_field = stk::mesh::get_updated_ngp_field<double>(elem_poissons_ratio_field);
   auto &ngp_elem_aabb_field = stk::mesh::get_updated_ngp_field<double>(elem_aabb_field);
+  auto &ngp_elem_old_aabb_field = stk::mesh::get_updated_ngp_field<double>(elem_old_aabb_field);
   auto &ngp_elem_aabb_displacement_field = stk::mesh::get_updated_ngp_field<double>(elem_aabb_displacement_field);
   auto &ngp_elem_binding_rates_field = stk::mesh::get_updated_ngp_field<double>(elem_binding_rates_field);
   auto &ngp_elem_unbinding_rates_field = stk::mesh::get_updated_ngp_field<double>(elem_unbinding_rates_field);
@@ -2552,7 +2557,7 @@ void run(int argc, char **argv) {
   DoubleVecDeviceView::HostMirror surface_velocities_host = Kokkos::create_mirror_view(surface_velocities);
   DoubleVecDeviceView::HostMirror surface_forces_host = Kokkos::create_mirror_view(surface_forces);
 
-  if (sim_params.get<bool>("enable_periphery_hydro")) {
+  if (sim_params.get<bool>("enable_periphery_hydrodynamics")) {
     // Initialize the periphery points, weights, normals, and radii
     std::string quadrature_type = periphery_hydro_params.get<std::string>("quadrature");
 
@@ -2560,13 +2565,13 @@ void run(int argc, char **argv) {
       std::string hydro_shape = periphery_hydro_params.get<std::string>("shape");
       const bool shape_is_sphere = (hydro_shape == "SPHERE");
       const bool shape_is_ellipsoid_with_equal_radii =
-          (hydro_shape == "ELLIPSOID") && (periphery_hydro_params.get<double>("axis_radius1") ==
-                                           periphery_hydro_params.get<double>("axis_radius2")) &&
+          (hydro_shape == "ELLIPSOID") &&
+          (periphery_hydro_params.get<double>("axis_radius1") == periphery_hydro_params.get<double>("axis_radius2")) &&
           (periphery_hydro_params.get<double>("axis_radius2") == periphery_hydro_params.get<double>("axis_radius3")) &&
           (periphery_hydro_params.get<double>("axis_radius3") == periphery_hydro_params.get<double>("axis_radius1"));
       MUNDY_THROW_REQUIRE(shape_is_sphere || shape_is_ellipsoid_with_equal_radii, std::invalid_argument,
                           "We only support GAUSS_LEGENDRE quadrature for spheres or ellipsoids with equal radii.");
-      
+
       // Generate the quadrature points and weights for the sphere using GL quadrature
       const size_t spectral_order = periphery_hydro_params.get<size_t>("spectral_order");
       const double radius = shape_is_sphere ? periphery_hydro_params.get<double>("radius")
@@ -2620,13 +2625,19 @@ void run(int argc, char **argv) {
       Kokkos::deep_copy(surface_velocities, surface_velocities_host);
       Kokkos::deep_copy(surface_forces, surface_forces_host);
     } else if (quadrature_type == "FROM_FILE") {
-      const std::string quadrature_points_filename = periphery_hydro_params.get<std::string>("quadrature_points_filename");
-      const std::string quadrature_normals_filename = periphery_hydro_params.get<std::string>("quadrature_normals_filename");
-      const std::string quadrature_weights_filename = periphery_hydro_params.get<std::string>("quadrature_weights_filename");
+      const std::string quadrature_points_filename =
+          periphery_hydro_params.get<std::string>("quadrature_points_filename");
+      const std::string quadrature_normals_filename =
+          periphery_hydro_params.get<std::string>("quadrature_normals_filename");
+      const std::string quadrature_weights_filename =
+          periphery_hydro_params.get<std::string>("quadrature_weights_filename");
       num_surface_nodes = periphery_hydro_params.get<size_t>("num_surface_nodes");
-      mundy::alens::periphery::read_vector_from_file(quadrature_weights_filename, num_surface_nodes, surface_weights_host);
-      mundy::alens::periphery::read_vector_from_file(quadrature_points_filename, 3 * num_surface_nodes, surface_positions_host);
-      mundy::alens::periphery::read_vector_from_file(quadrature_normals_filename, 3 * num_surface_nodes, surface_normals_host);
+      mundy::alens::periphery::read_vector_from_file(quadrature_weights_filename, num_surface_nodes,
+                                                     surface_weights_host);
+      mundy::alens::periphery::read_vector_from_file(quadrature_points_filename, 3 * num_surface_nodes,
+                                                     surface_positions_host);
+      mundy::alens::periphery::read_vector_from_file(quadrature_normals_filename, 3 * num_surface_nodes,
+                                                     surface_normals_host);
       Kokkos::deep_copy(surface_positions, surface_positions_host);
       Kokkos::deep_copy(surface_normals, surface_normals_host);
       Kokkos::deep_copy(surface_weights, surface_weights_host);
@@ -2651,74 +2662,71 @@ void run(int argc, char **argv) {
     bool matrix_read_from_file = false;
     if (use_values_from_file_if_present) {
       auto does_file_exist = [](const std::string &filename) {
-        std::ifstream f(inverse_self_interaction_matrix_filename.c_str());
+        std::ifstream f(filename.c_str());
         return f.good();
       };
 
       if (does_file_exist(inverse_self_interaction_matrix_filename)) {
-        read_matrix_from_file(inverse_self_interaction_matrix_filename, inv_self_interaction_matrix);
+        const size_t expected_num_rows_cols = 3 * num_surface_nodes;
+        mundy::alens::periphery::read_matrix_from_file(inverse_self_interaction_matrix_filename, expected_num_rows_cols,
+                                                       expected_num_rows_cols, inv_self_interaction_matrix);
         matrix_read_from_file = true;
       }
     }
 
     if (!matrix_read_from_file) {
+      const double viscosity = sim_params.get<double>("viscosity");
       DoubleMatDeviceView self_interaction_matrix("self_interaction_matrix", 3 * num_surface_nodes,
                                                   3 * num_surface_nodes);
-      fill_skfie_matrix(stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_surface_nodes, surface_positions,
-                        surface_positions, surface_normals, surface_weights, self_interaction_matrix);
-      invert_matrix(stk::ngp::ExecSpace(), self_interaction_matrix, inv_self_interaction_matrix);
+      mundy::alens::periphery::fill_skfie_matrix(stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_surface_nodes,
+                                                 surface_positions, surface_positions, surface_normals, surface_weights,
+                                                 self_interaction_matrix);
+      mundy::alens::periphery::invert_matrix(stk::ngp::ExecSpace(), self_interaction_matrix,
+                                             inv_self_interaction_matrix);
 
       if (write_to_file) {
-        write_matrix_to_file(inverse_self_interaction_matrix_filename, inv_self_interaction_matrix);
+        mundy::alens::periphery::write_matrix_to_file(inverse_self_interaction_matrix_filename,
+                                                      inv_self_interaction_matrix);
       }
     }
   }
 
-  // bool rebuild_neighbors = true;
-  // Kokkos::Timer overall_timer;
-  // Kokkos::Timer timer;
-  // for (size_t timestep_idx = 0; timestep_idx < sim_params.get<size_t>("num_time_steps"); timestep_idx++) {
-  //   // Prepare the current configuration.
-  //   ngp_node_velocity_field.sync_to_device();
-  //   ngp_node_force_field.sync_to_device();
-  //   ngp_elem_binding_rates_field.sync_to_device();
-  //   ngp_elem_unbinding_rates_field.sync_to_device();
-  //   ngp_elem_constraint_perform_state_change_field.sync_to_device();
-  //   ngp_elem_constraint_state_change_rate_field.sync_to_device();
-  //   ngp_elem_constraint_potential_force_field.sync_to_device();
+  bool rebuild_neighbors = true;
+  Kokkos::Timer overall_timer;
+  Kokkos::Timer timer;
+  for (size_t timestep_idx = 0; timestep_idx < sim_params.get<size_t>("num_time_steps"); timestep_idx++) {
+    // Prepare the current configuration.
+    ngp_node_velocity_field.sync_to_device();
+    ngp_node_force_field.sync_to_device();
+    ngp_elem_binding_rates_field.sync_to_device();
+    ngp_elem_unbinding_rates_field.sync_to_device();
 
-  //   ngp_node_velocity_field.set_all(ngp_mesh, 0.0);
-  //   ngp_node_force_field.set_all(ngp_mesh, 0.0);
-  //   ngp_elem_binding_rates_field.set_all(ngp_mesh, 0.0);
-  //   ngp_elem_unbinding_rates_field.set_all(ngp_mesh, 0.0);
-  //   ngp_elem_constraint_perform_state_change_field.set_all(ngp_mesh, 0u);
-  //   ngp_elem_constraint_state_change_rate_field.set_all(ngp_mesh, 0.0);
-  //   ngp_elem_constraint_potential_force_field.set_all(ngp_mesh, 0.0);
+    ngp_node_velocity_field.set_all(ngp_mesh, 0.0);
+    ngp_node_force_field.set_all(ngp_mesh, 0.0);
+    ngp_elem_binding_rates_field.set_all(ngp_mesh, 0.0);
+    ngp_elem_unbinding_rates_field.set_all(ngp_mesh, 0.0);
 
-  //   ngp_node_velocity_field.modify_on_device();
-  //   ngp_node_force_field.modify_on_device();
-  //   ngp_elem_binding_rates_field.modify_on_device();
-  //   ngp_elem_unbinding_rates_field.modify_on_device();
-  //   ngp_elem_constraint_perform_state_change_field.modify_on_device();
-  //   ngp_elem_constraint_state_change_rate_field.modify_on_device();
-  //   ngp_elem_constraint_potential_force_field.modify_on_device();
+    ngp_node_velocity_field.modify_on_device();
+    ngp_node_force_field.modify_on_device();
+    ngp_elem_binding_rates_field.modify_on_device();
+    ngp_elem_unbinding_rates_field.modify_on_device();
 
-  //   rotate_field_states();  // TODO(palmerb4): Add "old" fields where necessary
+    //////////////////////
+    // Detect neighbors //
+    //////////////////////
+    mundy::mesh::field_copy(ngp_elem_aabb_field, ngp_elem_old_aabb_field, stk::ngp::ExecSpace());
 
-  //   //////////////////////
-  //   // Detect neighbors //
-  //   //////////////////////
-  //   mundy::geom::compute_aabb_spheres(ngp_mesh, neighbor_list_params.get<double>("skin_distance"),
-  //                                     ngp_node_coords_field, ngp_elem_radius_field, ngp_elem_aabb_field,
-  //                                     backbone_segs_part);
-  //   mundy::geom::accumulate_aabb_displacements(ngp_mesh, ngp_old_elem_aabb_field, ngp_elem_aabb_field,
-  //                                              ngp_elem_aabb_displacement_field, backbone_segs_part);
-  //   double max_aabb_displacement =
-  //       stk::mesh::get_field_max(ngp_mesh, ngp_elem_aabb_displacement_field, max_aabb_displacement,
-  //       backbone_segs_part);
-  //   if (max_aabb_displacement > neighbor_list_params.get<double>("skin_distance")) {
-  //     rebuild_neighbors = true;
-  //   }
+    mundy::geom::compute_aabb_spheres(ngp_mesh, neighbor_list_params.get<double>("skin_distance"),
+                                      ngp_node_coords_field, ngp_elem_radius_field, ngp_elem_aabb_field,
+                                      backbone_segs_part);
+    mundy::geom::accumulate_aabb_displacements(ngp_mesh, ngp_old_elem_aabb_field, ngp_elem_aabb_field,
+                                               ngp_elem_aabb_displacement_field, backbone_segs_part);
+    double max_aabb_displacement =
+        mundy::mesh::get_field_max(ngp_mesh, ngp_elem_aabb_displacement_field, max_aabb_displacement,
+        backbone_segs_part);
+    if (max_aabb_displacement > neighbor_list_params.get<double>("skin_distance")) {
+      rebuild_neighbors = true;
+    }
 
   //   if (rebuild_neighbors) {
   //     print_rank0("Rebuilding neighbors.");
@@ -2843,7 +2851,7 @@ void run(int argc, char **argv) {
   //   } else {
   //     compute_dry_velocity();
   //   }
-  // }
+  }
 }
 //@}
 
