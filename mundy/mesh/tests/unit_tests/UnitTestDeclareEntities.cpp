@@ -31,6 +31,7 @@
 #include <stk_mesh/base/MeshBuilder.hpp>
 #include <stk_mesh/base/MetaData.hpp>  // for stk::mesh::MetaData
 #include <stk_topology/topology.hpp>
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 // Mundy
 #include <mundy_mesh/DeclareEntities.hpp>  // for mundy::mesh::DeclareEntitiesHelper
@@ -84,7 +85,11 @@ class UnitTestDeclareEntities : public ::testing::Test {
     builder.set_spatial_dimension(spatial_dimension_);
     builder.set_entity_rank_names(entity_rank_names_);
     builder.set_aura_option(aura_option);
-    builder.set_field_data_manager(field_data_manager.get());  // Dangerous to use get() here, but it's a temporary until we bump to Trilinos 16.0.0
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+    builder.set_field_data_manager(std::move(field_data_manager));
+#else
+    builder.set_field_data_manager(field_data_manager.get());
+#endif
     builder.set_initial_bucket_capacity(initial_bucket_capacity);
     builder.set_maximum_bucket_capacity(maximum_bucket_capacity);
 

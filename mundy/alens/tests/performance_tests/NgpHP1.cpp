@@ -148,6 +148,122 @@ void print_field(const stk::mesh::Field<FieldDataType> &field) {
   }
 }
 
+//! \name Search
+//@{
+
+// Create local entities on host and copy to device
+FastMeshIndicesViewType get_local_entity_indices(const stk::mesh::BulkData &bulk_data, stk::mesh::EntityRank rank,
+                                                 stk::mesh::Selector selector) {
+  std::vector<stk::mesh::Entity> local_entities;
+  stk::mesh::get_entities(bulk_data, rank, selector, local_entities);
+
+  FastMeshIndicesViewType mesh_indices("mesh_indices", local_entities.size());
+  FastMeshIndicesViewType::HostMirror host_mesh_indices =
+      Kokkos::create_mirror_view(Kokkos::WithoutInitializing, mesh_indices);
+
+  for (size_t i = 0; i < local_entities.size(); ++i) {
+    const stk::mesh::MeshIndex &mesh_index = bulk_data.mesh_index(local_entities[i]);
+    host_mesh_indices(i) = stk::mesh::FastMeshIndex{mesh_index.bucket->bucket_id(), mesh_index.bucket_ordinal};
+  }
+
+  Kokkos::deep_copy(mesh_indices, host_mesh_indices);
+  return mesh_indices;
+}
+
+LocalResultViewType get_local_neighbor_indices(const stk::mesh::BulkData &bulk_data, stk::mesh::EntityRank rank,
+                                               const ResultViewType &search_results) {
+  auto host_search_results = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, search_results);
+
+  // For each search result, get the local indices and store them in a view
+  LocalResultViewType local_neighbor_indices("local_neighbor_indices", search_results.size());
+  LocalResultViewType::HostMirror host_local_neighbor_indices =
+      Kokkos::create_mirror_view(Kokkos::WithoutInitializing, local_neighbor_indices);
+
+  for (size_t i = 0; i < search_results.size(); ++i) {
+    const auto search_result = host_search_results(i);
+
+    stk::mesh::Entity source_entity = bulk_data.get_entity(rank, search_result.domainIdentProc.id());
+    stk::mesh::Entity target_entity = bulk_data.get_entity(rank, search_result.rangeIdentProc.id());
+
+    const stk::mesh::MeshIndex &source_mesh_index = bulk_data.mesh_index(source_entity);
+    const stk::mesh::MeshIndex &target_mesh_index = bulk_data.mesh_index(target_entity);
+
+    const stk::mesh::FastMeshIndex source_fast_mesh_index = {source_mesh_index.bucket->bucket_id(),
+                                                             source_mesh_index.bucket_ordinal};
+    const stk::mesh::FastMeshIndex target_fast_mesh_index = {target_mesh_index.bucket->bucket_id(),
+                                                             target_mesh_index.bucket_ordinal};
+
+    host_local_neighbor_indices(i) =
+        LocalIntersection{LocalIdentProc{source_fast_mesh_index, search_result.domainIdentProc.proc()},
+                          LocalIdentProc{target_fast_mesh_index, search_result.rangeIdentProc.proc()}};
+  }
+
+  Kokkos::deep_copy(local_neighbor_indices, host_local_neighbor_indices);
+  return local_neighbor_indices;
+}
+
+SearchSpheresViewType create_search_spheres(const stk::mesh::BulkData &bulk_data, const stk::mesh::NgpMesh &ngp_mesh,
+                                            const stk::mesh::Selector &spheres,
+                                            const stk::mesh::NgpField<double> &node_coordinates,
+                                            const stk::mesh::NgpField<double> &element_radius) {
+  auto locally_owned_spheres = spheres & bulk_data.mesh_meta_data().locally_owned_part();
+  const unsigned num_local_spheres =
+      stk::mesh::count_entities(bulk_data, stk::topology::ELEMENT_RANK, locally_owned_spheres);
+  SearchSpheresViewType search_spheres("search_spheres", num_local_spheres);
+
+  // Slow host operation that is needed to get an index. There is plans to add this to the stk::mesh::NgpMesh.
+  FastMeshIndicesViewType sphere_indices =
+      get_local_entity_indices(bulk_data, stk::topology::ELEMENT_RANK, locally_owned_spheres);
+  const int my_rank = bulk_data.parallel_rank();
+
+  Kokkos::parallel_for(
+      stk::ngp::DeviceRangePolicy(0, num_local_spheres), KOKKOS_LAMBDA(const unsigned &i) {
+        stk::mesh::Entity sphere = ngp_mesh.get_entity(stk::topology::ELEMENT_RANK, sphere_indices(i));
+        stk::mesh::FastMeshIndex sphere_index = ngp_mesh.fast_mesh_index(sphere);
+
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(nodes[0]);
+        stk::mesh::EntityFieldData<double> node_coords = node_coordinates(node_index);
+
+        stk::search::Point<double> center(node_coords[0], node_coords[1], node_coords[2]);
+        double radius = element_radius(sphere_index, 0);
+        search_spheres(i) = SphereIdentProc{stk::search::Sphere<double>(center, radius),
+                                            IdentProc(ngp_mesh.identifier(sphere), my_rank)};
+      });
+
+  return search_spheres;
+}
+
+void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &search_results) {
+  auto host_search_results = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultHostExecutionSpace{}, search_results);
+  bulk_data.modification_begin();
+  stk::mesh::Ghosting &neighbor_ghosting = bulk_data.create_ghosting("neighbors");
+  std::vector<stk::mesh::EntityProc> elements_to_ghost;
+
+  const int my_parallel_rank = bulk_data.parallel_rank();
+
+  for (size_t i = 0; i < host_search_results.size(); ++i) {
+    auto result = host_search_results(i);
+    const bool i_own_source = result.domainIdentProc.proc() == my_parallel_rank;
+    const bool i_own_target = result.rangeIdentProc.proc() == my_parallel_rank;
+    if (!i_own_source && i_own_target) {
+      // Send the target to the source
+      stk::mesh::Entity elem = bulk_data.get_entity(stk::topology::ELEM_RANK, result.rangeIdentProc.id());
+      elements_to_ghost.emplace_back(elem, result.domainIdentProc.proc());
+    } else if (i_own_source && !i_own_target) {
+      // Send the source to the target
+      stk::mesh::Entity elem = bulk_data.get_entity(stk::topology::ELEM_RANK, result.domainIdentProc.id());
+      elements_to_ghost.emplace_back(elem, result.rangeIdentProc.proc());
+    } else if (!i_own_source && !i_own_target) {
+      throw std::runtime_error("Invalid search result. Somehow we received a pair of elements that we don't own.");
+    }
+  }
+
+  bulk_data.change_ghosting(neighbor_ghosting, elements_to_ghost);
+  bulk_data.modification_end();
+}
+//@}
+
 }  // namespace mesh
 
 namespace geom {
@@ -1456,7 +1572,7 @@ void node_euler_position_update(stk::mesh::NgpMesh &ngp_mesh, const double &time
 }
 //@}
 
-//! \name Simulation setupo/run
+//! \name Simulation setup/run
 //@{
 
 struct HP1ParamParser {
@@ -2718,44 +2834,37 @@ void run(int argc, char **argv) {
       rebuild_neighbors = true;
     }
 
-    // if (rebuild_neighbors) {
-    //   print_rank0("Rebuilding neighbors.");
-    //   search_aabbs = create_search_aabbs(ngp_mesh, ngp_elem_aabb_field, backbone_segs_part);
+    if (rebuild_neighbors) {
+      print_rank0("Rebuilding neighbors.");
+      search_aabbs = create_search_aabbs(ngp_mesh, ngp_elem_aabb_field, backbone_segs_part);
 
-    //   stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
+      stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
 
-    //   // auto_swap_domain_and_range must be true to avoid double counting forces.
-    //   const bool results_parallel_symmetry = true;   // create source -> target and target -> source pairs
-    //   const bool auto_swap_domain_and_range = true;  // swap source and target if target is owned and source is not
-    //   stk::search::coarse_search(search_aabbs, search_aabbs, search_method, bulk_data.parallel(), search_results,
-    //                               DeviceExecutionSpace{}, results_parallel_symmetry, auto_swap_domain_and_range);
-    //   num_neighbor_pairs = search_results.extent(0);
-    //   std::cout << "Search time: " << search_timer.seconds() << " with " << num_neighbor_pairs << " results."
-    //             << std::endl;
+      // auto_swap_domain_and_range must be true to avoid double counting forces.
+      const bool results_parallel_symmetry = true;   // create source -> target and target -> source pairs
+      const bool auto_swap_domain_and_range = true;  // swap source and target if target is owned and source is not
+      stk::search::coarse_search(search_aabbs, search_aabbs, search_method, bulk_data.parallel(), search_results,
+                                  DeviceExecutionSpace{}, results_parallel_symmetry, auto_swap_domain_and_range);
+      num_neighbor_pairs = search_results.extent(0);
+      std::cout << "Search time: " << search_timer.seconds() << " with " << num_neighbor_pairs << " results."
+                << std::endl;
 
-    //   // Ghost the non-owned spheres
-    //   Kokkos::Timer ghost_timer;
-    //   ghost_neighbors(bulk_data, search_results);
-    //   std::cout << "Ghost time: " << ghost_timer.seconds() << std::endl;
+      // Ghost the non-owned spheres
+      Kokkos::Timer ghost_timer;
+      ghost_neighbors(bulk_data, search_results);
+      std::cout << "Ghost time: " << ghost_timer.seconds() << std::endl;
 
-    //   // Create local neighbor indices
-    //   Kokkos::Timer local_index_conversion_timer;
-    //   local_search_results = get_local_neighbor_indices(bulk_data, stk::topology::ELEMENT_RANK, search_results);
-    //   std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
+      // Create local neighbor indices
+      Kokkos::Timer local_index_conversion_timer;
+      local_search_results = get_local_neighbor_indices(bulk_data, stk::topology::ELEMENT_RANK, search_results);
+      std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
 
-    //   // Only resize the collision views if the number of neighbor pairs has changed
-    //   // Otherwise we can reuse the previous lagrange multipliers as the initial guess
-    //   signed_sep_dist = Kokkos::View<double *, DeviceMemorySpace>("signed_sep_dist", num_neighbor_pairs);
-    //   con_normal_ij = Kokkos::View<double **, DeviceMemorySpace>("con_normal_ij", num_neighbor_pairs, 3);
-    //   lagrange_multipliers = Kokkos::View<double *, DeviceMemorySpace>("lagrange_multipliers", num_neighbor_pairs);
-    //   Kokkos::deep_copy(lagrange_multipliers, 0.0);  // initial guess
-
-    //   // Reset the accumulated displacements and the rebuild flag
-    //   ngp_elem_aabb_displacement_field.sync_to_device();
-    //   ngp_elem_aabb_displacement_field.set_all(ngp_mesh, 0.0);
-    //   ngp_elem_aabb_displacement_field.modify_on_device();
-    //   rebuild_neighbors = false;
-    // }
+      // Reset the accumulated displacements and the rebuild flag
+      ngp_elem_aabb_displacement_field.sync_to_device();
+      ngp_elem_aabb_displacement_field.set_all(ngp_mesh, 0.0);
+      ngp_elem_aabb_displacement_field.modify_on_device();
+      rebuild_neighbors = false;
+    }
 
     //   /////////
     //   // KMC //

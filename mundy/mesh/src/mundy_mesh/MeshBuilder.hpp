@@ -31,6 +31,7 @@
 // Trilinos libs
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 // Mundy libs
 #include <mundy_mesh/BulkData.hpp>  // for mundy::mesh::BulkData
@@ -79,9 +80,15 @@ class MeshBuilder {
   /// \param add_fmwk_data_flag [in] A Siera-specific flag, whose purpose is unbeknownst to me.
   MeshBuilder &set_add_fmwk_data_flag(bool add_fmwk_data_flag);
 
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+  /// \brief Set the field data manager.
+  /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
+  MeshBuilder &set_field_data_manager(std::unique_ptr<stk::mesh::FieldDataManager> field_data_manager_ptr);
+#else
   /// \brief Set the field data manager.
   /// \param field_data_manager_ptr [in] Pointer to an existing field data manager.
   MeshBuilder &set_field_data_manager(stk::mesh::FieldDataManager *const field_data_manager_ptr);
+#endif
 
   /// \brief Set the upper bound on the number of mesh entities that may be associated with a single bucket.
   ///
@@ -146,7 +153,11 @@ class MeshBuilder {
   bool add_fmwk_data_flag_;
 
   /// \brief Pointer to an existing field data manager.
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+  std::unique_ptr<stk::mesh::FieldDataManager> field_data_manager_ptr_;
+#else
   stk::mesh::FieldDataManager *field_data_manager_ptr_;
+#endif
 
   /// \brief Initial upper bound on the number of mesh entities that may be associated with a single bucket.
   unsigned initial_bucket_capacity_;

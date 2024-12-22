@@ -31,6 +31,8 @@
 #include <vector>       // for std::vector
 
 // Trilinos libs
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
+
 #include <stk_mesh/base/Bucket.hpp>            // stk::mesh::get_default_maximum_bucket_capacity
 #include <stk_mesh/base/BulkData.hpp>          // for stk::mesh::BulkData
 #include <stk_mesh/base/FieldDataManager.hpp>  // for stl::mesh::FieldDataManager
@@ -38,9 +40,9 @@
 #include <stk_util/parallel/Parallel.hpp>      // for stk::ParallelMachine
 
 // Mundy libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_mesh/MetaData.hpp>      // for mundy::mesh::MetaData
+#include <mundy_core/throw_assert.hpp>   // for MUNDY_THROW_ASSERT
 #include <mundy_mesh/ForEachEntity.hpp>  // for mundy::mesh::for_each_entity_run
+#include <mundy_mesh/MetaData.hpp>       // for mundy::mesh::MetaData
 
 namespace mundy {
 
@@ -111,7 +113,11 @@ class BulkData : public stk::mesh::BulkData {
 #ifdef SIERRA_MIGRATION
            bool add_fmwk_data_flag = false,
 #endif
-           stk::mesh::FieldDataManager *field_data_manager_ptr = nullptr,
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+           std::unique_ptr<stk::mesh::FieldDataManager> field_data_manager_ptr = nullptr,
+#else
+           stk::mesh::FieldDataManager *const field_data_manager_ptr = nullptr,
+#endif
            unsigned initial_bucket_capacity = stk::mesh::get_default_initial_bucket_capacity(),
            unsigned maximum_bucket_capacity = stk::mesh::get_default_maximum_bucket_capacity(),
            std::shared_ptr<stk::mesh::impl::AuraGhosting> aura_ghosting_ptr =
@@ -121,7 +127,12 @@ class BulkData : public stk::mesh::BulkData {
 #ifdef SIERRA_MIGRATION
                             add_fmwk_data_flag,
 #endif
-                            field_data_manager_ptr, initial_bucket_capacity, maximum_bucket_capacity, aura_ghosting_ptr,
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+                            std::move(field_data_manager_ptr),
+#else
+                            field_data_manager_ptr,
+#endif
+                            initial_bucket_capacity, maximum_bucket_capacity, aura_ghosting_ptr,
                             upward_connectivity_flag),
         meta_data_ptr_(meta_data_ptr) {
   }

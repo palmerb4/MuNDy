@@ -35,6 +35,7 @@
 #include <stk_mesh/base/Part.hpp>          // for stk::mesh::Part
 #include <stk_topology/topology.hpp>       // for stk::topology
 #include <stk_util/parallel/Parallel.hpp>  // for stk::ParallelMachine
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 // Mundy libs
 #include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
@@ -384,11 +385,19 @@ std::shared_ptr<mundy::mesh::BulkData> MeshReqs::declare_mesh() {
   } else {
     mesh_builder.set_auto_aura_option(default_aura_option_);
   }
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+  // if (this->constrains_field_data_manager()) {
+  //   mesh_builder.set_field_data_manager(this->get_field_data_manager());
+  // } else {
+  //   mesh_builder.set_field_data_manager(default_field_data_manager_ptr_);
+  // }
+#else
   if (this->constrains_field_data_manager()) {
     mesh_builder.set_field_data_manager(this->get_field_data_manager());
   } else {
     mesh_builder.set_field_data_manager(default_field_data_manager_ptr_);
   }
+#endif
   if (this->constrains_bucket_capacity()) {
     mesh_builder.set_bucket_capacity(this->get_bucket_capacity());
   } else {

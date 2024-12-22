@@ -726,7 +726,7 @@ void apply_stokes_kernel([[maybe_unused]] const ExecutionSpace &space,  //
     vz_accum += scale_factor_rinv3 * (r2 * fz + dz * inner_prod);
   };
 
-  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
                                                  stokes_computation);
 }
 
@@ -814,7 +814,7 @@ void apply_weighted_stokes_kernel([[maybe_unused]] const ExecutionSpace &space, 
     vz_accum += scale_factor_rinv * (fz + dz * inner_prod_rinv2);
   };
 
-  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
                                                  weighted_stokes_computation);
 }
 
@@ -918,7 +918,7 @@ void apply_rpy_kernel([[maybe_unused]] const ExecutionSpace &space,  //
     vz_accum += v2 + lap_coeff * lap2;
   };
 
-  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
                                                  rpy_computation);
 }
 
@@ -1036,7 +1036,7 @@ void apply_stokes_double_layer_kernel_ss([[maybe_unused]] const ExecutionSpace &
     vz_accum += dz * coeff;
   };
 
-  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
                                                  stokes_double_layer_computation);
 }
 
@@ -1144,7 +1144,7 @@ void apply_stokes_double_layer_kernel([[maybe_unused]] const ExecutionSpace &spa
     vz_accum += dz * coeff;
   };
 
-  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
                                                  stokes_double_layer_contribution);
 }
 
@@ -1498,7 +1498,7 @@ void add_complementary_kernel([[maybe_unused]] const ExecutionSpace &space,     
     vz_accum += normal_t2 * scaled_normal_dot_force;
   };
 
-  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
                                                  complementary_contribution);
 }
 
@@ -1696,7 +1696,7 @@ void apply_skfie([[maybe_unused]] const ExecutionSpace &space,          //
     vz_accum += dz * coeff + scaled_normal_dot_force;
   };
 
-  panelize_velocity_kernel_over_target_points<4>(space, num_target_points, num_source_points, target_velocities,
+  panelize_velocity_kernel_over_target_points<128>(space, num_target_points, num_source_points, target_velocities,
                                                  skfie_contribution);
 }
 

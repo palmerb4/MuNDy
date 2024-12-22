@@ -44,6 +44,7 @@
 #include <stk_mesh/base/NgpMesh.hpp>
 #include <stk_mesh/base/Selector.hpp>  // for stk::mesh::Selector
 #include <stk_topology/topology.hpp>
+#include <Trilinos_version.h>  // for TRILINOS_MAJOR_MINOR_VERSION
 
 // Mundy
 #include <mundy_mesh/NgpFieldBLAS.hpp>  // for mundy::mesh::field_fill, mundy::mesh::field_copy, etc
@@ -283,7 +284,11 @@ class UnitTestFieldBLAS : public ::testing::Test {
     builder.set_spatial_dimension(spatial_dimension_);
     builder.set_entity_rank_names(entity_rank_names_);
     builder.set_aura_option(aura_option);
+#if TRILINOS_MAJOR_MINOR_VERSION >= 160000
+    builder.set_field_data_manager(std::move(field_data_manager));
+#else
     builder.set_field_data_manager(field_data_manager.get());
+#endif
     builder.set_initial_bucket_capacity(initial_bucket_capacity);
     builder.set_maximum_bucket_capacity(maximum_bucket_capacity);
 
