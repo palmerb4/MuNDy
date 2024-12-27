@@ -1,9 +1,9 @@
 HP1:
   sim:
-    num_time_steps: 20
-    timestep_size: 1e-5
+    num_time_steps: 10000
+    timestep_size: 1e-3
     viscosity: 1.0
-    num_chromosomes: 1
+    num_chromosomes: 23
     num_hetero_euchromatin_blocks: 7
     num_euchromatin_per_block: 315
     num_heterochromatin_per_block: 90
@@ -15,13 +15,13 @@ HP1:
     domain_high: [100.0, 100.0, 100.0]
     loadbalance_post_initialization: true
 
-    io_frequency: 20
+    io_frequency: 100
     log_frequency: 20
     output_filename: "ngp_hp1"
     enable_continuation_if_available: false
 
-    enable_brownian_motion: false
-    enable_backbone_springs: true
+    enable_brownian_motion: true
+    enable_backbone_springs: false
     enable_backbone_collision: true
     enable_backbone_n_body_hydrodynamics: true
     enable_crosslinkers: true
@@ -33,7 +33,7 @@ HP1:
     kt: 0.1
   
   backbone_springs:
-    spring_type: "HARMONIC"
+    spring_type: "HOOKEAN"
     spring_constant: 3.0
     spring_r0: 1.0
 
@@ -42,7 +42,7 @@ HP1:
  
   crosslinker:
     kt: 0.1
-    spring_type: "HARMONIC"
+    spring_type: "HOOKEAN"
     spring_constant: 30.0
     spring_r0: 1.0
     left_binding_rate: 0.0

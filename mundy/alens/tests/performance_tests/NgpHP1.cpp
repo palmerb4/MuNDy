@@ -295,6 +295,467 @@ void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &searc
 
 namespace mech {
 
+//! \name Mobility
+//@{
+
+void check_max_overlap_with_periphery(stk::mesh::NgpMesh ngp_mesh,                         //
+                                      const double &max_allowed_overlap,                   //
+                                      const mundy::geom::Sphere<double> &periphery_shape,  //
+                                      stk::mesh::NgpField<double> &node_coords_field,      //
+                                      stk::mesh::NgpField<double> &elem_radius_field,      //
+                                      const stk::mesh::Selector &selector) {
+  node_coords_field.sync_to_device();
+  elem_radius_field.sync_to_device();
+
+  double shifted_periphery_hydro_radius = periphery_shape.radius() + max_allowed_overlap;
+
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+        const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
+        const double sphere_radius = elem_radius_field(sphere_index, 0);
+        const bool overlap_exceeds_threshold =
+            mundy::math::norm(node_coords) + sphere_radius > shifted_periphery_hydro_radius;
+        MUNDY_THROW_REQUIRE(!overlap_exceeds_threshold, std::runtime_error,
+                            "Sphere overlaps with peruphery beyond max extent allowed.");
+      });
+}
+
+void check_max_overlap_with_periphery(stk::mesh::NgpMesh &ngp_mesh,                           //
+                                      const double &max_allowed_overlap,                      //
+                                      const mundy::geom::Ellipsoid<double> &periphery_shape,  //
+                                      stk::mesh::NgpField<double> &node_coords_field,         //
+                                      stk::mesh::NgpField<double> &elem_radius_field,         //
+                                      const stk::mesh::Selector &selector) {
+  node_coords_field.sync_to_device();
+  elem_radius_field.sync_to_device();
+
+  double shifted_periphery_hydro_radius1 = 0.5 * periphery_shape.axis_length_1() + max_allowed_overlap;
+  double shifted_periphery_hydro_radius2 = 0.5 * periphery_shape.axis_length_2() + max_allowed_overlap;
+  double shifted_periphery_hydro_radius3 = 0.5 * periphery_shape.axis_length_3() + max_allowed_overlap;
+
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        // The following is an in-exact but cheap check.
+        // If shrinks the periphery's level set by the max allowed overlap and the sphere radius and then checks
+        // if the sphere's center is inside the shrunk periphery. Level sets don't follow the same rules as Euclidean
+        // geometry, so this is a rough check and is not even guaranteed to be conservative.
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+        const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
+        const double sphere_radius = elem_radius_field(sphere_index, 0);
+        const double x = node_coords[0];
+        const double y = node_coords[1];
+        const double z = node_coords[2];
+        const double x2 = x * x;
+        const double y2 = y * y;
+        const double z2 = z * z;
+        const double a2 =
+            (shifted_periphery_hydro_radius1 - sphere_radius) * (shifted_periphery_hydro_radius1 - sphere_radius);
+        const double b2 =
+            (shifted_periphery_hydro_radius2 - sphere_radius) * (shifted_periphery_hydro_radius2 - sphere_radius);
+        const double c2 =
+            (shifted_periphery_hydro_radius3 - sphere_radius) * (shifted_periphery_hydro_radius3 - sphere_radius);
+        const double value = x2 / a2 + y2 / b2 + z2 / c2;
+        MUNDY_THROW_REQUIRE(value <= 1.0, std::runtime_error,
+                            "Sphere overlaps with periphery beyond max extent allowed.");
+      });
+}
+
+void copy_spheres_to_view(stk::mesh::NgpMesh &ngp_mesh,                                  //
+                          const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,  //
+                          stk::mesh::NgpField<double> &node_coords_field,                //
+                          stk::mesh::NgpField<double> &elem_radius_field,                //
+                          stk::mesh::NgpField<double> &node_force_field,                 //
+                          stk::mesh::NgpField<double> &node_velocity_field,              //
+                          Double1DView &sphere_positions,                                //
+                          Double1DView &sphere_radii,                                    //
+                          Double1DView &sphere_forces,                                   //
+                          Double1DView &sphere_velocities) {
+  Kokkos::Profiling::pushRegion("HP1::copy_spheres_to_view");
+  node_coords_field.sync_to_device();
+  elem_radius_field.sync_to_device();
+  node_force_field.sync_to_device();
+  node_velocity_field.sync_to_device();
+
+  const size_t num_spheres = ngp_sphere_entities.size();
+  Kokkos::parallel_for(
+      stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres), KOKKOS_LAMBDA(const int &vector_index) {
+        stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
+        auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+
+        sphere_positions(vector_index * 3 + 0) = node_coords_field(node_index, 0);
+        sphere_positions(vector_index * 3 + 1) = node_coords_field(node_index, 1);
+        sphere_positions(vector_index * 3 + 2) = node_coords_field(node_index, 2);
+
+        sphere_radii(vector_index) = elem_radius_field(sphere_index, 0);
+
+        sphere_forces(vector_index * 3 + 0) = node_force_field(node_index, 0);
+        sphere_forces(vector_index * 3 + 1) = node_force_field(node_index, 1);
+        sphere_forces(vector_index * 3 + 2) = node_force_field(node_index, 2);
+
+        sphere_velocities(vector_index * 3 + 0) = node_velocity_field(node_index, 0);
+        sphere_velocities(vector_index * 3 + 1) = node_velocity_field(node_index, 1);
+        sphere_velocities(vector_index * 3 + 2) = node_velocity_field(node_index, 2);
+      });
+
+  Kokkos::Profiling::popRegion();
+}
+
+void compute_rpy_mobility_spheres(const double &viscosity,         //
+                                  Double1DView &sphere_positions,  //
+                                  Double1DView &sphere_radii,      //
+                                  Double1DView &sphere_forces,     //
+                                  Double1DView &sphere_velocities) {
+  Kokkos::Profiling::pushRegion("HP1::compute_rpy_mobility_spheres");
+  const size_t num_spheres = sphere_radii.extent(0);
+  MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere positions has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere forces has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere velocities has the wrong size.");
+
+  // Apply the RPY kernel from spheres to spheres
+  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
+                                            sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+
+  // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+  mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
+                                            sphere_radii);
+
+  Kokkos::Profiling::popRegion();
+}
+
+void compute_confined_rpy_mobility_spheres(const double &viscosity,           //
+                                           Double1DView &sphere_positions,    //
+                                           Double1DView &sphere_radii,        //
+                                           Double1DView &sphere_forces,       //
+                                           Double1DView &sphere_velocities,   //
+                                           Double1DView &surface_positions,   //
+                                           Double1DView &surface_normals,     //
+                                           Double1DView &surface_weights,     //
+                                           Double1DView &surface_radii,       //
+                                           Double1DView &surface_velocities,  //
+                                           Double1DView &surface_forces,      //
+                                           DoubleMatDeviceView &inv_self_interaction_matrix) {
+  Kokkos::Profiling::pushRegion("HP1::compute_confined_rpy_mobility_spheres");
+  const size_t num_spheres = sphere_radii.extent(0);
+  const size_t num_surface_nodes = surface_weights.extent(0);
+  MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere positions has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere forces has the wrong size.");
+  MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
+                     "Sphere velocities has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_positions.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface positions has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_normals.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface normals has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_weights.extent(0) == num_surface_nodes, std::runtime_error,
+                     "Surface weights has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_radii.extent(0) == num_surface_nodes, std::runtime_error,
+                     "Surface radii has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_forces.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface forces has the wrong size.");
+  MUNDY_THROW_ASSERT(surface_velocities.extent(0) == 3 * num_surface_nodes, std::runtime_error,
+                     "Surface velocities has the wrong size.");
+  MUNDY_THROW_ASSERT((inv_self_interaction_matrix.extent(0) == 3 * num_spheres &&
+                      inv_self_interaction_matrix.extent(1) == 3 * num_spheres),
+                     std::runtime_error, "Self interaction matrix has the wrong size.");
+
+  // Apply the RPY kernel from spheres to spheres
+  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
+                                            sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
+
+  /////////////////////////////////////////////////////////////
+  // Apply the correction for the no-slip boundary condition //
+  /////////////////////////////////////////////////////////////
+  // Apply the RPY kernel from spheres to periphery
+  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, surface_positions,
+                                            sphere_radii, surface_radii, sphere_forces, surface_velocities);
+
+  // Map the slip velocities to the surface forces
+  // The negative one in the gemv call accounts for the fact that our force should balance the u_slip
+  KokkosBlas::gemv(stk::ngp::ExecSpace(), "N", -1.0, inv_self_interaction_matrix, surface_velocities, 1.0,
+                   surface_forces);
+  mundy::alens::periphery::apply_stokes_double_layer_kernel(
+      stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_spheres, surface_positions, sphere_positions,
+      surface_normals, surface_weights, surface_forces, sphere_velocities);
+
+  //////////////////////
+  // Self-interaction //
+  //////////////////////
+  // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
+  mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
+                                            sphere_radii);
+
+  Kokkos::Profiling::popRegion();
+}
+
+void compute_local_drag_mobility_spheres(stk::mesh::NgpMesh &ngp_mesh,                      //
+                                         const double &viscosity,                           //
+                                         stk::mesh::NgpField<double> &node_velocity_field,  //
+                                         stk::mesh::NgpField<double> &node_force_field,     //
+                                         stk::mesh::NgpField<double> &elem_radius_field,    //
+                                         const stk::mesh::Selector &selector) {
+  Kokkos::Profiling::pushRegion("HP1::compute_local_drag_mobility_spheres");
+
+  node_velocity_field.sync_to_device();
+  node_force_field.sync_to_device();
+  elem_radius_field.sync_to_device();
+
+  constexpr double pi = Kokkos::numbers::pi_v<double>;
+  constexpr double one_over_6pi = 1.0 / (6.0 * pi);
+  const double one_over_6pi_mu = one_over_6pi / viscosity;
+
+  mundy::mesh::for_each_entity_run(
+      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
+        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+        const stk::mesh::Entity node = nodes[0];
+        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+        const double sphere_radius = elem_radius_field(sphere_index, 0);
+        const auto node_force = mundy::mesh::vector3_field_data(node_force_field, node_index);
+
+        const double inv_drag_coeff = one_over_6pi_mu / sphere_radius;
+        auto node_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node_index);
+        node_velocity[0] += node_force[0] * inv_drag_coeff;
+        node_velocity[1] += node_force[1] * inv_drag_coeff;
+        node_velocity[2] += node_force[2] * inv_drag_coeff;
+      });
+
+  node_velocity_field.modify_on_device();
+
+  Kokkos::Profiling::popRegion();
+}
+
+struct SphereLocalDragMobilityOp {
+  SphereLocalDragMobilityOp(stk::mesh::NgpMesh &ngp_mesh,  //
+                                 const double viscosity,        //
+                                 stk::mesh::NgpField<double> &elem_radius_field, const stk::mesh::Selector &selector)
+      : ngp_mesh_(ngp_mesh), viscosity_(viscosity), elem_radius_field_(elem_radius_field), selector_(selector) {
+  }
+
+  void apply(stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &node_velocity_field) {
+    Kokkos::Profiling::pushRegion("mundy::mech::SphereLocalDragMobilityOp::apply");
+    compute_local_drag_mobility_spheres(ngp_mesh_, viscosity_, elem_radius_field_, node_force_field,
+                                        node_velocity_field, selector_);
+    Kokkos::Profiling::popRegion();
+  }
+
+  // Leaving private members public to make this class a composite
+  stk::mesh::NgpMesh &ngp_mesh_;
+  const double viscosity_;
+  stk::mesh::NgpField<double> &elem_radius_field_;
+  const stk::mesh::Selector &selector_;
+};
+
+struct SphereRpyMobilityOp {
+  SphereRpyMobilityOp(stk::mesh::NgpMesh &ngp_mesh,                    //
+                           const double viscosity,                          //
+                           stk::mesh::NgpField<double> &node_coords_field,  //
+                           stk::mesh::NgpField<double> &elem_radius_field,
+                           const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities)
+      : ngp_mesh_(ngp_mesh),
+        viscosity_(viscosity),
+        node_coords_field_(node_coords_field),
+        elem_radius_field_(elem_radius_field),
+        ngp_sphere_entities_(ngp_sphere_entities),
+        num_spheres_(ngp_sphere_entities.size()),
+        sphere_positions_view_("sphere_positions_view", 3 * num_spheres_),
+        sphere_radii_view_("sphere_radii_view", num_spheres_),
+        sphere_forces_view_("sphere_forces_view", 3 * num_spheres_),
+        sphere_velocities_view_("sphere_velocities_view", 3 * num_spheres_) {
+    node_coords_field.sync_to_device();
+    elem_radius_field.sync_to_device();
+
+    Kokkos::parallel_for(
+        stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
+          stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
+          auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          const stk::mesh::Entity node = nodes[0];
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+
+          sphere_positions_view_(vector_index * 3 + 0) = node_coords_field(node_index, 0);
+          sphere_positions_view_(vector_index * 3 + 1) = node_coords_field(node_index, 1);
+          sphere_positions_view_(vector_index * 3 + 2) = node_coords_field(node_index, 2);
+
+          sphere_radii_view_(vector_index) = elem_radius_field(sphere_index, 0);
+        });
+  }
+
+  void apply(stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &node_velocity_field) {
+    Kokkos::Profiling::pushRegion("mundy::mech::SphereRpyMobilityOp::apply");
+
+    // Copy the force to the view
+    Kokkos::parallel_for(
+        stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
+          stk::mesh::Entity sphere = ngp_sphere_entities_.device_get(vector_index);
+          auto sphere_index = ngp_mesh_.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh_.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          const stk::mesh::Entity node = nodes[0];
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh_.fast_mesh_index(node);
+
+          sphere_forces_view_(vector_index * 3 + 0) = node_force_field(node_index, 0);
+          sphere_forces_view_(vector_index * 3 + 1) = node_force_field(node_index, 1);
+          sphere_forces_view_(vector_index * 3 + 2) = node_force_field(node_index, 2);
+        });
+    Kokkos::deep_copy(sphere_velocities_view_, 0.0);
+
+    // Apply the RPY kernel
+    compute_rpy_mobility_spheres(viscosity_, sphere_positions_view_, sphere_radii_view_, sphere_forces_view_,
+                                 sphere_velocities_view_);
+
+    // Copy the velocities back to the field
+    Kokkos::parallel_for(
+        stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
+          stk::mesh::Entity sphere = ngp_sphere_entities_.device_get(vector_index);
+          auto sphere_index = ngp_mesh_.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh_.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          const stk::mesh::Entity node = nodes[0];
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh_.fast_mesh_index(node);
+
+          node_velocity_field(node_index, 0) += sphere_velocities_view_(vector_index * 3 + 0);
+          node_velocity_field(node_index, 1) += sphere_velocities_view_(vector_index * 3 + 1);
+          node_velocity_field(node_index, 2) += sphere_velocities_view_(vector_index * 3 + 2);
+        });
+    Kokkos::Profiling::popRegion();
+  }
+
+  // Leaving private members public to make this class a composite. Do not use these directly.
+  stk::mesh::NgpMesh &ngp_mesh_;
+  const double viscosity_;
+  stk::mesh::NgpField<double> &node_coords_field_;
+  stk::mesh::NgpField<double> &elem_radius_field_;
+  const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities_;
+  const size_t num_spheres_;
+  Double1DView sphere_positions_view_;
+  Double1DView sphere_radii_view_;
+  Double1DView sphere_forces_view_;
+  Double1DView sphere_velocities_view_;
+};
+
+struct SphereConfinedRpyMobilityOp {
+  SphereConfinedRpyMobilityOp(stk::mesh::NgpMesh &ngp_mesh,                                  //
+                                   const double viscosity,                                        //
+                                   stk::mesh::NgpField<double> &node_coords_field,                //
+                                   stk::mesh::NgpField<double> &elem_radius_field,                //
+                                   const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,  //
+                                   const Double1DView &surface_positions_view,                    //
+                                   const Double1DView &surface_normals_view,                      //
+                                   const Double1DView &surface_weights_view,  //
+                                   const Double1DView &surface_forces_view,  //
+                                  const Double1DView &surface_velocities_view,  //
+                                   const Double2DView &inv_self_interaction_matrix)
+      : ngp_mesh_(ngp_mesh),
+        viscosity_(viscosity),
+        node_coords_field_(node_coords_field),
+        elem_radius_field_(elem_radius_field),
+        ngp_sphere_entities_(ngp_sphere_entities),
+        num_spheres_(ngp_sphere_entities.size()),
+        sphere_positions_view_("sphere_positions_view", 3 * num_spheres_),
+        sphere_radii_view_("sphere_radii_view", num_spheres_),
+        sphere_forces_view_("sphere_forces_view", 3 * num_spheres_),
+        sphere_velocities_view_("sphere_velocities_view", 3 * num_spheres_),
+        surface_positions_view_(surface_positions_view),
+        surface_normals_view_(surface_normals_view),
+        surface_weights_view_(surface_weights_view),
+        surface_forces_view_(surface_forces_view),
+        surface_velocities_view_(surface_velocities_view),
+        inv_self_interaction_matrix_(inv_self_interaction_matrix),
+        surface_radii_view_("surface_radii_view", surface_positions_view.extent(0)) {
+    node_coords_field.sync_to_device();
+    elem_radius_field.sync_to_device();
+
+    Kokkos::parallel_for(
+        stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
+          stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
+          auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          const stk::mesh::Entity node = nodes[0];
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+
+          sphere_positions_view_(vector_index * 3 + 0) = node_coords_field(node_index, 0);
+          sphere_positions_view_(vector_index * 3 + 1) = node_coords_field(node_index, 1);
+          sphere_positions_view_(vector_index * 3 + 2) = node_coords_field(node_index, 2);
+
+          sphere_radii_view_(vector_index) = elem_radius_field(sphere_index, 0);
+        });
+
+    Kokkos::deep_copy(surface_radii_view_, 0.0);
+  }
+
+  void apply(stk::mesh::NgpField<double> &node_force_field, stk::mesh::NgpField<double> &node_velocity_field) {
+    Kokkos::Profiling::pushRegion("mundy::mech::SphereRpyMobilityOp::apply");
+
+    // Copy the force to the view
+    Kokkos::parallel_for(
+        stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
+          stk::mesh::Entity sphere = ngp_sphere_entities_.device_get(vector_index);
+          auto sphere_index = ngp_mesh_.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh_.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          const stk::mesh::Entity node = nodes[0];
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh_.fast_mesh_index(node);
+
+          sphere_forces_view_(vector_index * 3 + 0) = node_force_field(node_index, 0);
+          sphere_forces_view_(vector_index * 3 + 1) = node_force_field(node_index, 1);
+          sphere_forces_view_(vector_index * 3 + 2) = node_force_field(node_index, 2);
+        });
+    Kokkos::deep_copy(sphere_velocities_view_, 0.0);
+
+    // Apply the RPY kernel + boundary integral confinement
+    compute_confined_rpy_mobility_spheres(viscosity_, sphere_positions_view_, sphere_radii_view_, sphere_forces_view_,
+                                          sphere_velocities_view_, surface_positions_view_, surface_normals_view_,
+                                          surface_weights_view_, surface_radii_view_, surface_velocities_view_,
+                                          surface_forces_view_, inv_self_interaction_matrix_);
+
+    // Copy the velocities back to the field
+    Kokkos::parallel_for(
+        stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres_), KOKKOS_LAMBDA(const int &vector_index) {
+          stk::mesh::Entity sphere = ngp_sphere_entities_.device_get(vector_index);
+          auto sphere_index = ngp_mesh_.fast_mesh_index(sphere);
+          stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh_.get_nodes(stk::topology::ELEM_RANK, sphere_index);
+          const stk::mesh::Entity node = nodes[0];
+          const stk::mesh::FastMeshIndex node_index = ngp_mesh_.fast_mesh_index(node);
+
+          node_velocity_field(node_index, 0) += sphere_velocities_view_(vector_index * 3 + 0);
+          node_velocity_field(node_index, 1) += sphere_velocities_view_(vector_index * 3 + 1);
+          node_velocity_field(node_index, 2) += sphere_velocities_view_(vector_index * 3 + 2);
+        });
+    Kokkos::Profiling::popRegion();
+  }
+
+  // Leaving private members public to make this class a composite. Do not use these directly.
+  stk::mesh::NgpMesh &ngp_mesh_;
+  const double viscosity_;
+
+  stk::mesh::NgpField<double> &node_coords_field_;
+  stk::mesh::NgpField<double> &elem_radius_field_;
+  const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities_;
+
+  const size_t num_spheres_;
+  Double1DView sphere_positions_view_;
+  Double1DView sphere_radii_view_;
+  Double1DView sphere_forces_view_;
+  Double1DView sphere_velocities_view_;
+
+  Double1DView surface_positions_view_;
+  Double1DView surface_normals_view_;
+  Double1DView surface_weights_view_;
+  Double1DView surface_forces_view_;
+  Double1DView surface_velocities_view_;
+  Double2DView inv_self_interaction_matrix_;
+  Double1DView surface_radii_view_;
+};
+//@}
+
 //! \name Spring forces
 //@{
 
@@ -644,44 +1105,6 @@ void sum_collision_force(stk::mesh::NgpMesh &ngp_mesh,                     //
   node_force_field.modify_on_device();
 }
 
-void compute_the_mobility_problem(stk::mesh::NgpMesh &ngp_mesh,                      //
-                                  const double viscosity,                            //
-                                  stk::mesh::NgpField<double> &elem_radius_field,    //
-                                  stk::mesh::NgpField<double> &node_force_field,     //
-                                  stk::mesh::NgpField<double> &node_velocity_field,  //
-                                  const stk::mesh::Selector &selector) {
-  Kokkos::Profiling::pushRegion("mundy::mech::compute_the_mobility_problem");
-
-  elem_radius_field.sync_to_device();
-  node_force_field.sync_to_device();
-  node_velocity_field.sync_to_device();
-
-  // Self-interaction term
-  const double pi = Kokkos::numbers::pi_v<double>;
-  const double coeff = 1.0 / (6.0 * pi * viscosity);
-  stk::mesh::for_each_entity_run(
-      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-        const stk::mesh::Entity node = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index)[0];
-        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-
-        // Fetch the radius
-        const double radius = elem_radius_field(sphere_index, 0);
-        const double force_x = node_force_field(node_index, 0);
-        const double force_y = node_force_field(node_index, 1);
-        const double force_z = node_force_field(node_index, 2);
-
-        // Compute the velocity
-        const double inv_radius = 1.0 / radius;
-        node_velocity_field(node_index, 0) = coeff * inv_radius * force_x;
-        node_velocity_field(node_index, 1) = coeff * inv_radius * force_y;
-        node_velocity_field(node_index, 2) = coeff * inv_radius * force_z;
-      });
-
-  node_velocity_field.modify_on_device();
-
-  Kokkos::Profiling::popRegion();
-}
-
 void compute_rate_of_change_of_sep(stk::mesh::NgpMesh &ngp_mesh,                      //
                                    const LocalResultViewType &local_search_results,   //
                                    stk::mesh::NgpField<double> &node_velocity_field,  //
@@ -794,13 +1217,14 @@ double get_max_speed(Mesh &ngp_mesh, Field &vel_field,  //
   return Kokkos::sqrt(global_max_speed_sq);
 }
 
+template<typename ApplyMobilityOp>
 CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                                //
                                    const double viscosity,                                      //
                                    const double dt,                                             //
                                    const double max_allowable_overlap,                          //
                                    const int max_col_iterations,                                //
+                                   ApplyMobilityOp &apply_mobility_op,                          //
                                    const LocalResultViewType &local_search_results,             //
-                                   stk::mesh::NgpField<double> &elem_radius_field,              //
                                    stk::mesh::NgpField<double> &node_force_field,               //
                                    stk::mesh::NgpField<double> &node_velocity_field,            //
                                    stk::mesh::NgpField<double> &node_collision_force_field,     //
@@ -826,14 +1250,16 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                
   // To account for external forces and external velocities, use them to update the initial signed_sep_dist
   // phi_0_corrected = phi_0 + dt * D^T U_ext
 
+  // U_ext += M F_ext
+  apply_mobility_op.apply(node_force_field, node_velocity_field, selector);
+
   // D^T U_ext
   compute_rate_of_change_of_sep(ngp_mesh, local_search_results, node_velocity_field, con_normal_ij, signed_sep_dot);
 
   // signed_sep_dist += dt * signed_sep_dot
   Kokkos::parallel_for(
-      "UpdateSignedSepDist", Kokkos::RangePolicy<stk::ngp::ExecSpace>(0, num_collisions), KOKKOS_LAMBDA(const int i) {
-        signed_sep_dist(i) += dt * signed_sep_dot(i);
-      });
+      "UpdateSignedSepDist", Kokkos::RangePolicy<stk::ngp::ExecSpace>(0, num_collisions),
+      KOKKOS_LAMBDA(const int i) { signed_sep_dist(i) += dt * signed_sep_dot(i); });
 
   ///////////////////////
   Kokkos::deep_copy(signed_sep_dot, 0.0);
@@ -844,8 +1270,9 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                
                       node_collision_force_field);
 
   // Compute U = M F
-  compute_the_mobility_problem(ngp_mesh, viscosity, elem_radius_field, node_collision_force_field,
-                               node_collision_velocity_field, selector);
+  // compute_local_drag_mobility_spheres(ngp_mesh, viscosity, elem_radius_field, node_collision_force_field,
+  //                                     node_collision_velocity_field, selector);
+  apply_mobility_op.apply(node_collision_force_field, node_collision_velocity_field, selector);
 
   // Compute gkm1 = dt D^T U
   compute_rate_of_change_of_sep(ngp_mesh, local_search_results, node_collision_velocity_field, con_normal_ij,
@@ -881,8 +1308,7 @@ CollisionResult resolve_collisions(stk::mesh::NgpMesh &ngp_mesh,                
                           node_collision_force_field);
 
       // Compute U = M F
-      compute_the_mobility_problem(ngp_mesh, viscosity, elem_radius_field, node_collision_force_field,
-                                   node_collision_velocity_field, selector);
+      apply_mobility_op.apply(node_collision_force_field, node_collision_velocity_field, selector);
 
       //   Compute gk = dt D^T U
       compute_rate_of_change_of_sep(ngp_mesh, local_search_results, node_collision_velocity_field, con_normal_ij,
@@ -1046,10 +1472,6 @@ inline bool unbind_crosslinker_from_node(mundy::mesh::BulkData &bulk_data, const
                                          const int &conn_ordinal) {
   MUNDY_THROW_ASSERT(bulk_data.in_modifiable_state(), std::logic_error,
                      "unbind_crosslinker_from_node: The mesh must be in a modification cycle.");
-  // Maybe unsafe?
-  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
-  // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
-
   // If a node already exists at the ordinal, we'll destroy that relation.
   const int num_nodes = bulk_data.num_nodes(crosslinker);
   stk::mesh::Entity const *nodes = bulk_data.begin_nodes(crosslinker);
@@ -1088,9 +1510,6 @@ inline bool bind_crosslinker_to_node(mundy::mesh::BulkData &bulk_data,      //
                      "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
   MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
                      "bind_crosslinker_to_node: The node must have NODE_RANK.");
-  // Maybe unsafe?
-  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
-  // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // Check a node already exists at the ordinal
   const int num_nodes = bulk_data.num_nodes(crosslinker);
@@ -1131,9 +1550,6 @@ inline bool bind_crosslinker_to_node_unbind_existing(mundy::mesh::BulkData &bulk
                      "bind_crosslinker_to_node: The mesh must be in a modification cycle.");
   MUNDY_THROW_ASSERT(bulk_data.entity_rank(new_node) == stk::topology::NODE_RANK, std::logic_error,
                      "bind_crosslinker_to_node: The node must have NODE_RANK.");
-  // Maybe unsafe?
-  // MUNDY_THROW_ASSERT(bulk_data.bucket(crosslinker).topology().base() == stk::topology::BEAM_2,
-  // std::logic_error, "bind_crosslinker_to_node: The crosslinker must have BEAM_2 as a base topology.");
 
   // If a node already exists at the ordinal, we'll destroy that relation.
   unbind_crosslinker_from_node(bulk_data, crosslinker, conn_ordinal);
@@ -1720,247 +2136,6 @@ std::vector<std::vector<mundy::geom::Point<double>>> get_chromosome_positions_hi
 }
 //@}
 
-//! \name Mobility
-//@{
-
-void check_max_overlap_with_periphery(stk::mesh::NgpMesh ngp_mesh,                         //
-                                      const double &max_allowed_overlap,                   //
-                                      const mundy::geom::Sphere<double> &periphery_shape,  //
-                                      stk::mesh::NgpField<double> &node_coords_field,      //
-                                      stk::mesh::NgpField<double> &elem_radius_field,      //
-                                      const stk::mesh::Selector &selector) {
-  node_coords_field.sync_to_device();
-  elem_radius_field.sync_to_device();
-
-  double shifted_periphery_hydro_radius = periphery_shape.radius() + max_allowed_overlap;
-
-  mundy::mesh::for_each_entity_run(
-      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-        const stk::mesh::Entity node = nodes[0];
-        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-        const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
-        const double sphere_radius = elem_radius_field(sphere_index, 0);
-        const bool overlap_exceeds_threshold =
-            mundy::math::norm(node_coords) + sphere_radius > shifted_periphery_hydro_radius;
-        MUNDY_THROW_REQUIRE(!overlap_exceeds_threshold, std::runtime_error,
-                            "Sphere overlaps with peruphery beyond max extent allowed.");
-      });
-}
-
-void check_max_overlap_with_periphery(stk::mesh::NgpMesh &ngp_mesh,                           //
-                                      const double &max_allowed_overlap,                      //
-                                      const mundy::geom::Ellipsoid<double> &periphery_shape,  //
-                                      stk::mesh::NgpField<double> &node_coords_field,         //
-                                      stk::mesh::NgpField<double> &elem_radius_field,         //
-                                      const stk::mesh::Selector &selector) {
-  node_coords_field.sync_to_device();
-  elem_radius_field.sync_to_device();
-
-  double shifted_periphery_hydro_radius1 = 0.5 * periphery_shape.axis_length_1() + max_allowed_overlap;
-  double shifted_periphery_hydro_radius2 = 0.5 * periphery_shape.axis_length_2() + max_allowed_overlap;
-  double shifted_periphery_hydro_radius3 = 0.5 * periphery_shape.axis_length_3() + max_allowed_overlap;
-
-  mundy::mesh::for_each_entity_run(
-      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-        // The following is an in-exact but cheap check.
-        // If shrinks the periphery's level set by the max allowed overlap and the sphere radius and then checks
-        // if the sphere's center is inside the shrunk periphery. Level sets don't follow the same rules as Euclidean
-        // geometry, so this is a rough check and is not even guarenteed to be conservative.
-        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-        const stk::mesh::Entity node = nodes[0];
-        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-        const auto node_coords = mundy::mesh::vector3_field_data(node_coords_field, node_index);
-        const double sphere_radius = elem_radius_field(sphere_index, 0);
-        const double x = node_coords[0];
-        const double y = node_coords[1];
-        const double z = node_coords[2];
-        const double x2 = x * x;
-        const double y2 = y * y;
-        const double z2 = z * z;
-        const double a2 =
-            (shifted_periphery_hydro_radius1 - sphere_radius) * (shifted_periphery_hydro_radius1 - sphere_radius);
-        const double b2 =
-            (shifted_periphery_hydro_radius2 - sphere_radius) * (shifted_periphery_hydro_radius2 - sphere_radius);
-        const double c2 =
-            (shifted_periphery_hydro_radius3 - sphere_radius) * (shifted_periphery_hydro_radius3 - sphere_radius);
-        const double value = x2 / a2 + y2 / b2 + z2 / c2;
-        MUNDY_THROW_REQUIRE(value <= 1.0, std::runtime_error,
-                            "Sphere overlaps with periphery beyond max extent allowed.");
-      });
-}
-
-void copy_spheres_to_view(stk::mesh::NgpMesh &ngp_mesh,                                  //
-                          const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,  //
-                          stk::mesh::NgpField<double> &node_coords_field,                //
-                          stk::mesh::NgpField<double> &elem_radius_field,                //
-                          stk::mesh::NgpField<double> &node_force_field,                 //
-                          stk::mesh::NgpField<double> &node_velocity_field,              //
-                          Double1DView &sphere_positions,                                //
-                          Double1DView &sphere_radii,                                    //
-                          Double1DView &sphere_forces,                                   //
-                          Double1DView &sphere_velocities) {
-  Kokkos::Profiling::pushRegion("HP1::copy_spheres_to_view");
-  node_coords_field.sync_to_device();
-  elem_radius_field.sync_to_device();
-  node_force_field.sync_to_device();
-  node_velocity_field.sync_to_device();
-
-  const size_t num_spheres = ngp_sphere_entities.size();
-  Kokkos::parallel_for(
-      stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres), KOKKOS_LAMBDA(const int &vector_index) {
-        stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
-        auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
-        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-        const stk::mesh::Entity node = nodes[0];
-        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-
-        sphere_positions(vector_index * 3 + 0) = node_coords_field(node_index, 0);
-        sphere_positions(vector_index * 3 + 1) = node_coords_field(node_index, 1);
-        sphere_positions(vector_index * 3 + 2) = node_coords_field(node_index, 2);
-
-        sphere_radii(vector_index) = elem_radius_field(sphere_index, 0);
-
-        sphere_forces(vector_index * 3 + 0) = node_force_field(node_index, 0);
-        sphere_forces(vector_index * 3 + 1) = node_force_field(node_index, 1);
-        sphere_forces(vector_index * 3 + 2) = node_force_field(node_index, 2);
-
-        sphere_velocities(vector_index * 3 + 0) = node_velocity_field(node_index, 0);
-        sphere_velocities(vector_index * 3 + 1) = node_velocity_field(node_index, 1);
-        sphere_velocities(vector_index * 3 + 2) = node_velocity_field(node_index, 2);
-      });
-
-  Kokkos::Profiling::popRegion();
-}
-
-void compute_rpy_hydro(const double &viscosity,         //
-                       Double1DView &sphere_positions,  //
-                       Double1DView &sphere_radii,      //
-                       Double1DView &sphere_forces,     //
-                       Double1DView &sphere_velocities) {
-  Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro");
-  const size_t num_spheres = sphere_radii.extent(0);
-  MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
-                     "Sphere positions has the wrong size.");
-  MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
-                     "Sphere forces has the wrong size.");
-  MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
-                     "Sphere velocities has the wrong size.");
-
-  // Apply the RPY kernel from spheres to spheres
-  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
-                                            sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
-
-  // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-  mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
-                                            sphere_radii);
-
-  Kokkos::Profiling::popRegion();
-}
-
-void compute_confined_rpy_hydro(const double &viscosity,           //
-                                Double1DView &sphere_positions,    //
-                                Double1DView &sphere_radii,        //
-                                Double1DView &sphere_forces,       //
-                                Double1DView &sphere_velocities,   //
-                                Double1DView &surface_positions,   //
-                                Double1DView &surface_normals,     //
-                                Double1DView &surface_weights,     //
-                                Double1DView &surface_radii,       //
-                                Double1DView &surface_velocities,  //
-                                Double1DView &surface_forces,      //
-                                DoubleMatDeviceView &inv_self_interaction_matrix) {
-  Kokkos::Profiling::pushRegion("HP1::compute_rpy_hydro");
-  const size_t num_spheres = sphere_radii.extent(0);
-  const size_t num_surface_nodes = surface_weights.extent(0);
-  MUNDY_THROW_ASSERT(sphere_positions.extent(0) == 3 * num_spheres, std::runtime_error,
-                     "Sphere positions has the wrong size.");
-  MUNDY_THROW_ASSERT(sphere_forces.extent(0) == 3 * num_spheres, std::runtime_error,
-                     "Sphere forces has the wrong size.");
-  MUNDY_THROW_ASSERT(sphere_velocities.extent(0) == 3 * num_spheres, std::runtime_error,
-                     "Sphere velocities has the wrong size.");
-  MUNDY_THROW_ASSERT(surface_positions.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-                     "Surface positions has the wrong size.");
-  MUNDY_THROW_ASSERT(surface_normals.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-                     "Surface normals has the wrong size.");
-  MUNDY_THROW_ASSERT(surface_weights.extent(0) == num_surface_nodes, std::runtime_error,
-                     "Surface weights has the wrong size.");
-  MUNDY_THROW_ASSERT(surface_radii.extent(0) == num_surface_nodes, std::runtime_error,
-                     "Surface radii has the wrong size.");
-  MUNDY_THROW_ASSERT(surface_forces.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-                     "Surface forces has the wrong size.");
-  MUNDY_THROW_ASSERT(surface_velocities.extent(0) == 3 * num_surface_nodes, std::runtime_error,
-                     "Surface velocities has the wrong size.");
-  MUNDY_THROW_ASSERT((inv_self_interaction_matrix.extent(0) == 3 * num_spheres &&
-                      inv_self_interaction_matrix.extent(1) == 3 * num_spheres),
-                     std::runtime_error, "Self interaction matrix has the wrong size.");
-
-  // Apply the RPY kernel from spheres to spheres
-  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, sphere_positions,
-                                            sphere_radii, sphere_radii, sphere_forces, sphere_velocities);
-
-  /////////////////////////////////////////////////////////////
-  // Apply the correction for the no-slip boundary condition //
-  /////////////////////////////////////////////////////////////
-  // Apply the RPY kernel from spheres to periphery
-  mundy::alens::periphery::apply_rpy_kernel(stk::ngp::ExecSpace(), viscosity, sphere_positions, surface_positions,
-                                            sphere_radii, surface_radii, sphere_forces, surface_velocities);
-
-  // Map the slip velocities to the surface forces
-  // The negative one in the gemv call accounts for the fact that our force should balance the u_slip
-  KokkosBlas::gemv(stk::ngp::ExecSpace(), "N", -1.0, inv_self_interaction_matrix, surface_velocities, 1.0,
-                   surface_forces);
-  mundy::alens::periphery::apply_stokes_double_layer_kernel(
-      stk::ngp::ExecSpace(), viscosity, num_surface_nodes, num_spheres, surface_positions, sphere_positions,
-      surface_normals, surface_weights, surface_forces, sphere_velocities);
-
-  //////////////////////
-  // Self-interaction //
-  //////////////////////
-  // The RPY kernel is only long-range, it doesn't add on self-interaction for the spheres
-  mundy::alens::periphery::apply_local_drag(stk::ngp::ExecSpace(), viscosity, sphere_velocities, sphere_forces,
-                                            sphere_radii);
-
-  Kokkos::Profiling::popRegion();
-}
-
-void compute_dry_velocity(stk::mesh::NgpMesh &ngp_mesh,                      //
-                          const double &viscosity,                           //
-                          stk::mesh::NgpField<double> &node_velocity_field,  //
-                          stk::mesh::NgpField<double> &node_force_field,     //
-                          stk::mesh::NgpField<double> &elem_radius_field,    //
-                          const stk::mesh::Selector &selector) {
-  Kokkos::Profiling::pushRegion("HP1::compute_dry_velocity");
-
-  node_velocity_field.sync_to_device();
-  node_force_field.sync_to_device();
-  elem_radius_field.sync_to_device();
-
-  constexpr double pi = Kokkos::numbers::pi_v<double>;
-  const double six_pi_mu = 6.0 * pi * viscosity;
-  const double inv_six_pi_mu = 1.0 / six_pi_mu;
-
-  mundy::mesh::for_each_entity_run(
-      ngp_mesh, stk::topology::ELEMENT_RANK, selector, KOKKOS_LAMBDA(const stk::mesh::FastMeshIndex &sphere_index) {
-        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-        const stk::mesh::Entity node = nodes[0];
-        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-        const double sphere_radius = elem_radius_field(sphere_index, 0);
-        const auto node_force = mundy::mesh::vector3_field_data(node_force_field, node_index);
-
-        const double inv_drag_coeff = inv_six_pi_mu / sphere_radius;
-        auto node_velocity = mundy::mesh::vector3_field_data(node_velocity_field, node_index);
-        node_velocity[0] += node_force[0] * inv_drag_coeff;
-        node_velocity[1] += node_force[1] * inv_drag_coeff;
-        node_velocity[2] += node_force[2] * inv_drag_coeff;
-      });
-
-  node_velocity_field.modify_on_device();
-
-  Kokkos::Profiling::popRegion();
-}
-//@}
-
 //! \name Periphery collision forces
 //@{
 
@@ -2237,10 +2412,10 @@ struct HP1ParamParser {
 
     if (sim_params.get<bool>("enable_backbone_springs")) {
       const auto &backbone_spring_params = valid_param_list.sublist("backbone_springs");
-      MUNDY_THROW_REQUIRE(backbone_spring_params.get<std::string>("spring_type") == "HARMONIC" ||
+      MUNDY_THROW_REQUIRE(backbone_spring_params.get<std::string>("spring_type") == "HOOKEAN" ||
                               backbone_spring_params.get<std::string>("spring_type") == "FENE",
                           std::invalid_argument,
-                          fmt::format("Invalid spring_type ({}). Valid options are HARMONIC and FENE.",
+                          fmt::format("Invalid spring_type ({}). Valid options are HOOKEAN and FENE.",
                                       backbone_spring_params.get<std::string>("spring_type")));
       MUNDY_THROW_REQUIRE(backbone_spring_params.get<double>("spring_constant") >= 0, std::invalid_argument,
                           "spring_constant must be non-negative.");
@@ -2350,9 +2525,9 @@ struct HP1ParamParser {
     valid_parameter_list.sublist("brownian_motion").set("kt", 1.0, "Temperature kT for Brownian Motion.");
 
     valid_parameter_list.sublist("backbone_springs")
-        .set("spring_type", std::string("HARMONIC"), "Chromatin spring type. Valid options are HARMONIC or FENE.")
+        .set("spring_type", std::string("HOOKEAN"), "Chromatin spring type. Valid options are HOOKEAN or FENE.")
         .set("spring_constant", 100.0, "Chromatin spring constant.")
-        .set("spring_r0", 1.0, "Chromatin rest length (HARMONIC) or rmax (FENE).");
+        .set("spring_r0", 1.0, "Chromatin rest length (HOOKEAN) or rmax (FENE).");
 
     valid_parameter_list.sublist("backbone_collision")
         .set("backbone_sphere_collision_radius", 0.5, "Backbone sphere collision radius (as so aptly named).")
@@ -2362,7 +2537,7 @@ struct HP1ParamParser {
              make_new_validator(prefer_size_t, accept_int));
 
     valid_parameter_list.sublist("crosslinker")
-        .set("spring_type", std::string("HARMONIC"), "Crosslinker spring type. Valid options are HARMONIC or FENE.")
+        .set("spring_type", std::string("HOOKEAN"), "Crosslinker spring type. Valid options are HOOKEAN or FENE.")
         .set("kt", 1.0, "Temperature kT for crosslinkers.")
         .set("spring_constant", 10.0, "Crosslinker spring constant.")
         .set("spring_r0", 2.5, "Crosslinker rest length.")
@@ -2528,7 +2703,7 @@ struct HP1ParamParser {
         std::cout << "BACKBONE SPRINGS:" << std::endl;
         std::cout << "  spring_type:      " << backbone_springs_params.get<std::string>("spring_type") << std::endl;
         std::cout << "  spring_constant:  " << backbone_springs_params.get<double>("spring_constant") << std::endl;
-        if (backbone_springs_params.get<std::string>("spring_type") == "HARMONIC") {
+        if (backbone_springs_params.get<std::string>("spring_type") == "HOOKEAN") {
           std::cout << "  spring_r0 (rest_length): " << backbone_springs_params.get<double>("spring_r0") << std::endl;
         } else if (backbone_springs_params.get<std::string>("spring_type") == "FENE") {
           std::cout << "  spring_r0 (r_max):       " << backbone_springs_params.get<double>("spring_r0") << std::endl;
@@ -3324,6 +3499,10 @@ void run(int argc, char **argv) {
     }
   }
 
+  // Allocate the mobility problem
+
+
+
   // Allocate the neighbor search vectors/views
   ResultViewType search_results;
   LocalResultViewType local_search_results;
@@ -3340,6 +3519,7 @@ void run(int argc, char **argv) {
   const double timestep_size = sim_params.get<double>("timestep_size");
   const double search_buffer = neighbor_list_params.get<double>("skin_distance");
   const double viscosity = sim_params.get<double>("viscosity");
+  const size_t io_frequency = sim_params.get<size_t>("io_frequency");
 
   const bool enable_brownian_motion = sim_params.get<bool>("enable_brownian_motion");
   const bool enable_backbone_collision = sim_params.get<bool>("enable_backbone_collision");
@@ -3349,8 +3529,34 @@ void run(int argc, char **argv) {
   const bool enable_periphery_hydrodynamics = sim_params.get<bool>("enable_periphery_hydrodynamics");
 
   bool rebuild_neighbors = true;
-  Kokkos::Timer overall_timer;
+  Kokkos::Timer tps_timer;
   for (size_t timestep_idx = 0; timestep_idx < num_time_steps; timestep_idx++) {
+    if (timestep_idx % io_frequency == 0) {
+      std::cout << "Time step: " << timestep_idx << " running at "
+                << static_cast<double>(io_frequency) / tps_timer.seconds() << " tps "
+                << " | " << tps_timer.seconds() / static_cast<double>(io_frequency) << " spt" << std::endl;
+      tps_timer.reset();
+      // Comm fields to host
+      ngp_node_coords_field.sync_to_host();
+      ngp_node_velocity_field.sync_to_host();
+      ngp_node_force_field.sync_to_host();
+      ngp_node_collision_velocity_field.sync_to_host();
+      ngp_node_collision_force_field.sync_to_host();
+      ngp_node_rng_field.sync_to_host();
+      ngp_elem_hydrodynamic_radius_field.sync_to_host();
+      ngp_elem_binding_radius_field.sync_to_host();
+      ngp_elem_collision_radius_field.sync_to_host();
+      ngp_elem_spring_constant_field.sync_to_host();
+      ngp_elem_spring_r0_field.sync_to_host();
+      ngp_elem_binding_rates_field.sync_to_host();
+      ngp_elem_unbinding_rates_field.sync_to_host();
+      ngp_elem_rng_field.sync_to_host();
+
+      // Write to file using Paraview compatable naming
+      stk::io::write_mesh_with_fields("ngp_hp1.e-s." + std::to_string(timestep_idx), bulk_data, timestep_idx + 1,
+                                      timestep_idx * timestep_size, stk::io::WRITE_RESULTS);
+    }
+
     // Prepare the current configuration.
     mundy::mesh::field_fill(0.0, node_velocity_field, stk::ngp::ExecSpace());
     mundy::mesh::field_fill(0.0, node_force_field, stk::ngp::ExecSpace());
@@ -3370,11 +3576,11 @@ void run(int argc, char **argv) {
 
     if (rebuild_neighbors) {
       std::cout << "Rebuilding neighbors..." << std::endl;
+      Kokkos::Timer search_timer;
       search_spheres = create_search_spheres(bulk_data, ngp_mesh, search_buffer, ngp_node_coords_field,
                                              ngp_elem_collision_radius_field, spheres_part);
 
       // Perform the backbone sphere to backbone sphere search
-      Kokkos::Timer search_timer;
       const stk::search::SearchMethod search_method = stk::search::MORTON_LBVH;
       const bool results_parallel_symmetry = true;   // Create source -> target and target -> source pairs
       const bool auto_swap_domain_and_range = true;  // Swap source and target if target is owned and source is not
@@ -3382,18 +3588,12 @@ void run(int argc, char **argv) {
       stk::search::coarse_search(search_spheres, search_spheres, search_method, bulk_data.parallel(), search_results,
                                  stk::ngp::ExecSpace{}, results_parallel_symmetry, auto_swap_domain_and_range);
       num_neighbor_pairs = search_results.extent(0);
-      std::cout << "Search time: " << search_timer.seconds() << " with " << num_neighbor_pairs << " results."
-                << std::endl;
 
       // Ghost the non-owned spheres
-      Kokkos::Timer ghost_timer;
       ghost_neighbors(bulk_data, search_results);
-      std::cout << "Ghost time: " << ghost_timer.seconds() << std::endl;
 
       // Create local neighbor indices
-      Kokkos::Timer local_index_conversion_timer;
       local_search_results = get_local_neighbor_indices(bulk_data, stk::topology::ELEM_RANK, search_results);
-      std::cout << "Local index conversion time: " << local_index_conversion_timer.seconds() << std::endl;
 
       // TODO(palmerb4): Store the local neighbors within a field to allow the fetching of all neighbors of a given
       //  element. We need to validate if it is better for us to use the same neighbor list for both the sphere-sphere
@@ -3402,13 +3602,15 @@ void run(int argc, char **argv) {
 
       if (enable_backbone_collision) {
         // Resize the collision views if the neighbor pairs are regenerated.
-        Kokkos::resize(signed_sep_dist, num_neighbor_pairs);
-        Kokkos::resize(con_normal_ij, num_neighbor_pairs, 3);
-        Kokkos::resize(lagrange_multipliers, num_neighbor_pairs);
+        signed_sep_dist = Double1DView("signed_sep_dist", num_neighbor_pairs);
+        con_normal_ij = Double2DView("con_normal_ij", num_neighbor_pairs, 3);
+        lagrange_multipliers = Double1DView("lagrange_multipliers", num_neighbor_pairs);
       }
 
       // Reset the accumulated displacements and the rebuild flag
       mundy::mesh::field_fill(0.0, node_displacement_since_last_rebuild_field, stk::ngp::ExecSpace());
+      std::cout << "Search time: " << search_timer.seconds() << " with " << num_neighbor_pairs << " results."
+                << std::endl;
       rebuild_neighbors = false;
     }
 
@@ -3434,10 +3636,21 @@ void run(int argc, char **argv) {
     /////////////////////////////
     // Evaluate forces f(x(t)) //
     /////////////////////////////
-    //   if (enable_backbone_springs) {
-    //     compute_hookean_spring_forces();
-    //     compute_fene_spring_forces();
-    //   }
+    if (enable_backbone_springs) {
+      const std::string spring_type = backbone_springs_params.get<std::string>("spring_type");
+      if (spring_type == "HOOKEAN") {
+        mundy::mech::compute_hookean_spring_forces(ngp_mesh, ngp_node_coords_field, ngp_node_force_field,
+                                                   ngp_elem_spring_constant_field, ngp_elem_spring_r0_field,
+                                                   backbone_segs_part);
+      } else if (spring_type == "FENE") {
+        mundy::mech::compute_fene_spring_forces(ngp_mesh, ngp_node_coords_field, ngp_node_force_field,
+                                                ngp_elem_spring_constant_field, ngp_elem_spring_r0_field,
+                                                backbone_segs_part);
+      } else {
+        MUNDY_THROW_REQUIRE(false, std::logic_error, "Invalid spring type.");
+      }
+    }
+
     //   if (enable_crosslinkers) {
     //     compute_hookean_spring_forces();
     //     compute_fene_spring_forces();
@@ -3467,14 +3680,11 @@ void run(int argc, char **argv) {
       //////////////////////////////////////////
       // Initialize and solve the constraints //
       //////////////////////////////////////////
-      Kokkos::Timer init_constraints_timer;
+      Kokkos::Timer collision_timer;
       mundy::mech::compute_signed_separation_distance_and_contact_normal(
           ngp_mesh, local_search_results, ngp_node_coords_field, ngp_elem_collision_radius_field, signed_sep_dist,
           con_normal_ij);
-      std::cout << "Init constraints time: " << init_constraints_timer.seconds() << std::endl;
 
-
-      Kokkos::Timer contact_timer;
       const double max_allowable_overlap = backbone_collision_params.get<double>("max_allowable_overlap");
       const size_t max_collision_iterations = backbone_collision_params.get<size_t>("max_collision_iterations");
       Kokkos::deep_copy(lagrange_multipliers, 0.0);                                                    // initial guess
@@ -3484,7 +3694,6 @@ void run(int argc, char **argv) {
                                                                             max_allowable_overlap,     //
                                                                             max_collision_iterations,  //
                                                                             local_search_results,      //
-                                                                            ngp_elem_collision_radius_field,    //
                                                                             ngp_node_force_field,               //
                                                                             ngp_node_velocity_field,            //
                                                                             ngp_node_collision_force_field,     //
@@ -3499,29 +3708,27 @@ void run(int argc, char **argv) {
                                stk::ngp::ExecSpace());
       mundy::mesh::field_axpby(1.0, node_collision_velocity_field, 1.0, node_velocity_field, spheres_part,
                                stk::ngp::ExecSpace());
-      std::cout << std::setprecision(8) << "Contact time: " << contact_timer.seconds() << std::endl;
 
       std::cout << "Result: " << std::endl;
       std::cout << "  Max abs projected sep: " << result.max_abs_projected_sep << std::endl;
       std::cout << "  Number of iterations: " << result.ite_count << std::endl;
       std::cout << "  Max displacement: " << result.max_displacement << std::endl;
+      std::cout << "  Time: " << collision_timer.seconds() << std::endl;
     }
 
     // Take an Euler step
-    Kokkos::Timer update_timer;
     mundy::mesh::field_axpby(timestep_size, node_velocity_field, 1.0, node_displacement_since_last_rebuild_field,
                              stk::ngp::ExecSpace());
     mundy::mesh::field_axpby(timestep_size, node_velocity_field, 1.0, node_coords_field, stk::ngp::ExecSpace());
-    std::cout << "Update time: " << update_timer.seconds() << std::endl;
 
     // Check for overlap
-    if (enable_backbone_collision) {
-      node_coords_field.sync_to_host();
-      elem_collision_radius_field.sync_to_host();
-      const double max_allowable_overlap = backbone_collision_params.get<double>("max_allowable_overlap");
-      mundy::mech::check_overlap(bulk_data, max_allowable_overlap, node_coords_field, elem_collision_radius_field,
-                                 spheres_part);
-    }
+    // if (enable_backbone_collision) {
+    //   node_coords_field.sync_to_host();
+    //   elem_collision_radius_field.sync_to_host();
+    //   const double max_allowable_overlap = backbone_collision_params.get<double>("max_allowable_overlap");
+    //   mundy::mech::check_overlap(bulk_data, max_allowable_overlap, node_coords_field, elem_collision_radius_field,
+    //                              spheres_part);
+    // }
   }
 }
 //@}
