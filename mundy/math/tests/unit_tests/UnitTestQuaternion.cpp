@@ -352,7 +352,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, AdditionAndSubtractionWithQuaternion) {
   Quaternion<T1> q1(1, 2, 3, 4);
   Quaternion<T2> q2(4, 10, 11, 12);
   auto q3 = q1 + q2;
-  using T3 = decltype(q3)::value_type;
+  using T3 = decltype(q3)::scalar_t;
   is_close_debug(q3, Quaternion<T3>{5, 12, 14, 16}, "Addition failed.");
 
   q1 += q2;
@@ -372,7 +372,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, AdditionAndSubtractionEdgeCases) {
   // Test that the addition and subtraction operators work with rvalues
   Quaternion<T1> q1(1, 2, 3, 4);
   auto q3 = q1 + Quaternion<T2>(4, 10, 11, 12);
-  using T3 = decltype(q3)::value_type;
+  using T3 = decltype(q3)::scalar_t;
   is_close_debug(q3, Quaternion<T3>{5, 12, 14, 16}, "Right rvalue addition failed.");
 
   q1 += Quaternion<T2>(4, 10, 11, 12);
@@ -392,7 +392,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, AdditionAndSubtractionEdgeCases) {
 TYPED_TEST(QuaternionPairwiseTypeTest, MultiplicationAndDivisionWithQuaternion) {
   using T1 = typename TypeParam::T1;
   using T2 = typename TypeParam::T2;
-  using T3 = decltype(Quaternion<T1>() * Quaternion<T2>())::value_type;
+  using T3 = decltype(Quaternion<T1>() * Quaternion<T2>())::scalar_t;
 
   // 90 degrees rotation around Z-axis
   Quaternion<T1> q1_z = get_quaternion_z_90<T1>();
@@ -506,7 +506,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, MultiplicationAndDivisionWithMatrix3sEdge
 TYPED_TEST(QuaternionPairwiseTypeTest, MultiplicationAndDivisionWithVector3) {
   using T1 = typename TypeParam::T1;
   using T2 = typename TypeParam::T2;
-  using T3 = decltype(Quaternion<T1>() * Vector3<T2>())::value_type;
+  using T3 = decltype(Quaternion<T1>() * Vector3<T2>())::scalar_t;
 
   // Choose a random vector to rotate
   Vector3<T2> v(1, 2, 3);
@@ -544,7 +544,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, MultiplicationAndDivisionWithVector3) {
 TYPED_TEST(QuaternionPairwiseTypeTest, MultiplicationAndDivisionWithVector3sEdgeCases) {
   using T1 = typename TypeParam::T1;
   using T2 = typename TypeParam::T2;
-  using T3 = decltype(Quaternion<T1>() * Vector3<T2>())::value_type;
+  using T3 = decltype(Quaternion<T1>() * Vector3<T2>())::scalar_t;
 
   // Test that the multiplication and division operators work with rvalues
 
@@ -584,7 +584,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, MultiplicationAndDivisionWithScalars) {
 
   Quaternion<T1> q1(1, 2, 3, 4);
   auto q2 = q1 * T2(2);
-  using T3 = decltype(q2)::value_type;
+  using T3 = decltype(q2)::scalar_t;
   is_close_debug(q2, Quaternion<T3>{2, 4, 6, 8}, "Right multiplication failed.");
 
   q2 = T2(2) * q1;
@@ -615,7 +615,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperations) {
 
   // conjugate
   auto q3 = conjugate(q1);
-  using T3 = decltype(q3)::value_type;
+  using T3 = decltype(q3)::scalar_t;
   is_close_debug(q3, Quaternion<T3>{1, -2, -3, -4}, "Conjugate failed.");
 
   // conjugate in place
@@ -631,7 +631,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperations) {
 
   // normalize
   auto q4 = normalize(q1);
-  using T4 = decltype(q4)::value_type;
+  using T4 = decltype(q4)::scalar_t;
   is_close_debug(q4,
                  Quaternion<T4>{static_cast<T4>(1.0 / std::sqrt(30.0)), static_cast<T4>(2.0 / std::sqrt(30.0)),
                                 static_cast<T4>(3.0 / std::sqrt(30.0)), static_cast<T4>(4.0 / std::sqrt(30.0))},
@@ -639,7 +639,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperations) {
 
   // inverse
   auto q5 = inverse(q1);
-  using T5 = decltype(q5)::value_type;
+  using T5 = decltype(q5)::scalar_t;
   is_close_debug(q5,
                  Quaternion<T5>{static_cast<T5>(1.0 / 30.0), static_cast<T5>(-2.0 / 30.0), static_cast<T5>(-3.0 / 30.0),
                                 static_cast<T5>(-4.0 / 30.0)},
@@ -655,7 +655,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperations) {
 
   // slerp (only applicable to unit quaternions)
   auto q6 = slerp(q1, q2, 0.5);
-  using T6 = decltype(q5)::value_type;
+  using T6 = decltype(q5)::scalar_t;
   is_close_debug(q6,
                  Quaternion<T6>{static_cast<T6>(0.1946219299433149), static_cast<T6>(0.4407059160784743),
                                 static_cast<T6>(0.5581347617390449), static_cast<T6>(0.6755636074046377)},
@@ -682,7 +682,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperationsEdgeCases) {
 
   // normalize
   auto q4 = normalize(Quaternion<T1>(1, 2, 3, 4));
-  using T4 = decltype(q4)::value_type;
+  using T4 = decltype(q4)::scalar_t;
   is_close_debug(q4,
                  Quaternion<T4>{static_cast<T4>(1.0 / std::sqrt(30.0)), static_cast<T4>(2.0 / std::sqrt(30.0)),
                                 static_cast<T4>(3.0 / std::sqrt(30.0)), static_cast<T4>(4.0 / std::sqrt(30.0))},
@@ -690,7 +690,7 @@ TYPED_TEST(QuaternionPairwiseTypeTest, SpecialOperationsEdgeCases) {
 
   // slerp
   auto q5 = slerp(normalize(Quaternion<T1>(1, 2, 3, 4)), normalize(Quaternion<T2>(4, 10, 11, 12)), 0.5);
-  using T5 = decltype(q5)::value_type;
+  using T5 = decltype(q5)::scalar_t;
   is_close_debug(q5,
                  Quaternion<T5>{static_cast<T5>(0.1946219299433149), static_cast<T5>(0.4407059160784743),
                                 static_cast<T5>(0.5581347617390449), static_cast<T5>(0.6755636074046377)},

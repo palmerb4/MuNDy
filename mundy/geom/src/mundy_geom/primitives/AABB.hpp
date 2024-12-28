@@ -43,10 +43,10 @@ class AABB {
   //@{
 
   /// \brief The AABB's scalar type
-  using scalar_type = Scalar;
+  using scalar_t = Scalar;
 
   /// \brief The AABB's point type
-  using point_type = Point<Scalar>;
+  using point_t = Point<Scalar>;
   //@}
 
   //! \name Constructors and destructor
@@ -63,7 +63,7 @@ class AABB {
   /// \param[in] min_corner The minimum corner of the box.
   /// \param[in] max_corner The maximum corner of the box.
   KOKKOS_FUNCTION
-  AABB(const point_type& min_corner, const point_type& max_corner) : min_corner_(min_corner), max_corner_(max_corner) {
+  AABB(const point_t& min_corner, const point_t& max_corner) : min_corner_(min_corner), max_corner_(max_corner) {
   }
 
   /// \brief Constructor to directly set the min and max corners.
@@ -114,18 +114,6 @@ class AABB {
     max_corner_ = std::move(other.max_corner_);
     return *this;
   }
-
-  /// \brief Equality operator
-  KOKKOS_FUNCTION
-  bool operator==(const AABB<Scalar>& other) const {
-    return (min_corner_ == other.min_corner_) && (max_corner_ == other.max_corner_);
-  }
-
-  /// \brief Inequality operator
-  KOKKOS_FUNCTION
-  bool operator!=(const AABB<Scalar>& other) const {
-    return (min_corner_ != other.min_corner_) || (max_corner_ != other.max_corner_);
-  }
   //@}
 
   //! \name Accessors
@@ -133,25 +121,25 @@ class AABB {
 
   /// \brief Accessor for the minimum corner
   KOKKOS_FUNCTION
-  const point_type& min_corner() const {
+  const point_t& min_corner() const {
     return min_corner_;
   }
 
   /// \brief Accessor for the minimum corner
   KOKKOS_FUNCTION
-  point_type& min_corner() {
+  point_t& min_corner() {
     return min_corner_;
   }
 
   /// \brief Accessor for the maximum corner
   KOKKOS_FUNCTION
-  const point_type& max_corner() const {
+  const point_t& max_corner() const {
     return max_corner_;
   }
 
   /// \brief Accessor for the maximum corner
   KOKKOS_FUNCTION
-  point_type& max_corner() {
+  point_t& max_corner() {
     return max_corner_;
   }
 
@@ -234,7 +222,7 @@ class AABB {
   /// \brief Set the minimum corner
   /// \param[in] min_corner The new minimum corner.
   KOKKOS_FUNCTION
-  void set_min_corner(const point_type& min_corner) {
+  void set_min_corner(const point_t& min_corner) {
     min_corner_ = min_corner;
   }
 
@@ -252,7 +240,7 @@ class AABB {
   /// \brief Set the maximum corner
   /// \param[in] max_corner The new maximum corner.
   KOKKOS_FUNCTION
-  void set_max_corner(const point_type& max_corner) {
+  void set_max_corner(const point_t& max_corner) {
     max_corner_ = max_corner;
   }
 
@@ -285,9 +273,70 @@ class AABB {
   }
   //@}
 
-  point_type min_corner_;
-  point_type max_corner_;
+  point_t min_corner_;
+  point_t max_corner_;
 };
+
+/// @brief Type trait to determine if a type is an AABB
+template <typename T>
+struct is_aabb : std::false_type {};
+//
+template <typename Scalar>
+struct is_aabb<AABB<Scalar>> : std::true_type {};
+//
+template <typename Scalar>
+struct is_aabb<const AABB<Scalar>> : std::true_type {};
+//
+template <typename T>
+constexpr bool is_aabb_v = is_aabb<T>::value;
+
+/// @brief Concept to determine if a type is a valid AABB type
+template <typename AABBType>
+concept ValidAABBType = requires(std::remove_cv_t<AABBType> aabb, const std::remove_cv_t<AABBType> const_aabb) {
+  is_aabb_v<std::remove_cv_t<AABBType>>;
+  typename std::remove_cv_t<AABBType>::scalar_t;
+  typename std::remove_cv_t<AABBType>::point_t;
+  { aabb.min_corner() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<AABBType>::scalar_t>>;
+  { aabb.max_corner() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<AABBType>::scalar_t>>;
+  { aabb.x_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { aabb.y_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { aabb.z_min() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { aabb.x_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { aabb.y_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { aabb.z_max() } -> std::convertible_to<typename std::remove_cv_t<AABBType>::scalar_t&>;
+
+  {
+    const_aabb.min_corner()
+  } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<AABBType>::scalar_t>>;
+  {
+    const_aabb.max_corner()
+  } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<AABBType>::scalar_t>>;
+  { const_aabb.x_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { const_aabb.y_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { const_aabb.z_min() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { const_aabb.x_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { const_aabb.y_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+  { const_aabb.z_max() } -> std::convertible_to<const typename std::remove_cv_t<AABBType>::scalar_t&>;
+};  // ValidAABBType
+
+static_assert(ValidAABBType<AABB<float>> && ValidAABBType<const AABB<float>> && ValidAABBType<AABB<double>> &&
+                  ValidAABBType<const AABB<double>>,
+              "AABB should satisfy the ValidAABBType concept.");
+
+//! \name Non-member functions for ValidAABBType objects
+//@{
+
+/// \brief Equality operator
+template <ValidAABBType AABBType1, ValidAABBType AABBType2>
+bool operator==(const AABBType1& aabb1, const AABBType2& aabb2) {
+  return (aabb1.min_corner() == aabb2.min_corner()) && (aabb1.max_corner() == aabb2.max_corner());
+}
+
+/// \brief Inequality operator
+template <ValidAABBType AABBType1, ValidAABBType AABBType2>
+bool operator!=(const AABBType1& aabb1, const AABBType2& aabb2) {
+  return (aabb1.min_corner() != aabb2.min_corner()) || (aabb1.max_corner() != aabb2.max_corner());
+}
 
 template <typename Scalar>
 std::ostream& operator<<(std::ostream& os, const AABB<Scalar>& aabb) {
@@ -295,20 +344,21 @@ std::ostream& operator<<(std::ostream& os, const AABB<Scalar>& aabb) {
   return os;
 }
 
-// intersects: AABB-AABB
-template <typename T1, typename T2>
-KOKKOS_FORCEINLINE_FUNCTION bool intersects(AABB<T1> const& a, AABB<T2> const& b) {
-  const Point<T1>& amax = a.max_corner();
-  const Point<T2>& bmin = b.min_corner();
+/// \brief Check if two AABBs intersect
+template <ValidAABBType AABBType1, ValidAABBType AABBType2>
+KOKKOS_FORCEINLINE_FUNCTION bool intersects(const AABBType1& aabb1, const AABBType2& aabb2) {
+  const auto& amax = aabb1.max_corner();
+  const auto& bmin = aabb2.min_corner();
   if (amax[0] < bmin[0] || amax[1] < bmin[1] || amax[2] < bmin[2]) {
     return false;
   }
 
-  const Point<T2>& bmax = b.max_corner();
-  const Point<T1>& amin = a.min_corner();
+  const auto& bmax = aabb2.max_corner();
+  const auto& amin = aabb1.min_corner();
   const bool disjoint2 = bmax[0] < amin[0] || bmax[1] < amin[1] || bmax[2] < amin[2];
   return !disjoint2;
 }
+//@}
 
 }  // namespace geom
 

@@ -44,8 +44,8 @@ class Line {
   //@{
 
   /// \brief The Line's scalar type
-  using scalar_type = Scalar;
-  using point_type = Point<Scalar>;
+  using scalar_t = Scalar;
+  using point_t = Point<Scalar>;
   using vector_type = mundy::math::Vector3<Scalar>;
   //@}
 
@@ -55,14 +55,14 @@ class Line {
   /// \brief Default constructor. Default initialize the
   KOKKOS_FUNCTION
   Line()
-      : center_(scalar_type(), scalar_type(), scalar_type()), direction_(scalar_type(), scalar_type(), scalar_type()) {
+      : center_(scalar_t(), scalar_t(), scalar_t()), direction_(scalar_t(), scalar_t(), scalar_t()) {
   }
 
   /// \brief Constructor to initialize the center and radius.
   /// \param[in] center The center of the Line.
   /// \param[in] direction The direction of the Line.
   KOKKOS_FUNCTION
-  Line(const point_type& center, const vector_type& direction) : center_(center), direction_(direction) {
+  Line(const point_t& center, const vector_type& direction) : center_(center), direction_(direction) {
   }
 
   /// \brief Destructor
@@ -101,18 +101,6 @@ class Line {
     direction_ = std::move(other.direction_);
     return *this;
   }
-
-  /// \brief Equality operator
-  KOKKOS_FUNCTION
-  bool operator==(const Line<Scalar>& other) const {
-    return (direction_ == other.direction_) && (center_ == other.center_);
-  }
-
-  /// \brief Inequality operator
-  KOKKOS_FUNCTION
-  bool operator!=(const Line<Scalar>& other) const {
-    return (direction_ != other.direction_) || (center_ != other.center_);
-  }
   //@}
 
   //! \name Accessors
@@ -120,13 +108,13 @@ class Line {
 
   /// \brief Accessor for the center
   KOKKOS_FUNCTION
-  const point_type& center() const {
+  const point_t& center() const {
     return center_;
   }
 
   /// \brief Accessor for the center
   KOKKOS_FUNCTION
-  point_type& center() {
+  point_t& center() {
     return center_;
   }
 
@@ -149,7 +137,7 @@ class Line {
   /// \brief Set the center
   /// \param[in] center The new center.
   KOKKOS_FUNCTION
-  void set_center(const point_type& center) {
+  void set_center(const point_t& center) {
     center_ = center;
   }
 
@@ -184,15 +172,66 @@ class Line {
   //@}
 
  private:
-  point_type center_;      ///< The center of the line.
+  point_t center_;      ///< The center of the line.
   vector_type direction_;  ///< The direction of the line.
 };
 
+/// @brief Type trait to determine if a type is a Line
+template <typename T>
+struct is_line : std::false_type {};
+//
 template <typename Scalar>
-std::ostream& operator<<(std::ostream& os, const Line<Scalar>& line) {
+struct is_line<Line<Scalar>> : std::true_type {};
+//
+template <typename Scalar>
+struct is_line<const Line<Scalar>> : std::true_type {};
+//
+template <typename T>
+inline constexpr bool is_line_v = is_line<T>::value;
+
+/// @brief Concept to check if a type is a valid Line type
+template <typename LineType>
+concept ValidLineType = 
+    requires(std::remove_cv_t<LineType> line, const std::remove_cv_t<LineType> const_line) {
+      is_line_v<LineType>;
+      typename std::remove_cv_t<LineType>::scalar_t;
+      { line.center() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<LineType>::scalar_t>>;
+      { line.direction() } -> std::convertible_to<mundy::math::Vector3<typename std::remove_cv_t<LineType>::scalar_t>>;
+
+      { const_line.center() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineType>::scalar_t>>;
+      {
+        const_line.direction()
+      } -> std::convertible_to<const mundy::math::Vector3<typename std::remove_cv_t<LineType>::scalar_t>>;
+    };  // ValidLineType
+
+static_assert(ValidLineType<Line<float>> && ValidLineType<const Line<float>> &&
+              ValidLineType<Line<double>> && ValidLineType<const Line<double>>,
+              "Line should satisfy the ValidLineType concept");
+
+//! \name Non-member functions for ValidLineType objects
+//@{
+
+/// \brief Equality operator
+template <ValidLineType LineType1, ValidLineType LineType2>
+KOKKOS_FUNCTION
+bool operator==(const LineType1& line1, const LineType2& line2) {
+  return (line1.center() == line2.center()) && (line1.direction() == line2.direction());
+}
+
+/// \brief Inequality operator
+template <ValidLineType LineType1, ValidLineType LineType2>
+KOKKOS_FUNCTION
+bool operator!=(const LineType1& line1, const LineType2& line2) {
+  return (line1.center() != line2.center()) || (line1.direction() != line2.direction());
+}
+
+/// \brief Output stream operator
+template <ValidLineType LineType>
+std::ostream& operator<<(std::ostream& os, const LineType& line) {
   os << "{" << line.center() << ":" << line.direction() << "}";
   return os;
 }
+//@}
 
 }  // namespace geom
 

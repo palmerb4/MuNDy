@@ -43,8 +43,8 @@ class LineSegment {
   //@{
 
   /// \brief The LineSegment's scalar type
-  using scalar_type = Scalar;
-  using point_type = Point<Scalar>;
+  using scalar_t = Scalar;
+  using point_t = Point<Scalar>;
   //@}
 
   //! \name Constructors and destructor
@@ -53,14 +53,14 @@ class LineSegment {
   /// \brief Default constructor. Default initialize the start and end points.
   KOKKOS_FUNCTION
   LineSegment()
-      : start_(scalar_type(), scalar_type(), scalar_type()), end_(scalar_type(), scalar_type(), scalar_type()) {
+      : start_(scalar_t(), scalar_t(), scalar_t()), end_(scalar_t(), scalar_t(), scalar_t()) {
   }
 
   /// \brief Constructor to initialize the start and end points.
   /// \param[in] start The start of the LineSegment.
   /// \param[in] end The end of the LineSegment.
   KOKKOS_FUNCTION
-  LineSegment(const point_type& start, const point_type& end) : start_(start), end_(end) {
+  LineSegment(const point_t& start, const point_t& end) : start_(start), end_(end) {
   }
 
   /// \brief Destructor
@@ -99,18 +99,6 @@ class LineSegment {
     end_ = std::move(other.end_);
     return *this;
   }
-
-  /// \brief Equality operator
-  KOKKOS_FUNCTION
-  bool operator==(const LineSegment<Scalar>& other) const {
-    return (start_ == other.start_) && (end_ == other.end_);
-  }
-
-  /// \brief Inequality operator
-  KOKKOS_FUNCTION
-  bool operator!=(const LineSegment<Scalar>& other) const {
-    return (start_ != other.start_) || (end_ != other.end_);
-  }
   //@}
 
   //! \name Accessors
@@ -118,25 +106,25 @@ class LineSegment {
 
   /// \brief Accessor for the start
   KOKKOS_FUNCTION
-  const point_type& start() const {
+  const point_t& start() const {
     return start_;
   }
 
   /// \brief Accessor for the start
   KOKKOS_FUNCTION
-  point_type& start() {
+  point_t& start() {
     return start_;
   }
 
   /// \brief Accessor for the end
   KOKKOS_FUNCTION
-  const point_type& end() const {
+  const point_t& end() const {
     return end_;
   }
 
   /// \brief Accessor for the end
   KOKKOS_FUNCTION
-  point_type& end() {
+  point_t& end() {
     return end_;
   }
   //@}
@@ -147,7 +135,7 @@ class LineSegment {
   /// \brief Set the start point
   /// \param[in] start The new start point.
   KOKKOS_FUNCTION
-  void set_start(const point_type& start) {
+  void set_start(const point_t& start) {
     start_ = start;
   }
 
@@ -165,7 +153,7 @@ class LineSegment {
   /// \brief Set the end point
   /// \param[in] end The new end point.
   KOKKOS_FUNCTION
-  void set_end(const point_type& end) {
+  void set_end(const point_t& end) {
     end_ = end;
   }
 
@@ -182,12 +170,60 @@ class LineSegment {
   //@}
 
  private:
-  point_type start_;
-  point_type end_;
+  point_t start_;
+  point_t end_;
 };
 
+/// @brief Type trait to determine if a type is a LineSegment
+template <typename T>
+struct is_line_segment : std::false_type {};
+//
 template <typename Scalar>
-std::ostream& operator<<(std::ostream& os, const LineSegment<Scalar>& line_segment) {
+struct is_line_segment<LineSegment<Scalar>> : std::true_type {};
+//
+template <typename Scalar>
+struct is_line_segment<const LineSegment<Scalar>> : std::true_type {};
+//
+template <typename T>
+inline constexpr bool is_line_segment_v = is_line_segment<T>::value;
+
+/// @brief Concept to check if a type is a valid LineSegment type
+template <typename LineSegmentType>
+concept ValidLineSegment = 
+    requires(std::remove_cv_t<LineSegmentType> line, const std::remove_cv_t<LineSegmentType> const_line) {
+      is_line_segment_v<std::remove_cv_t<LineSegmentType>>;
+      typename std::remove_cv_t<LineSegmentType>::scalar_t;
+      { line.start() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+      { line.end() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+
+      { const_line.start() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+      { const_line.end() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
+  };  // ValidLineSegment
+
+static_assert(ValidLineSegment<LineSegment<float>> && ValidLineSegment<const LineSegment<float>> &&
+              ValidLineSegment<LineSegment<double>> && ValidLineSegment<const LineSegment<double>>,
+              "LineSegment should satisfy the ValidLineSegment concept");
+
+//! \name Non-member functions for ValidLineSegment objects
+//@{
+
+/// \brief Equality operator
+template <ValidLineSegment LineSegmentType1, ValidLineSegment LineSegmentType2>
+KOKKOS_FUNCTION
+bool operator==(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
+  return (line_segment1.start() == line_segment2.start()) && (line_segment1.end() == line_segment2.end());
+}
+
+/// \brief Inequality operator
+template <ValidLineSegment LineSegmentType1, ValidLineSegment LineSegmentType2>
+KOKKOS_FUNCTION
+bool operator!=(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
+  return (line_segment1.start() != line_segment2.start()) || (line_segment1.end() != line_segment2.end());
+}
+
+/// \brief OStream operator
+template <ValidLineSegment LineSegmentType>
+std::ostream& operator<<(std::ostream& os, const LineSegmentType& line_segment) {
   os << "{" << line_segment.start() << "->" << line_segment.end() << "}";
   return os;
 }

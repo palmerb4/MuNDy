@@ -391,7 +391,7 @@ TYPED_TEST(VectorPairwiseTypeTest, AdditionAndSubtractionWithVector) {
   OurVector1<T1> v1(1);
   OurVector1<T2> v2(2);
   auto v3 = v1 + v2;
-  using T3 = decltype(v3)::value_type;
+  using T3 = decltype(v3)::scalar_t;
   is_close_debug(v3, OurVector1<T3>{3}, "Vector-vector addition failed.");
 
   v1 += v2;
@@ -407,7 +407,7 @@ TYPED_TEST(VectorPairwiseTypeTest, AdditionAndSubtractionWithVector) {
   OurVector2<T1> v4(1, 2);
   OurVector2<T2> v5(3, 4);
   auto v6 = v4 + v5;
-  using T4 = decltype(v6)::value_type;
+  using T4 = decltype(v6)::scalar_t;
   is_close_debug(v6, OurVector2<T4>{4, 6}, "Vector-vector addition failed.");
 
   v4 += v5;
@@ -423,7 +423,7 @@ TYPED_TEST(VectorPairwiseTypeTest, AdditionAndSubtractionWithVector) {
   OurVector3<T1> v7(1, 2, 3);
   OurVector3<T2> v8(4, 5, 6);
   auto v9 = v7 + v8;
-  using T5 = decltype(v9)::value_type;
+  using T5 = decltype(v9)::scalar_t;
   is_close_debug(v9, OurVector3<T5>{5, 7, 9}, "Vector-vector addition failed.");
 
   v7 += v8;
@@ -442,7 +442,7 @@ TYPED_TEST(VectorPairwiseTypeTest, AdditionAndSubtractionWithScalars) {
   // Dim 1
   OurVector1<T1> v1(1);
   auto v2 = v1 + T2(1);
-  using T3 = decltype(v2)::value_type;
+  using T3 = decltype(v2)::scalar_t;
   is_close_debug(v1 + T2(1), OurVector1<T3>{2}, "Vector-scalar addition failed.");
   is_close_debug(T2(1) + v1, OurVector1<T3>{2}, "Scalar-vector addition failed.");
   is_close_debug(v1 - T2(1), OurVector1<T3>{0}, "Vector-scalar subtraction failed.");
@@ -451,7 +451,7 @@ TYPED_TEST(VectorPairwiseTypeTest, AdditionAndSubtractionWithScalars) {
   // Dim 2
   OurVector2<T1> v3(1, 2);
   auto v4 = v3 + T2(1);
-  using T4 = decltype(v4)::value_type;
+  using T4 = decltype(v4)::scalar_t;
   is_close_debug(v4, OurVector2<T4>{2, 3}, "Vector-scalar addition failed.");
   is_close_debug(T2(1) + v3, OurVector2<T4>{2, 3}, "Scalar-vector addition failed.");
   is_close_debug(v3 - T2(1), OurVector2<T4>{0, 1}, "Vector-scalar subtraction failed.");
@@ -460,7 +460,7 @@ TYPED_TEST(VectorPairwiseTypeTest, AdditionAndSubtractionWithScalars) {
   // Dim 3
   OurVector3<T1> v5(1, 2, 3);
   auto v6 = v5 + T2(1);
-  using T5 = decltype(v6)::value_type;
+  using T5 = decltype(v6)::scalar_t;
   is_close_debug(v6, OurVector3<T5>{2, 3, 4}, "Vector-scalar addition failed.");
   is_close_debug(T2(1) + v5, OurVector3<T5>{2, 3, 4}, "Scalar-vector addition failed.");
   is_close_debug(v5 - T2(1), OurVector3<T5>{0, 1, 2}, "Vector-scalar subtraction failed.");
@@ -505,7 +505,7 @@ TYPED_TEST(VectorPairwiseTypeTest, MultiplicationAndDivisionWithScalars) {
   // Dim 1
   OurVector1<T1> v1(1);
   auto v2 = v1 * T2(2);
-  using T3 = decltype(v2)::value_type;
+  using T3 = decltype(v2)::scalar_t;
   is_close_debug(v2, OurVector1<T3>{2}, "Vector-scalar multiplication failed.");
   is_close_debug(T2(2) * v1, OurVector1<T3>{2}, "Scalar-vector multiplication failed.");
   is_close_debug(v2 / T2(2), OurVector1<T3>{1}, "Vector-scalar division failed.");
@@ -513,7 +513,7 @@ TYPED_TEST(VectorPairwiseTypeTest, MultiplicationAndDivisionWithScalars) {
   // Dim 2
   OurVector2<T1> v3(1, 2);
   auto v4 = v3 * T2(2);
-  using T4 = decltype(v4)::value_type;
+  using T4 = decltype(v4)::scalar_t;
   is_close_debug(v4, OurVector2<T4>{2, 4}, "Vector-scalar multiplication failed.");
   is_close_debug(T2(2) * v3, OurVector2<T4>{2, 4}, "Scalar-vector multiplication failed.");
   is_close_debug(v4 / T2(2), OurVector2<T4>{1, 2}, "Vector-scalar division failed.");
@@ -521,7 +521,7 @@ TYPED_TEST(VectorPairwiseTypeTest, MultiplicationAndDivisionWithScalars) {
   // Dim 3
   OurVector3<T1> v5(1, 2, 3);
   auto v6 = v5 * T2(2);
-  using T5 = decltype(v6)::value_type;
+  using T5 = decltype(v6)::scalar_t;
   is_close_debug(v6, OurVector3<T5>{2, 4, 6}, "Vector-scalar multiplication failed.");
   is_close_debug(T2(2) * v5, OurVector3<T5>{2, 4, 6}, "Scalar-vector multiplication failed.");
   is_close_debug(v6 / T2(2), OurVector3<T5>{1, 2, 3}, "Vector-scalar division failed.");

@@ -581,10 +581,10 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   //@{
 
   /// \brief The type of the entries
-  using value_type = T;
+  using scalar_t = T;
 
   /// \brief The non-const type of the entries
-  using non_const_value_type = std::remove_const_t<T>;
+  using non_const_scalar_t = std::remove_const_t<T>;
 
   /// \brief The number of rows
   static constexpr size_t num_rows = N;
@@ -768,14 +768,14 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief Get a copy of a certain column of the matrix
   /// \param[in] col The column index.
   KOKKOS_INLINE_FUNCTION
-  Vector<non_const_value_type, N> copy_column(size_t col) const {
+  Vector<non_const_scalar_t, N> copy_column(size_t col) const {
     return impl::copy_column_impl(std::make_index_sequence<N>{}, *this, col);
   }
 
   /// \brief Get a copy of a certain row of the matrix
   /// \param[in] row The row index.
   KOKKOS_INLINE_FUNCTION
-  Vector<non_const_value_type, M> copy_row(size_t row) const {
+  Vector<non_const_scalar_t, M> copy_row(size_t row) const {
     return impl::copy_row_impl(std::make_index_sequence<M>{}, *this, row);
   }
 
@@ -1156,10 +1156,10 @@ class Matrix {
   //@{
 
   /// \brief The type of the entries
-  using value_type = T;
+  using scalar_t = T;
 
   /// \brief The non-const type of the entries
-  using non_const_value_type = std::remove_const_t<T>;
+  using non_const_scalar_t = std::remove_const_t<T>;
 
   /// \brief The number of rows
   static constexpr size_t num_rows = N;
@@ -1425,14 +1425,14 @@ class Matrix {
   /// \brief Get a copy of a certain column of the matrix
   /// \param[in] col The column index.
   KOKKOS_INLINE_FUNCTION
-  Vector<non_const_value_type, N> copy_column(size_t col) const {
+  Vector<non_const_scalar_t, N> copy_column(size_t col) const {
     return impl::copy_column_impl(std::make_index_sequence<N>{}, *this, col);
   }
 
   /// \brief Get a copy of a certain row of the matrix
   /// \param[in] row The row index.
   KOKKOS_INLINE_FUNCTION
-  Vector<non_const_value_type, M> copy_row(size_t row) const {
+  Vector<non_const_scalar_t, M> copy_row(size_t row) const {
     return impl::copy_row_impl(std::make_index_sequence<M>{}, *this, row);
   }
 

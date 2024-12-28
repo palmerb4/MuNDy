@@ -29,8 +29,8 @@
 #include <utility>
 
 // Our libs
-#include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
-#include <mundy_geom/primitives/Point.hpp>         // for mundy::geom::Point
+#include <mundy_core/throw_assert.hpp>      // for MUNDY_THROW_ASSERT
+#include <mundy_geom/primitives/Point.hpp>  // for mundy::geom::Point
 
 namespace mundy {
 
@@ -43,8 +43,8 @@ class Sphere {
   //@{
 
   /// \brief The Sphere's scalar type
-  using scalar_type = Scalar;
-  using point_type = Point<Scalar>;
+  using scalar_t = Scalar;
+  using point_t = Point<Scalar>;
   //@}
 
   //! \name Constructors and destructor
@@ -52,14 +52,14 @@ class Sphere {
 
   /// \brief Default constructor. Default initializes the center and sets the radius to an invalid value of -1
   KOKKOS_FUNCTION
-  Sphere() : center_(scalar_type(), scalar_type(), scalar_type()), radius_(static_cast<Scalar>(-1)) {
+  Sphere() : center_(scalar_t(), scalar_t(), scalar_t()), radius_(static_cast<Scalar>(-1)) {
   }
 
   /// \brief Constructor to initialize the center and radius.
   /// \param[in] center The center of the Sphere.
   /// \param[in] radius The radius of the Sphere.
   KOKKOS_FUNCTION
-  Sphere(const point_type& center, const Scalar& radius) : center_(center), radius_(radius) {
+  Sphere(const point_t& center, const Scalar& radius) : center_(center), radius_(radius) {
   }
 
   /// \brief Destructor
@@ -98,18 +98,6 @@ class Sphere {
     radius_ = std::move(other.radius_);
     return *this;
   }
-
-  /// \brief Equality operator
-  KOKKOS_FUNCTION
-  bool operator==(const Sphere<Scalar>& other) const {
-    return (radius_ == other.radius_) && (center_ == other.center_);
-  }
-
-  /// \brief Inequality operator
-  KOKKOS_FUNCTION
-  bool operator!=(const Sphere<Scalar>& other) const {
-    return (radius_ != other.radius_) || (center_ != other.center_);
-  }
   //@}
 
   //! \name Accessors
@@ -117,13 +105,13 @@ class Sphere {
 
   /// \brief Accessor for the center
   KOKKOS_FUNCTION
-  const point_type& center() const {
+  const point_t& center() const {
     return center_;
   }
 
   /// \brief Accessor for the center
   KOKKOS_FUNCTION
-  point_type& center() {
+  point_t& center() {
     return center_;
   }
 
@@ -146,7 +134,7 @@ class Sphere {
   /// \brief Set the center
   /// \param[in] center The new center.
   KOKKOS_FUNCTION
-  void set_center(const point_type& center) {
+  void set_center(const point_t& center) {
     center_ = center;
   }
 
@@ -170,15 +158,64 @@ class Sphere {
   //@}
 
  private:
-  point_type center_;
+  point_t center_;
   Scalar radius_;
 };
 
+/// @brief Type trait to determine if a type is a Sphere
+template <typename T>
+struct is_sphere : std::false_type {};
+//
 template <typename Scalar>
-std::ostream& operator<<(std::ostream& os, const Sphere<Scalar>& sphere) {
+struct is_sphere<Sphere<Scalar>> : std::true_type {};
+//
+template <typename Scalar>
+struct is_sphere<const Sphere<Scalar>> : std::true_type {};
+//
+template <typename T>
+constexpr bool is_sphere_v = is_sphere<T>::value;
+
+/// @brief Concept to check if a type is a valid Sphere type
+template <typename SphereType>
+concept ValidSphereType =
+    requires(std::remove_cv_t<SphereType> sphere, const std::remove_cv_t<SphereType> const_sphere) {
+      is_sphere_v<std::remove_cv_t<SphereType>>;
+      typename std::remove_cv_t<SphereType>::scalar_t;
+      { sphere.radius() } -> std::convertible_to<typename std::remove_cv_t<SphereType>::scalar_t>;
+      { sphere.center() } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<SphereType>::scalar_t>>;
+
+      { const_sphere.radius() } -> std::convertible_to<const typename std::remove_cv_t<SphereType>::scalar_t>;
+      {
+        const_sphere.center()
+      } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<SphereType>::scalar_t>>;
+    };  // ValidSphereType
+
+static_assert(ValidSphereType<Sphere<float>> && ValidSphereType<const Sphere<float>> &&
+                  ValidSphereType<Sphere<double>> && ValidSphereType<const Sphere<double>>,
+              "Sphere should satisfy the ValidSphereType concept.");
+
+//! \name Non-member functions for ValidSphereType objects
+//@{
+
+/// \brief Equality operator
+template <ValidSphereType SphereType1, ValidSphereType SphereType2>
+KOKKOS_FUNCTION bool operator==(const SphereType1& sphere1, const SphereType2& sphere2) {
+  return (sphere1.radius() == sphere2.radius()) && (sphere1.center() == sphere2.center());
+}
+
+/// \brief Inequality operator
+template <ValidSphereType SphereType1, ValidSphereType SphereType2>
+KOKKOS_FUNCTION bool operator!=(const SphereType1& sphere1, const SphereType2& sphere2) {
+  return (sphere1.radius() != sphere2.radius()) || (sphere1.center() != sphere2.center());
+}
+
+/// \brief OStream operator
+template <ValidSphereType SphereType>
+std::ostream& operator<<(std::ostream& os, const SphereType& sphere) {
   os << "{" << sphere.center() << ":" << sphere.radius() << "}";
   return os;
 }
+//@}
 
 }  // namespace geom
 

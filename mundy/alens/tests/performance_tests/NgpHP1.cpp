@@ -185,6 +185,10 @@ void print_field(const stk::mesh::Field<FieldDataType> &field) {
   }
 }
 
+}  // namespace mesh
+
+namespace mech {
+
 //! \name Search
 //@{
 
@@ -291,11 +295,7 @@ void ghost_neighbors(stk::mesh::BulkData &bulk_data, const ResultViewType &searc
 }
 //@}
 
-}  // namespace mesh
-
-namespace mech {
-
-//! \name Mobility
+//! \name Boundary Integral Equations
 //@{
 
 void check_max_overlap_with_periphery(stk::mesh::NgpMesh ngp_mesh,                         //
@@ -364,49 +364,10 @@ void check_max_overlap_with_periphery(stk::mesh::NgpMesh &ngp_mesh,             
                             "Sphere overlaps with periphery beyond max extent allowed.");
       });
 }
+//@}
 
-void copy_spheres_to_view(stk::mesh::NgpMesh &ngp_mesh,                                  //
-                          const stk::NgpVector<stk::mesh::Entity> &ngp_sphere_entities,  //
-                          stk::mesh::NgpField<double> &node_coords_field,                //
-                          stk::mesh::NgpField<double> &elem_radius_field,                //
-                          stk::mesh::NgpField<double> &node_force_field,                 //
-                          stk::mesh::NgpField<double> &node_velocity_field,              //
-                          Double1DView &sphere_positions,                                //
-                          Double1DView &sphere_radii,                                    //
-                          Double1DView &sphere_forces,                                   //
-                          Double1DView &sphere_velocities) {
-  Kokkos::Profiling::pushRegion("HP1::copy_spheres_to_view");
-  node_coords_field.sync_to_device();
-  elem_radius_field.sync_to_device();
-  node_force_field.sync_to_device();
-  node_velocity_field.sync_to_device();
-
-  const size_t num_spheres = ngp_sphere_entities.size();
-  Kokkos::parallel_for(
-      stk::ngp::RangePolicy<stk::ngp::ExecSpace>(0, num_spheres), KOKKOS_LAMBDA(const int &vector_index) {
-        stk::mesh::Entity sphere = ngp_sphere_entities.device_get(vector_index);
-        auto sphere_index = ngp_mesh.fast_mesh_index(sphere);
-        stk::mesh::NgpMesh::ConnectedNodes nodes = ngp_mesh.get_nodes(stk::topology::ELEM_RANK, sphere_index);
-        const stk::mesh::Entity node = nodes[0];
-        const stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
-
-        sphere_positions(vector_index * 3 + 0) = node_coords_field(node_index, 0);
-        sphere_positions(vector_index * 3 + 1) = node_coords_field(node_index, 1);
-        sphere_positions(vector_index * 3 + 2) = node_coords_field(node_index, 2);
-
-        sphere_radii(vector_index) = elem_radius_field(sphere_index, 0);
-
-        sphere_forces(vector_index * 3 + 0) = node_force_field(node_index, 0);
-        sphere_forces(vector_index * 3 + 1) = node_force_field(node_index, 1);
-        sphere_forces(vector_index * 3 + 2) = node_force_field(node_index, 2);
-
-        sphere_velocities(vector_index * 3 + 0) = node_velocity_field(node_index, 0);
-        sphere_velocities(vector_index * 3 + 1) = node_velocity_field(node_index, 1);
-        sphere_velocities(vector_index * 3 + 2) = node_velocity_field(node_index, 2);
-      });
-
-  Kokkos::Profiling::popRegion();
-}
+//! \name Mobility
+//@{
 
 void compute_rpy_mobility_spheres(const double &viscosity,         //
                                   Double1DView &sphere_positions,  //
