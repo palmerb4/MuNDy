@@ -15,6 +15,8 @@ GLOBAL_SET(${PACKAGE_NAME}_ENABLE_ALL_OPTIONAL_PACKAGES ON)
 # find src/ -type f -name "*.hpp" | sed 's/^.\/\///' | sort
 # find src/ -type f -name "*.cpp" | sed 's/^.\/\///' | sort
 SET(NOINSTALLHEADERS 
+  src/mundy_geom/aggregates.hpp
+  src/mundy_geom/aggregates/Sphere.hpp
   src/mundy_geom/distance/EllipsoidEllipsoid.hpp
   src/mundy_geom/distance.hpp
   src/mundy_geom/distance/LineEllipsoid.hpp
