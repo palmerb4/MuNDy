@@ -56,6 +56,20 @@ using Vector3View = Vector<T, 3, Accessor, Ownership::Views>;
 template <typename T, ValidAccessor<T> Accessor = Array<T, 3>>
   requires std::is_arithmetic_v<T>
 using OwningVector3 = Vector<T, 3, Accessor, Ownership::Owns>;
+
+/// \brief Type trait to determine if a type is a Vector3
+template <typename TypeToCheck>
+struct is_vector3 : std::false_type {};
+//
+template <typename T, typename Accessor, typename OwnershipType>
+struct is_vector3<Vector3<T, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename T, typename Accessor, typename OwnershipType>
+struct is_vector3<const Vector3<T, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename TypeToCheck>
+constexpr bool is_vector3_v = is_vector3<TypeToCheck>::value;
+
 //! \name Non-member functions
 //@{
 
@@ -86,7 +100,8 @@ KOKKOS_INLINE_FUNCTION auto cross(const Vector3<U, Accessor1, Ownership1>& a,
 template <typename U, typename T, ValidAccessor<U> Accessor1, typename Ownership1, ValidAccessor<T> Accessor2,
           typename Ownership2>
 KOKKOS_INLINE_FUNCTION auto element_multiply(const Vector3<U, Accessor1, Ownership1>& a,
-                                             const Vector3<T, Accessor2, Ownership2>& b) -> Vector3<std::common_type_t<T, U>> {
+                                             const Vector3<T, Accessor2, Ownership2>& b)
+    -> Vector3<std::common_type_t<T, U>> {
   using CommonType = std::common_type_t<T, U>;
   Vector3<CommonType> result;
   result[0] = static_cast<CommonType>(a[0]) * static_cast<CommonType>(b[0]);

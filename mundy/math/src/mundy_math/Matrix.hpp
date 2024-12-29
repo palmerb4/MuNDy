@@ -88,6 +88,19 @@ template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor = Array<T, N
   requires std::is_arithmetic_v<T>
 class Matrix;
 
+/// \brief Type trait to determine if a type is a Matrix
+template <typename TypeToCheck>
+struct is_matrix : std::false_type {};
+//
+template <typename T, size_t N, size_t M, typename Accessor, typename OwnershipType>
+struct is_matrix<Matrix<T, N, M, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename T, size_t N, size_t M, typename Accessor, typename OwnershipType>
+struct is_matrix<const Matrix<T, N, M, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename TypeToCheck>
+constexpr bool is_matrix_v = is_matrix<TypeToCheck>::value;
+
 namespace impl {
 //! \name Helper functions for generic matrix operators applied to an abstract accessor.
 //@{
@@ -1871,6 +1884,11 @@ using MatrixView = Matrix<T, N, M, Accessor, Ownership::Views>;
 template <typename T, size_t N, size_t M, ValidAccessor<T> Accessor = Array<T, N * M>>
   requires std::is_arithmetic_v<T>
 using OwningMatrix = Matrix<T, N, M, Accessor, Ownership::Owns>;
+
+static_assert(is_matrix_v<Matrix<int, 3, 4>>, "Odd, default matrix is not a matrix.");
+static_assert(is_matrix_v<Matrix<int, 3, 4, Array<int, 12>>>, "Odd, default matrix with Array accessor is not a matrix.");
+static_assert(is_matrix_v<MatrixView<int, 3, 4>>, "Odd, MatrixView is not a matrix.");
+static_assert(is_matrix_v<OwningMatrix<int, 3, 4>>, "Odd, OwningMatrix is not a matrix.");
 
 //! \name Non-member functions
 //@{

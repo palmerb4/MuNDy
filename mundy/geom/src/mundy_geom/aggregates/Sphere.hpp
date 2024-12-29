@@ -41,13 +41,22 @@ namespace geom {
 //! \name Aggregate traits
 //@{
 
+/// \brief A struct to hold the data for a collection of spheres
+///
+/// This struct is a data aggregate that holds the data for a collection of spheres. The radius and center of each
+/// sphere can be stored as either a reference to scalar or to an stk::mesh::Field of scalars, either of which may be
+/// const or non-const.
+///
+/// \tparam Scalar The scalar type of the sphere's radius and center.
+/// \tparam RadiusDataType The type of the radius data. Can either be a scalar or an stk::mesh::Field of scalars.
+/// \tparam CenterDataType The type of the center data. Can either be a Point<Scalar> or an stk::mesh::Field of scalars.
 template <typename Scalar, typename RadiusDataType = stk::mesh::Field<Scalar>,
           typename CenterDataType = stk::mesh::Field<Scalar>>
 struct SphereData {
-  static_assert((std::is_same_v<std::remove_cv_t<RadiusDataType>, Scalar> ||
-                 std::is_same_v<std::remove_cv_t<RadiusDataType>, stk::mesh::Field<Scalar>>) &&
-                    (std::is_same_v<std::remove_cv_t<CenterDataType>, Point<Scalar>> ||
-                     std::is_same_v<std::remove_cv_t<CenterDataType>, stk::mesh::Field<Scalar>>),
+  static_assert((std::is_same_v<std::decay_t<RadiusDataType>, Scalar> ||
+                 std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::Field<Scalar>>) &&
+                    (std::is_same_v<std::decay_t<CenterDataType>, Point<Scalar>> ||
+                     std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>),
                 "RadiusDataType and CenterDataType must be either a scalar or a field of scalars");
 
   using scalar_t = Scalar;
@@ -58,13 +67,15 @@ struct SphereData {
   center_t& center;
 };  // SphereData
 
+/// \brief A struct to hold the data for a collection of NGP-compatible spheres
+/// See the discussion for SphereData for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename RadiusDataType = stk::mesh::NgpField<Scalar>,
           typename CenterDataType = stk::mesh::NgpField<Scalar>>
 struct NgpSphereData {
-  static_assert((std::is_same_v<std::remove_cv_t<RadiusDataType>, Scalar> ||
-                 std::is_same_v<std::remove_cv_t<RadiusDataType>, stk::mesh::NgpField<Scalar>>) &&
-                    (std::is_same_v<std::remove_cv_t<CenterDataType>, Point<Scalar>> ||
-                     std::is_same_v<std::remove_cv_t<CenterDataType>, stk::mesh::NgpField<Scalar>>),
+  static_assert((std::is_same_v<std::decay_t<RadiusDataType>, Scalar> ||
+                 std::is_same_v<std::decay_t<RadiusDataType>, stk::mesh::NgpField<Scalar>>) &&
+                    (std::is_same_v<std::decay_t<CenterDataType>, Point<Scalar>> ||
+                     std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::NgpField<Scalar>>),
                 "RadiusDataType and CenterDataType must be either a scalar or a field of scalars");
 
   using scalar_t = Scalar;
@@ -75,40 +86,49 @@ struct NgpSphereData {
   center_t& center;
 };  // NgpSphereData
 
+/// \brief A helper function to create a SphereData object
+///
+/// This function creates a SphereData object with the given radius and center data
+/// and is used to automatically deduce the template parameters.
+/// The data may be either a scalar or an stk::mesh::Field of scalars.
 template <typename Scalar, typename RadiusDataType, typename CenterDataType>
 auto create_sphere_data(RadiusDataType& radius_data, CenterDataType& center_data) {
   return SphereData<Scalar, RadiusDataType, CenterDataType>{radius_data, center_data};
 }
 
+/// \brief A helper function to create a NgpSphereData object
+/// See the discussion for create_sphere_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename RadiusDataType, typename CenterDataType>
 auto create_ngp_sphere_data(RadiusDataType& radius_data, CenterDataType& center_data) {
   return NgpSphereData<Scalar, RadiusDataType, CenterDataType>{radius_data, center_data};
 }
 
+/// \brief A concept to check if a type provides the same data as SphereData
 template <typename Agg>
 concept ValidDefaultSphereDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::radius_t;
   typename Agg::center_t;
-  std::is_same_v<std::remove_cv_t<typename Agg::radius_t>, typename Agg::scalar_t> ||
-      std::is_same_v<std::remove_cv_t<typename Agg::radius_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  std::is_same_v<std::remove_cv_t<typename Agg::center_t>, Point<typename Agg::scalar_t>> ||
-      std::is_same_v<std::remove_cv_t<typename Agg::center_t>, stk::mesh::Field<typename Agg::scalar_t>>;
+  std::is_same_v<std::decay_t<typename Agg::radius_t>, typename Agg::scalar_t> ||
+      std::is_same_v<std::decay_t<typename Agg::radius_t>, stk::mesh::Field<typename Agg::scalar_t>>;
+  is_point_v<std::decay_t<typename Agg::center_t>> ||
+      std::is_same_v<std::decay_t<typename Agg::center_t>, stk::mesh::Field<typename Agg::scalar_t>>;
   { agg.radius } -> std::convertible_to<typename Agg::radius_t&>;
   { agg.center } -> std::convertible_to<typename Agg::center_t&>;
 };  // ValidDefaultSphereDataType
 
+/// \brief A concept to check if a type provides the same data as NgpSphereData
 template <typename Agg>
 concept ValidDefaultNgpSphereDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::radius_t;
   typename Agg::center_t;
-  std::is_same_v<std::remove_cv_t<typename Agg::radius_t>, typename Agg::scalar_t> ||
-      std::is_same_v<std::remove_cv_t<typename Agg::radius_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  std::is_same_v<std::remove_cv_t<typename Agg::center_t>, Point<typename Agg::scalar_t>> ||
-      std::is_same_v<std::remove_cv_t<typename Agg::center_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { agg.radius } -> std::convertible_to<typename Agg::radius_t>;
-  { agg.center } -> std::convertible_to<typename Agg::center_t>;
+  std::is_same_v<std::decay_t<typename Agg::radius_t>, typename Agg::scalar_t> ||
+      std::is_same_v<std::decay_t<typename Agg::radius_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
+  is_point_v<std::decay_t<typename Agg::center_t>> ||
+      std::is_same_v<std::decay_t<typename Agg::center_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
+  { agg.radius } -> std::convertible_to<typename Agg::radius_t&>;
+  { agg.center } -> std::convertible_to<typename Agg::center_t&>;
 };  // ValidDefaultNgpSphereDataType
 
 static_assert(ValidDefaultSphereDataType<SphereData<float, float, Point<float>>> &&
@@ -124,14 +144,16 @@ static_assert(
         ValidDefaultNgpSphereDataType<NgpSphereData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>,
     "NgpSphereData must satisfy the ValidDefaultNgpSphereDataType concept");
 
+/// \brief A helper function to get an updated NgpSphereData object from a SphereData object
+/// \param data The SphereData object to convert
 template <ValidDefaultSphereDataType SphereDataType>
-auto get_updated_ngp_data(SphereDataType& data) {
+auto get_updated_ngp_data(SphereDataType data) {
   using scalar_t = typename SphereDataType::scalar_t;
   using radius_t = typename SphereDataType::radius_t;
   using center_t = typename SphereDataType::center_t;
 
-  constexpr bool is_radius_a_field = std::is_same_v<std::remove_cv_t<radius_t>, stk::mesh::Field<scalar_t>>;
-  constexpr bool is_center_a_field = std::is_same_v<std::remove_cv_t<center_t>, stk::mesh::Field<scalar_t>>;
+  constexpr bool is_radius_a_field = std::is_same_v<std::decay_t<radius_t>, stk::mesh::Field<scalar_t>>;
+  constexpr bool is_center_a_field = std::is_same_v<std::decay_t<center_t>, stk::mesh::Field<scalar_t>>;
   if constexpr (is_radius_a_field && is_center_a_field) {
     return create_ngp_sphere_data<scalar_t>(stk::mesh::get_updated_ngp_field<scalar_t>(data.radius),
                                             stk::mesh::get_updated_ngp_field<scalar_t>(data.center));
@@ -144,6 +166,10 @@ auto get_updated_ngp_data(SphereDataType& data) {
   }
 }
 
+/// \brief A traits class to provide abstracted access to a sphere's data via an aggregate
+///
+/// By default, this class is compatible with SphereData or any class the meets the ValidDefaultSphereDataType concept.
+/// Users can specialize this class to support other aggregate types.
 template <typename Agg>
 struct SphereDataTraits {
   static_assert(
@@ -156,14 +182,14 @@ struct SphereDataTraits {
   using point_t = Point<scalar_t>;
 
   static constexpr bool has_shared_radius() {
-    return std::is_same_v<std::remove_cv_t<typename Agg::radius_t>, scalar_t&>;
+    return std::is_same_v<std::decay_t<typename Agg::radius_t>, scalar_t>;
   }
 
   static constexpr bool has_shared_center() {
-    return std::is_same_v<std::remove_cv_t<typename Agg::center_t>, point_t&>;
+    return std::is_same_v<std::decay_t<typename Agg::center_t>, point_t>;
   }
 
-  static const scalar_t& radius(const Agg& agg, stk::mesh::Entity sphere_elem) {
+  static decltype(auto) radius(Agg agg, stk::mesh::Entity sphere_elem) {
     if constexpr (has_shared_radius()) {
       return agg.radius;
     } else {
@@ -171,31 +197,18 @@ struct SphereDataTraits {
     }
   }
 
-  static scalar_t& radius(Agg& agg, stk::mesh::Entity sphere_elem) {
-    if constexpr (has_shared_radius()) {
-      return agg.radius;
-    } else {
-      return stk::mesh::field_data(agg.radius, sphere_elem)[0];
-    }
-  }
-
-  static const point_t& center(const Agg& agg, stk::mesh::Entity sphere_node) {
+  static decltype(auto) center(Agg agg, stk::mesh::Entity sphere_node) {
     if constexpr (has_shared_center()) {
       return agg.center;
     } else {
-      return mundy::mesh::vector3_field_data(agg.center, sphere_node);
-    }
-  }
-
-  static point_t& center(Agg& agg, stk::mesh::Entity sphere_node) {
-    if constexpr (has_shared_center()) {
-      return agg.center;
-    } else {
+      // This returns a copy of a view into the raw data of the field.
       return mundy::mesh::vector3_field_data(agg.center, sphere_node);
     }
   }
 };  // SphereDataTraits
 
+/// \brief A traits class to provide abstracted access to a sphere's data via an NGP-compatible aggregate
+/// See the discussion for SphereDataTraits for more information. Only difference is Ngp-compatible data.
 template <typename Agg>
 struct NgpSphereDataTraits {
   static_assert(
@@ -209,45 +222,27 @@ struct NgpSphereDataTraits {
 
   KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_radius() {
-    return std::is_same_v<std::remove_cv_t<typename Agg::radius_t>, scalar_t&>;
+    return std::is_same_v<std::decay_t<typename Agg::radius_t>, scalar_t>;
   }
 
   KOKKOS_INLINE_FUNCTION
   static constexpr bool has_shared_center() {
-    return std::is_same_v<std::remove_cv_t<typename Agg::center_t>, point_t&>;
+    return std::is_same_v<std::decay_t<typename Agg::center_t>, point_t>;
   }
 
   KOKKOS_INLINE_FUNCTION
-  static const scalar_t& radius(const Agg& agg, stk::mesh::FastMeshIndex sphere_elem_index) {
+  static decltype(auto) radius(Agg agg, stk::mesh::FastMeshIndex sphere_elem_index) {
     if constexpr (has_shared_radius()) {
-      return agg.radius;
+      return (agg.radius);
     } else {
       return agg.radius(sphere_elem_index, 0);
     }
   }
 
   KOKKOS_INLINE_FUNCTION
-  static scalar_t& radius(Agg& agg, stk::mesh::FastMeshIndex sphere_elem_index) {
-    if constexpr (has_shared_radius()) {
-      return agg.radius;
-    } else {
-      return agg.radius(sphere_elem_index, 0);
-    }
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  static const point_t& center(const Agg& agg, stk::mesh::FastMeshIndex sphere_node_index) {
+  static decltype(auto) center(Agg agg, stk::mesh::FastMeshIndex sphere_node_index) {
     if constexpr (has_shared_center()) {
-      return agg.center;
-    } else {
-      return mundy::mesh::vector3_field_data(agg.center, sphere_node_index);
-    }
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  static point_t& center(Agg& agg, stk::mesh::FastMeshIndex sphere_node_index) {
-    if constexpr (has_shared_center()) {
-      return agg.center;
+      return (agg.center);
     } else {
       return mundy::mesh::vector3_field_data(agg.center, sphere_node_index);
     }
@@ -262,33 +257,34 @@ class SphereEntityView {
   using point_t = Point<scalar_t>;
   using data_access_t = SphereDataTraits<SphereDataType>;
 
-  SphereEntityView(const stk::mesh::BulkData& bulk_data, const SphereDataType& data, stk::mesh::Entity sphere)
+  SphereEntityView(const stk::mesh::BulkData& bulk_data, SphereDataType data, stk::mesh::Entity sphere)
       : data_(data), sphere_(sphere), node_(bulk_data.begin_nodes(sphere_)[0]) {
   }
 
-  scalar_t& radius() {
+  decltype(auto) radius() {
+    // For those not familiar with decltype(auto), it allows us to return either an auto or an auto&.
     return data_access_t::radius(data_, sphere_);
   }
 
-  const scalar_t& radius() const {
+  decltype(auto) radius() const {
     return data_access_t::radius(data_, sphere_);
   }
 
-  point_t& center() {
+  decltype(auto) center() {
     return data_access_t::center(data_, node_);
   }
 
-  const point_t& center() const {
+  decltype(auto) center() const {
     return data_access_t::center(data_, node_);
   }
 
  private:
-  const SphereDataType& data_;
+  SphereDataType data_;
   stk::mesh::Entity sphere_;
   stk::mesh::Entity node_;
 };  // SphereEntityView
 
-/// @brief A view of an ELEM_RANK, PARTICLE topology sphere entity
+/// @brief An ngp-compatible view of an ELEM_RANK, PARTICLE topology sphere entity
 template <typename NgpSphereDataType>
 class NgpSphereEntityView {
  public:
@@ -304,23 +300,23 @@ class NgpSphereEntityView {
   }
 
   KOKKOS_INLINE_FUNCTION
-  scalar_t& radius() {
-    return SphereDataTraits<NgpSphereDataType>::radius(data_, sphere_index_);
+  decltype(auto) radius() {
+    return NgpSphereDataTraits<NgpSphereDataType>::radius(data_, sphere_index_);
   }
 
   KOKKOS_INLINE_FUNCTION
-  const scalar_t& radius() const {
-    return SphereDataTraits<NgpSphereDataType>::radius(data_, sphere_index_);
+  decltype(auto) radius() const {
+    return NgpSphereDataTraits<NgpSphereDataType>::radius(data_, sphere_index_);
   }
 
   KOKKOS_INLINE_FUNCTION
-  point_t& center() {
-    return SphereDataTraits<NgpSphereDataType>::center(data_, node_index_);
+  decltype(auto) center() {
+    return NgpSphereDataTraits<NgpSphereDataType>::center(data_, node_index_);
   }
 
   KOKKOS_INLINE_FUNCTION
-  const point_t& center() const {
-    return SphereDataTraits<NgpSphereDataType>::center(data_, node_index_);
+  decltype(auto) center() const {
+    return NgpSphereDataTraits<NgpSphereDataType>::center(data_, node_index_);
   }
 
  private:
@@ -346,6 +342,19 @@ static_assert(ValidSphereType<NgpSphereEntityView<NgpSphereData<float, float, st
 static_assert(
     ValidSphereType<NgpSphereEntityView<NgpSphereData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>>,
     "NgpSphereEntityView must be a valid Sphere type");
+
+/// \brief A helper function to create a SphereEntityView object with type deduction
+template <typename SphereDataType>
+auto create_sphere_entity_view(const stk::mesh::BulkData& bulk_data, SphereDataType& data, stk::mesh::Entity sphere) {
+  return SphereEntityView<SphereDataType>(bulk_data, data, sphere);
+}
+
+/// \brief A helper function to create a NgpSphereEntityView object with type deduction
+template <typename NgpSphereDataType>
+auto create_ngp_sphere_entity_view(stk::mesh::NgpMesh ngp_mesh, NgpSphereDataType data,
+                                   stk::mesh::FastMeshIndex sphere_index) {
+  return NgpSphereEntityView<NgpSphereDataType>(ngp_mesh, data, sphere_index);
+}
 //@}
 
 }  // namespace geom

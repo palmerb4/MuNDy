@@ -82,6 +82,19 @@ template <typename T, size_t N, ValidAccessor<T> Accessor = Array<T, N>, typenam
   requires std::is_arithmetic_v<T>
 class Vector;
 
+/// \brief Type trait to determine if a type is a Vector
+template <typename TypeToCheck>
+struct is_vector : std::false_type {};
+//
+template <typename T, size_t N, typename Accessor, typename OwnershipType>
+struct is_vector<Vector<T, N, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename T, size_t N, typename Accessor, typename OwnershipType>
+struct is_vector<const Vector<T, N, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename TypeToCheck>
+constexpr bool is_vector_v = is_vector<TypeToCheck>::value;
+
 namespace impl {
 //! \name Helper functions for generic vector operators applied to an abstract accessor.
 //@{
@@ -108,7 +121,8 @@ KOKKOS_INLINE_FUNCTION void move_impl(std::index_sequence<Is...>, Vector<T, N, A
 /// \brief Set all elements of the vector
 template <size_t... Is, typename T, size_t N, ValidAccessor<T> Accessor, typename OwnershipType, typename... Args>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void set_from_args_impl(std::index_sequence<Is...>, Vector<T, N, Accessor, OwnershipType>& vec, Args&&... args) {
+KOKKOS_INLINE_FUNCTION void set_from_args_impl(std::index_sequence<Is...>, Vector<T, N, Accessor, OwnershipType>& vec,
+                                               Args&&... args) {
   ((vec[Is] = std::forward<Args>(args)), ...);
 }
 
@@ -118,8 +132,9 @@ KOKKOS_INLINE_FUNCTION void set_from_args_impl(std::index_sequence<Is...>, Vecto
 template <size_t... Is, typename T, size_t N, ValidAccessor<T> Accessor, typename OwnershipType,
           ValidAccessor<T> OtherAccessor>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void set_from_accessor_impl(std::index_sequence<Is...>, Vector<T, N, Accessor, OwnershipType>& vec,
-                            const OtherAccessor& accessor) {
+KOKKOS_INLINE_FUNCTION void set_from_accessor_impl(std::index_sequence<Is...>,
+                                                   Vector<T, N, Accessor, OwnershipType>& vec,
+                                                   const OtherAccessor& accessor) {
   ((vec[Is] = accessor[Is]), ...);
 }
 
@@ -127,7 +142,8 @@ KOKKOS_INLINE_FUNCTION void set_from_accessor_impl(std::index_sequence<Is...>, V
 /// \param[in] value The value to set all elements to.
 template <size_t... Is, typename T, size_t N, ValidAccessor<T> Accessor, typename OwnershipType>
   requires HasNonConstAccessOperator<Accessor, T>
-KOKKOS_INLINE_FUNCTION void fill_impl(std::index_sequence<Is...>, Vector<T, N, Accessor, OwnershipType>& vec, const T& value) {
+KOKKOS_INLINE_FUNCTION void fill_impl(std::index_sequence<Is...>, Vector<T, N, Accessor, OwnershipType>& vec,
+                                      const T& value) {
   ((vec[Is] = value), ...);
 }
 
@@ -761,7 +777,9 @@ class Vector {
 
   /// \brief Default constructor. Assume elements are uninitialized.
   /// \note This constructor is only enabled if the Accessor has a default constructor.
-  KOKKOS_INLINE_FUNCTION constexpr Vector() requires HasDefaultConstructor<Accessor> = default;
+  KOKKOS_INLINE_FUNCTION constexpr Vector()
+    requires HasDefaultConstructor<Accessor>
+  = default;
 
   /// \brief Constructor from a given accessor
   /// \param[in] data The accessor.
@@ -793,7 +811,8 @@ class Vector {
   template <typename... Args>
     requires(sizeof...(Args) == N) && (N != 1) &&
             (std::is_convertible_v<Args, T> && ...) && HasNArgConstructor<Accessor, T, N>
-  KOKKOS_INLINE_FUNCTION constexpr explicit Vector(Args&&... args) : accessor_{static_cast<T>(std::forward<Args>(args))...} {
+  KOKKOS_INLINE_FUNCTION constexpr explicit Vector(Args&&... args)
+      : accessor_{static_cast<T>(std::forward<Args>(args))...} {
   }
 
   /// \brief Constructor to initialize all elements via initializer list
@@ -1218,6 +1237,11 @@ using VectorView = Vector<T, N, Accessor, Ownership::Views>;
 template <typename T, size_t N, ValidAccessor<T> Accessor = Array<T, N>>
   requires std::is_arithmetic_v<T>
 using OwningVector = Vector<T, N, Accessor, Ownership::Owns>;
+
+static_assert(is_vector_v<Vector<int, 3>>, "Odd, default Vector is not a vector.");
+static_assert(is_vector_v<Vector<int, 3, Array<int, 3>>>, "Odd, default vector with Array accessor is not a vector.");
+static_assert(is_vector_v<VectorView<int, 3>>, "Odd, VectorView is not a vector.");
+static_assert(is_vector_v<OwningVector<int, 3>>, "Odd, OwningVector is not a vector.");
 
 //! \name Non-member functions
 //@{

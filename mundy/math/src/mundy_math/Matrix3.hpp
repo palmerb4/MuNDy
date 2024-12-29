@@ -52,6 +52,24 @@ using Matrix3View = Matrix<T, 3, 3, Accessor, Ownership::Views>;
 template <typename T, ValidAccessor<T> Accessor = Array<T, 9>>
 using OwningMatrix3 = Matrix<T, 3, 3, Accessor, Ownership::Owns>;
 
+/// \brief Type trait to determine if a type is a Matrix3
+template <typename TypeToCheck>
+struct is_matrix3 : std::false_type {};
+//
+template <typename T, typename Accessor, typename OwnershipType>
+struct is_matrix3<Matrix3<T, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename T, typename Accessor, typename OwnershipType>
+struct is_matrix3<const Matrix3<T, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename TypeToCheck>
+constexpr bool is_matrix3_v = is_matrix3<TypeToCheck>::value;
+
+static_assert(is_matrix3_v<Matrix3<int>>, "Odd, default matrix3 is not a matrix3.");
+static_assert(is_matrix3_v<Matrix3<int, Array<int, 9>>>, "Odd, default matrix3 with Array accessor is not a matrix3.");
+static_assert(is_matrix3_v<Matrix3View<int>>, "Odd, Matrix3View is not a matrix3.");
+static_assert(is_matrix3_v<OwningMatrix3<int>>, "Odd, OwningMatrix3 is not a matrix3.");
+
 //! \name Matrix3<T, Accessor> views
 //@{
 

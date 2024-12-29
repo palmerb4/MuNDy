@@ -47,29 +47,24 @@ using Point = mundy::math::Vector3<Scalar>;
 
 /// @brief Type trait to determine if a type is a Point
 template <typename T>
-struct is_point : std::false_type {};
-//
-template <typename Scalar>
-struct is_point<Point<Scalar>> : std::true_type {};
-//
-template <typename Scalar>
-struct is_point<const Point<Scalar>> : std::true_type {};
+using is_point = mundy::math::is_vector<T>;
 //
 template <typename T>
 constexpr bool is_point_v = is_point<T>::value;
 
-/// @brief Concept to check if a type is a valid Point type
+/// @brief Concept to check if a type has the necessary properties to be a valid Point type
+/// As a predicate to creating a new point type, specialize is_point for the new type.
 template <typename PointType>
-concept ValidPointType = requires(std::remove_cv_t<PointType> point, const std::remove_cv_t<PointType> const_point) {
-  is_point_v<std::remove_cv_t<PointType>>;
-  typename std::remove_cv_t<PointType>::scalar_t;
-  { point[0] } -> std::convertible_to<typename std::remove_cv_t<PointType>::scalar_t>;
-  { point[1] } -> std::convertible_to<typename std::remove_cv_t<PointType>::scalar_t>;
-  { point[2] } -> std::convertible_to<typename std::remove_cv_t<PointType>::scalar_t>;
+concept ValidPointType = requires(std::decay_t<PointType> point, const std::decay_t<PointType> const_point) {
+  is_point_v<std::decay_t<PointType>>;
+  typename std::decay_t<PointType>::scalar_t;
+  { point[0] } -> std::convertible_to<typename std::decay_t<PointType>::scalar_t>;
+  { point[1] } -> std::convertible_to<typename std::decay_t<PointType>::scalar_t>;
+  { point[2] } -> std::convertible_to<typename std::decay_t<PointType>::scalar_t>;
 
-  { const_point[0] } -> std::convertible_to<const typename std::remove_cv_t<PointType>::scalar_t>;
-  { const_point[1] } -> std::convertible_to<const typename std::remove_cv_t<PointType>::scalar_t>;
-  { const_point[2] } -> std::convertible_to<const typename std::remove_cv_t<PointType>::scalar_t>;
+  { const_point[0] } -> std::convertible_to<const typename std::decay_t<PointType>::scalar_t>;
+  { const_point[1] } -> std::convertible_to<const typename std::decay_t<PointType>::scalar_t>;
+  { const_point[2] } -> std::convertible_to<const typename std::decay_t<PointType>::scalar_t>;
 };  // ValidPointType
 
 static_assert(ValidPointType<Point<float>> && ValidPointType<const Point<float>> &&
