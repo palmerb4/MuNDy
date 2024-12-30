@@ -51,21 +51,22 @@ TEST(Aggregates, SphereData) {
   stk::mesh::BulkData& bulk_data = *bulk_data_ptr;
 
   stk::mesh::Part& sphere_part = meta_data.declare_part_with_topology("spheres", stk::topology::PARTICLE);
-  stk::mesh::Field<double>& elem_radius_field = meta_data.declare_field<double>(stk::topology::ELEMENT_RANK, "radius");
+  stk::mesh::Field<double>& elem_radius_field = meta_data.declare_field<double>(stk::topology::ELEM_RANK, "radius");
   stk::mesh::Field<double>& node_coords_field =
       meta_data.declare_field<double>(stk::topology::NODE_RANK, "coordinates");
- 
+
   stk::mesh::put_field_on_mesh(elem_radius_field, sphere_part, 1, nullptr);
   stk::mesh::put_field_on_mesh(node_coords_field, sphere_part, 3, nullptr);
-  meta_data.commit(); 
- 
+  meta_data.commit();
+
   // Test the creation of the SphereData aggregate.
   const double shared_radius = 1.0;
   const Point<double> shared_center{1.1, 2.2, 3.3};
-  auto sphere_data_both_fields = create_sphere_data<double>(elem_radius_field, node_coords_field);
-  auto sphere_data_shared_radius = create_sphere_data<double>(shared_radius, node_coords_field);
-  auto sphere_data_shared_center = create_sphere_data<double>(elem_radius_field, shared_center);
-  auto sphere_data_both_shared = create_sphere_data<double>(shared_radius, shared_center);
+  stk::topology::rank_t sphere_rank = stk::topology::ELEM_RANK;
+  auto sphere_data_both_fields = create_sphere_data<double>(sphere_rank, elem_radius_field, node_coords_field);
+  auto sphere_data_shared_radius = create_sphere_data<double>(sphere_rank, shared_radius, node_coords_field);
+  auto sphere_data_shared_center = create_sphere_data<double>(sphere_rank, elem_radius_field, shared_center);
+  auto sphere_data_both_shared = create_sphere_data<double>(sphere_rank, shared_radius, shared_center);
 
   ASSERT_EQ(&sphere_data_both_fields.radius, &elem_radius_field);
   ASSERT_EQ(&sphere_data_both_fields.center, &node_coords_field);
@@ -81,10 +82,13 @@ TEST(Aggregates, SphereData) {
   stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
   stk::mesh::NgpField<double>& ngp_elem_radius_field = stk::mesh::get_updated_ngp_field<double>(elem_radius_field);
   stk::mesh::NgpField<double>& ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
-  auto ngp_sphere_data_both_fields1 = create_ngp_sphere_data<double>(ngp_elem_radius_field, ngp_node_coords_field);
-  auto ngp_sphere_data_shared_radius1 = create_ngp_sphere_data<double>(shared_radius, ngp_node_coords_field);
-  auto ngp_sphere_data_shared_center1 = create_ngp_sphere_data<double>(ngp_elem_radius_field, shared_center);
-  auto ngp_sphere_data_both_shared1 = create_ngp_sphere_data<double>(shared_radius, shared_center);
+  auto ngp_sphere_data_both_fields1 =
+      create_ngp_sphere_data<double>(sphere_rank, ngp_elem_radius_field, ngp_node_coords_field);
+  auto ngp_sphere_data_shared_radius1 =
+      create_ngp_sphere_data<double>(sphere_rank, shared_radius, ngp_node_coords_field);
+  auto ngp_sphere_data_shared_center1 =
+      create_ngp_sphere_data<double>(sphere_rank, ngp_elem_radius_field, shared_center);
+  auto ngp_sphere_data_both_shared1 = create_ngp_sphere_data<double>(sphere_rank, shared_radius, shared_center);
 
   // via get_updated_ngp_data
   auto ngp_sphere_data_both_fields2 = get_updated_ngp_data(sphere_data_both_fields);
@@ -125,10 +129,10 @@ TEST(Aggregates, SphereData) {
   stk::mesh::field_data(node_coords_field, node)[1] = non_shared_center[1];
   stk::mesh::field_data(node_coords_field, node)[2] = non_shared_center[2];
 
-  auto sphere_view_both_fields = create_sphere_entity_view(bulk_data, sphere_data_both_fields, sphere);
-  auto sphere_view_shared_radius = create_sphere_entity_view(bulk_data, sphere_data_shared_radius, sphere);
-  auto sphere_view_shared_center = create_sphere_entity_view(bulk_data, sphere_data_shared_center, sphere);
-  auto sphere_view_both_shared = create_sphere_entity_view(bulk_data, sphere_data_both_shared, sphere);
+  auto sphere_view_both_fields = create_elem_sphere_view(bulk_data, sphere_data_both_fields, sphere);
+  auto sphere_view_shared_radius = create_elem_sphere_view(bulk_data, sphere_data_shared_radius, sphere);
+  auto sphere_view_shared_center = create_elem_sphere_view(bulk_data, sphere_data_shared_center, sphere);
+  auto sphere_view_both_shared = create_elem_sphere_view(bulk_data, sphere_data_both_shared, sphere);
 
   ASSERT_EQ(sphere_view_both_fields.radius(), non_shared_radius);
   ASSERT_EQ(sphere_view_both_fields.center()[0], non_shared_center[0]);
@@ -148,10 +152,14 @@ TEST(Aggregates, SphereData) {
   ASSERT_EQ(sphere_view_both_shared.center()[2], shared_center[2]);
 
   stk::mesh::FastMeshIndex sphere_index = ngp_mesh.fast_mesh_index(sphere);
-  auto ngp_sphere_view_both_fields1 = create_ngp_sphere_entity_view(ngp_mesh, ngp_sphere_data_both_fields1, sphere_index);
-  auto ngp_sphere_view_shared_radius1 = create_ngp_sphere_entity_view(ngp_mesh, ngp_sphere_data_shared_radius1, sphere_index);
-  auto ngp_sphere_view_shared_center1 = create_ngp_sphere_entity_view(ngp_mesh, ngp_sphere_data_shared_center1, sphere_index);
-  auto ngp_sphere_view_both_shared1 = create_ngp_sphere_entity_view(ngp_mesh, ngp_sphere_data_both_shared1, sphere_index);
+  auto ngp_sphere_view_both_fields1 =
+      create_ngp_elem_sphere_view(ngp_mesh, ngp_sphere_data_both_fields1, sphere_index);
+  auto ngp_sphere_view_shared_radius1 =
+      create_ngp_elem_sphere_view(ngp_mesh, ngp_sphere_data_shared_radius1, sphere_index);
+  auto ngp_sphere_view_shared_center1 =
+      create_ngp_elem_sphere_view(ngp_mesh, ngp_sphere_data_shared_center1, sphere_index);
+  auto ngp_sphere_view_both_shared1 =
+      create_ngp_elem_sphere_view(ngp_mesh, ngp_sphere_data_both_shared1, sphere_index);
 
   ASSERT_EQ(ngp_sphere_view_both_fields1.radius(), non_shared_radius);
   ASSERT_EQ(ngp_sphere_view_both_fields1.center()[0], non_shared_center[0]);

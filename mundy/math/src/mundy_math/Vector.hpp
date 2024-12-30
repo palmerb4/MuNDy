@@ -395,6 +395,9 @@ class Vector<T, N, Accessor, Ownership::Views> {
   /// \brief The non-const type of the entries
   using non_const_scalar_t = std::remove_const_t<T>;
 
+  /// \brief Our ownership type
+  using ownership_t = Ownership::Views;
+
   /// \brief The size of the vector
   static constexpr size_t size = N;
   //@}
@@ -767,6 +770,9 @@ class Vector {
 
   /// \brief The non-const type of the entries
   using non_const_scalar_t = std::remove_const_t<T>;
+
+  /// \brief Our ownership type
+  using ownership_t = OwnershipType;
 
   /// \brief The size of the vector
   static constexpr size_t size = N;

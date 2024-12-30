@@ -599,6 +599,9 @@ class Matrix<T, N, M, Accessor, Ownership::Views> {
   /// \brief The non-const type of the entries
   using non_const_scalar_t = std::remove_const_t<T>;
 
+  /// \brief Our ownership type
+  using ownership_t = Ownership::Views;
+
   /// \brief The number of rows
   static constexpr size_t num_rows = N;
 
@@ -1173,6 +1176,9 @@ class Matrix {
 
   /// \brief The non-const type of the entries
   using non_const_scalar_t = std::remove_const_t<T>;
+
+  /// \brief Our ownership type
+  using ownership_t = OwnershipType;
 
   /// \brief The number of rows
   static constexpr size_t num_rows = N;

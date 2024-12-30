@@ -36,45 +36,84 @@ namespace mundy {
 
 namespace geom {
 
-template <typename Scalar>
+template <typename Scalar, ValidPointType PointType = Point<Scalar>, typename OwnershipType = mundy::math::Ownership::Owns>
+  requires std::is_same_v<typename PointType::scalar_t, Scalar> &&
+           std::is_same_v<typename PointType::ownership_t, OwnershipType>
 class Sphere {
  public:
   //! \name Type aliases
   //@{
 
-  /// \brief The Sphere's scalar type
+  /// \brief Our scalar type
   using scalar_t = Scalar;
-  using point_t = Point<Scalar>;
+
+  /// \brief Our point type
+  using point_t = PointType;
+
+  /// \brief Our ownership type
+  using ownership_t = OwnershipType;
   //@}
 
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Default constructor. Default initializes the center and sets the radius to an invalid value of -1
+  /// \brief Default constructor for owning Spheres. Default initializes the center and sets the radius to an invalid
+  /// value of -1
   KOKKOS_FUNCTION
-  Sphere() : center_(scalar_t(), scalar_t(), scalar_t()), radius_(static_cast<Scalar>(-1)) {
+  Sphere()
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
+      : center_(scalar_t(), scalar_t(), scalar_t()), radius_(static_cast<Scalar>(-1)) {
   }
+
+  /// \brief No default constructor for viewing Spheres.
+  KOKKOS_FUNCTION
+  Sphere()
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views>
+  = delete;
 
   /// \brief Constructor to initialize the center and radius.
   /// \param[in] center The center of the Sphere.
   /// \param[in] radius The radius of the Sphere.
   KOKKOS_FUNCTION
-  Sphere(const point_t& center, const Scalar& radius) : center_(center), radius_(radius) {
+  Sphere(const point_t& center, const scalar_t& radius) : center_(center), radius_(radius) {
+  }
+
+  /// \brief Constructor to initialize the center and radius.
+  /// \param[in] center The center of the Sphere.
+  /// \param[in] radius The radius of the Sphere.
+  template <typename OtherPointType>
+  KOKKOS_FUNCTION Sphere(const OtherPointType& center, const Scalar& radius)
+    requires(!std::is_same_v<OtherPointType, point_t>)
+      : center_(center), radius_(radius) {
   }
 
   /// \brief Destructor
   KOKKOS_FUNCTION
-  ~Sphere() {
-  }
+  ~Sphere() = default;
 
   /// \brief Deep copy constructor
   KOKKOS_FUNCTION
-  Sphere(const Sphere<Scalar>& other) : center_(other.center_), radius_(other.radius_) {
+  Sphere(const Sphere<scalar_t, point_t, ownership_t>& other) : center_(other.center_), radius_(other.radius_) {
+  }
+
+  /// \brief Deep copy constructor with different sphere type
+  template <typename OtherSphereType>
+  KOKKOS_FUNCTION Sphere(const OtherSphereType& other)
+    requires(!std::is_same_v<OtherSphereType, Sphere<scalar_t, point_t, ownership_t>>)
+      : center_(other.center_), radius_(other.radius_) {
   }
 
   /// \brief Deep move constructor
   KOKKOS_FUNCTION
-  Sphere(Sphere<Scalar>&& other) : center_(std::move(other.center_)), radius_(std::move(other.radius_)) {
+  Sphere(Sphere<scalar_t, point_t, ownership_t>&& other)
+      : center_(std::move(other.center_)), radius_(std::move(other.radius_)) {
+  }
+
+  /// \brief Deep move constructor
+  template <typename OtherSphereType>
+  KOKKOS_FUNCTION Sphere(OtherSphereType&& other)
+    requires(!std::is_same_v<OtherSphereType, Sphere<scalar_t, point_t, ownership_t>>)
+      : center_(std::move(other.center_)), radius_(std::move(other.radius_)) {
   }
   //@}
 
@@ -83,7 +122,18 @@ class Sphere {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  Sphere<Scalar>& operator=(const Sphere<Scalar>& other) {
+  Sphere<scalar_t, point_t, ownership_t>& operator=(const Sphere<scalar_t, point_t, ownership_t>& other) {
+    MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
+    center_ = other.center_;
+    radius_ = other.radius_;
+    return *this;
+  }
+
+  /// \brief Copy assignment operator
+  template <typename OtherSphereType>
+  KOKKOS_FUNCTION Sphere<scalar_t, point_t, ownership_t>& operator=(const OtherSphereType& other)
+    requires(!std::is_same_v<OtherSphereType, Sphere<scalar_t, point_t, ownership_t>>)
+  {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     center_ = other.center_;
     radius_ = other.radius_;
@@ -92,7 +142,18 @@ class Sphere {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  Sphere<Scalar>& operator=(Sphere<Scalar>&& other) {
+  Sphere<scalar_t, point_t, ownership_t>& operator=(Sphere<scalar_t, point_t, ownership_t>&& other) {
+    MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
+    center_ = std::move(other.center_);
+    radius_ = std::move(other.radius_);
+    return *this;
+  }
+
+  /// \brief Move assignment operator
+  template <typename OtherSphereType>
+  KOKKOS_FUNCTION Sphere<scalar_t, point_t, ownership_t>& operator=(OtherSphereType&& other)
+    requires(!std::is_same_v<OtherSphereType, Sphere<scalar_t, point_t, ownership_t>>)
+  {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     center_ = std::move(other.center_);
     radius_ = std::move(other.radius_);
@@ -133,8 +194,8 @@ class Sphere {
 
   /// \brief Set the center
   /// \param[in] center The new center.
-  KOKKOS_FUNCTION
-  void set_center(const point_t& center) {
+  template <ValidPointType OtherPointType>
+  KOKKOS_FUNCTION void set_center(const OtherPointType& center) {
     center_ = center;
   }
 
@@ -159,7 +220,8 @@ class Sphere {
 
  private:
   point_t center_;
-  Scalar radius_;
+  std::conditional_t<
+    std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>,Scalar, Scalar&> radius_;
 };
 
 /// @brief Type trait to determine if a type is a Sphere
@@ -177,17 +239,16 @@ constexpr bool is_sphere_v = is_sphere<T>::value;
 
 /// @brief Concept to check if a type is a valid Sphere type
 template <typename SphereType>
-concept ValidSphereType =
-    requires(std::decay_t<SphereType> sphere, const std::decay_t<SphereType> const_sphere) {
-      is_sphere_v<std::decay_t<SphereType>>;
-      typename std::decay_t<SphereType>::scalar_t;
-      typename std::decay_t<SphereType>::point_t;
-      is_point_v<typename std::decay_t<SphereType>::point_t>;
-      is_point_v<decltype(sphere.center())>;
-      is_point_v<decltype(const_sphere.center())>;
-      { sphere.radius() } -> std::convertible_to<typename std::decay_t<SphereType>::scalar_t&>;
-      { const_sphere.radius() } -> std::convertible_to<const typename std::decay_t<SphereType>::scalar_t&>;
-    };  // ValidSphereType
+concept ValidSphereType = requires(std::decay_t<SphereType> sphere, const std::decay_t<SphereType> const_sphere) {
+  is_sphere_v<std::decay_t<SphereType>>;
+  typename std::decay_t<SphereType>::scalar_t;
+  typename std::decay_t<SphereType>::point_t;
+  is_point_v<typename std::decay_t<SphereType>::point_t>;
+  is_point_v<decltype(sphere.center())>;
+  is_point_v<decltype(const_sphere.center())>;
+  { sphere.radius() } -> std::convertible_to<typename std::decay_t<SphereType>::scalar_t&>;
+  { const_sphere.radius() } -> std::convertible_to<const typename std::decay_t<SphereType>::scalar_t&>;
+};  // ValidSphereType
 
 static_assert(ValidSphereType<Sphere<float>> && ValidSphereType<const Sphere<float>> &&
                   ValidSphereType<Sphere<double>> && ValidSphereType<const Sphere<double>>,

@@ -30,6 +30,8 @@
 
 // Our libs
 #include <mundy_core/throw_assert.hpp>  // for MUNDY_THROW_ASSERT
+#include <mundy_math/Accessor.hpp>      // for mundy::math::ValidAccessor
+#include <mundy_math/Array.hpp>         // for mundy::math::Array
 #include <mundy_math/Vector3.hpp>       // for mundy::math::Vector3
 
 namespace mundy {
@@ -42,8 +44,15 @@ namespace geom {
 /// The following is a methodological choice to use the Vector3 class as the underlying data structure for the Point
 /// class. This is done to allow points to access the same mathematical operations as vectors (dot product, cross
 /// product, etc.). Had we created our own interface, we would have hidden the mathematical operations from the user.
-template <typename Scalar>
-using Point = mundy::math::Vector3<Scalar>;
+template <typename Scalar, mundy::math::ValidAccessor<Scalar> Accessor = mundy::math::Array<Scalar, 3>,
+          typename OwnershipType = mundy::math::Ownership::Owns>
+using Point = mundy::math::Vector3<Scalar, Accessor, OwnershipType>;
+//
+template <typename Scalar, mundy::math::ValidAccessor<Scalar> Accessor = mundy::math::Array<Scalar, 3>>
+using OwningPoint = Point<Scalar, Accessor, mundy::math::Ownership::Owns>;
+//
+template <typename Scalar, mundy::math::ValidAccessor<Scalar> Accessor = mundy::math::Array<Scalar, 3>>
+using PointView = Point<Scalar, Accessor, mundy::math::Ownership::Views>;
 
 /// @brief Type trait to determine if a type is a Point
 template <typename T>
@@ -67,8 +76,8 @@ concept ValidPointType = requires(std::decay_t<PointType> point, const std::deca
   { const_point[2] } -> std::convertible_to<const typename std::decay_t<PointType>::scalar_t>;
 };  // ValidPointType
 
-static_assert(ValidPointType<Point<float>> && ValidPointType<const Point<float>> &&
-              ValidPointType<Point<double>> && ValidPointType<const Point<double>>,
+static_assert(ValidPointType<Point<float>> && ValidPointType<const Point<float>> && ValidPointType<Point<double>> &&
+                  ValidPointType<const Point<double>>,
               "Point must satisfy the ValidPointType concept.");
 
 }  // namespace geom

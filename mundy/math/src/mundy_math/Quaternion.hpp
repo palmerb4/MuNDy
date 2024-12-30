@@ -357,6 +357,9 @@ class Quaternion<T, Accessor, Ownership::Views> {
 
   /// \brief The non-const type of the entries
   using non_const_scalar_t = std::remove_const_t<T>;
+
+  /// \brief Our ownership type
+  using ownership_t = Ownership::Views;
   //@}
 
   //! \name Constructors and destructor
@@ -827,6 +830,9 @@ class Quaternion {
 
   /// \brief The non-const type of the entries
   using non_const_scalar_t = std::remove_const_t<T>;
+
+  /// \brief Our ownership type
+  using ownership_t = OwnershipType;
   //@}
 
   //! \name Constructors and destructor
