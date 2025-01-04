@@ -43,9 +43,13 @@ class Line {
   //! \name Type aliases
   //@{
 
-  /// \brief The Line's scalar type
+  /// \brief Our scalar type
   using scalar_t = Scalar;
+
+  /// \brief Our point type
   using point_t = Point<Scalar>;
+
+  /// \brief Our vector type
   using vector_type = mundy::math::Vector3<Scalar>;
   //@}
 

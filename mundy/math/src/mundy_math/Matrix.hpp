@@ -101,6 +101,20 @@ struct is_matrix<const Matrix<T, N, M, Accessor, OwnershipType>> : std::true_typ
 template <typename TypeToCheck>
 constexpr bool is_matrix_v = is_matrix<TypeToCheck>::value;
 
+/// \brief A temporary concept to check if a type is a valid Matrix type
+/// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our quaternions.
+template <typename MatrixType>
+concept ValidMatrixType = requires(std::decay_t<MatrixType> matrix, const std::decay_t<MatrixType> const_matrix, size_t i) {
+  is_matrix_v<std::decay_t<MatrixType>>;
+  typename std::decay_t<MatrixType>::scalar_t;
+  { matrix[i] } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
+  { matrix(i) } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
+  { matrix(i, i) } -> std::convertible_to<typename std::decay_t<MatrixType>::scalar_t>;
+  { const_matrix[i] } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
+  { const_matrix(i) } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
+  { const_matrix(i, i) } -> std::convertible_to<const typename std::decay_t<MatrixType>::scalar_t>;
+};  // ValidMatrixType
+
 namespace impl {
 //! \name Helper functions for generic matrix operators applied to an abstract accessor.
 //@{

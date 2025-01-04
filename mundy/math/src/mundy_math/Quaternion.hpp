@@ -80,6 +80,46 @@ template <typename T, ValidAccessor<T> Accessor = Array<T, 4>, typename Ownershi
   requires std::is_floating_point_v<T>
 class Quaternion;
 
+/// \brief Type trait to determine if a type is a Quaternion
+template <typename TypeToCheck>
+struct is_quaternion : std::false_type {};
+//
+template <typename T, typename Accessor, typename OwnershipType>
+struct is_quaternion<Quaternion<T, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename T, typename Accessor, typename OwnershipType>
+struct is_quaternion<const Quaternion<T, Accessor, OwnershipType>> : std::true_type {};
+//
+template <typename TypeToCheck>
+constexpr bool is_quaternion_v = is_quaternion<TypeToCheck>::value;
+
+/// \brief A temporary concept to check if a type is a valid Quaternion type
+/// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our quaternions.
+template <typename QuaternionType>
+concept ValidQuaternionType = requires(std::decay_t<QuaternionType> quaternion, const std::decay_t<QuaternionType> const_quaternion) {
+  is_quaternion_v<std::decay_t<QuaternionType>>;
+  typename std::decay_t<QuaternionType>::scalar_t;
+  { quaternion[0] } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+  { quaternion[1] } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+  { quaternion[2] } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+  { quaternion[3] } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+
+  { quaternion(0) } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+  { quaternion(1) } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+  { quaternion(2) } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+  { quaternion(3) } -> std::convertible_to<typename std::decay_t<QuaternionType>::scalar_t>;
+
+  { const_quaternion[0] } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+  { const_quaternion[1] } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+  { const_quaternion[2] } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+  { const_quaternion[3] } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+
+  { const_quaternion(0) } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+  { const_quaternion(1) } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+  { const_quaternion(2) } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+  { const_quaternion(3) } -> std::convertible_to<const typename std::decay_t<QuaternionType>::scalar_t>;
+};  // ValidQuaternionType
+
 //! \name Forward declare Quaternion functions that also require Quaternion to be defined
 //@{
 
@@ -1376,6 +1416,11 @@ using QuaternionView = Quaternion<T, Accessor, Ownership::Views>;
 template <typename T, ValidAccessor<T> Accessor = Array<T, 4>>
   requires std::is_floating_point_v<T>
 using OwningQuaternion = Quaternion<T, Accessor, Ownership::Owns>;
+
+static_assert(is_quaternion_v<Quaternion<double>>, "Odd, default Quaternion is not a quaternion.");
+static_assert(is_quaternion_v<Quaternion<double, Array<double, 4>>>, "Odd, default Quaternion with Array accessor is not a quaternion.");
+static_assert(is_quaternion_v<QuaternionView<double>>, "Odd, QuaternionView is not a quaternion.");
+static_assert(is_quaternion_v<OwningQuaternion<double>>, "Odd, QuaternionVector is not a quaternion.");
 
 //! \name Non-member functions
 //@{

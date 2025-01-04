@@ -70,6 +70,29 @@ struct is_vector3<const Vector3<T, Accessor, OwnershipType>> : std::true_type {}
 template <typename TypeToCheck>
 constexpr bool is_vector3_v = is_vector3<TypeToCheck>::value;
 
+/// \brief A temporary concept to check if a type is a valid Vector3 type
+/// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our vectors.
+template <typename Vector3Type>
+concept ValidVector3Type = requires(std::decay_t<Vector3Type> vector3, const std::decay_t<Vector3Type> const_vector3) {
+  is_vector3_v<std::decay_t<Vector3Type>>;
+  typename std::decay_t<Vector3Type>::scalar_t;
+  { vector3[0] } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;
+  { vector3[1] } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;
+  { vector3[2] } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;
+
+  { vector3(0) } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;
+  { vector3(1) } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;
+  { vector3(2) } -> std::convertible_to<typename std::decay_t<Vector3Type>::scalar_t>;
+
+  { const_vector3[0] } -> std::convertible_to<const typename std::decay_t<Vector3Type>::scalar_t>;
+  { const_vector3[1] } -> std::convertible_to<const typename std::decay_t<Vector3Type>::scalar_t>;
+  { const_vector3[2] } -> std::convertible_to<const typename std::decay_t<Vector3Type>::scalar_t>;
+
+  { const_vector3(0) } -> std::convertible_to<const typename std::decay_t<Vector3Type>::scalar_t>;
+  { const_vector3(1) } -> std::convertible_to<const typename std::decay_t<Vector3Type>::scalar_t>;
+  { const_vector3(2) } -> std::convertible_to<const typename std::decay_t<Vector3Type>::scalar_t>;
+};  // ValidVector3Type
+
 //! \name Non-member functions
 //@{
 

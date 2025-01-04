@@ -95,6 +95,18 @@ struct is_vector<const Vector<T, N, Accessor, OwnershipType>> : std::true_type {
 template <typename TypeToCheck>
 constexpr bool is_vector_v = is_vector<TypeToCheck>::value;
 
+/// \brief A temporary concept to check if a type is a valid Vector type
+/// TODO(palmerb4): Extend this concept to contain all shared setters and getters for our vectors.
+template <typename VectorType>
+concept ValidVectorType = requires(std::decay_t<VectorType> vector, const std::decay_t<VectorType> const_vector, size_t i) {
+  is_vector_v<std::decay_t<VectorType>>;
+  typename std::decay_t<VectorType>::scalar_t;
+  { vector[i] } -> std::convertible_to<typename std::decay_t<VectorType>::scalar_t>;
+  { vector(i) } -> std::convertible_to<typename std::decay_t<VectorType>::scalar_t>;
+  { const_vector[i] } -> std::convertible_to<const typename std::decay_t<VectorType>::scalar_t>;
+  { const_vector(i) } -> std::convertible_to<const typename std::decay_t<VectorType>::scalar_t>;
+};  // ValidVectorType
+
 namespace impl {
 //! \name Helper functions for generic vector operators applied to an abstract accessor.
 //@{

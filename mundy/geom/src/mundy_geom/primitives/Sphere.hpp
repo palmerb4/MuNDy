@@ -62,7 +62,7 @@ class Sphere {
   KOKKOS_FUNCTION
   Sphere()
     requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
-      : center_(scalar_t(), scalar_t(), scalar_t()), radius_(static_cast<Scalar>(-1)) {
+      : center_(scalar_t(), scalar_t(), scalar_t()), radius_(static_cast<scalar_t>(-1)) {
   }
 
   /// \brief No default constructor for viewing Spheres.
@@ -82,7 +82,7 @@ class Sphere {
   /// \param[in] center The center of the Sphere.
   /// \param[in] radius The radius of the Sphere.
   template <typename OtherPointType>
-  KOKKOS_FUNCTION Sphere(const OtherPointType& center, const Scalar& radius)
+  KOKKOS_FUNCTION Sphere(const OtherPointType& center, const scalar_t& radius)
     requires(!std::is_same_v<OtherPointType, point_t>)
       : center_(center), radius_(radius) {
   }
@@ -178,13 +178,13 @@ class Sphere {
 
   /// \brief Accessor for the radius
   KOKKOS_FUNCTION
-  const Scalar& radius() const {
+  const scalar_t& radius() const {
     return radius_;
   }
 
   /// \brief Accessor for the radius
   KOKKOS_FUNCTION
-  Scalar& radius() {
+  scalar_t& radius() {
     return radius_;
   }
   //@}
@@ -204,7 +204,7 @@ class Sphere {
   /// \param[in] y The y-coordinate.
   /// \param[in] z The z-coordinate.
   KOKKOS_FUNCTION
-  void set_center(const Scalar& x, const Scalar& y, const Scalar& z) {
+  void set_center(const scalar_t& x, const scalar_t& y, const scalar_t& z) {
     center_[0] = x;
     center_[1] = y;
     center_[2] = z;
@@ -213,7 +213,7 @@ class Sphere {
   /// \brief Set the radius
   /// \param[in] radius The new radius.
   KOKKOS_FUNCTION
-  void set_radius(const Scalar& radius) {
+  void set_radius(const scalar_t& radius) {
     radius_ = radius;
   }
   //@}
@@ -221,7 +221,7 @@ class Sphere {
  private:
   point_t center_;
   std::conditional_t<
-    std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>,Scalar, Scalar&> radius_;
+    std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>,scalar_t, scalar_t&> radius_;
 };
 
 /// @brief Type trait to determine if a type is a Sphere

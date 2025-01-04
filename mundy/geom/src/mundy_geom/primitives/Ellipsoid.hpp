@@ -38,28 +38,48 @@ namespace mundy {
 
 namespace geom {
 
-template <typename Scalar>
+template <typename Scalar, ValidPointType PointType = Point<Scalar>,
+          mundy::math::ValidQuaternionType OrientationType = mundy::math::Quaternion<Scalar>,
+          typename OwnershipType = mundy::math::Ownership::Owns>
+  requires std::is_same_v<typename PointType::scalar_t, Scalar> &&
+           std::is_same_v<typename PointType::ownership_t, OwnershipType> &&
+           std::is_same_v<typename OrientationType::scalar_t, Scalar> &&
+           std::is_same_v<typename OrientationType::ownership_t, OwnershipType>
 class Ellipsoid {
  public:
   //! \name Type aliases
   //@{
 
-  /// \brief The Ellipsoid's scalar type
+  /// \brief Our scalar type
   using scalar_t = Scalar;
-  using point_t = Point<Scalar>;
-  using array3_t = mundy::math::Array<Scalar, 3>;
-  using orientation_t = mundy::math::Quaternion<Scalar>;
+
+  /// \brief Our point type
+  using point_t = PointType;
+
+  /// \brief Our quaternion type
+  using orientation_t = OrientationType;
+
+  /// \brief Our ownership type
+  using ownership_t = OwnershipType;
   //@}
 
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Default constructor. Default initializes the center and sets the axis lengths to an invalid value of -1
+  /// \brief Default constructor for owning ellipsoids. Default initializes the center and sets the axis lengths to an
+  /// invalid value of -1
   KOKKOS_FUNCTION
   Ellipsoid()
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : center_(scalar_t(), scalar_t(), scalar_t()),
-        axis_lengths_{static_cast<Scalar>(-1), static_cast<Scalar>(-1), static_cast<Scalar>(-1)} {
+        axis_lengths_{static_cast<scalar_t>(-1), static_cast<scalar_t>(-1), static_cast<scalar_t>(-1)} {
   }
+
+  /// \brief No default constructor for viewing ellipsoids.
+  KOKKOS_FUNCTION
+  Ellipsoid()
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views>
+  = delete;
 
   /// \brief Constructor to initialize the center and axis lengths.
   /// \param[in] center The center of the Ellipsoid.
@@ -67,8 +87,9 @@ class Ellipsoid {
   /// \param[in] axis_length_2 The second axis length of the Ellipsoid.
   /// \param[in] axis_length_3 The third axis length of the Ellipsoid.
   KOKKOS_FUNCTION
-  Ellipsoid(const point_t& center, const Scalar& axis_length_1, const Scalar& axis_length_2,
-            const Scalar& axis_length_3)
+  Ellipsoid(const point_t& center, const scalar_t& axis_length_1, const scalar_t& axis_length_2,
+            const scalar_t& axis_length_3)
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : center_(center), axis_lengths_{axis_length_1, axis_length_2, axis_length_3} {
   }
 
@@ -84,8 +105,10 @@ class Ellipsoid {
   /// \param[in] axis_length_2 The second axis length of the Ellipsoid.
   /// \param[in] axis_length_3 The third axis length of the Ellipsoid.
   KOKKOS_FUNCTION
-  Ellipsoid(const Scalar& x, const Scalar& y, const Scalar& z, const Scalar& qw, const Scalar& qx, const Scalar& qy,
-            const Scalar& qz, const Scalar& axis_length_1, const Scalar& axis_length_2, const Scalar& axis_length_3)
+  Ellipsoid(const scalar_t& x, const scalar_t& y, const scalar_t& z, const scalar_t& qw, const scalar_t& qx,
+            const scalar_t& qy, const scalar_t& qz, const scalar_t& axis_length_1, const scalar_t& axis_length_2,
+            const scalar_t& axis_length_3)
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : center_(x, y, z), orientation_(qw, qx, qy, qz), axis_lengths_{axis_length_1, axis_length_2, axis_length_3} {
   }
 
@@ -93,7 +116,7 @@ class Ellipsoid {
   /// \param[in] center The center of the Ellipsoid.
   /// \param[in] axis_lengths The axis lengths of the Ellipsoid.
   KOKKOS_FUNCTION
-  Ellipsoid(const point_t& center, const orientation_t& orientation, const array3_t& axis_lengths)
+  Ellipsoid(const point_t& center, const orientation_t& orientation, const point_t& axis_lengths)
       : center_(center), orientation_(orientation), axis_lengths_(axis_lengths) {
   }
 
@@ -101,25 +124,41 @@ class Ellipsoid {
   /// \param[in] center The center of the Ellipsoid.
   /// \param[in] axis_lengths The axis lengths of the Ellipsoid.
   KOKKOS_FUNCTION
-  Ellipsoid(const point_t& center, const orientation_t& orientation, const Scalar& axis_length_1,
-            const Scalar& axis_length_2, const Scalar& axis_length_3)
+  Ellipsoid(const point_t& center, const orientation_t& orientation, const scalar_t& axis_length_1,
+            const scalar_t& axis_length_2, const scalar_t& axis_length_3)
+    requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : center_(center), orientation_(orientation), axis_lengths_(axis_length_1, axis_length_2, axis_length_3) {
   }
 
   /// \brief Destructor
   KOKKOS_FUNCTION
-  ~Ellipsoid() {
-  }
+  ~Ellipsoid() = default;
 
   /// \brief Deep copy constructor
   KOKKOS_FUNCTION
-  Ellipsoid(const Ellipsoid<Scalar>& other)
+  Ellipsoid(const Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>& other)
+      : center_(other.center_), orientation_{other.orientation_}, axis_lengths_{other.axis_lengths_} {
+  }
+
+  /// \brief Deep copy constructor with different ellipsoid type
+  template <typename OtherEllipsoidType>
+  KOKKOS_FUNCTION Ellipsoid(const OtherEllipsoidType& other)
+    requires(!std::is_same_v<OtherEllipsoidType, Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>>)
       : center_(other.center_), orientation_{other.orientation_}, axis_lengths_{other.axis_lengths_} {
   }
 
   /// \brief Deep move constructor
   KOKKOS_FUNCTION
-  Ellipsoid(Ellipsoid<Scalar>&& other)
+  Ellipsoid(Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>&& other)
+      : center_(std::move(other.center_)),
+        orientation_{std::move(other.orientation_)},
+        axis_lengths_{std::move(other.axis_lengths_)} {
+  }
+
+  /// \brief Deep move constructor with different ellipsoid type
+  template <typename OtherEllipsoidType>
+  KOKKOS_FUNCTION Ellipsoid(OtherEllipsoidType&& other)
+    requires(!std::is_same_v<OtherEllipsoidType, Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>>)
       : center_(std::move(other.center_)),
         orientation_{std::move(other.orientation_)},
         axis_lengths_{std::move(other.axis_lengths_)} {
@@ -131,7 +170,20 @@ class Ellipsoid {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  Ellipsoid<Scalar>& operator=(const Ellipsoid<Scalar>& other) {
+  Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>& operator=(
+      const Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>& other) {
+    MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
+    center_ = other.center_;
+    orientation_ = other.orientation_;
+    axis_lengths_ = other.axis_lengths_;
+    return *this;
+  }
+
+  /// \brief Copy assignment operator with different ellipsoid type
+  template <typename OtherEllipsoidType>
+  KOKKOS_FUNCTION Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>& operator=(const OtherEllipsoidType& other)
+    requires(!std::is_same_v<OtherEllipsoidType, Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>>)
+  {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     center_ = other.center_;
     orientation_ = other.orientation_;
@@ -141,7 +193,20 @@ class Ellipsoid {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  Ellipsoid<Scalar>& operator=(Ellipsoid<Scalar>&& other) {
+  Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>& operator=(
+      Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>&& other) {
+    MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
+    center_ = std::move(other.center_);
+    orientation_ = std::move(other.orientation_);
+    axis_lengths_ = std::move(other.axis_lengths_);
+    return *this;
+  }
+
+  /// \brief Move assignment operator with different ellipsoid type
+  template <typename OtherEllipsoidType>
+  KOKKOS_FUNCTION Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>& operator=(OtherEllipsoidType&& other)
+    requires(!std::is_same_v<OtherEllipsoidType, Ellipsoid<scalar_t, point_t, orientation_t, ownership_t>>)
+  {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     center_ = std::move(other.center_);
     orientation_ = std::move(other.orientation_);
@@ -179,49 +244,49 @@ class Ellipsoid {
 
   /// \brief Accessor for the axis lengths
   KOKKOS_FUNCTION
-  const array3_t& axis_lengths() const {
+  const point_t& axis_lengths() const {
     return axis_lengths_;
   }
 
   /// \brief Accessor for the axis lengths
   KOKKOS_FUNCTION
-  array3_t& axis_lengths() {
+  point_t& axis_lengths() {
     return axis_lengths_;
   }
 
   /// \brief Accessor for the first axis length
   KOKKOS_FUNCTION
-  const Scalar& axis_length_1() const {
+  const scalar_t& axis_length_1() const {
     return axis_lengths_[0];
   }
 
   /// \brief Accessor for the first axis length
   KOKKOS_FUNCTION
-  Scalar& axis_length_1() {
+  scalar_t& axis_length_1() {
     return axis_lengths_[0];
   }
 
   /// \brief Accessor for the second axis length
   KOKKOS_FUNCTION
-  const Scalar& axis_length_2() const {
+  const scalar_t& axis_length_2() const {
     return axis_lengths_[1];
   }
 
   /// \brief Accessor for the second axis length
   KOKKOS_FUNCTION
-  Scalar& axis_length_2() {
+  scalar_t& axis_length_2() {
     return axis_lengths_[1];
   }
 
   /// \brief Accessor for the third axis length
   KOKKOS_FUNCTION
-  const Scalar& axis_length_3() const {
+  const scalar_t& axis_length_3() const {
     return axis_lengths_[2];
   }
 
   /// \brief Accessor for the third axis length
   KOKKOS_FUNCTION
-  Scalar& axis_length_3() {
+  scalar_t& axis_length_3() {
     return axis_lengths_[2];
   }
   //@}
@@ -241,7 +306,7 @@ class Ellipsoid {
   /// \param[in] y The y-coordinate.
   /// \param[in] z The z-coordinate.
   KOKKOS_FUNCTION
-  void set_center(const Scalar& x, const Scalar& y, const Scalar& z) {
+  void set_center(const scalar_t& x, const scalar_t& y, const scalar_t& z) {
     center_[0] = x;
     center_[1] = y;
     center_[2] = z;
@@ -260,7 +325,7 @@ class Ellipsoid {
   /// \param[in] qy The y-component of the orientation quaternion.
   /// \param[in] qz The z-component of the orientation quaternion.
   KOKKOS_FUNCTION
-  void set_orientation(const Scalar& qw, const Scalar& qx, const Scalar& qy, const Scalar& qz) {
+  void set_orientation(const scalar_t& qw, const scalar_t& qx, const scalar_t& qy, const scalar_t& qz) {
     orientation_[0] = qw;
     orientation_[1] = qx;
     orientation_[2] = qy;
@@ -270,7 +335,7 @@ class Ellipsoid {
   /// \brief Set the axis lengths
   /// \param[in] axis_lengths The new axis lengths.
   KOKKOS_FUNCTION
-  void set_axis_lengths(const array3_t& axis_lengths) {
+  void set_axis_lengths(const point_t& axis_lengths) {
     axis_lengths_ = axis_lengths;
   }
 
@@ -279,7 +344,7 @@ class Ellipsoid {
   /// \param[in] axis_length_2 The new second axis length.
   /// \param[in] axis_length_3 The new third axis length.
   KOKKOS_FUNCTION
-  void set_axis_lengths(const Scalar& axis_length_1, const Scalar& axis_length_2, const Scalar& axis_length_3) {
+  void set_axis_lengths(const scalar_t& axis_length_1, const scalar_t& axis_length_2, const scalar_t& axis_length_3) {
     axis_lengths_[0] = axis_length_1;
     axis_lengths_[1] = axis_length_2;
     axis_lengths_[2] = axis_length_3;
@@ -289,7 +354,7 @@ class Ellipsoid {
  private:
   point_t center_;
   orientation_t orientation_;
-  array3_t axis_lengths_;
+  point_t axis_lengths_;
 };
 
 /// @brief Type trait to determine if a type is am Ellipsoid
@@ -311,37 +376,13 @@ concept ValidEllipsoidType =
     requires(std::remove_cv_t<EllipsoidType> ellipsoid, const std::remove_cv_t<EllipsoidType> const_ellipsoid) {
       is_ellipsoid_v<std::remove_cv_t<EllipsoidType>>;
       typename std::remove_cv_t<EllipsoidType>::scalar_t;
-      {
-        ellipsoid.center()
-      } -> std::convertible_to<mundy::geom::Point<typename std::remove_cv_t<EllipsoidType>::scalar_t>>;
-      {
-        ellipsoid.orientation()
-      } -> std::convertible_to<mundy::math::Quaternion<typename std::remove_cv_t<EllipsoidType>::scalar_t>>;
-      {
-        ellipsoid.axis_lengths()
-      } -> std::convertible_to<mundy::math::Array<typename std::remove_cv_t<EllipsoidType>::scalar_t, 3>>;
-      { ellipsoid.axis_length_1() } -> std::convertible_to<typename std::remove_cv_t<EllipsoidType>::scalar_t>;
-      { ellipsoid.axis_length_2() } -> std::convertible_to<typename std::remove_cv_t<EllipsoidType>::scalar_t>;
-      { ellipsoid.axis_length_3() } -> std::convertible_to<typename std::remove_cv_t<EllipsoidType>::scalar_t>;
+      is_point_v<decltype(ellipsoid.center())>;
+      mundy::math::is_quaternion_v<decltype(ellipsoid.orientation())>;
+      mundy::math::is_vector3_v<decltype(ellipsoid.axis_lengths())>;
 
-      {
-        const_ellipsoid.center()
-      } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<EllipsoidType>::scalar_t>>;
-      {
-        const_ellipsoid.orientation()
-      } -> std::convertible_to<const mundy::math::Quaternion<typename std::remove_cv_t<EllipsoidType>::scalar_t>>;
-      {
-        const_ellipsoid.axis_lengths()
-      } -> std::convertible_to<const mundy::math::Array<typename std::remove_cv_t<EllipsoidType>::scalar_t, 3>>;
-      {
-        const_ellipsoid.axis_length_1()
-      } -> std::convertible_to<const typename std::remove_cv_t<EllipsoidType>::scalar_t>;
-      {
-        const_ellipsoid.axis_length_2()
-      } -> std::convertible_to<const typename std::remove_cv_t<EllipsoidType>::scalar_t>;
-      {
-        const_ellipsoid.axis_length_3()
-      } -> std::convertible_to<const typename std::remove_cv_t<EllipsoidType>::scalar_t>;
+      is_point_v<decltype(const_ellipsoid.center())>;
+      mundy::math::is_quaternion_v<decltype(const_ellipsoid.orientation())>;
+      mundy::math::is_vector3_v<decltype(const_ellipsoid.axis_lengths())>;
     };  // ValidEllipsoidType
 
 static_assert(ValidEllipsoidType<Ellipsoid<float>> && ValidEllipsoidType<const Ellipsoid<float>> &&
