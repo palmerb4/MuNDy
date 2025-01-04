@@ -36,25 +36,43 @@ namespace mundy {
 
 namespace geom {
 
-template <typename Scalar>
+template <typename Scalar, ValidPointType PointType = Point<Scalar>, typename OwnershipType = mundy::math::Ownership::Owns>
 class LineSegment {
+   static_assert(std::is_same_v<typename PointType::scalar_t, Scalar>,
+                "The scalar_t of the PointType must match the Scalar type.");
+  static_assert(std::is_same_v<typename PointType::ownership_t, OwnershipType>,
+                "The ownership type of the PointType must match the OwnershipType.\n"
+                "This is somewhat restrictive, and we may want to relax this constraint in the future.\n"
+                "If you need to use a different ownership type, please let us know and we'll remove this restriction.");
+ 
  public:
   //! \name Type aliases
   //@{
 
-  /// \brief The LineSegment's scalar type
+  /// \brief Our scalar type
   using scalar_t = Scalar;
-  using point_t = Point<Scalar>;
+
+  /// \brief Our point type
+  using point_t = PointType;
+
+  /// \brief Our ownership type
+  using ownership_t = OwnershipType;
   //@}
 
   //! \name Constructors and destructor
   //@{
 
-  /// \brief Default constructor. Default initialize the start and end points.
+  /// \brief Default constructor for owning LineSegments. Default initialize the start and end points.
   KOKKOS_FUNCTION
   LineSegment()
+  requires std::is_same_v<OwnershipType, mundy::math::Ownership::Owns>
       : start_(scalar_t(), scalar_t(), scalar_t()), end_(scalar_t(), scalar_t(), scalar_t()) {
   }
+
+  /// \brief No default constructor for viewing LineSegmentss.
+  KOKKOS_FUNCTION
+  LineSegment()
+  requires std::is_same_v<OwnershipType, mundy::math::Ownership::Views> = delete;
 
   /// \brief Constructor to initialize the start and end points.
   /// \param[in] start The start of the LineSegment.
@@ -63,19 +81,40 @@ class LineSegment {
   LineSegment(const point_t& start, const point_t& end) : start_(start), end_(end) {
   }
 
+  /// \brief Constructor to initialize the start and end points.
+  /// \param[in] start The start of the LineSegment.
+  /// \param[in] end The end of the LineSegment.
+  template <ValidPointType OtherPointType>
+  KOKKOS_FUNCTION
+  LineSegment(const OtherPointType& start, const OtherPointType& end) : start_(start), end_(end) {
+  }
+
   /// \brief Destructor
   KOKKOS_FUNCTION
-  ~LineSegment() {
-  }
+  ~LineSegment() = default;
 
   /// \brief Deep copy constructor
   KOKKOS_FUNCTION
-  LineSegment(const LineSegment<Scalar>& other) : start_(other.start_), end_(other.end_) {
+  LineSegment(const LineSegment<scalar_t, point_t, ownership_t>& other) : start_(other.start_), end_(other.end_) {
+  }
+
+  /// \brief Deep copy constructor
+  template <typename OtherLineSegmentType>
+  KOKKOS_FUNCTION LineSegment(const OtherLineSegmentType& other)
+    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>)
+      : start_(other.start_), end_(other.end_) {
   }
 
   /// \brief Deep move constructor
   KOKKOS_FUNCTION
-  LineSegment(LineSegment<Scalar>&& other) : start_(std::move(other.start_)), end_(std::move(other.end_)) {
+  LineSegment(LineSegment<scalar_t, point_t, ownership_t>&& other) : start_(std::move(other.start_)), end_(std::move(other.end_)) {
+  }
+
+  /// \brief Deep move constructor
+  template <typename OtherLineSegmentType>
+  KOKKOS_FUNCTION LineSegment(OtherLineSegmentType&& other)
+    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>)
+      : start_(std::move(other.start_)), end_(std::move(other.end_)) {
   }
   //@}
 
@@ -84,7 +123,18 @@ class LineSegment {
 
   /// \brief Copy assignment operator
   KOKKOS_FUNCTION
-  LineSegment<Scalar>& operator=(const LineSegment<Scalar>& other) {
+  LineSegment<scalar_t, point_t, ownership_t>& operator=(const LineSegment<scalar_t, point_t, ownership_t>& other) {
+    MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
+    start_ = other.start_;
+    end_ = other.end_;
+    return *this;
+  }
+
+  /// \brief Copy assignment operator
+  template <typename OtherLineSegmentType>
+  KOKKOS_FUNCTION
+  LineSegment<scalar_t, point_t, ownership_t>& operator=(const OtherLineSegmentType& other) 
+    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>){
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     start_ = other.start_;
     end_ = other.end_;
@@ -93,7 +143,18 @@ class LineSegment {
 
   /// \brief Move assignment operator
   KOKKOS_FUNCTION
-  LineSegment<Scalar>& operator=(LineSegment<Scalar>&& other) {
+  LineSegment<scalar_t, point_t, ownership_t>& operator=(LineSegment<scalar_t, point_t, ownership_t>&& other) {
+    MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
+    start_ = std::move(other.start_);
+    end_ = std::move(other.end_);
+    return *this;
+  }
+
+  /// \brief Move assignment operator
+  template <typename OtherLineSegmentType>
+  KOKKOS_FUNCTION
+  LineSegment<scalar_t, point_t, ownership_t>& operator=(OtherLineSegmentType&& other) 
+    requires(!std::is_same_v<OtherLineSegmentType, LineSegment<scalar_t, point_t, ownership_t>>) {
     MUNDY_THROW_ASSERT(this != &other, std::invalid_argument, "Cannot assign to self");
     start_ = std::move(other.start_);
     end_ = std::move(other.end_);
@@ -134,8 +195,9 @@ class LineSegment {
 
   /// \brief Set the start point
   /// \param[in] start The new start point.
+  template <ValidPointType OtherPointType>
   KOKKOS_FUNCTION
-  void set_start(const point_t& start) {
+  void set_start(const OtherPointType& start) {
     start_ = start;
   }
 
@@ -152,8 +214,9 @@ class LineSegment {
 
   /// \brief Set the end point
   /// \param[in] end The new end point.
+  template <ValidPointType OtherPointType>
   KOKKOS_FUNCTION
-  void set_end(const point_t& end) {
+  void set_end(const OtherPointType& end) {
     end_ = end;
   }
 
@@ -178,11 +241,11 @@ class LineSegment {
 template <typename T>
 struct is_line_segment : std::false_type {};
 //
-template <typename Scalar>
-struct is_line_segment<LineSegment<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, typename OwnershipType>
+struct is_line_segment<LineSegment<Scalar, PointType, OwnershipType>> : std::true_type {};
 //
-template <typename Scalar>
-struct is_line_segment<const LineSegment<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, typename OwnershipType>
+struct is_line_segment<const LineSegment<Scalar, PointType, OwnershipType>> : std::true_type {};
 //
 template <typename T>
 inline constexpr bool is_line_segment_v = is_line_segment<T>::value;

@@ -1088,6 +1088,304 @@ void test_point_data(stk::mesh::BulkData& bulk_data,   //
   }
 }
 
+template <bool is_center_shared, bool is_direction_shared>
+void test_line_data(stk::mesh::BulkData& bulk_data,          //
+                      stk::topology::rank_t line_rank,       //
+                      stk::mesh::Entity line,                //
+                      stk::mesh::Field<double>& center_field,  //
+                      stk::mesh::Field<double>& direction_field) {
+  ASSERT_TRUE(bulk_data.is_valid(line));
+  ASSERT_TRUE(bulk_data.bucket(line).topology().rank() == line_rank);
+  ASSERT_TRUE(line_rank == stk::topology::ELEMENT_RANK || line_rank == stk::topology::NODE_RANK);
+
+  // The shared data for the line
+  Point<double> direction{44.4, 55.5, 66.6};  // not a valid unit vector but that's okay for this test
+  Point<double> center{1.1, 2.2, 3.3};
+
+  // Test the regular line data to ensure that the stored shared data/fields are as expected
+  auto line_data =
+      create_line_data<double>(line_rank, get_first_or_second<is_center_shared>(center, center_field),
+                                 get_first_or_second<is_direction_shared>(direction, direction_field));
+  if constexpr (is_center_shared) {
+    ASSERT_EQ(&line_data.center_data, &center);
+  } else {
+    ASSERT_EQ(&line_data.center_data, &center_field);
+  }
+  if constexpr (is_direction_shared) {
+    ASSERT_EQ(&line_data.direction_data, &direction);
+  } else {
+    ASSERT_EQ(&line_data.direction_data, &direction_field);
+  }
+
+  // Same test for the NGP line data
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
+  stk::mesh::NgpField<double>& ngp_center_field = stk::mesh::get_updated_ngp_field<double>(center_field);
+  stk::mesh::NgpField<double>& ngp_direction_field = stk::mesh::get_updated_ngp_field<double>(direction_field);
+  auto ngp_line_data =
+      create_ngp_line_data<double>(line_rank, get_first_or_second<is_center_shared>(center, ngp_center_field),
+                                     get_first_or_second<is_direction_shared>(direction, ngp_direction_field));
+
+  if constexpr (is_center_shared) {
+    ASSERT_EQ(&ngp_line_data.center_data, &center);
+  } else {
+    ASSERT_EQ(&ngp_line_data.center_data, &ngp_center_field);
+  }
+  if constexpr (is_direction_shared) {
+    ASSERT_EQ(&ngp_line_data.direction_data, &direction);
+  } else {
+    ASSERT_EQ(&ngp_line_data.direction_data, &ngp_direction_field);
+  }
+
+  // Set the center and direction data for the line directly via their fields
+  const Point<double> non_shared_direction{1.2, 3.4, 5.6};
+  const Point<double> non_shared_center{7.7, 8.8, 9.9};
+
+  Point<double> old_center = center;
+  Point<double> old_non_shared_center = non_shared_center;
+  Point<double> old_direction = direction;
+  Point<double> old_non_shared_direction = non_shared_direction;
+  if (line_rank == stk::topology::NODE_RANK) {
+    if constexpr (!is_center_shared) {
+      stk::mesh::field_data(center_field, line)[0] = non_shared_center[0];
+      stk::mesh::field_data(center_field, line)[1] = non_shared_center[1];
+      stk::mesh::field_data(center_field, line)[2] = non_shared_center[2];
+    }
+    if constexpr (!is_direction_shared) {
+      stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
+      stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
+      stk::mesh::field_data(direction_field, line)[2] = non_shared_direction[2];
+    }
+  } else {
+    ASSERT_EQ(bulk_data.num_nodes(line), 1);
+    stk::mesh::Entity node = bulk_data.begin_nodes(line)[0];
+    ASSERT_TRUE(bulk_data.is_valid(node));
+    if constexpr (!is_center_shared) {
+      stk::mesh::field_data(center_field, node)[0] = non_shared_center[0];
+      stk::mesh::field_data(center_field, node)[1] = non_shared_center[1];
+      stk::mesh::field_data(center_field, node)[2] = non_shared_center[2];
+    }
+    if constexpr (!is_direction_shared) {
+      stk::mesh::field_data(direction_field, line)[0] = non_shared_direction[0];
+      stk::mesh::field_data(direction_field, line)[1] = non_shared_direction[1];
+      stk::mesh::field_data(direction_field, line)[2] = non_shared_direction[2];
+    }
+  }
+
+  // Test that the line data properly views the updated fields
+
+  // Test that the data is modifiable
+  // Add and then remove a constant value to the center and direction
+  const double add_value = 1.1;
+  if (line_rank == stk::topology::NODE_RANK) {
+    auto line_view = create_node_line_view(bulk_data, line_data, line);
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(line_view.center()[0], center[0], 1e-12);
+      ASSERT_NEAR(line_view.center()[1], center[1], 1e-12);
+      ASSERT_NEAR(line_view.center()[2], center[2], 1e-12);
+    } else {
+      ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
+      ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
+      ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(line_view.direction()[0], direction[0], 1e-12);
+      ASSERT_NEAR(line_view.direction()[1], direction[1], 1e-12);
+      ASSERT_NEAR(line_view.direction()[2], direction[2], 1e-12);
+    } else {
+      ASSERT_NEAR(line_view.direction()[0], non_shared_direction[0], 1e-12);
+      ASSERT_NEAR(line_view.direction()[1], non_shared_direction[1], 1e-12);
+      ASSERT_NEAR(line_view.direction()[2], non_shared_direction[2], 1e-12);
+    }
+    line_view.center()[0] += add_value;
+    line_view.center()[1] -= add_value;
+    line_view.center()[2] *= add_value;
+    line_view.direction()[0] += 2 * add_value;
+    line_view.direction()[1] -= 2 * add_value;
+    line_view.direction()[2] *= 2 * add_value;
+
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(stk::mesh::field_data(center_field, line)[0], old_non_shared_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(center_field, line)[1], old_non_shared_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(center_field, line)[2], old_non_shared_center[2] * add_value, 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[0], old_non_shared_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[1], old_non_shared_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[2], old_non_shared_direction[2] * 2 * add_value, 1e-12);
+    }
+
+    // Remove the added value
+    line_view.center()[0] -= add_value;
+    line_view.center()[1] += add_value;
+    line_view.center()[2] /= add_value;
+    line_view.direction()[0] -= 2 * add_value;
+    line_view.direction()[1] += 2 * add_value;
+    line_view.direction()[2] /= 2 * add_value;
+  } else {
+    auto line_view = create_elem_line_view(bulk_data, line_data, line);
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(line_view.center()[0], center[0], 1e-12);
+      ASSERT_NEAR(line_view.center()[1], center[1], 1e-12);
+      ASSERT_NEAR(line_view.center()[2], center[2], 1e-12);
+    } else {
+      ASSERT_NEAR(line_view.center()[0], non_shared_center[0], 1e-12);
+      ASSERT_NEAR(line_view.center()[1], non_shared_center[1], 1e-12);
+      ASSERT_NEAR(line_view.center()[2], non_shared_center[2], 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(line_view.direction()[0], direction[0], 1e-12);
+      ASSERT_NEAR(line_view.direction()[1], direction[1], 1e-12);
+      ASSERT_NEAR(line_view.direction()[2], direction[2], 1e-12);
+    } else {
+      ASSERT_NEAR(line_view.direction()[0], non_shared_direction[0], 1e-12);
+      ASSERT_NEAR(line_view.direction()[1], non_shared_direction[1], 1e-12);
+      ASSERT_NEAR(line_view.direction()[2], non_shared_direction[2], 1e-12);
+    }
+    line_view.center()[0] += add_value;
+    line_view.center()[1] -= add_value;
+    line_view.center()[2] *= add_value;
+    line_view.direction()[0] += 2 * add_value;
+    line_view.direction()[1] -= 2 * add_value;
+    line_view.direction()[2] *= 2 * add_value;
+
+    ASSERT_EQ(bulk_data.num_nodes(line), 1);
+    stk::mesh::Entity node = bulk_data.begin_nodes(line)[0];
+    ASSERT_TRUE(bulk_data.is_valid(node));
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[0], old_non_shared_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[1], old_non_shared_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(center_field, node)[2], old_non_shared_center[2] * add_value, 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[0], old_non_shared_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[1], old_non_shared_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(stk::mesh::field_data(direction_field, line)[2], old_non_shared_direction[2] * 2 * add_value, 1e-12);
+    }
+
+    // Remove the added value
+    line_view.center()[0] -= add_value;
+    line_view.center()[1] += add_value;
+    line_view.center()[2] /= add_value;
+    line_view.direction()[0] -= 2 * add_value;
+    line_view.direction()[1] += 2 * add_value;
+    line_view.direction()[2] /= 2 * add_value;
+  }
+
+  // Test that the NGP line data properly views the updated fields
+  stk::mesh::FastMeshIndex line_index = ngp_mesh.fast_mesh_index(line);
+  if (line_rank == stk::topology::NODE_RANK) {
+    auto ngp_line_view = create_ngp_node_line_view(ngp_mesh, ngp_line_data, line_index);
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(ngp_line_view.center()[0], center[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[1], center[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[2], center[2], 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(ngp_line_view.direction()[0], direction[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[1], direction[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[2], direction[2], 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_line_view.direction()[0], non_shared_direction[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[1], non_shared_direction[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[2], non_shared_direction[2], 1e-12);
+    }
+
+    // Test that the data is modifiable
+    ngp_line_view.center()[0] += add_value;
+    ngp_line_view.center()[1] -= add_value;
+    ngp_line_view.center()[2] *= add_value;
+    ngp_line_view.direction()[0] += 2 * add_value;
+    ngp_line_view.direction()[1] -= 2 * add_value;
+    ngp_line_view.direction()[2] *= 2 * add_value;
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_center_field(line_index, 0), old_non_shared_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(ngp_center_field(line_index, 1), old_non_shared_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(ngp_center_field(line_index, 2), old_non_shared_center[2] * add_value, 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_direction_field(line_index, 0), old_non_shared_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(ngp_direction_field(line_index, 1), old_non_shared_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(ngp_direction_field(line_index, 2), old_non_shared_direction[2] * 2 * add_value, 1e-12);
+    }
+  } else {
+    auto ngp_line_view = create_ngp_elem_line_view(ngp_mesh, ngp_line_data, line_index);
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(ngp_line_view.center()[0], center[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[1], center[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[2], center[2], 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_line_view.center()[0], non_shared_center[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[1], non_shared_center[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.center()[2], non_shared_center[2], 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(ngp_line_view.direction()[0], direction[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[1], direction[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[2], direction[2], 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_line_view.direction()[0], non_shared_direction[0], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[1], non_shared_direction[1], 1e-12);
+      ASSERT_NEAR(ngp_line_view.direction()[2], non_shared_direction[2], 1e-12);
+    }
+
+    // Test that the data is modifiable
+    ngp_line_view.center()[0] += add_value;
+    ngp_line_view.center()[1] -= add_value;
+    ngp_line_view.center()[2] *= add_value;
+    ngp_line_view.direction()[0] += 2 * add_value;
+    ngp_line_view.direction()[1] -= 2 * add_value;
+    ngp_line_view.direction()[2] *= 2 * add_value;
+    stk::mesh::Entity node = bulk_data.begin_nodes(line)[0];
+    stk::mesh::FastMeshIndex node_index = ngp_mesh.fast_mesh_index(node);
+    if constexpr (is_center_shared) {
+      ASSERT_NEAR(center[0], old_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(center[1], old_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(center[2], old_center[2] * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_center_field(node_index, 0), old_non_shared_center[0] + add_value, 1e-12);
+      ASSERT_NEAR(ngp_center_field(node_index, 1), old_non_shared_center[1] - add_value, 1e-12);
+      ASSERT_NEAR(ngp_center_field(node_index, 2), old_non_shared_center[2] * add_value, 1e-12);
+    }
+    if constexpr (is_direction_shared) {
+      ASSERT_NEAR(direction[0], old_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[1], old_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(direction[2], old_direction[2] * 2 * add_value, 1e-12);
+    } else {
+      ASSERT_NEAR(ngp_direction_field(line_index, 0), old_non_shared_direction[0] + 2 * add_value, 1e-12);
+      ASSERT_NEAR(ngp_direction_field(line_index, 1), old_non_shared_direction[1] - 2 * add_value, 1e-12);
+      ASSERT_NEAR(ngp_direction_field(line_index, 2), old_non_shared_direction[2] * 2 * add_value, 1e-12);
+    }
+  }
+}
+
 TEST(Aggregates, SphereData) {
   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(3);
@@ -1240,7 +1538,7 @@ TEST(Aggregates, PointData) {
 
   stk::mesh::Part& node_part = meta_data.declare_part_with_topology("node_point_part", stk::topology::NODE);
   stk::mesh::Part& elem_part = meta_data.declare_part_with_topology("elem_point_part", stk::topology::PARTICLE);
-  stk::mesh::Field<double>& node_center_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "");
+  stk::mesh::Field<double>& node_center_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "center");
 
   stk::mesh::put_field_on_mesh(node_center_field, meta_data.universal_part(), 3, nullptr);
   meta_data.commit();
@@ -1257,6 +1555,46 @@ TEST(Aggregates, PointData) {
   test_point_data<true>(bulk_data, stk::topology::ELEM_RANK, point_elem, node_center_field);
   test_point_data<false>(bulk_data, stk::topology::NODE_RANK, point_node, node_center_field);
   test_point_data<false>(bulk_data, stk::topology::ELEM_RANK, point_elem, node_center_field);
+}
+
+TEST(Aggregates, LineData) {
+  stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = builder.create_meta_data();
+  stk::mesh::MetaData& meta_data = *meta_data_ptr;
+  meta_data.use_simple_fields();
+  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create(meta_data_ptr);
+  stk::mesh::BulkData& bulk_data = *bulk_data_ptr;
+
+  stk::mesh::Part& node_part = meta_data.declare_part_with_topology("node_point_part", stk::topology::NODE);
+  stk::mesh::Part& elem_part = meta_data.declare_part_with_topology("elem_point_part", stk::topology::PARTICLE);
+  stk::mesh::Field<double>& node_center_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "center");
+  stk::mesh::Field<double>& node_direction_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "direction");
+  stk::mesh::Field<double>& elem_direction_field = meta_data.declare_field<double>(stk::topology::ELEM_RANK, "direction");
+
+  stk::mesh::put_field_on_mesh(node_center_field, meta_data.universal_part(), 3, nullptr);
+  stk::mesh::put_field_on_mesh(node_direction_field, node_part, 3, nullptr);
+  stk::mesh::put_field_on_mesh(elem_direction_field, elem_part, 3, nullptr);
+  meta_data.commit();
+
+  bulk_data.modification_begin();
+  stk::mesh::Entity line_node = bulk_data.declare_node(1, stk::mesh::PartVector{&node_part});
+  
+  stk::mesh::Entity node = bulk_data.declare_node(2);
+  stk::mesh::Entity line_elem = bulk_data.declare_element(1, stk::mesh::PartVector{&elem_part});
+  bulk_data.declare_relation(line_elem, node, 0);
+  bulk_data.modification_end();
+
+  test_line_data<true, true>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
+  test_line_data<true, false>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
+  test_line_data<false, true>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
+  test_line_data<false, false>(bulk_data, stk::topology::NODE_RANK, line_node, node_center_field, node_direction_field);
+
+  test_line_data<true, true>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
+  test_line_data<true, false>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
+  test_line_data<false, true>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
+  test_line_data<false, false>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
 }
 
 }  // namespace
