@@ -41,11 +41,16 @@ namespace geom {
 template <typename Scalar, ValidPointType PointType = Point<Scalar>,
           mundy::math::ValidQuaternionType OrientationType = mundy::math::Quaternion<Scalar>,
           typename OwnershipType = mundy::math::Ownership::Owns>
-  requires std::is_same_v<typename PointType::scalar_t, Scalar> &&
-           std::is_same_v<typename PointType::ownership_t, OwnershipType> &&
-           std::is_same_v<typename OrientationType::scalar_t, Scalar> &&
-           std::is_same_v<typename OrientationType::ownership_t, OwnershipType>
 class Ellipsoid {
+  static_assert(std::is_same_v<typename PointType::scalar_t, Scalar> &&
+                std::is_same_v<typename OrientationType::scalar_t, Scalar>,
+                "The scalar_t of the PointType and OrientationType must match the Scalar type.");
+  static_assert(std::is_same_v<typename PointType::ownership_t, OwnershipType> &&
+                std::is_same_v<typename OrientationType::ownership_t, OwnershipType>,
+                "The ownership type of the PointType and OrientationType must match the OwnershipType.\n"
+                "This is somewhat restrictive, and we may want to relax this constraint in the future.\n"
+                "If you need to use a different ownership type, please let us know and we'll remove this restriction.");
+ 
  public:
   //! \name Type aliases
   //@{
@@ -361,11 +366,13 @@ class Ellipsoid {
 template <typename T>
 struct is_ellipsoid : std::false_type {};
 //
-template <typename Scalar>
-struct is_ellipsoid<Ellipsoid<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, mundy::math::ValidQuaternionType OrientationType,
+          typename OwnershipType>
+struct is_ellipsoid<Ellipsoid<Scalar, PointType, OrientationType, OwnershipType>> : std::true_type {};
 //
-template <typename Scalar>
-struct is_ellipsoid<const Ellipsoid<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, mundy::math::ValidQuaternionType OrientationType,
+          typename OwnershipType>
+struct is_ellipsoid<const Ellipsoid<Scalar, PointType, OrientationType, OwnershipType>> : std::true_type {};
 //
 template <typename T>
 inline constexpr bool is_ellipsoid_v = is_ellipsoid<T>::value;

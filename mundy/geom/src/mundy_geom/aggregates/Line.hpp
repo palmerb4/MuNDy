@@ -46,7 +46,7 @@ template <typename Scalar, typename CenterDataType = stk::mesh::Field<Scalar>, t
 struct LineData {
   static_assert(is_point_v<std::decay_t<CenterDataType>> ||
                     std::is_same_v<std::decay_t<CenterDataType>, stk::mesh::Field<Scalar>>,
-                "CenterDataType must be either a scalar or a field of scalars");
+                "CenterDataType must be either a point or a field of scalars");
   static_assert(mundy::math::is_vector3_v<std::decay_t<DirectionDataType>> ||
                     std::is_same_v<std::decay_t<DirectionDataType>, stk::mesh::Field<Scalar>>,
                 "DirectionDataType must be either a vector3 or a field of scalars");
@@ -93,10 +93,10 @@ auto create_line_data(stk::topology::rank_t line_rank, CenterDataType& center_da
                        "The center data must be a field of NODE_RANK");
   }
   if constexpr (is_direction_a_field) {
-    MUNDY_THROW_ASSERT(direction_data.entity_rank() == line_rank,
+    MUNDY_THROW_ASSERT(direction_data.entity_rank() == line_rank, std::invalid_argument,
                        "The direction data must have the same rank as the line rank.");
   }
-  return LineData<Scalar, CenterDataType>{line_rank, center_data, direction_data};
+  return LineData<Scalar, CenterDataType, DirectionDataType>{line_rank, center_data, direction_data};
 }
 
 /// \brief A helper function to create a NgpLineData object
@@ -110,10 +110,10 @@ auto create_ngp_line_data(stk::topology::rank_t line_rank, CenterDataType& cente
                        "The center data must be a field of NODE_RANK");
   }
   if constexpr (is_direction_a_field) {
-    MUNDY_THROW_ASSERT(direction_data.get_rank() == line_rank,
+    MUNDY_THROW_ASSERT(direction_data.get_rank() == line_rank, std::invalid_argument,
                         "The direction data must have the same rank as the line rank.");
   }
-  return NgpLineData<Scalar, CenterDataType>{line_rank, center_data, direction_data};
+  return NgpLineData<Scalar, CenterDataType, DirectionDataType>{line_rank, center_data, direction_data};
 }
 
 /// \brief A concept to check if a type provides the same data as LineData
@@ -153,7 +153,7 @@ static_assert(ValidDefaultLineDataType<LineData<float, Point<float>, Point<float
 
 static_assert(ValidDefaultNgpLineDataType<NgpLineData<float, Point<float>, Point<float>>> &&
                   ValidDefaultNgpLineDataType<NgpLineData<float, Point<float>, stk::mesh::NgpField<float>>> &&
-                  ValidDefaultNgpLineDataType<NgpLineData<float, stk::mesh::Field<float>, stk::mesh::NgpField<float>>>,
+                  ValidDefaultNgpLineDataType<NgpLineData<float, stk::mesh::NgpField<float>, stk::mesh::NgpField<float>>>,
               "NgpLineData must satisfy the ValidDefaultNgpLineDataType concept");
 
 /// \brief A helper function to get an updated NgpLineData object from a LineData object
@@ -474,20 +474,20 @@ class NgpNodeLineView {
   stk::mesh::FastMeshIndex line_index_;
 };  // NgpNodeLineView
 
-static_assert(ValidLineType<ElemLineView<LineData<float, Point<float>, mundy::math::Quaternion<float>>>> &&
+static_assert(ValidLineType<ElemLineView<LineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
               ValidLineType<ElemLineView<LineData<float, Point<float>, stk::mesh::Field<float>>>> &&
-              ValidLineType<ElemLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>>>> &&
-              ValidLineType<NgpElemLineView<LineData<float, Point<float>, mundy::math::Quaternion<float>>>> &&
-              ValidLineType<NgpElemLineView<LineData<float, Point<float>, stk::mesh::NgpField<float>>>> &&
-              ValidLineType<NgpElemLineView<LineData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>>>>,
+              ValidLineType<ElemLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<NgpElemLineView<NgpLineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<NgpElemLineView<NgpLineData<float, Point<float>, stk::mesh::NgpField<float>>>> &&
+              ValidLineType<NgpElemLineView<NgpLineData<float, stk::mesh::NgpField<float>, mundy::math::Vector3<float>>>>,
               "ElemLineView and NgpElemLineView must be valid Line types");
 
-static_assert(ValidLineType<NodeLineView<LineData<float, Point<float>, mundy::math::Quaternion<float>>>> &&
+static_assert(ValidLineType<NodeLineView<LineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
               ValidLineType<NodeLineView<LineData<float, Point<float>, stk::mesh::Field<float>>>> &&
-              ValidLineType<NodeLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Quaternion<float>>>> &&
-              ValidLineType<NgpNodeLineView<LineData<float, Point<float>, mundy::math::Quaternion<float>>>> &&
-              ValidLineType<NgpNodeLineView<LineData<float, Point<float>, stk::mesh::NgpField<float>>>> &&
-              ValidLineType<NgpNodeLineView<LineData<float, stk::mesh::NgpField<float>, mundy::math::Quaternion<float>>>>,
+              ValidLineType<NodeLineView<LineData<float, stk::mesh::Field<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<NgpNodeLineView<NgpLineData<float, Point<float>, mundy::math::Vector3<float>>>> &&
+              ValidLineType<NgpNodeLineView<NgpLineData<float, Point<float>, stk::mesh::NgpField<float>>>> &&
+              ValidLineType<NgpNodeLineView<NgpLineData<float, stk::mesh::NgpField<float>, mundy::math::Vector3<float>>>>,
               "NodeLineView and NgpNodeLineView must be valid Line types");
 
 /// \brief A helper function to create a ElemLineView object with type deduction

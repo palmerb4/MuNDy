@@ -231,6 +231,14 @@ class ElemPointView {
     return data_access_t::center(data_, node_);
   }
 
+  decltype(auto) operator[](int i) {
+    return center()[i];
+  }
+
+  decltype(auto) operator[](int i) const {
+    return center()[i];
+  }
+
  private:
   PointDataType data_;
   stk::mesh::Entity point_;
@@ -264,6 +272,14 @@ class NgpElemPointView {
     return data_access_t::center(data_, node_index_);
   }
 
+  decltype(auto) operator[](int i) {
+    return center()[i];
+  }
+
+  decltype(auto) operator[](int i) const {
+    return center()[i];
+  }
+
  private:
   NgpPointDataType data_;
   stk::mesh::FastMeshIndex point_index_;
@@ -292,6 +308,14 @@ class NodePointView {
 
   decltype(auto) center() const {
     return data_access_t::center(data_, point_);
+  }
+
+  decltype(auto) operator[](int i) {
+    return center()[i];
+  }
+
+  decltype(auto) operator[](int i) const {
+    return center()[i];
   }
 
  private:
@@ -325,20 +349,28 @@ class NgpNodePointView {
     return data_access_t::center(data_, point_index_);
   }
 
+  decltype(auto) operator[](int i) {
+    return center()[i];
+  }
+
+  decltype(auto) operator[](int i) const {
+    return center()[i];
+  }
+
  private:
   NgpPointDataType data_;
   stk::mesh::FastMeshIndex point_index_;
 };  // NgpNodePointView
 
 static_assert(ValidPointType<ElemPointView<PointData<float, Point<float>>>> &&
-                  ValidPointType<ElemPointView<PointData<float, stk::mesh::Field<float>>>>
-                      ValidPointType<NgpElemPointView<NgpPointData<float, Point<float>>>> &&
+                  ValidPointType<ElemPointView<PointData<float, stk::mesh::Field<float>>>> &&
+                  ValidPointType<NgpElemPointView<NgpPointData<float, Point<float>>>> &&
                   ValidPointType<NgpElemPointView<NgpPointData<float, stk::mesh::NgpField<float>>>>,
               "ElemPointView and NgpElemPointView must be valid Point types");
 
 static_assert(ValidPointType<NodePointView<PointData<float, Point<float>>>> &&
-                  ValidPointType<NodePointView<PointData<float, stk::mesh::Field<float>>>>
-                      ValidPointType<NgpNodePointView<NgpPointData<float, Point<float>>>> &&
+                  ValidPointType<NodePointView<PointData<float, stk::mesh::Field<float>>>> &&
+                  ValidPointType<NgpNodePointView<NgpPointData<float, Point<float>>>> &&
                   ValidPointType<NgpNodePointView<NgpPointData<float, stk::mesh::NgpField<float>>>>,
               "NodePointView and NgpNodePointView must be valid Point types");
 

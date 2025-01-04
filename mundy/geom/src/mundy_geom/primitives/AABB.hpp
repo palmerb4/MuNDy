@@ -37,9 +37,14 @@ namespace mundy {
 namespace geom {
 
 template <typename Scalar, ValidPointType PointType = Point<Scalar>, typename OwnershipType = mundy::math::Ownership::Owns>
-  requires std::is_same_v<typename PointType::scalar_t, Scalar> &&
-           std::is_same_v<typename PointType::ownership_t, OwnershipType>
 class AABB {
+  static_assert(std::is_same_v<typename PointType::scalar_t, Scalar>,
+                "The scalar_t of the PointType must match the Scalar type.");
+  static_assert(std::is_same_v<typename PointType::ownership_t, OwnershipType>,
+                "The ownership type of the PointType must match the OwnershipType.\n"
+                "This is somewhat restrictive, and we may want to relax this constraint in the future.\n"
+                "If you need to use a different ownership type, please let us know and we'll remove this restriction.");
+
  public:
   //! \name Type aliases
   //@{
@@ -341,11 +346,11 @@ using AABBView = AABB<Scalar, mundy::math::Ownership::Views>;
 template <typename T>
 struct is_aabb : std::false_type {};
 //
-template <typename Scalar>
-struct is_aabb<AABB<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, typename OwnershipType>
+struct is_aabb<AABB<Scalar, PointType, OwnershipType>> : std::true_type {};
 //
-template <typename Scalar>
-struct is_aabb<const AABB<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, typename OwnershipType>
+struct is_aabb<const AABB<Scalar, PointType, OwnershipType>> : std::true_type {};
 //
 template <typename T>
 constexpr bool is_aabb_v = is_aabb<T>::value;

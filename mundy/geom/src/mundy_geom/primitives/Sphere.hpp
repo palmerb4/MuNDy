@@ -37,9 +37,14 @@ namespace mundy {
 namespace geom {
 
 template <typename Scalar, ValidPointType PointType = Point<Scalar>, typename OwnershipType = mundy::math::Ownership::Owns>
-  requires std::is_same_v<typename PointType::scalar_t, Scalar> &&
-           std::is_same_v<typename PointType::ownership_t, OwnershipType>
 class Sphere {
+  static_assert(std::is_same_v<typename PointType::scalar_t, Scalar>,
+                "The scalar type of the PointType must match the scalar type of the Sphere.");
+  static_assert(std::is_same_v<typename PointType::ownership_t, OwnershipType>,
+                "The ownership type of the PointType must match the ownership type of the Sphere.\n"
+                "This is somewhat restrictive, and we may want to relax this constraint in the future.\n"
+                "If you need to use a different ownership type, please let us know and we'll remove this restriction.");
+
  public:
   //! \name Type aliases
   //@{
@@ -228,11 +233,11 @@ class Sphere {
 template <typename T>
 struct is_sphere : std::false_type {};
 //
-template <typename Scalar>
-struct is_sphere<Sphere<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, typename OwnershipType>
+struct is_sphere<Sphere<Scalar, PointType, OwnershipType>> : std::true_type {};
 //
-template <typename Scalar>
-struct is_sphere<const Sphere<Scalar>> : std::true_type {};
+template <typename Scalar, ValidPointType PointType, typename OwnershipType>
+struct is_sphere<const Sphere<Scalar, PointType, OwnershipType>> : std::true_type {};
 //
 template <typename T>
 constexpr bool is_sphere_v = is_sphere<T>::value;
