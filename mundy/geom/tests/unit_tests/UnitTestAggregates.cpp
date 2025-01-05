@@ -1096,6 +1096,107 @@ void test_line_data(stk::mesh::BulkData& bulk_data,          //
   }
 }
 
+void test_line_segment_data(stk::mesh::BulkData& bulk_data,          //
+                      stk::topology::rank_t line_segment_rank,       //
+                      stk::mesh::Entity line_segment,                //
+                      stk::mesh::Field<double>& node_coords_field) {
+  ASSERT_TRUE(bulk_data.is_valid(line_segment));
+  ASSERT_TRUE(bulk_data.bucket(line_segment).topology().rank() == line_segment_rank);
+  ASSERT_TRUE(line_segment_rank == stk::topology::ELEM_RANK) << "For now, we only support element rank line segments.";
+
+  ASSERT_EQ(bulk_data.num_nodes(line_segment), 2);
+  stk::mesh::Entity start_node = bulk_data.begin_nodes(line_segment)[0];
+  stk::mesh::Entity end_node = bulk_data.begin_nodes(line_segment)[1];
+  ASSERT_TRUE(bulk_data.is_valid(start_node));
+  ASSERT_TRUE(bulk_data.is_valid(end_node));
+
+  // Test the regular line_segment data to ensure that the stored shared data/fields are as expected
+  auto line_segment_data =
+      create_line_segment_data<double>(line_segment_rank, node_coords_field);
+  ASSERT_EQ(&line_segment_data.node_coords_data, &node_coords_field);
+
+  // Same test for the NGP line_segment data
+  stk::mesh::NgpMesh ngp_mesh = stk::mesh::get_updated_ngp_mesh(bulk_data);
+  stk::mesh::NgpField<double>& ngp_node_coords_field = stk::mesh::get_updated_ngp_field<double>(node_coords_field);
+  auto ngp_line_segment_data =
+      create_ngp_line_segment_data<double>(line_segment_rank, ngp_node_coords_field);
+  ASSERT_EQ(&ngp_line_segment_data.node_coords_data, &ngp_node_coords_field);
+
+  // Set the node_coords for the line_segment directly via their fields
+  const Point<double> non_shared_start_node_coords{7.7, 8.8, 9.9};
+  const Point<double> non_shared_end_node_coords{1.1, 2.2, 3.3};
+
+  Point<double> old_non_shared_start_node_coords = non_shared_start_node_coords;
+  Point<double> old_non_shared_end_node_coords = non_shared_end_node_coords;
+  stk::mesh::field_data(node_coords_field, start_node)[0] = non_shared_start_node_coords[0];
+  stk::mesh::field_data(node_coords_field, start_node)[1] = non_shared_start_node_coords[1];
+  stk::mesh::field_data(node_coords_field, start_node)[2] = non_shared_start_node_coords[2];
+  stk::mesh::field_data(node_coords_field, end_node)[0] = non_shared_end_node_coords[0];
+  stk::mesh::field_data(node_coords_field, end_node)[1] = non_shared_end_node_coords[1];
+  stk::mesh::field_data(node_coords_field, end_node)[2] = non_shared_end_node_coords[2];
+
+  // Test that the line_segment data properly views the updated fields
+
+  // Test that the data is modifiable
+  // Add and then remove a constant value to the node_coords
+  const double add_value = 1.1;
+  auto line_segment_view = create_elem_line_segment_view(bulk_data, line_segment_data, line_segment);
+  ASSERT_NEAR(line_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
+  ASSERT_NEAR(line_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
+  ASSERT_NEAR(line_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
+  ASSERT_NEAR(line_segment_view.end()[0], non_shared_end_node_coords[0], 1e-12);
+  ASSERT_NEAR(line_segment_view.end()[1], non_shared_end_node_coords[1], 1e-12);
+  ASSERT_NEAR(line_segment_view.end()[2], non_shared_end_node_coords[2], 1e-12);
+  line_segment_view.start()[0] += add_value;
+  line_segment_view.start()[1] -= add_value;
+  line_segment_view.start()[2] *= add_value;
+  line_segment_view.end()[0] += 2 * add_value;
+  line_segment_view.end()[1] -= 2 * add_value;
+  line_segment_view.end()[2] *= 2 * add_value;
+
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[0], old_non_shared_start_node_coords[0] + add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[1], old_non_shared_start_node_coords[1] - add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, start_node)[2], old_non_shared_start_node_coords[2] * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[0], old_non_shared_end_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[1], old_non_shared_end_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(stk::mesh::field_data(node_coords_field, end_node)[2], old_non_shared_end_node_coords[2] * 2 * add_value, 1e-12);
+
+  // Remove the added value
+  line_segment_view.start()[0] -= add_value;
+  line_segment_view.start()[1] += add_value;
+  line_segment_view.start()[2] /= add_value;
+  line_segment_view.end()[0] -= 2 * add_value;
+  line_segment_view.end()[1] += 2 * add_value;
+  line_segment_view.end()[2] /= 2 * add_value;
+
+  // Test that the NGP line_segment data properly views the updated fields
+  stk::mesh::FastMeshIndex line_segment_index = ngp_mesh.fast_mesh_index(line_segment);
+  stk::mesh::FastMeshIndex start_node_index = ngp_mesh.fast_mesh_index(start_node);
+  stk::mesh::FastMeshIndex end_node_index = ngp_mesh.fast_mesh_index(end_node);
+  auto ngp_line_segment_view = create_ngp_elem_line_segment_view(ngp_mesh, ngp_line_segment_data, line_segment_index);
+  ASSERT_NEAR(ngp_line_segment_view.start()[0], non_shared_start_node_coords[0], 1e-12);
+  ASSERT_NEAR(ngp_line_segment_view.start()[1], non_shared_start_node_coords[1], 1e-12);
+  ASSERT_NEAR(ngp_line_segment_view.start()[2], non_shared_start_node_coords[2], 1e-12);
+  ASSERT_NEAR(ngp_line_segment_view.end()[0], non_shared_end_node_coords[0], 1e-12);
+  ASSERT_NEAR(ngp_line_segment_view.end()[1], non_shared_end_node_coords[1], 1e-12);
+  ASSERT_NEAR(ngp_line_segment_view.end()[2], non_shared_end_node_coords[2], 1e-12);
+
+  // Test that the data is modifiable
+  ngp_line_segment_view.start()[0] += add_value;
+  ngp_line_segment_view.start()[1] -= add_value;
+  ngp_line_segment_view.start()[2] *= add_value;
+  ngp_line_segment_view.end()[0] += 2 * add_value;
+  ngp_line_segment_view.end()[1] -= 2 * add_value;
+  ngp_line_segment_view.end()[2] *= 2 * add_value;
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 0), old_non_shared_start_node_coords[0] + add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 1), old_non_shared_start_node_coords[1] - add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(start_node_index, 2), old_non_shared_start_node_coords[2] * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 0), old_non_shared_end_node_coords[0] + 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 1), old_non_shared_end_node_coords[1] - 2 * add_value, 1e-12);
+  ASSERT_NEAR(ngp_node_coords_field(end_node_index, 2), old_non_shared_end_node_coords[2] * 2 * add_value, 1e-12);
+}
+
+
 TEST(Aggregates, SphereData) {
   stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
   builder.set_spatial_dimension(3);
@@ -1283,6 +1384,33 @@ TEST(Aggregates, LineData) {
 
   test_line_data<true>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
   test_line_data<false>(bulk_data, stk::topology::ELEM_RANK, line_elem, node_center_field, elem_direction_field);
+}
+
+TEST(Aggregates, LineSegmentData) {
+  stk::mesh::MeshBuilder builder(MPI_COMM_WORLD);
+  builder.set_spatial_dimension(3);
+  builder.set_entity_rank_names({"NODE", "EDGE", "FACE", "ELEMENT", "CONSTRAINT"});
+  std::shared_ptr<stk::mesh::MetaData> meta_data_ptr = builder.create_meta_data();
+  stk::mesh::MetaData& meta_data = *meta_data_ptr;
+  meta_data.use_simple_fields();
+  std::shared_ptr<stk::mesh::BulkData> bulk_data_ptr = builder.create(meta_data_ptr);
+  stk::mesh::BulkData& bulk_data = *bulk_data_ptr;
+
+  stk::mesh::Part& line_segment_part = meta_data.declare_part_with_topology("line_segments", stk::topology::BEAM_2);
+  stk::mesh::Field<double>& node_coords_field = meta_data.declare_field<double>(stk::topology::NODE_RANK, "coords");
+  stk::mesh::put_field_on_mesh(node_coords_field, meta_data.universal_part(), 3, nullptr);
+  meta_data.commit();
+
+  bulk_data.modification_begin();
+  stk::mesh::Entity start_node = bulk_data.declare_node(1);
+  stk::mesh::Entity end_node = bulk_data.declare_node(2);
+  stk::mesh::Entity line_segment = bulk_data.declare_element(1, stk::mesh::PartVector{&line_segment_part});
+  bulk_data.declare_relation(line_segment, start_node, 0);
+  bulk_data.declare_relation(line_segment, end_node, 1);
+  bulk_data.modification_end();
+
+  test_line_segment_data(bulk_data, stk::topology::ELEM_RANK, line_segment, node_coords_field);
+  test_line_segment_data(bulk_data, stk::topology::ELEM_RANK, line_segment, node_coords_field);
 }
 
 }  // namespace

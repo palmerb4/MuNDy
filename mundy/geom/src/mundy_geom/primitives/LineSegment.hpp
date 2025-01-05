@@ -252,7 +252,7 @@ inline constexpr bool is_line_segment_v = is_line_segment<T>::value;
 
 /// @brief Concept to check if a type is a valid LineSegment type
 template <typename LineSegmentType>
-concept ValidLineSegment = 
+concept ValidLineSegmentType = 
     requires(std::remove_cv_t<LineSegmentType> line, const std::remove_cv_t<LineSegmentType> const_line) {
       is_line_segment_v<std::remove_cv_t<LineSegmentType>>;
       typename std::remove_cv_t<LineSegmentType>::scalar_t;
@@ -261,31 +261,31 @@ concept ValidLineSegment =
 
       { const_line.start() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
       { const_line.end() } -> std::convertible_to<const mundy::geom::Point<typename std::remove_cv_t<LineSegmentType>::scalar_t>>;
-  };  // ValidLineSegment
+  };  // ValidLineSegmentType
 
-static_assert(ValidLineSegment<LineSegment<float>> && ValidLineSegment<const LineSegment<float>> &&
-              ValidLineSegment<LineSegment<double>> && ValidLineSegment<const LineSegment<double>>,
-              "LineSegment should satisfy the ValidLineSegment concept");
+static_assert(ValidLineSegmentType<LineSegment<float>> && ValidLineSegmentType<const LineSegment<float>> &&
+              ValidLineSegmentType<LineSegment<double>> && ValidLineSegmentType<const LineSegment<double>>,
+              "LineSegment should satisfy the ValidLineSegmentType concept");
 
-//! \name Non-member functions for ValidLineSegment objects
+//! \name Non-member functions for ValidLineSegmentType objects
 //@{
 
 /// \brief Equality operator
-template <ValidLineSegment LineSegmentType1, ValidLineSegment LineSegmentType2>
+template <ValidLineSegmentType LineSegmentType1, ValidLineSegmentType LineSegmentType2>
 KOKKOS_FUNCTION
 bool operator==(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
   return (line_segment1.start() == line_segment2.start()) && (line_segment1.end() == line_segment2.end());
 }
 
 /// \brief Inequality operator
-template <ValidLineSegment LineSegmentType1, ValidLineSegment LineSegmentType2>
+template <ValidLineSegmentType LineSegmentType1, ValidLineSegmentType LineSegmentType2>
 KOKKOS_FUNCTION
 bool operator!=(const LineSegmentType1& line_segment1, const LineSegmentType2& line_segment2) {
   return (line_segment1.start() != line_segment2.start()) || (line_segment1.end() != line_segment2.end());
 }
 
 /// \brief OStream operator
-template <ValidLineSegment LineSegmentType>
+template <ValidLineSegmentType LineSegmentType>
 std::ostream& operator<<(std::ostream& os, const LineSegmentType& line_segment) {
   os << "{" << line_segment.start() << "->" << line_segment.end() << "}";
   return os;

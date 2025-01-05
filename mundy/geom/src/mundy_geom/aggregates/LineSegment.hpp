@@ -17,8 +17,8 @@
 // **********************************************************************************************************************
 // @HEADER
 
-#ifndef MUNDY_GEOM_AGGREGATES_LINE_HPP_
-#define MUNDY_GEOM_AGGREGATES_LINE_HPP_
+#ifndef MUNDY_GEOM_AGGREGATES_LINESEGMENT_HPP_
+#define MUNDY_GEOM_AGGREGATES_LINESEGMENT_HPP_
 
 // Kokkos
 #include <Kokkos_Core.hpp>  // for Kokkos::initialize, Kokkos::finalize, Kokkos::Timer
@@ -50,7 +50,7 @@ struct LineSegmentData {
   using scalar_t = Scalar;
   using node_coords_data_t = CenterDataType;
 
-  stk::topology::rank_t line_rank;
+  stk::topology::rank_t line_segment_rank;
   node_coords_data_t& node_coords_data;
 };  // LineSegmentData
 
@@ -64,7 +64,7 @@ struct NgpLineSegmentData {
   using scalar_t = Scalar;
   using node_coords_data_t = CenterDataType;
 
-  stk::topology::rank_t line_rank;
+  stk::topology::rank_t line_segment_rank;
   node_coords_data_t& node_coords_data;
 };  // NgpLineSegmentData
 
@@ -73,19 +73,19 @@ struct NgpLineSegmentData {
 /// This function creates a LineSegmentData object given its rank and data (be they shared or field data)
 /// and is used to automatically deduce the template parameters.
 template <typename Scalar, typename CenterDataType>
-auto create_line_data(stk::topology::rank_t line_rank, CenterDataType& node_coords_data) {
+auto create_line_segment_data(stk::topology::rank_t line_segment_rank, CenterDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.entity_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                       "The node_coords data must be a field of NODE_RANK");
-  return LineSegmentData<Scalar, CenterDataType>{line_rank, node_coords_data};
+  return LineSegmentData<Scalar, CenterDataType>{line_segment_rank, node_coords_data};
 }
 
 /// \brief A helper function to create a NgpLineSegmentData object
-/// See the discussion for create_line_data for more information. Only difference is NgpFields over Fields.
+/// See the discussion for create_line_segment_data for more information. Only difference is NgpFields over Fields.
 template <typename Scalar, typename CenterDataType>
-auto create_ngp_line_data(stk::topology::rank_t line_rank, CenterDataType& node_coords_data) {
+auto create_ngp_line_segment_data(stk::topology::rank_t line_segment_rank, CenterDataType& node_coords_data) {
   MUNDY_THROW_ASSERT(node_coords_data.get_rank() == stk::topology::NODE_RANK, std::invalid_argument,
                       "The node_coords data must be a field of NODE_RANK");
-  return NgpLineSegmentData<Scalar, CenterDataType>{line_rank, node_coords_data};
+  return NgpLineSegmentData<Scalar, CenterDataType>{line_segment_rank, node_coords_data};
 }
 
 /// \brief A concept to check if a type provides the same data as LineSegmentData
@@ -94,7 +94,7 @@ concept ValidDefaultLineSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::Field<typename Agg::scalar_t>>;
-  { agg.line_rank } -> std::convertible_to<stk::topology::rank_t>;
+  { agg.line_segment_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultLineSegmentDataType
 
@@ -104,7 +104,7 @@ concept ValidDefaultNgpLineSegmentDataType = requires(Agg agg) {
   typename Agg::scalar_t;
   typename Agg::node_coords_data_t;
   std::is_same_v<std::decay_t<typename Agg::node_coords_data_t>, stk::mesh::NgpField<typename Agg::scalar_t>>;
-  { agg.line_rank } -> std::convertible_to<stk::topology::rank_t>;
+  { agg.line_segment_rank } -> std::convertible_to<stk::topology::rank_t>;
   { agg.node_coords_data } -> std::convertible_to<typename Agg::node_coords_data_t&>;
 };  // ValidDefaultNgpLineSegmentDataType
 
@@ -121,12 +121,11 @@ static_assert(ValidDefaultNgpLineSegmentDataType<NgpLineSegmentData<float, stk::
 template <ValidDefaultLineSegmentDataType LineSegmentDataType>
 auto get_updated_ngp_data(LineSegmentDataType data) {
   using scalar_t = typename LineSegmentDataType::scalar_t;
-  using node_coords_data_t = typename LineSegmentDataType::node_coords_data_t;
-  return create_ngp_line_data<scalar_t>(data.line_rank,  //
+  return create_ngp_line_segment_data<scalar_t>(data.line_segment_rank,  //
                                         stk::mesh::get_updated_ngp_field<scalar_t>(data.node_coords_data));
 }
 
-/// \brief A traits class to provide abstracted access to a NODE_RANK line's data via an aggregate
+/// \brief A traits class to provide abstracted access to a NODE_RANK line_segment's data via an aggregate
 ///
 /// By default, this class is compatible with LineSegmentData or any class the meets the ValidDefaultLineSegmentDataType concept.
 /// Users can specialize this class to support other aggregate types.
@@ -141,12 +140,12 @@ struct NodeLineSegmentDataTraits {
   using scalar_t = typename Agg::scalar_t;
   using node_coords_data_t = typename Agg::node_coords_data_t;
 
-  static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_node) {
-    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_node);
+  static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_segment_node) {
+    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_segment_node);
   }
 };  // NodeLineSegmentDataTraits
 
-/// \brief A traits class to provide abstracted access to a line's data via an aggregate
+/// \brief A traits class to provide abstracted access to a line_segment's data via an aggregate
 template <typename Agg>
 struct LineSegmentDataTraits {
   static_assert(
@@ -158,12 +157,12 @@ struct LineSegmentDataTraits {
   using scalar_t = typename Agg::scalar_t;
   using node_coords_data_t = typename Agg::node_coords_data_t;
 
-  static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_node) {
-    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_node);
+  static decltype(auto) node_coords(Agg agg, stk::mesh::Entity line_segment_node) {
+    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_segment_node);
   }
 };  // LineSegmentDataTraits
 
-/// \brief A traits class to provide abstracted access to a line's data via an NGP-compatible aggregate
+/// \brief A traits class to provide abstracted access to a line_segment's data via an NGP-compatible aggregate
 /// See the discussion for LineSegmentDataTraits for more information. Only difference is Ngp-compatible data.
 template <typename Agg>
 struct NgpLineSegmentDataTraits {
@@ -177,14 +176,14 @@ struct NgpLineSegmentDataTraits {
   using node_coords_data_t = typename Agg::node_coords_data_t;
 
   KOKKOS_INLINE_FUNCTION
-  static decltype(auto) node_coords(Agg agg, stk::mesh::FastMeshIndex line_index) {
-    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_index);
+  static decltype(auto) node_coords(Agg agg, stk::mesh::FastMeshIndex line_segment_index) {
+    return mundy::mesh::vector3_field_data(agg.node_coords_data, line_segment_index);
   }
 };  // NgpLineSegmentDataTraits
 
-/// @brief A view of an STK entity meant to represent a line
-/// If the line_rank is NODE_RANK, then the line is just a node entity with node node_coords and direction.
-/// If the line_rank is ELEM_RANK, then the line is a particle entity with node node_coords and element direction.
+/// @brief A view of an STK entity meant to represent a line_segment
+/// If the line_segment_rank is NODE_RANK, then the line_segment is just a node entity with node node_coords and direction.
+/// If the line_segment_rank is ELEM_RANK, then the line_segment is a particle entity with node node_coords and element direction.
 template <typename LineSegmentDataType>
 class ElemLineSegmentView {
  public:
@@ -192,33 +191,44 @@ class ElemLineSegmentView {
   using scalar_t = typename data_access_t::scalar_t;
   using point_t = decltype(data_access_t::node_coords(std::declval<LineSegmentDataType>(), std::declval<stk::mesh::Entity>()));
 
-  ElemLineSegmentView(const stk::mesh::BulkData& bulk_data, LineSegmentDataType data, stk::mesh::Entity line)
-      : data_(data), line_(line), node_(bulk_data.begin_nodes(line_)[0]) {
+  ElemLineSegmentView(const stk::mesh::BulkData& bulk_data, LineSegmentDataType data, stk::mesh::Entity line_segment)
+      : data_(data), line_segment_(line_segment), start_node_(bulk_data.begin_nodes(line_segment_)[0]), end_node_(bulk_data.begin_nodes(line_segment_)[1]) {
     MUNDY_THROW_ASSERT(
-        bulk_data.entity_rank(line_) == stk::topology::ELEM_RANK && data_.line_rank == stk::topology::ELEM_RANK,
-        std::invalid_argument, "Both the line entity rank and the line data rank must be ELEM_RANK");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(line_), std::invalid_argument, "The given line entity is not valid");
-    MUNDY_THROW_ASSERT(bulk_data.num_nodes(line_) == 1, std::invalid_argument,
-                       "The given line entity must have exactly one node");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(node_), std::invalid_argument,
-                       "The node entity associated with the line is not valid");
+        bulk_data.entity_rank(line_segment_) == stk::topology::ELEM_RANK && data_.line_segment_rank == stk::topology::ELEM_RANK,
+        std::invalid_argument, "Both the line_segment entity rank and the line_segment data rank must be ELEM_RANK");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(line_segment_), std::invalid_argument, "The given line_segment entity is not valid");
+    MUNDY_THROW_ASSERT(bulk_data.num_nodes(line_segment_) == 2, std::invalid_argument,
+                       "The given line_segment entity must have exactly one node");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(start_node_), std::invalid_argument,
+                       "The start node entity associated with the line_segment is not valid");
+    MUNDY_THROW_ASSERT(bulk_data.is_valid(end_node_), std::invalid_argument,
+                        "The end node entity associated with the line_segment is not valid");
   }
 
-  decltype(auto) node_coords() {
-    return data_access_t::node_coords(data_, node_);
+  decltype(auto) start() {
+    return data_access_t::node_coords(data_, start_node_);
   }
 
-  decltype(auto) node_coords() const {
-    return data_access_t::node_coords(data_, node_);
+  decltype(auto) start() const {
+    return data_access_t::node_coords(data_, start_node_);
+  }
+
+  decltype(auto) end() {
+    return data_access_t::node_coords(data_, end_node_);
+  }
+
+  decltype(auto) end() const {
+    return data_access_t::node_coords(data_, end_node_);
   }
 
  private:
   LineSegmentDataType data_;
-  stk::mesh::Entity line_;
-  stk::mesh::Entity node_;
+  stk::mesh::Entity line_segment_;
+  stk::mesh::Entity start_node_;
+  stk::mesh::Entity end_node_;
 };  // ElemLineSegmentView
 
-/// @brief An ngp-compatible view of an ELEM_RANK STK entity meant to represent a line
+/// @brief An ngp-compatible view of an ELEM_RANK STK entity meant to represent a line_segment
 /// See the discussion for ElemLineSegmentView for more information. The only difference is ngp-compatible data access.
 template <typename NgpLineSegmentDataType>
 class NgpElemLineSegmentView {
@@ -228,86 +238,39 @@ class NgpElemLineSegmentView {
   using point_t = decltype(data_access_t::node_coords(std::declval<NgpLineSegmentDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
 
   KOKKOS_INLINE_FUNCTION
-  NgpElemLineSegmentView(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data, stk::mesh::FastMeshIndex line_index)
+  NgpElemLineSegmentView(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data, stk::mesh::FastMeshIndex line_segment_index)
       : data_(data),
-        line_index_(line_index),
-        node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(data_.line_rank, line_index_)[0])) {
+        line_segment_index_(line_segment_index),
+        start_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(data_.line_segment_rank, line_segment_index_)[0])),
+        end_node_index_(ngp_mesh.fast_mesh_index(ngp_mesh.get_nodes(data_.line_segment_rank, line_segment_index_)[1])) {
   }
 
   KOKKOS_INLINE_FUNCTION
-  decltype(auto) node_coords() {
-    return data_access_t::node_coords(data_, node_index_);
+  decltype(auto) start() {
+    return data_access_t::node_coords(data_, start_node_index_);
   }
 
   KOKKOS_INLINE_FUNCTION
-  decltype(auto) node_coords() const {
-    return data_access_t::node_coords(data_, node_index_);
+  decltype(auto) start() const {
+    return data_access_t::node_coords(data_, start_node_index_);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) end() {
+    return data_access_t::node_coords(data_, end_node_index_);
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  decltype(auto) end() const {
+    return data_access_t::node_coords(data_, end_node_index_);
   }
 
  private:
   NgpLineSegmentDataType data_;
-  stk::mesh::FastMeshIndex line_index_;
-  stk::mesh::FastMeshIndex node_index_;
+  stk::mesh::FastMeshIndex line_segment_index_;
+  stk::mesh::FastMeshIndex start_node_index_;
+  stk::mesh::FastMeshIndex end_node_index_;
 };  // NgpElemLineSegmentView
-
-/// @brief A view of a NODE_RANK STK entity meant to represent a line
-template <typename LineSegmentDataType>
-class NodeLineSegmentView {
- public:
-  using data_access_t = LineSegmentDataTraits<LineSegmentDataType>;
-  using scalar_t = typename data_access_t::scalar_t;
-  using point_t = decltype(data_access_t::node_coords(std::declval<LineSegmentDataType>(), std::declval<stk::mesh::Entity>()));
-
-  NodeLineSegmentView([[maybe_unused]] const stk::mesh::BulkData& bulk_data, LineSegmentDataType data, stk::mesh::Entity line)
-      : data_(data), line_(line) {
-    MUNDY_THROW_ASSERT(
-        bulk_data.entity_rank(line_) == stk::topology::NODE_RANK && data_.line_rank == stk::topology::NODE_RANK,
-        std::invalid_argument, "Both the line entity rank and the line data rank must be NODE_RANK");
-    MUNDY_THROW_ASSERT(bulk_data.is_valid(line_), std::invalid_argument, "The given line entity is not valid");
-  }
-
-  decltype(auto) node_coords() {
-    return data_access_t::node_coords(data_, line_);
-  }
-
-  decltype(auto) node_coords() const {
-    return data_access_t::node_coords(data_, line_);
-  }
-
- private:
-  LineSegmentDataType data_;
-  stk::mesh::Entity line_;
-};  // NodeLineSegmentView
-
-/// @brief An ngp-compatible view of a NODE_RANK STK entity meant to represent a line
-/// See the discussion for NodeLineSegmentView for more information. The only difference is ngp-compatible data access.
-template <typename NgpLineSegmentDataType>
-class NgpNodeLineSegmentView {
- public:
-  using data_access_t = NgpLineSegmentDataTraits<NgpLineSegmentDataType>;
-  using scalar_t = typename data_access_t::scalar_t;
-  using point_t = decltype(data_access_t::node_coords(std::declval<NgpLineSegmentDataType>(), std::declval<stk::mesh::FastMeshIndex>()));
-
-  KOKKOS_INLINE_FUNCTION
-  NgpNodeLineSegmentView([[maybe_unused]] stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data,
-                   stk::mesh::FastMeshIndex line_index)
-      : data_(data), line_index_(line_index) {
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) node_coords() {
-    return data_access_t::node_coords(data_, line_index_);
-  }
-
-  KOKKOS_INLINE_FUNCTION
-  decltype(auto) node_coords() const {
-    return data_access_t::node_coords(data_, line_index_);
-  }
-
- private:
-  NgpLineSegmentDataType data_;
-  stk::mesh::FastMeshIndex line_index_;
-};  // NgpNodeLineSegmentView
 
 static_assert(ValidLineSegmentType<ElemLineSegmentView<LineSegmentData<float, stk::mesh::Field<float>>>> &&
               ValidLineSegmentType<ElemLineSegmentView<LineSegmentData<float, const stk::mesh::Field<float>>>> &&
@@ -315,36 +278,17 @@ static_assert(ValidLineSegmentType<ElemLineSegmentView<LineSegmentData<float, st
               ValidLineSegmentType<NgpElemLineSegmentView<NgpLineSegmentData<float, const stk::mesh::NgpField<float>>>>,
               "ElemLineSegmentView and NgpElemLineSegmentView must be valid LineSegment types");
 
-static_assert(ValidLineSegmentType<NodeLineSegmentView<LineSegmentData<float, stk::mesh::Field<float>>>> &&
-              ValidLineSegmentType<NodeLineSegmentView<LineSegmentData<float, const stk::mesh::Field<float>>>>&&
-              ValidLineSegmentType<NgpNodeLineSegmentView<NgpLineSegmentData<float, stk::mesh::NgpField<float>>>> &&
-              ValidLineSegmentType<NgpNodeLineSegmentView<NgpLineSegmentData<float, const stk::mesh::NgpField<float>>>>,
-              "NodeLineSegmentView and NgpNodeLineSegmentView must be valid LineSegment types");
-
 /// \brief A helper function to create a ElemLineSegmentView object with type deduction
 template <typename LineSegmentDataType>
-auto create_elem_line_view(const stk::mesh::BulkData& bulk_data, LineSegmentDataType& data, stk::mesh::Entity line) {
-  return ElemLineSegmentView<LineSegmentDataType>(bulk_data, data, line);
+auto create_elem_line_segment_view(const stk::mesh::BulkData& bulk_data, LineSegmentDataType& data, stk::mesh::Entity line_segment) {
+  return ElemLineSegmentView<LineSegmentDataType>(bulk_data, data, line_segment);
 }
 
 /// \brief A helper function to create a NgpElemLineSegmentView object with type deduction
 template <typename NgpLineSegmentDataType>
-auto create_ngp_elem_line_view(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data,
-                                stk::mesh::FastMeshIndex line_index) {
-  return NgpElemLineSegmentView<NgpLineSegmentDataType>(ngp_mesh, data, line_index);
-}
-
-/// \brief A helper function to create a NodeLineSegmentView object with type deduction
-template <typename LineSegmentDataType>
-auto create_node_line_view(const stk::mesh::BulkData& bulk_data, LineSegmentDataType& data, stk::mesh::Entity line) {
-  return NodeLineSegmentView<LineSegmentDataType>(bulk_data, data, line);
-}
-
-/// \brief A helper function to create a NgpNodeLineSegmentView object with type deduction
-template <typename NgpLineSegmentDataType>
-auto create_ngp_node_line_view(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data,
-                                stk::mesh::FastMeshIndex line_index) {
-  return NgpNodeLineSegmentView<NgpLineSegmentDataType>(ngp_mesh, data, line_index);
+auto create_ngp_elem_line_segment_view(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataType data,
+                                stk::mesh::FastMeshIndex line_segment_index) {
+  return NgpElemLineSegmentView<NgpLineSegmentDataType>(ngp_mesh, data, line_segment_index);
 }
 //@}
 
@@ -352,4 +296,4 @@ auto create_ngp_node_line_view(stk::mesh::NgpMesh ngp_mesh, NgpLineSegmentDataTy
 
 }  // namespace mundy
 
-#endif  // MUNDY_GEOM_AGGREGATES_LINE_HPP_
+#endif  // MUNDY_GEOM_AGGREGATES_LINESEGMENT_HPP_
